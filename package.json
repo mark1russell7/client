@@ -56,7 +56,8 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "rm -rf dist",
-    "watch": "tsc -b --watch"
+    "watch": "tsc -b --watch",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "ws": "^8.18.3"
