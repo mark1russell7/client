@@ -1,0 +1,228 @@
+/**
+ * Universal Client
+ *
+ * Protocol-agnostic RPC client with middleware composition.
+ * Works with any transport: HTTP, gRPC, WebSocket, or local.
+ */
+
+import type {
+  Transport,
+  Method,
+  Metadata,
+  Message,
+  ClientMiddleware,
+  ClientContext,
+  ClientRunner,
+  ClientOptions,
+} from "./types";
+import { ClientError } from "./types";
+import { compose } from "../middleware/compose";
+
+/**
+ * Generate a unique message ID.
+ */
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+/**
+ * Universal Client for protocol-agnostic RPC.
+ *
+ * Features:
+ * - Works with any transport (HTTP, gRPC, WebSocket, local)
+ * - Middleware composition (retry, cache, timeout, custom)
+ * - Stream-first API (single response = stream with 1 item)
+ * - Type-safe request/response handling
+ *
+ * @example
+ * ```typescript
+ * // HTTP client
+ * const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) });
+ * client.use(retryMiddleware());
+ * client.use(cacheMiddleware());
+ *
+ * const user = await client.call(
+ *   { service: "users", operation: "get" },
+ *   { id: 123 }
+ * );
+ *
+ * // Streaming
+ * for await (const event of client.stream(
+ *   { service: "events", operation: "watch" },
+ *   { topic: "orders" }
+ * )) {
+ *   console.log(event);
+ * }
+ * ```
+ */
+export class Client {
+  private readonly transport: Transport;
+  private readonly middleware: ClientMiddleware[] = [];
+  private readonly defaultMetadata: Metadata;
+  private readonly throwOnError: boolean;
+
+  constructor(options: ClientOptions | Transport) {
+    // Support both new Client(transport) and new Client({ transport, ... })
+    if ("send" in options && typeof options.send === "function") {
+      // Direct transport passed - narrow to Transport type
+      const transport = options as Transport;
+      this.transport = transport;
+      this.defaultMetadata = {};
+      this.throwOnError = true;
+    } else {
+      // Options object - narrow to ClientOptions type
+      const opts = options as ClientOptions;
+      this.transport = opts.transport;
+      this.defaultMetadata = opts.defaultMetadata || {};
+      this.throwOnError = opts.throwOnError !== false;
+    }
+  }
+
+  /**
+   * Add middleware to the client.
+   *
+   * Middleware is composed in the order added (onion model):
+   * - First added = outermost layer
+   * - Last added = innermost layer (closest to transport)
+   *
+   * @param middleware - Middleware function
+   * @returns this for chaining
+   *
+   * @example
+   * ```typescript
+   * client
+   *   .use(timeoutMiddleware())   // Outer: handles timeouts
+   *   .use(retryMiddleware())     // Middle: handles retries
+   *   .use(cacheMiddleware());    // Inner: handles caching
+   * ```
+   */
+  use(middleware: ClientMiddleware): this {
+    this.middleware.push(middleware);
+    return this;
+  }
+
+  /**
+   * Make a single RPC call (request/response).
+   *
+   * This is a convenience method that takes the first item from the stream.
+   * For streaming responses, use `stream()` instead.
+   *
+   * @param method - Method to invoke
+   * @param payload - Request payload
+   * @param metadata - Optional request metadata (merged with defaults)
+   * @returns Response payload
+   * @throws {ClientError} if response has error status (when throwOnError=true)
+   *
+   * @example
+   * ```typescript
+   * const user = await client.call(
+   *   { service: "users", operation: "get" },
+   *   { id: 123 }
+   * );
+   * ```
+   */
+  async call<TReq, TRes, TMeta extends Metadata = Metadata>(
+    method: Method,
+    payload: TReq,
+    metadata?: TMeta,
+  ): Promise<TRes> {
+    const stream = this.stream(method, payload, metadata);
+    const iterator = stream[Symbol.asyncIterator]();
+
+    const { value, done } = await iterator.next();
+
+    if (done || !value) {
+      throw new Error("No response received from stream");
+    }
+
+    return value as TRes;
+  }
+
+  /**
+   * Make a streaming RPC call.
+   *
+   * Returns an async iterable that yields response payloads.
+   * For single request/response, yields exactly one item.
+   *
+   * @param method - Method to invoke
+   * @param payload - Request payload
+   * @param metadata - Optional request metadata (merged with defaults)
+   * @returns Async iterable of response payloads
+   * @throws {ClientError} if any response item has error status (when throwOnError=true)
+   *
+   * @example
+   * ```typescript
+   * // Streaming response
+   * for await (const event of client.stream(
+   *   { service: "events", operation: "watch" },
+   *   { topic: "orders" }
+   * )) {
+   *   console.log(event);
+   * }
+   * ```
+   */
+  async *stream<TReq, TRes>(
+    method: Method,
+    payload: TReq,
+    metadata?: Metadata,
+  ): AsyncIterable<TRes> {
+    // Create message
+    const message: Message<TReq> = {
+      id: generateId(),
+      method,
+      payload,
+      metadata: {
+        ...this.defaultMetadata,
+        ...metadata,
+      },
+    };
+
+    // Compose middleware chain
+    const runner = this.composeMiddleware<TReq, TRes>();
+
+    // Execute through middleware chain
+    const context: ClientContext<TReq> = { message };
+    const responseStream = runner(context);
+
+    // Yield payloads, handling errors
+    for await (const item of responseStream) {
+      if (item.status.type === "error" && this.throwOnError) {
+        throw new ClientError(item.status, item.id);
+      }
+
+      yield item.payload;
+    }
+  }
+
+  /**
+   * Compose middleware chain using universal middleware composition.
+   *
+   * @returns Composed runner function
+   * @private
+   */
+  private composeMiddleware<TReq, TRes>(): ClientRunner<TReq, TRes> {
+    // Innermost function: call transport
+    const self = this;
+    const transportRunner: ClientRunner<TReq, TRes> = async function* (context: ClientContext<TReq>) {
+      yield* self.transport.send<TReq, TRes>(context.message);
+    };
+
+    // Use universal middleware composition
+    // compose(...middleware, finalRunner) applies middleware in order (onion model)
+    return compose<false>(...(this.middleware as any[]), transportRunner) as ClientRunner<TReq, TRes>;
+  }
+
+  /**
+   * Get transport name.
+   */
+  get transportName(): string {
+    return this.transport.name;
+  }
+
+  /**
+   * Close client and cleanup transport resources.
+   */
+  async close(): Promise<void> {
+    await this.transport.close();
+  }
+}
