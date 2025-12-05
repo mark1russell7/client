@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "client",
+  "version": "0.1.0",
+  "description": "Universal protocol-agnostic RPC client with middleware composition",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./client/*": {
+      "types": "./dist/client/*.d.ts",
+      "import": "./dist/client/*.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js"
+    },
+    "./collections": {
+      "types": "./dist/collections/index.d.ts",
+      "import": "./dist/collections/index.js"
+    },
+    "./collections/*": {
+      "types": "./dist/collections/*.d.ts",
+      "import": "./dist/collections/*.js"
+    },
+    "./adapters/http": {
+      "types": "./dist/adapters/http/index.d.ts",
+      "import": "./dist/adapters/http/index.js"
+    },
+    "./adapters/local": {
+      "types": "./dist/adapters/local/client/index.d.ts",
+      "import": "./dist/adapters/local/client/index.js"
+    },
+    "./adapters/websocket": {
+      "types": "./dist/adapters/websocket/client/index.d.ts",
+      "import": "./dist/adapters/websocket/client/index.js"
+    },
+    "./adapters/mock": {
+      "types": "./dist/adapters/mock/client/index.d.ts",
+      "import": "./dist/adapters/mock/client/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "watch": "tsc -b --watch"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "rpc",
+    "client",
+    "universal",
+    "transport",
+    "middleware",
+    "http",
+    "websocket",
+    "typescript",
+    "collections"
+  ],
+  "license": "MIT"
+}
