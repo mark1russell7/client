@@ -19,19 +19,21 @@ export { defaultUrlPattern, restfulHttpMethodStrategy, postOnlyStrategy, } from 
 export { ErrorSeverity, ErrorCategory } from "./client";
 export { ERROR_REGISTRY, getErrorMetadata, isKnownError, createError, createErrorFromHTTPStatus, createErrorFromException, formatError, } from "./client";
 // ============================================================================
+// Universal Server (protocol-agnostic RPC)
+// ============================================================================
+export { Server } from "./server";
+export { HandlerNotFoundError, ServerError, } from "./server";
+// Server Transports
+export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "./server";
+export { WebSocketServerTransport } from "./server";
+// ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both
 // collections and universal client. Access it directly:
 // import { AsyncMiddleware, SyncMiddleware } from "client/middleware"
 //
 // Note: Universal client middleware is available for explicit import:
-// import { createRetryMiddleware } from "client/client/middleware/retry"
-// import { createCacheMiddleware } from "client/client/middleware/cache"
-// import { createTimeoutMiddleware } from "client/client/middleware/timeout"
-// import { createPaginationMiddleware } from "client/client/middleware/pagination"
-// import { createAuthMiddleware } from "client/client/middleware/auth"
-// import { createTracingMiddleware } from "client/client/middleware/tracing"
-// import { createCircuitBreakerMiddleware } from "client/client/middleware/circuit-breaker"
-// import { createRateLimitMiddleware } from "client/client/middleware/rate-limit"
-// import { createBatchingMiddleware } from "client/client/middleware/batching"
+// import { createRetryMiddleware } from "client/client"
+// import { createCacheMiddleware } from "client/client"
+// etc.
 // ============================================================================
 //# sourceMappingURL=index.js.map
