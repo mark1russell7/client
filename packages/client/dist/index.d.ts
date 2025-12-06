@@ -12,4 +12,12 @@ export type { Transport, Method, Metadata, Message, ResponseItem, Status, Client
 export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError } from "./client";
 export { ErrorSeverity, ErrorCategory } from "./client";
 export { ERROR_REGISTRY, getErrorMetadata, isKnownError, createError, createErrorFromHTTPStatus, createErrorFromException, formatError, } from "./client";
+export { Server } from "./server";
+export type { ServerOptions } from "./server";
+export { HandlerNotFoundError, ServerError, } from "./server";
+export type { ServerRequest, ServerResponse, ServerHandler, ServerMiddleware, ServerContext, ServerRunner, ServerTransport, } from "./server";
+export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "./server";
+export type { HttpServerTransportOptions, HttpUrlStrategy, } from "./server";
+export { WebSocketServerTransport } from "./server";
+export type { WebSocketServerTransportOptions, WebSocketAuthHandler, WebSocketConnectionHandler, WebSocketMessage, } from "./server";
 //# sourceMappingURL=index.d.ts.map
