@@ -3,6 +3,22 @@
  *
  * Protocol-agnostic RPC client with middleware composition.
  * Works with any transport: HTTP, gRPC, WebSocket, or local.
+ *
+ * The Client class is generic over its accumulated context type, enabling
+ * compile-time validation of middleware chains. Each call to `use()` returns
+ * a new type that includes the middleware's provided context.
+ *
+ * @example
+ * ```typescript
+ * // Type accumulates as middleware is added
+ * const client = new Client(transport)
+ *   .use(createRetryMiddleware())     // Client<BaseContext & RetryContext>
+ *   .use(createCacheMiddleware())     // Client<... & CacheContext>
+ *   .use(createAuthMiddleware(...))   // Client<... & AuthContext>
+ *
+ * // Middleware requiring context validates at compile time
+ * client.use(middlewareThatRequiresAuth); // OK if AuthContext is in chain
+ * ```
  */
 import { ClientError } from "./types";
 import { compose } from "../middleware/compose";
@@ -20,14 +36,22 @@ function generateId() {
  * - Middleware composition (retry, cache, timeout, custom)
  * - Stream-first API (single response = stream with 1 item)
  * - Type-safe request/response handling
+ * - **Type-accumulating middleware**: Context types build through `use()` calls
+ *
+ * @typeParam TContext - Accumulated context type from applied middleware.
+ *   Starts as `{}` and grows as middleware is added via `use()`.
  *
  * @example
  * ```typescript
- * // HTTP client
- * const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) });
- * client.use(retryMiddleware());
- * client.use(cacheMiddleware());
+ * // HTTP client with type-accumulating middleware
+ * const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) })
+ *   .use(createRetryMiddleware())    // Client<{} & RetryContext>
+ *   .use(createCacheMiddleware())    // Client<{} & RetryContext & CacheContext>
+ *   .use(createAuthMiddleware({      // Client<... & AuthContext>
+ *     token: "abc123"
+ *   }));
  *
+ * // The client type now carries all middleware context
  * const user = await client.call(
  *   { service: "users", operation: "get" },
  *   { id: 123 }
@@ -71,11 +95,24 @@ export class Client {
      * - First added = outermost layer
      * - Last added = innermost layer (closest to transport)
      *
-     * @param middleware - Middleware function
-     * @returns this for chaining
+     * **Type Accumulation**: When using `TypedClientMiddleware`, the return type
+     * accumulates the middleware's provided context. This enables compile-time
+     * validation of middleware chains.
+     *
+     * @typeParam TProvides - Context type this middleware provides
+     * @typeParam TRequires - Context type this middleware requires (must be subset of TContext)
+     * @param middleware - Middleware function (typed or untyped)
+     * @returns Client with accumulated context type
      *
      * @example
      * ```typescript
+     * // Type accumulation example
+     * const client = new Client(transport)
+     *   .use(createTimeoutMiddleware({ overall: 5000 }))  // Client<TimeoutContext>
+     *   .use(createRetryMiddleware())                     // Client<TimeoutContext & RetryContext>
+     *   .use(createCacheMiddleware());                    // Client<... & CacheContext>
+     *
+     * // Middleware ordering (onion model)
      * client
      *   .use(timeoutMiddleware())   // Outer: handles timeouts
      *   .use(retryMiddleware())     // Middle: handles retries
@@ -84,6 +121,8 @@ export class Client {
      */
     use(middleware) {
         this.middleware.push(middleware);
+        // Cast is safe because we're just adding type information
+        // Runtime behavior is unchanged
         return this;
     }
     /**

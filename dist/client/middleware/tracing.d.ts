@@ -11,7 +11,8 @@
  *
  * Compatible with OpenTelemetry, Jaeger, and custom tracing systems.
  */
-import type { ClientMiddleware } from "../types";
+import type { TypedClientMiddleware } from "../types";
+import type { TracingContext } from "./contexts";
 /**
  * Tracing Configuration
  */
@@ -84,7 +85,7 @@ export interface TracingOptions {
  * })
  * ```
  */
-export declare function createTracingMiddleware(options?: TracingOptions): ClientMiddleware;
+export declare function createTracingMiddleware(options?: TracingOptions): TypedClientMiddleware<TracingContext, {}>;
 /**
  * Create simple tracing middleware with UUID generation
  *
@@ -96,7 +97,7 @@ export declare function createTracingMiddleware(options?: TracingOptions): Clien
  * // Generates: traceId and spanId using crypto.randomUUID() or fallback
  * ```
  */
-export declare function createSimpleTracingMiddleware(): ClientMiddleware;
+export declare function createSimpleTracingMiddleware(): TypedClientMiddleware<TracingContext, {}>;
 /**
  * Extract tracing info from response metadata
  *

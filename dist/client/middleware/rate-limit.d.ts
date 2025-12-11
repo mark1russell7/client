@@ -6,7 +6,8 @@
  *
  * Works with both client and server!
  */
-import type { ClientMiddleware } from "../types";
+import type { ClientMiddleware, TypedClientMiddleware } from "../types";
+import type { RateLimitContext } from "./contexts";
 /**
  * Rate limiting options.
  */
@@ -83,7 +84,7 @@ export declare class RateLimitError extends Error {
  * }));
  * ```
  */
-export declare function createRateLimitMiddleware(options?: RateLimitOptions): ClientMiddleware;
+export declare function createRateLimitMiddleware(options?: RateLimitOptions): TypedClientMiddleware<RateLimitContext, {}>;
 /**
  * Create per-service rate limiter.
  *

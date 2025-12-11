@@ -197,6 +197,66 @@ export type ClientRunner<TReq = unknown, TRes = unknown> = (context: ClientConte
  */
 export type ClientMiddleware<TReq = unknown, TRes = unknown> = (next: ClientRunner<TReq, TRes>) => ClientRunner<TReq, TRes>;
 /**
+ * Typed client middleware with context tracking.
+ *
+ * This type enables compile-time validation of middleware chains by tracking
+ * what context each middleware provides and requires.
+ *
+ * Type parameters:
+ * - TProvides: The context type this middleware adds to the chain
+ * - TRequires: The context type this middleware requires to be present
+ *
+ * When composing middleware with Client.use():
+ * - TProvides is accumulated into the Client's context type
+ * - TRequires is validated against the accumulated context
+ * - If TRequires is not satisfied, TypeScript reports an error
+ *
+ * @example
+ * ```typescript
+ * // Retry middleware provides retry context, requires nothing
+ * type RetryMiddleware = TypedClientMiddleware<RetryContext, {}>;
+ *
+ * // A logging middleware that requires retry context
+ * type RetryLoggerMiddleware = TypedClientMiddleware<{}, RetryContext>;
+ *
+ * // Valid: retry provides what retryLogger requires
+ * client.use(retryMiddleware).use(retryLoggerMiddleware);
+ *
+ * // Error: retryLogger requires retry context not yet provided
+ * client.use(retryLoggerMiddleware);
+ * ```
+ */
+export type TypedClientMiddleware<TProvides = {}, TRequires = {}, TReq = unknown, TRes = unknown> = ClientMiddleware<TReq, TRes> & {
+    /**
+     * Phantom type brand for context this middleware provides.
+     * This property doesn't exist at runtime, only at compile time.
+     */
+    readonly __provides?: TProvides;
+    /**
+     * Phantom type brand for context this middleware requires.
+     * This property doesn't exist at runtime, only at compile time.
+     */
+    readonly __requires?: TRequires;
+};
+/**
+ * Extract the provides type from a typed middleware.
+ */
+export type MiddlewareProvides<T> = T extends TypedClientMiddleware<infer P, any, any, any> ? P : {};
+/**
+ * Extract the requires type from a typed middleware.
+ */
+export type MiddlewareRequires<T> = T extends TypedClientMiddleware<any, infer R, any, any> ? R : {};
+/**
+ * Validate that a middleware's requirements are satisfied by accumulated context.
+ * Returns the middleware type if valid, `never` if invalid.
+ */
+export type ValidateMiddleware<TMiddleware extends TypedClientMiddleware<any, any, any, any>, TAccumulatedContext> = MiddlewareRequires<TMiddleware> extends TAccumulatedContext ? TMiddleware : never;
+/**
+ * Accumulate context type after applying a middleware.
+ * Combines accumulated context with what the middleware provides.
+ */
+export type AccumulateContext<TMiddleware extends TypedClientMiddleware<any, any, any, any>, TAccumulatedContext> = TAccumulatedContext & MiddlewareProvides<TMiddleware>;
+/**
  * Client error thrown when response has error status.
  */
 export declare class ClientError extends Error {

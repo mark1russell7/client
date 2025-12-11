@@ -7,7 +7,8 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext } from "../types";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
+import type { RateLimitContext } from "./contexts";
 
 /**
  * Rate limiting options.
@@ -109,7 +110,7 @@ interface QueuedRequest {
  */
 export function createRateLimitMiddleware(
   options: RateLimitOptions = {}
-): ClientMiddleware {
+): TypedClientMiddleware<RateLimitContext, {}> {
   const {
     maxRequests = 100,
     window = 60000,

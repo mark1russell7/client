@@ -5,7 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem } from "../types";
+import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types";
+import type { RetryContext } from "./contexts";
 
 /**
  * Retry middleware options.
@@ -90,7 +91,7 @@ export interface RetryOptions {
  * }));
  * ```
  */
-export function createRetryMiddleware(options: RetryOptions = {}): ClientMiddleware {
+export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMiddleware<RetryContext, {}> {
   const {
     maxRetries = 3,
     retryDelay = 1000,

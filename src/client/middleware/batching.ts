@@ -7,7 +7,8 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, Message, ResponseItem } from "../types";
+import type { ClientMiddleware, ClientRunner, ClientContext, Message, ResponseItem, TypedClientMiddleware } from "../types";
+import type { BatchingContext } from "./contexts";
 
 /**
  * Batching options.
@@ -205,7 +206,7 @@ class BatchQueue {
  */
 export function createBatchingMiddleware(
   options: BatchingOptions = {}
-): ClientMiddleware {
+): TypedClientMiddleware<BatchingContext, {}> {
   const sameServiceOnly = options.sameServiceOnly ?? true;
   const opts = {
     maxBatchSize: options.maxBatchSize ?? 10,

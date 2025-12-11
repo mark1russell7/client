@@ -4,7 +4,8 @@
  * Protocol-agnostic caching with LRU eviction and TTL expiration.
  * Works with any transport!
  */
-import type { ClientMiddleware, ResponseItem, Method } from "../types";
+import type { ResponseItem, Method, TypedClientMiddleware } from "../types";
+import type { CacheContext } from "./contexts";
 /**
  * Cache middleware options.
  */
@@ -89,5 +90,5 @@ export interface CacheStats {
  * }));
  * ```
  */
-export declare function createCacheMiddleware(options?: CacheOptions): ClientMiddleware;
+export declare function createCacheMiddleware(options?: CacheOptions): TypedClientMiddleware<CacheContext, {}>;
 //# sourceMappingURL=cache.d.ts.map

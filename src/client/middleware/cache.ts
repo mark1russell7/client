@@ -5,7 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem, Method } from "../types";
+import type { ClientRunner, ClientContext, ResponseItem, Method, TypedClientMiddleware } from "../types";
+import type { CacheContext } from "./contexts";
 import { compose, lruMap, ttlMap, hashMap } from "../../collections";
 import type { MapLike } from "../../collections/interfaces/map";
 
@@ -121,7 +122,7 @@ function defaultShouldCache(item: ResponseItem<unknown>): boolean {
  * }));
  * ```
  */
-export function createCacheMiddleware(options: CacheOptions = {}): ClientMiddleware {
+export function createCacheMiddleware(options: CacheOptions = {}): TypedClientMiddleware<CacheContext, {}> {
   const {
     ttl = 60000,
     capacity = 100,

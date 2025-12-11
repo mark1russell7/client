@@ -4,7 +4,8 @@
  * Protocol-agnostic retry with exponential backoff and jitter.
  * Works with any transport!
  */
-import type { ClientMiddleware, ResponseItem } from "../types";
+import type { ResponseItem, TypedClientMiddleware } from "../types";
+import type { RetryContext } from "./contexts";
 /**
  * Retry middleware options.
  */
@@ -85,5 +86,5 @@ export interface RetryOptions {
  * }));
  * ```
  */
-export declare function createRetryMiddleware(options?: RetryOptions): ClientMiddleware;
+export declare function createRetryMiddleware(options?: RetryOptions): TypedClientMiddleware<RetryContext, {}>;
 //# sourceMappingURL=retry.d.ts.map

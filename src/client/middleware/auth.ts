@@ -10,7 +10,8 @@
  * - Local: Passed directly to handler
  */
 
-import type { ClientMiddleware } from "../types";
+import type { TypedClientMiddleware } from "../types";
+import type { AuthContext } from "./contexts";
 
 /**
  * Authentication Options
@@ -70,7 +71,7 @@ export interface AuthOptions {
  */
 export function createAuthMiddleware(
   authOptionsOrFn: AuthOptions | (() => AuthOptions)
-): ClientMiddleware {
+): TypedClientMiddleware<AuthContext, {}> {
   return (next) => async function* (context) {
     // Get auth options (static or dynamic)
     const authOptions = typeof authOptionsOrFn === "function"
@@ -99,7 +100,7 @@ export function createAuthMiddleware(
  */
 export function createBearerAuthMiddleware(
   tokenOrFn: string | (() => string)
-): ClientMiddleware {
+): TypedClientMiddleware<AuthContext, {}> {
   return createAuthMiddleware(
     typeof tokenOrFn === "function"
       ? () => ({ token: tokenOrFn() })
@@ -118,7 +119,7 @@ export function createBearerAuthMiddleware(
  */
 export function createApiKeyAuthMiddleware(
   apiKeyOrFn: string | (() => string)
-): ClientMiddleware {
+): TypedClientMiddleware<AuthContext, {}> {
   return createAuthMiddleware(
     typeof apiKeyOrFn === "function"
       ? () => ({ apiKey: apiKeyOrFn() })
