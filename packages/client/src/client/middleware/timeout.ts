@@ -5,7 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext } from "../types";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
+import type { TimeoutContext } from "./contexts";
 
 /**
  * Timeout middleware options.
@@ -125,7 +126,7 @@ function composeAbortSignals(...signals: (AbortSignal | undefined)[]): {
  * client.use(createOverallTimeoutMiddleware({ overall: 5000 })); // 5 seconds total
  * ```
  */
-export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): ClientMiddleware {
+export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): TypedClientMiddleware<TimeoutContext, {}> {
   const { overall, message = "Overall request timeout" } = options;
 
   if (!overall) {
@@ -180,7 +181,7 @@ export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "ov
  * client.use(createTimeoutMiddleware({ perAttempt: 1000 })); // 1 second per attempt
  * ```
  */
-export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): ClientMiddleware {
+export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): TypedClientMiddleware<TimeoutContext, {}> {
   const { perAttempt, message = "Request timeout" } = options;
 
   if (!perAttempt) {
@@ -235,7 +236,7 @@ export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttemp
  * }));
  * ```
  */
-export function createCombinedTimeoutMiddleware(options: TimeoutOptions): ClientMiddleware {
+export function createCombinedTimeoutMiddleware(options: TimeoutOptions): TypedClientMiddleware<TimeoutContext, {}> {
   const { overall, perAttempt, message = "Request timeout" } = options;
 
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {

@@ -10,7 +10,8 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext } from "../types";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
+import type { CircuitBreakerContext } from "./contexts";
 
 /**
  * Circuit breaker state.
@@ -114,7 +115,7 @@ export class CircuitBreakerError extends Error {
  */
 export function createCircuitBreakerMiddleware(
   options: CircuitBreakerOptions = {}
-): ClientMiddleware {
+): TypedClientMiddleware<CircuitBreakerContext, {}> {
   const {
     failureThreshold = 5,
     failureWindow = 10000,

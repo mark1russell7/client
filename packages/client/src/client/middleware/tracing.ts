@@ -12,7 +12,8 @@
  * Compatible with OpenTelemetry, Jaeger, and custom tracing systems.
  */
 
-import type { ClientMiddleware } from "../types";
+import type { TypedClientMiddleware } from "../types";
+import type { TracingContext } from "./contexts";
 
 /**
  * Tracing Configuration
@@ -96,7 +97,7 @@ function generateId(): string {
  */
 export function createTracingMiddleware(
   options: TracingOptions = {}
-): ClientMiddleware {
+): TypedClientMiddleware<TracingContext, {}> {
   const {
     generateTraceId = generateId,
     generateSpanId = generateId,
@@ -147,7 +148,7 @@ export function createTracingMiddleware(
  * // Generates: traceId and spanId using crypto.randomUUID() or fallback
  * ```
  */
-export function createSimpleTracingMiddleware(): ClientMiddleware {
+export function createSimpleTracingMiddleware(): TypedClientMiddleware<TracingContext, {}> {
   const hasRandomUUID = typeof crypto !== "undefined" && "randomUUID" in crypto;
 
   return createTracingMiddleware({

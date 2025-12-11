@@ -4,7 +4,8 @@
  * Protocol-agnostic pagination handling.
  * Works with any transport!
  */
-import type { ClientMiddleware } from "../types";
+import type { TypedClientMiddleware } from "../types";
+import type { PaginationContext } from "./contexts";
 /**
  * Pagination middleware options.
  */
@@ -78,7 +79,7 @@ export interface PaginationOptions {
  * );
  * ```
  */
-export declare function createPaginationMiddleware(options?: PaginationOptions): ClientMiddleware;
+export declare function createPaginationMiddleware(options?: PaginationOptions): TypedClientMiddleware<PaginationContext, {}>;
 /**
  * Helper to create an async iterator for paginated results.
  *

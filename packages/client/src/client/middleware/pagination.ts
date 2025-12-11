@@ -5,7 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext } from "../types";
+import type { ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
+import type { PaginationContext } from "./contexts";
 
 /**
  * Pagination middleware options.
@@ -88,7 +89,7 @@ export interface PaginationOptions {
  */
 export function createPaginationMiddleware(
   options: PaginationOptions = {}
-): ClientMiddleware {
+): TypedClientMiddleware<PaginationContext, {}> {
   const {
     defaultLimit = 50,
     maxLimit = 1000,

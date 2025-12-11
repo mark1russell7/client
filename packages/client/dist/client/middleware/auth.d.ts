@@ -9,7 +9,8 @@
  * - WebSocket: Frame metadata
  * - Local: Passed directly to handler
  */
-import type { ClientMiddleware } from "../types";
+import type { TypedClientMiddleware } from "../types";
+import type { AuthContext } from "./contexts";
 /**
  * Authentication Options
  */
@@ -62,7 +63,7 @@ export interface AuthOptions {
  * }))
  * ```
  */
-export declare function createAuthMiddleware(authOptionsOrFn: AuthOptions | (() => AuthOptions)): ClientMiddleware;
+export declare function createAuthMiddleware(authOptionsOrFn: AuthOptions | (() => AuthOptions)): TypedClientMiddleware<AuthContext, {}>;
 /**
  * Create Bearer token auth middleware (convenience)
  *
@@ -72,7 +73,7 @@ export declare function createAuthMiddleware(authOptionsOrFn: AuthOptions | (() 
  * // Equivalent to: createAuthMiddleware({ token: "abc123" })
  * ```
  */
-export declare function createBearerAuthMiddleware(tokenOrFn: string | (() => string)): ClientMiddleware;
+export declare function createBearerAuthMiddleware(tokenOrFn: string | (() => string)): TypedClientMiddleware<AuthContext, {}>;
 /**
  * Create API key auth middleware (convenience)
  *
@@ -82,5 +83,5 @@ export declare function createBearerAuthMiddleware(tokenOrFn: string | (() => st
  * // Equivalent to: createAuthMiddleware({ apiKey: "xyz789" })
  * ```
  */
-export declare function createApiKeyAuthMiddleware(apiKeyOrFn: string | (() => string)): ClientMiddleware;
+export declare function createApiKeyAuthMiddleware(apiKeyOrFn: string | (() => string)): TypedClientMiddleware<AuthContext, {}>;
 //# sourceMappingURL=auth.d.ts.map

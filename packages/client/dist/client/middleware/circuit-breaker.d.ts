@@ -9,7 +9,8 @@
  *
  * Works with both client and server!
  */
-import type { ClientMiddleware } from "../types";
+import type { ClientMiddleware, TypedClientMiddleware } from "../types";
+import type { CircuitBreakerContext } from "./contexts";
 /**
  * Circuit breaker state.
  */
@@ -87,7 +88,7 @@ export declare class CircuitBreakerError extends Error {
  * }));
  * ```
  */
-export declare function createCircuitBreakerMiddleware(options?: CircuitBreakerOptions): ClientMiddleware;
+export declare function createCircuitBreakerMiddleware(options?: CircuitBreakerOptions): TypedClientMiddleware<CircuitBreakerContext, {}>;
 /**
  * Get circuit breaker statistics.
  *

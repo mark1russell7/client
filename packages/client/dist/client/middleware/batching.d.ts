@@ -6,7 +6,8 @@
  *
  * Works with both client and server!
  */
-import type { ClientMiddleware, Message } from "../types";
+import type { ClientMiddleware, Message, TypedClientMiddleware } from "../types";
+import type { BatchingContext } from "./contexts";
 /**
  * Batching options.
  */
@@ -71,7 +72,7 @@ export interface BatchingStats {
  * }));
  * ```
  */
-export declare function createBatchingMiddleware(options?: BatchingOptions): ClientMiddleware;
+export declare function createBatchingMiddleware(options?: BatchingOptions): TypedClientMiddleware<BatchingContext, {}>;
 /**
  * Get batching statistics.
  *

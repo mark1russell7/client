@@ -4,7 +4,8 @@
  * Protocol-agnostic timeout handling with per-request and overall timeouts.
  * Works with any transport!
  */
-import type { ClientMiddleware } from "../types";
+import type { TypedClientMiddleware } from "../types";
+import type { TimeoutContext } from "./contexts";
 /**
  * Timeout middleware options.
  */
@@ -40,7 +41,7 @@ export interface TimeoutOptions {
  * client.use(createOverallTimeoutMiddleware({ overall: 5000 })); // 5 seconds total
  * ```
  */
-export declare function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): ClientMiddleware;
+export declare function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): TypedClientMiddleware<TimeoutContext, {}>;
 /**
  * Create per-attempt timeout middleware.
  *
@@ -55,7 +56,7 @@ export declare function createOverallTimeoutMiddleware(options: Pick<TimeoutOpti
  * client.use(createTimeoutMiddleware({ perAttempt: 1000 })); // 1 second per attempt
  * ```
  */
-export declare function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): ClientMiddleware;
+export declare function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): TypedClientMiddleware<TimeoutContext, {}>;
 /**
  * Create combined timeout middleware with both overall and per-attempt timeouts.
  *
@@ -70,5 +71,5 @@ export declare function createTimeoutMiddleware(options: Pick<TimeoutOptions, "p
  * }));
  * ```
  */
-export declare function createCombinedTimeoutMiddleware(options: TimeoutOptions): ClientMiddleware;
+export declare function createCombinedTimeoutMiddleware(options: TimeoutOptions): TypedClientMiddleware<TimeoutContext, {}>;
 //# sourceMappingURL=timeout.d.ts.map
