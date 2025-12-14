@@ -139,6 +139,11 @@ export interface PaginationContext {
     };
 }
 /**
+ * Context provided by Zod validation middleware.
+ * Re-exported from validation module for consistency.
+ */
+export type { ZodValidationContext } from "../validation/types";
+/**
  * Base context that all clients start with.
  * Contains the minimum required context for any request.
  */

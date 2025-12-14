@@ -34,6 +34,10 @@ export { createAuthMiddleware, createBearerAuthMiddleware, createApiKeyAuthMiddl
 export type { AuthOptions } from "./middleware/auth";
 export { createTracingMiddleware, createSimpleTracingMiddleware, extractTracingInfo, } from "./middleware/tracing";
 export type { TracingOptions } from "./middleware/tracing";
+export { createZodMiddleware, ValidationError, methodToKey, keyToMethod } from "./validation";
+export type { ZodMiddlewareOptions, ValidationMode, ZodLike, ZodErrorLike, SchemaDefinition, ValidationPhase, ZodValidationContext, } from "./validation";
+export { mergeContext, normalizeCallOptions, isCallOptions } from "./context";
+export type { CallOptions, ClientContextInput, MiddlewareContextFields, SchemaOverride } from "./context";
 export type { Transport, Method, Metadata, Message, ResponseItem, Status, ClientContext, ClientRunner, ClientMiddleware, ClientOptions, } from "./types";
 export { ClientError } from "./types";
 //# sourceMappingURL=index.d.ts.map

@@ -14,31 +14,36 @@
  * - Custom retry predicates
  * - Before/after retry hooks
  * - Respects AbortSignal
+ * - **Context override**: Values from metadata.retry take precedence over options
  *
- * @param options - Retry configuration
+ * @param options - Retry configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createRetryMiddleware({
- *   maxRetries: 3,
- *   retryDelay: 1000,
- *   jitter: 0.1,
- *   onBeforeRetry: async (item, attempt) => {
- *     console.log(`Retrying after ${item.status.message}, attempt ${attempt}`);
- *     return { shouldRetry: true };
- *   }
- * }));
+ * // Create middleware with defaults
+ * client.use(createRetryMiddleware({ maxRetries: 3 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { retry: { maxAttempts: 5 } }
+ * });
  * ```
  */
 export function createRetryMiddleware(options = {}) {
-    const { maxRetries = 3, retryDelay = 1000, jitter = 0.1, shouldRetry: customShouldRetry, onBeforeRetry, onAfterRetry, } = options;
+    const { retryDelay: defaultRetryDelay = 1000, jitter: defaultJitter = 0.1, shouldRetry: customShouldRetry, onBeforeRetry, onAfterRetry, } = options;
+    const defaultMaxRetries = options.maxRetries ?? 3;
     return (next) => {
         return async function* (context) {
+            // Read from metadata first (user-provided context), then fall back to options
+            const maxRetries = context.message.metadata.retry?.maxAttempts
+                ?? defaultMaxRetries;
+            const retryDelay = defaultRetryDelay;
+            const jitter = defaultJitter;
             let attempt = 0;
             let lastItem = null;
             while (attempt <= maxRetries) {
-                // Update retry metadata
+                // Update retry metadata with current state
                 context.message.metadata.retry = {
                     attempt,
                     maxAttempts: maxRetries,

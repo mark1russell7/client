@@ -23,5 +23,9 @@ export { createRateLimitMiddleware, createPerServiceRateLimiter, RateLimitError 
 export { createBatchingMiddleware, createAdaptiveBatchingMiddleware } from "./middleware/batching";
 export { createAuthMiddleware, createBearerAuthMiddleware, createApiKeyAuthMiddleware, } from "./middleware/auth";
 export { createTracingMiddleware, createSimpleTracingMiddleware, extractTracingInfo, } from "./middleware/tracing";
+// Zod Validation Middleware
+export { createZodMiddleware, ValidationError, methodToKey, keyToMethod } from "./validation";
+// Context System
+export { mergeContext, normalizeCallOptions, isCallOptions } from "./context";
 export { ClientError } from "./types";
 //# sourceMappingURL=index.js.map

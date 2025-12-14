@@ -79,6 +79,22 @@ export {
 } from "./middleware/tracing";
 export type { TracingOptions } from "./middleware/tracing";
 
+// Zod Validation Middleware
+export { createZodMiddleware, ValidationError, methodToKey, keyToMethod } from "./validation";
+export type {
+  ZodMiddlewareOptions,
+  ValidationMode,
+  ZodLike,
+  ZodErrorLike,
+  SchemaDefinition,
+  ValidationPhase,
+  ZodValidationContext,
+} from "./validation";
+
+// Context System
+export { mergeContext, normalizeCallOptions, isCallOptions } from "./context";
+export type { CallOptions, ClientContextInput, MiddlewareContextFields, SchemaOverride } from "./context";
+
 // Core Types
 export type {
   Transport,

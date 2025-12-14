@@ -69,21 +69,20 @@ export interface RetryOptions {
  * - Custom retry predicates
  * - Before/after retry hooks
  * - Respects AbortSignal
+ * - **Context override**: Values from metadata.retry take precedence over options
  *
- * @param options - Retry configuration
+ * @param options - Retry configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createRetryMiddleware({
- *   maxRetries: 3,
- *   retryDelay: 1000,
- *   jitter: 0.1,
- *   onBeforeRetry: async (item, attempt) => {
- *     console.log(`Retrying after ${item.status.message}, attempt ${attempt}`);
- *     return { shouldRetry: true };
- *   }
- * }));
+ * // Create middleware with defaults
+ * client.use(createRetryMiddleware({ maxRetries: 3 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { retry: { maxAttempts: 5 } }
+ * });
  * ```
  */
 export declare function createRetryMiddleware(options?: RetryOptions): TypedClientMiddleware<RetryContext, {}>;

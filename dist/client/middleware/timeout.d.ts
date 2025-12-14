@@ -33,12 +33,20 @@ export interface TimeoutOptions {
  * Applies timeout to the entire request, including all retry attempts.
  * If timeout is exceeded, the request is aborted.
  *
- * @param options - Timeout configuration
+ * **Context Override**: metadata.timeout.overall takes precedence over options.
+ *
+ * @param options - Timeout configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createOverallTimeoutMiddleware({ overall: 5000 })); // 5 seconds total
+ * // Create middleware with default timeout
+ * client.use(createOverallTimeoutMiddleware({ overall: 5000 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { timeout: { overall: 10000 } }
+ * });
  * ```
  */
 export declare function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): TypedClientMiddleware<TimeoutContext, {}>;
@@ -48,12 +56,20 @@ export declare function createOverallTimeoutMiddleware(options: Pick<TimeoutOpti
  * Applies timeout to each individual attempt (useful with retry middleware).
  * Each retry gets a fresh timeout.
  *
- * @param options - Timeout configuration
+ * **Context Override**: metadata.timeout.perAttempt takes precedence over options.
+ *
+ * @param options - Timeout configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createTimeoutMiddleware({ perAttempt: 1000 })); // 1 second per attempt
+ * // Create middleware with default timeout
+ * client.use(createTimeoutMiddleware({ perAttempt: 1000 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { timeout: { perAttempt: 2000 } }
+ * });
  * ```
  */
 export declare function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): TypedClientMiddleware<TimeoutContext, {}>;

@@ -15,14 +15,17 @@
  * Adds auth metadata to all requests. The transport layer
  * converts this to protocol-specific format.
  *
+ * **Context Override**: User-provided context (via withContext or per-call)
+ * takes precedence. Middleware options serve as defaults.
+ *
  * @example
  * ```typescript
- * const client = new Client({
- *   transport: new HttpTransport({ baseUrl: "https://api.example.com" }),
- *   middleware: [
- *     createAuthMiddleware({ token: "abc123" }),
- *     createRetryMiddleware({ maxAttempts: 3 }),
- *   ]
+ * // Create middleware with default auth
+ * client.use(createAuthMiddleware({ token: "default-token" }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { auth: { token: "override-token" } }
  * });
  * ```
  *
@@ -54,10 +57,11 @@ export function createAuthMiddleware(authOptionsOrFn) {
         const authOptions = typeof authOptionsOrFn === "function"
             ? authOptionsOrFn()
             : authOptionsOrFn;
-        // Add auth metadata to message
+        // Merge: middleware defaults first, then user-provided context takes precedence
+        // User context is already in metadata.auth from Client.stream()
         context.message.metadata.auth = {
-            ...context.message.metadata.auth,
-            ...authOptions,
+            ...authOptions, // Middleware defaults
+            ...context.message.metadata.auth, // User context overrides
         };
         // Continue middleware chain
         yield* next(context);

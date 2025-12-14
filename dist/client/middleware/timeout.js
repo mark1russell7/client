@@ -79,22 +79,34 @@ function composeAbortSignals(...signals) {
  * Applies timeout to the entire request, including all retry attempts.
  * If timeout is exceeded, the request is aborted.
  *
- * @param options - Timeout configuration
+ * **Context Override**: metadata.timeout.overall takes precedence over options.
+ *
+ * @param options - Timeout configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createOverallTimeoutMiddleware({ overall: 5000 })); // 5 seconds total
+ * // Create middleware with default timeout
+ * client.use(createOverallTimeoutMiddleware({ overall: 5000 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { timeout: { overall: 10000 } }
+ * });
  * ```
  */
 export function createOverallTimeoutMiddleware(options) {
-    const { overall, message = "Overall request timeout" } = options;
-    if (!overall) {
-        // No timeout - passthrough middleware
-        return (next) => next;
-    }
+    const { overall: defaultOverall, message = "Overall request timeout" } = options;
     return (next) => {
         return async function* (context) {
+            // Read from metadata first (user-provided context), then fall back to options
+            const overall = context.message.metadata.timeout?.overall
+                ?? defaultOverall;
+            if (!overall) {
+                // No timeout - passthrough
+                yield* next(context);
+                return;
+            }
             // Create timeout controller
             const timeoutController = new AbortController();
             const timeoutId = setTimeout(() => timeoutController.abort(), overall);
@@ -127,22 +139,34 @@ export function createOverallTimeoutMiddleware(options) {
  * Applies timeout to each individual attempt (useful with retry middleware).
  * Each retry gets a fresh timeout.
  *
- * @param options - Timeout configuration
+ * **Context Override**: metadata.timeout.perAttempt takes precedence over options.
+ *
+ * @param options - Timeout configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createTimeoutMiddleware({ perAttempt: 1000 })); // 1 second per attempt
+ * // Create middleware with default timeout
+ * client.use(createTimeoutMiddleware({ perAttempt: 1000 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { timeout: { perAttempt: 2000 } }
+ * });
  * ```
  */
 export function createTimeoutMiddleware(options) {
-    const { perAttempt, message = "Request timeout" } = options;
-    if (!perAttempt) {
-        // No timeout - passthrough middleware
-        return (next) => next;
-    }
+    const { perAttempt: defaultPerAttempt, message = "Request timeout" } = options;
     return (next) => {
         return async function* (context) {
+            // Read from metadata first (user-provided context), then fall back to options
+            const perAttempt = context.message.metadata.timeout?.perAttempt
+                ?? defaultPerAttempt;
+            if (!perAttempt) {
+                // No timeout - passthrough
+                yield* next(context);
+                return;
+            }
             // Create timeout controller
             const timeoutController = new AbortController();
             const timeoutId = setTimeout(() => timeoutController.abort(), perAttempt);

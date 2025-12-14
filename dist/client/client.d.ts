@@ -18,9 +18,15 @@
  *
  * // Middleware requiring context validates at compile time
  * client.use(middlewareThatRequiresAuth); // OK if AuthContext is in chain
+ *
+ * // Context passing via withContext() and per-call options
+ * const authedClient = client.withContext({ auth: { token: "user-token" } });
+ * await authedClient.call(method, payload, { context: { retry: { maxAttempts: 5 } } });
  * ```
  */
 import type { Transport, Method, Metadata, ClientMiddleware, ClientOptions, TypedClientMiddleware } from "./types";
+import type { CallOptions, ClientContextInput } from "./context";
+import type { ZodLike } from "./validation/types";
 /**
  * Universal Client for protocol-agnostic RPC.
  *
@@ -64,7 +70,60 @@ export declare class Client<TContext = {}> {
     private readonly middleware;
     private readonly defaultMetadata;
     private readonly throwOnError;
+    /**
+     * Context values set via withContext().
+     * Merged with parent context when creating child clients.
+     */
+    private readonly clientContext;
+    /**
+     * Parent client reference (for context inheritance).
+     * When set, middleware and transport are shared, only context differs.
+     */
+    private readonly parent?;
     constructor(options: ClientOptions | Transport);
+    /**
+     * Create a child client from this client (private, for withContext).
+     */
+    private static createChild;
+    /**
+     * Create a child client with additional context.
+     *
+     * Child clients:
+     * - Share the middleware chain (cheap to create)
+     * - Inherit parent context (merged recursively)
+     * - Can override specific context fields
+     *
+     * Context priority (lowest to highest):
+     * 1. Middleware defaults (e.g., maxRetries: 3 from createRetryMiddleware)
+     * 2. Parent client context (full inheritance chain)
+     * 3. This client's context
+     * 4. Per-call context override
+     *
+     * @param context - Context to set/override on the child client
+     * @returns New client with accumulated context
+     *
+     * @example
+     * ```typescript
+     * // Create authenticated child client
+     * const authedClient = client.withContext({
+     *   auth: { token: "user-token" },
+     *   timeout: { overall: 5000 }
+     * });
+     *
+     * // Nested children inherit and can override
+     * const adminClient = authedClient.withContext({
+     *   auth: { token: "admin-token" },  // Overrides parent token
+     *   // timeout inherited from parent
+     * });
+     * ```
+     */
+    withContext<TAdditional extends object = {}>(context: TAdditional & ClientContextInput<TContext>): Client<TContext & TAdditional>;
+    /**
+     * Get effective context by merging entire parent chain.
+     *
+     * @returns Merged context from all ancestors plus this client
+     */
+    private getEffectiveContext;
     /**
      * Add middleware to the client.
      *
@@ -105,19 +164,28 @@ export declare class Client<TContext = {}> {
      *
      * @param method - Method to invoke
      * @param payload - Request payload
-     * @param metadata - Optional request metadata (merged with defaults)
+     * @param options - Call options (context override, metadata, signal, schema)
+     *                  OR legacy Metadata object for backward compatibility
      * @returns Response payload
      * @throws {ClientError} if response has error status (when throwOnError=true)
      *
      * @example
      * ```typescript
+     * // Simple call
      * const user = await client.call(
      *   { service: "users", operation: "get" },
      *   { id: 123 }
      * );
+     *
+     * // With context override
+     * const user = await client.call(
+     *   { service: "users", operation: "get" },
+     *   { id: 123 },
+     *   { context: { timeout: { overall: 10000 } } }
+     * );
      * ```
      */
-    call<TReq, TRes, TMeta extends Metadata = Metadata>(method: Method, payload: TReq, metadata?: TMeta): Promise<TRes>;
+    call<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): Promise<TRes>;
     /**
      * Make a streaming RPC call.
      *
@@ -126,7 +194,8 @@ export declare class Client<TContext = {}> {
      *
      * @param method - Method to invoke
      * @param payload - Request payload
-     * @param metadata - Optional request metadata (merged with defaults)
+     * @param options - Call options (context override, metadata, signal, schema)
+     *                  OR legacy Metadata object for backward compatibility
      * @returns Async iterable of response payloads
      * @throws {ClientError} if any response item has error status (when throwOnError=true)
      *
@@ -139,9 +208,19 @@ export declare class Client<TContext = {}> {
      * )) {
      *   console.log(event);
      * }
+     *
+     * // With context and signal
+     * const controller = new AbortController();
+     * for await (const event of client.stream(
+     *   { service: "events", operation: "watch" },
+     *   { topic: "orders" },
+     *   { context: { timeout: { overall: 30000 } }, signal: controller.signal }
+     * )) {
+     *   console.log(event);
+     * }
      * ```
      */
-    stream<TReq, TRes>(method: Method, payload: TReq, metadata?: Metadata): AsyncIterable<TRes>;
+    stream<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): AsyncIterable<TRes>;
     /**
      * Compose middleware chain using universal middleware composition.
      *
@@ -157,5 +236,51 @@ export declare class Client<TContext = {}> {
      * Close client and cleanup transport resources.
      */
     close(): Promise<void>;
+    /**
+     * Cached reference to Zod middleware for schema registration.
+     */
+    private zodMiddleware;
+    /**
+     * Register a validation schema for a specific method.
+     *
+     * Requires `createZodMiddleware()` to be added via `.use()` first.
+     * Schemas are used to validate request payloads before sending and
+     * response payloads after receiving.
+     *
+     * @param method - Method to register schema for
+     * @param schemas - Input and/or output Zod schemas
+     * @returns this (for chaining)
+     *
+     * @example
+     * ```typescript
+     * import { z } from "zod";
+     *
+     * const client = new Client({ transport })
+     *   .use(createZodMiddleware())
+     *   .schema({ service: "users", operation: "get" }, {
+     *     input: z.object({ id: z.string() }),
+     *     output: z.object({ id: z.string(), name: z.string() }),
+     *   })
+     *   .schema({ service: "users", operation: "create" }, {
+     *     input: UserCreateSchema,
+     *     output: UserSchema,
+     *   });
+     *
+     * // Validation happens automatically on call
+     * const user = await client.call(
+     *   { service: "users", operation: "get" },
+     *   { id: "123" }  // Validated against input schema
+     * );
+     * // Response validated against output schema
+     * ```
+     */
+    schema<TInput extends ZodLike = ZodLike, TOutput extends ZodLike = ZodLike>(method: Method, schemas: {
+        input?: TInput;
+        output?: TOutput;
+    }): this;
+    /**
+     * Find Zod middleware in the middleware chain.
+     */
+    private findZodMiddleware;
 }
 //# sourceMappingURL=client.d.ts.map
