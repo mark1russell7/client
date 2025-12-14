@@ -21,11 +21,21 @@ export { ERROR_REGISTRY, getErrorMetadata, isKnownError, createError, createErro
 // ============================================================================
 // Universal Server (protocol-agnostic RPC)
 // ============================================================================
-export { Server } from "./server";
+export { Server, ProcedureServer, createProcedureServer } from "./server";
 export { HandlerNotFoundError, ServerError, } from "./server";
 // Server Transports
 export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "./server";
 export { WebSocketServerTransport } from "./server";
+// ============================================================================
+// Procedure System - Type-safe RPC with auto-discovery
+// ============================================================================
+export { defineProcedure, defineStub, createProcedure, ProcedureBuilder, namespace, validateProcedure, ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY, pathToKey, keyToPath, createCollectionProcedures, genericCollectionProcedures, collectionModule, 
+// Manual registration helpers
+registerModule, registerProcedures, createAndRegister, } from "./procedures";
+export { flattenRoute, buildResponse, createRoute, mergeRoutes, isBatchRoute, } from "./client/call-types";
+export { RouteResolver, createRouteResolver, isValidRoute, getMissingPaths, matchPath } from "./client/route-resolver";
+export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor";
+export { getMiddlewareOverrides, getRetryOverride, getTimeoutOverride, getCacheOverride, getOverride, mergeOverride, mergeRetryConfig, mergeTimeoutConfig, mergeCacheConfig, createOverrideGetter, hasOverride, setMiddlewareOverrides, clearMiddlewareOverrides, MIDDLEWARE_OVERRIDES_KEY, } from "./client/middleware-override";
 // ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both
 // collections and universal client. Access it directly:

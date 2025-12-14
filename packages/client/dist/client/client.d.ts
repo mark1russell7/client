@@ -27,6 +27,8 @@
 import type { Transport, Method, Metadata, ClientMiddleware, ClientOptions, TypedClientMiddleware } from "./types";
 import type { CallOptions, ClientContextInput } from "./context";
 import type { ZodLike } from "./validation/types";
+import type { Route, CallRequest, CallResponse, StreamingCallResponse } from "./call-types";
+import type { ProcedureRegistry } from "../procedures/registry";
 /**
  * Universal Client for protocol-agnostic RPC.
  *
@@ -282,5 +284,101 @@ export declare class Client<TContext = {}> {
      * Find Zod middleware in the middleware chain.
      */
     private findZodMiddleware;
+    /**
+     * Procedure registry for route resolution.
+     * Uses global registry by default.
+     */
+    private procedureRegistry;
+    /**
+     * Route resolver instance (lazy initialized).
+     */
+    private routeResolver;
+    /**
+     * Batch executor instance (lazy initialized).
+     */
+    private batchExecutor;
+    /**
+     * Set a custom procedure registry for this client.
+     *
+     * @param registry - Procedure registry to use
+     * @returns this (for chaining)
+     */
+    useRegistry(registry: ProcedureRegistry): this;
+    /**
+     * Make a call using the nested route API.
+     *
+     * This method supports:
+     * - Per-call middleware overrides
+     * - Batch execution with configurable strategies
+     * - Type-safe nested route structures
+     *
+     * @param request - Call request with route and options
+     * @returns Response mirroring the route structure
+     *
+     * @example
+     * ```typescript
+     * // Single route call
+     * const result = await client.route({
+     *   route: {
+     *     collections: {
+     *       users: {
+     *         get: { id: "123" }
+     *       }
+     *     }
+     *   }
+     * });
+     * // result.collections.users.get.data = { id: "123", name: "John" }
+     *
+     * // Batched call with middleware overrides
+     * const results = await client.route({
+     *   middlewares: {
+     *     retry: { attempts: 3 },
+     *     timeout: { ms: 5000 }
+     *   },
+     *   batch: { strategy: 'all' },
+     *   route: {
+     *     collections: {
+     *       users: { get: { id: "123" } },
+     *       orders: { list: { userId: "123" } }
+     *     },
+     *     weather: {
+     *       forecast: { city: "NYC", days: 5 }
+     *     }
+     *   }
+     * });
+     * ```
+     */
+    route<TRoute extends Route>(request: CallRequest<TRoute>): Promise<CallResponse<TRoute>>;
+    /**
+     * Make a streaming call using the nested route API.
+     *
+     * Returns an async iterator that yields results as they complete,
+     * plus a promise for the final complete response.
+     *
+     * @param request - Call request (batch.strategy should be 'stream')
+     * @returns Streaming response with iterator and completion promise
+     */
+    routeStream<TRoute extends Route>(request: CallRequest<TRoute>): StreamingCallResponse<TRoute>;
+    /**
+     * Get the route resolver (lazy initialization).
+     */
+    private getRouteResolver;
+    /**
+     * Get the batch executor (lazy initialization).
+     */
+    private getBatchExecutor;
+    /**
+     * Create execution context from call request.
+     */
+    private createExecutionContext;
+    /**
+     * Execute a single procedure call.
+     * Used by BatchExecutor.
+     */
+    private executeProcedure;
+    /**
+     * Convert procedure path to Method object.
+     */
+    private pathToMethod;
 }
 //# sourceMappingURL=client.d.ts.map

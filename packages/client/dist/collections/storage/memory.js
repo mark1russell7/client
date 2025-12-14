@@ -2,22 +2,22 @@
  * In-Memory Storage Implementation
  *
  * Fast, volatile storage using JavaScript Map.
- * All operations are synchronous.
+ * All operations return Promises for interface consistency.
  */
 /**
  * In-memory storage backed by JavaScript Map.
  *
  * Features:
- * - Synchronous operations (no async overhead)
  * - Fast lookups O(1)
  * - No persistence (data lost on restart)
  * - Memory-bound (limited by available RAM)
+ * - Returns Promises for API consistency with remote storage
  *
  * @example
  * ```typescript
  * const storage = new InMemoryStorage<User>();
- * storage.set("123", { id: "123", name: "John" });
- * const user = storage.get("123"); // { id: "123", name: "John" }
+ * await storage.set("123", { id: "123", name: "John" });
+ * const user = await storage.get("123"); // { id: "123", name: "John" }
  * ```
  */
 export class InMemoryStorage {
@@ -26,10 +26,10 @@ export class InMemoryStorage {
     // ═══ Read Operations ═══
     //
     get(id) {
-        return this.data.get(id);
+        return Promise.resolve(this.data.get(id));
     }
     getAll() {
-        return Array.from(this.data.values());
+        return Promise.resolve(Array.from(this.data.values()));
     }
     find(predicate) {
         const results = [];
@@ -38,25 +38,27 @@ export class InMemoryStorage {
                 results.push(item);
             }
         }
-        return results;
+        return Promise.resolve(results);
     }
     has(id) {
-        return this.data.has(id);
+        return Promise.resolve(this.data.has(id));
     }
     size() {
-        return this.data.size;
+        return Promise.resolve(this.data.size);
     }
     //
     // ═══ Write Operations ═══
     //
     set(id, value) {
         this.data.set(id, value);
+        return Promise.resolve();
     }
     delete(id) {
-        return this.data.delete(id);
+        return Promise.resolve(this.data.delete(id));
     }
     clear() {
         this.data.clear();
+        return Promise.resolve();
     }
     //
     // ═══ Bulk Operations ═══
@@ -65,6 +67,7 @@ export class InMemoryStorage {
         for (const [id, value] of items) {
             this.data.set(id, value);
         }
+        return Promise.resolve();
     }
     deleteBatch(ids) {
         let deleted = 0;
@@ -73,7 +76,7 @@ export class InMemoryStorage {
                 deleted++;
             }
         }
-        return deleted;
+        return Promise.resolve(deleted);
     }
     getBatch(ids) {
         const result = new Map();
@@ -83,7 +86,7 @@ export class InMemoryStorage {
                 result.set(id, value);
             }
         }
-        return result;
+        return Promise.resolve(result);
     }
     //
     // ═══ Lifecycle & Metadata ═══
@@ -91,19 +94,20 @@ export class InMemoryStorage {
     close() {
         // No cleanup needed for in-memory storage
         this.data.clear();
+        return Promise.resolve();
     }
     getMetadata() {
         // Rough memory estimation:
         // Each entry has ~overhead of 100 bytes (key string + Map entry overhead)
         const estimatedEntrySize = 100;
         const memoryUsage = this.data.size * estimatedEntrySize;
-        return {
+        return Promise.resolve({
             type: "memory",
             size: this.data.size,
             stats: {
                 memoryUsage,
             },
-        };
+        });
     }
     //
     // ═══ Additional Methods (Map compatibility) ═══

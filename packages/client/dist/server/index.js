@@ -34,6 +34,7 @@
  * ```
  */
 export { Server } from "./server";
+export { ProcedureServer, createProcedureServer } from "./procedure-server";
 export { HandlerNotFoundError, ServerError, } from "./types";
 export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "../adapters/http/server";
 export { WebSocketServerTransport } from "../adapters/websocket/server";

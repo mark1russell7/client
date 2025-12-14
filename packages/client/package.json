@@ -6,6 +6,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "client": "./dist/procedures/cli/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -65,7 +68,8 @@
     "build": "tsc -b",
     "clean": "rm -rf dist",
     "watch": "tsc -b --watch",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "postinstall": "node ./dist/procedures/cli/index.js announce 2>/dev/null || true"
   },
   "dependencies": {
     "ws": "^8.18.3"

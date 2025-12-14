@@ -105,11 +105,11 @@ export declare class HybridStorage<T> implements CollectionStorage<T> {
     private isOnline;
     private stats;
     constructor(remote: ApiStorage<T>, options?: HybridStorageOptions);
-    get(id: string): T | undefined;
-    getAll(): T[];
-    find(predicate: (item: T) => boolean): T[];
-    has(id: string): boolean;
-    size(): number;
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
     set(id: string, value: T): Promise<void>;
     delete(id: string): Promise<boolean>;
     clear(): Promise<void>;
@@ -131,7 +131,7 @@ export declare class HybridStorage<T> implements CollectionStorage<T> {
      */
     sync(): Promise<void>;
     close(): Promise<void>;
-    getMetadata(): StorageMetadata;
+    getMetadata(): Promise<StorageMetadata>;
     /**
      * Resolve conflict between local and remote versions.
      */

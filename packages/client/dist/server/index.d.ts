@@ -35,6 +35,8 @@
  */
 export { Server } from "./server";
 export type { ServerOptions } from "./server";
+export { ProcedureServer, createProcedureServer } from "./procedure-server";
+export type { ProcedureServerOptions, StorageConfig } from "./procedure-server";
 export { HandlerNotFoundError, ServerError, type ServerRequest, type ServerResponse, type ServerHandler, type ServerMiddleware, type ServerContext, type ServerRunner, type ServerTransport, } from "./types";
 export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "../adapters/http/server";
 export type { HttpServerTransportOptions, HttpUrlStrategy, } from "../adapters/http/server";

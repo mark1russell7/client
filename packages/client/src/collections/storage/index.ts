@@ -8,7 +8,7 @@
  */
 
 export type { CollectionStorage, StorageMetadata } from "./interface";
-export { normalizeStorageResult, isStorageAsync } from "./interface";
+export { normalizeStorageResult } from "./interface";
 
 export { InMemoryStorage } from "./memory";
 export { ApiStorage } from "./api";

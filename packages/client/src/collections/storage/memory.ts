@@ -2,7 +2,7 @@
  * In-Memory Storage Implementation
  *
  * Fast, volatile storage using JavaScript Map.
- * All operations are synchronous.
+ * All operations return Promises for interface consistency.
  */
 
 import type { CollectionStorage, StorageMetadata } from "./interface";
@@ -11,16 +11,16 @@ import type { CollectionStorage, StorageMetadata } from "./interface";
  * In-memory storage backed by JavaScript Map.
  *
  * Features:
- * - Synchronous operations (no async overhead)
  * - Fast lookups O(1)
  * - No persistence (data lost on restart)
  * - Memory-bound (limited by available RAM)
+ * - Returns Promises for API consistency with remote storage
  *
  * @example
  * ```typescript
  * const storage = new InMemoryStorage<User>();
- * storage.set("123", { id: "123", name: "John" });
- * const user = storage.get("123"); // { id: "123", name: "John" }
+ * await storage.set("123", { id: "123", name: "John" });
+ * const user = await storage.get("123"); // { id: "123", name: "John" }
  * ```
  */
 export class InMemoryStorage<T> implements CollectionStorage<T> {
@@ -30,69 +30,72 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   // ═══ Read Operations ═══
   //
 
-  get(id: string): T | undefined {
-    return this.data.get(id);
+  get(id: string): Promise<T | undefined> {
+    return Promise.resolve(this.data.get(id));
   }
 
-  getAll(): T[] {
-    return Array.from(this.data.values());
+  getAll(): Promise<T[]> {
+    return Promise.resolve(Array.from(this.data.values()));
   }
 
-  find(predicate: (item: T) => boolean): T[] {
+  find(predicate: (item: T) => boolean): Promise<T[]> {
     const results: T[] = [];
     for (const item of this.data.values()) {
       if (predicate(item)) {
         results.push(item);
       }
     }
-    return results;
+    return Promise.resolve(results);
   }
 
-  has(id: string): boolean {
-    return this.data.has(id);
+  has(id: string): Promise<boolean> {
+    return Promise.resolve(this.data.has(id));
   }
 
-  size(): number {
-    return this.data.size;
+  size(): Promise<number> {
+    return Promise.resolve(this.data.size);
   }
 
   //
   // ═══ Write Operations ═══
   //
 
-  set(id: string, value: T): void {
+  set(id: string, value: T): Promise<void> {
     this.data.set(id, value);
+    return Promise.resolve();
   }
 
-  delete(id: string): boolean {
-    return this.data.delete(id);
+  delete(id: string): Promise<boolean> {
+    return Promise.resolve(this.data.delete(id));
   }
 
-  clear(): void {
+  clear(): Promise<void> {
     this.data.clear();
+    return Promise.resolve();
   }
 
   //
   // ═══ Bulk Operations ═══
   //
 
-  setBatch(items: Array<[string, T]>): void {
+  setBatch(items: Array<[string, T]>): Promise<void> {
     for (const [id, value] of items) {
       this.data.set(id, value);
     }
+    return Promise.resolve();
   }
 
-  deleteBatch(ids: string[]): number {
+  deleteBatch(ids: string[]): Promise<number> {
     let deleted = 0;
     for (const id of ids) {
       if (this.data.delete(id)) {
         deleted++;
       }
     }
-    return deleted;
+    return Promise.resolve(deleted);
   }
 
-  getBatch(ids: string[]): Map<string, T> {
+  getBatch(ids: string[]): Promise<Map<string, T>> {
     const result = new Map<string, T>();
     for (const id of ids) {
       const value = this.data.get(id);
@@ -100,31 +103,32 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
         result.set(id, value);
       }
     }
-    return result;
+    return Promise.resolve(result);
   }
 
   //
   // ═══ Lifecycle & Metadata ═══
   //
 
-  close(): void {
+  close(): Promise<void> {
     // No cleanup needed for in-memory storage
     this.data.clear();
+    return Promise.resolve();
   }
 
-  getMetadata(): StorageMetadata {
+  getMetadata(): Promise<StorageMetadata> {
     // Rough memory estimation:
     // Each entry has ~overhead of 100 bytes (key string + Map entry overhead)
     const estimatedEntrySize = 100;
     const memoryUsage = this.data.size * estimatedEntrySize;
 
-    return {
+    return Promise.resolve({
       type: "memory",
       size: this.data.size,
       stats: {
         memoryUsage,
       },
-    };
+    });
   }
 
   //

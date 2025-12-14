@@ -75,9 +75,9 @@ export class HybridStorage {
     //
     // ═══ Read Operations ═══
     //
-    get(id) {
+    async get(id) {
         // Try local cache first
-        const cached = this.local.get(id);
+        const cached = await this.local.get(id);
         if (cached !== undefined) {
             this.stats.cacheHits++;
             return cached;
@@ -85,18 +85,18 @@ export class HybridStorage {
         this.stats.cacheMisses++;
         return undefined;
     }
-    getAll() {
+    async getAll() {
         // Return local cache
         return this.local.getAll();
     }
-    find(predicate) {
+    async find(predicate) {
         // Search local cache
         return this.local.find(predicate);
     }
-    has(id) {
+    async has(id) {
         return this.local.has(id);
     }
-    size() {
+    async size() {
         return this.local.size();
     }
     //
@@ -104,7 +104,7 @@ export class HybridStorage {
     //
     async set(id, value) {
         // Always write to local immediately
-        this.local.set(id, value);
+        await this.local.set(id, value);
         if (this.options.writeStrategy === "write-through") {
             // Write-through: sync to remote immediately
             try {
@@ -125,7 +125,7 @@ export class HybridStorage {
         }
     }
     async delete(id) {
-        const existed = this.local.delete(id);
+        const existed = await this.local.delete(id);
         if (this.options.writeStrategy === "write-through") {
             try {
                 await this.remote.delete(id);
@@ -145,7 +145,7 @@ export class HybridStorage {
         return existed;
     }
     async clear() {
-        this.local.clear();
+        await this.local.clear();
         if (this.options.writeStrategy === "write-through") {
             try {
                 await this.remote.clear();
@@ -167,7 +167,7 @@ export class HybridStorage {
     // ═══ Bulk Operations ═══
     //
     async setBatch(items) {
-        this.local.setBatch(items);
+        await this.local.setBatch(items);
         if (this.options.writeStrategy === "write-through") {
             try {
                 await this.remote.setBatch(items);
@@ -186,7 +186,7 @@ export class HybridStorage {
         }
     }
     async deleteBatch(ids) {
-        const deleted = this.local.deleteBatch(ids);
+        const deleted = await this.local.deleteBatch(ids);
         if (this.options.writeStrategy === "write-through") {
             try {
                 await this.remote.deleteBatch(ids);
@@ -205,7 +205,7 @@ export class HybridStorage {
         }
         return deleted;
     }
-    async getBatch(ids) {
+    getBatch(ids) {
         return this.local.getBatch(ids);
     }
     //
@@ -225,15 +225,15 @@ export class HybridStorage {
                     console.warn("Item missing id field, skipping:", item);
                     continue;
                 }
-                const localItem = this.local.get(id);
+                const localItem = await this.local.get(id);
                 if (localItem === undefined) {
                     // No local version - just store remote
-                    this.local.set(id, item);
+                    await this.local.set(id, item);
                 }
                 else {
                     // Conflict - resolve according to strategy
                     const resolved = this.resolveConflict(localItem, item);
-                    this.local.set(id, resolved);
+                    await this.local.set(id, resolved);
                     this.stats.conflicts++;
                 }
             }
@@ -296,12 +296,13 @@ export class HybridStorage {
         // Close remote storage
         await this.remote.close();
     }
-    getMetadata() {
+    async getMetadata() {
         const totalOps = this.stats.cacheHits + this.stats.cacheMisses;
         const hitRate = totalOps > 0 ? (this.stats.cacheHits / totalOps) * 100 : 0;
+        const currentSize = await this.local.size();
         return {
             type: "hybrid",
-            size: this.local.size(),
+            size: currentSize,
             stats: {
                 hitRate: Math.round(hitRate * 100) / 100,
                 cacheHits: this.stats.cacheHits,

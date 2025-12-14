@@ -37,6 +37,9 @@
 export { Server } from "./server";
 export type { ServerOptions } from "./server";
 
+export { ProcedureServer, createProcedureServer } from "./procedure-server";
+export type { ProcedureServerOptions, StorageConfig } from "./procedure-server";
+
 export {
   HandlerNotFoundError,
   ServerError,

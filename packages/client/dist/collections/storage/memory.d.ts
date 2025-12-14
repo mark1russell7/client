@@ -2,40 +2,40 @@
  * In-Memory Storage Implementation
  *
  * Fast, volatile storage using JavaScript Map.
- * All operations are synchronous.
+ * All operations return Promises for interface consistency.
  */
 import type { CollectionStorage, StorageMetadata } from "./interface";
 /**
  * In-memory storage backed by JavaScript Map.
  *
  * Features:
- * - Synchronous operations (no async overhead)
  * - Fast lookups O(1)
  * - No persistence (data lost on restart)
  * - Memory-bound (limited by available RAM)
+ * - Returns Promises for API consistency with remote storage
  *
  * @example
  * ```typescript
  * const storage = new InMemoryStorage<User>();
- * storage.set("123", { id: "123", name: "John" });
- * const user = storage.get("123"); // { id: "123", name: "John" }
+ * await storage.set("123", { id: "123", name: "John" });
+ * const user = await storage.get("123"); // { id: "123", name: "John" }
  * ```
  */
 export declare class InMemoryStorage<T> implements CollectionStorage<T> {
     private data;
-    get(id: string): T | undefined;
-    getAll(): T[];
-    find(predicate: (item: T) => boolean): T[];
-    has(id: string): boolean;
-    size(): number;
-    set(id: string, value: T): void;
-    delete(id: string): boolean;
-    clear(): void;
-    setBatch(items: Array<[string, T]>): void;
-    deleteBatch(ids: string[]): number;
-    getBatch(ids: string[]): Map<string, T>;
-    close(): void;
-    getMetadata(): StorageMetadata;
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T): Promise<void>;
+    delete(id: string): Promise<boolean>;
+    clear(): Promise<void>;
+    setBatch(items: Array<[string, T]>): Promise<void>;
+    deleteBatch(ids: string[]): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    close(): Promise<void>;
+    getMetadata(): Promise<StorageMetadata>;
     /**
      * Get all keys in storage.
      *
