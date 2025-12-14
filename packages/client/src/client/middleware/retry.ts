@@ -74,40 +74,45 @@ export interface RetryOptions {
  * - Custom retry predicates
  * - Before/after retry hooks
  * - Respects AbortSignal
+ * - **Context override**: Values from metadata.retry take precedence over options
  *
- * @param options - Retry configuration
+ * @param options - Retry configuration (defaults, can be overridden per-call)
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createRetryMiddleware({
- *   maxRetries: 3,
- *   retryDelay: 1000,
- *   jitter: 0.1,
- *   onBeforeRetry: async (item, attempt) => {
- *     console.log(`Retrying after ${item.status.message}, attempt ${attempt}`);
- *     return { shouldRetry: true };
- *   }
- * }));
+ * // Create middleware with defaults
+ * client.use(createRetryMiddleware({ maxRetries: 3 }));
+ *
+ * // Override per-call via context
+ * await client.call(method, payload, {
+ *   context: { retry: { maxAttempts: 5 } }
+ * });
  * ```
  */
 export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMiddleware<RetryContext, {}> {
   const {
-    maxRetries = 3,
-    retryDelay = 1000,
-    jitter = 0.1,
+    retryDelay: defaultRetryDelay = 1000,
+    jitter: defaultJitter = 0.1,
     shouldRetry: customShouldRetry,
     onBeforeRetry,
     onAfterRetry,
   } = options;
+  const defaultMaxRetries = options.maxRetries ?? 3;
 
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
+      // Read from metadata first (user-provided context), then fall back to options
+      const maxRetries = (context.message.metadata.retry as RetryContext["retry"] | undefined)?.maxAttempts
+        ?? defaultMaxRetries;
+      const retryDelay = defaultRetryDelay;
+      const jitter = defaultJitter;
+
       let attempt = 0;
       let lastItem: ResponseItem<TRes> | null = null;
 
       while (attempt <= maxRetries) {
-        // Update retry metadata
+        // Update retry metadata with current state
         context.message.metadata.retry = {
           attempt,
           maxAttempts: maxRetries,
