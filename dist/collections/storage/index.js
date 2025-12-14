@@ -6,7 +6,7 @@
  * - Remote API (persistent, shared)
  * - Hybrid (local cache + remote sync)
  */
-export { normalizeStorageResult, isStorageAsync } from "./interface";
+export { normalizeStorageResult } from "./interface";
 export { InMemoryStorage } from "./memory";
 export { ApiStorage } from "./api";
 export { HybridStorage } from "./hybrid";

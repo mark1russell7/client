@@ -29,6 +29,10 @@ import { compose } from "../middleware/compose";
 import { mergeContext, normalizeCallOptions } from "./context";
 import { methodToKey } from "./validation/types";
 import { SCHEMA_REGISTRY } from "./validation/middleware";
+import { buildResponse } from "./call-types";
+import { RouteResolver } from "./route-resolver";
+import { BatchExecutor } from "./batch-executor";
+import { PROCEDURE_REGISTRY } from "../procedures/registry";
 /**
  * Generate a unique message ID.
  */
@@ -405,6 +409,272 @@ export class Client {
             return this.parent.findZodMiddleware();
         }
         return this.middleware.find((m) => SCHEMA_REGISTRY in m);
+    }
+    // ===========================================================================
+    // Nested Route API
+    // ===========================================================================
+    /**
+     * Procedure registry for route resolution.
+     * Uses global registry by default.
+     */
+    procedureRegistry = PROCEDURE_REGISTRY;
+    /**
+     * Route resolver instance (lazy initialized).
+     */
+    routeResolver;
+    /**
+     * Batch executor instance (lazy initialized).
+     */
+    batchExecutor;
+    /**
+     * Set a custom procedure registry for this client.
+     *
+     * @param registry - Procedure registry to use
+     * @returns this (for chaining)
+     */
+    useRegistry(registry) {
+        this.procedureRegistry = registry;
+        this.routeResolver = undefined; // Reset resolver
+        return this;
+    }
+    /**
+     * Make a call using the nested route API.
+     *
+     * This method supports:
+     * - Per-call middleware overrides
+     * - Batch execution with configurable strategies
+     * - Type-safe nested route structures
+     *
+     * @param request - Call request with route and options
+     * @returns Response mirroring the route structure
+     *
+     * @example
+     * ```typescript
+     * // Single route call
+     * const result = await client.route({
+     *   route: {
+     *     collections: {
+     *       users: {
+     *         get: { id: "123" }
+     *       }
+     *     }
+     *   }
+     * });
+     * // result.collections.users.get.data = { id: "123", name: "John" }
+     *
+     * // Batched call with middleware overrides
+     * const results = await client.route({
+     *   middlewares: {
+     *     retry: { attempts: 3 },
+     *     timeout: { ms: 5000 }
+     *   },
+     *   batch: { strategy: 'all' },
+     *   route: {
+     *     collections: {
+     *       users: { get: { id: "123" } },
+     *       orders: { list: { userId: "123" } }
+     *     },
+     *     weather: {
+     *       forecast: { city: "NYC", days: 5 }
+     *     }
+     *   }
+     * });
+     * ```
+     */
+    async route(request) {
+        const resolver = this.getRouteResolver();
+        const executor = this.getBatchExecutor();
+        // Resolve routes to procedures
+        const resolution = resolver.resolve(request.route);
+        if (!resolution.success) {
+            // Build error response for failed resolutions
+            const errorResults = resolution.errors.map((error) => [
+                error.path,
+                {
+                    success: false,
+                    error: {
+                        code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
+                        message: error.message,
+                        retryable: false,
+                        path: error.path,
+                    },
+                },
+            ]);
+            // Include any successful resolutions as pending
+            for (const resolved of resolution.resolved) {
+                errorResults.push([
+                    resolved.path,
+                    {
+                        success: false,
+                        error: {
+                            code: "SKIPPED",
+                            message: "Skipped due to other route errors",
+                            retryable: false,
+                            path: resolved.path,
+                        },
+                    },
+                ]);
+            }
+            return buildResponse(errorResults);
+        }
+        // Create execution context
+        const context = this.createExecutionContext(request);
+        // Execute routes
+        const batchConfig = request.batch ?? { strategy: "all" };
+        const result = await executor.executeBatch(resolution.resolved, context, batchConfig);
+        return result.response;
+    }
+    /**
+     * Make a streaming call using the nested route API.
+     *
+     * Returns an async iterator that yields results as they complete,
+     * plus a promise for the final complete response.
+     *
+     * @param request - Call request (batch.strategy should be 'stream')
+     * @returns Streaming response with iterator and completion promise
+     */
+    routeStream(request) {
+        const resolver = this.getRouteResolver();
+        const executor = this.getBatchExecutor();
+        const resolution = resolver.resolve(request.route);
+        if (!resolution.success) {
+            // Return error response immediately
+            const errorResults = resolution.errors.map((error) => [
+                error.path,
+                {
+                    success: false,
+                    error: {
+                        code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
+                        message: error.message,
+                        retryable: false,
+                        path: error.path,
+                    },
+                },
+            ]);
+            return {
+                results: (async function* () {
+                    for (const [path, result] of errorResults) {
+                        yield { path, result };
+                    }
+                })(),
+                complete: Promise.resolve(buildResponse(errorResults)),
+            };
+        }
+        const context = this.createExecutionContext(request);
+        const streamConfig = request.batch ?? { strategy: "stream" };
+        return executor.getStreamingResponse(resolution.resolved, context, streamConfig);
+    }
+    /**
+     * Get the route resolver (lazy initialization).
+     */
+    getRouteResolver() {
+        if (!this.routeResolver) {
+            this.routeResolver = new RouteResolver(this.procedureRegistry);
+        }
+        return this.routeResolver;
+    }
+    /**
+     * Get the batch executor (lazy initialization).
+     */
+    getBatchExecutor() {
+        if (!this.batchExecutor) {
+            this.batchExecutor = new BatchExecutor(this.executeProcedure.bind(this));
+        }
+        return this.batchExecutor;
+    }
+    /**
+     * Create execution context from call request.
+     */
+    createExecutionContext(request) {
+        // Merge context: parent chain -> client context -> middleware overrides
+        const effectiveContext = mergeContext(this.getEffectiveContext(), (request.middlewares ?? {}));
+        const context = {
+            metadata: {
+                ...this.defaultMetadata,
+                ...effectiveContext,
+                __middlewareOverrides: request.middlewares,
+            },
+        };
+        // Only set signal if provided (exactOptionalPropertyTypes)
+        if (request.signal) {
+            context.signal = request.signal;
+        }
+        return context;
+    }
+    /**
+     * Execute a single procedure call.
+     * Used by BatchExecutor.
+     */
+    async executeProcedure(resolved, context) {
+        const { path, procedure, input } = resolved;
+        try {
+            // If procedure has a handler (server-side), execute directly
+            if (procedure.handler) {
+                const procedureContext = {
+                    metadata: context.metadata,
+                    path,
+                };
+                // Only set signal if provided (exactOptionalPropertyTypes)
+                if (context.signal) {
+                    procedureContext.signal = context.signal;
+                }
+                const output = await procedure.handler(input, procedureContext);
+                // Validate output if schema exists
+                const outputResult = procedure.output.safeParse(output);
+                if (!outputResult.success) {
+                    return {
+                        success: false,
+                        error: {
+                            code: "OUTPUT_VALIDATION_ERROR",
+                            message: outputResult.error.message,
+                            retryable: false,
+                            path,
+                        },
+                    };
+                }
+                return {
+                    success: true,
+                    data: outputResult.data,
+                };
+            }
+            // Otherwise, route through transport (client-side)
+            const method = this.pathToMethod(path);
+            const callOptions = {
+                context: context.metadata,
+            };
+            if (context.signal) {
+                callOptions.signal = context.signal;
+            }
+            const response = await this.call(method, input, callOptions);
+            return {
+                success: true,
+                data: response,
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                error: {
+                    code: error instanceof ClientError ? error.code : "EXECUTION_ERROR",
+                    message: error instanceof Error ? error.message : String(error),
+                    retryable: error instanceof ClientError ? error.retryable : false,
+                    path,
+                },
+            };
+        }
+    }
+    /**
+     * Convert procedure path to Method object.
+     */
+    pathToMethod(path) {
+        if (path.length < 2) {
+            throw new Error(`Invalid procedure path: ${path.join(".")}`);
+        }
+        // Path format: [service, ...nested, operation]
+        // e.g., ['collections', 'users', 'get'] -> { service: 'collections.users', operation: 'get' }
+        const operation = path[path.length - 1];
+        const service = path.slice(0, -1).join(".");
+        return { service, operation };
     }
 }
 //# sourceMappingURL=client.js.map

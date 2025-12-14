@@ -6,23 +6,18 @@
  * - ApiStorage: Remote persistence via universal client
  * - HybridStorage: Local cache + remote sync with conflict resolution
  * - SyncedStorage: Periodic background sync with offline support
+ *
+ * IMPORTANT: All methods return Promise to ensure client code is
+ * transport-agnostic (cannot distinguish local from remote storage).
  */
 /**
- * Helper to normalize storage return values (Promise or direct).
+ * @deprecated All storage methods now return Promise.
+ * This helper is kept for backward compatibility but is no longer needed.
  *
- * @param value - Value that may or may not be a Promise
- * @returns Promise that resolves to the value
+ * @param value - Promise value
+ * @returns The same Promise
  */
-export async function normalizeStorageResult(value) {
+export function normalizeStorageResult(value) {
     return value;
-}
-/**
- * Helper to check if storage operation returns Promise.
- *
- * @param value - Value to check
- * @returns true if value is a Promise
- */
-export function isStorageAsync(value) {
-    return value instanceof Promise;
 }
 //# sourceMappingURL=interface.js.map

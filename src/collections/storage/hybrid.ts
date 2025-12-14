@@ -175,9 +175,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   // ═══ Read Operations ═══
   //
 
-  get(id: string): T | undefined {
+  async get(id: string): Promise<T | undefined> {
     // Try local cache first
-    const cached = this.local.get(id);
+    const cached = await this.local.get(id);
     if (cached !== undefined) {
       this.stats.cacheHits++;
       return cached;
@@ -187,21 +187,21 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     return undefined;
   }
 
-  getAll(): T[] {
+  async getAll(): Promise<T[]> {
     // Return local cache
     return this.local.getAll();
   }
 
-  find(predicate: (item: T) => boolean): T[] {
+  async find(predicate: (item: T) => boolean): Promise<T[]> {
     // Search local cache
     return this.local.find(predicate);
   }
 
-  has(id: string): boolean {
+  async has(id: string): Promise<boolean> {
     return this.local.has(id);
   }
 
-  size(): number {
+  async size(): Promise<number> {
     return this.local.size();
   }
 
@@ -211,7 +211,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   async set(id: string, value: T): Promise<void> {
     // Always write to local immediately
-    this.local.set(id, value);
+    await this.local.set(id, value);
 
     if (this.options.writeStrategy === "write-through") {
       // Write-through: sync to remote immediately
@@ -232,7 +232,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   async delete(id: string): Promise<boolean> {
-    const existed = this.local.delete(id);
+    const existed = await this.local.delete(id);
 
     if (this.options.writeStrategy === "write-through") {
       try {
@@ -253,7 +253,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   async clear(): Promise<void> {
-    this.local.clear();
+    await this.local.clear();
 
     if (this.options.writeStrategy === "write-through") {
       try {
@@ -276,7 +276,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   //
 
   async setBatch(items: Array<[string, T]>): Promise<void> {
-    this.local.setBatch(items);
+    await this.local.setBatch(items);
 
     if (this.options.writeStrategy === "write-through") {
       try {
@@ -295,7 +295,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   async deleteBatch(ids: string[]): Promise<number> {
-    const deleted = this.local.deleteBatch(ids);
+    const deleted = await this.local.deleteBatch(ids);
 
     if (this.options.writeStrategy === "write-through") {
       try {
@@ -315,7 +315,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     return deleted;
   }
 
-  async getBatch(ids: string[]): Promise<Map<string, T>> {
+  getBatch(ids: string[]): Promise<Map<string, T>> {
     return this.local.getBatch(ids);
   }
 
@@ -339,15 +339,15 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           continue;
         }
 
-        const localItem = this.local.get(id);
+        const localItem = await this.local.get(id);
 
         if (localItem === undefined) {
           // No local version - just store remote
-          this.local.set(id, item);
+          await this.local.set(id, item);
         } else {
           // Conflict - resolve according to strategy
           const resolved = this.resolveConflict(localItem, item);
-          this.local.set(id, resolved);
+          await this.local.set(id, resolved);
           this.stats.conflicts++;
         }
       }
@@ -417,13 +417,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     await this.remote.close();
   }
 
-  getMetadata(): StorageMetadata {
+  async getMetadata(): Promise<StorageMetadata> {
     const totalOps = this.stats.cacheHits + this.stats.cacheMisses;
     const hitRate = totalOps > 0 ? (this.stats.cacheHits / totalOps) * 100 : 0;
+    const currentSize = await this.local.size();
 
     return {
       type: "hybrid",
-      size: this.local.size(),
+      size: currentSize,
       stats: {
         hitRate: Math.round(hitRate * 100) / 100,
         cacheHits: this.stats.cacheHits,
