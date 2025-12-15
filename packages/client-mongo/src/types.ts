@@ -51,17 +51,25 @@ export type SortSpec = Record<string, SortOrder>;
 // =============================================================================
 
 /**
- * Document ID - can be string or ObjectId
+ * Document ID - can be string or ObjectId.
+ * MongoDB supports any type for _id, but string and ObjectId are most common.
  */
 export type DocumentId = string | ObjectId;
 
 /**
- * Generic document type
+ * Base document type.
+ * Uses MongoDB's Document type which allows any _id via index signature.
  */
-export type MongoDocument = Document;
+export type BaseDocument = Document;
 
 /**
- * Document query filter
+ * Generic document type - use BaseDocument for proper _id typing
+ */
+export type MongoDocument = BaseDocument;
+
+/**
+ * Document query filter.
+ * Uses Document for compatibility with MongoDB driver methods.
  */
 export type DocumentQuery = Filter<Document>;
 
@@ -77,7 +85,7 @@ export type DocumentUpdate = UpdateFilter<Document>;
 /**
  * Base metadata for all procedures
  */
-export interface BaseMeta {
+export interface BaseMeta extends Record<string, unknown> {
   /** Override database name */
   database?: string;
 }
@@ -88,6 +96,35 @@ export interface BaseMeta {
 export interface CollectionMeta extends BaseMeta {
   /** Collection name (required) */
   collection: string;
+}
+
+/**
+ * Type guard to check if metadata has collection
+ */
+export function hasCollection(
+  metadata: Record<string, unknown>
+): metadata is CollectionMeta {
+  return typeof metadata["collection"] === "string";
+}
+
+/**
+ * Type guard to get collection metadata, throws if missing
+ */
+export function requireCollection(
+  metadata: Record<string, unknown>
+): CollectionMeta {
+  if (!hasCollection(metadata)) {
+    throw new Error("collection is required in metadata");
+  }
+  return metadata;
+}
+
+/**
+ * Get base metadata (database override).
+ * BaseMeta extends Record<string, unknown> so this is type-safe.
+ */
+export function getBaseMeta(metadata: Record<string, unknown>): BaseMeta {
+  return metadata;
 }
 
 // =============================================================================

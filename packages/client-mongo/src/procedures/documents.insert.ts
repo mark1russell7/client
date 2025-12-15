@@ -1,0 +1,72 @@
+/**
+ * Procedure: mongo.documents.insert
+ * Insert one or more documents
+ */
+
+import { createProcedure, type Procedure, type ProcedureContext } from "client";
+import { getDb } from "../connection.js";
+import { schema } from "./schema.js";
+import { requireCollection, type MongoDocument } from "../types.js";
+
+// Input/Output types
+interface InsertInput {
+  /** Single document or array of documents */
+  documents: MongoDocument | MongoDocument[];
+}
+
+interface InsertOutput {
+  acknowledged: boolean;
+  insertedIds: string[];
+  insertedCount: number;
+}
+
+// Schemas
+const insertInputSchema = schema<InsertInput>();
+const insertOutputSchema = schema<InsertOutput>();
+
+export const insertProcedure: Procedure<
+  InsertInput,
+  InsertOutput,
+  { description: string }
+> = createProcedure()
+  .path(["mongo", "documents", "insert"])
+  .input(insertInputSchema)
+  .output(insertOutputSchema)
+  .meta({ description: "Insert one or more documents" })
+  .handler(async (input: InsertInput, ctx: ProcedureContext) => {
+    const meta = requireCollection(ctx.metadata);
+
+    const db = meta.database ? getDb().client.db(meta.database) : getDb();
+    const collection = db.collection(meta.collection);
+
+    const docs = Array.isArray(input.documents)
+      ? input.documents
+      : [input.documents];
+
+    if (docs.length === 0) {
+      return {
+        acknowledged: true,
+        insertedIds: [],
+        insertedCount: 0,
+      };
+    }
+
+    if (docs.length === 1) {
+      const result = await collection.insertOne(docs[0]!);
+      return {
+        acknowledged: result.acknowledged,
+        insertedIds: [String(result.insertedId)],
+        insertedCount: result.acknowledged ? 1 : 0,
+      };
+    }
+
+    const result = await collection.insertMany(docs);
+    return {
+      acknowledged: result.acknowledged,
+      insertedIds: Object.values(result.insertedIds).map(String),
+      insertedCount: result.insertedCount,
+    };
+  })
+  .build();
+
+export type { InsertInput, InsertOutput };
