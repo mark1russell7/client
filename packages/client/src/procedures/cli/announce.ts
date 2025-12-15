@@ -157,12 +157,21 @@ async function writeRegistry(rootDir: string, registry: Registry): Promise<void>
  * Announce this package's procedures to the project registry.
  *
  * Called from a package's postinstall script to register its procedures.
- * Also propagates the postinstall script to the parent package for transitive discovery.
+ * Also propagates the postinstall script UP the dependency chain for transitive discovery.
+ *
+ * The propagation works as follows:
+ * - When client is installed in package D, client's postinstall adds postinstall to D
+ * - When D is installed in C, D's postinstall adds postinstall to C
+ * - When C is installed in B, C's postinstall adds postinstall to B
+ * - etc.
+ *
+ * This ensures that regardless of how deep procedures are defined,
+ * they can propagate up to the project root for efficient discovery.
  */
 export async function announce(options: AnnounceOptions): Promise<void> {
   const { verbose } = options;
 
-  // Find the package we're in (the one being installed)
+  // Find the package we're in (the one whose postinstall is running)
   const containing = await findContainingPackage(process.cwd());
   if (!containing) {
     if (verbose) {
@@ -173,24 +182,26 @@ export async function announce(options: AnnounceOptions): Promise<void> {
 
   const { dir: packageDir, pkg } = containing;
 
-  // Check if this package declares procedures
-  if (!pkg.client?.procedures) {
-    // Even if no procedures, check if we should propagate postinstall to parent
-    await propagatePostinstall(packageDir, verbose);
-    if (verbose) {
-      console.log(`[client] ${pkg.name} does not declare procedures, checked parent propagation`);
-    }
-    return;
+  // Always propagate postinstall to parent package (for transitive chain)
+  await propagatePostinstallToParent(packageDir, pkg, verbose);
+
+  // If this package has procedures, register them
+  if (pkg.client?.procedures) {
+    await registerProcedures(packageDir, pkg, verbose);
+  } else if (verbose) {
+    console.log(`[client] ${pkg.name} does not declare procedures`);
   }
+}
 
-  // Propagate postinstall to this package if it doesn't have it
-  await ensurePostinstall(packageDir, pkg, verbose);
-
+/**
+ * Register this package's procedures at the project root.
+ */
+async function registerProcedures(packageDir: string, pkg: PackageJson, verbose: boolean): Promise<void> {
   // Find the project root
   const projectRoot = await findProjectRoot(packageDir);
   if (!projectRoot) {
     if (verbose) {
-      console.log("[client] Could not find project root, skipping announcement");
+      console.log("[client] Could not find project root, skipping registration");
     }
     return;
   }
@@ -198,7 +209,7 @@ export async function announce(options: AnnounceOptions): Promise<void> {
   // Don't register if we ARE the project root (we're the app, not a dependency)
   if (path.resolve(packageDir) === path.resolve(projectRoot)) {
     if (verbose) {
-      console.log(`[client] ${pkg.name} is the project root, skipping self-announcement`);
+      console.log(`[client] ${pkg.name} is the project root, skipping self-registration`);
     }
     return;
   }
@@ -208,7 +219,7 @@ export async function announce(options: AnnounceOptions): Promise<void> {
 
   // Add/update our entry
   const entry: RegistryEntry = {
-    proceduresPath: pkg.client.procedures,
+    proceduresPath: pkg.client!.procedures!,
     registeredAt: new Date().toISOString(),
   };
   if (pkg.version) {
@@ -220,8 +231,80 @@ export async function announce(options: AnnounceOptions): Promise<void> {
   await writeRegistry(projectRoot, registry);
 
   if (verbose) {
-    console.log(`[client] Registered ${pkg.name} -> ${pkg.client.procedures}`);
+    console.log(`[client] Registered ${pkg.name} -> ${pkg.client!.procedures}`);
   }
+}
+
+/**
+ * Propagate postinstall to the parent package.
+ * This ensures the chain continues when this package is installed elsewhere.
+ */
+async function propagatePostinstallToParent(packageDir: string, pkg: PackageJson, verbose: boolean): Promise<void> {
+  // Find parent package (the one that depends on this package)
+  const parent = await findParentPackage(packageDir);
+  if (!parent) {
+    if (verbose) {
+      console.log(`[client] No parent package found for ${pkg.name}`);
+    }
+    return;
+  }
+
+  const { dir: parentDir, pkg: parentPkg } = parent;
+
+  // Don't modify packages inside node_modules of other packages
+  // We only want to modify the immediate dependent
+  if (isNestedNodeModules(parentDir)) {
+    if (verbose) {
+      console.log(`[client] Parent ${parentPkg.name} is nested in node_modules, skipping`);
+    }
+    return;
+  }
+
+  await ensurePostinstall(parentDir, parentPkg, verbose);
+}
+
+/**
+ * Find the parent package (the one that depends on the current package).
+ * Walks up from node_modules to find the containing project.
+ */
+async function findParentPackage(packageDir: string): Promise<{ dir: string; pkg: PackageJson } | null> {
+  let current = path.dirname(packageDir);
+
+  while (true) {
+    // Skip node_modules directories
+    const basename = path.basename(current);
+    if (basename === "node_modules") {
+      current = path.dirname(current);
+      continue;
+    }
+
+    const pkgPath = path.join(current, "package.json");
+
+    try {
+      const content = await fs.readFile(pkgPath, "utf-8");
+      const pkg = JSON.parse(content) as PackageJson;
+      return { dir: current, pkg };
+    } catch {
+      // No package.json here
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  return null;
+}
+
+/**
+ * Check if a path is inside nested node_modules (e.g., node_modules/a/node_modules/b).
+ */
+function isNestedNodeModules(dir: string): boolean {
+  const normalized = dir.replace(/\\/g, "/");
+  const parts = normalized.split("/node_modules/");
+  return parts.length > 2;
 }
 
 /**
@@ -229,13 +312,25 @@ export async function announce(options: AnnounceOptions): Promise<void> {
  */
 async function ensurePostinstall(packageDir: string, pkg: PackageJson, verbose: boolean): Promise<void> {
   const pkgPath = path.join(packageDir, "package.json");
-  const fullPkg = JSON.parse(await fs.readFile(pkgPath, "utf-8")) as Record<string, unknown>;
+
+  let fullPkg: Record<string, unknown>;
+  try {
+    fullPkg = JSON.parse(await fs.readFile(pkgPath, "utf-8")) as Record<string, unknown>;
+  } catch {
+    if (verbose) {
+      console.log(`[client] Could not read ${pkgPath}`);
+    }
+    return;
+  }
 
   const scripts = (fullPkg["scripts"] ?? {}) as Record<string, string>;
   const postinstall = scripts["postinstall"] ?? "";
 
   // Check if postinstall already includes client announce
   if (postinstall.includes("client announce")) {
+    if (verbose) {
+      console.log(`[client] ${pkg.name} already has client announce in postinstall`);
+    }
     return;
   }
 
@@ -247,50 +342,15 @@ async function ensurePostinstall(packageDir: string, pkg: PackageJson, verbose: 
   scripts["postinstall"] = newPostinstall;
   fullPkg["scripts"] = scripts;
 
-  await fs.writeFile(pkgPath, JSON.stringify(fullPkg, null, 2) + "\n", "utf-8");
-
-  if (verbose) {
-    console.log(`[client] Added postinstall to ${pkg.name}`);
-  }
-}
-
-/**
- * Propagate postinstall to parent package (for transitive dependencies).
- * When client is installed, walk up to the parent and add postinstall if it has client.procedures.
- */
-async function propagatePostinstall(startDir: string, verbose: boolean): Promise<void> {
-  // Walk up from current location to find parent package with client.procedures
-  let current = path.dirname(startDir);
-
-  while (true) {
-    // Skip node_modules directories in the path
-    if (current.endsWith("node_modules")) {
-      current = path.dirname(current);
-      continue;
+  try {
+    await fs.writeFile(pkgPath, JSON.stringify(fullPkg, null, 2) + "\n", "utf-8");
+    if (verbose) {
+      console.log(`[client] Added postinstall to ${pkg.name}`);
     }
-
-    const pkgPath = path.join(current, "package.json");
-
-    try {
-      const content = await fs.readFile(pkgPath, "utf-8");
-      const pkg = JSON.parse(content) as PackageJson;
-
-      // Found a package - check if it has client.procedures
-      if (pkg.client?.procedures) {
-        await ensurePostinstall(current, pkg, verbose);
-      }
-
-      // Only process the immediate parent package, not all ancestors
-      break;
-    } catch {
-      // No package.json here
+  } catch (error) {
+    if (verbose) {
+      console.log(`[client] Could not write to ${pkgPath}: ${error}`);
     }
-
-    const parent = path.dirname(current);
-    if (parent === current) {
-      break;
-    }
-    current = parent;
   }
 }
 
