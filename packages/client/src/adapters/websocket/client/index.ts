@@ -5,8 +5,8 @@
  */
 
 // Types
-export type { WebSocketTransportOptions, WebSocketMessage } from "./types";
-export { WebSocketState } from "./types";
+export type { WebSocketTransportOptions, WebSocketMessage } from "./types.js";
+export { WebSocketState } from "./types.js";
 
 // Transport
-export { WebSocketTransport } from "./transport";
+export { WebSocketTransport } from "./transport.js";

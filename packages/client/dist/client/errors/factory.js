@@ -1,13 +1,13 @@
-﻿/**
+/**
  * Error Factory Functions
  *
  * Create rich errors from error codes with full metadata.
  * Zero magic strings - everything driven by registry.
  */
-import {} from "./types";
-import { getErrorMetadata } from "./registry";
-import { httpStatusToErrorCode } from "./http-errors";
-import { ErrorCode } from "./codes";
+import {} from "./types.js";
+import { getErrorMetadata } from "./registry.js";
+import { httpStatusToErrorCode } from "./http-errors.js";
+import { ErrorCode } from "./codes.js";
 /**
  * Create a rich error from an error code.
  *

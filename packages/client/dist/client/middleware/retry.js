@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Retry Middleware
  *
  * Protocol-agnostic retry with exponential backoff and jitter.

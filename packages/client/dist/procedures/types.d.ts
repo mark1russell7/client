@@ -1,11 +1,12 @@
-﻿/**
+/**
  * Procedure Type System
  *
  * Core types for procedure definitions, handlers, and registration.
  * Procedures are the foundation for typed RPC calls with schema validation.
  */
-import type { ZodLike, ZodErrorLike } from "../client/validation/types";
-import type { CollectionStorage } from "../collections/storage/interface";
+import type { ZodLike, ZodErrorLike } from "../client/validation/types.js";
+import type { CollectionStorage } from "../collections/storage/interface.js";
+import type { EventBus } from "../events/types.js";
 /**
  * Procedure path as array of segments.
  * Forms a tree structure for nested routing.
@@ -72,14 +73,38 @@ export interface ProcedureContext {
     repository?: RepositoryProvider;
     /** The full path that was called */
     path: ProcedurePath;
+    /**
+     * Event bus for pub/sub messaging.
+     * Use for streaming coordination and inter-procedure communication.
+     *
+     * @example
+     * ```typescript
+     * // Subscribe to updates in a streaming handler
+     * handler: async function* (input, ctx) {
+     *   yield await getInitial(input.id);
+     *
+     *   for await (const update of ctx.bus.stream(`entity:${input.id}`)) {
+     *     yield update;
+     *   }
+     * }
+     *
+     * // Emit events from another procedure
+     * handler: async (input, ctx) => {
+     *   const result = await saveEntity(input);
+     *   ctx.bus.emit(`entity:${input.id}`, result);
+     *   return result;
+     * }
+     * ```
+     */
+    bus?: EventBus;
 }
 /**
- * Procedure handler function.
+ * Standard procedure handler function (single return).
  * Receives validated input and context, returns output.
  *
  * @example
  * ```typescript
- * const handler: ProcedureHandler<{ id: string }, User> = async (input, ctx) => {
+ * const handler: StandardHandler<{ id: string }, User> = async (input, ctx) => {
  *   const storage = ctx.repository?.getStorage<User>('users');
  *   const user = await storage?.get(input.id);
  *   if (!user) throw new Error('User not found');
@@ -87,7 +112,57 @@ export interface ProcedureContext {
  * };
  * ```
  */
-export type ProcedureHandler<TInput = unknown, TOutput = unknown> = (input: TInput, context: ProcedureContext) => Promise<TOutput> | TOutput;
+export type StandardHandler<TInput = unknown, TOutput = unknown> = (input: TInput, context: ProcedureContext) => Promise<TOutput> | TOutput;
+/**
+ * Generator procedure handler (streaming/multi-yield).
+ * Yields output values one or more times.
+ *
+ * @example
+ * ```typescript
+ * // Single yield (same as standard, but generator syntax)
+ * const handler: GeneratorHandler<{ id: string }, User> = async function* (input, ctx) {
+ *   const user = await fetchUser(input.id);
+ *   yield user;  // yields once
+ * };
+ *
+ * // Multi-yield streaming
+ * const handler: GeneratorHandler<{ roomId: string }, Message> = async function* (input, ctx) {
+ *   // Initial data
+ *   yield await getInitialMessages(input.roomId);
+ *
+ *   // Stream updates
+ *   for await (const msg of ctx.bus.stream(`room:${input.roomId}`)) {
+ *     yield msg;  // yields many times
+ *   }
+ * };
+ * ```
+ */
+export type GeneratorHandler<TInput = unknown, TOutput = unknown> = (input: TInput, context: ProcedureContext) => AsyncGenerator<TOutput, void, unknown>;
+/**
+ * Procedure handler function - supports both standard and generator forms.
+ *
+ * - **Standard handlers**: Return a single value (sync or async)
+ * - **Generator handlers**: Yield one or more values
+ *
+ * The caller's consumption mode (sponge/stream/handlers) determines
+ * how the output is delivered, regardless of handler type.
+ *
+ * @example
+ * ```typescript
+ * // Standard handler (single return)
+ * const handler: ProcedureHandler<{ id: string }, User> = async (input, ctx) => {
+ *   return await fetchUser(input.id);
+ * };
+ *
+ * // Generator handler (streaming)
+ * const handler: ProcedureHandler<{ query: string }, SearchResult> = async function* (input, ctx) {
+ *   for await (const result of search(input.query)) {
+ *     yield result;
+ *   }
+ * };
+ * ```
+ */
+export type ProcedureHandler<TInput = unknown, TOutput = unknown> = StandardHandler<TInput, TOutput> | GeneratorHandler<TInput, TOutput>;
 /**
  * Full procedure definition with schemas and optional handler.
  *
@@ -111,6 +186,15 @@ export interface Procedure<TInput = unknown, TOutput = unknown, TMeta extends Pr
     output: ZodLike<TOutput>;
     /** Procedure metadata for documentation */
     metadata: TMeta;
+    /**
+     * Whether this procedure supports streaming (multi-yield).
+     * When true, the handler is expected to be a generator that may yield multiple times.
+     * When false or undefined, the procedure yields exactly once.
+     *
+     * This is a capability declaration - callers can still consume
+     * streaming procedures in sponge mode (getting only the final value).
+     */
+    streaming?: boolean;
     /** Server-side handler implementation */
     handler?: ProcedureHandler<TInput, TOutput>;
 }

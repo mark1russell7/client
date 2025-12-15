@@ -5,7 +5,7 @@
  */
 
 // Types
-export type { LocalTransportOptions, Handler } from "./types";
+export type { LocalTransportOptions, Handler } from "./types.js";
 
 // Transport
-export { LocalTransport } from "./transport";
+export { LocalTransport } from "./transport.js";

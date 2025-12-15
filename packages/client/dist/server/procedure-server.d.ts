@@ -1,13 +1,13 @@
-﻿/**
+/**
  * Procedure Server
  *
  * Server implementation with procedure auto-registration and repository pattern.
  * Integrates with ProcedureRegistry and CollectionStorage backends.
  */
-import { Server, type ServerOptions } from "./server";
-import type { AnyProcedure, ProcedurePath, RepositoryProvider, ProcedureModule } from "../procedures/types";
-import { ProcedureRegistry } from "../procedures/registry";
-import type { CollectionStorage } from "../collections/storage/interface";
+import { Server, type ServerOptions } from "./server.js";
+import type { AnyProcedure, ProcedurePath, RepositoryProvider, ProcedureModule } from "../procedures/types.js";
+import { ProcedureRegistry } from "../procedures/registry.js";
+import type { CollectionStorage } from "../collections/storage/interface.js";
 /**
  * Storage configuration for a collection.
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Pagination Middleware
  *
  * Protocol-agnostic pagination handling.
@@ -90,7 +90,7 @@ export function createPaginationMiddleware(options = {}) {
                 };
                 // Optionally compute offset for backends that need it
                 const computedOffset = (page - 1) * limit;
-                if (metadata.includeOffset) {
+                if (metadata["includeOffset"]) {
                     context.message.metadata[offsetKey] = computedOffset;
                 }
             }

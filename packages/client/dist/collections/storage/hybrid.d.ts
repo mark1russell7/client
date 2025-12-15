@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Hybrid Storage Implementation
  *
  * Combines local cache (InMemoryStorage) with remote persistence (ApiStorage).
@@ -11,8 +11,8 @@
  * - Conflict resolution
  * - Offline operation queue
  */
-import type { CollectionStorage, StorageMetadata } from "./interface";
-import type { ApiStorage } from "./api";
+import type { CollectionStorage, StorageMetadata } from "./interface.js";
+import type { ApiStorage } from "./api.js";
 /**
  * Conflict resolution strategy.
  */

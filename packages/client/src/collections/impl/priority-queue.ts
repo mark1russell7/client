@@ -14,9 +14,9 @@
  * pq.poll() // 2 (smallest element)
  */
 
-import type { PriorityQueue as IPriorityQueue } from "../interfaces/queue";
-import type { Eq, Compare } from "../core/traits";
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import type { PriorityQueue as IPriorityQueue } from "../interfaces/queue.js";
+import type { Eq, Compare } from "../core/traits.js";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 
 /**
  * Options for creating a PriorityQueue.

@@ -1,9 +1,9 @@
-﻿/**
+/**
  * Mock Transport Types
  *
  * Type definitions for Mock adapter testing utilities.
  */
-import type { Message, ResponseItem } from "../../../client/types";
+import type { Message, ResponseItem } from "../../../client/types.js";
 /**
  * Mock response configuration.
  */

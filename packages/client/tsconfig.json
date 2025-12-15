@@ -1,11 +1,4 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "noEmitOnError": false
-  }
+  "extends": "@mark1russell7/cue/ts/config/node.json"
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Circuit Breaker Middleware
  *
  * Prevents cascading failures by failing fast when a service is unhealthy.
@@ -9,8 +9,8 @@
  *
  * Works with both client and server!
  */
-import type { ClientMiddleware, TypedClientMiddleware } from "../types";
-import type { CircuitBreakerContext } from "./contexts";
+import type { ClientMiddleware, TypedClientMiddleware } from "../types.js";
+import type { CircuitBreakerContext } from "./contexts.js";
 /**
  * Circuit breaker state.
  */

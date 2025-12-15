@@ -1,9 +1,9 @@
-﻿/**
+/**
  * Local Transport Types
  *
  * Type definitions and utilities for Local adapter.
  */
-import type { Message, Method } from "../../../client/types";
+import type { Message, Method } from "../../../client/types.js";
 /**
  * Handler function for a method.
  */

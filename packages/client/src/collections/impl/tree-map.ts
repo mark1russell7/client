@@ -24,9 +24,9 @@
  * })
  */
 
-import type { NavigableMap, SortedMap, Entry } from "../interfaces/map";
-import type { Eq, Compare } from "../core/traits";
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import type { NavigableMap, SortedMap, Entry } from "../interfaces/map.js";
+import type { Eq, Compare } from "../core/traits.js";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 
 /**
  * Node color in red-black tree.

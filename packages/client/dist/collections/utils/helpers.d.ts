@@ -1,9 +1,9 @@
-﻿/**
+/**
  * Common helper utilities for collections.
  *
  * Provides shared functionality to reduce code duplication across implementations.
  */
-import type { Eq } from "../core/traits";
+import type { Eq } from "../core/traits.js";
 /**
  * Checks if an index is within valid bounds [0, size).
  * Throws RangeError if out of bounds.

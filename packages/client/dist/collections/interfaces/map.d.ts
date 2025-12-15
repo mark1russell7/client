@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Map interfaces that mirror Java's Map interface hierarchy.
  *
  * Maps store key-value pairs and provide efficient lookup by key.
  * Keys are unique within a map.
  */
-import type { Eq, Compare } from "../core/traits";
-import type { ReadonlyCollection } from "./collection";
+import type { Eq, Compare } from "../core/traits.js";
+import type { ReadonlyCollection } from "./collection.js";
 /**
  * Entry<K, V> - An immutable key-value pair from a map.
  *

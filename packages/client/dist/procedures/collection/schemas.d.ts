@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Collection Operation Schemas
  *
  * Zod-compatible schemas for collection CRUD operations.
  * These schemas are used for input/output validation in collection procedures.
  */
-import type { ZodLike } from "../../client/validation/types";
+import type { ZodLike } from "../../client/validation/types.js";
 /**
  * Schema for item ID.
  */

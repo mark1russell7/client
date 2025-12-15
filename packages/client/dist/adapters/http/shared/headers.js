@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HTTP Header Utilities
  *
  * Provides constants for standard HTTP headers and utilities for
@@ -106,7 +106,7 @@ export class DefaultHeaderConverter {
         // Extract timing headers
         const serverTiming = get(HTTPHeaders.SERVER_TIMING);
         if (serverTiming) {
-            metadata.timing = serverTiming;
+            metadata["timing"] = serverTiming;
         }
         // Extract timeout
         const timeout = get(HTTPHeaders.TIMEOUT);

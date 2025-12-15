@@ -4,7 +4,7 @@
  * Provides shared functionality to reduce code duplication across implementations.
  */
 
-import type { Eq } from "../core/traits";
+import type { Eq } from "../core/traits.js";
 
 // ============================================================================
 // Bounds checking utilities

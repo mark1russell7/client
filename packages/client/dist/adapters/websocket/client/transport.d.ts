@@ -1,12 +1,12 @@
-﻿/**
+/**
  * WebSocket Client Transport Implementation
  *
  * Provides persistent bidirectional RPC over WebSocket.
  * Supports automatic reconnection, heartbeats, and streaming.
  */
-import type { Transport, Message, ResponseItem } from "../../../client/types";
-import type { WebSocketTransportOptions } from "./types";
-import { WebSocketState } from "./types";
+import type { Transport, Message, ResponseItem } from "../../../client/types.js";
+import type { WebSocketTransportOptions } from "./types.js";
+import { WebSocketState } from "./types.js";
 /**
  * WebSocket client transport.
  *

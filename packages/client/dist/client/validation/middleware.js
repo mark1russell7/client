@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Zod Validation Middleware
  *
  * Validates request and response payloads using Zod schemas.
  * Schemas can be registered per-route or overridden per-call.
  */
-import { methodToKey, ValidationError } from "./types";
+import { methodToKey, ValidationError } from "./types.js";
 // =============================================================================
 // Schema Registry Holder
 // =============================================================================

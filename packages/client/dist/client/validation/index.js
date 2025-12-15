@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Zod Validation Module
  *
  * Type-safe schema validation for RPC requests and responses.
@@ -30,9 +30,9 @@
  * ```
  */
 // Core types
-export { methodToKey, keyToMethod, ValidationError, } from "./types";
+export { methodToKey, keyToMethod, ValidationError, } from "./types.js";
 // Middleware
-export { createZodMiddleware, SCHEMA_REGISTRY, } from "./middleware";
+export { createZodMiddleware, SCHEMA_REGISTRY, } from "./middleware.js";
 // Schemas
-export * from "./schemas";
+export * from "./schemas/index.js";
 //# sourceMappingURL=index.js.map

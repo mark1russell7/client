@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Zod Validation Module
  *
  * Type-safe schema validation for RPC requests and responses.
@@ -29,7 +29,7 @@
  * }
  * ```
  */
-export { type ZodLike, type ZodErrorLike, type SchemaDefinition, type SchemaRegistry, type MethodKey, type ValidationPhase, type ZodValidationContext, methodToKey, keyToMethod, ValidationError, type InferInput, type InferOutput, } from "./types";
-export { createZodMiddleware, type ZodMiddlewareOptions, type ValidationMode, type ZodMiddleware, SCHEMA_REGISTRY, } from "./middleware";
-export * from "./schemas";
+export { type ZodLike, type ZodErrorLike, type SchemaDefinition, type SchemaRegistry, type MethodKey, type ValidationPhase, type ZodValidationContext, methodToKey, keyToMethod, ValidationError, type InferInput, type InferOutput, } from "./types.js";
+export { createZodMiddleware, type ZodMiddlewareOptions, type ValidationMode, type ZodMiddleware, SCHEMA_REGISTRY, } from "./middleware.js";
+export * from "./schemas/index.js";
 //# sourceMappingURL=index.d.ts.map

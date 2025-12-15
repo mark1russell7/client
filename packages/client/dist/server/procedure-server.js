@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Procedure Server
  *
  * Server implementation with procedure auto-registration and repository pattern.
  * Integrates with ProcedureRegistry and CollectionStorage backends.
  */
-import { Server } from "./server";
-import { pathToKey } from "../procedures/types";
-import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry";
+import { Server } from "./server.js";
+import { pathToKey } from "../procedures/types.js";
+import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 // =============================================================================
 // Procedure Server
 // =============================================================================

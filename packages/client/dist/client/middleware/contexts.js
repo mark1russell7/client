@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware Context Types
  *
  * Each middleware declares what context it provides and requires through

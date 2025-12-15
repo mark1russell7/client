@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Server Types
  *
  * Protocol-agnostic server types mirroring the client architecture.

@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Universal Cache Middleware
  *
  * Protocol-agnostic caching with LRU eviction and TTL expiration.
  * Works with any transport!
  */
-import type { ResponseItem, Method, TypedClientMiddleware } from "../types";
-import type { CacheContext } from "./contexts";
+import type { ResponseItem, Method, TypedClientMiddleware } from "../types.js";
+import type { CacheContext } from "./contexts.js";
 /**
  * Cache middleware options.
  */

@@ -7,8 +7,8 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, Message, ResponseItem, TypedClientMiddleware } from "../types";
-import type { BatchingContext } from "./contexts";
+import type { ClientMiddleware, ClientRunner, ClientContext, Message, ResponseItem, TypedClientMiddleware } from "../types.js";
+import type { BatchingContext } from "./contexts.js";
 
 /**
  * Batching options.

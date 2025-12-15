@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Middleware Composition Utilities
  *
  * Provides type-safe composition of middleware chains with proper context tracking.
  * Uses recursive type inference (`MiddlewaresContext`) to validate middleware compatibility
  * for any chain length - no manual overloads needed!
  */
-import type { Middleware, MiddlewareRunner, MiddlewaresContext, AsyncMiddleware, SyncMiddleware } from "./types";
+import type { Middleware, MiddlewareRunner, MiddlewaresContext, AsyncMiddleware, SyncMiddleware } from "./types.js";
 /**
  * Wraps an async function with a series of middlewares and returns a new async function
  * representing their combined execution.

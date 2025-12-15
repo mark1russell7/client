@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Zod Validation Middleware
  *
  * Validates request and response payloads using Zod schemas.
  * Schemas can be registered per-route or overridden per-call.
  */
-import type { ClientMiddleware } from "../types";
-import type { SchemaRegistry } from "./types";
-import { ValidationError } from "./types";
+import type { ClientMiddleware } from "../types.js";
+import type { SchemaRegistry } from "./types.js";
+import { ValidationError } from "./types.js";
 /**
  * Validation mode determines behavior on validation failure.
  */
@@ -73,5 +73,5 @@ export type ZodMiddleware = ClientMiddleware & {
  * ```
  */
 export declare function createZodMiddleware(options?: ZodMiddlewareOptions): ZodMiddleware;
-export type { ZodValidationContext } from "./types";
+export type { ZodValidationContext } from "./types.js";
 //# sourceMappingURL=middleware.d.ts.map

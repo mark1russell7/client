@@ -12,7 +12,7 @@ import type {
   MiddlewaresContext,
   AsyncMiddleware,
   SyncMiddleware,
-} from "./types";
+} from "./types.js";
 
 /**
  * Wraps an async function with a series of middlewares and returns a new async function

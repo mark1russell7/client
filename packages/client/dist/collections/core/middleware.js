@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware composition system for collections.
  *
  * Provides the core composition mechanism that allows behaviors to be

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Bounded behavior - Enforces capacity limits on collections.
  *
  * Wraps collections to prevent them from exceeding a maximum size.

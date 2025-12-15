@@ -5,7 +5,7 @@
  */
 
 import type { Request } from "express";
-import type { Method } from "../../../client/types";
+import type { Method } from "../../../client/types.js";
 
 /**
  * Default URL strategy: RESTful routes.

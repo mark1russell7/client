@@ -8,26 +8,26 @@
 // ============================================================================
 // Collections Framework - Rich data structures with behaviors
 // ============================================================================
-export * from "./collections";
+export * from "./collections/index.js";
 
 // ============================================================================
 // Universal Client (protocol-agnostic RPC)
 // Core client and transports - middleware has naming conflicts with collections
 // Import client middleware explicitly: import { createRetryMiddleware } from "client/client"
 // ============================================================================
-export { Client, ClientError } from "./client";
+export { Client, ClientError } from "./client/index.js";
 export {
   HttpTransport,
   LocalTransport,
   WebSocketTransport,
   MockTransport,
   mockBuilder,
-} from "./client";
+} from "./client/index.js";
 export {
   defaultUrlPattern,
   restfulHttpMethodStrategy,
   postOnlyStrategy,
-} from "./client";
+} from "./client/index.js";
 export type {
   Transport,
   Method,
@@ -50,11 +50,11 @@ export type {
   MockResponse,
   ResponseMatcher,
   CallHistoryEntry,
-} from "./client";
+} from "./client/index.js";
 
 // Error system
-export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError } from "./client";
-export { ErrorSeverity, ErrorCategory } from "./client";
+export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError } from "./client/index.js";
+export { ErrorSeverity, ErrorCategory } from "./client/index.js";
 export {
   ERROR_REGISTRY,
   getErrorMetadata,
@@ -63,17 +63,17 @@ export {
   createErrorFromHTTPStatus,
   createErrorFromException,
   formatError,
-} from "./client";
+} from "./client/index.js";
 
 // ============================================================================
 // Universal Server (protocol-agnostic RPC)
 // ============================================================================
-export { Server, ProcedureServer, createProcedureServer } from "./server";
-export type { ServerOptions, ProcedureServerOptions, StorageConfig } from "./server";
+export { Server, ProcedureServer, createProcedureServer } from "./server/index.js";
+export type { ServerOptions, ProcedureServerOptions, StorageConfig } from "./server/index.js";
 export {
   HandlerNotFoundError,
   ServerError,
-} from "./server";
+} from "./server/index.js";
 export type {
   ServerRequest,
   ServerResponse,
@@ -82,26 +82,25 @@ export type {
   ServerContext,
   ServerRunner,
   ServerTransport,
-} from "./server";
+} from "./server/index.js";
 
 // Server Transports
 export {
   HttpServerTransport,
   defaultServerUrlStrategy,
   rpcServerUrlStrategy,
-} from "./server";
+} from "./server/index.js";
 export type {
   HttpServerTransportOptions,
   HttpUrlStrategy,
-} from "./server";
-
-export { WebSocketServerTransport } from "./server";
+} from "./server/index.js";
+export { WebSocketServerTransport } from "./server/index.js";
 export type {
   WebSocketServerTransportOptions,
   WebSocketAuthHandler,
   WebSocketConnectionHandler,
   WebSocketMessage,
-} from "./server";
+} from "./server/index.js";
 
 // ============================================================================
 // Procedure System - Type-safe RPC with auto-discovery
@@ -125,7 +124,7 @@ export {
   registerModule,
   registerProcedures,
   createAndRegister,
-} from "./procedures";
+} from "./procedures/index.js";
 
 export type {
   Procedure,
@@ -146,7 +145,7 @@ export type {
   InferProcedureMetadata,
   RegistryEventType,
   RegistryListener,
-} from "./procedures";
+} from "./procedures/index.js";
 
 // ============================================================================
 // Nested Route API - Batch calls with per-call middleware overrides
@@ -167,7 +166,7 @@ export type {
   RetryOverride,
   TimeoutOverride,
   CacheOverride,
-} from "./client/call-types";
+} from "./client/call-types.js";
 
 export {
   flattenRoute,
@@ -175,14 +174,13 @@ export {
   createRoute,
   mergeRoutes,
   isBatchRoute,
-} from "./client/call-types";
+} from "./client/call-types.js";
 
-export { RouteResolver, createRouteResolver, isValidRoute, getMissingPaths, matchPath } from "./client/route-resolver";
-export type { ResolvedRoute, RouteResolutionResult, RouteResolutionError } from "./client/route-resolver";
+export { RouteResolver, createRouteResolver, isValidRoute, getMissingPaths, matchPath } from "./client/route-resolver.js";
+export type { ResolvedRoute, RouteResolutionResult, RouteResolutionError } from "./client/route-resolver.js";
 
-export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor";
-export type { ProcedureExecutor, ExecutionContext, BatchExecutionResult } from "./client/batch-executor";
-
+export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor.js";
+export type { ProcedureExecutor, ExecutionContext, BatchExecutionResult } from "./client/batch-executor.js";
 export {
   getMiddlewareOverrides,
   getRetryOverride,
@@ -198,8 +196,8 @@ export {
   setMiddlewareOverrides,
   clearMiddlewareOverrides,
   MIDDLEWARE_OVERRIDES_KEY,
-} from "./client/middleware-override";
-export type { OverrideAwareConfig, ExtractMiddlewareConfig, OverrideOf } from "./client/middleware-override";
+} from "./client/middleware-override.js";
+export type { OverrideAwareConfig, ExtractMiddlewareConfig, OverrideOf } from "./client/middleware-override.js";
 
 // ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both

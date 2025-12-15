@@ -5,10 +5,10 @@
  */
 
 // Types
-export type { HttpUrlStrategy, HttpServerTransportOptions } from "./types";
+export type { HttpUrlStrategy, HttpServerTransportOptions } from "./types.js";
 
 // Strategies
-export { defaultServerUrlStrategy, rpcServerUrlStrategy } from "./strategies";
+export { defaultServerUrlStrategy, rpcServerUrlStrategy } from "./strategies.js";
 
 // Transport
-export { HttpServerTransport } from "./transport";
+export { HttpServerTransport } from "./transport.js";

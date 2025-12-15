@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HTTP Client Transport Types
  *
  * Client-specific configuration for HTTP adapter.

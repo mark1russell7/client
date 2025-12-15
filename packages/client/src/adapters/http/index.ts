@@ -2,6 +2,6 @@
  * HTTP Adapter - Complete HTTP transport layer
  */
 
-export * from "./client";
-export * from "./shared";
-export * from "./server";
+export * from "./client/index.js";
+export * from "./shared/index.js";
+export * from "./server/index.js";

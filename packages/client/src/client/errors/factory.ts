@@ -9,10 +9,10 @@ import {
   type RichError,
   type ErrorContext,
   type ErrorMetadata,
-} from "./types";
-import { getErrorMetadata } from "./registry";
-import { httpStatusToErrorCode } from "./http-errors";
-import { ErrorCode } from "./codes";
+} from "./types.js";
+import { getErrorMetadata } from "./registry.js";
+import { httpStatusToErrorCode } from "./http-errors.js";
+import { ErrorCode } from "./codes.js";
 
 /**
  * Create a rich error from an error code.

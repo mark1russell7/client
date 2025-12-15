@@ -10,9 +10,9 @@
  * const grouped = collect(users, groupingBy(u => u.age))
  */
 
-import { arrayList, type ArrayList } from "../impl/array-list";
-import { hashMap, type HashMap } from "../impl/hash-map";
-import { hashSet, type HashSet } from "../impl/hash-set";
+import { arrayList, type ArrayList } from "../impl/array-list.js";
+import { hashMap, type HashMap } from "../impl/hash-map.js";
+import { hashSet, type HashSet } from "../impl/hash-set.js";
 
 // ============================================================================
 // Collector interface

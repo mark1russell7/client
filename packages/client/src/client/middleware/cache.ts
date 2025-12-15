@@ -5,10 +5,10 @@
  * Works with any transport!
  */
 
-import type { ClientRunner, ClientContext, ResponseItem, Method, TypedClientMiddleware } from "../types";
-import type { CacheContext } from "./contexts";
-import { compose, lruMap, ttlMap, hashMap } from "../../collections";
-import type { MapLike } from "../../collections/interfaces/map";
+import type { ClientRunner, ClientContext, ResponseItem, Method, TypedClientMiddleware } from "../types.js";
+import type { CacheContext } from "./contexts.js";
+import { compose, lruMap, ttlMap, hashMap } from "../../collections/index.js";
+import type { MapLike } from "../../collections/interfaces/map.js";
 
 /**
  * Cache middleware options.

@@ -1,14 +1,14 @@
-﻿/**
+/**
  * Factory utilities for creating collections.
  *
  * Provides convenient factory methods similar to Java's Collections class.
  * These mirror methods like Collections.emptyList(), singletonList(), etc.
  */
-import { arrayList, ArrayList } from "../impl/array-list";
-import { arrayDeque, ArrayDeque } from "../impl/array-deque";
-import { hashMap, HashMap } from "../impl/hash-map";
-import { readonly } from "../behaviors/readonly";
-import { compose } from "../core/middleware";
+import { arrayList, ArrayList } from "../impl/array-list.js";
+import { arrayDeque, ArrayDeque } from "../impl/array-deque.js";
+import { hashMap, HashMap } from "../impl/hash-map.js";
+import { readonly } from "../behaviors/readonly.js";
+import { compose } from "../core/middleware.js";
 // ============================================================================
 // Empty collections
 // ============================================================================

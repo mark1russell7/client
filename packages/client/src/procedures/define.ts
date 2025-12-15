@@ -4,13 +4,13 @@
  * Factory function for creating well-typed procedure definitions.
  */
 
-import type { ZodLike } from "../client/validation/types";
+import type { ZodLike } from "../client/validation/types.js";
 import type {
   Procedure,
   ProcedurePath,
   ProcedureMetadata,
   ProcedureHandler,
-} from "./types";
+} from "./types.js";
 
 // =============================================================================
 // Definition Input Types

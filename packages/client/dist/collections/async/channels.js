@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Go-style channels for CSP (Communicating Sequential Processes).
  *
  * Provides typed, bidirectional communication channels inspired by Go.
@@ -19,7 +19,7 @@
  *   ch2.case((v) => console.log('ch2:', v))
  * )
  */
-import { asyncQueue } from "./async-queue";
+import { asyncQueue } from "./async-queue.js";
 /**
  * Channel<T> - Bidirectional communication channel.
  *

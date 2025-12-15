@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Zod Validation Types
  *
  * Type definitions for schema validation middleware.

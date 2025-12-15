@@ -1,4 +1,4 @@
-﻿/**
+/**
  * In-Memory Storage Implementation
  *
  * Fast, volatile storage using JavaScript Map.

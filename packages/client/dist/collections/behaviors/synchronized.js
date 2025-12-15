@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Synchronized behavior - Provides thread-safe access with mutex locking.
  *
  * Wraps collections to serialize all operations using a mutex, ensuring

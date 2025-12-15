@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Universal Client Type System
  *
  * Protocol-agnostic abstractions for RPC communication.
  * These types work across HTTP, gRPC, WebSocket, and local transports.
  */
-import type { ErrorMetadata } from "./errors";
+import type { ErrorMetadata } from "./errors/index.js";
 /**
  * Method identifier using structured data (no string parsing needed).
  *

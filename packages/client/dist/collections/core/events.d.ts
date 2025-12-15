@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Typed event emitter system for collections.
  *
  * Provides a lightweight, type-safe event system for mutation events

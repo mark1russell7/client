@@ -18,9 +18,9 @@
  * })
  */
 
-import type { MapLike, Entry } from "../interfaces/map";
-import type { Eq, Hash } from "../core/traits";
-import { defaultEq, defaultHash } from "../utils/defaults";
+import type { MapLike, Entry } from "../interfaces/map.js";
+import type { Eq, Hash } from "../core/traits.js";
+import { defaultEq, defaultHash } from "../utils/defaults.js";
 
 /**
  * Internal entry node for hash buckets.

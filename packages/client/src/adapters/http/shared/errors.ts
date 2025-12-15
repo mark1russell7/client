@@ -5,8 +5,8 @@
  * No more magic strings!
  */
 
-import { HTTPStatus } from "./constants";
-import { formatHTTPError, getStatusCode, isRetryableStatus } from "./status-codes";
+import { HTTPStatus } from "./constants.js";
+import { formatHTTPError, getStatusCode, isRetryableStatus } from "./status-codes.js";
 
 /**
  * HTTP Error Codes (Type-safe)

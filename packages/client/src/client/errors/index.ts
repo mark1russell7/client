@@ -34,12 +34,12 @@ export type {
   ErrorContext,
   RichError,
   ErrorFactory,
-} from "./types";
+} from "./types.js";
 
-export { ErrorSeverity, ErrorCategory } from "./types";
+export { ErrorSeverity, ErrorCategory } from "./types.js";
 
 // Error Codes Enum
-export { ErrorCode } from "./codes";
+export { ErrorCode } from "./codes.js";
 
 // Registry
 export {
@@ -48,7 +48,7 @@ export {
   isKnownError,
   getErrorsByCategory,
   getRetryableErrors,
-} from "./registry";
+} from "./registry.js";
 
 // Factory
 export {
@@ -59,14 +59,14 @@ export {
   formatError,
   isRetryable,
   isErrorCategory,
-} from "./factory";
+} from "./factory.js";
 
 // HTTP Status Constants
-export { HTTPStatus } from "./http-status";
+export { HTTPStatus } from "./http-status.js";
 
 // HTTP Errors
 export {
   HTTP_ERROR_REGISTRY,
   httpStatusToErrorCode,
   errorCodeToHTTPStatus,
-} from "./http-errors";
+} from "./http-errors.js";

@@ -5,8 +5,8 @@
  * Deques (double-ended queues) allow efficient insertion/removal at both ends.
  */
 
-import type { Collection, ReadonlyCollection } from "./collection";
-import type { Compare } from "../core/traits";
+import type { Collection, ReadonlyCollection } from "./collection.js";
+import type { Compare } from "../core/traits.js";
 
 /**
  * ReadonlyQueue<T> - Readonly FIFO (First-In-First-Out) queue.

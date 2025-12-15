@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LRU (Least Recently Used) eviction behavior.
  *
  * Tracks access times and automatically evicts the least recently used
@@ -13,8 +13,8 @@
  * cache.get('key1')        // Accessed again (moves to front)
  * // When full, least recently accessed keys are evicted
  */
-import type { Middleware } from "../core/middleware";
-import type { MapLike } from "../interfaces/map";
+import type { Middleware } from "../core/middleware.js";
+import type { MapLike } from "../interfaces/map.js";
 /**
  * Options for LRU behavior.
  */

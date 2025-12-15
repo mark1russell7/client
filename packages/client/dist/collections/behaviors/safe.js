@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Safe behavior - Provides Option/Result-based error handling.
  *
  * Wraps collection operations that throw errors to instead return
@@ -14,8 +14,8 @@
  *   console.log(value.value)
  * }
  */
-import {} from "../core/effects";
-import { None, Some, tryCatch } from "../core/effects";
+import {} from "../core/effects.js";
+import { None, Some, tryCatch } from "../core/effects.js";
 /**
  * Creates a safe List middleware.
  *

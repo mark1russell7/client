@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Zod Validation Types
  *
  * Type definitions for schema validation middleware.
  * Works with Zod as an optional peer dependency.
  */
-import type { Method } from "../types";
+import type { Method } from "../types.js";
 /**
  * Generic schema interface compatible with Zod.
  * Allows the validation system to work without direct Zod dependency.

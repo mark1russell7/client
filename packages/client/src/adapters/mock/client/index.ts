@@ -10,10 +10,10 @@ export type {
   MockResponse,
   ResponseMatcher,
   CallHistoryEntry,
-} from "./types";
+} from "./types.js";
 
 // Transport
-export { MockTransport } from "./transport";
+export { MockTransport } from "./transport.js";
 
 // Builder
-export { mockBuilder } from "./builder";
+export { mockBuilder } from "./builder.js";

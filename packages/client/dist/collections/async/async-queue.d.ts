@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AsyncQueue - An async iterable queue with backpressure support.
  *
  * Designed for producer-consumer patterns where producers can wait when
@@ -19,7 +19,7 @@
  *   console.log(value)
  * }
  */
-import type { AsyncQueue as IAsyncQueue } from "../interfaces/queue";
+import type { AsyncQueue as IAsyncQueue } from "../interfaces/queue.js";
 /**
  * Options for creating an AsyncQueue.
  */

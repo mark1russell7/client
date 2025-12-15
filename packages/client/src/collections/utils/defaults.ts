@@ -5,7 +5,7 @@
  * creating custom comparators.
  */
 
-import type { Eq, Hash, Compare } from "../core/traits";
+import type { Eq, Hash, Compare } from "../core/traits.js";
 
 // ============================================================================
 // Default Equality

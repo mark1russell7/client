@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware composition system for collections.
  *
  * Provides the core composition mechanism that allows behaviors to be
@@ -16,7 +16,7 @@
  *   boundedList({ capacity: 100 })
  * )(arrayList<number>())
  */
-import type { Collection } from "../interfaces/collection";
+import type { Collection } from "../interfaces/collection.js";
 /**
  * A middleware is a function that takes a collection and returns
  * an enhanced version of that collection.

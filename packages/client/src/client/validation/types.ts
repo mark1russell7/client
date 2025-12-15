@@ -5,7 +5,7 @@
  * Works with Zod as an optional peer dependency.
  */
 
-import type { Method } from "../types";
+import type { Method } from "../types.js";
 
 // =============================================================================
 // Schema Types (Zod-compatible but decoupled)

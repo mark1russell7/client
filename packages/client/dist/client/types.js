@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Client Type System
  *
  * Protocol-agnostic abstractions for RPC communication.

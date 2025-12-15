@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Safe behavior - Provides Option/Result-based error handling.
  *
  * Wraps collection operations that throw errors to instead return
@@ -14,11 +14,11 @@
  *   console.log(value.value)
  * }
  */
-import type { Middleware } from "../core/middleware";
-import type { List } from "../interfaces/list";
-import type { Queue, Deque } from "../interfaces/queue";
-import type { MapLike } from "../interfaces/map";
-import { type Option, type Result } from "../core/effects";
+import type { Middleware } from "../core/middleware.js";
+import type { List } from "../interfaces/list.js";
+import type { Queue, Deque } from "../interfaces/queue.js";
+import type { MapLike } from "../interfaces/map.js";
+import { type Option, type Result } from "../core/effects.js";
 /**
  * Safe operations for List.
  */
@@ -142,7 +142,7 @@ export declare function safeMap<K, V>(): Middleware<MapLike<K, V> & {
  * Note: The match method is already built into Ok and Err constructors
  * in effects.ts, so no runtime augmentation is needed.
  */
-declare module "../core/effects" {
+declare module "../core/effects.js" {
     interface Ok<T> {
         match<U>(cases: {
             Ok: (value: T) => U;

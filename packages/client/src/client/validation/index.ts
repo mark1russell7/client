@@ -44,7 +44,7 @@ export {
   ValidationError,
   type InferInput,
   type InferOutput,
-} from "./types";
+} from "./types.js";
 
 // Middleware
 export {
@@ -53,7 +53,7 @@ export {
   type ValidationMode,
   type ZodMiddleware,
   SCHEMA_REGISTRY,
-} from "./middleware";
+} from "./middleware.js";
 
 // Schemas
-export * from "./schemas";
+export * from "./schemas/index.js";

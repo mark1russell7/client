@@ -7,11 +7,11 @@
  * - Hybrid (local cache + remote sync)
  */
 
-export type { CollectionStorage, StorageMetadata } from "./interface";
-export { normalizeStorageResult } from "./interface";
+export type { CollectionStorage, StorageMetadata } from "./interface.js";
+export { normalizeStorageResult } from "./interface.js";
 
-export { InMemoryStorage } from "./memory";
-export { ApiStorage } from "./api";
-export type { ApiStorageOptions } from "./api";
-export { HybridStorage } from "./hybrid";
-export type { HybridStorageOptions, ConflictResolution, WriteStrategy } from "./hybrid";
+export { InMemoryStorage } from "./memory.js";
+export { ApiStorage } from "./api.js";
+export type { ApiStorageOptions } from "./api.js";
+export { HybridStorage } from "./hybrid.js";
+export type { HybridStorageOptions, ConflictResolution, WriteStrategy } from "./hybrid.js";

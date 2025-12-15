@@ -1,12 +1,12 @@
-﻿/**
+/**
  * WebSocket Server Transport Implementation
  *
  * Adapts WebSocket connections to unified RPC format.
  * Supports bidirectional streaming and persistent connections.
  */
-import type { ServerTransport } from "../../../server/types";
-import type { Server } from "../../../server/server";
-import type { WebSocketServerTransportOptions, WebSocketMessage } from "./types";
+import type { ServerTransport } from "../../../server/types.js";
+import type { Server } from "../../../server/server.js";
+import type { WebSocketServerTransportOptions, WebSocketMessage } from "./types.js";
 /**
  * WebSocket server transport adapter.
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Server
  *
  * Protocol-agnostic RPC server architecture.
@@ -33,9 +33,9 @@
  * await httpTransport.start();
  * ```
  */
-export { Server } from "./server";
-export { ProcedureServer, createProcedureServer } from "./procedure-server";
-export { HandlerNotFoundError, ServerError, } from "./types";
-export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "../adapters/http/server";
-export { WebSocketServerTransport } from "../adapters/websocket/server";
+export { Server } from "./server.js";
+export { ProcedureServer, createProcedureServer } from "./procedure-server.js";
+export { HandlerNotFoundError, ServerError, } from "./types.js";
+export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "../adapters/http/server/index.js";
+export { WebSocketServerTransport } from "../adapters/websocket/server/index.js";
 //# sourceMappingURL=index.js.map

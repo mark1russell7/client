@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Message Zod Schemas
  *
  * Generic schemas for the universal RPC message format.

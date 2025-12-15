@@ -12,9 +12,9 @@
  * - Offline operation queue
  */
 
-import type { CollectionStorage, StorageMetadata } from "./interface";
-import { InMemoryStorage } from "./memory";
-import type { ApiStorage } from "./api";
+import type { CollectionStorage, StorageMetadata } from "./interface.js";
+import { InMemoryStorage } from "./memory.js";
+import type { ApiStorage } from "./api.js";
 
 /**
  * Conflict resolution strategy.

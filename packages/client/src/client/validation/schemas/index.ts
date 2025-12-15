@@ -13,7 +13,7 @@ export {
   type HttpResponse,
   type ZodModule,
   type ExtractBody,
-} from "./transport";
+} from "./transport.js";
 
 // Universal message schemas
 export {
@@ -27,4 +27,4 @@ export {
   type StatusShape,
   type ResponseItemShape,
   type ExtractPayload,
-} from "./message";
+} from "./message.js";

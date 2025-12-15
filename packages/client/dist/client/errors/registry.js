@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Error Registry
  *
  * Central source of truth for all error codes across all transports.
@@ -6,9 +6,9 @@
  *
  * NO MAGIC STRINGS - everything is defined in the registry!
  */
-import { ErrorCategory, ErrorSeverity, } from "./types";
-import { HTTP_ERROR_REGISTRY } from "./http-errors";
-import { ErrorCode } from "./codes";
+import { ErrorCategory, ErrorSeverity, } from "./types.js";
+import { HTTP_ERROR_REGISTRY } from "./http-errors.js";
+import { ErrorCode } from "./codes.js";
 /**
  * Create error metadata with defaults.
  */

@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Server URL Strategies
  *
  * Functions for mapping HTTP requests to RPC methods.
  */
 import type { Request } from "express";
-import type { Method } from "../../../client/types";
+import type { Method } from "../../../client/types.js";
 /**
  * Default URL strategy: RESTful routes.
  *

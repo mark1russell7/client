@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HTTP Status Code Constants
  *
  * Comprehensive enum of HTTP status codes.

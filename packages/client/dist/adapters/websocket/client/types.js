@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebSocket Client Transport Types
  *
  * Type definitions for WebSocket client adapter.

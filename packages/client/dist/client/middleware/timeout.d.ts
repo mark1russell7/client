@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Universal Timeout Middleware
  *
  * Protocol-agnostic timeout handling with per-request and overall timeouts.
  * Works with any transport!
  */
-import type { TypedClientMiddleware } from "../types";
-import type { TimeoutContext } from "./contexts";
+import type { TypedClientMiddleware } from "../types.js";
+import type { TimeoutContext } from "./contexts.js";
 /**
  * Timeout middleware options.
  */

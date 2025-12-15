@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Error Types
  *
  * Type-safe error codes and utilities for HTTP adapter errors.
  * No more magic strings!
  */
-import { HTTPStatus } from "./constants";
+import { HTTPStatus } from "./constants.js";
 /**
  * HTTP Error Codes (Type-safe)
  *

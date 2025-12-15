@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Universal Pagination Middleware
  *
  * Protocol-agnostic pagination handling.
  * Works with any transport!
  */
-import type { TypedClientMiddleware } from "../types";
-import type { PaginationContext } from "./contexts";
+import type { TypedClientMiddleware } from "../types.js";
+import type { PaginationContext } from "./contexts.js";
 /**
  * Pagination middleware options.
  */

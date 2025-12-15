@@ -5,7 +5,7 @@
  * All operations return Promises for interface consistency.
  */
 
-import type { CollectionStorage, StorageMetadata } from "./interface";
+import type { CollectionStorage, StorageMetadata } from "./interface.js";
 
 /**
  * In-memory storage backed by JavaScript Map.

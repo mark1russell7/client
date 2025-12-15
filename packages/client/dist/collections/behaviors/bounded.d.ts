@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Bounded behavior - Enforces capacity limits on collections.
  *
  * Wraps collections to prevent them from exceeding a maximum size.
@@ -14,12 +14,12 @@
  *   list.add(i)
  * }
  */
-import type { Middleware } from "../core/middleware";
-import type { List } from "../interfaces/list";
-import type { Queue, Deque } from "../interfaces/queue";
-import type { MapLike } from "../interfaces/map";
-import type { Collection } from "../interfaces/collection";
-import type { OverflowPolicy, OverflowHandler, OverflowContext } from "../core/policies";
+import type { Middleware } from "../core/middleware.js";
+import type { List } from "../interfaces/list.js";
+import type { Queue, Deque } from "../interfaces/queue.js";
+import type { MapLike } from "../interfaces/map.js";
+import type { Collection } from "../interfaces/collection.js";
+import type { OverflowPolicy, OverflowHandler, OverflowContext } from "../core/policies.js";
 /**
  * Options for bounded behavior.
  */

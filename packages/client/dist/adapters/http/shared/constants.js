@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HTTP Constants
  *
  * Shared HTTP enums and constants used by both client and server adapters.

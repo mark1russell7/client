@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LinkedHashMap - HashMap that maintains insertion order.
  *
  * Combines a hash table with a doubly-linked list to maintain predictable
@@ -24,7 +24,7 @@
  * lru.get('a') // Moves 'a' to end
  * // Iteration order: b, a (access order)
  */
-import { defaultEq, defaultHash } from "../utils/defaults";
+import { defaultEq, defaultHash } from "../utils/defaults.js";
 /**
  * LinkedHashMap<K, V> - Hash map with predictable iteration order.
  *

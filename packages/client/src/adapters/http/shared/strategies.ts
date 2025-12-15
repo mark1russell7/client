@@ -6,8 +6,8 @@
  * and server use consistent, inverse operations.
  */
 
-import type { Method } from "../../../client/types";
-import { HTTPMethod } from "./constants";
+import type { Method } from "../../../client/types.js";
+import { HTTPMethod } from "./constants.js";
 
 /**
  * URL Strategy (Client-side)

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Client Context System
  *
  * Provides hierarchical context passing for middleware configuration.

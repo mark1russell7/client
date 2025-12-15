@@ -29,7 +29,7 @@ export {
   setBatchOutputSchema,
   deleteBatchInputSchema,
   deleteBatchOutputSchema,
-} from "./schemas";
+} from "./schemas.js";
 
 export type {
   GetInput,
@@ -42,7 +42,7 @@ export type {
   GetBatchInput,
   SetBatchInput,
   DeleteBatchInput,
-} from "./schemas";
+} from "./schemas.js";
 
 // Procedures
 export {
@@ -52,4 +52,4 @@ export {
   genericDeleteProcedure,
   genericCollectionProcedures,
   collectionModule,
-} from "./procedures";
+} from "./procedures.js";

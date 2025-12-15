@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Batch Executor
  *
  * Executes multiple procedure calls with configurable strategies:
@@ -6,7 +6,7 @@
  * - race: Return first result (Promise.race)
  * - stream: Yield results as they arrive
  */
-import { buildResponse } from "./call-types";
+import { buildResponse } from "./call-types.js";
 // =============================================================================
 // Batch Executor Class
 // =============================================================================

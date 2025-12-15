@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Rate Limiting Middleware
  *
  * Throttles requests using token bucket algorithm.

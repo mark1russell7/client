@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Collection Storage Interface
  *
  * Abstract storage layer for collections, enabling different backends:

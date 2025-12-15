@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ArrayList implementation - A dynamic array-backed list.
  *
  * Provides O(1) indexed access and amortized O(1) append.
@@ -11,7 +11,7 @@
  * list.add(3)
  * console.log(list.get(1)) // 2
  */
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 /**
  * ArrayList<T> - Resizable array implementation of the List interface.
  *

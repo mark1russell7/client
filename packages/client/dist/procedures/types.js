@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Procedure Type System
  *
  * Core types for procedure definitions, handlers, and registration.

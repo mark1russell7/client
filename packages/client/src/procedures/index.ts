@@ -23,13 +23,13 @@ export type {
   RegistryListener,
   ProcedureModule,
   RegistrationOptions,
-} from "./types";
+} from "./types.js";
 
 // Type utilities
-export { pathToKey, keyToPath } from "./types";
+export { pathToKey, keyToPath } from "./types.js";
 
 // Registry
-export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY } from "./registry";
+export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY } from "./registry.js";
 
 // Definition helpers
 export {
@@ -39,15 +39,15 @@ export {
   ProcedureBuilder,
   namespace,
   validateProcedure,
-} from "./define";
-export type { ProcedureDefinition, ProcedureStub } from "./define";
+} from "./define.js";
+export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 
 // Collection procedures
 export {
   createCollectionProcedures,
   genericCollectionProcedures,
   collectionModule,
-} from "./collection";
+} from "./collection/index.js";
 
 // Manual registration helpers
 export {

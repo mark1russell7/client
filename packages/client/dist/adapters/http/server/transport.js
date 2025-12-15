@@ -1,12 +1,12 @@
-﻿/**
+/**
  * HTTP Server Transport Implementation
  *
  * Adapts Express HTTP server to unified RPC format.
  * Converts HTTP requests to ServerRequest and ServerResponse back to HTTP.
  */
 import { createServer } from "http";
-import { HTTPMethod } from "../shared";
-import { defaultServerUrlStrategy } from "./strategies";
+import { HTTPMethod } from "../shared/index.js";
+import { defaultServerUrlStrategy } from "./strategies.js";
 /**
  * HTTP server transport adapter for Express.
  *
@@ -168,8 +168,8 @@ export class HttpServerTransport {
         }
         // Payload from body (for POST/PUT) or params (for GET)
         let payload = req.body;
-        if (req.method === "GET" && req.params.id) {
-            payload = { id: req.params.id };
+        if (req.method === "GET" && req.params["id"]) {
+            payload = { id: req.params["id"] };
         }
         // Default to empty object if payload is undefined (common for GET requests)
         if (payload === undefined) {
@@ -204,8 +204,8 @@ export class HttpServerTransport {
         }
         res.status(httpStatusCode);
         // Set headers from metadata
-        if (metadata.headers) {
-            for (const [key, value] of Object.entries(metadata.headers)) {
+        if (metadata["headers"]) {
+            for (const [key, value] of Object.entries(metadata["headers"])) {
                 res.setHeader(key, value);
             }
         }

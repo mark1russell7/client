@@ -25,13 +25,13 @@ import {
   groupBy,
   // isSome,
   // isNone,
-} from "./index";
+} from "./index.js";
 
 // ============================================================================
 // Example 1: Basic ArrayList usage
 // ============================================================================
 
-export function basicListExample() {
+export function basicListExample() : void {
   console.log("=== Basic ArrayList Example ===");
 
   const list = arrayList<number>();
@@ -47,7 +47,7 @@ export function basicListExample() {
   list.unshift(0);
   console.log("Array:", list.toArray()); // [0, 1, 2, 3, 4]
 
-  list.sort((a, b) => b - a);
+  list.sort((a : number, b: number) => b - a);
   console.log("Sorted desc:", list.toArray()); // [4, 3, 2, 1, 0]
 }
 
@@ -122,7 +122,7 @@ export function safeListExample() {
 // Example 4: HashMap with custom equality
 // ============================================================================
 
-export function hashMapExample() {
+export function hashMapExample() : void {
   console.log("\n=== HashMap Example ===");
 
   interface User {
@@ -131,8 +131,8 @@ export function hashMapExample() {
   }
 
   const map = hashMap<User, string>({
-    keyEq: (a, b) => a.id === b.id,
-    keyHash: (u) => u.id,
+    keyEq: (a: User, b: User) => a.id === b.id,
+    keyHash: (u: User) => u.id,
   });
 
   const alice: User = { id: 1, name: "Alice" };
@@ -182,7 +182,7 @@ export function eventedMapExample() {
 // Example 6: ArrayDeque (double-ended queue)
 // ============================================================================
 
-export function dequeExample() {
+export function dequeExample() : void {
   console.log("\n=== ArrayDeque Example ===");
 
   const deque = arrayDeque<string>();
@@ -209,7 +209,7 @@ export function dequeExample() {
 // Example 7: Readonly collections
 // ============================================================================
 
-export function readonlyExample() {
+export function readonlyExample() : void {
   console.log("\n=== Readonly Example ===");
 
   const mutableList = arrayList([1, 2, 3]);
@@ -237,7 +237,7 @@ export function readonlyExample() {
 // Example 8: Factory utilities
 // ============================================================================
 
-export function factoriesExample() {
+export function factoriesExample() : void {
   console.log("\n=== Factories Example ===");
 
   // Create from varargs
@@ -269,7 +269,7 @@ export function factoriesExample() {
     { name: "David", age: 30 },
   ];
 
-  const byAge = groupBy(people, (p) => p.age);
+  const byAge = groupBy(people, (p: Person) => p.age);
   console.log("People aged 25:", byAge.get(25)?.toArray());
   console.log("People aged 30:", byAge.get(30)?.toArray());
 }
@@ -356,7 +356,7 @@ export function allBehaviorsExample() {
 // Run all examples
 // ============================================================================
 
-export function runAllExamples() {
+export function runAllExamples() : void {
   basicListExample();
   // boundedEventedListExample(); // Disabled - pending middleware type improvements
   // safeListExample(); // Disabled - pending middleware type improvements

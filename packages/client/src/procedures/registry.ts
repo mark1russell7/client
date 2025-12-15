@@ -12,8 +12,8 @@ import type {
   RegistryListener,
   ProcedureModule,
   RegistrationOptions,
-} from "./types";
-import { pathToKey } from "./types";
+} from "./types.js";
+import { pathToKey } from "./types.js";
 
 // =============================================================================
 // Registry Errors
@@ -395,4 +395,4 @@ export class ProcedureRegistry {
  * import 'my-module/register';
  * ```
  */
-export const PROCEDURE_REGISTRY = new ProcedureRegistry();
+export const PROCEDURE_REGISTRY : ProcedureRegistry = new ProcedureRegistry();

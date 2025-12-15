@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Procedure Discovery
  *
  * Generates a TypeScript file with static imports for all discovered procedures.

@@ -13,9 +13,9 @@
  * // After 60 seconds, 'key' is automatically removed
  */
 
-import type { Middleware } from "../core/middleware";
-import type { MapLike } from "../interfaces/map";
-import type { Collection } from "../interfaces/collection";
+import type { Middleware } from "../core/middleware.js";
+import type { MapLike } from "../interfaces/map.js";
+import type { Collection } from "../interfaces/collection.js";
 
 /**
  * Options for TTL behavior.

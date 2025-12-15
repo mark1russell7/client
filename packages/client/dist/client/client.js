@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Client
  *
  * Protocol-agnostic RPC client with middleware composition.
@@ -24,15 +24,15 @@
  * await authedClient.call(method, payload, { context: { retry: { maxAttempts: 5 } } });
  * ```
  */
-import { ClientError } from "./types";
-import { compose } from "../middleware/compose";
-import { mergeContext, normalizeCallOptions } from "./context";
-import { methodToKey } from "./validation/types";
-import { SCHEMA_REGISTRY } from "./validation/middleware";
-import { buildResponse } from "./call-types";
-import { RouteResolver } from "./route-resolver";
-import { BatchExecutor } from "./batch-executor";
-import { PROCEDURE_REGISTRY } from "../procedures/registry";
+import { ClientError } from "./types.js";
+import { compose } from "../middleware/compose.js";
+import { mergeContext, normalizeCallOptions } from "./context.js";
+import { methodToKey } from "./validation/types.js";
+import { SCHEMA_REGISTRY } from "./validation/middleware.js";
+import { buildResponse } from "./call-types.js";
+import { RouteResolver } from "./route-resolver.js";
+import { BatchExecutor } from "./batch-executor.js";
+import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 /**
  * Generate a unique message ID.
  */

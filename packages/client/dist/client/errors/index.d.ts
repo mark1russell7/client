@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Error System
  *
  * Protocol-agnostic error handling with rich metadata.
@@ -26,11 +26,11 @@
  * console.log(formatError(error));
  * ```
  */
-export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError, ErrorFactory, } from "./types";
-export { ErrorSeverity, ErrorCategory } from "./types";
-export { ErrorCode } from "./codes";
-export { ERROR_REGISTRY, getErrorMetadata, isKnownError, getErrorsByCategory, getRetryableErrors, } from "./registry";
-export { createError, createErrorFromHTTPStatus, createErrorFromException, richErrorToStatus, formatError, isRetryable, isErrorCategory, } from "./factory";
-export { HTTPStatus } from "./http-status";
-export { HTTP_ERROR_REGISTRY, httpStatusToErrorCode, errorCodeToHTTPStatus, } from "./http-errors";
+export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError, ErrorFactory, } from "./types.js";
+export { ErrorSeverity, ErrorCategory } from "./types.js";
+export { ErrorCode } from "./codes.js";
+export { ERROR_REGISTRY, getErrorMetadata, isKnownError, getErrorsByCategory, getRetryableErrors, } from "./registry.js";
+export { createError, createErrorFromHTTPStatus, createErrorFromException, richErrorToStatus, formatError, isRetryable, isErrorCategory, } from "./factory.js";
+export { HTTPStatus } from "./http-status.js";
+export { HTTP_ERROR_REGISTRY, httpStatusToErrorCode, errorCodeToHTTPStatus, } from "./http-errors.js";
 //# sourceMappingURL=index.d.ts.map

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Batching Middleware
  *
  * Combines multiple requests into a single batch for efficiency.

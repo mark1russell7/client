@@ -12,9 +12,9 @@ import {
   ErrorSeverity,
   type ErrorRegistry,
   type ErrorMetadata,
-} from "./types";
-import { HTTP_ERROR_REGISTRY } from "./http-errors";
-import { ErrorCode } from "./codes";
+} from "./types.js";
+import { HTTP_ERROR_REGISTRY } from "./http-errors.js";
+import { ErrorCode } from "./codes.js";
 
 /**
  * Create error metadata with defaults.

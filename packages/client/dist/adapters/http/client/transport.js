@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Client Transport Implementation
  *
  * Converts universal client protocol to HTTP requests using
  * shared utilities and injectable strategies.
  */
-import { HTTP, HTTPMethod, HTTPStatus, HTTPHeaders, defaultUrlPattern, restfulHttpMethodStrategy, createDefaultHeaderConverter, isSuccessStatus, createHTTPStatusError, createAbortError, createErrorFromException, isValidJSONPayload, } from "../shared";
+import { HTTP, HTTPMethod, HTTPStatus, HTTPHeaders, defaultUrlPattern, restfulHttpMethodStrategy, createDefaultHeaderConverter, isSuccessStatus, createHTTPStatusError, createAbortError, createErrorFromException, isValidJSONPayload, } from "../shared/index.js";
 /**
  * HTTP Client Transport
  *

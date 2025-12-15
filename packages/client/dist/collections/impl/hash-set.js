@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HashSet implementation - A set backed by a HashMap.
  *
  * Provides O(1) average case for add, remove, and contains operations.
@@ -12,8 +12,8 @@
  * set.add(1) // Returns false, already present
  * set.size // 2
  */
-import { HashMap } from "./hash-map";
-import { defaultEq, defaultHash } from "../utils/defaults";
+import { HashMap } from "./hash-map.js";
+import { defaultEq, defaultHash } from "../utils/defaults.js";
 /**
  * Dummy value used for the HashMap backing the set.
  */

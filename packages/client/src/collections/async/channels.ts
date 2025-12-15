@@ -20,7 +20,7 @@
  * )
  */
 
-import { asyncQueue, type AsyncQueue } from "./async-queue";
+import { asyncQueue, type AsyncQueue } from "./async-queue.js";
 
 /**
  * Channel<T> - Bidirectional communication channel.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LinkedList implementation - A doubly-linked list.
  *
  * Provides O(1) insertion/removal at both ends and at known positions.
@@ -11,9 +11,9 @@
  * list.addLast(2)
  * list.add(3)
  */
-import type { List } from "../interfaces/list";
-import type { Deque } from "../interfaces/queue";
-import type { Eq, Compare } from "../core/traits";
+import type { List } from "../interfaces/list.js";
+import type { Deque } from "../interfaces/queue.js";
+import type { Eq, Compare } from "../core/traits.js";
 /**
  * Options for creating a LinkedList.
  */

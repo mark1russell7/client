@@ -3,14 +3,14 @@
  */
 
 // Client
-export { WebSocketTransport, WebSocketState } from "./client";
-export type { WebSocketTransportOptions, WebSocketMessage as ClientWebSocketMessage } from "./client";
+export { WebSocketTransport, WebSocketState } from "./client/index.js";
+export type { WebSocketTransportOptions, WebSocketMessage as ClientWebSocketMessage } from "./client/index.js";
 
 // Server
-export { WebSocketServerTransport } from "./server";
+export { WebSocketServerTransport } from "./server/index.js";
 export type {
   WebSocketServerTransportOptions,
   WebSocketAuthHandler,
   WebSocketConnectionHandler,
   WebSocketMessage as ServerWebSocketMessage,
-} from "./server";
+} from "./server/index.js";

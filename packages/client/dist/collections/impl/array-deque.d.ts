@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ArrayDeque implementation - A ring buffer backed double-ended queue.
  *
  * Provides O(1) insertion and removal at both ends.
@@ -11,8 +11,8 @@
  * deque.addLast(2)
  * deque.removeFirst() // 1
  */
-import type { Deque } from "../interfaces/queue";
-import type { Eq } from "../core/traits";
+import type { Deque } from "../interfaces/queue.js";
+import type { Eq } from "../core/traits.js";
 /**
  * Options for creating an ArrayDeque.
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Error Registry
  *
  * Central source of truth for all error codes across all transports.
@@ -6,7 +6,7 @@
  *
  * NO MAGIC STRINGS - everything is defined in the registry!
  */
-import { ErrorCategory, type ErrorRegistry, type ErrorMetadata } from "./types";
+import { ErrorCategory, type ErrorRegistry, type ErrorMetadata } from "./types.js";
 /**
  * Universal Error Registry
  *

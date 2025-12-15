@@ -1,11 +1,11 @@
-﻿/**
+/**
  * HTTP Strategy Interfaces
  *
  * Defines extensible, bidirectional strategies for URL mapping
  * and HTTP method selection. These strategies ensure client
  * and server use consistent, inverse operations.
  */
-import { HTTPMethod } from "./constants";
+import { HTTPMethod } from "./constants.js";
 /**
  * Default URL Pattern: /{version?}/{service}/{operation}
  *

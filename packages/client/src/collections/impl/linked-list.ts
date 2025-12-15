@@ -12,10 +12,10 @@
  * list.add(3)
  */
 
-import type { List } from "../interfaces/list";
-import type { Deque } from "../interfaces/queue";
-import type { Eq, Compare } from "../core/traits";
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import type { List } from "../interfaces/list.js";
+import type { Deque } from "../interfaces/queue.js";
+import type { Eq, Compare } from "../core/traits.js";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 
 /**
  * Internal node structure for the linked list.

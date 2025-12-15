@@ -5,8 +5,8 @@
  * These validate the internal message structure, with payload type parameterized.
  */
 
-import type { ZodLike } from "../types";
-import type { ZodModule } from "./transport";
+import type { ZodLike } from "../types.js";
+import type { ZodModule } from "./transport.js";
 
 // =============================================================================
 // Universal Message Types

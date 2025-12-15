@@ -5,7 +5,7 @@
  * converting between universal metadata and HTTP headers.
  */
 
-import type { Metadata } from "../../../client/types";
+import type { Metadata } from "../../../client/types.js";
 
 /**
  * Standard HTTP Header Names
@@ -166,7 +166,7 @@ export class DefaultHeaderConverter implements HeaderConverter {
     // Extract timing headers
     const serverTiming = get(HTTPHeaders.SERVER_TIMING);
     if (serverTiming) {
-      metadata.timing = serverTiming;
+      metadata["timing"] = serverTiming;
     }
 
     // Extract timeout

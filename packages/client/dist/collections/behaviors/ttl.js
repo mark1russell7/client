@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TTL (Time-To-Live) expiration behavior.
  *
  * Automatically expires elements after a specified time period.

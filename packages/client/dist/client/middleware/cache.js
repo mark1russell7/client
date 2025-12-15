@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Universal Cache Middleware
  *
  * Protocol-agnostic caching with LRU eviction and TTL expiration.
  * Works with any transport!
  */
-import { compose, lruMap, ttlMap, hashMap } from "../../collections";
+import { compose, lruMap, ttlMap, hashMap } from "../../collections/index.js";
 /**
  * Default cache key generator.
  */

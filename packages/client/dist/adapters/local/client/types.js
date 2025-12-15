@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Local Transport Types
  *
  * Type definitions and utilities for Local adapter.

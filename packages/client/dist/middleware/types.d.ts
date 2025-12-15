@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Unified Middleware Type System
  *
  * This module provides a sophisticated type-safe middleware system that supports

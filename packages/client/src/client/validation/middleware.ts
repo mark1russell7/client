@@ -5,7 +5,7 @@
  * Schemas can be registered per-route or overridden per-call.
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem } from "../types";
+import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem } from "../types.js";
 import type {
   SchemaDefinition,
   SchemaRegistry,
@@ -13,8 +13,8 @@ import type {
   ZodLike,
   ZodErrorLike,
   ZodValidationContext,
-} from "./types";
-import { methodToKey, ValidationError } from "./types";
+} from "./types.js";
+import { methodToKey, ValidationError } from "./types.js";
 
 // =============================================================================
 // Middleware Options
@@ -58,7 +58,7 @@ export interface ZodMiddlewareOptions {
 /**
  * Symbol for accessing the schema registry from middleware.
  */
-export const SCHEMA_REGISTRY = Symbol.for("zod-middleware-schema-registry");
+export const SCHEMA_REGISTRY : unique symbol = Symbol.for("zod-middleware-schema-registry");
 
 /**
  * Middleware with attached schema registry.
@@ -246,4 +246,4 @@ function validatePayload<T>(
 // Re-export types
 // =============================================================================
 
-export type { ZodValidationContext } from "./types";
+export type { ZodValidationContext } from "./types.js";

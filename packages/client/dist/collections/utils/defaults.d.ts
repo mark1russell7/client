@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Default implementations of equality, hashing, and comparison functions.
  *
  * Provides sensible defaults for primitive types and utilities for
  * creating custom comparators.
  */
-import type { Eq, Hash, Compare } from "../core/traits";
+import type { Eq, Hash, Compare } from "../core/traits.js";
 /**
  * Default equality using strict equality (===).
  * Works for primitives and reference equality for objects.

@@ -8,12 +8,12 @@
 import type { Request, Response, Express } from "express";
 import { createServer } from "http";
 import type { Server as HttpServer } from "http";
-import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types";
-import type { Metadata } from "../../../client/types";
-import type { Server } from "../../../server";
-import { HTTPMethod } from "../shared";
-import type { HttpServerTransportOptions } from "./types";
-import { defaultServerUrlStrategy } from "./strategies";
+import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
+import type { Metadata } from "../../../client/types.js";
+import type { Server } from "../../../server/index.js";
+import { HTTPMethod } from "../shared/index.js";
+import type { HttpServerTransportOptions } from "./types.js";
+import { defaultServerUrlStrategy } from "./strategies.js";
 
 /**
  * HTTP server transport adapter for Express.
@@ -211,8 +211,8 @@ export class HttpServerTransport implements ServerTransport {
 
     // Payload from body (for POST/PUT) or params (for GET)
     let payload: unknown = req.body;
-    if (req.method === "GET" && req.params.id) {
-      payload = { id: req.params.id };
+    if (req.method === "GET" && req.params["id"]) {
+      payload = { id: req.params["id"] };
     }
 
     // Default to empty object if payload is undefined (common for GET requests)
@@ -253,8 +253,8 @@ export class HttpServerTransport implements ServerTransport {
     res.status(httpStatusCode);
 
     // Set headers from metadata
-    if (metadata.headers) {
-      for (const [key, value] of Object.entries(metadata.headers)) {
+    if (metadata["headers"]) {
+      for (const [key, value] of Object.entries(metadata["headers"])) {
         res.setHeader(key, value as string);
       }
     }

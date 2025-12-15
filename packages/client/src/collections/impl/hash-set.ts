@@ -13,10 +13,10 @@
  * set.size // 2
  */
 
-import type { Set } from "../interfaces/set";
-import type { Eq, Hash } from "../core/traits";
-import { HashMap } from "./hash-map";
-import { defaultEq, defaultHash } from "../utils/defaults";
+import type { Set } from "../interfaces/set.js";
+import type { Eq, Hash } from "../core/traits.js";
+import { HashMap } from "./hash-map.js";
+import { defaultEq, defaultHash } from "../utils/defaults.js";
 
 /**
  * Dummy value used for the HashMap backing the set.

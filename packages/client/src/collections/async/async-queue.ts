@@ -20,7 +20,7 @@
  * }
  */
 
-import type { AsyncQueue as IAsyncQueue } from "../interfaces/queue";
+import type { AsyncQueue as IAsyncQueue } from "../interfaces/queue.js";
 
 /**
  * Options for creating an AsyncQueue.
@@ -388,7 +388,16 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
   /**
    * Returns statistics about the queue.
    */
-  getStats() {
+  getStats() : {
+    size: number;
+    capacity: number;
+    isEmpty: boolean;
+    isFull: boolean;
+    isClosed: boolean;
+    waitingPutters: number;
+    waitingTakers: number;
+    remainingCapacity: number;
+  } {
     return {
       size: this.size,
       capacity: this.capacity,

@@ -7,8 +7,8 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
-import type { RateLimitContext } from "./contexts";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
+import type { RateLimitContext } from "./contexts.js";
 
 /**
  * Rate limiting options.

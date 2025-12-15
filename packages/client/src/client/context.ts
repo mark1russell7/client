@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { Metadata } from "./types";
+import type { Metadata } from "./types.js";
 import type {
   RetryContext,
   CacheContext,
@@ -31,7 +31,7 @@ import type {
   RateLimitContext,
   BatchingContext,
   PaginationContext,
-} from "./middleware/contexts";
+} from "./middleware/contexts.js";
 
 // =============================================================================
 // Context Input Types

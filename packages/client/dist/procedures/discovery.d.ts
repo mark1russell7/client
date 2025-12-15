@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Procedure Registration Helpers
  *
  * Manual registration helpers for procedures. For compile-time auto-discovery,

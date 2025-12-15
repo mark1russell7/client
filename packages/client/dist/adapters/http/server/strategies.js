@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HTTP Server URL Strategies
  *
  * Functions for mapping HTTP requests to RPC methods.

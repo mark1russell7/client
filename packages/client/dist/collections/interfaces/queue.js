@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Queue and Deque interfaces that mirror Java's Queue and Deque.
  *
  * Queues are collections designed for holding elements prior to processing.

@@ -1,15 +1,15 @@
-﻿/**
+/**
  * Factory utilities for creating collections.
  *
  * Provides convenient factory methods similar to Java's Collections class.
  * These mirror methods like Collections.emptyList(), singletonList(), etc.
  */
-import { ArrayList } from "../impl/array-list";
-import { ArrayDeque } from "../impl/array-deque";
-import { HashMap } from "../impl/hash-map";
-import type { List } from "../interfaces/list";
-import type { Queue } from "../interfaces/queue";
-import type { MapLike } from "../interfaces/map";
+import { ArrayList } from "../impl/array-list.js";
+import { ArrayDeque } from "../impl/array-deque.js";
+import { HashMap } from "../impl/hash-map.js";
+import type { List } from "../interfaces/list.js";
+import type { Queue } from "../interfaces/queue.js";
+import type { MapLike } from "../interfaces/map.js";
 export declare function emptyList<T>(): List<T>;
 export declare function emptyQueue<T>(): Queue<T>;
 export declare function emptyMap<K, V>(): MapLike<K, V>;
