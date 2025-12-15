@@ -8,7 +8,7 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "postinstall": "client announce 2>/dev/null || true"
+    "postinstall": "client announce"
   },
   "keywords": [
     "logger",
