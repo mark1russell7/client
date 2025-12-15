@@ -38,7 +38,7 @@
     "clean": "rm -rf dist",
     "watch": "tsc -b --watch",
     "prepare": "npm run build",
-    "postinstall": "node ./dist/procedures/cli/index.js announce 2>/dev/null || true"
+    "postinstall": "node ./dist/procedures/cli/index.js announce"
   },
   "dependencies": {
     "ws": "^8.18.3"

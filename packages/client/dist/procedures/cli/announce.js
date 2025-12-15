@@ -260,10 +260,11 @@ async function ensurePostinstall(packageDir, pkg, verbose) {
         }
         return;
     }
-    // Add client announce to postinstall
+    // Add client announce to postinstall (cross-platform, no shell-specific syntax)
+    // The CLI handles errors internally and always exits 0
     const newPostinstall = postinstall
-        ? `${postinstall} && client announce 2>/dev/null || true`
-        : "client announce 2>/dev/null || true";
+        ? `${postinstall} && client announce`
+        : "client announce";
     scripts["postinstall"] = newPostinstall;
     fullPkg["scripts"] = scripts;
     try {
