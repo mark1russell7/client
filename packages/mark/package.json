@@ -27,7 +27,7 @@
     "postinstall": "client announce"
   },
   "dependencies": {
-    "client": "github:mark1russell7/client#main",
+    "@mark1russell7/client": "github:mark1russell7/client#main",
     "@mark1russell7/client-cli": "github:mark1russell7/client-cli#main",
     "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
     "commander": "^13.0.0",
