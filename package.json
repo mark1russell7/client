@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "client",
+  "name": "@mark1russell7/client",
   "version": "1.0.0",
   "description": "Universal protocol-agnostic RPC client with middleware composition",
   "type": "module",
