@@ -1,15 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
-  },
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/cli",
+  "version": "1.0.0",
+  "description": "Mark CLI - Development workflow automation",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "mark": "./dist/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,7 +22,30 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "prepare": "npm run build",
+    "postinstall": "client announce"
   },
+  "dependencies": {
+    "client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-cli": "github:mark1russell7/client-cli#main",
+    "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
+    "commander": "^13.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "keywords": [
+    "cli",
+    "mark",
+    "development",
+    "workflow",
+    "npm",
+    "refresh"
+  ],
+  "license": "MIT",
   "sideEffects": false
 }
