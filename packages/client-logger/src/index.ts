@@ -1,54 +1,64 @@
 /**
  * client-logger
  *
- * Bridge between client procedures and logger.
+ * Bridge between client and logger via procedures.
  * Enables logging via client.call(["log", "info"], { message: "..." }).
  *
  * @example
  * ```typescript
- * // Using client.call directly
  * import { Client } from "client";
  *
  * const client = new Client(...);
+ *
+ * // Log via procedure calls
  * await client.call(["log", "info"], { message: "Hello", context: "my-app" });
- * await client.call(["log", "error"], { message: "Oops", error: { name: "Error", message: "..." } });
+ * await client.call(["log", "warn"], { message: "Deprecated", context: "api" });
+ * await client.call(["log", "error"], {
+ *   message: "Request failed",
+ *   error: { name: "Error", message: "Connection timeout" }
+ * });
  *
- * // Using the typed helpers
- * import { logInfo, logError } from "@mark1russell7/client-logger";
- *
- * await logInfo("Hello", { context: "my-app" });
- * await logError("Oops", { error: new Error("...") });
+ * // Get/set log level
+ * const { level, levelName } = await client.call(["log", "getLevel"], undefined);
+ * await client.call(["log", "setLevel"], { level: LogLevel.DEBUG });
  * ```
  */
 
 // =============================================================================
-// Types
+// Types (re-exported from logger)
 // =============================================================================
 
-export type {
-  LogInput,
-  SetLevelInput,
-  LogOutput,
-  GetLevelOutput,
+export {
+  LogLevel,
+  LOG_LEVEL_NAMES,
+  parseLogLevel,
 } from "./types.js";
 
-export { LogLevel, type LogOptions } from "./types.js";
+export type {
+  LogEntry,
+  Transport,
+  Formatter,
+  LoggerOptions,
+  LogOptions,
+} from "./types.js";
 
 // =============================================================================
-// Registration (for direct import)
+// Logger Instance & Registration
 // =============================================================================
 
-export { getLogger, setLogger, registerLogProcedures } from "./register.js";
+export {
+  getLogger,
+  setLogger,
+  registerLogProcedures,
+} from "./register.js";
 
 // =============================================================================
-// Re-export logger for direct usage
+// Re-export logger classes for custom setup
 // =============================================================================
 
 export {
   createLogger,
   Logger,
-  LOG_LEVEL_NAMES,
-  parseLogLevel,
   // Formatters
   SimpleFormatter,
   TimestampedFormatter,
@@ -66,10 +76,6 @@ export {
 } from "@mark1russell7/logger";
 
 export type {
-  LogEntry,
-  Transport,
-  Formatter,
-  LoggerOptions,
   ConsoleTransportOptions,
   CallbackTransportOptions,
 } from "@mark1russell7/logger";
