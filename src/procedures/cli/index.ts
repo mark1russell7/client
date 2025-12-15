@@ -190,9 +190,15 @@ async function main(): Promise<void> {
       }
 
       case "announce":
-        await announce({
-          verbose: options["verbose"] as boolean,
-        });
+        // announce is best-effort for postinstall - never fail
+        try {
+          await announce({
+            verbose: options["verbose"] as boolean,
+          });
+        } catch {
+          // Silently ignore errors - this runs in postinstall
+          // and should never block package installation
+        }
         break;
 
       case "unannounce":
