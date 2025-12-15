@@ -37,6 +37,11 @@ export { RouteResolver, createRouteResolver, isValidRoute, getMissingPaths, matc
 export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor.js";
 export { getMiddlewareOverrides, getRetryOverride, getTimeoutOverride, getCacheOverride, getOverride, mergeOverride, mergeRetryConfig, mergeTimeoutConfig, mergeCacheConfig, createOverrideGetter, hasOverride, setMiddlewareOverrides, clearMiddlewareOverrides, MIDDLEWARE_OVERRIDES_KEY, } from "./client/middleware-override.js";
 // ============================================================================
+// Events System - Pub/sub messaging and streaming coordination
+// ============================================================================
+export { DefaultEventBus as EventBus, createEventBus, createTypedEventBus } from "./events/index.js";
+export { nullOutput, fragment, isFragment, isNullOutput, isStreamingFactory, defineComponent, componentToProcedure, registerBundle, createBundle, simpleComponent, namespacedComponent, streamingComponent, componentInputSchema, componentOutputSchema, } from "./components/index.js";
+// ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both
 // collections and universal client. Access it directly:
 // import { AsyncMiddleware, SyncMiddleware } from "client/middleware"
