@@ -10,7 +10,7 @@ export type {
   WebSocketConnectionHandler,
   WebSocketServerTransportOptions,
   WebSocketMessage,
-} from "./types";
+} from "./types.js";
 
 // Transport
-export { WebSocketServerTransport } from "./transport";
+export { WebSocketServerTransport } from "./transport.js";

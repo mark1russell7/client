@@ -34,12 +34,11 @@
  * ```
  */
 
-export { Server } from "./server";
-export type { ServerOptions } from "./server";
+export { Server } from "./server.js";
+export type { ServerOptions } from "./server.js";
 
-export { ProcedureServer, createProcedureServer } from "./procedure-server";
-export type { ProcedureServerOptions, StorageConfig } from "./procedure-server";
-
+export { ProcedureServer, createProcedureServer } from "./procedure-server.js";
+export type { ProcedureServerOptions, StorageConfig } from "./procedure-server.js";
 export {
   HandlerNotFoundError,
   ServerError,
@@ -50,22 +49,21 @@ export {
   type ServerContext,
   type ServerRunner,
   type ServerTransport,
-} from "./types";
+} from "./types.js";
 
 export {
   HttpServerTransport,
   defaultServerUrlStrategy,
   rpcServerUrlStrategy,
-} from "../adapters/http/server";
+} from "../adapters/http/server/index.js";
 export type {
   HttpServerTransportOptions,
   HttpUrlStrategy,
-} from "../adapters/http/server";
-
-export { WebSocketServerTransport } from "../adapters/websocket/server";
+} from "../adapters/http/server/index.js";
+export { WebSocketServerTransport } from "../adapters/websocket/server/index.js";
 export type {
   WebSocketServerTransportOptions,
   WebSocketAuthHandler,
   WebSocketConnectionHandler,
   WebSocketMessage,
-} from "../adapters/websocket/server";
+} from "../adapters/websocket/server/index.js";

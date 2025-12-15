@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Readonly behavior - Creates immutable views of collections.
  *
  * Wraps collections to prevent modifications by throwing errors
@@ -12,11 +12,11 @@
  * list.get(0) // OK: 1
  * list.add(4) // Error: Cannot modify readonly list
  */
-import type { Middleware } from "../core/middleware";
-import type { ReadonlyList } from "../interfaces/list";
-import type { ReadonlyQueue } from "../interfaces/queue";
-import type { ReadonlyMapLike } from "../interfaces/map";
-import type { ReadonlyCollection } from "../interfaces/collection";
+import type { Middleware } from "../core/middleware.js";
+import type { ReadonlyList } from "../interfaces/list.js";
+import type { ReadonlyQueue } from "../interfaces/queue.js";
+import type { ReadonlyMapLike } from "../interfaces/map.js";
+import type { ReadonlyCollection } from "../interfaces/collection.js";
 /**
  * Options for readonly behavior.
  */

@@ -5,18 +5,18 @@
  * Integrates with ProcedureRegistry and CollectionStorage backends.
  */
 
-import { Server, type ServerOptions } from "./server";
-import type { Method } from "./types";
+import { Server, type ServerOptions } from "./server.js";
+import type { Method, ServerRequest } from "./types.js";
 import type {
   AnyProcedure,
   ProcedurePath,
   ProcedureContext,
   RepositoryProvider,
   ProcedureModule,
-} from "../procedures/types";
-import { pathToKey } from "../procedures/types";
-import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry";
-import type { CollectionStorage } from "../collections/storage/interface";
+} from "../procedures/types.js";
+import { pathToKey } from "../procedures/types.js";
+import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
+import type { CollectionStorage } from "../collections/storage/interface.js";
 
 // =============================================================================
 // Types
@@ -193,7 +193,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     const handler = procedure.handler;
     const self = this;
 
-    this.register(method, async (request) => {
+    this.register(method, async (request : ServerRequest<unknown>) => {
       // Validate input
       const inputResult = procedure.input.safeParse(request.payload);
       if (!inputResult.success) {

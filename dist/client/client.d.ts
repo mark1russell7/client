@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Client
  *
  * Protocol-agnostic RPC client with middleware composition.
@@ -24,11 +24,11 @@
  * await authedClient.call(method, payload, { context: { retry: { maxAttempts: 5 } } });
  * ```
  */
-import type { Transport, Method, Metadata, ClientMiddleware, ClientOptions, TypedClientMiddleware } from "./types";
-import type { CallOptions, ClientContextInput } from "./context";
-import type { ZodLike } from "./validation/types";
-import type { Route, CallRequest, CallResponse, StreamingCallResponse } from "./call-types";
-import type { ProcedureRegistry } from "../procedures/registry";
+import type { Transport, Method, Metadata, ClientMiddleware, ClientOptions, TypedClientMiddleware } from "./types.js";
+import type { CallOptions, ClientContextInput } from "./context.js";
+import type { ZodLike } from "./validation/types.js";
+import type { Route, CallRequest, CallResponse, StreamingCallResponse } from "./call-types.js";
+import type { ProcedureRegistry } from "../procedures/registry.js";
 /**
  * Universal Client for protocol-agnostic RPC.
  *

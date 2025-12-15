@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Universal Server
  *
  * Protocol-agnostic RPC server.
  * Registers handlers and processes requests in unified format.
  */
-import type { Method, ServerRequest, ServerResponse, ServerHandler, ServerMiddleware, ServerTransport } from "./types";
+import type { Method, ServerRequest, ServerResponse, ServerHandler, ServerMiddleware, ServerTransport } from "./types.js";
 /**
  * Server configuration options.
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Collectors for Stream-style collection operations.
  *
  * Provides Java Stream API-style collectors for transforming iterables
@@ -9,9 +9,9 @@
  *
  * const grouped = collect(users, groupingBy(u => u.age))
  */
-import { arrayList } from "../impl/array-list";
-import { hashMap } from "../impl/hash-map";
-import { hashSet } from "../impl/hash-set";
+import { arrayList } from "../impl/array-list.js";
+import { hashMap } from "../impl/hash-map.js";
+import { hashSet } from "../impl/hash-set.js";
 /**
  * Collects elements using a collector.
  *

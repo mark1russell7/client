@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tracing Middleware
  *
  * Adds distributed tracing metadata to requests.
@@ -11,8 +11,8 @@
  *
  * Compatible with OpenTelemetry, Jaeger, and custom tracing systems.
  */
-import type { TypedClientMiddleware } from "../types";
-import type { TracingContext } from "./contexts";
+import type { TypedClientMiddleware } from "../types.js";
+import type { TracingContext } from "./contexts.js";
 /**
  * Tracing Configuration
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Client Context System
  *
  * Provides hierarchical context passing for middleware configuration.
@@ -19,8 +19,8 @@
  * });
  * ```
  */
-import type { Metadata } from "./types";
-import type { RetryContext, CacheContext, TimeoutContext, AuthContext, TracingContext, CircuitBreakerContext, RateLimitContext, BatchingContext, PaginationContext } from "./middleware/contexts";
+import type { Metadata } from "./types.js";
+import type { RetryContext, CacheContext, TimeoutContext, AuthContext, TracingContext, CircuitBreakerContext, RateLimitContext, BatchingContext, PaginationContext } from "./middleware/contexts.js";
 /**
  * All possible middleware context fields that can be passed by the user.
  * This is the union of all middleware context types, made partial for input.

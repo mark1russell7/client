@@ -167,11 +167,11 @@ async function main(): Promise<void> {
     switch (command) {
       case "discover":
         await discover({
-          output: options.output as string,
-          root: options.root as string,
-          watch: options.watch as boolean,
-          check: options.check as boolean,
-          verbose: options.verbose as boolean,
+          output: options["output"] as string,
+          root: options["root"] as string,
+          watch: options["watch"] as boolean,
+          check: options["check"] as boolean,
+          verbose: options["verbose"] as boolean,
         });
         break;
 
@@ -184,20 +184,20 @@ async function main(): Promise<void> {
         }
         await init({
           name,
-          force: options.force as boolean,
+          force: options["force"] as boolean,
         });
         break;
       }
 
       case "announce":
         await announce({
-          verbose: options.verbose as boolean,
+          verbose: options["verbose"] as boolean,
         });
         break;
 
       case "unannounce":
         await unannounce({
-          verbose: options.verbose as boolean,
+          verbose: options["verbose"] as boolean,
         });
         break;
 

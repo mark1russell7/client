@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HashMap implementation - A hash table with custom equality and hashing.
  *
  * Provides O(1) average case lookup, insertion, and deletion.
@@ -17,8 +17,8 @@
  *   keyHash: (u) => hashString(u.id)
  * })
  */
-import type { MapLike, Entry } from "../interfaces/map";
-import type { Eq, Hash } from "../core/traits";
+import type { MapLike, Entry } from "../interfaces/map.js";
+import type { Eq, Hash } from "../core/traits.js";
 /**
  * Options for creating a HashMap.
  */

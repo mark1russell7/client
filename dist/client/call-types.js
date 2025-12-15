@@ -1,39 +1,61 @@
-﻿/**
+/**
  * Nested Call API Types
  *
  * Type definitions for the new nested route call structure.
  * Enables typed per-call middleware config and natural batching.
  */
-// =============================================================================
-// Route Path Utilities
-// =============================================================================
+import { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./consumption.js";
+export { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./consumption.js";
 /**
- * Convert a nested route structure to an array of [path, input] pairs.
- * Flattens the tree for iteration.
+ * Convert a nested route structure to an array of flattened entries.
+ * Handles both new { in, out } format and legacy plain objects.
  *
  * @param route - Nested route object
- * @returns Array of [path, input] tuples
+ * @returns Array of flattened route entries
  */
 export function flattenRoute(route) {
     const results = [];
     function traverse(node, path) {
-        // Check if this is a leaf node (procedure input)
-        // A leaf has no nested RouteNode children - all values are primitives or arrays
-        const isLeaf = Object.values(node).every((v) => typeof v !== "object" || v === null || Array.isArray(v));
-        if (isLeaf) {
-            results.push([path, node]);
+        // Check if this is a new-style leaf: { in: ..., out?: ... }
+        if (isRouteLeafWithConfig(node)) {
+            results.push({
+                path,
+                input: extractInput(node),
+                outputConfig: extractOutputConfig(node),
+                leaf: node,
+            });
+            return;
         }
-        else {
-            // Continue traversing nested nodes
-            for (const [key, value] of Object.entries(node)) {
-                if (value && typeof value === "object" && !Array.isArray(value)) {
-                    traverse(value, [...path, key]);
-                }
+        // Check if this is a legacy leaf node (procedure input)
+        // A leaf has no nested RouteNode children - all values are primitives or arrays
+        const isLegacyLeaf = Object.values(node).every((v) => typeof v !== "object" || v === null || Array.isArray(v));
+        if (isLegacyLeaf) {
+            results.push({
+                path,
+                input: node,
+                outputConfig: { type: "sponge" },
+                leaf: node,
+            });
+            return;
+        }
+        // Continue traversing nested nodes
+        for (const [key, value] of Object.entries(node)) {
+            if (value && typeof value === "object" && !Array.isArray(value)) {
+                traverse(value, [...path, key]);
             }
         }
     }
     traverse(route, []);
     return results;
+}
+/**
+ * Legacy flatten function for backward compatibility.
+ * Returns [path, leaf] pairs without output config extraction.
+ *
+ * @deprecated Use flattenRoute() which returns FlattenedRouteEntry[]
+ */
+export function flattenRouteLegacy(route) {
+    return flattenRoute(route).map((entry) => [entry.path, entry.leaf]);
 }
 /**
  * Build a nested response structure from flat results.

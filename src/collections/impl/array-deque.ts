@@ -12,9 +12,9 @@
  * deque.removeFirst() // 1
  */
 
-import type { Deque } from "../interfaces/queue";
-import type { Eq } from "../core/traits";
-import { defaultEq } from "../utils/defaults";
+import type { Deque } from "../interfaces/queue.js";
+import type { Eq } from "../core/traits.js";
+import { defaultEq } from "../utils/defaults.js";
 
 /**
  * Options for creating an ArrayDeque.

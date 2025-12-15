@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Route Resolver
  *
  * Resolves nested route structures to procedure definitions.
  * Validates routes against the procedure registry.
  */
-import type { AnyProcedure, ProcedurePath } from "../procedures/types";
-import type { ProcedureRegistry } from "../procedures/registry";
-import type { Route, RouteLeaf } from "./call-types";
+import type { AnyProcedure, ProcedurePath } from "../procedures/types.js";
+import type { ProcedureRegistry } from "../procedures/registry.js";
+import type { Route, RouteLeaf } from "./call-types.js";
 /**
  * Resolved route entry with procedure and input.
  */

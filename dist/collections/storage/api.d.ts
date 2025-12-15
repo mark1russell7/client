@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Storage Implementation
  *
  * Remote storage backed by universal client.
@@ -6,8 +6,8 @@
  *
  * This is the KEY integration between Collections and Universal Client!
  */
-import type { CollectionStorage, StorageMetadata } from "./interface";
-import type { Client } from "../../client/client";
+import type { CollectionStorage, StorageMetadata } from "./interface.js";
+import type { Client } from "../../client/client.js";
 /**
  * API storage configuration options.
  */

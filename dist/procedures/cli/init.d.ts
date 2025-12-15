@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Library Initialization
  *
  * Scaffolds a new library with procedure support.

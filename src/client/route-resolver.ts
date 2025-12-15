@@ -5,10 +5,10 @@
  * Validates routes against the procedure registry.
  */
 
-import type { AnyProcedure, ProcedurePath } from "../procedures/types";
-import type { ProcedureRegistry } from "../procedures/registry";
-import type { Route, RouteLeaf, RouteNode } from "./call-types";
-import { flattenRoute } from "./call-types";
+import type { AnyProcedure, ProcedurePath } from "../procedures/types.js";
+import type { ProcedureRegistry } from "../procedures/registry.js";
+import type { Route, RouteLeaf, RouteNode } from "./call-types.js";
+import { flattenRoute } from "./call-types.js";
 
 // =============================================================================
 // Resolution Types
@@ -100,7 +100,8 @@ export class RouteResolver {
     const resolved: ResolvedRoute[] = [];
     const errors: RouteResolutionError[] = [];
 
-    for (const [path, input] of flattened) {
+    for (const entry of flattened) {
+      const { path, input } = entry;
       const procedure = this.registry.get(path);
 
       if (!procedure) {
@@ -133,7 +134,7 @@ export class RouteResolver {
       resolved.push({
         path,
         procedure,
-        input,
+        input: entry.leaf,
       });
     }
 
@@ -175,7 +176,8 @@ export class RouteResolver {
     const flattened = flattenRoute(route);
     const errors: RouteResolutionError[] = [];
 
-    for (const [path, input] of flattened) {
+    for (const entry of flattened) {
+      const { path, input } = entry;
       const procedure = this.registry.get(path);
 
       if (!procedure) {
@@ -211,10 +213,10 @@ export class RouteResolver {
     const flattened = flattenRoute(route);
     const results: Array<[ProcedurePath, AnyProcedure]> = [];
 
-    for (const [path] of flattened) {
-      const procedure = this.registry.get(path);
+    for (const entry of flattened) {
+      const procedure = this.registry.get(entry.path);
       if (procedure) {
-        results.push([path, procedure]);
+        results.push([entry.path, procedure]);
       }
     }
 
@@ -256,8 +258,8 @@ export function createRouteResolver(registry: ProcedureRegistry): RouteResolver 
 export function isValidRoute(route: Route, registry: ProcedureRegistry): boolean {
   const flattened = flattenRoute(route);
 
-  for (const [path] of flattened) {
-    if (!registry.has(path)) {
+  for (const entry of flattened) {
+    if (!registry.has(entry.path)) {
       return false;
     }
   }
@@ -279,9 +281,9 @@ export function getMissingPaths(
   const flattened = flattenRoute(route);
   const missing: ProcedurePath[] = [];
 
-  for (const [path] of flattened) {
-    if (!registry.has(path)) {
-      missing.push(path);
+  for (const entry of flattened) {
+    if (!registry.has(entry.path)) {
+      missing.push(entry.path);
     }
   }
 
@@ -353,16 +355,16 @@ export function filterRouteByPattern(route: Route, pattern: ProcedurePath): Rout
   const flattened = flattenRoute(route);
   const filtered: Route = {};
 
-  for (const [path, input] of flattened) {
-    if (matchPath(path, pattern)) {
+  for (const entry of flattened) {
+    if (matchPath(entry.path, pattern)) {
       // Rebuild nested structure for this path
       let current: RouteNode = filtered;
-      for (let i = 0; i < path.length; i++) {
-        const segment = path[i]!;
-        const isLast = i === path.length - 1;
+      for (let i = 0; i < entry.path.length; i++) {
+        const segment = entry.path[i]!;
+        const isLast = i === entry.path.length - 1;
 
         if (isLast) {
-          current[segment] = input;
+          current[segment] = entry.leaf;
         } else {
           if (!(segment in current)) {
             current[segment] = {};

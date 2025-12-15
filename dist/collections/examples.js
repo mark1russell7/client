@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Examples demonstrating the Collections Framework.
  *
  * These examples show how to use the collections framework
@@ -15,7 +15,7 @@ readonly,
 emptyList, singletonList, nCopies, range, listOf, mapOf, groupBy,
 // isSome,
 // isNone,
- } from "./index";
+ } from "./index.js";
 // ============================================================================
 // Example 1: Basic ArrayList usage
 // ============================================================================

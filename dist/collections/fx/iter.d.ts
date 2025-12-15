@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Functional operations for iterables (lazy sync transforms).
  *
  * Provides Stream-like operations with lazy evaluation.

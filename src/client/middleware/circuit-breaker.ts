@@ -10,8 +10,8 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
-import type { CircuitBreakerContext } from "./contexts";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
+import type { CircuitBreakerContext } from "./contexts.js";
 
 /**
  * Circuit breaker state.

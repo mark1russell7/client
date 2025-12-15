@@ -14,9 +14,9 @@ import type {
   ServerContext,
   ServerRunner,
   ServerTransport,
-} from "./types";
-import { HandlerNotFoundError, ServerError } from "./types";
-import { compose } from "../middleware";
+} from "./types.js";
+import { HandlerNotFoundError, ServerError } from "./types.js";
+import { compose } from "../middleware/index.js";
 
 /**
  * Server configuration options.

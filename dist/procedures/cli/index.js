@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Client CLI
  *
@@ -142,11 +142,11 @@ async function main() {
         switch (command) {
             case "discover":
                 await discover({
-                    output: options.output,
-                    root: options.root,
-                    watch: options.watch,
-                    check: options.check,
-                    verbose: options.verbose,
+                    output: options["output"],
+                    root: options["root"],
+                    watch: options["watch"],
+                    check: options["check"],
+                    verbose: options["verbose"],
                 });
                 break;
             case "init": {
@@ -158,18 +158,18 @@ async function main() {
                 }
                 await init({
                     name,
-                    force: options.force,
+                    force: options["force"],
                 });
                 break;
             }
             case "announce":
                 await announce({
-                    verbose: options.verbose,
+                    verbose: options["verbose"],
                 });
                 break;
             case "unannounce":
                 await unannounce({
-                    verbose: options.verbose,
+                    verbose: options["verbose"],
                 });
                 break;
             case "help":

@@ -10,8 +10,8 @@
  * - Local: Passed directly to handler
  */
 
-import type { TypedClientMiddleware } from "../types";
-import type { AuthContext } from "./contexts";
+import type { TypedClientMiddleware } from "../types.js";
+import type { AuthContext } from "./contexts.js";
 
 /**
  * Authentication Options

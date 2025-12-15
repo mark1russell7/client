@@ -5,7 +5,7 @@
  * service/operation combinations that exist in the registry.
  */
 
-import type { Method } from './types';
+import type { Method } from './types.js';
 
 /**
  * Generic typed method that constrains service and operation

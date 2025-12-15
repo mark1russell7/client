@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Type-safe Method construction from procedure registry
  *
  * This ensures that Method objects can only be created with valid

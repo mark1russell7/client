@@ -35,27 +35,27 @@ import type {
   ClientRunner,
   ClientOptions,
   TypedClientMiddleware,
-} from "./types";
-import { ClientError } from "./types";
-import { compose } from "../middleware/compose";
-import type { CallOptions, ClientContextInput } from "./context";
-import { mergeContext, normalizeCallOptions } from "./context";
-import type { SchemaDefinition, ZodLike } from "./validation/types";
-import { methodToKey } from "./validation/types";
-import { SCHEMA_REGISTRY, type ZodMiddleware } from "./validation/middleware";
+} from "./types.js";
+import { ClientError } from "./types.js";
+import { compose } from "../middleware/compose.js";
+import type { CallOptions, ClientContextInput } from "./context.js";
+import { mergeContext, normalizeCallOptions } from "./context.js";
+import type { SchemaDefinition, ZodLike } from "./validation/types.js";
+import { methodToKey } from "./validation/types.js";
+import { SCHEMA_REGISTRY, type ZodMiddleware } from "./validation/middleware.js";
 import type {
   Route,
   CallRequest,
   CallResponse,
   StreamingCallResponse,
   ProcedureCallResult,
-} from "./call-types";
-import { buildResponse } from "./call-types";
-import { RouteResolver, type ResolvedRoute } from "./route-resolver";
-import { BatchExecutor, type ExecutionContext } from "./batch-executor";
-import type { ProcedureRegistry } from "../procedures/registry";
-import { PROCEDURE_REGISTRY } from "../procedures/registry";
-import type { ProcedurePath, ProcedureContext } from "../procedures/types";
+} from "./call-types.js";
+import { buildResponse } from "./call-types.js";
+import { RouteResolver, type ResolvedRoute } from "./route-resolver.js";
+import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
+import type { ProcedureRegistry } from "../procedures/registry.js";
+import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
+import type { ProcedurePath, ProcedureContext } from "../procedures/types.js";
 
 /**
  * Generate a unique message ID.

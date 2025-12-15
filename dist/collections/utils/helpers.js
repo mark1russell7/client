@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Common helper utilities for collections.
  *
  * Provides shared functionality to reduce code duplication across implementations.

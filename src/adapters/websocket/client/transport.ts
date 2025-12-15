@@ -5,9 +5,9 @@
  * Supports automatic reconnection, heartbeats, and streaming.
  */
 
-import type { Transport, Message, ResponseItem } from "../../../client/types";
-import type { WebSocketTransportOptions, WebSocketMessage } from "./types";
-import { WebSocketState } from "./types";
+import type { Transport, Message, ResponseItem } from "../../../client/types.js";
+import type { WebSocketTransportOptions, WebSocketMessage } from "./types.js";
+import { WebSocketState } from "./types.js";
 
 /**
  * Pending request waiting for response.

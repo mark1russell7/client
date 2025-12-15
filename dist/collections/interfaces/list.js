@@ -1,4 +1,4 @@
-﻿/**
+/**
  * List interfaces that mirror Java's List interface.
  *
  * Lists are ordered collections that allow duplicate elements

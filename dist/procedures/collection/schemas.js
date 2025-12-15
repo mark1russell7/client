@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Collection Operation Schemas
  *
  * Zod-compatible schemas for collection CRUD operations.
@@ -105,7 +105,7 @@ export const getInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isString(data.id) || data.id.length === 0) {
+    if (!isString(data["id"]) || data["id"].length === 0) {
         return {
             success: false,
             error: {
@@ -114,7 +114,7 @@ export const getInputSchema = createSchema((data) => {
             },
         };
     }
-    return { success: true, data: { id: data.id } };
+    return { success: true, data: { id: data["id"] } };
 });
 /**
  * Output for get operation - the item or undefined.
@@ -133,7 +133,7 @@ export const setInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isString(data.id) || data.id.length === 0) {
+    if (!isString(data["id"]) || data["id"].length === 0) {
         return {
             success: false,
             error: {
@@ -151,7 +151,7 @@ export const setInputSchema = createSchema((data) => {
             },
         };
     }
-    return { success: true, data: { id: data.id, value: data.value } };
+    return { success: true, data: { id: data["id"], value: data["value"] } };
 });
 /**
  * Output for set operation - void.
@@ -169,7 +169,7 @@ export const deleteInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isString(data.id) || data.id.length === 0) {
+    if (!isString(data["id"]) || data["id"].length === 0) {
         return {
             success: false,
             error: {
@@ -178,7 +178,7 @@ export const deleteInputSchema = createSchema((data) => {
             },
         };
     }
-    return { success: true, data: { id: data.id } };
+    return { success: true, data: { id: data["id"] } };
 });
 /**
  * Output for delete operation - boolean indicating if deleted.
@@ -205,7 +205,7 @@ export const hasInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isString(data.id) || data.id.length === 0) {
+    if (!isString(data["id"]) || data["id"].length === 0) {
         return {
             success: false,
             error: {
@@ -214,7 +214,7 @@ export const hasInputSchema = createSchema((data) => {
             },
         };
     }
-    return { success: true, data: { id: data.id } };
+    return { success: true, data: { id: data["id"] } };
 });
 /**
  * Output for has operation - boolean.
@@ -313,7 +313,7 @@ export const getBatchInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isArray(data.ids) || !data.ids.every((id) => isString(id))) {
+    if (!isArray(data["ids"]) || !data["ids"].every((id) => isString(id))) {
         return {
             success: false,
             error: {
@@ -322,7 +322,7 @@ export const getBatchInputSchema = createSchema((data) => {
             },
         };
     }
-    return { success: true, data: { ids: data.ids } };
+    return { success: true, data: { ids: data["ids"] } };
 });
 /**
  * Output for getBatch operation - object mapping ids to values.
@@ -349,7 +349,7 @@ export const setBatchInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isArray(data.items)) {
+    if (!isArray(data["items"])) {
         return {
             success: false,
             error: {
@@ -358,9 +358,9 @@ export const setBatchInputSchema = createSchema((data) => {
             },
         };
     }
-    for (let i = 0; i < data.items.length; i++) {
-        const item = data.items[i];
-        if (!isObject(item) || !isString(item.id) || !("value" in item)) {
+    for (let i = 0; i < data["items"].length; i++) {
+        const item = data["items"][i];
+        if (!isObject(item) || !isString(item["id"]) || !("value" in item)) {
             return {
                 success: false,
                 error: {
@@ -373,7 +373,7 @@ export const setBatchInputSchema = createSchema((data) => {
     return {
         success: true,
         data: {
-            items: data.items.map((item) => ({ id: item.id, value: item.value })),
+            items: data["items"].map((item) => ({ id: item["id"], value: item["value"] })),
         },
     };
 });
@@ -393,7 +393,7 @@ export const deleteBatchInputSchema = createSchema((data) => {
             },
         };
     }
-    if (!isArray(data.ids) || !data.ids.every((id) => isString(id))) {
+    if (!isArray(data["ids"]) || !data["ids"].every((id) => isString(id))) {
         return {
             success: false,
             error: {
@@ -402,7 +402,7 @@ export const deleteBatchInputSchema = createSchema((data) => {
             },
         };
     }
-    return { success: true, data: { ids: data.ids } };
+    return { success: true, data: { ids: data["ids"] } };
 });
 /**
  * Output for deleteBatch operation - number of deleted items.

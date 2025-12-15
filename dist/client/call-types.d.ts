@@ -1,10 +1,13 @@
-﻿/**
+/**
  * Nested Call API Types
  *
  * Type definitions for the new nested route call structure.
  * Enables typed per-call middleware config and natural batching.
  */
-import type { ProcedurePath } from "../procedures/types";
+import type { ProcedurePath } from "../procedures/types.js";
+import type { RouteLeaf, OutputConfig } from "./consumption.js";
+export type { RouteLeaf, RouteLeafWithConfig, OutputConfig } from "./consumption.js";
+export { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./consumption.js";
 /**
  * Per-call retry configuration override.
  */
@@ -76,12 +79,10 @@ export interface BatchConfig {
     continueOnError?: boolean;
 }
 /**
- * Leaf node in the route tree - contains the actual input payload.
- * Any object that is not another RouteNode is considered a leaf (procedure input).
- */
-export type RouteLeaf = Record<string, unknown>;
-/**
  * Recursive route node - can contain nested nodes or leaf payloads.
+ * Leaf nodes are either:
+ * - RouteLeafWithConfig: { in: input, out?: outputConfig }
+ * - LegacyRouteLeaf: plain object (backward compatible)
  */
 export type RouteNode = {
     [key: string]: RouteNode | RouteLeaf;
@@ -184,13 +185,33 @@ export type ExtractRoutePaths<TRoute, TPrefix extends string[] = []> = TRoute ex
  */
 export type ValidateRoute<TRoute, TRegisteredPaths extends string[][]> = ExtractRoutePaths<TRoute> extends TRegisteredPaths[number] ? TRoute : never;
 /**
- * Convert a nested route structure to an array of [path, input] pairs.
- * Flattens the tree for iteration.
+ * Flattened route entry with path, input, and output configuration.
+ */
+export interface FlattenedRouteEntry {
+    /** Procedure path */
+    path: ProcedurePath;
+    /** Extracted input payload */
+    input: unknown;
+    /** Output configuration (default: sponge) */
+    outputConfig: OutputConfig;
+    /** Original leaf node (for reference) */
+    leaf: RouteLeaf;
+}
+/**
+ * Convert a nested route structure to an array of flattened entries.
+ * Handles both new { in, out } format and legacy plain objects.
  *
  * @param route - Nested route object
- * @returns Array of [path, input] tuples
+ * @returns Array of flattened route entries
  */
-export declare function flattenRoute(route: Route): Array<[ProcedurePath, RouteLeaf]>;
+export declare function flattenRoute(route: Route): FlattenedRouteEntry[];
+/**
+ * Legacy flatten function for backward compatibility.
+ * Returns [path, leaf] pairs without output config extraction.
+ *
+ * @deprecated Use flattenRoute() which returns FlattenedRouteEntry[]
+ */
+export declare function flattenRouteLegacy(route: Route): Array<[ProcedurePath, RouteLeaf]>;
 /**
  * Build a nested response structure from flat results.
  *

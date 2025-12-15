@@ -1,8 +1,41 @@
-﻿/**
+/**
  * Mock Builder
  *
  * Fluent API for configuring mock responses.
  */
+export class MockResponseBuilder {
+    transport;
+    matcher;
+    constructor(transport, matcher) {
+        this.transport = transport;
+        this.matcher = matcher;
+    }
+    thenReturn(payload, metadata = {}) {
+        if (!this.matcher) {
+            throw new Error("Must call when() before thenReturn()");
+        }
+        this.transport.mockSuccess(this.matcher, payload, metadata);
+        return this;
+    }
+    thenError(message) {
+        if (!this.matcher) {
+            throw new Error("Must call when() before thenError()");
+        }
+        this.transport.mockError(this.matcher, message);
+        return this;
+    }
+    thenStream(items) {
+        if (!this.matcher) {
+            throw new Error("Must call when() before thenStream()");
+        }
+        this.transport.mockStream(this.matcher, items);
+        return this;
+    }
+    when(matcher) {
+        this.matcher = matcher;
+        return this;
+    }
+}
 /**
  * Create a mock response builder for fluent API.
  *
@@ -20,33 +53,6 @@
  * ```
  */
 export function mockBuilder(transport) {
-    let currentMatcher = null;
-    return {
-        when(matcher) {
-            currentMatcher = matcher;
-            return this;
-        },
-        thenReturn(payload, metadata = {}) {
-            if (!currentMatcher) {
-                throw new Error("Must call when() before thenReturn()");
-            }
-            transport.mockSuccess(currentMatcher, payload, metadata);
-            return this;
-        },
-        thenError(message) {
-            if (!currentMatcher) {
-                throw new Error("Must call when() before thenError()");
-            }
-            transport.mockError(currentMatcher, message);
-            return this;
-        },
-        thenStream(items) {
-            if (!currentMatcher) {
-                throw new Error("Must call when() before thenStream()");
-            }
-            transport.mockStream(currentMatcher, items);
-            return this;
-        },
-    };
+    return new MockResponseBuilder(transport, null);
 }
 //# sourceMappingURL=builder.js.map

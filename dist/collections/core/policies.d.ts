@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Policy types for configurable collection behaviors.
  *
  * Policies define how collections handle edge cases like overflow,

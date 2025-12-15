@@ -12,9 +12,9 @@
  * console.log(list.get(1)) // 2
  */
 
-import type { List, RandomAccess } from "../interfaces/list";
-import type { Eq, Compare } from "../core/traits";
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import type { List, RandomAccess } from "../interfaces/list.js";
+import type { Eq, Compare } from "../core/traits.js";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 
 /**
  * Options for creating an ArrayList.

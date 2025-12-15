@@ -17,7 +17,7 @@
  * )(arrayList<number>())
  */
 
-import type { Collection } from "../interfaces/collection";
+import type { Collection } from "../interfaces/collection.js";
 
 /**
  * A middleware is a function that takes a collection and returns

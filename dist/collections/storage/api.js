@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Storage Implementation
  *
  * Remote storage backed by universal client.
@@ -167,12 +167,12 @@ export class ApiStorage {
         };
         const metadata = {};
         if (this.options.timeout) {
-            metadata.timeout = {
+            metadata["timeout"] = {
                 overall: this.options.timeout,
             };
         }
         if (this.options.signal) {
-            metadata.signal = this.options.signal;
+            metadata["signal"] = this.options.signal;
         }
         // Call via universal client (uses configured transport and middleware)
         const response = await this.client.call(method, payload, metadata);

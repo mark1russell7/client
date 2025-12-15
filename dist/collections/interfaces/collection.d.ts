@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Base collection interfaces that mirror Java Collections Framework.
  *
  * These form the root of the collection hierarchy and define the
  * fundamental operations common to all collections.
  */
-import type { Eq } from "../core/traits";
+import type { Eq } from "../core/traits.js";
 /**
  * ReadonlyCollection<T> - The root interface for readonly collections.
  *

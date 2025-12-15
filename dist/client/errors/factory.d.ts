@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Error Factory Functions
  *
  * Create rich errors from error codes with full metadata.
  * Zero magic strings - everything driven by registry.
  */
-import { type RichError, type ErrorContext, type ErrorMetadata } from "./types";
-import { ErrorCode } from "./codes";
+import { type RichError, type ErrorContext, type ErrorMetadata } from "./types.js";
+import { ErrorCode } from "./codes.js";
 /**
  * Create a rich error from an error code.
  *

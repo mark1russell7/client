@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Batch Executor
  *
  * Executes multiple procedure calls with configurable strategies:
@@ -6,9 +6,9 @@
  * - race: Return first result (Promise.race)
  * - stream: Yield results as they arrive
  */
-import type { ProcedurePath, ProcedureContext } from "../procedures/types";
-import type { Route, BatchConfig, BatchStrategy, ProcedureCallResult, CallResponse, StreamingCallResponse } from "./call-types";
-import type { ResolvedRoute } from "./route-resolver";
+import type { ProcedurePath, ProcedureContext } from "../procedures/types.js";
+import type { Route, BatchConfig, BatchStrategy, ProcedureCallResult, CallResponse, StreamingCallResponse } from "./call-types.js";
+import type { ResolvedRoute } from "./route-resolver.js";
 /**
  * Function that executes a single procedure call.
  */

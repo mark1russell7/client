@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Rate Limiting Middleware
  *
  * Throttles requests using token bucket algorithm.
@@ -6,8 +6,8 @@
  *
  * Works with both client and server!
  */
-import type { ClientMiddleware, TypedClientMiddleware } from "../types";
-import type { RateLimitContext } from "./contexts";
+import type { ClientMiddleware, TypedClientMiddleware } from "../types.js";
+import type { RateLimitContext } from "./contexts.js";
 /**
  * Rate limiting options.
  */

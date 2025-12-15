@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Circuit Breaker Middleware
  *
  * Prevents cascading failures by failing fast when a service is unhealthy.

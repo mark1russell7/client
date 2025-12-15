@@ -9,9 +9,9 @@ import type {
   Transport,
   Message,
   ResponseItem,
-} from "../../../client/types";
+} from "../../../client/types.js";
 
-import type { HttpTransportOptions } from "./types";
+import type { HttpTransportOptions } from "./types.js";
 
 import {
   HTTP,
@@ -29,7 +29,7 @@ import {
   createAbortError,
   createErrorFromException,
   isValidJSONPayload,
-} from "../shared";
+} from "../shared/index.js";
 
 /**
  * HTTP Client Transport
@@ -55,7 +55,7 @@ import {
  * ```
  */
 export class HttpTransport implements Transport {
-  readonly name = HTTP;
+  readonly name: typeof HTTP = HTTP;
 
   private readonly baseUrl: string;
   private readonly urlStrategy: UrlStrategy;

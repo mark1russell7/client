@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TreeMap - Red-black tree based sorted map implementation.
  *
  * Implements a self-balancing binary search tree that maintains keys in sorted
@@ -23,7 +23,7 @@
  *   compare: (a, b) => b - a
  * })
  */
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 /**
  * Node color in red-black tree.
  */

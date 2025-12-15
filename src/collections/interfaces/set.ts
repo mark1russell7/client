@@ -5,8 +5,8 @@
  * They provide efficient membership testing.
  */
 
-import type { Collection, ReadonlyCollection } from "./collection";
-import type { Compare } from "../core/traits";
+import type { Collection, ReadonlyCollection } from "./collection.js";
+import type { Compare } from "../core/traits.js";
 
 /**
  * ReadonlySet<T> - Readonly set with no duplicates.

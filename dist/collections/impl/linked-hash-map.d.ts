@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LinkedHashMap - HashMap that maintains insertion order.
  *
  * Combines a hash table with a doubly-linked list to maintain predictable
@@ -24,8 +24,8 @@
  * lru.get('a') // Moves 'a' to end
  * // Iteration order: b, a (access order)
  */
-import type { MapLike, Entry } from "../interfaces/map";
-import type { Eq, Hash } from "../core/traits";
+import type { MapLike, Entry } from "../interfaces/map.js";
+import type { Eq, Hash } from "../core/traits.js";
 /**
  * Options for creating a LinkedHashMap.
  */

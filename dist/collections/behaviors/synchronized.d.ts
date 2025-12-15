@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Synchronized behavior - Provides thread-safe access with mutex locking.
  *
  * Wraps collections to serialize all operations using a mutex, ensuring
@@ -20,7 +20,7 @@
  *   list.add(3)
  * ])
  */
-import type { Middleware } from "../core/middleware";
+import type { Middleware } from "../core/middleware.js";
 /**
  * Creates a synchronized middleware that locks all method calls.
  *

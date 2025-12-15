@@ -5,8 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
-import type { PaginationContext } from "./contexts";
+import type { ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
+import type { PaginationContext } from "./contexts.js";
 
 /**
  * Pagination middleware options.
@@ -147,7 +147,7 @@ export function createPaginationMiddleware(
 
         // Optionally compute offset for backends that need it
         const computedOffset = (page - 1) * limit;
-        if (metadata.includeOffset) {
+        if (metadata["includeOffset"]) {
           context.message.metadata[offsetKey] = computedOffset;
         }
       }

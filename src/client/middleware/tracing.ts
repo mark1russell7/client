@@ -12,8 +12,8 @@
  * Compatible with OpenTelemetry, Jaeger, and custom tracing systems.
  */
 
-import type { TypedClientMiddleware } from "../types";
-import type { TracingContext } from "./contexts";
+import type { TypedClientMiddleware } from "../types.js";
+import type { TracingContext } from "./contexts.js";
 
 /**
  * Tracing Configuration
@@ -128,7 +128,7 @@ export function createTracingMiddleware(
 
       // Add service name if provided
       if (serviceName) {
-        context.message.metadata.serviceName = serviceName;
+        context.message.metadata["serviceName"] = serviceName;
       }
     }
 
@@ -178,15 +178,14 @@ export function extractTracingInfo(metadata: Record<string, unknown>): {
   spanId?: string;
   parentSpanId?: string;
 } | null {
-  if (!metadata.tracing || typeof metadata.tracing !== "object") {
+  if (!metadata["tracing"] || typeof metadata["tracing"] !== "object") {
     return null;
   }
 
-  const tracing = metadata.tracing as Record<string, unknown>;
-
+  const tracing = metadata["tracing"] as Record<string, unknown>;
   return {
-    ...(typeof tracing.traceId === "string" && { traceId: tracing.traceId }),
-    ...(typeof tracing.spanId === "string" && { spanId: tracing.spanId }),
-    ...(typeof tracing.parentSpanId === "string" && { parentSpanId: tracing.parentSpanId }),
+    ...(typeof tracing["traceId"] === "string" && { traceId: tracing["traceId"] }),
+    ...(typeof tracing["spanId"] === "string" && { spanId: tracing["spanId"] }),
+    ...(typeof tracing["parentSpanId"] === "string" && { parentSpanId: tracing["parentSpanId"] }),
   };
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Error Code Enums
  *
  * Comprehensive enum of ALL error codes.

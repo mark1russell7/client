@@ -5,7 +5,7 @@
  * These validate the transport format, with the body type parameterized.
  */
 
-import type { ZodLike } from "../types";
+import type { ZodLike } from "../types.js";
 
 // =============================================================================
 // Schema Factory Types (Zod-agnostic)

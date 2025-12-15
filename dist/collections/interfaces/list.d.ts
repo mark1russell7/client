@@ -1,11 +1,11 @@
-﻿/**
+/**
  * List interfaces that mirror Java's List interface.
  *
  * Lists are ordered collections that allow duplicate elements
  * and provide positional (indexed) access to elements.
  */
-import type { Collection, ReadonlyCollection } from "./collection";
-import type { Compare } from "../core/traits";
+import type { Collection, ReadonlyCollection } from "./collection.js";
+import type { Compare } from "../core/traits.js";
 /**
  * ReadonlyList<T> - Readonly ordered collection with indexed access.
  *

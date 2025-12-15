@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Status Code Utilities
  *
  * Utilities for working with HTTP status codes, including mappings
  * and classification helpers.
  */
-import { HTTPStatus } from "./constants";
+import { HTTPStatus } from "./constants.js";
 /**
  * HTTP Status Code to String Code Mapping
  *
@@ -15,7 +15,7 @@ export declare const HTTPStatusToCode: Record<HTTPStatus, string>;
  * Legacy alias for backwards compatibility
  * @deprecated Use HTTPStatusToCode instead
  */
-export declare const HTTPCodeMap: Record<HTTPStatus, string>;
+export declare const HTTPCodeMap: typeof HTTPStatusToCode;
 /**
  * String Code to HTTP Status Mapping (Reverse of HTTPStatusToCode)
  *

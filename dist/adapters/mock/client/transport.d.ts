@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Mock Transport Implementation
  *
  * In-memory transport that simulates network behavior for testing.
  */
-import type { Transport, Message, ResponseItem } from "../../../client/types";
-import type { MockResponse, ResponseMatcher, MockTransportOptions, CallHistoryEntry } from "./types";
+import type { Transport, Message, ResponseItem } from "../../../client/types.js";
+import type { MockResponse, ResponseMatcher, MockTransportOptions, CallHistoryEntry } from "./types.js";
 /**
  * Mock transport implementation for testing.
  *

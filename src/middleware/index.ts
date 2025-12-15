@@ -18,11 +18,11 @@ export type {
   MiddlewareContextIn,
   MiddlewareContextOut,
   IsAsyncMiddleware,
-} from "./types";
+} from "./types.js";
 
 export {
   compose,
   bundle,
   wrapWithAsyncMiddlewares,
   wrapWithSyncMiddlewares,
-} from "./compose";
+} from "./compose.js";

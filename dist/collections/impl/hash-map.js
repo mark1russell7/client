@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HashMap implementation - A hash table with custom equality and hashing.
  *
  * Provides O(1) average case lookup, insertion, and deletion.
@@ -17,7 +17,7 @@
  *   keyHash: (u) => hashString(u.id)
  * })
  */
-import { defaultEq, defaultHash } from "../utils/defaults";
+import { defaultEq, defaultHash } from "../utils/defaults.js";
 /**
  * HashMap<K, V> - Hash table implementation with custom equality/hashing.
  *

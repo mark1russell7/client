@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Universal Server
  *
  * Protocol-agnostic RPC server.
  * Registers handlers and processes requests in unified format.
  */
-import { HandlerNotFoundError, ServerError } from "./types";
-import { compose } from "../middleware";
+import { HandlerNotFoundError, ServerError } from "./types.js";
+import { compose } from "../middleware/index.js";
 /**
  * Universal RPC server.
  *

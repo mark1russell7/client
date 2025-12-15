@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Local Transport Implementation
  *
  * In-process RPC with handler registry - no network calls!
  */
-import type { Transport, Message, ResponseItem, Method } from "../../../client/types";
-import type { Handler, LocalTransportOptions } from "./types";
+import type { Transport, Message, ResponseItem, Method } from "../../../client/types.js";
+import type { Handler, LocalTransportOptions } from "./types.js";
 /**
  * Local Transport - executes handlers in-process without network calls.
  *

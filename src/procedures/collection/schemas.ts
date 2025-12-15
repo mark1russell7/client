@@ -5,7 +5,7 @@
  * These schemas are used for input/output validation in collection procedures.
  */
 
-import type { ZodLike, ZodErrorLike } from "../../client/validation/types";
+import type { ZodLike, ZodErrorLike } from "../../client/validation/types.js";
 
 // =============================================================================
 // Generic Schema Builder
@@ -60,7 +60,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 /**
  * Schema for item ID.
  */
-export const idSchema = createSchema<string>((data) => {
+export const idSchema : ZodLike<string> = createSchema<string>((data) => {
   if (isString(data) && data.length > 0) {
     return { success: true, data };
   }
@@ -76,7 +76,7 @@ export const idSchema = createSchema<string>((data) => {
 /**
  * Schema for collection name.
  */
-export const collectionNameSchema = createSchema<string>((data) => {
+export const collectionNameSchema : ZodLike<string> = createSchema<string>((data) => {
   if (isString(data) && data.length > 0 && /^[a-zA-Z][a-zA-Z0-9_]*$/.test(data)) {
     return { success: true, data };
   }
@@ -92,7 +92,7 @@ export const collectionNameSchema = createSchema<string>((data) => {
 /**
  * Schema for generic value (any JSON-serializable value).
  */
-export const valueSchema = createSchema<unknown>((data) => {
+export const valueSchema : ZodLike<unknown> = createSchema<unknown>((data) => {
   // Accept any JSON-serializable value
   try {
     JSON.stringify(data);
@@ -119,7 +119,7 @@ export interface GetInput {
   id: string;
 }
 
-export const getInputSchema = createSchema<GetInput>((data) => {
+export const getInputSchema : ZodLike<GetInput> = createSchema<GetInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -129,7 +129,7 @@ export const getInputSchema = createSchema<GetInput>((data) => {
       },
     };
   }
-  if (!isString(data.id) || data.id.length === 0) {
+  if (!isString(data["id"]) || data["id"].length === 0) {
     return {
       success: false,
       error: {
@@ -138,13 +138,13 @@ export const getInputSchema = createSchema<GetInput>((data) => {
       },
     };
   }
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data["id"] } };
 });
 
 /**
  * Output for get operation - the item or undefined.
  */
-export const getOutputSchema = createSchema<unknown>((data) => {
+export const getOutputSchema : ZodLike<unknown> = createSchema<unknown>((data) => {
   // Accept any value (item) or undefined
   return { success: true, data };
 });
@@ -161,7 +161,7 @@ export interface SetInput {
   value: unknown;
 }
 
-export const setInputSchema = createSchema<SetInput>((data) => {
+export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -171,7 +171,7 @@ export const setInputSchema = createSchema<SetInput>((data) => {
       },
     };
   }
-  if (!isString(data.id) || data.id.length === 0) {
+  if (!isString(data["id"]) || data["id"].length === 0) {
     return {
       success: false,
       error: {
@@ -189,13 +189,13 @@ export const setInputSchema = createSchema<SetInput>((data) => {
       },
     };
   }
-  return { success: true, data: { id: data.id, value: data.value } };
+  return { success: true, data: { id: data["id"], value: data["value"] } };
 });
 
 /**
  * Output for set operation - void.
  */
-export const setOutputSchema = createSchema<void>((_data) => {
+export const setOutputSchema : ZodLike<void> = createSchema<void>((_data) => {
   return { success: true, data: undefined };
 });
 
@@ -210,7 +210,7 @@ export interface DeleteInput {
   id: string;
 }
 
-export const deleteInputSchema = createSchema<DeleteInput>((data) => {
+export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -220,7 +220,7 @@ export const deleteInputSchema = createSchema<DeleteInput>((data) => {
       },
     };
   }
-  if (!isString(data.id) || data.id.length === 0) {
+  if (!isString(data["id"]) || data["id"].length === 0) {
     return {
       success: false,
       error: {
@@ -229,13 +229,13 @@ export const deleteInputSchema = createSchema<DeleteInput>((data) => {
       },
     };
   }
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data["id"] } };
 });
 
 /**
  * Output for delete operation - boolean indicating if deleted.
  */
-export const deleteOutputSchema = createSchema<boolean>((data) => {
+export const deleteOutputSchema : ZodLike<boolean> = createSchema<boolean>((data) => {
   if (typeof data === "boolean") {
     return { success: true, data };
   }
@@ -259,7 +259,7 @@ export interface HasInput {
   id: string;
 }
 
-export const hasInputSchema = createSchema<HasInput>((data) => {
+export const hasInputSchema : ZodLike<HasInput> = createSchema<HasInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -269,7 +269,7 @@ export const hasInputSchema = createSchema<HasInput>((data) => {
       },
     };
   }
-  if (!isString(data.id) || data.id.length === 0) {
+  if (!isString(data["id"]) || data["id"].length === 0) {
     return {
       success: false,
       error: {
@@ -278,13 +278,13 @@ export const hasInputSchema = createSchema<HasInput>((data) => {
       },
     };
   }
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data["id"] } };
 });
 
 /**
  * Output for has operation - boolean.
  */
-export const hasOutputSchema = createSchema<boolean>((data) => {
+export const hasOutputSchema : ZodLike<boolean> = createSchema<boolean>((data) => {
   if (typeof data === "boolean") {
     return { success: true, data };
   }
@@ -306,7 +306,7 @@ export const hasOutputSchema = createSchema<boolean>((data) => {
  */
 export interface GetAllInput {}
 
-export const getAllInputSchema = createSchema<GetAllInput>((data) => {
+export const getAllInputSchema : ZodLike<GetAllInput> = createSchema<GetAllInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -322,7 +322,7 @@ export const getAllInputSchema = createSchema<GetAllInput>((data) => {
 /**
  * Output for getAll operation - array of items.
  */
-export const getAllOutputSchema = createSchema<unknown[]>((data) => {
+export const getAllOutputSchema : ZodLike<unknown[]> = createSchema<unknown[]>((data) => {
   if (isArray(data)) {
     return { success: true, data };
   }
@@ -344,7 +344,7 @@ export const getAllOutputSchema = createSchema<unknown[]>((data) => {
  */
 export interface SizeInput {}
 
-export const sizeInputSchema = createSchema<SizeInput>((data) => {
+export const sizeInputSchema : ZodLike<SizeInput> = createSchema<SizeInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -360,7 +360,7 @@ export const sizeInputSchema = createSchema<SizeInput>((data) => {
 /**
  * Output for size operation - number.
  */
-export const sizeOutputSchema = createSchema<number>((data) => {
+export const sizeOutputSchema : ZodLike<number> = createSchema<number>((data) => {
   if (typeof data === "number" && Number.isInteger(data) && data >= 0) {
     return { success: true, data };
   }
@@ -382,7 +382,7 @@ export const sizeOutputSchema = createSchema<number>((data) => {
  */
 export interface ClearInput {}
 
-export const clearInputSchema = createSchema<ClearInput>((data) => {
+export const clearInputSchema : ZodLike<ClearInput> = createSchema<ClearInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -398,7 +398,7 @@ export const clearInputSchema = createSchema<ClearInput>((data) => {
 /**
  * Output for clear operation - void.
  */
-export const clearOutputSchema = createSchema<void>((_data) => {
+export const clearOutputSchema : ZodLike<void> = createSchema<void>((_data) => {
   return { success: true, data: undefined };
 });
 
@@ -413,7 +413,7 @@ export interface GetBatchInput {
   ids: string[];
 }
 
-export const getBatchInputSchema = createSchema<GetBatchInput>((data) => {
+export const getBatchInputSchema : ZodLike<GetBatchInput> = createSchema<GetBatchInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -423,7 +423,7 @@ export const getBatchInputSchema = createSchema<GetBatchInput>((data) => {
       },
     };
   }
-  if (!isArray(data.ids) || !data.ids.every((id) => isString(id))) {
+  if (!isArray(data["ids"]) || !data["ids"].every((id) => isString(id))) {
     return {
       success: false,
       error: {
@@ -432,13 +432,13 @@ export const getBatchInputSchema = createSchema<GetBatchInput>((data) => {
       },
     };
   }
-  return { success: true, data: { ids: data.ids as string[] } };
+  return { success: true, data: { ids: data["ids"] as string[] } };
 });
 
 /**
  * Output for getBatch operation - object mapping ids to values.
  */
-export const getBatchOutputSchema = createSchema<Record<string, unknown>>((data) => {
+export const getBatchOutputSchema : ZodLike<Record<string, unknown>> = createSchema<Record<string, unknown>>((data) => {
   if (isObject(data)) {
     return { success: true, data: data as Record<string, unknown> };
   }
@@ -458,7 +458,7 @@ export interface SetBatchInput {
   items: Array<{ id: string; value: unknown }>;
 }
 
-export const setBatchInputSchema = createSchema<SetBatchInput>((data) => {
+export const setBatchInputSchema : ZodLike<SetBatchInput> = createSchema<SetBatchInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -468,7 +468,7 @@ export const setBatchInputSchema = createSchema<SetBatchInput>((data) => {
       },
     };
   }
-  if (!isArray(data.items)) {
+  if (!isArray(data["items"])) {
     return {
       success: false,
       error: {
@@ -477,9 +477,9 @@ export const setBatchInputSchema = createSchema<SetBatchInput>((data) => {
       },
     };
   }
-  for (let i = 0; i < data.items.length; i++) {
-    const item = data.items[i];
-    if (!isObject(item) || !isString(item.id) || !("value" in item)) {
+  for (let i = 0; i < data["items"].length; i++) {
+    const item = data["items"][i];
+    if (!isObject(item) || !isString(item["id"]) || !("value" in item)) {
       return {
         success: false,
         error: {
@@ -492,7 +492,7 @@ export const setBatchInputSchema = createSchema<SetBatchInput>((data) => {
   return {
     success: true,
     data: {
-      items: data.items.map((item: any) => ({ id: item.id, value: item.value })),
+      items: data["items"].map((item: any) => ({ id: item["id"], value: item["value"] })),
     },
   };
 });
@@ -500,7 +500,7 @@ export const setBatchInputSchema = createSchema<SetBatchInput>((data) => {
 /**
  * Output for setBatch operation - void.
  */
-export const setBatchOutputSchema = createSchema<void>((_data) => {
+export const setBatchOutputSchema : ZodLike<void> = createSchema<void>((_data) => {
   return { success: true, data: undefined };
 });
 
@@ -511,7 +511,7 @@ export interface DeleteBatchInput {
   ids: string[];
 }
 
-export const deleteBatchInputSchema = createSchema<DeleteBatchInput>((data) => {
+export const deleteBatchInputSchema : ZodLike<DeleteBatchInput> = createSchema<DeleteBatchInput>((data) => {
   if (!isObject(data)) {
     return {
       success: false,
@@ -521,7 +521,7 @@ export const deleteBatchInputSchema = createSchema<DeleteBatchInput>((data) => {
       },
     };
   }
-  if (!isArray(data.ids) || !data.ids.every((id) => isString(id))) {
+  if (!isArray(data["ids"]) || !data["ids"].every((id) => isString(id))) {
     return {
       success: false,
       error: {
@@ -530,13 +530,13 @@ export const deleteBatchInputSchema = createSchema<DeleteBatchInput>((data) => {
       },
     };
   }
-  return { success: true, data: { ids: data.ids as string[] } };
+  return { success: true, data: { ids: data["ids"] as string[] } };
 });
 
 /**
  * Output for deleteBatch operation - number of deleted items.
  */
-export const deleteBatchOutputSchema = createSchema<number>((data) => {
+export const deleteBatchOutputSchema : ZodLike<number> = createSchema<number>((data) => {
   if (typeof data === "number" && Number.isInteger(data) && data >= 0) {
     return { success: true, data };
   }

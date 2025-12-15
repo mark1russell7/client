@@ -5,8 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types";
-import type { TimeoutContext } from "./contexts";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
+import type { TimeoutContext } from "./contexts.js";
 
 /**
  * Timeout middleware options.

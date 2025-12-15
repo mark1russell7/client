@@ -5,8 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types";
-import type { RetryContext } from "./contexts";
+import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
+import type { RetryContext } from "./contexts.js";
 
 /**
  * Retry middleware options.

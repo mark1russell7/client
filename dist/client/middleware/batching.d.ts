@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Batching Middleware
  *
  * Combines multiple requests into a single batch for efficiency.
@@ -6,8 +6,8 @@
  *
  * Works with both client and server!
  */
-import type { ClientMiddleware, Message, TypedClientMiddleware } from "../types";
-import type { BatchingContext } from "./contexts";
+import type { ClientMiddleware, Message, TypedClientMiddleware } from "../types.js";
+import type { BatchingContext } from "./contexts.js";
 /**
  * Batching options.
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Error System - Type Definitions
  *
  * Protocol-agnostic error metadata system.

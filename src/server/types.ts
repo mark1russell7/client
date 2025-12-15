@@ -5,7 +5,7 @@
  * Enables handling HTTP, WebSocket, gRPC, etc. with unified RPC format.
  */
 
-import type { Metadata, Status, Method } from "../client/types";
+import type { Metadata, Status, Method } from "../client/types.js";
 
 // Re-export Method from client types
 export type { Method };

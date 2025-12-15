@@ -1,11 +1,12 @@
-﻿/**
+/**
  * HTTP Client Transport Implementation
  *
  * Converts universal client protocol to HTTP requests using
  * shared utilities and injectable strategies.
  */
-import type { Transport, Message, ResponseItem } from "../../../client/types";
-import type { HttpTransportOptions } from "./types";
+import type { Transport, Message, ResponseItem } from "../../../client/types.js";
+import type { HttpTransportOptions } from "./types.js";
+import { HTTP } from "../shared/index.js";
 /**
  * HTTP Client Transport
  *
@@ -30,7 +31,7 @@ import type { HttpTransportOptions } from "./types";
  * ```
  */
 export declare class HttpTransport implements Transport {
-    readonly name: "HTTP";
+    readonly name: typeof HTTP;
     private readonly baseUrl;
     private readonly urlStrategy;
     private readonly httpMethodStrategy;

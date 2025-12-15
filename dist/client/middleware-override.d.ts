@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Middleware Override Support
  *
  * Enables per-call middleware configuration overrides.
  * Middleware can check for overrides in the request metadata.
  */
-import type { MiddlewareOverrides, RetryOverride, TimeoutOverride, CacheOverride } from "./call-types";
-import type { Metadata } from "./types";
+import type { MiddlewareOverrides, RetryOverride, TimeoutOverride, CacheOverride } from "./call-types.js";
+import type { Metadata } from "./types.js";
 /**
  * Metadata key where middleware overrides are stored.
  */

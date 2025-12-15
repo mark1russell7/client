@@ -5,14 +5,14 @@
  * These mirror methods like Collections.emptyList(), singletonList(), etc.
  */
 
-import { arrayList, ArrayList } from "../impl/array-list";
-import { arrayDeque, ArrayDeque } from "../impl/array-deque";
-import { hashMap, HashMap } from "../impl/hash-map";
-import type { List } from "../interfaces/list";
-import type { Queue } from "../interfaces/queue";
-import type { MapLike } from "../interfaces/map";
-import { readonly } from "../behaviors/readonly";
-import { compose } from "../core/middleware";
+import { arrayList, ArrayList } from "../impl/array-list.js";
+import { arrayDeque, ArrayDeque } from "../impl/array-deque.js";
+import { hashMap, HashMap } from "../impl/hash-map.js";
+import type { List } from "../interfaces/list.js";
+import type { Queue } from "../interfaces/queue.js";
+import type { MapLike } from "../interfaces/map.js";
+import { readonly } from "../behaviors/readonly.js";
+import { compose } from "../core/middleware.js";
 
 // ============================================================================
 // Empty collections

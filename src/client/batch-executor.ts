@@ -7,7 +7,7 @@
  * - stream: Yield results as they arrive
  */
 
-import type { ProcedurePath, ProcedureContext } from "../procedures/types";
+import type { ProcedurePath, ProcedureContext } from "../procedures/types.js";
 import type {
   Route,
   BatchConfig,
@@ -15,9 +15,9 @@ import type {
   ProcedureCallResult,
   CallResponse,
   StreamingCallResponse,
-} from "./call-types";
-import { buildResponse } from "./call-types";
-import type { ResolvedRoute } from "./route-resolver";
+} from "./call-types.js";
+import { buildResponse } from "./call-types.js";
+import type { ResolvedRoute } from "./route-resolver.js";
 
 // =============================================================================
 // Executor Types

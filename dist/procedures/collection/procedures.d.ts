@@ -1,11 +1,10 @@
-﻿/**
+/**
  * Collection Procedures
  *
  * Procedure definitions for collection CRUD operations.
  * These procedures delegate to storage backends via the repository pattern.
  */
-import type { AnyProcedure } from "../types";
-import { type GetInput, type SetInput, type DeleteInput } from "./schemas";
+import type { AnyProcedure, Procedure } from "../types.js";
 /**
  * Create collection procedures for a specific collection name.
  *
@@ -23,24 +22,22 @@ export declare function createCollectionProcedures(collectionName: string): AnyP
  * Generic get procedure that works with any collection.
  * Uses the collection name from the path.
  */
-export declare const genericGetProcedure: import("..").Procedure<GetInput, unknown, {
-    description: string;
-    tags: string[];
-}>;
+export declare const genericGetProcedure: Procedure<{
+    id: string;
+}, unknown>;
 /**
  * Generic set procedure that works with any collection.
  */
-export declare const genericSetProcedure: import("..").Procedure<SetInput, void, {
-    description: string;
-    tags: string[];
-}>;
+export declare const genericSetProcedure: Procedure<{
+    id: string;
+    value: unknown;
+}, void>;
 /**
  * Generic delete procedure that works with any collection.
  */
-export declare const genericDeleteProcedure: import("..").Procedure<DeleteInput, boolean, {
-    description: string;
-    tags: string[];
-}>;
+export declare const genericDeleteProcedure: Procedure<{
+    id: string;
+}, boolean>;
 /**
  * All generic collection procedures.
  * Register these for dynamic collection support.

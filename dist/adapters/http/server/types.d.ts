@@ -1,11 +1,11 @@
-﻿/**
+/**
  * HTTP Server Transport Types
  *
  * Type definitions for HTTP server adapter.
  */
 import type { Request, Express } from "express";
 import type { Server as HttpServer } from "http";
-import type { Method } from "../../../client/types";
+import type { Method } from "../../../client/types.js";
 /**
  * URL strategy for converting HTTP requests to RPC methods.
  */

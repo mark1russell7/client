@@ -24,10 +24,10 @@
  * })
  */
 
-import type { SortedSet, NavigableSet } from "../interfaces/set";
-import type { Eq, Compare } from "../core/traits";
-import { TreeMap } from "./tree-map";
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import type { SortedSet, NavigableSet } from "../interfaces/set.js";
+import type { Eq, Compare } from "../core/traits.js";
+import { TreeMap } from "./tree-map.js";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 
 /**
  * Dummy value used for TreeMap backing.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Procedure Announcement (Self-Registration)
  *
  * When a package with procedures is installed, it "announces" itself
@@ -35,6 +35,7 @@ declare const REGISTRY_FILENAME = ".client-registry.json";
  * Announce this package's procedures to the project registry.
  *
  * Called from a package's postinstall script to register its procedures.
+ * Also propagates the postinstall script to the parent package for transitive discovery.
  */
 export declare function announce(options: AnnounceOptions): Promise<void>;
 /**

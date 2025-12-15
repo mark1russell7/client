@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Error System
  *
  * Protocol-agnostic error handling with rich metadata.
@@ -26,15 +26,15 @@
  * console.log(formatError(error));
  * ```
  */
-export { ErrorSeverity, ErrorCategory } from "./types";
+export { ErrorSeverity, ErrorCategory } from "./types.js";
 // Error Codes Enum
-export { ErrorCode } from "./codes";
+export { ErrorCode } from "./codes.js";
 // Registry
-export { ERROR_REGISTRY, getErrorMetadata, isKnownError, getErrorsByCategory, getRetryableErrors, } from "./registry";
+export { ERROR_REGISTRY, getErrorMetadata, isKnownError, getErrorsByCategory, getRetryableErrors, } from "./registry.js";
 // Factory
-export { createError, createErrorFromHTTPStatus, createErrorFromException, richErrorToStatus, formatError, isRetryable, isErrorCategory, } from "./factory";
+export { createError, createErrorFromHTTPStatus, createErrorFromException, richErrorToStatus, formatError, isRetryable, isErrorCategory, } from "./factory.js";
 // HTTP Status Constants
-export { HTTPStatus } from "./http-status";
+export { HTTPStatus } from "./http-status.js";
 // HTTP Errors
-export { HTTP_ERROR_REGISTRY, httpStatusToErrorCode, errorCodeToHTTPStatus, } from "./http-errors";
+export { HTTP_ERROR_REGISTRY, httpStatusToErrorCode, errorCodeToHTTPStatus, } from "./http-errors.js";
 //# sourceMappingURL=index.js.map

@@ -1,12 +1,12 @@
-﻿/**
+/**
  * HTTP Error Registry Extension
  *
  * Comprehensive HTTP status code mappings with full metadata.
  * Integrates with the universal error registry system.
  */
-import { ErrorCategory, ErrorSeverity } from "./types";
-import { ErrorCode } from "./codes";
-import { HTTPStatus } from "./http-status";
+import { ErrorCategory, ErrorSeverity } from "./types.js";
+import { ErrorCode } from "./codes.js";
+import { HTTPStatus } from "./http-status.js";
 /**
  * Helper to create HTTP error metadata.
  *

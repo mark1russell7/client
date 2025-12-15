@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Universal Message Zod Schemas
  *
  * Generic schemas for the universal RPC message format.
  * These validate the internal message structure, with payload type parameterized.
  */
-import type { ZodLike } from "../types";
-import type { ZodModule } from "./transport";
+import type { ZodLike } from "../types.js";
+import type { ZodModule } from "./transport.js";
 /**
  * Method identifier structure.
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Collections Framework - A comprehensive Java Collections-inspired library for TypeScript.
  *
  * Provides:
@@ -50,86 +50,86 @@
 // ============================================================================
 // Core types and utilities
 // ============================================================================
-export * from "./core/traits";
-export * from "./core/effects";
-export * from "./core/policies";
-export * from "./core/middleware";
-export * from "./core/events";
+export * from "./core/traits.js";
+export * from "./core/effects.js";
+export * from "./core/policies.js";
+export * from "./core/middleware.js";
+export * from "./core/events.js";
 // ============================================================================
 // Interfaces
 // ============================================================================
-export * from "./interfaces/collection";
-export * from "./interfaces/list";
-export * from "./interfaces/map";
-export * from "./interfaces/set";
+export * from "./interfaces/collection.js";
+export * from "./interfaces/list.js";
+export * from "./interfaces/map.js";
+export * from "./interfaces/set.js";
 // ============================================================================
 // Implementations
 // ============================================================================
-export * from "./impl/array-list";
-export * from "./impl/array-deque";
-export * from "./impl/hash-map";
-export * from "./impl/linked-hash-map";
-export * from "./impl/tree-map";
-export * from "./impl/tree-set";
-export * from "./impl/linked-list";
-export * from "./impl/hash-set";
-export * from "./impl/priority-queue";
+export * from "./impl/array-list.js";
+export * from "./impl/array-deque.js";
+export * from "./impl/hash-map.js";
+export * from "./impl/linked-hash-map.js";
+export * from "./impl/tree-map.js";
+export * from "./impl/tree-set.js";
+export * from "./impl/linked-list.js";
+export * from "./impl/hash-set.js";
+export * from "./impl/priority-queue.js";
 // ============================================================================
 // Behaviors
 // ============================================================================
 // Export bounded behaviors (excluding duplicate BoundedCollection interface)
-export { boundedList, boundedQueue, boundedDeque, boundedMap, bounded, } from "./behaviors/bounded";
-export * from "./behaviors/readonly";
-export * from "./behaviors/safe";
-export * from "./behaviors/evented";
-export * from "./behaviors/synchronized";
-export * from "./behaviors/lru";
-export * from "./behaviors/ttl";
+export { boundedList, boundedQueue, boundedDeque, boundedMap, bounded, } from "./behaviors/bounded.js";
+export * from "./behaviors/readonly.js";
+export * from "./behaviors/safe.js";
+export * from "./behaviors/evented.js";
+export * from "./behaviors/synchronized.js";
+export * from "./behaviors/lru.js";
+export * from "./behaviors/ttl.js";
 // ============================================================================
 // Async/Concurrent
 // ============================================================================
-export * from "./async/async-queue";
-export * from "./async/channels";
+export * from "./async/async-queue.js";
+export * from "./async/channels.js";
 // ============================================================================
 // Functional Operations
 // ============================================================================
-export * from "./fx/iter";
-export * from "./fx/collectors";
+export * from "./fx/iter.js";
+export * from "./fx/collectors.js";
 // ============================================================================
 // Utilities
 // ============================================================================
-export * from "./utils/defaults";
-export * from "./utils/factories";
-export * from "./utils/helpers";
+export * from "./utils/defaults.js";
+export * from "./utils/factories.js";
+export * from "./utils/helpers.js";
 // ============================================================================
 // Re-exports for convenience
 // ============================================================================
 // Most commonly used exports
-export { compose, bundle } from "./core/middleware";
-export { arrayList } from "./impl/array-list";
-export { arrayDeque } from "./impl/array-deque";
-export { hashMap } from "./impl/hash-map";
-export { linkedHashMap } from "./impl/linked-hash-map";
-export { treeMap } from "./impl/tree-map";
-export { treeSet } from "./impl/tree-set";
-export { linkedList } from "./impl/linked-list";
-export { hashSet } from "./impl/hash-set";
-export { priorityQueue } from "./impl/priority-queue";
+export { compose, bundle } from "./core/middleware.js";
+export { arrayList } from "./impl/array-list.js";
+export { arrayDeque } from "./impl/array-deque.js";
+export { hashMap } from "./impl/hash-map.js";
+export { linkedHashMap } from "./impl/linked-hash-map.js";
+export { treeMap } from "./impl/tree-map.js";
+export { treeSet } from "./impl/tree-set.js";
+export { linkedList } from "./impl/linked-list.js";
+export { hashSet } from "./impl/hash-set.js";
+export { priorityQueue } from "./impl/priority-queue.js";
 // Common behaviors
-export { readonly, readonlyList, readonlyMap } from "./behaviors/readonly";
-export { safeList, safeQueue, safeMap } from "./behaviors/safe";
-export { eventedList, eventedQueue, eventedMap } from "./behaviors/evented";
-export { synchronized } from "./behaviors/synchronized";
-export { lruMap, lruCache, LRUCache } from "./behaviors/lru";
-export { ttlMap, ttlCache, TTLCache, ttlCollection } from "./behaviors/ttl";
+export { readonly, readonlyList, readonlyMap } from "./behaviors/readonly.js";
+export { safeList, safeQueue, safeMap } from "./behaviors/safe.js";
+export { eventedList, eventedQueue, eventedMap } from "./behaviors/evented.js";
+export { synchronized } from "./behaviors/synchronized.js";
+export { lruMap, lruCache, LRUCache } from "./behaviors/lru.js";
+export { ttlMap, ttlCache, TTLCache, ttlCollection } from "./behaviors/ttl.js";
 // Async/Concurrent
-export { asyncQueue, AsyncQueue } from "./async/async-queue";
-export { channel, Channel, select, timeout, ticker, pipeline, fanOut, fanIn, merge, workerPool, } from "./async/channels";
+export { asyncQueue, AsyncQueue } from "./async/async-queue.js";
+export { channel, Channel, select, timeout, ticker, pipeline, fanOut, fanIn, merge, workerPool, } from "./async/channels.js";
 // Functional operations
-export { map, filter, flatMap, flatten, take, skip, takeWhile, skipWhile, concat, zip, enumerate, chunk, window, partition, reduce, scan, sort, reverse, distinct, distinctConsecutive, tap, some, every, none, find, count, min, max, sum, average, toArray, toSet, toMap as iterToMap, pipe, } from "./fx/iter";
-export { collect, toList as collectToList, toArray as collectToArray, toSet as collectToSet, toMap as collectToMap, groupingBy, groupingByWith, partitioningBy, counting, summingNumber, averagingNumber, minBy, maxBy, joining, mapping, filtering, flatMapping, reducing, reducingWith, teeing, first, last, summarizingNumber, } from "./fx/collectors";
+export { map, filter, flatMap, flatten, take, skip, takeWhile, skipWhile, concat, zip, enumerate, chunk, window, partition, reduce, scan, sort, reverse, distinct, distinctConsecutive, tap, some, every, none, find, count, min, max, sum, average, toArray, toSet, toMap as iterToMap, pipe, } from "./fx/iter.js";
+export { collect, toList as collectToList, toArray as collectToArray, toSet as collectToSet, toMap as collectToMap, groupingBy, groupingByWith, partitioningBy, counting, summingNumber, averagingNumber, minBy, maxBy, joining, mapping, filtering, flatMapping, reducing, reducingWith, teeing, first, last, summarizingNumber, } from "./fx/collectors.js";
 // Common factories
-export { emptyList, emptyMap, emptyQueue, singletonList, singletonMap, nCopies, listOf, mapOf, range, rangeTo, toList, toMap, groupBy, } from "./utils/factories";
+export { emptyList, emptyMap, emptyQueue, singletonList, singletonMap, nCopies, listOf, mapOf, range, rangeTo, toList, toMap, groupBy, } from "./utils/factories.js";
 // Effects
-export { None, Some, Ok, Err, isSome, isNone, isOk, isErr, getOrElse, unwrap, } from "./core/effects";
+export { None, Some, Ok, Err, isSome, isNone, isOk, isErr, getOrElse, unwrap, } from "./core/effects.js";
 //# sourceMappingURL=index.js.map

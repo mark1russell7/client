@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Procedure Registry
  *
  * Central registry for procedure definitions.
  * Supports auto-discovery via module self-registration pattern.
  */
-import { pathToKey } from "./types";
+import { pathToKey } from "./types.js";
 // =============================================================================
 // Registry Errors
 // =============================================================================

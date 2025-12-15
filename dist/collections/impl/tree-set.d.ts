@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TreeSet - Red-black tree based sorted set implementation.
  *
  * Implements a sorted set using TreeMap as the backing structure.
@@ -23,8 +23,8 @@
  *   compare: (a, b) => b - a
  * })
  */
-import type { SortedSet, NavigableSet } from "../interfaces/set";
-import type { Eq, Compare } from "../core/traits";
+import type { SortedSet, NavigableSet } from "../interfaces/set.js";
+import type { Eq, Compare } from "../core/traits.js";
 /**
  * Options for creating a TreeSet.
  */

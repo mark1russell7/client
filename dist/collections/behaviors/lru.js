@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LRU (Least Recently Used) eviction behavior.
  *
  * Tracks access times and automatically evicts the least recently used

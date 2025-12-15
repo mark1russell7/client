@@ -21,7 +21,7 @@
  * ])
  */
 
-import type { Middleware } from "../core/middleware";
+import type { Middleware } from "../core/middleware.js";
 
 /**
  * Simple mutex implementation for JavaScript async operations.
@@ -126,22 +126,22 @@ export function synchronized<C extends object>(): Middleware<C> {
 /**
  * Alias for Java compatibility: synchronizedList
  */
-export const synchronizedList = synchronized;
+export const synchronizedList : typeof synchronized = synchronized;
 
 /**
  * Alias for Java compatibility: synchronizedMap
  */
-export const synchronizedMap = synchronized;
+export const synchronizedMap : typeof synchronized = synchronized;
 
 /**
  * Alias for Java compatibility: synchronizedCollection
  */
-export const synchronizedCollection = synchronized;
+export const synchronizedCollection : typeof synchronized = synchronized;
 
 /**
  * Alias for Java compatibility: synchronizedSet
  */
-export const synchronizedSet = synchronized;
+export const synchronizedSet : typeof synchronized = synchronized;
 
 /**
  * Advanced synchronized middleware with reentrant locking.

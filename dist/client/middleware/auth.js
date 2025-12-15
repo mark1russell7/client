@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Authentication Middleware
  *
  * Adds authentication metadata to requests.

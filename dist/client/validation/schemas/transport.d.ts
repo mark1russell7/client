@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Transport-Level Zod Schemas
  *
  * Generic schemas for HTTP request/response structures.
  * These validate the transport format, with the body type parameterized.
  */
-import type { ZodLike } from "../types";
+import type { ZodLike } from "../types.js";
 /**
  * HTTP methods supported by the transport.
  */

@@ -7,12 +7,12 @@
 
 import type { IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types";
-import type { Server } from "../../../server/server";
+import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
+import type { Server } from "../../../server/server.js";
 import type {
   WebSocketServerTransportOptions,
   WebSocketMessage,
-} from "./types";
+} from "./types.js";
 
 /**
  * WebSocket server transport adapter.

@@ -5,7 +5,7 @@
  * and classification helpers.
  */
 
-import { HTTPStatus, HTTP } from "./constants";
+import { HTTPStatus, HTTP } from "./constants.js";
 
 /**
  * HTTP Status Code to String Code Mapping
@@ -87,7 +87,7 @@ export const HTTPStatusToCode: Record<HTTPStatus, string> = {
  * Legacy alias for backwards compatibility
  * @deprecated Use HTTPStatusToCode instead
  */
-export const HTTPCodeMap = HTTPStatusToCode;
+export const HTTPCodeMap: typeof HTTPStatusToCode = HTTPStatusToCode;
 
 /**
  * String Code to HTTP Status Mapping (Reverse of HTTPStatusToCode)

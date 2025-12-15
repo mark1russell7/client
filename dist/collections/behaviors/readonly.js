@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Readonly behavior - Creates immutable views of collections.
  *
  * Wraps collections to prevent modifications by throwing errors

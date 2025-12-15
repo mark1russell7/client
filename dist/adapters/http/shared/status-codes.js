@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Status Code Utilities
  *
  * Utilities for working with HTTP status codes, including mappings
  * and classification helpers.
  */
-import { HTTPStatus, HTTP } from "./constants";
+import { HTTPStatus, HTTP } from "./constants.js";
 /**
  * HTTP Status Code to String Code Mapping
  *

@@ -5,8 +5,8 @@
  * Middleware can check for overrides in the request metadata.
  */
 
-import type { MiddlewareOverrides, RetryOverride, TimeoutOverride, CacheOverride } from "./call-types";
-import type { Metadata } from "./types";
+import type { MiddlewareOverrides, RetryOverride, TimeoutOverride, CacheOverride } from "./call-types.js";
+import type { Metadata } from "./types.js";
 
 // =============================================================================
 // Override Keys

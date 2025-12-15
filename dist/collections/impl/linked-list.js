@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LinkedList implementation - A doubly-linked list.
  *
  * Provides O(1) insertion/removal at both ends and at known positions.
@@ -11,7 +11,7 @@
  * list.addLast(2)
  * list.add(3)
  */
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 /**
  * Internal node structure for the linked list.
  */

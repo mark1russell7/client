@@ -1,12 +1,12 @@
-﻿/**
+/**
  * HTTP Server Transport Implementation
  *
  * Adapts Express HTTP server to unified RPC format.
  * Converts HTTP requests to ServerRequest and ServerResponse back to HTTP.
  */
-import type { ServerTransport } from "../../../server/types";
-import type { Server } from "../../../server";
-import type { HttpServerTransportOptions } from "./types";
+import type { ServerTransport } from "../../../server/types.js";
+import type { Server } from "../../../server/index.js";
+import type { HttpServerTransportOptions } from "./types.js";
 /**
  * HTTP server transport adapter for Express.
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TreeSet - Red-black tree based sorted set implementation.
  *
  * Implements a sorted set using TreeMap as the backing structure.
@@ -23,8 +23,8 @@
  *   compare: (a, b) => b - a
  * })
  */
-import { TreeMap } from "./tree-map";
-import { defaultEq, defaultCompare } from "../utils/defaults";
+import { TreeMap } from "./tree-map.js";
+import { defaultEq, defaultCompare } from "../utils/defaults.js";
 /**
  * Dummy value used for TreeMap backing.
  */

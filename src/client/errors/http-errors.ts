@@ -5,9 +5,9 @@
  * Integrates with the universal error registry system.
  */
 
-import { ErrorCategory, ErrorSeverity, type ErrorMetadata } from "./types";
-import { ErrorCode } from "./codes";
-import { HTTPStatus } from "./http-status";
+import { ErrorCategory, ErrorSeverity, type ErrorMetadata } from "./types.js";
+import { ErrorCode } from "./codes.js";
+import { HTTPStatus } from "./http-status.js";
 
 /**
  * Helper to create HTTP error metadata.

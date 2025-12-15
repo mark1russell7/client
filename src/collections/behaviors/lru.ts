@@ -14,8 +14,8 @@
  * // When full, least recently accessed keys are evicted
  */
 
-import type { Middleware } from "../core/middleware";
-import type { MapLike } from "../interfaces/map";
+import type { Middleware } from "../core/middleware.js";
+import type { MapLike } from "../interfaces/map.js";
 
 /**
  * Options for LRU behavior.

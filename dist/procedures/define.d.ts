@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Procedure Definition Helper
  *
  * Factory function for creating well-typed procedure definitions.
  */
-import type { ZodLike } from "../client/validation/types";
-import type { Procedure, ProcedurePath, ProcedureMetadata, ProcedureHandler } from "./types";
+import type { ZodLike } from "../client/validation/types.js";
+import type { Procedure, ProcedurePath, ProcedureMetadata, ProcedureHandler } from "./types.js";
 /**
  * Input for defining a procedure.
  * Type parameters are inferred from schemas.

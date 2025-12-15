@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Procedure Registry
  *
  * Central registry for procedure definitions.
  * Supports auto-discovery via module self-registration pattern.
  */
-import type { AnyProcedure, ProcedurePath, RegistryEventType, ProcedureModule, RegistrationOptions } from "./types";
+import type { AnyProcedure, ProcedurePath, RegistryEventType, ProcedureModule, RegistrationOptions } from "./types.js";
 /**
  * Error thrown when procedure registration fails.
  */

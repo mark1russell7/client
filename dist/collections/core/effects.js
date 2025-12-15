@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Functional effect types for error handling and optional values.
  *
  * Provides Option<T> and Result<T,E> types for explicit, type-safe

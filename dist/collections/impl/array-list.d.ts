@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ArrayList implementation - A dynamic array-backed list.
  *
  * Provides O(1) indexed access and amortized O(1) append.
@@ -11,8 +11,8 @@
  * list.add(3)
  * console.log(list.get(1)) // 2
  */
-import type { List, RandomAccess } from "../interfaces/list";
-import type { Eq, Compare } from "../core/traits";
+import type { List, RandomAccess } from "../interfaces/list.js";
+import type { Eq, Compare } from "../core/traits.js";
 /**
  * Options for creating an ArrayList.
  */

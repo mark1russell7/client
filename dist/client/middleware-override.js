@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware Override Support
  *
  * Enables per-call middleware configuration overrides.

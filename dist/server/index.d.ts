@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Server
  *
  * Protocol-agnostic RPC server architecture.
@@ -33,13 +33,13 @@
  * await httpTransport.start();
  * ```
  */
-export { Server } from "./server";
-export type { ServerOptions } from "./server";
-export { ProcedureServer, createProcedureServer } from "./procedure-server";
-export type { ProcedureServerOptions, StorageConfig } from "./procedure-server";
-export { HandlerNotFoundError, ServerError, type ServerRequest, type ServerResponse, type ServerHandler, type ServerMiddleware, type ServerContext, type ServerRunner, type ServerTransport, } from "./types";
-export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "../adapters/http/server";
-export type { HttpServerTransportOptions, HttpUrlStrategy, } from "../adapters/http/server";
-export { WebSocketServerTransport } from "../adapters/websocket/server";
-export type { WebSocketServerTransportOptions, WebSocketAuthHandler, WebSocketConnectionHandler, WebSocketMessage, } from "../adapters/websocket/server";
+export { Server } from "./server.js";
+export type { ServerOptions } from "./server.js";
+export { ProcedureServer, createProcedureServer } from "./procedure-server.js";
+export type { ProcedureServerOptions, StorageConfig } from "./procedure-server.js";
+export { HandlerNotFoundError, ServerError, type ServerRequest, type ServerResponse, type ServerHandler, type ServerMiddleware, type ServerContext, type ServerRunner, type ServerTransport, } from "./types.js";
+export { HttpServerTransport, defaultServerUrlStrategy, rpcServerUrlStrategy, } from "../adapters/http/server/index.js";
+export type { HttpServerTransportOptions, HttpUrlStrategy, } from "../adapters/http/server/index.js";
+export { WebSocketServerTransport } from "../adapters/websocket/server/index.js";
+export type { WebSocketServerTransportOptions, WebSocketAuthHandler, WebSocketConnectionHandler, WebSocketMessage, } from "../adapters/websocket/server/index.js";
 //# sourceMappingURL=index.d.ts.map

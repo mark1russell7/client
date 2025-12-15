@@ -1,11 +1,20 @@
-﻿/**
+/**
  * Mock Builder
  *
  * Fluent API for configuring mock responses.
  */
-import type { ResponseItem } from "../../../client/types";
-import type { ResponseMatcher } from "./types";
-import type { MockTransport } from "./transport";
+import type { ResponseItem } from "../../../client/types.js";
+import type { ResponseMatcher } from "./types.js";
+import type { MockTransport } from "./transport.js";
+export declare class MockResponseBuilder {
+    private transport;
+    private matcher;
+    constructor(transport: MockTransport, matcher: ResponseMatcher);
+    thenReturn<TRes>(payload: TRes, metadata?: Record<string, unknown>): this;
+    thenError(message: string): this;
+    thenStream<TRes>(items: ResponseItem<TRes>[]): this;
+    when(matcher: ResponseMatcher): this;
+}
 /**
  * Create a mock response builder for fluent API.
  *
@@ -22,10 +31,5 @@ import type { MockTransport } from "./transport";
  *   .thenError("Order service unavailable");
  * ```
  */
-export declare function mockBuilder(transport: MockTransport): {
-    when(matcher: ResponseMatcher): /*elided*/ any;
-    thenReturn<TRes>(payload: TRes, metadata?: Record<string, unknown>): /*elided*/ any;
-    thenError(message: string): /*elided*/ any;
-    thenStream<TRes>(items: ResponseItem<TRes>[]): /*elided*/ any;
-};
+export declare function mockBuilder(transport: MockTransport): MockResponseBuilder;
 //# sourceMappingURL=builder.d.ts.map

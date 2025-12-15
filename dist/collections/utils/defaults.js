@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Default implementations of equality, hashing, and comparison functions.
  *
  * Provides sensible defaults for primitive types and utilities for

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Procedure Definition Helper
  *
  * Factory function for creating well-typed procedure definitions.

@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Universal Retry Middleware
  *
  * Protocol-agnostic retry with exponential backoff and jitter.
  * Works with any transport!
  */
-import type { ResponseItem, TypedClientMiddleware } from "../types";
-import type { RetryContext } from "./contexts";
+import type { ResponseItem, TypedClientMiddleware } from "../types.js";
+import type { RetryContext } from "./contexts.js";
 /**
  * Retry middleware options.
  */

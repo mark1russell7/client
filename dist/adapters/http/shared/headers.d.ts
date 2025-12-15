@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Header Utilities
  *
  * Provides constants for standard HTTP headers and utilities for
  * converting between universal metadata and HTTP headers.
  */
-import type { Metadata } from "../../../client/types";
+import type { Metadata } from "../../../client/types.js";
 /**
  * Standard HTTP Header Names
  *

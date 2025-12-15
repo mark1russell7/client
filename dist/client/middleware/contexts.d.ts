@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware Context Types
  *
  * Each middleware declares what context it provides and requires through
@@ -142,7 +142,7 @@ export interface PaginationContext {
  * Context provided by Zod validation middleware.
  * Re-exported from validation module for consistency.
  */
-export type { ZodValidationContext } from "../validation/types";
+export type { ZodValidationContext } from "../validation/types.js";
 /**
  * Base context that all clients start with.
  * Contains the minimum required context for any request.

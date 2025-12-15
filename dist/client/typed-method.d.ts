@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Type-safe Method construction from procedure registry
  *
  * This ensures that Method objects can only be created with valid
  * service/operation combinations that exist in the registry.
  */
-import type { Method } from './types';
+import type { Method } from './types.js';
 /**
  * Generic typed method that constrains service and operation
  * to values that exist in a procedure registry

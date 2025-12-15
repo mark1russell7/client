@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tracing Middleware
  *
  * Adds distributed tracing metadata to requests.
@@ -97,7 +97,7 @@ export function createTracingMiddleware(options = {}) {
             }
             // Add service name if provided
             if (serviceName) {
-                context.message.metadata.serviceName = serviceName;
+                context.message.metadata["serviceName"] = serviceName;
             }
         }
         // Continue middleware chain
@@ -139,14 +139,14 @@ export function createSimpleTracingMiddleware() {
  * ```
  */
 export function extractTracingInfo(metadata) {
-    if (!metadata.tracing || typeof metadata.tracing !== "object") {
+    if (!metadata["tracing"] || typeof metadata["tracing"] !== "object") {
         return null;
     }
-    const tracing = metadata.tracing;
+    const tracing = metadata["tracing"];
     return {
-        ...(typeof tracing.traceId === "string" && { traceId: tracing.traceId }),
-        ...(typeof tracing.spanId === "string" && { spanId: tracing.spanId }),
-        ...(typeof tracing.parentSpanId === "string" && { parentSpanId: tracing.parentSpanId }),
+        ...(typeof tracing["traceId"] === "string" && { traceId: tracing["traceId"] }),
+        ...(typeof tracing["spanId"] === "string" && { spanId: tracing["spanId"] }),
+        ...(typeof tracing["parentSpanId"] === "string" && { parentSpanId: tracing["parentSpanId"] }),
     };
 }
 //# sourceMappingURL=tracing.js.map

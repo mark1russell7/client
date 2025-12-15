@@ -5,8 +5,8 @@
  * These procedures delegate to storage backends via the repository pattern.
  */
 
-import { defineProcedure } from "../define";
-import type { ProcedureContext, AnyProcedure } from "../types";
+import { defineProcedure } from "../define.js";
+import type { ProcedureContext, AnyProcedure, Procedure } from "../types.js";
 import {
   getInputSchema,
   getOutputSchema,
@@ -38,7 +38,7 @@ import {
   type GetBatchInput,
   type SetBatchInput,
   type DeleteBatchInput,
-} from "./schemas";
+} from "./schemas.js";
 
 // =============================================================================
 // Handler Factory
@@ -95,7 +95,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Get item from ${collectionName} by ID`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (input: GetInput, ctx) => {
+      handler: async (input: GetInput, ctx : ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.get(input.id);
       },
@@ -110,7 +110,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Set item in ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (input: SetInput, ctx) => {
+      handler: async (input: SetInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         await storage.set(input.id, input.value);
       },
@@ -125,7 +125,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Delete item from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (input: DeleteInput, ctx) => {
+      handler: async (input: DeleteInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.delete(input.id);
       },
@@ -140,7 +140,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Check if item exists in ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (input: HasInput, ctx) => {
+      handler: async (input: HasInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.has(input.id);
       },
@@ -155,7 +155,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Get all items from ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (_input: GetAllInput, ctx) => {
+      handler: async (_input: GetAllInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.getAll();
       },
@@ -170,7 +170,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Get number of items in ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (_input: SizeInput, ctx) => {
+      handler: async (_input: SizeInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.size();
       },
@@ -185,7 +185,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Clear all items from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (_input: ClearInput, ctx) => {
+      handler: async (_input: ClearInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         await storage.clear();
       },
@@ -200,7 +200,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Get multiple items from ${collectionName}`,
         tags: ["collections", collectionName, "read", "batch"],
       },
-      handler: async (input: GetBatchInput, ctx) => {
+      handler: async (input: GetBatchInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         const result = await storage.getBatch(input.ids);
         // Convert Map to plain object
@@ -217,7 +217,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Set multiple items in ${collectionName}`,
         tags: ["collections", collectionName, "write", "batch"],
       },
-      handler: async (input: SetBatchInput, ctx) => {
+      handler: async (input: SetBatchInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         const items: Array<[string, unknown]> = input.items.map((item) => [
           item.id,
@@ -236,7 +236,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
         description: `Delete multiple items from ${collectionName}`,
         tags: ["collections", collectionName, "write", "batch"],
       },
-      handler: async (input: DeleteBatchInput, ctx) => {
+      handler: async (input: DeleteBatchInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.deleteBatch(input.ids);
       },
@@ -252,7 +252,9 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
  * Generic get procedure that works with any collection.
  * Uses the collection name from the path.
  */
-export const genericGetProcedure = defineProcedure({
+export const genericGetProcedure : Procedure<
+  { id: string }, unknown
+> = defineProcedure({
   path: ["collections", "*", "get"],
   input: getInputSchema,
   output: getOutputSchema,
@@ -260,7 +262,7 @@ export const genericGetProcedure = defineProcedure({
     description: "Get item from collection by ID",
     tags: ["collections", "read", "generic"],
   },
-  handler: async (input: GetInput, ctx) => {
+  handler: async (input: GetInput, ctx: ProcedureContext) => {
     const storage = getStorage(ctx);
     return storage.get(input.id);
   },
@@ -269,7 +271,9 @@ export const genericGetProcedure = defineProcedure({
 /**
  * Generic set procedure that works with any collection.
  */
-export const genericSetProcedure = defineProcedure({
+export const genericSetProcedure : Procedure<
+  { id: string; value: unknown }, void
+> = defineProcedure({
   path: ["collections", "*", "set"],
   input: setInputSchema,
   output: setOutputSchema,
@@ -277,7 +281,7 @@ export const genericSetProcedure = defineProcedure({
     description: "Set item in collection",
     tags: ["collections", "write", "generic"],
   },
-  handler: async (input: SetInput, ctx) => {
+  handler: async (input: SetInput, ctx: ProcedureContext) => {
     const storage = getStorage(ctx);
     await storage.set(input.id, input.value);
   },
@@ -286,7 +290,9 @@ export const genericSetProcedure = defineProcedure({
 /**
  * Generic delete procedure that works with any collection.
  */
-export const genericDeleteProcedure = defineProcedure({
+export const genericDeleteProcedure : Procedure<
+  { id: string }, boolean
+> = defineProcedure({
   path: ["collections", "*", "delete"],
   input: deleteInputSchema,
   output: deleteOutputSchema,
@@ -294,7 +300,7 @@ export const genericDeleteProcedure = defineProcedure({
     description: "Delete item from collection",
     tags: ["collections", "write", "generic"],
   },
-  handler: async (input: DeleteInput, ctx) => {
+  handler: async (input: DeleteInput, ctx: ProcedureContext) => {
     const storage = getStorage(ctx);
     return storage.delete(input.id);
   },
@@ -317,7 +323,10 @@ export const genericCollectionProcedures: AnyProcedure[] = [
 /**
  * Module export for procedure registration.
  */
-export const collectionModule = {
+export const collectionModule : {
+  name: string;
+  procedures: AnyProcedure[];
+} = {
   name: "collections",
   procedures: genericCollectionProcedures,
-};
+} as const;

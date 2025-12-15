@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Evented behavior - Emits typed events on collection mutations.
  *
  * Wraps collections to emit events whenever elements are added, removed,
@@ -15,7 +15,7 @@
  *
  * list.add(42) // Triggers 'add' event
  */
-import { Emitter } from "../core/events";
+import { Emitter } from "../core/events.js";
 // ============================================================================
 // Evented middleware implementations
 // ============================================================================

@@ -7,9 +7,9 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageMetadata } from "./interface";
-import type { Client } from "../../client/client";
-import type { Method } from "../../client/types";
+import type { CollectionStorage, StorageMetadata } from "./interface.js";
+import type { Client } from "../../client/client.js";
+import type { Method } from "../../client/types.js";
 
 /**
  * API storage configuration options.
@@ -282,13 +282,13 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     const metadata: Record<string, unknown> = {};
 
     if (this.options.timeout) {
-      metadata.timeout = {
+      metadata["timeout"] = {
         overall: this.options.timeout,
       };
     }
 
     if (this.options.signal) {
-      metadata.signal = this.options.signal;
+      metadata["signal"] = this.options.signal;
     }
 
     // Call via universal client (uses configured transport and middleware)

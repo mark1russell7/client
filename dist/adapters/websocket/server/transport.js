@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebSocket Server Transport Implementation
  *
  * Adapts WebSocket connections to unified RPC format.

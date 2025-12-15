@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Universal Server Types
  *
  * Protocol-agnostic server types mirroring the client architecture.
  * Enables handling HTTP, WebSocket, gRPC, etc. with unified RPC format.
  */
-import type { Metadata, Status, Method } from "../client/types";
+import type { Metadata, Status, Method } from "../client/types.js";
 export type { Method };
 /**
  * Server request in unified RPC format.

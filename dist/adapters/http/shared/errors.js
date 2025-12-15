@@ -1,11 +1,11 @@
-﻿/**
+/**
  * HTTP Error Types
  *
  * Type-safe error codes and utilities for HTTP adapter errors.
  * No more magic strings!
  */
-import { HTTPStatus } from "./constants";
-import { formatHTTPError, getStatusCode, isRetryableStatus } from "./status-codes";
+import { HTTPStatus } from "./constants.js";
+import { formatHTTPError, getStatusCode, isRetryableStatus } from "./status-codes.js";
 /**
  * HTTP Error Codes (Type-safe)
  *

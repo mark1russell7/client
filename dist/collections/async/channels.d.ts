@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Go-style channels for CSP (Communicating Sequential Processes).
  *
  * Provides typed, bidirectional communication channels inspired by Go.

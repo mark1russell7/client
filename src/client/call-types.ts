@@ -5,8 +5,13 @@
  * Enables typed per-call middleware config and natural batching.
  */
 
-import type { ProcedurePath } from "../procedures/types";
+import type { ProcedurePath } from "../procedures/types.js";
+import type { RouteLeaf, OutputConfig } from "./consumption.js";
+import { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./consumption.js";
 
+// Re-export consumption types for convenience
+export type { RouteLeaf, RouteLeafWithConfig, OutputConfig } from "./consumption.js";
+export { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./consumption.js";
 // =============================================================================
 // Middleware Override Types
 // =============================================================================
@@ -97,13 +102,10 @@ export interface BatchConfig {
 // =============================================================================
 
 /**
- * Leaf node in the route tree - contains the actual input payload.
- * Any object that is not another RouteNode is considered a leaf (procedure input).
- */
-export type RouteLeaf = Record<string, unknown>;
-
-/**
  * Recursive route node - can contain nested nodes or leaf payloads.
+ * Leaf nodes are either:
+ * - RouteLeafWithConfig: { in: input, out?: outputConfig }
+ * - LegacyRouteLeaf: plain object (backward compatible)
  */
 export type RouteNode = {
   [key: string]: RouteNode | RouteLeaf;
@@ -247,36 +249,77 @@ export type ValidateRoute<TRoute, TRegisteredPaths extends string[][]> =
 // =============================================================================
 
 /**
- * Convert a nested route structure to an array of [path, input] pairs.
- * Flattens the tree for iteration.
+ * Flattened route entry with path, input, and output configuration.
+ */
+export interface FlattenedRouteEntry {
+  /** Procedure path */
+  path: ProcedurePath;
+  /** Extracted input payload */
+  input: unknown;
+  /** Output configuration (default: sponge) */
+  outputConfig: OutputConfig;
+  /** Original leaf node (for reference) */
+  leaf: RouteLeaf;
+}
+
+/**
+ * Convert a nested route structure to an array of flattened entries.
+ * Handles both new { in, out } format and legacy plain objects.
  *
  * @param route - Nested route object
- * @returns Array of [path, input] tuples
+ * @returns Array of flattened route entries
  */
-export function flattenRoute(route: Route): Array<[ProcedurePath, RouteLeaf]> {
-  const results: Array<[ProcedurePath, RouteLeaf]> = [];
+export function flattenRoute(route: Route): FlattenedRouteEntry[] {
+  const results: FlattenedRouteEntry[] = [];
 
   function traverse(node: RouteNode | RouteLeaf, path: ProcedurePath): void {
-    // Check if this is a leaf node (procedure input)
+    // Check if this is a new-style leaf: { in: ..., out?: ... }
+    if (isRouteLeafWithConfig(node)) {
+      results.push({
+        path,
+        input: extractInput(node),
+        outputConfig: extractOutputConfig(node),
+        leaf: node,
+      });
+      return;
+    }
+
+    // Check if this is a legacy leaf node (procedure input)
     // A leaf has no nested RouteNode children - all values are primitives or arrays
-    const isLeaf = Object.values(node).every(
+    const isLegacyLeaf = Object.values(node).every(
       (v) => typeof v !== "object" || v === null || Array.isArray(v)
     );
 
-    if (isLeaf) {
-      results.push([path, node as RouteLeaf]);
-    } else {
-      // Continue traversing nested nodes
-      for (const [key, value] of Object.entries(node)) {
-        if (value && typeof value === "object" && !Array.isArray(value)) {
-          traverse(value as RouteNode, [...path, key]);
-        }
+    if (isLegacyLeaf) {
+      results.push({
+        path,
+        input: node,
+        outputConfig: { type: "sponge" },
+        leaf: node as RouteLeaf,
+      });
+      return;
+    }
+
+    // Continue traversing nested nodes
+    for (const [key, value] of Object.entries(node)) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        traverse(value as RouteNode, [...path, key]);
       }
     }
   }
 
   traverse(route, []);
   return results;
+}
+
+/**
+ * Legacy flatten function for backward compatibility.
+ * Returns [path, leaf] pairs without output config extraction.
+ *
+ * @deprecated Use flattenRoute() which returns FlattenedRouteEntry[]
+ */
+export function flattenRouteLegacy(route: Route): Array<[ProcedurePath, RouteLeaf]> {
+  return flattenRoute(route).map((entry) => [entry.path, entry.leaf]);
 }
 
 /**

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Universal Timeout Middleware
  *
  * Protocol-agnostic timeout handling with per-request and overall timeouts.

@@ -5,8 +5,8 @@
  * and provide positional (indexed) access to elements.
  */
 
-import type { Collection, ReadonlyCollection } from "./collection";
-import type { Compare } from "../core/traits";
+import type { Collection, ReadonlyCollection } from "./collection.js";
+import type { Compare } from "../core/traits.js";
 
 /**
  * ReadonlyList<T> - Readonly ordered collection with indexed access.

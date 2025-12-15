@@ -1,10 +1,10 @@
-﻿/**
+/**
  * HTTP Client Transport Types
  *
  * Client-specific configuration for HTTP adapter.
  * Uses shared HTTP utilities to avoid duplication.
  */
-import type { UrlStrategy, HttpMethodStrategy, HeaderConverter } from "../shared";
+import type { UrlStrategy, HttpMethodStrategy, HeaderConverter } from "../shared/index.js";
 /**
  * HTTP Client Transport Configuration
  *

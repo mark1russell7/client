@@ -13,11 +13,11 @@
  * list.add(4) // Error: Cannot modify readonly list
  */
 
-import type { Middleware } from "../core/middleware";
-import type { ReadonlyList } from "../interfaces/list";
-import type { ReadonlyQueue } from "../interfaces/queue";
-import type { ReadonlyMapLike } from "../interfaces/map";
-import type { ReadonlyCollection } from "../interfaces/collection";
+import type { Middleware } from "../core/middleware.js";
+import type { ReadonlyList } from "../interfaces/list.js";
+import type { ReadonlyQueue } from "../interfaces/queue.js";
+import type { ReadonlyMapLike } from "../interfaces/map.js";
+import type { ReadonlyCollection } from "../interfaces/collection.js";
 
 /**
  * Options for readonly behavior.
@@ -191,14 +191,14 @@ export function readonly<C extends object>(
 /**
  * Alias for Java compatibility: unmodifiableList
  */
-export const unmodifiableList = readonlyList;
+export const unmodifiableList : typeof readonlyList = readonlyList;
 
 /**
  * Alias for Java compatibility: unmodifiableMap
  */
-export const unmodifiableMap = readonlyMap;
+export const unmodifiableMap : typeof readonlyMap = readonlyMap;
 
 /**
  * Alias for Java compatibility: unmodifiableCollection
  */
-export const unmodifiableCollection = readonlyCollection;
+export const unmodifiableCollection : typeof readonlyCollection = readonlyCollection;

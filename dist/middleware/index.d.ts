@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Unified Middleware System
  *
  * Provides type-safe middleware composition for both sync and async operations.
@@ -7,6 +7,6 @@
  * Uses recursive type inference (`MiddlewaresContext`) to validate middleware
  * compatibility at compile time - no manual overloads needed!
  */
-export type { MiddlewareRunner, Middleware, AsyncMiddleware, SyncMiddleware, MiddlewaresContext, MiddlewareReturn, MiddlewareContextIn, MiddlewareContextOut, IsAsyncMiddleware, } from "./types";
-export { compose, bundle, wrapWithAsyncMiddlewares, wrapWithSyncMiddlewares, } from "./compose";
+export type { MiddlewareRunner, Middleware, AsyncMiddleware, SyncMiddleware, MiddlewaresContext, MiddlewareReturn, MiddlewareContextIn, MiddlewareContextOut, IsAsyncMiddleware, } from "./types.js";
+export { compose, bundle, wrapWithAsyncMiddlewares, wrapWithSyncMiddlewares, } from "./compose.js";
 //# sourceMappingURL=index.d.ts.map

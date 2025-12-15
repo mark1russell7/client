@@ -6,8 +6,8 @@
  */
 
 // Client Transport
-export { HttpTransport } from "./transport";
-export type { HttpTransportOptions } from "./types";
+export { HttpTransport } from "./transport.js";
+export type { HttpTransportOptions } from "./types.js";
 
 // Re-export shared utilities for convenience
 export {
@@ -48,4 +48,4 @@ export {
   createNetworkError,
   createTimeoutError,
   createAbortError,
-} from "../shared";
+} from "../shared/index.js";

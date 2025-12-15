@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Evented behavior - Emits typed events on collection mutations.
  *
  * Wraps collections to emit events whenever elements are added, removed,
@@ -15,12 +15,12 @@
  *
  * list.add(42) // Triggers 'add' event
  */
-import type { Middleware } from "../core/middleware";
-import type { List } from "../interfaces/list";
-import type { Queue, Deque } from "../interfaces/queue";
-import type { MapLike } from "../interfaces/map";
-import type { Collection } from "../interfaces/collection";
-import { type Unsubscribe } from "../core/events";
+import type { Middleware } from "../core/middleware.js";
+import type { List } from "../interfaces/list.js";
+import type { Queue, Deque } from "../interfaces/queue.js";
+import type { MapLike } from "../interfaces/map.js";
+import type { Collection } from "../interfaces/collection.js";
+import { type Unsubscribe } from "../core/events.js";
 /**
  * Events emitted by List collections.
  */

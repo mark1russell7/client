@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Transport-Level Zod Schemas
  *
  * Generic schemas for HTTP request/response structures.

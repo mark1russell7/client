@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AsyncQueue - An async iterable queue with backpressure support.
  *
  * Designed for producer-consumer patterns where producers can wait when

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Mock Transport Implementation
  *
  * In-memory transport that simulates network behavior for testing.

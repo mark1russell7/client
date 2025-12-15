@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Middleware Composition Utilities
  *
  * Provides type-safe composition of middleware chains with proper context tracking.

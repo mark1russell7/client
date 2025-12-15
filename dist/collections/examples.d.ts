@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Examples demonstrating the Collections Framework.
  *
  * These examples show how to use the collections framework

@@ -1,9 +1,9 @@
-﻿/**
+/**
  * Local Transport Implementation
  *
  * In-process RPC with handler registry - no network calls!
  */
-import { methodKey } from "./types";
+import { methodKey } from "./types.js";
 /**
  * Local Transport - executes handlers in-process without network calls.
  *

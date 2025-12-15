@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PriorityQueue implementation - A binary heap-based priority queue.
  *
  * Elements are ordered according to their natural ordering (via comparator).
@@ -13,8 +13,8 @@
  * pq.offer(8)
  * pq.poll() // 2 (smallest element)
  */
-import type { PriorityQueue as IPriorityQueue } from "../interfaces/queue";
-import type { Eq, Compare } from "../core/traits";
+import type { PriorityQueue as IPriorityQueue } from "../interfaces/queue.js";
+import type { Eq, Compare } from "../core/traits.js";
 /**
  * Options for creating a PriorityQueue.
  */
