@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "name": "unnamed",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo"
+  },
+  "sideEffects": false
+}
