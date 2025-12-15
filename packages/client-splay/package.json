@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/splay-client",
+  "version": "1.0.0",
+  "description": "Bridge between splay and client - component rendering via procedures",
+  "license": "MIT",
+  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce 2>/dev/null || true"
+  },
+  "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@mark1russell7/splay": "github:mark1russell7/splay#main",
+    "client": "github:mark1russell7/client#main"
+  },
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mark1russell7/splay-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mark1russell7/splay-client/issues"
+  },
+  "homepage": "https://github.com/mark1russell7/splay-client#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=25.0.0",
+    "npm": ">=11.0.0"
+  }
+}
