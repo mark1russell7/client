@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client-cli",
+  "version": "1.0.0",
+  "description": "CLI operations as RPC procedures - lib.refresh, lib.scan, DAG traversal",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
+  },
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "keywords": [
+    "cli",
+    "client",
+    "procedures",
+    "rpc",
+    "dag",
+    "npm"
+  ],
+  "license": "MIT",
+  "sideEffects": false
+}

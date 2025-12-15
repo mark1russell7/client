@@ -1,0 +1,222 @@
+/**
+ * lib.refresh procedure
+ *
+ * Refreshes a library by:
+ * 1. rm -rf node_modules/, dist/, package-lock.json
+ * 2. npm install
+ * 3. npm run build
+ * 4. git add -A && git commit && git push
+ *
+ * With --recursive, processes dependencies in post-order (bottom-up).
+ */
+import { join } from "node:path";
+import { readFile, access } from "node:fs/promises";
+import { constants } from "node:fs";
+import { libScan } from "./scan.js";
+import { buildDAGNodes, filterDAGFromRoot, buildLeveledDAG, executeDAG, createProcessor, } from "../../dag/index.js";
+import { ensureBranch, stageAll, commit, push, getGitStatus } from "../../git/index.js";
+import { removeDir, removeFile, npmInstall, npmBuild } from "../../shell/index.js";
+/**
+ * Read the package name from a package.json
+ */
+async function getPackageName(pkgPath) {
+    const pkgJsonPath = join(pkgPath, "package.json");
+    const content = await readFile(pkgJsonPath, "utf-8");
+    const pkg = JSON.parse(content);
+    return pkg.name ?? "unknown";
+}
+/**
+ * Check if a path exists
+ */
+async function pathExists(path) {
+    try {
+        await access(path, constants.F_OK);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Refresh a single package
+ */
+async function refreshSinglePackage(pkgPath, packageName) {
+    const startTime = Date.now();
+    try {
+        // Step 1: Cleanup
+        const nodeModulesPath = join(pkgPath, "node_modules");
+        const distPath = join(pkgPath, "dist");
+        const lockPath = join(pkgPath, "package-lock.json");
+        if (await pathExists(nodeModulesPath)) {
+            const result = await removeDir(nodeModulesPath);
+            if (!result.success) {
+                return {
+                    name: packageName,
+                    path: pkgPath,
+                    success: false,
+                    duration: Date.now() - startTime,
+                    error: `Failed to remove node_modules: ${result.stderr}`,
+                    failedPhase: "cleanup",
+                };
+            }
+        }
+        if (await pathExists(distPath)) {
+            const result = await removeDir(distPath);
+            if (!result.success) {
+                return {
+                    name: packageName,
+                    path: pkgPath,
+                    success: false,
+                    duration: Date.now() - startTime,
+                    error: `Failed to remove dist: ${result.stderr}`,
+                    failedPhase: "cleanup",
+                };
+            }
+        }
+        if (await pathExists(lockPath)) {
+            const result = await removeFile(lockPath);
+            if (!result.success) {
+                return {
+                    name: packageName,
+                    path: pkgPath,
+                    success: false,
+                    duration: Date.now() - startTime,
+                    error: `Failed to remove package-lock.json: ${result.stderr}`,
+                    failedPhase: "cleanup",
+                };
+            }
+        }
+        // Step 2: npm install
+        const installResult = await npmInstall(pkgPath);
+        if (!installResult.success) {
+            return {
+                name: packageName,
+                path: pkgPath,
+                success: false,
+                duration: Date.now() - startTime,
+                error: `npm install failed: ${installResult.stderr}`,
+                failedPhase: "install",
+            };
+        }
+        // Step 3: npm run build
+        const buildResult = await npmBuild(pkgPath);
+        if (!buildResult.success) {
+            return {
+                name: packageName,
+                path: pkgPath,
+                success: false,
+                duration: Date.now() - startTime,
+                error: `npm run build failed: ${buildResult.stderr}`,
+                failedPhase: "build",
+            };
+        }
+        // Step 4: Git operations
+        try {
+            const status = await getGitStatus(pkgPath);
+            if (!status.isClean) {
+                await stageAll(pkgPath);
+                await commit(pkgPath, `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`);
+                await push(pkgPath);
+            }
+        }
+        catch (error) {
+            return {
+                name: packageName,
+                path: pkgPath,
+                success: false,
+                duration: Date.now() - startTime,
+                error: `Git operations failed: ${error instanceof Error ? error.message : String(error)}`,
+                failedPhase: "git",
+            };
+        }
+        return {
+            name: packageName,
+            path: pkgPath,
+            success: true,
+            duration: Date.now() - startTime,
+        };
+    }
+    catch (error) {
+        return {
+            name: packageName,
+            path: pkgPath,
+            success: false,
+            duration: Date.now() - startTime,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+/**
+ * Refresh a package and optionally its dependencies recursively
+ */
+export async function libRefresh(input) {
+    const startTime = Date.now();
+    const results = [];
+    // Get the absolute path
+    const pkgPath = input.path.startsWith("/") || input.path.includes(":")
+        ? input.path
+        : join(process.cwd(), input.path);
+    // Get the package name
+    const packageName = await getPackageName(pkgPath);
+    if (!input.recursive) {
+        // Non-recursive: just refresh the single package
+        const result = await refreshSinglePackage(pkgPath, packageName);
+        results.push(result);
+        return {
+            success: result.success,
+            results,
+            totalDuration: Date.now() - startTime,
+        };
+    }
+    // Recursive: scan for all packages and build DAG
+    const scanResult = await libScan({});
+    const allNodes = buildDAGNodes(scanResult.packages);
+    // Filter to only include this package and its dependencies
+    const filteredNodes = filterDAGFromRoot(allNodes, packageName);
+    if (filteredNodes.size === 0) {
+        // Package not found in scan, just refresh it directly
+        const result = await refreshSinglePackage(pkgPath, packageName);
+        results.push(result);
+        return {
+            success: result.success,
+            results,
+            totalDuration: Date.now() - startTime,
+        };
+    }
+    // Build leveled DAG for parallel execution
+    const dag = buildLeveledDAG(filteredNodes);
+    // Execute DAG (bottom-up, level 0 first)
+    const processor = createProcessor(async (node) => {
+        // Ensure we're on the correct branch
+        await ensureBranch(node.repoPath, node.requiredBranch);
+        // Refresh the package
+        const result = await refreshSinglePackage(node.repoPath, node.name);
+        if (!result.success) {
+            throw new Error(result.error ?? "Unknown error");
+        }
+    });
+    const dagResult = await executeDAG(dag, processor, {
+        concurrency: 4,
+        failFast: !input.autoConfirm, // Stop on error unless auto-confirm
+    });
+    // Convert DAG results to refresh results
+    for (const [name, nodeResult] of dagResult.results) {
+        const node = filteredNodes.get(name);
+        const result = {
+            name,
+            path: node.repoPath,
+            success: nodeResult.success,
+            duration: nodeResult.duration,
+        };
+        if (nodeResult.error?.message !== undefined) {
+            result.error = nodeResult.error.message;
+        }
+        results.push(result);
+    }
+    return {
+        success: dagResult.success,
+        results,
+        totalDuration: Date.now() - startTime,
+    };
+}
+//# sourceMappingURL=refresh.js.map
