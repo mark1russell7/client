@@ -82,6 +82,58 @@ export const cliSpec = {
                 rootPath: parsed.args["rootPath"],
             }),
         },
+        // ==========================================================================
+        // lib rename
+        // ==========================================================================
+        {
+            path: ["lib", "rename"],
+            description: "Rename a package across the codebase (updates imports and dependencies)",
+            procedure: ["lib", "rename"],
+            args: [
+                {
+                    name: "oldName",
+                    type: "string",
+                    description: "Current package name",
+                    required: true,
+                    position: 0,
+                },
+                {
+                    name: "newName",
+                    type: "string",
+                    description: "New package name",
+                    required: true,
+                    position: 1,
+                },
+            ],
+            options: [
+                {
+                    name: "root",
+                    short: "r",
+                    type: "string",
+                    description: "Root path to scan (default: ~/git)",
+                    default: undefined,
+                },
+                {
+                    name: "dry-run",
+                    short: "d",
+                    type: "boolean",
+                    description: "Preview changes without applying",
+                    default: false,
+                },
+            ],
+            inputSchema: z.object({
+                oldName: z.string(),
+                newName: z.string(),
+                rootPath: z.string().optional(),
+                dryRun: z.boolean().optional(),
+            }),
+            transform: (parsed) => ({
+                oldName: parsed.args["oldName"],
+                newName: parsed.args["newName"],
+                rootPath: parsed.options["root"],
+                dryRun: parsed.options["dry-run"] ?? false,
+            }),
+        },
     ],
 };
 //# sourceMappingURL=spec.js.map

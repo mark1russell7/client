@@ -4,7 +4,7 @@
  * Dispatches CLI commands to client procedures.
  * This is the core of the declarative CLI system.
  */
-import { Client, LocalTransport, PROCEDURE_REGISTRY, } from "client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY, } from "@mark1russell7/client";
 // Import client-cli to register its procedures
 import "@mark1russell7/client-cli";
 // Import client-logger for logging
