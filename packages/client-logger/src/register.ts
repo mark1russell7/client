@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures } from "client";
+import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import {
   createLogger,
   LogLevel,

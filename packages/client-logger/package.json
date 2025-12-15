@@ -25,7 +25,7 @@
   "dependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@mark1russell7/logger": "github:mark1russell7/logger#main",
-    "client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "github:mark1russell7/client#main"
   },
   "types": "./dist/index.d.ts",
   "exports": {
