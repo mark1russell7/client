@@ -7,9 +7,15 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce 2>/dev/null || true"
   },
-  "keywords": ["logger", "client", "procedures", "rpc"],
+  "keywords": [
+    "logger",
+    "client",
+    "procedures",
+    "rpc"
+  ],
   "author": "Mark Russell <marktheprogrammer17@gmail.com>",
   "license": "MIT",
   "type": "module",
@@ -17,7 +23,9 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/logger": "github:mark1russell7/logger#main",
+    "client": "github:mark1russell7/client#main"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -32,7 +40,7 @@
   ],
   "sideEffects": false,
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "typescript": "^5.9.3"
   }
 }
