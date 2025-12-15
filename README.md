@@ -1,98 +1,246 @@
-# Universal RPC Library
+# client
 
-Protocol-agnostic RPC client/server with type-safe middleware composition.
-
-## Features
-
-- **Protocol Independence** - Same client code works with HTTP, WebSocket, Local, or Mock transports
-- **Type-Safe Middleware** - Context types accumulate through `use()` calls with compile-time validation
-- **Rich Error System** - 70+ error codes with metadata, suggestions, and retry hints
-- **Collections Framework** - Java-inspired data structures with composable behaviors (LRU, TTL, bounded, evented)
-- **Streaming Support** - First-class support for streaming responses
+Universal RPC client/server with type-safe middleware, procedures, components, and collections.
 
 ## Installation
 
 ```bash
-npm install client
-```
-
-## Quick Start
-
-```typescript
-import { Client, HttpTransport, createRetryMiddleware, createAuthMiddleware } from "client";
-
-// Create client with type-accumulating middleware
-const client = new Client({ transport: new HttpTransport({ baseUrl: "https://api.example.com" }) })
-  .use(createRetryMiddleware({ maxRetries: 3 }))      // Client<RetryContext>
-  .use(createAuthMiddleware({ token: "abc123" }));    // Client<RetryContext & AuthContext>
-
-// Make RPC calls
-const user = await client.call<{ id: string }, User>(
-  { service: "users", operation: "get" },
-  { id: "123" }
-);
-
-// Streaming
-for await (const event of client.stream(
-  { service: "events", operation: "watch" },
-  { topic: "orders" }
-)) {
-  console.log(event);
-}
+npm install github:mark1russell7/client#main
 ```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           APPLICATION                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   ┌───────────────────────────┐     ┌───────────────────────────┐  │
-│   │     Client<TContext>      │     │         Server            │  │
-│   │  ┌─────────────────────┐  │     │  ┌─────────────────────┐  │  │
-│   │  │     Middleware      │  │     │  │  Handler Registry   │  │  │
-│   │  │  (type-safe chain)  │  │     │  └─────────────────────┘  │  │
-│   │  └─────────────────────┘  │     └───────────────────────────┘  │
-│   └───────────────────────────┘                                    │
-│                                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│                        TRANSPORT LAYER                              │
-│   ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐   │
-│   │    HTTP    │  │ WebSocket  │  │   Local    │  │    Mock    │   │
-│   └────────────┘  └────────────┘  └────────────┘  └────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              APPLICATION                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                           PROCEDURES                                    │ │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐ │ │
+│  │  │ defineProcedure │  │ ProcedureServer │  │  Auto-Discovery via    │ │ │
+│  │  │ (type-safe RPC) │  │ (runs handlers) │  │  package.json client   │ │ │
+│  │  └─────────────────┘  └─────────────────┘  │  { procedures: "..." } │ │ │
+│  │                                             └─────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌─────────────────────────────┐  ┌─────────────────────────────────────┐  │
+│  │        COMPONENTS           │  │             EVENTS                   │  │
+│  │  ┌───────────────────────┐  │  │  ┌─────────────────────────────┐   │  │
+│  │  │ ComponentOutput       │  │  │  │ EventBus (pub/sub)          │   │  │
+│  │  │ (serializable UI)     │  │  │  │ - emit/on/off/once          │   │  │
+│  │  │                       │  │  │  │ - stream() async iterable   │   │  │
+│  │  │ { type, props, ... }  │  │  │  └─────────────────────────────┘   │  │
+│  │  └───────────────────────┘  │  └─────────────────────────────────────┘  │
+│  └─────────────────────────────┘                                            │
+│                                                                              │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         CLIENT / SERVER                                │  │
+│  │  ┌─────────────────────────┐     ┌─────────────────────────────────┐  │  │
+│  │  │   Client<TContext>      │     │          Server                 │  │  │
+│  │  │  ┌───────────────────┐  │     │  ┌───────────────────────────┐  │  │  │
+│  │  │  │ Middleware Chain  │  │     │  │    Handler Registry       │  │  │  │
+│  │  │  │ (type-safe)       │  │     │  └───────────────────────────┘  │  │  │
+│  │  │  └───────────────────┘  │     └─────────────────────────────────┘  │  │
+│  │  └─────────────────────────┘                                          │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                           TRANSPORT LAYER                                    │
+│   ┌──────────┐  ┌────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│   │   HTTP   │  │ WebSocket  │  │  Local   │  │   Mock   │  │  Custom  │   │
+│   └──────────┘  └────────────┘  └──────────┘  └──────────┘  └──────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                        COLLECTIONS FRAMEWORK                                 │
+│   ┌──────────────┐  ┌────────────────┐  ┌───────────────────────────────┐  │
+│   │ List/Map/Set │  │ Queue/Deque    │  │ Behaviors: lru, ttl, bounded  │  │
+│   └──────────────┘  └────────────────┘  │ evented, safe, synchronized   │  │
+│                                          └───────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+## Quick Start
+
+### Client
+
+```typescript
+import { Client, HttpTransport } from "client";
+
+const client = new Client({
+  transport: new HttpTransport({ baseUrl: "https://api.example.com" })
+})
+  .use(createRetryMiddleware({ maxRetries: 3 }))
+  .use(createAuthMiddleware({ token: "abc123" }));
+
+// RPC call
+const user = await client.call({ service: "users", operation: "get" }, { id: "123" });
+
+// Streaming
+for await (const event of client.stream({ service: "events", operation: "watch" }, {})) {
+  console.log(event);
+}
+```
+
+### Procedures
+
+```typescript
+import { defineProcedure, registerProcedures } from "client";
+import { z } from "zod";
+
+const getUserProcedure = defineProcedure({
+  path: ["users", "get"],
+  input: z.object({ id: z.string() }),
+  output: z.object({ id: z.string(), name: z.string() }),
+  handler: async ({ id }, ctx) => {
+    return await db.users.findById(id);
+  },
+});
+
+registerProcedures([getUserProcedure]);
+```
+
+### Components
+
+```typescript
+import { defineComponent, nullOutput, fragment } from "client";
+
+const UserCard = defineComponent({
+  type: "user-card",
+  factory: async (ctx) => ({
+    type: "user-card",
+    props: { name: ctx.data.name, avatar: ctx.data.avatar },
+    children: [],
+  }),
+});
+```
+
+## Subpath Exports
+
+```typescript
+import { ... } from "client";              // Main exports
+import { ... } from "client/components";   // Component system
+import { ... } from "client/events";       // EventBus
+import { ... } from "client/procedures";   // Procedure system
+```
+
+## Procedure Auto-Discovery
+
+Packages can declare procedures in `package.json`:
+
+```json
+{
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "scripts": {
+    "postinstall": "client announce"
+  }
+}
+```
+
+When installed, procedures auto-register. Run `client discover` to generate the registry.
 
 ## Type-Safe Middleware
 
 Middleware context types accumulate through the chain:
 
 ```typescript
-// Each middleware declares what it provides and requires
 const client = new Client(transport)
-  .use(createTimeoutMiddleware({ overall: 5000 }))   // Client<TimeoutContext>
-  .use(createRetryMiddleware())                       // Client<TimeoutContext & RetryContext>
-  .use(createCacheMiddleware());                      // Client<... & CacheContext>
-
-// Middleware requiring context not yet provided causes compile error
-client.use(middlewareRequiringAuth);  // ERROR: AuthContext not in chain
+  .use(createRetryMiddleware())     // Client<RetryContext>
+  .use(createCacheMiddleware())     // Client<RetryContext & CacheContext>
+  .use(createAuthMiddleware());     // Client<... & AuthContext>
 ```
 
-## Client Middleware
+### Available Middleware
 
-| Middleware | Purpose | Options |
-|------------|---------|---------|
-| `createRetryMiddleware` | Exponential backoff with jitter | `maxRetries`, `retryDelay`, `jitter` |
-| `createCacheMiddleware` | LRU + TTL caching | `capacity`, `ttl`, `keyGenerator` |
-| `createTimeoutMiddleware` | Per-attempt timeout | `perAttempt` |
-| `createOverallTimeoutMiddleware` | Overall request timeout | `overall` |
-| `createAuthMiddleware` | Bearer token / API key | `token`, `apiKey`, `userId` |
-| `createTracingMiddleware` | W3C Trace Context | `generateTraceId`, `generateSpanId` |
-| `createCircuitBreakerMiddleware` | Fault tolerance | `failureThreshold`, `resetTimeout` |
-| `createRateLimitMiddleware` | Token bucket throttling | `maxRequests`, `window`, `strategy` |
-| `createBatchingMiddleware` | Request aggregation | `maxBatchSize`, `maxWaitTime` |
-| `createPaginationMiddleware` | Auto-pagination | `defaultLimit`, `maxLimit` |
+| Middleware | Purpose |
+|------------|---------|
+| `createRetryMiddleware` | Exponential backoff with jitter |
+| `createCacheMiddleware` | LRU + TTL caching |
+| `createTimeoutMiddleware` | Request timeout |
+| `createAuthMiddleware` | Bearer token / API key |
+| `createTracingMiddleware` | W3C Trace Context |
+| `createCircuitBreakerMiddleware` | Fault tolerance |
+| `createRateLimitMiddleware` | Token bucket throttling |
+| `createBatchingMiddleware` | Request aggregation |
+
+## EventBus
+
+```typescript
+import { createEventBus } from "client";
+
+const bus = createEventBus();
+
+// Subscribe
+bus.on("user:created", (user) => console.log(user));
+
+// Publish
+bus.emit("user:created", { id: "123", name: "Alice" });
+
+// Async iteration
+for await (const event of bus.stream("user:*")) {
+  console.log(event);
+}
+```
+
+## Components
+
+Serializable UI descriptors for server-side rendering:
+
+```typescript
+interface ComponentOutput {
+  type: string;                    // Component type
+  props: Record<string, unknown>;  // Props
+  children?: ComponentOutput[];    // Nested children
+  key?: string | number;           // React key
+}
+
+// Special outputs
+nullOutput();                      // { type: "__null__" }
+fragment([child1, child2]);        // { type: "__fragment__", children: [...] }
+```
+
+## Collections
+
+Java-inspired data structures with composable behaviors:
+
+```typescript
+import { arrayList, hashMap, compose, lruMap, ttlMap, eventedList } from "client";
+
+// Basic
+const list = arrayList<number>();
+const map = hashMap<string, User>();
+
+// Composed with behaviors
+const cache = compose(
+  lruMap({ capacity: 100 }),
+  ttlMap({ ttl: 60000 })
+)(hashMap<string, Data>());
+
+// Evented
+const log = eventedList<Event>()(arrayList<Event>());
+log.on("add", ({ item }) => console.log(item));
+```
+
+### Collection Types
+
+| Type | Implementations |
+|------|-----------------|
+| List | `ArrayList`, `LinkedList` |
+| Map | `HashMap`, `LinkedHashMap`, `TreeMap` |
+| Set | `HashSet`, `TreeSet` |
+| Queue | `ArrayDeque`, `PriorityQueue` |
+
+### Behaviors
+
+| Behavior | Description |
+|----------|-------------|
+| `bounded` | Capacity limits |
+| `lru` | Least Recently Used eviction |
+| `ttl` | Time-to-live expiration |
+| `evented` | Event emission |
+| `safe` | Option/Result error handling |
+| `synchronized` | Thread safety |
 
 ## Server
 
@@ -116,61 +264,19 @@ server.register(
 await server.start();
 ```
 
-## Collections Framework
+## Error System
 
-Java-inspired collections with composable behaviors:
+70+ error codes with metadata:
 
 ```typescript
-import { arrayList, hashMap, compose, lruMap, ttlMap, eventedList, boundedList } from "client/collections";
+import { createError, ERROR_REGISTRY, ErrorCategory, ErrorSeverity } from "client";
 
-// Basic collections
-const list = arrayList<number>();
-const map = hashMap<string, User>();
-
-// Composed collections with behaviors
-const cache = compose(
-  lruMap({ capacity: 100 }),
-  ttlMap({ ttl: 60000 })
-)(hashMap<string, CachedData>());
-
-const eventLog = compose(
-  eventedList<Event>(),
-  boundedList({ capacity: 1000, policy: "drop-oldest" })
-)(arrayList<Event>());
-
-// Events
-eventLog.on("add", ({ item }) => console.log("Added:", item));
+const error = createError("E_TIMEOUT", {
+  service: "users",
+  operation: "get",
+});
+// { code: "E_TIMEOUT", message: "...", severity: "error", category: "timeout", ... }
 ```
-
-### Available Collections
-
-| Type | Implementations |
-|------|-----------------|
-| List | `ArrayList`, `LinkedList` |
-| Map | `HashMap`, `LinkedHashMap`, `TreeMap` |
-| Set | `HashSet`, `TreeSet` |
-| Queue/Deque | `ArrayDeque`, `PriorityQueue` |
-
-### Composable Behaviors
-
-| Behavior | Purpose |
-|----------|---------|
-| `bounded` | Capacity limits with overflow policies |
-| `lru` | Least Recently Used eviction |
-| `ttl` | Time-to-live expiration |
-| `evented` | Typed event emission |
-| `safe` | Option/Result error handling |
-| `readonly` | Immutable views |
-| `synchronized` | Thread safety |
-
-## Documentation
-
-- [Architecture](./docs/ARCHITECTURE.md) - System design and diagrams
-- [Client API](./docs/CLIENT.md) - Client class and middleware reference
-- [Server API](./docs/SERVER.md) - Server class and handler registration
-- [Adapters](./docs/ADAPTERS.md) - HTTP, WebSocket, Local, Mock transports
-- [Middleware](./docs/MIDDLEWARE.md) - Middleware system deep-dive
-- [Collections](./docs/COLLECTIONS.md) - Collections framework reference
 
 ## Requirements
 
