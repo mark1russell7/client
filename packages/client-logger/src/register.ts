@@ -34,9 +34,14 @@ export function setLogger(newLogger: Logger): void {
 // Minimal Schema Helpers (Zod-like interface for procedure system)
 // =============================================================================
 
+interface ZodErrorLike {
+  message: string;
+  errors: Array<{ path: (string | number)[]; message: string }>;
+}
+
 interface ZodLikeSchema<T> {
   parse(data: unknown): T;
-  safeParse(data: unknown): { success: true; data: T } | { success: false; error: Error };
+  safeParse(data: unknown): { success: true; data: T } | { success: false; error: ZodErrorLike };
   _output: T;
 }
 
@@ -46,6 +51,17 @@ function schema<T>(): ZodLikeSchema<T> {
     safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
     _output: undefined as unknown as T,
   };
+}
+
+/**
+ * Build log options, excluding undefined values for exactOptionalPropertyTypes.
+ */
+function buildLogOptions(input: LogInput): { context?: string; data?: Record<string, unknown>; error?: Error } {
+  const opts: { context?: string; data?: Record<string, unknown>; error?: Error } = {};
+  if (input.context !== undefined) opts.context = input.context;
+  if (input.data !== undefined) opts.data = input.data;
+  if (input.error !== undefined) opts.error = Object.assign(new Error(input.error.message), input.error);
+  return opts;
 }
 
 // =============================================================================
@@ -92,11 +108,7 @@ const debugProcedure = createProcedure()
   .output(logOutputSchema)
   .meta({ description: "Log at DEBUG level" })
   .handler((input: LogInput) => {
-    logger.debug(input.message, {
-      context: input.context,
-      data: input.data,
-      error: input.error ? Object.assign(new Error(input.error.message), input.error) : undefined,
-    });
+    logger.debug(input.message, buildLogOptions(input));
     return { logged: true };
   })
   .build();
@@ -107,11 +119,7 @@ const infoProcedure = createProcedure()
   .output(logOutputSchema)
   .meta({ description: "Log at INFO level" })
   .handler((input: LogInput) => {
-    logger.info(input.message, {
-      context: input.context,
-      data: input.data,
-      error: input.error ? Object.assign(new Error(input.error.message), input.error) : undefined,
-    });
+    logger.info(input.message, buildLogOptions(input));
     return { logged: true };
   })
   .build();
@@ -122,11 +130,7 @@ const warnProcedure = createProcedure()
   .output(logOutputSchema)
   .meta({ description: "Log at WARN level" })
   .handler((input: LogInput) => {
-    logger.warn(input.message, {
-      context: input.context,
-      data: input.data,
-      error: input.error ? Object.assign(new Error(input.error.message), input.error) : undefined,
-    });
+    logger.warn(input.message, buildLogOptions(input));
     return { logged: true };
   })
   .build();
@@ -137,11 +141,7 @@ const errorProcedure = createProcedure()
   .output(logOutputSchema)
   .meta({ description: "Log at ERROR level" })
   .handler((input: LogInput) => {
-    logger.error(input.message, {
-      context: input.context,
-      data: input.data,
-      error: input.error ? Object.assign(new Error(input.error.message), input.error) : undefined,
-    });
+    logger.error(input.message, buildLogOptions(input));
     return { logged: true };
   })
   .build();
@@ -152,11 +152,7 @@ const traceProcedure = createProcedure()
   .output(logOutputSchema)
   .meta({ description: "Log at TRACE level" })
   .handler((input: LogInput) => {
-    logger.trace(input.message, {
-      context: input.context,
-      data: input.data,
-      error: input.error ? Object.assign(new Error(input.error.message), input.error) : undefined,
-    });
+    logger.trace(input.message, buildLogOptions(input));
     return { logged: true };
   })
   .build();
