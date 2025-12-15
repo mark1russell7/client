@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { Client } from "client";
+ * import { Client } from "@mark1russell7/client";
  *
  * const client = new Client(...);
  *
@@ -25,9 +25,9 @@
  * });
  * ```
  */
-export type { LibScanInput, LibScanOutput, PackageInfo, LibRefreshInput, LibRefreshOutput, RefreshResult, DAGNode, DependencyDAG, DAGExecutionOptions, NodeResult, DAGResult, GitRef, GitStatus, } from "./types.js";
+export type { LibScanInput, LibScanOutput, PackageInfo, LibRefreshInput, LibRefreshOutput, RefreshResult, LibRenameInput, LibRenameOutput, RenameChange, DAGNode, DependencyDAG, DAGExecutionOptions, NodeResult, DAGResult, GitRef, GitStatus, } from "./types.js";
 export { LibScanInputSchema, LibRefreshInputSchema } from "./types.js";
-export { libScan, libRefresh } from "./procedures/lib/index.js";
+export { libScan, libRefresh, libRename, LibRenameInputSchema } from "./procedures/lib/index.js";
 export { buildLeveledDAG, getTopologicalOrder, visualizeDAG, executeDAG, executeDAGSequential, createProcessor, buildDAGNodes, filterDAGFromRoot, getAncestors, getDescendants, } from "./dag/index.js";
 export { parseGitRef, isGitRef, isMark1Russell7Ref, extractMark1Russell7Deps, getPackageNameFromRef, getCurrentBranch, getGitStatus, getRemoteUrl, stageAll, commit, push, checkout, pull, branchExists, ensureBranch, } from "./git/index.js";
 export { executeCommand, npmInstall, npmBuild, removeDir, removeFile, } from "./shell/index.js";

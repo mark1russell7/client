@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { Client } from "client";
+ * import { Client } from "@mark1russell7/client";
  *
  * const client = new Client(...);
  *
@@ -29,7 +29,7 @@ export { LibScanInputSchema, LibRefreshInputSchema } from "./types.js";
 // =============================================================================
 // Procedures (for direct use)
 // =============================================================================
-export { libScan, libRefresh } from "./procedures/lib/index.js";
+export { libScan, libRefresh, libRename, LibRenameInputSchema } from "./procedures/lib/index.js";
 // =============================================================================
 // DAG utilities
 // =============================================================================

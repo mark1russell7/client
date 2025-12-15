@@ -5,9 +5,10 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures } from "client";
+import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { libScan } from "./procedures/lib/scan.js";
 import { libRefresh } from "./procedures/lib/refresh.js";
+import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
 import {
   LibScanInputSchema,
   LibRefreshInputSchema,
@@ -15,6 +16,8 @@ import {
   type LibScanOutput,
   type LibRefreshInput,
   type LibRefreshOutput,
+  type LibRenameInput,
+  type LibRenameOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -108,12 +111,28 @@ const libRefreshProcedure = createProcedure()
   })
   .build();
 
+const libRenameInputSchema = zodAdapter<LibRenameInput>(LibRenameInputSchema);
+const libRenameOutputSchema = outputSchema<LibRenameOutput>();
+
+const libRenameProcedure = createProcedure()
+  .path(["lib", "rename"])
+  .input(libRenameInputSchema)
+  .output(libRenameOutputSchema)
+  .meta({
+    description:
+      "Rename a package across the codebase using ts-morph for AST-based import updates.",
+  })
+  .handler(async (input: LibRenameInput): Promise<LibRenameOutput> => {
+    return libRename(input);
+  })
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
 
 export function registerCliProcedures(): void {
-  registerProcedures([libScanProcedure, libRefreshProcedure]);
+  registerProcedures([libScanProcedure, libRefreshProcedure, libRenameProcedure]);
 }
 
 // Auto-register when this module is loaded

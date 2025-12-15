@@ -26,8 +26,10 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "client": "github:mark1russell7/client#main",
+    "@mark1russell7/client": "github:mark1russell7/client#main",
     "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
+    "@angular-devkit/schematics": "^19.0.0",
+    "ts-morph": "^24.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

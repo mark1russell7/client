@@ -175,3 +175,49 @@ export interface GitStatus {
   /** Whether the repo is clean */
   isClean: boolean;
 }
+
+// =============================================================================
+// lib.rename Types
+// =============================================================================
+
+export interface LibRenameInput {
+  /** Current package name to rename from */
+  oldName: string;
+  /** New package name to rename to */
+  newName: string;
+  /** Root path to scan (defaults to ~/git) */
+  rootPath?: string | undefined;
+  /** Preview changes without applying (default: false) */
+  dryRun?: boolean | undefined;
+}
+
+export interface RenameChange {
+  /** Type of change */
+  type: "package-name" | "dependency" | "import" | "dynamic-import";
+  /** File that was changed */
+  file: string;
+  /** Field name (for dependency changes) */
+  field?: string;
+  /** Line number (for imports) */
+  line?: number;
+  /** Old value */
+  oldValue: string;
+  /** New value */
+  newValue: string;
+}
+
+export interface LibRenameOutput {
+  /** Whether all changes succeeded */
+  success: boolean;
+  /** List of changes made (or would be made if dryRun) */
+  changes: RenameChange[];
+  /** Any errors encountered */
+  errors: string[];
+  /** Summary counts */
+  summary: {
+    packageNames: number;
+    dependencies: number;
+    imports: number;
+    total: number;
+  };
+}
