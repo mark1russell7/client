@@ -13,10 +13,13 @@ import type {
   StreamingRegistryOptions,
 } from "./types.js";
 
-// Portable timer types
-type TimerId = ReturnType<typeof globalThis.setTimeout>;
-const setTimer = globalThis.setTimeout;
-const clearTimer = globalThis.clearTimeout;
+// Portable timer types (cross-platform)
+type TimerFn = (callback: () => void, ms: number) => number;
+type ClearFn = (id: number) => void;
+type GlobalWithTimers = { setTimeout: TimerFn; clearTimeout: ClearFn };
+type TimerId = number;
+const setTimer = (globalThis as unknown as GlobalWithTimers).setTimeout;
+const clearTimer = (globalThis as unknown as GlobalWithTimers).clearTimeout;
 
 // =============================================================================
 // Streaming Procedure Caller Type
@@ -107,7 +110,7 @@ export function createStreamingRegistry(
           // Yield when buffer is full
           if (buffer.length >= bufferSize) {
             // Yield the most recent output (discard older ones)
-            yield buffer[buffer.length - 1];
+            yield buffer[buffer.length - 1]!;
             buffer = [];
           }
         }
@@ -115,7 +118,7 @@ export function createStreamingRegistry(
 
       // Yield any remaining buffered output
       if (buffer.length > 0) {
-        yield buffer[buffer.length - 1];
+        yield buffer[buffer.length - 1]!;
       }
     };
   }
@@ -387,8 +390,10 @@ export async function* debounceStream(
     }
     if (latest) {
       outputs.push(latest);
-      if (resolve) {
-        resolve();
+      // Use type assertion - resolve is set by the while loop below
+      const currentResolve = resolve as (() => void) | null;
+      if (currentResolve) {
+        currentResolve();
       }
     }
   })();

@@ -14,7 +14,12 @@ import type { ComponentOutput } from "client/components";
 import type { ComponentMap, HydrateOptions } from "./types.js";
 
 // Portable console access (works in Node and browser)
-const log = globalThis.console;
+type ConsoleType = {
+  warn(message: string): void;
+  log(message: string): void;
+  error(message: string): void;
+};
+const log = (globalThis as unknown as { console: ConsoleType }).console;
 
 // =============================================================================
 // Hydration Core

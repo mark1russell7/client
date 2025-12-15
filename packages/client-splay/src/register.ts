@@ -5,43 +5,86 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { defineProcedure, registerModule } from "client";
+import { createProcedure, registerProcedures } from "client";
+
+// =============================================================================
+// Minimal Schema Helpers (Zod-like interface for procedure system)
+// =============================================================================
+
+interface ZodErrorLike {
+  message: string;
+  errors: Array<{ path: (string | number)[]; message: string }>;
+}
+
+interface ZodLikeSchema<T> {
+  parse(data: unknown): T;
+  safeParse(data: unknown): { success: true; data: T } | { success: false; error: ZodErrorLike };
+  _output: T;
+}
+
+function schema<T>(): ZodLikeSchema<T> {
+  return {
+    parse: (data: unknown) => data as T,
+    safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
+    _output: undefined as unknown as T,
+  };
+}
+
+// =============================================================================
+// Types
+// =============================================================================
+
+interface BridgeInfo {
+  name: string;
+  version: string;
+  description: string;
+}
+
+interface HealthCheck {
+  status: string;
+  timestamp: string;
+}
+
+// =============================================================================
+// Schemas
+// =============================================================================
+
+const voidSchema = schema<void>();
+const bridgeInfoSchema = schema<BridgeInfo>();
+const healthCheckSchema = schema<HealthCheck>();
 
 // =============================================================================
 // Bridge Procedures
 // =============================================================================
 
 /**
- * Bridge namespace for splay-client procedures.
+ * Get package info.
  */
-const bridge = {
-  /**
-   * Get package info.
-   */
-  info: defineProcedure({
-    metadata: {
-      description: "Get splay-client bridge information",
-    },
-    handler: () => ({
-      name: "@mark1russell7/splay-client",
-      version: "1.0.0",
-      description: "Bridge between splay and client",
-    }),
-  }),
+const infoProcedure = createProcedure()
+  .path(["splay", "bridge", "info"])
+  .input(voidSchema)
+  .output(bridgeInfoSchema)
+  .meta({ description: "Get splay-client bridge information" })
+  .handler(() => ({
+    name: "@mark1russell7/splay-client",
+    version: "1.0.0",
+    description: "Bridge between splay and client",
+  }))
+  .build();
 
-  /**
-   * Health check for the bridge.
-   */
-  health: defineProcedure({
-    metadata: {
-      description: "Health check for splay-client bridge",
-    },
-    handler: () => ({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-    }),
-  }),
-};
+/**
+ * Health check for the bridge.
+ */
+const healthProcedure = createProcedure()
+  .path(["splay", "bridge", "health"])
+  .input(voidSchema)
+  .output(healthCheckSchema)
+  .meta({ description: "Health check for splay-client bridge" })
+  .handler(() => ({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+  }))
+  .build();
 
 // =============================================================================
 // Registration
@@ -51,7 +94,7 @@ const bridge = {
  * Register all splay-client procedures.
  */
 export function registerBridge(): void {
-  registerModule(["splay", "bridge"], bridge);
+  registerProcedures([infoProcedure, healthProcedure]);
 }
 
 // Auto-register when this module is loaded
