@@ -200,6 +200,58 @@ export {
 export type { OverrideAwareConfig, ExtractMiddlewareConfig, OverrideOf } from "./client/middleware-override.js";
 
 // ============================================================================
+// Events System - Pub/sub messaging and streaming coordination
+// ============================================================================
+export { DefaultEventBus as EventBus, createEventBus, createTypedEventBus } from "./events/index.js";
+export type {
+  EventBus as IEventBus,
+  TypedEventBus,
+  EventHandler,
+  EventBusOptions,
+  ChannelMap,
+} from "./events/index.js";
+
+// ============================================================================
+// Components - Serializable UI descriptors via procedures
+// ============================================================================
+export type {
+  ComponentOutput,
+  FragmentOutput,
+  NullOutput,
+  AnyComponentOutput,
+  Size,
+  ComponentContext,
+  ComponentFactory,
+  StreamingComponentFactory,
+  AnyComponentFactory,
+  ComponentMetadata,
+  ComponentDefinition,
+  AnyComponentDefinition,
+  RegisteredComponent,
+  ComponentBundle,
+  InferComponentInput,
+  IsStreamingComponent,
+  ComponentInput,
+} from "./components/index.js";
+
+export {
+  nullOutput,
+  fragment,
+  isFragment,
+  isNullOutput,
+  isStreamingFactory,
+  defineComponent,
+  componentToProcedure,
+  registerBundle,
+  createBundle,
+  simpleComponent,
+  namespacedComponent,
+  streamingComponent,
+  componentInputSchema,
+  componentOutputSchema,
+} from "./components/index.js";
+
+// ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both
 // collections and universal client. Access it directly:
 // import { AsyncMiddleware, SyncMiddleware } from "client/middleware"

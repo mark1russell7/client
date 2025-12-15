@@ -13,6 +13,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "import": "./dist/events/index.js"
+    },
+    "./procedures": {
+      "types": "./dist/procedures/index.d.ts",
+      "import": "./dist/procedures/index.js"
     }
   },
   "files": [
