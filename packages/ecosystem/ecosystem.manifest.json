@@ -22,6 +22,10 @@
       "repo": "github:mark1russell7/client-mongo#main",
       "path": "client-mongo"
     },
+    "@mark1russell7/client-server": {
+      "repo": "github:mark1russell7/client-server#main",
+      "path": "client-server"
+    },
     "@mark1russell7/client-sqlite": {
       "repo": "github:mark1russell7/client-sqlite#main",
       "path": "client-sqlite"
