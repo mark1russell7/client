@@ -1,0 +1,74 @@
+{
+  "version": "1.0.0",
+  "root": "~/git",
+  "packages": {
+    "@mark1russell7/cue": {
+      "repo": "github:mark1russell7/cue#main",
+      "path": "cue"
+    },
+    "@mark1russell7/client": {
+      "repo": "github:mark1russell7/client#main",
+      "path": "client"
+    },
+    "@mark1russell7/client-cli": {
+      "repo": "github:mark1russell7/client-cli#main",
+      "path": "client-cli"
+    },
+    "@mark1russell7/client-logger": {
+      "repo": "github:mark1russell7/client-logger#main",
+      "path": "client-logger"
+    },
+    "@mark1russell7/client-mongo": {
+      "repo": "github:mark1russell7/client-mongo#main",
+      "path": "client-mongo"
+    },
+    "@mark1russell7/client-sqlite": {
+      "repo": "github:mark1russell7/client-sqlite#main",
+      "path": "client-sqlite"
+    },
+    "@mark1russell7/client-splay": {
+      "repo": "github:mark1russell7/client-splay#main",
+      "path": "client-splay"
+    },
+    "@mark1russell7/cli": {
+      "repo": "github:mark1russell7/cli#main",
+      "path": "cli"
+    },
+    "@mark1russell7/docker-mongo": {
+      "repo": "github:mark1russell7/docker-mongo#main",
+      "path": "docker/mongo"
+    },
+    "@mark1russell7/docker-sqlite": {
+      "repo": "github:mark1russell7/docker-sqlite#main",
+      "path": "docker/sqlite"
+    },
+    "@mark1russell7/ecosystem": {
+      "repo": "github:mark1russell7/ecosystem#main",
+      "path": "ecosystem"
+    },
+    "@mark1russell7/logger": {
+      "repo": "github:mark1russell7/logger#main",
+      "path": "logger"
+    },
+    "@mark1russell7/splay": {
+      "repo": "github:mark1russell7/splay#main",
+      "path": "splay"
+    },
+    "@mark1russell7/splay-react": {
+      "repo": "github:mark1russell7/splay-react#main",
+      "path": "splay-react"
+    }
+  },
+  "projectTemplate": {
+    "files": [
+      "package.json",
+      "tsconfig.json",
+      "dependencies.json",
+      ".gitignore"
+    ],
+    "dirs": [
+      "src",
+      "dist"
+    ]
+  }
+}
