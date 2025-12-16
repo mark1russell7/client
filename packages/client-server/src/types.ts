@@ -2,56 +2,44 @@
  * Type definitions for client-server procedures
  */
 
-import { z } from "zod";
-
 // =============================================================================
 // Transport Configuration
 // =============================================================================
 
-export const TransportTypeSchema = z.enum(["http", "websocket", "local"]);
-export type TransportType = z.infer<typeof TransportTypeSchema>;
+export type TransportType = "http" | "websocket" | "local";
 
-export const HttpTransportConfigSchema = z.object({
-  type: z.literal("http"),
-  port: z.number().default(3000),
-  host: z.string().default("0.0.0.0"),
-  basePath: z.string().default("/api"),
-  cors: z.boolean().default(true),
-  corsOrigins: z.array(z.string()).optional(),
-});
-export type HttpTransportConfig = z.infer<typeof HttpTransportConfigSchema>;
+export interface HttpTransportConfig {
+  type: "http";
+  port?: number;
+  host?: string;
+  basePath?: string;
+  cors?: boolean;
+  corsOrigins?: string[];
+}
 
-export const WebSocketTransportConfigSchema = z.object({
-  type: z.literal("websocket"),
-  port: z.number().default(3001),
-  host: z.string().default("0.0.0.0"),
-  path: z.string().default("/ws"),
-});
-export type WebSocketTransportConfig = z.infer<typeof WebSocketTransportConfigSchema>;
+export interface WebSocketTransportConfig {
+  type: "websocket";
+  port?: number;
+  host?: string;
+  path?: string;
+}
 
-export const LocalTransportConfigSchema = z.object({
-  type: z.literal("local"),
-});
-export type LocalTransportConfig = z.infer<typeof LocalTransportConfigSchema>;
+export interface LocalTransportConfig {
+  type: "local";
+}
 
-export const TransportConfigSchema = z.discriminatedUnion("type", [
-  HttpTransportConfigSchema,
-  WebSocketTransportConfigSchema,
-  LocalTransportConfigSchema,
-]);
-export type TransportConfig = z.infer<typeof TransportConfigSchema>;
+export type TransportConfig = HttpTransportConfig | WebSocketTransportConfig | LocalTransportConfig;
 
 // =============================================================================
 // server.create Types
 // =============================================================================
 
-export const ServerCreateInputSchema = z.object({
+export interface ServerCreateInput {
   /** Transports to enable */
-  transports: z.array(TransportConfigSchema).default([{ type: "http", port: 3000 }]),
+  transports?: TransportConfig[];
   /** Auto-register all procedures from registry */
-  autoRegister: z.boolean().default(true),
-});
-export type ServerCreateInput = z.infer<typeof ServerCreateInputSchema>;
+  autoRegister?: boolean;
+}
 
 export interface ServerCreateOutput {
   /** Server ID for reference */
@@ -69,15 +57,14 @@ export interface ServerCreateOutput {
 // server.connect Types
 // =============================================================================
 
-export const ServerConnectInputSchema = z.object({
+export interface ServerConnectInput {
   /** Remote server address */
-  address: z.string(),
+  address: string;
   /** Transport type to use */
-  transport: TransportTypeSchema.default("websocket"),
+  transport?: TransportType;
   /** Connection timeout in ms */
-  timeout: z.number().default(30000),
-});
-export type ServerConnectInput = z.infer<typeof ServerConnectInputSchema>;
+  timeout?: number;
+}
 
 export interface ProcedureInfo {
   /** Procedure path */
@@ -103,11 +90,10 @@ export interface ServerConnectOutput {
 // server.disconnect Types
 // =============================================================================
 
-export const ServerDisconnectInputSchema = z.object({
+export interface ServerDisconnectInput {
   /** Connection ID to disconnect */
-  connectionId: z.string(),
-});
-export type ServerDisconnectInput = z.infer<typeof ServerDisconnectInputSchema>;
+  connectionId: string;
+}
 
 export interface ServerDisconnectOutput {
   /** Whether disconnect succeeded */
@@ -118,15 +104,16 @@ export interface ServerDisconnectOutput {
 // manifest.generate Types
 // =============================================================================
 
-export const ManifestGenerateInputSchema = z.object({
+export type ManifestFormat = "json" | "typescript";
+
+export interface ManifestGenerateInput {
   /** Output formats to generate */
-  formats: z.array(z.enum(["json", "typescript"])).default(["json", "typescript"]),
+  formats?: ManifestFormat[];
   /** Namespace filter (only include procedures under this path) */
-  namespace: z.array(z.string()).optional(),
+  namespace?: string[];
   /** Output directory for files */
-  outputDir: z.string().optional(),
-});
-export type ManifestGenerateInput = z.infer<typeof ManifestGenerateInputSchema>;
+  outputDir?: string;
+}
 
 export interface ManifestGenerateOutput {
   /** Generated JSON manifest */
