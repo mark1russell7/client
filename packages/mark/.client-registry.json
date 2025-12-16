@@ -3,12 +3,12 @@
   "packages": {
     "@mark1russell7/client-logger": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-16T02:02:16.519Z",
+      "registeredAt": "2025-12-16T02:46:31.213Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-cli": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-16T02:33:20.977Z",
+      "registeredAt": "2025-12-16T02:55:06.852Z",
       "version": "1.0.0"
     }
   }
