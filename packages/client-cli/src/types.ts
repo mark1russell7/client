@@ -45,6 +45,8 @@ export const LibRefreshInputSchema: z.ZodObject<{
   path: z.ZodDefault<z.ZodString>;
   recursive: z.ZodDefault<z.ZodBoolean>;
   all: z.ZodDefault<z.ZodBoolean>;
+  force: z.ZodDefault<z.ZodBoolean>;
+  skipGit: z.ZodDefault<z.ZodBoolean>;
   autoConfirm: z.ZodDefault<z.ZodBoolean>;
   sessionId: z.ZodOptional<z.ZodString>;
 }> = z.object({
@@ -54,6 +56,10 @@ export const LibRefreshInputSchema: z.ZodObject<{
   recursive: z.boolean().default(false),
   /** Refresh all packages in the ecosystem */
   all: z.boolean().default(false),
+  /** Force full cleanup (rm node_modules, dist, lock) before install */
+  force: z.boolean().default(false),
+  /** Skip git commit/push */
+  skipGit: z.boolean().default(false),
   /** Non-interactive mode (auto-confirm) */
   autoConfirm: z.boolean().default(false),
   /** Session ID for log grouping */

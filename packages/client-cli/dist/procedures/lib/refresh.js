@@ -39,51 +39,60 @@ async function pathExists(path) {
 }
 /**
  * Refresh a single package
+ *
+ * @param pkgPath - Path to the package
+ * @param packageName - Name of the package
+ * @param options - Refresh options
+ *   - force: If true, removes node_modules, dist, and package-lock.json before install
+ *   - skipGit: If true, skips git commit/push
  */
-async function refreshSinglePackage(pkgPath, packageName) {
+async function refreshSinglePackage(pkgPath, packageName, options = {}) {
     const startTime = Date.now();
+    const { force = false, skipGit = false } = options;
     try {
-        // Step 1: Cleanup
-        const nodeModulesPath = join(pkgPath, "node_modules");
-        const distPath = join(pkgPath, "dist");
-        const lockPath = join(pkgPath, "package-lock.json");
-        if (await pathExists(nodeModulesPath)) {
-            const result = await removeDir(nodeModulesPath);
-            if (!result.success) {
-                return {
-                    name: packageName,
-                    path: pkgPath,
-                    success: false,
-                    duration: Date.now() - startTime,
-                    error: `Failed to remove node_modules: ${result.stderr}`,
-                    failedPhase: "cleanup",
-                };
+        // Step 1: Cleanup (only if force is true)
+        if (force) {
+            const nodeModulesPath = join(pkgPath, "node_modules");
+            const distPath = join(pkgPath, "dist");
+            const lockPath = join(pkgPath, "package-lock.json");
+            if (await pathExists(nodeModulesPath)) {
+                const result = await removeDir(nodeModulesPath);
+                if (!result.success) {
+                    return {
+                        name: packageName,
+                        path: pkgPath,
+                        success: false,
+                        duration: Date.now() - startTime,
+                        error: `Failed to remove node_modules: ${result.stderr}`,
+                        failedPhase: "cleanup",
+                    };
+                }
             }
-        }
-        if (await pathExists(distPath)) {
-            const result = await removeDir(distPath);
-            if (!result.success) {
-                return {
-                    name: packageName,
-                    path: pkgPath,
-                    success: false,
-                    duration: Date.now() - startTime,
-                    error: `Failed to remove dist: ${result.stderr}`,
-                    failedPhase: "cleanup",
-                };
+            if (await pathExists(distPath)) {
+                const result = await removeDir(distPath);
+                if (!result.success) {
+                    return {
+                        name: packageName,
+                        path: pkgPath,
+                        success: false,
+                        duration: Date.now() - startTime,
+                        error: `Failed to remove dist: ${result.stderr}`,
+                        failedPhase: "cleanup",
+                    };
+                }
             }
-        }
-        if (await pathExists(lockPath)) {
-            const result = await removeFile(lockPath);
-            if (!result.success) {
-                return {
-                    name: packageName,
-                    path: pkgPath,
-                    success: false,
-                    duration: Date.now() - startTime,
-                    error: `Failed to remove package-lock.json: ${result.stderr}`,
-                    failedPhase: "cleanup",
-                };
+            if (await pathExists(lockPath)) {
+                const result = await removeFile(lockPath);
+                if (!result.success) {
+                    return {
+                        name: packageName,
+                        path: pkgPath,
+                        success: false,
+                        duration: Date.now() - startTime,
+                        error: `Failed to remove package-lock.json: ${result.stderr}`,
+                        failedPhase: "cleanup",
+                    };
+                }
             }
         }
         // Step 2: npm install
@@ -110,24 +119,26 @@ async function refreshSinglePackage(pkgPath, packageName) {
                 failedPhase: "build",
             };
         }
-        // Step 4: Git operations
-        try {
-            const status = await getGitStatus(pkgPath);
-            if (!status.isClean) {
-                await stageAll(pkgPath);
-                await commit(pkgPath, `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`);
-                await push(pkgPath);
+        // Step 4: Git operations (unless skipGit is true)
+        if (!skipGit) {
+            try {
+                const status = await getGitStatus(pkgPath);
+                if (!status.isClean) {
+                    await stageAll(pkgPath);
+                    await commit(pkgPath, `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`);
+                    await push(pkgPath);
+                }
             }
-        }
-        catch (error) {
-            return {
-                name: packageName,
-                path: pkgPath,
-                success: false,
-                duration: Date.now() - startTime,
-                error: `Git operations failed: ${error instanceof Error ? error.message : String(error)}`,
-                failedPhase: "git",
-            };
+            catch (error) {
+                return {
+                    name: packageName,
+                    path: pkgPath,
+                    success: false,
+                    duration: Date.now() - startTime,
+                    error: `Git operations failed: ${error instanceof Error ? error.message : String(error)}`,
+                    failedPhase: "git",
+                };
+            }
         }
         return {
             name: packageName,
@@ -152,6 +163,10 @@ async function refreshSinglePackage(pkgPath, packageName) {
 export async function libRefresh(input) {
     const startTime = Date.now();
     const results = [];
+    const refreshOpts = {
+        force: input.force,
+        skipGit: input.skipGit,
+    };
     // Scan for all packages first (needed for --all and --recursive)
     const scanResult = await libScan({});
     const allNodes = buildDAGNodes(scanResult.packages);
@@ -160,7 +175,7 @@ export async function libRefresh(input) {
         const dag = buildLeveledDAG(allNodes);
         const processor = createProcessor(async (node) => {
             await ensureBranch(node.repoPath, node.requiredBranch);
-            const result = await refreshSinglePackage(node.repoPath, node.name);
+            const result = await refreshSinglePackage(node.repoPath, node.name, refreshOpts);
             if (!result.success) {
                 throw new Error(result.error ?? "Unknown error");
             }
@@ -196,7 +211,7 @@ export async function libRefresh(input) {
     const packageName = await getPackageName(pkgPath);
     if (!input.recursive) {
         // Non-recursive: just refresh the single package
-        const result = await refreshSinglePackage(pkgPath, packageName);
+        const result = await refreshSinglePackage(pkgPath, packageName, refreshOpts);
         results.push(result);
         return {
             success: result.success,
@@ -208,7 +223,7 @@ export async function libRefresh(input) {
     const filteredNodes = filterDAGFromRoot(allNodes, packageName);
     if (filteredNodes.size === 0) {
         // Package not found in scan, just refresh it directly
-        const result = await refreshSinglePackage(pkgPath, packageName);
+        const result = await refreshSinglePackage(pkgPath, packageName, refreshOpts);
         results.push(result);
         return {
             success: result.success,
@@ -223,7 +238,7 @@ export async function libRefresh(input) {
         // Ensure we're on the correct branch
         await ensureBranch(node.repoPath, node.requiredBranch);
         // Refresh the package
-        const result = await refreshSinglePackage(node.repoPath, node.name);
+        const result = await refreshSinglePackage(node.repoPath, node.name, refreshOpts);
         if (!result.success) {
             throw new Error(result.error ?? "Unknown error");
         }

@@ -19,6 +19,10 @@ export const LibRefreshInputSchema = z.object({
     recursive: z.boolean().default(false),
     /** Refresh all packages in the ecosystem */
     all: z.boolean().default(false),
+    /** Force full cleanup (rm node_modules, dist, lock) before install */
+    force: z.boolean().default(false),
+    /** Skip git commit/push */
+    skipGit: z.boolean().default(false),
     /** Non-interactive mode (auto-confirm) */
     autoConfirm: z.boolean().default(false),
     /** Session ID for log grouping */
