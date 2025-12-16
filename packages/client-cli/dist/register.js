@@ -8,7 +8,8 @@ import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { libScan } from "./procedures/lib/scan.js";
 import { libRefresh } from "./procedures/lib/refresh.js";
 import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
-import { LibScanInputSchema, LibRefreshInputSchema, } from "./types.js";
+import { libInstall } from "./procedures/lib/install.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -89,11 +90,24 @@ const libRenameProcedure = createProcedure()
     return libRename(input);
 })
     .build();
+const libInstallInputSchema = zodAdapter(LibInstallInputSchema);
+const libInstallOutputSchema = outputSchema();
+const libInstallProcedure = createProcedure()
+    .path(["lib", "install"])
+    .input(libInstallInputSchema)
+    .output(libInstallOutputSchema)
+    .meta({
+    description: "Install the entire ecosystem from manifest (clone missing, install deps, build in DAG order).",
+})
+    .handler(async (input) => {
+    return libInstall(input);
+})
+    .build();
 // =============================================================================
 // Registration
 // =============================================================================
 export function registerCliProcedures() {
-    registerProcedures([libScanProcedure, libRefreshProcedure, libRenameProcedure]);
+    registerProcedures([libScanProcedure, libRefreshProcedure, libRenameProcedure, libInstallProcedure]);
 }
 // Auto-register when this module is loaded
 registerCliProcedures();

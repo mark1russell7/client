@@ -21,4 +21,5 @@ export {
   pull,
   branchExists,
   ensureBranch,
+  clone,
 } from "./operations.js";

@@ -122,6 +122,18 @@ export async function branchExists(
 }
 
 /**
+ * Clone a repository
+ */
+export async function clone(
+  url: string,
+  targetPath: string,
+  branch?: string
+): Promise<void> {
+  const branchArg = branch ? `-b ${branch}` : "";
+  await execAsync(`git clone ${branchArg} ${url} "${targetPath}"`);
+}
+
+/**
  * Ensure the repo is on the correct branch
  * If not on the correct branch:
  * 1. Commit any staged changes

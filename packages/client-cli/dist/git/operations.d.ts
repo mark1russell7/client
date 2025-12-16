@@ -39,6 +39,10 @@ export declare function pull(repoPath: string): Promise<void>;
  */
 export declare function branchExists(repoPath: string, branch: string): Promise<boolean>;
 /**
+ * Clone a repository
+ */
+export declare function clone(url: string, targetPath: string, branch?: string): Promise<void>;
+/**
  * Ensure the repo is on the correct branch
  * If not on the correct branch:
  * 1. Commit any staged changes

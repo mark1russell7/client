@@ -221,3 +221,55 @@ export interface LibRenameOutput {
     total: number;
   };
 }
+
+// =============================================================================
+// lib.install Types
+// =============================================================================
+
+export const LibInstallInputSchema: z.ZodObject<{
+  rootPath: z.ZodOptional<z.ZodString>;
+  dryRun: z.ZodDefault<z.ZodBoolean>;
+  continueOnError: z.ZodDefault<z.ZodBoolean>;
+  concurrency: z.ZodDefault<z.ZodNumber>;
+}> = z.object({
+  /** Root path for packages (defaults to ~/git) */
+  rootPath: z.string().optional(),
+  /** Preview changes without installing */
+  dryRun: z.boolean().default(false),
+  /** Continue on error instead of stopping */
+  continueOnError: z.boolean().default(false),
+  /** Max parallel operations */
+  concurrency: z.number().default(4),
+});
+
+export type LibInstallInput = z.infer<typeof LibInstallInputSchema>;
+
+export interface InstallResult {
+  /** Package name */
+  name: string;
+  /** Package path */
+  path: string;
+  /** Whether install succeeded */
+  success: boolean;
+  /** Duration in milliseconds */
+  duration: number;
+  /** Current phase when completed/failed */
+  phase?: "clone" | "install" | "build" | "complete";
+  /** Error if failed */
+  error?: string;
+}
+
+export interface LibInstallOutput {
+  /** Overall success */
+  success: boolean;
+  /** Packages that were cloned */
+  cloned: string[];
+  /** Packages that already existed */
+  skipped: string[];
+  /** Install results for each package */
+  results: InstallResult[];
+  /** Any errors encountered */
+  errors: string[];
+  /** Total duration in milliseconds */
+  totalDuration: number;
+}
