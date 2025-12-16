@@ -22,7 +22,7 @@ const log = globalThis.console;
  * @example React:
  * ```typescript
  * import { createElement } from "react";
- * import { createHydrate } from "@mark1russell7/splay-client";
+ * import { createHydrate } from "@mark1russell7/client-splay";
  *
  * const hydrate = createHydrate({
  *   components: {
@@ -80,7 +80,7 @@ export function createHydrate(options) {
  * @example
  * ```typescript
  * import * as React from "react";
- * import { createReactHydrate } from "@mark1russell7/splay-client";
+ * import { createReactHydrate } from "@mark1russell7/client-splay";
  *
  * const hydrate = createReactHydrate(React, {
  *   components: {

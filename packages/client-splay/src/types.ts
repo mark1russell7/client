@@ -4,7 +4,7 @@
  * Types for bridging splay's rendering model with client's procedure system.
  */
 
-import type { ComponentOutput, Size } from "client";
+import type { ComponentOutput, Size } from "@mark1russell7/client";
 
 // =============================================================================
 // Render Context (splay-compatible)

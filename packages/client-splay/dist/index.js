@@ -1,5 +1,5 @@
 /**
- * splay-client
+ * client-splay
  *
  * Bridge between splay's rendering model and client's procedure system.
  *
@@ -14,7 +14,7 @@
  * import {
  *   createClientRegistry,
  *   createReactHydrate,
- * } from "@mark1russell7/splay-client";
+ * } from "@mark1russell7/client-splay";
  *
  * // Create a registry backed by client procedures
  * const registry = createClientRegistry(call, {
@@ -44,5 +44,5 @@ export { createStreamingRegistry, createDualRegistry, mergeStreams, throttleStre
 // =============================================================================
 export { createHydrate, createReactHydrate, walkDescriptor, transformDescriptor, findInDescriptor, getUsedTypes, validateDescriptor, serializeDescriptor, parseDescriptor, compactDescriptor, } from "./hydrate.js";
 // Re-export component helpers
-export { nullOutput, fragment, isFragment, isNullOutput, defineComponent, simpleComponent, streamingComponent, } from "client/components";
+export { nullOutput, fragment, isFragment, isNullOutput, defineComponent, simpleComponent, streamingComponent, } from "@mark1russell7/client/components";
 //# sourceMappingURL=index.js.map

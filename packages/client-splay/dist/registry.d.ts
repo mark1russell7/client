@@ -5,7 +5,7 @@
  * This enables splay's rendering engine to use client's procedure system
  * for component resolution and execution.
  */
-import type { Size } from "client/components";
+import type { Size } from "@mark1russell7/client/components";
 import type { Registry, RenderContext, ClientRegistryOptions } from "./types.js";
 /**
  * Type for calling client procedures.
@@ -24,7 +24,7 @@ export interface ProcedureCaller {
  * @example
  * ```typescript
  * import { call } from "client";
- * import { createClientRegistry } from "@mark1russell7/splay-client";
+ * import { createClientRegistry } from "@mark1russell7/client-splay";
  *
  * const registry = createClientRegistry(call, {
  *   namespace: "ui",

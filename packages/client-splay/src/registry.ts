@@ -6,7 +6,7 @@
  * for component resolution and execution.
  */
 
-import type { ComponentOutput, Size } from "client/components";
+import type { ComponentOutput, Size } from "@mark1russell7/client/components";
 import type {
   Registry,
   ComponentRenderer,
@@ -40,7 +40,7 @@ export interface ProcedureCaller {
  * @example
  * ```typescript
  * import { call } from "client";
- * import { createClientRegistry } from "@mark1russell7/splay-client";
+ * import { createClientRegistry } from "@mark1russell7/client-splay";
  *
  * const registry = createClientRegistry(call, {
  *   namespace: "ui",

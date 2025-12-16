@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/splay-client",
+  "name": "@mark1russell7/client-splay",
   "version": "1.0.0",
   "description": "Bridge between splay and client - component rendering via procedures",
   "license": "MIT",
@@ -34,17 +34,17 @@
   },
   "dependencies": {
     "@mark1russell7/splay": "github:mark1russell7/splay#main",
-    "client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "github:mark1russell7/client#main"
   },
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "https://github.com/mark1russell7/splay-client.git"
+    "url": "https://github.com/mark1russell7/client-splay.git"
   },
   "bugs": {
-    "url": "https://github.com/mark1russell7/splay-client/issues"
+    "url": "https://github.com/mark1russell7/client-splay/issues"
   },
-  "homepage": "https://github.com/mark1russell7/splay-client#readme",
+  "homepage": "https://github.com/mark1russell7/client-splay#readme",
   "publishConfig": {
     "access": "public"
   },

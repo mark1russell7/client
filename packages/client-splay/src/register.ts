@@ -1,11 +1,11 @@
 /**
  * Procedure Registration
  *
- * Registers splay-client bridge procedures with the client system.
+ * Registers client-splay bridge procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures } from "client";
+import { createProcedure, registerProcedures } from "@mark1russell7/client";
 
 // =============================================================================
 // Minimal Schema Helpers (Zod-like interface for procedure system)
@@ -64,9 +64,9 @@ const infoProcedure = createProcedure()
   .path(["splay", "bridge", "info"])
   .input(voidSchema)
   .output(bridgeInfoSchema)
-  .meta({ description: "Get splay-client bridge information" })
+  .meta({ description: "Get client-splay bridge information" })
   .handler(() => ({
-    name: "@mark1russell7/splay-client",
+    name: "@mark1russell7/client-splay",
     version: "1.0.0",
     description: "Bridge between splay and client",
   }))
@@ -79,7 +79,7 @@ const healthProcedure = createProcedure()
   .path(["splay", "bridge", "health"])
   .input(voidSchema)
   .output(healthCheckSchema)
-  .meta({ description: "Health check for splay-client bridge" })
+  .meta({ description: "Health check for client-splay bridge" })
   .handler(() => ({
     status: "healthy",
     timestamp: new Date().toISOString(),
@@ -91,7 +91,7 @@ const healthProcedure = createProcedure()
 // =============================================================================
 
 /**
- * Register all splay-client procedures.
+ * Register all client-splay procedures.
  */
 export function registerBridge(): void {
   registerProcedures([infoProcedure, healthProcedure]);

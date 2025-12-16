@@ -1,5 +1,5 @@
 /**
- * splay-client
+ * client-splay
  *
  * Bridge between splay's rendering model and client's procedure system.
  *
@@ -14,7 +14,7 @@
  * import {
  *   createClientRegistry,
  *   createReactHydrate,
- * } from "@mark1russell7/splay-client";
+ * } from "@mark1russell7/client-splay";
  *
  * // Create a registry backed by client procedures
  * const registry = createClientRegistry(call, {
@@ -35,6 +35,6 @@ export type { RenderContext, ComponentRenderer, StreamingComponentRenderer, Regi
 export { createClientRegistry, createCheckedRegistry, createRenderContext, type ProcedureCaller, } from "./registry.js";
 export { createStreamingRegistry, createDualRegistry, mergeStreams, throttleStream, debounceStream, type StreamingProcedureCaller, type DualRegistry, } from "./streaming.js";
 export { createHydrate, createReactHydrate, walkDescriptor, transformDescriptor, findInDescriptor, getUsedTypes, validateDescriptor, serializeDescriptor, parseDescriptor, compactDescriptor, type CreateElement, type ReactHydrateOptions, } from "./hydrate.js";
-export type { ComponentOutput, FragmentOutput, NullOutput, AnyComponentOutput, Size, ComponentContext, ComponentFactory, StreamingComponentFactory, ComponentDefinition, ComponentBundle, } from "client/components";
-export { nullOutput, fragment, isFragment, isNullOutput, defineComponent, simpleComponent, streamingComponent, } from "client/components";
+export type { ComponentOutput, FragmentOutput, NullOutput, AnyComponentOutput, Size, ComponentContext, ComponentFactory, StreamingComponentFactory, ComponentDefinition, ComponentBundle, } from "@mark1russell7/client/components";
+export { nullOutput, fragment, isFragment, isNullOutput, defineComponent, simpleComponent, streamingComponent, } from "@mark1russell7/client/components";
 //# sourceMappingURL=index.d.ts.map

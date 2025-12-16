@@ -1,11 +1,11 @@
-# @mark1russell7/splay-client
+# @mark1russell7/client-splay
 
 Bridge between splay's rendering model and client's procedure system. Enables component rendering via RPC.
 
 ## Installation
 
 ```bash
-npm install github:mark1russell7/splay-client#main
+npm install github:mark1russell7/client-splay#main
 ```
 
 ## Architecture
@@ -20,7 +20,7 @@ npm install github:mark1russell7/splay-client#main
 └───────────────────────────┼─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      splay-client                               │
+│                      client-splay                               │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐ │
 │  │                      Registry                              │ │
@@ -57,7 +57,7 @@ npm install github:mark1russell7/splay-client#main
 ## Quick Start
 
 ```typescript
-import { createClientRegistry, createReactHydrate } from "@mark1russell7/splay-client";
+import { createClientRegistry, createReactHydrate } from "@mark1russell7/client-splay";
 import { call } from "client";
 
 // 1. Create registry backed by client procedures
@@ -187,5 +187,5 @@ import {
   // Helpers
   nullOutput, fragment, isFragment, isNullOutput,
   defineComponent, simpleComponent, streamingComponent,
-} from "@mark1russell7/splay-client";
+} from "@mark1russell7/client-splay";
 ```

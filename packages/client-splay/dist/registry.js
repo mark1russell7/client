@@ -18,7 +18,7 @@
  * @example
  * ```typescript
  * import { call } from "client";
- * import { createClientRegistry } from "@mark1russell7/splay-client";
+ * import { createClientRegistry } from "@mark1russell7/client-splay";
  *
  * const registry = createClientRegistry(call, {
  *   namespace: "ui",

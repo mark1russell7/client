@@ -19,7 +19,7 @@ const clearTimer = globalThis.clearTimeout;
  * @example
  * ```typescript
  * import { stream } from "client";
- * import { createStreamingRegistry } from "@mark1russell7/splay-client";
+ * import { createStreamingRegistry } from "@mark1russell7/client-splay";
  *
  * const registry = createStreamingRegistry(stream, {
  *   namespace: "live",

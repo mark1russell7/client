@@ -1,5 +1,5 @@
 /**
- * splay-client
+ * client-splay
  *
  * Bridge between splay's rendering model and client's procedure system.
  *
@@ -14,7 +14,7 @@
  * import {
  *   createClientRegistry,
  *   createReactHydrate,
- * } from "@mark1russell7/splay-client";
+ * } from "@mark1russell7/client-splay";
  *
  * // Create a registry backed by client procedures
  * const registry = createClientRegistry(call, {
@@ -115,7 +115,7 @@ export type {
   StreamingComponentFactory,
   ComponentDefinition,
   ComponentBundle,
-} from "client/components";
+} from "@mark1russell7/client/components";
 
 // Re-export component helpers
 export {
@@ -126,4 +126,4 @@ export {
   defineComponent,
   simpleComponent,
   streamingComponent,
-} from "client/components";
+} from "@mark1russell7/client/components";

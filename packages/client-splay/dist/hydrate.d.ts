@@ -9,7 +9,7 @@
  * 2. Output is sent over wire (JSON)
  * 3. Client hydrates to React/Vue/Svelte components
  */
-import type { ComponentOutput } from "client/components";
+import type { ComponentOutput } from "@mark1russell7/client/components";
 import type { ComponentMap, HydrateOptions } from "./types.js";
 /**
  * Create a hydrate function for a specific framework.
@@ -20,7 +20,7 @@ import type { ComponentMap, HydrateOptions } from "./types.js";
  * @example React:
  * ```typescript
  * import { createElement } from "react";
- * import { createHydrate } from "@mark1russell7/splay-client";
+ * import { createHydrate } from "@mark1russell7/client-splay";
  *
  * const hydrate = createHydrate({
  *   components: {
@@ -71,7 +71,7 @@ interface ReactLike {
  * @example
  * ```typescript
  * import * as React from "react";
- * import { createReactHydrate } from "@mark1russell7/splay-client";
+ * import { createReactHydrate } from "@mark1russell7/client-splay";
  *
  * const hydrate = createReactHydrate(React, {
  *   components: {

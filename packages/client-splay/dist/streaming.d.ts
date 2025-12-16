@@ -4,7 +4,7 @@
  * Creates a splay-compatible StreamingRegistry for components that
  * yield multiple outputs over time (live updates, progressive rendering).
  */
-import type { ComponentOutput } from "client/components";
+import type { ComponentOutput } from "@mark1russell7/client/components";
 import type { StreamingRegistry, RenderContext, StreamingRegistryOptions } from "./types.js";
 /**
  * Type for calling streaming client procedures.
@@ -23,7 +23,7 @@ export interface StreamingProcedureCaller {
  * @example
  * ```typescript
  * import { stream } from "client";
- * import { createStreamingRegistry } from "@mark1russell7/splay-client";
+ * import { createStreamingRegistry } from "@mark1russell7/client-splay";
  *
  * const registry = createStreamingRegistry(stream, {
  *   namespace: "live",
