@@ -44,6 +44,7 @@ export interface LibScanOutput {
 export const LibRefreshInputSchema: z.ZodObject<{
   path: z.ZodDefault<z.ZodString>;
   recursive: z.ZodDefault<z.ZodBoolean>;
+  all: z.ZodDefault<z.ZodBoolean>;
   autoConfirm: z.ZodDefault<z.ZodBoolean>;
   sessionId: z.ZodOptional<z.ZodString>;
 }> = z.object({
@@ -51,6 +52,8 @@ export const LibRefreshInputSchema: z.ZodObject<{
   path: z.string().default("."),
   /** Recursively refresh dependencies */
   recursive: z.boolean().default(false),
+  /** Refresh all packages in the ecosystem */
+  all: z.boolean().default(false),
   /** Non-interactive mode (auto-confirm) */
   autoConfirm: z.boolean().default(false),
   /** Session ID for log grouping */

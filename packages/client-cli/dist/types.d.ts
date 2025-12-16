@@ -30,6 +30,7 @@ export interface LibScanOutput {
 export declare const LibRefreshInputSchema: z.ZodObject<{
     path: z.ZodDefault<z.ZodString>;
     recursive: z.ZodDefault<z.ZodBoolean>;
+    all: z.ZodDefault<z.ZodBoolean>;
     autoConfirm: z.ZodDefault<z.ZodBoolean>;
     sessionId: z.ZodOptional<z.ZodString>;
 }>;

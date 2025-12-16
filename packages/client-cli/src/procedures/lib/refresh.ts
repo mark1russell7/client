@@ -186,7 +186,49 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
   const startTime = Date.now();
   const results: RefreshResult[] = [];
 
-  // Get the absolute path
+  // Scan for all packages first (needed for --all and --recursive)
+  const scanResult = await libScan({});
+  const allNodes = buildDAGNodes(scanResult.packages);
+
+  // Handle --all flag: refresh all ecosystem packages
+  if (input.all) {
+    const dag = buildLeveledDAG(allNodes);
+
+    const processor = createProcessor(async (node: DAGNode) => {
+      await ensureBranch(node.repoPath, node.requiredBranch);
+      const result = await refreshSinglePackage(node.repoPath, node.name);
+      if (!result.success) {
+        throw new Error(result.error ?? "Unknown error");
+      }
+    });
+
+    const dagResult = await executeDAG(dag, processor, {
+      concurrency: 4,
+      failFast: !input.autoConfirm,
+    });
+
+    for (const [name, nodeResult] of dagResult.results) {
+      const node = allNodes.get(name);
+      const result: RefreshResult = {
+        name,
+        path: node?.repoPath ?? "unknown",
+        success: nodeResult.success,
+        duration: nodeResult.duration,
+      };
+      if (nodeResult.error?.message !== undefined) {
+        result.error = nodeResult.error.message;
+      }
+      results.push(result);
+    }
+
+    return {
+      success: dagResult.success,
+      results,
+      totalDuration: Date.now() - startTime,
+    };
+  }
+
+  // Get the absolute path for single package mode
   const pkgPath = input.path.startsWith("/") || input.path.includes(":")
     ? input.path
     : join(process.cwd(), input.path);
@@ -206,11 +248,7 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
     };
   }
 
-  // Recursive: scan for all packages and build DAG
-  const scanResult = await libScan({});
-  const allNodes = buildDAGNodes(scanResult.packages);
-
-  // Filter to only include this package and its dependencies
+  // Recursive: filter to only include this package and its dependencies
   const filteredNodes = filterDAGFromRoot(allNodes, packageName);
 
   if (filteredNodes.size === 0) {
@@ -248,10 +286,10 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
 
   // Convert DAG results to refresh results
   for (const [name, nodeResult] of dagResult.results) {
-    const node = filteredNodes.get(name)!;
+    const node = filteredNodes.get(name);
     const result: RefreshResult = {
       name,
-      path: node.repoPath,
+      path: node?.repoPath ?? "unknown",
       success: nodeResult.success,
       duration: nodeResult.duration,
     };
