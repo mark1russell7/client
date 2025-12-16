@@ -5,7 +5,6 @@
  */
 
 import type { DAGNode, PackageInfo } from "../types.js";
-import { parseGitRef } from "../git/index.js";
 
 /**
  * Build DAG nodes from package info
@@ -23,11 +22,9 @@ export function buildDAGNodes(
     // or are dependencies of other packages
     const deps = info.mark1russell7Deps.filter((dep) => packages[dep] !== undefined);
 
-    // Find the git ref for this package (if it's depended on by others)
-    // For now, assume main branch if not specified
-    const gitRef = info.gitRemote ?? `github:mark1russell7/${info.name}#main`;
-    const parsedRef = parseGitRef(gitRef);
-    const requiredBranch = parsedRef?.ref ?? "main";
+    // Use the current branch from scan results, or fall back to main
+    const gitRef = info.gitRemote ?? `github:mark1russell7/${info.name}#${info.currentBranch ?? "main"}`;
+    const requiredBranch = info.currentBranch ?? "main";
 
     const node: DAGNode = {
       name,
