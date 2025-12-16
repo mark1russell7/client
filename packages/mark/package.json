@@ -7,7 +7,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "mark": "./dist/index.js"
+    "mark": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -31,12 +31,13 @@
     "@mark1russell7/client-cli": "github:mark1russell7/client-cli#main",
     "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
     "commander": "^13.0.0",
+    "gluegun": "^5.2.2",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "typescript": "^5.9.3"
   },
   "keywords": [
     "cli",
