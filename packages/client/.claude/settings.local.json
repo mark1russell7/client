@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(npm install)"
     ]
   }
 }
