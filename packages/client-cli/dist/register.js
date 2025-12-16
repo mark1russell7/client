@@ -9,7 +9,8 @@ import { libScan } from "./procedures/lib/scan.js";
 import { libRefresh } from "./procedures/lib/refresh.js";
 import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
 import { libInstall } from "./procedures/lib/install.js";
-import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, } from "./types.js";
+import { configInit, configAdd, configRemove, configGenerate, configValidate, } from "./procedures/config/index.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, ConfigInitInputSchema, ConfigAddInputSchema, ConfigRemoveInputSchema, ConfigGenerateInputSchema, ConfigValidateInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -104,10 +105,83 @@ const libInstallProcedure = createProcedure()
 })
     .build();
 // =============================================================================
+// Config Procedure Schemas
+// =============================================================================
+const configInitInputSchema = zodAdapter(ConfigInitInputSchema);
+const configInitOutputSchema = outputSchema();
+const configAddInputSchema = zodAdapter(ConfigAddInputSchema);
+const configAddOutputSchema = outputSchema();
+const configRemoveInputSchema = zodAdapter(ConfigRemoveInputSchema);
+const configRemoveOutputSchema = outputSchema();
+const configGenerateInputSchema = zodAdapter(ConfigGenerateInputSchema);
+const configGenerateOutputSchema = outputSchema();
+const configValidateInputSchema = zodAdapter(ConfigValidateInputSchema);
+const configValidateOutputSchema = outputSchema();
+// =============================================================================
+// Config Procedure Definitions
+// =============================================================================
+const configInitProcedure = createProcedure()
+    .path(["config", "init"])
+    .input(configInitInputSchema)
+    .output(configInitOutputSchema)
+    .meta({ description: "Initialize project with dependencies.json using a preset" })
+    .handler(async (input) => {
+    return configInit(input);
+})
+    .build();
+const configAddProcedure = createProcedure()
+    .path(["config", "add"])
+    .input(configAddInputSchema)
+    .output(configAddOutputSchema)
+    .meta({ description: "Add a feature to dependencies.json" })
+    .handler(async (input) => {
+    return configAdd(input);
+})
+    .build();
+const configRemoveProcedure = createProcedure()
+    .path(["config", "remove"])
+    .input(configRemoveInputSchema)
+    .output(configRemoveOutputSchema)
+    .meta({ description: "Remove a feature from dependencies.json" })
+    .handler(async (input) => {
+    return configRemove(input);
+})
+    .build();
+const configGenerateProcedure = createProcedure()
+    .path(["config", "generate"])
+    .input(configGenerateInputSchema)
+    .output(configGenerateOutputSchema)
+    .meta({ description: "Generate package.json, tsconfig.json, .gitignore from dependencies.json" })
+    .handler(async (input) => {
+    return configGenerate(input);
+})
+    .build();
+const configValidateProcedure = createProcedure()
+    .path(["config", "validate"])
+    .input(configValidateInputSchema)
+    .output(configValidateOutputSchema)
+    .meta({ description: "Validate dependencies.json against schema" })
+    .handler(async (input) => {
+    return configValidate(input);
+})
+    .build();
+// =============================================================================
 // Registration
 // =============================================================================
 export function registerCliProcedures() {
-    registerProcedures([libScanProcedure, libRefreshProcedure, libRenameProcedure, libInstallProcedure]);
+    registerProcedures([
+        // lib procedures
+        libScanProcedure,
+        libRefreshProcedure,
+        libRenameProcedure,
+        libInstallProcedure,
+        // config procedures
+        configInitProcedure,
+        configAddProcedure,
+        configRemoveProcedure,
+        configGenerateProcedure,
+        configValidateProcedure,
+    ]);
 }
 // Auto-register when this module is loaded
 registerCliProcedures();

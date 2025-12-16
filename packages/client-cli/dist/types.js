@@ -37,4 +37,47 @@ export const LibInstallInputSchema = z.object({
     /** Max parallel operations */
     concurrency: z.number().default(4),
 });
+// =============================================================================
+// config.init Types
+// =============================================================================
+export const ConfigInitInputSchema = z.object({
+    /** Project path (defaults to cwd) */
+    path: z.string().optional(),
+    /** Preset to use (lib, react-lib, app) */
+    preset: z.string().optional(),
+    /** Force overwrite existing dependencies.json */
+    force: z.boolean().default(false),
+});
+// =============================================================================
+// config.add Types
+// =============================================================================
+export const ConfigAddInputSchema = z.object({
+    /** Feature to add */
+    feature: z.string(),
+    /** Project path (defaults to cwd) */
+    path: z.string().optional(),
+});
+// =============================================================================
+// config.remove Types
+// =============================================================================
+export const ConfigRemoveInputSchema = z.object({
+    /** Feature to remove */
+    feature: z.string(),
+    /** Project path (defaults to cwd) */
+    path: z.string().optional(),
+});
+// =============================================================================
+// config.generate Types
+// =============================================================================
+export const ConfigGenerateInputSchema = z.object({
+    /** Project path (defaults to cwd) */
+    path: z.string().optional(),
+});
+// =============================================================================
+// config.validate Types
+// =============================================================================
+export const ConfigValidateInputSchema = z.object({
+    /** Project path (defaults to cwd) */
+    path: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map
