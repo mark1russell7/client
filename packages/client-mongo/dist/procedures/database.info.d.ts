@@ -2,7 +2,7 @@
  * Procedure: mongo.database.info
  * Get database information and statistics
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type DatabaseInfo } from "../types.js";
 interface InfoInput {
     [key: string]: never;

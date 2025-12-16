@@ -53,7 +53,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "client": "github:mark1russell7/client#main",
-    "mongodb": "^7.0.0"
+    "mongodb": "^7.0.0",
+    "@mark1russell7/client": "github:mark1russell7/client#main"
   }
 }

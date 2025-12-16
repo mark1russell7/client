@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.count
  * Count documents matching a filter
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type DocumentQuery } from "../types.js";
 interface CountInput {
     query?: DocumentQuery;

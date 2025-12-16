@@ -2,7 +2,7 @@
  * Procedure: mongo.database.ping
  * Health check and connectivity test
  */
-import { createProcedure } from "client";
+import { createProcedure } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { getBaseMeta } from "../types.js";

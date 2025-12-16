@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.get
  * Get a single document by ID
  */
-import { createProcedure } from "client";
+import { createProcedure } from "@mark1russell7/client";
 import { ObjectId } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";

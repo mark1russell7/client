@@ -2,7 +2,7 @@
  * Procedure: mongo.indexes.drop
  * Drop an index from a collection
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 interface DropIndexInput {
     indexName: string;
 }

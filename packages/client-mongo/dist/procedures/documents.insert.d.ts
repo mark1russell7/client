@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.insert
  * Insert one or more documents
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type MongoDocument } from "../types.js";
 interface InsertInput {
     /** Single document or array of documents */

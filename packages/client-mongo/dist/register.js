@@ -4,7 +4,7 @@
  * Registers MongoDB procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
  */
-import { registerProcedures } from "client";
+import { registerProcedures } from "@mark1russell7/client";
 // Import all procedures
 import { pingProcedure } from "./procedures/database.ping.js";
 import { infoProcedure } from "./procedures/database.info.js";

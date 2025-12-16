@@ -2,7 +2,7 @@
  * Procedure: mongo.collections.stats
  * Get collection statistics
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type CollectionStats } from "../types.js";
 interface StatsInput {
     [key: string]: never;

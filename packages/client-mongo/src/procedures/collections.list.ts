@@ -3,7 +3,7 @@
  * List all collections in the database
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "client";
+import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { getBaseMeta } from "../types.js";

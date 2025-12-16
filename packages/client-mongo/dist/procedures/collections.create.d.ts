@@ -2,7 +2,7 @@
  * Procedure: mongo.collections.create
  * Create a new collection
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type CollectionOptions } from "../types.js";
 interface CreateInput {
     name: string;

@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.delete
  * Delete documents matching a filter
  */
-import { createProcedure } from "client";
+import { createProcedure } from "@mark1russell7/client";
 import { ObjectId } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";

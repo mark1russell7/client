@@ -3,7 +3,7 @@
  * Drop (delete) a collection
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "client";
+import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { requireCollection } from "../types.js";

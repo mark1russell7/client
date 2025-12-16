@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.aggregate
  * Run an aggregation pipeline
  */
-import { createProcedure } from "client";
+import { createProcedure } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { requireCollection, } from "../types.js";

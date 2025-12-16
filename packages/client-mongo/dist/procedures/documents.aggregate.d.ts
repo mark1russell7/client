@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.aggregate
  * Run an aggregation pipeline
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type AggregationStage, type AggregationOptions, type MongoDocument } from "../types.js";
 interface AggregateInput {
     pipeline: AggregationStage[];

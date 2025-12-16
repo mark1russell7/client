@@ -2,7 +2,7 @@
  * Procedure: mongo.collections.drop
  * Drop (delete) a collection
  */
-import { createProcedure } from "client";
+import { createProcedure } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { requireCollection } from "../types.js";

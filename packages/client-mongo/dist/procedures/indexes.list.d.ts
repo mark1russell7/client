@@ -2,7 +2,7 @@
  * Procedure: mongo.indexes.list
  * List indexes on a collection
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type IndexInfo } from "../types.js";
 interface ListIndexesInput {
     [key: string]: never;

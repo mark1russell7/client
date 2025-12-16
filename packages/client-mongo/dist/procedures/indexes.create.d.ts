@@ -2,7 +2,7 @@
  * Procedure: mongo.indexes.create
  * Create an index on a collection
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type IndexSpec, type IndexOptions } from "../types.js";
 interface CreateIndexInput {
     keys: IndexSpec;

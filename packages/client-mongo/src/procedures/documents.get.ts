@@ -3,7 +3,7 @@
  * Get a single document by ID
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "client";
+import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { ObjectId, type Document } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";

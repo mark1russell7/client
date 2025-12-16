@@ -2,7 +2,7 @@
  * Procedure: mongo.collections.list
  * List all collections in the database
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 interface ListInput {
     [key: string]: never;
 }

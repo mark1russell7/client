@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { registerProcedures, type AnyProcedure } from "client";
+import { registerProcedures, type AnyProcedure } from "@mark1russell7/client";
 
 // Import all procedures
 import { pingProcedure } from "./procedures/database.ping.js";

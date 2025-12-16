@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.find
  * Find documents with pagination and filtering
  */
-import { createProcedure } from "client";
+import { createProcedure } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { requireCollection, } from "../types.js";

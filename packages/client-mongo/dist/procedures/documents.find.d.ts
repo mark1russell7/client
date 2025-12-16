@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.find
  * Find documents with pagination and filtering
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type PaginationOutput, type DocumentQuery, type SortSpec, type MongoDocument } from "../types.js";
 interface FindInput {
     query?: DocumentQuery;

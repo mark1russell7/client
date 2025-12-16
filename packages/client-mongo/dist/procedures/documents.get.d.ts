@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.get
  * Get a single document by ID
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type MongoDocument } from "../types.js";
 interface GetInput {
     id: string;

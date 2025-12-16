@@ -2,7 +2,7 @@
  * Procedure: mongo.collections.drop
  * Drop (delete) a collection
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 interface DropInput {
     /** Confirmation required to prevent accidental drops */
     confirm: boolean;

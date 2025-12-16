@@ -2,7 +2,7 @@
  * Procedure: mongo.documents.update
  * Update documents matching a filter
  */
-import { type Procedure } from "client";
+import { type Procedure } from "@mark1russell7/client";
 import { type DocumentQuery, type DocumentUpdate } from "../types.js";
 interface UpdateInput {
     /** Filter to match documents (or id for single document) */
