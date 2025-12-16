@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client-server",
+  "version": "1.0.0",
+  "description": "Transport-agnostic peer for bidirectional RPC - exposes procedures and generates manifests",
+  "license": "MIT",
+  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./procedures": {
+      "types": "./dist/procedures/index.d.ts",
+      "import": "./dist/procedures/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "prepare": "npm run build",
+    "postinstall": "client announce"
+  },
+  "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "keywords": [
+    "server",
+    "client",
+    "procedures",
+    "rpc",
+    "bidirectional",
+    "peer"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mark1russell7/client-server.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "zod-to-json-schema": "^3.24.5"
+  }
+}
