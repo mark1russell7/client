@@ -30,7 +30,39 @@ export type {
 export { createPeer, type Peer, type PeerOptions, type PeerEndpoint } from "./peer/index.js";
 
 // Procedures
-export { serverCreateProcedure, getPeer, getActivePeerIds } from "./procedures/index.js";
+export {
+  serverCreateProcedure,
+  getPeer,
+  getActivePeerIds,
+  serverConnectProcedure,
+  serverDisconnectProcedure,
+  manifestGenerateProcedure,
+} from "./procedures/index.js";
+
+// Manifest generation
+export {
+  generateTypeScript,
+  generateJson,
+  generateJsonString,
+  type ProcedureManifest,
+} from "./manifest/index.js";
+
+// Connection
+export {
+  connect,
+  disconnect,
+  getConnection,
+  getConnectionIds,
+  type Connection,
+  type ConnectOptions,
+} from "./connection/index.js";
+
+// Discovery
+export {
+  discoveryAnnounceProcedure,
+  getProcedureInfos,
+  watchProcedures,
+} from "./discovery/index.js";
 
 // Registration
 export { procedures, registerServerProcedures } from "./register.js";
