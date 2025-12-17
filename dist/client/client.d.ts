@@ -29,6 +29,8 @@ import type { CallOptions, ClientContextInput } from "./context.js";
 import type { ZodLike } from "./validation/types.js";
 import type { Route, CallRequest, CallResponse, StreamingCallResponse } from "./call-types.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
+import type { ProcedurePath } from "../procedures/types.js";
+import { type AnyProcedureRef } from "../procedures/ref.js";
 /**
  * Universal Client for protocol-agnostic RPC.
  *
@@ -188,6 +190,56 @@ export declare class Client<TContext = {}> {
      * ```
      */
     call<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): Promise<TRes>;
+    /**
+     * Execute a procedure reference with automatic input hydration.
+     *
+     * This method supports procedure-as-data: procedures can be passed as inputs
+     * to other procedures, composed declaratively via JSON, or imperatively via TypeScript.
+     *
+     * **Input Hydration**: Any ProcedureRef or `$proc` objects in the input tree
+     * are automatically executed and replaced with their results before the
+     * main procedure runs.
+     *
+     * @param refOrPath - Procedure reference, JSON procedure ref, or procedure path
+     * @param input - Input for the procedure (only if path is provided)
+     * @returns Output of the procedure
+     *
+     * @example
+     * ```typescript
+     * import { proc } from "@mark1russell7/client";
+     *
+     * // Using proc() builder
+     * const result = await client.exec(
+     *   proc(["git", "add"]).input({ all: true }).build()
+     * );
+     *
+     * // Using JSON format
+     * const result = await client.exec({
+     *   $proc: ["git", "add"],
+     *   input: { all: true },
+     * });
+     *
+     * // Using path + input (simple form)
+     * const result = await client.exec(["git", "add"], { all: true });
+     *
+     * // Nested procedure refs (hydrated automatically)
+     * const result = await client.exec(
+     *   proc(["dag", "traverse"]).input({
+     *     visit: proc(["client", "chain"]).input({
+     *       steps: [
+     *         proc(["git", "add"]).input({ all: true }).ref,
+     *         proc(["git", "commit"]).input({ message: "auto" }).ref,
+     *       ],
+     *     }).ref,
+     *   }).build()
+     * );
+     * ```
+     */
+    exec<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown): Promise<TOutput>;
+    /**
+     * Internal procedure execution (no hydration).
+     */
+    private execInternal;
     /**
      * Make a streaming RPC call.
      *

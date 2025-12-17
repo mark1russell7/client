@@ -124,6 +124,36 @@ export {
   registerModule,
   registerProcedures,
   createAndRegister,
+  // Procedure reference system (procedure-as-data)
+  PROCEDURE_SYMBOL,
+  PROCEDURE_JSON_KEY,
+  isProcedureRef,
+  isProcedureRefJson,
+  isAnyProcedureRef,
+  proc,
+  ProcedureRefBuilder,
+  fromJson,
+  toJson,
+  normalizeRef,
+  hydrateInput,
+  extractTemplate,
+  parseProcedureJson,
+  stringifyProcedureJson,
+  // Core language procedures
+  coreProcedures,
+  coreModule,
+  chainProcedure,
+  parallelProcedure,
+  conditionalProcedure,
+  andProcedure,
+  orProcedure,
+  notProcedure,
+  mapProcedure,
+  reduceProcedure,
+  identityProcedure,
+  constantProcedure,
+  throwProcedure,
+  tryCatchProcedure,
 } from "./procedures/index.js";
 
 export type {
@@ -145,6 +175,12 @@ export type {
   InferProcedureMetadata,
   RegistryEventType,
   RegistryListener,
+  // Procedure reference types (procedure-as-data)
+  ProcedureRef,
+  ProcedureRefJson,
+  AnyProcedureRef,
+  RefExecutor,
+  HydrateOptions,
 } from "./procedures/index.js";
 
 // ============================================================================
