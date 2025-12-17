@@ -301,6 +301,14 @@ export declare const LibAuditInputSchema: z.ZodObject<{
     fix: z.ZodDefault<z.ZodBoolean>;
 }>;
 export type LibAuditInput = z.infer<typeof LibAuditInputSchema>;
+export interface PnpmIssue {
+    /** Type of pnpm issue */
+    type: "missing-onlyBuiltDependencies" | "npm-lockfile" | "missing-pnpm-config";
+    /** Description of the issue */
+    message: string;
+    /** Package that needs to be added to onlyBuiltDependencies */
+    package?: string;
+}
 export interface PackageAuditResult {
     /** Package name */
     name: string;
@@ -312,6 +320,8 @@ export interface PackageAuditResult {
     missingFiles: string[];
     /** Missing required directories */
     missingDirs: string[];
+    /** pnpm configuration issues */
+    pnpmIssues: PnpmIssue[];
     /** Files that were fixed (if fix=true) */
     fixedFiles?: string[];
     /** Dirs that were fixed (if fix=true) */

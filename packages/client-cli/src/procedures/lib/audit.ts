@@ -13,6 +13,7 @@ import type {
   LibAuditInput,
   LibAuditOutput,
   PackageAuditResult,
+  PnpmIssue,
 } from "../../types.js";
 
 /**
@@ -48,6 +49,80 @@ async function pathExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Package.json structure for pnpm validation
+ */
+interface PackageJson {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  pnpm?: {
+    onlyBuiltDependencies?: string[];
+  };
+}
+
+/**
+ * Check for pnpm configuration issues
+ */
+async function checkPnpmIssues(pkgPath: string): Promise<PnpmIssue[]> {
+  const issues: PnpmIssue[] = [];
+
+  // Check for npm lockfile (should use pnpm)
+  const npmLockPath = join(pkgPath, "package-lock.json");
+  if (await pathExists(npmLockPath)) {
+    issues.push({
+      type: "npm-lockfile",
+      message: "Found package-lock.json - should use pnpm-lock.yaml instead",
+    });
+  }
+
+  // Read package.json to check for GitHub deps
+  const pkgJsonPath = join(pkgPath, "package.json");
+  if (!(await pathExists(pkgJsonPath))) {
+    return issues;
+  }
+
+  let pkgJson: PackageJson;
+  try {
+    const content = await readFile(pkgJsonPath, "utf-8");
+    pkgJson = JSON.parse(content) as PackageJson;
+  } catch {
+    return issues;
+  }
+
+  // Find GitHub dependencies that need build scripts
+  const allDeps = {
+    ...pkgJson.dependencies,
+    ...pkgJson.devDependencies,
+  };
+
+  const githubDeps: string[] = [];
+  for (const [name, version] of Object.entries(allDeps)) {
+    if (version.includes("github:") || version.includes("git+") || version.includes("git://")) {
+      githubDeps.push(name);
+    }
+  }
+
+  if (githubDeps.length === 0) {
+    return issues;
+  }
+
+  // Check if pnpm.onlyBuiltDependencies includes these packages
+  const allowedBuilt = pkgJson.pnpm?.onlyBuiltDependencies ?? [];
+
+  for (const dep of githubDeps) {
+    if (!allowedBuilt.includes(dep)) {
+      issues.push({
+        type: "missing-onlyBuiltDependencies",
+        message: `GitHub dependency "${dep}" needs pnpm.onlyBuiltDependencies entry`,
+        package: dep,
+      });
+    }
+  }
+
+  return issues;
 }
 
 /**
@@ -119,16 +194,23 @@ async function auditPackage(
     }
   }
 
+  // Check pnpm configuration
+  const pnpmIssues = await checkPnpmIssues(pkgPath);
+
   // Remove fixed items from missing lists
   const stillMissingFiles = missingFiles.filter((f) => !fixedFiles.includes(f));
   const stillMissingDirs = missingDirs.filter((d) => !fixedDirs.includes(d));
 
+  // Package is valid only if no missing files/dirs AND no pnpm issues
+  const isValid = stillMissingFiles.length === 0 && stillMissingDirs.length === 0 && pnpmIssues.length === 0;
+
   return {
     name: pkgName,
     path: pkgPath,
-    valid: stillMissingFiles.length === 0 && stillMissingDirs.length === 0,
+    valid: isValid,
     missingFiles: stillMissingFiles,
     missingDirs: stillMissingDirs,
+    pnpmIssues,
     ...(fix && fixedFiles.length > 0 ? { fixedFiles } : {}),
     ...(fix && fixedDirs.length > 0 ? { fixedDirs } : {}),
   };
@@ -170,6 +252,7 @@ export async function libAudit(input: LibAuditInput): Promise<LibAuditOutput> {
         valid: false,
         missingFiles: ["(package not cloned)"],
         missingDirs: [],
+        pnpmIssues: [],
       });
       continue;
     }
