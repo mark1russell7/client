@@ -51,5 +51,12 @@
   "engines": {
     "node": ">=25.0.0",
     "npm": ">=11.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/splay"
+    ]
   }
 }
