@@ -28,12 +28,9 @@ export const procedureListProcedure = defineProcedure({
     metadata: {
         description: "List all registered procedures",
         tags: ["procedure", "registry"],
-        cli: {
-            options: {
-                namespace: { short: "n", description: "Filter by namespace prefix" },
-                includeMetadata: { short: "m", description: "Include full metadata" },
-            },
-        },
+        args: [],
+        shorts: { namespace: "n", includeMetadata: "m" },
+        output: "json",
     },
     handler: async (input) => {
         const all = PROCEDURE_REGISTRY.getAll();
@@ -71,9 +68,9 @@ export const procedureGetProcedure = defineProcedure({
     metadata: {
         description: "Get a procedure definition by path",
         tags: ["procedure", "registry"],
-        cli: {
-            positional: ["path"],
-        },
+        args: ["path"],
+        shorts: {},
+        output: "json",
     },
     handler: async (input) => {
         const path = typeof input.path === "string"
@@ -107,10 +104,9 @@ export const procedureExportProcedure = defineProcedure({
     metadata: {
         description: "Export a procedure definition as JSON",
         tags: ["procedure", "registry"],
-        cli: {
-            positional: ["path"],
-            output: "json",
-        },
+        args: ["path"],
+        shorts: {},
+        output: "json",
     },
     handler: async (input) => {
         const path = typeof input.path === "string"
