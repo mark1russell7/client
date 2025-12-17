@@ -48,11 +48,11 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/express": "^5.0.0",
-    "@types/ws": "^8.18.1"
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.7.0"
   },
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0",

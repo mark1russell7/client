@@ -108,3 +108,16 @@ export type {
 } from "./types.js";
 
 export { ClientError } from "./types.js";
+
+// Typed Caller
+export { createTypedCaller } from "./typed.js";
+export type {
+  TypedCaller,
+  BaseCaller,
+  ProcedureDef,
+  ProcedureNamespace,
+  ProcedurePaths,
+  PathInput,
+  PathOutput,
+  MergeProcedures,
+} from "./typed.js";

@@ -40,4 +40,6 @@ export { mergeContext, normalizeCallOptions, isCallOptions } from "./context.js"
 export type { CallOptions, ClientContextInput, MiddlewareContextFields, SchemaOverride } from "./context.js";
 export type { Transport, Method, Metadata, Message, ResponseItem, Status, ClientContext, ClientRunner, ClientMiddleware, ClientOptions, } from "./types.js";
 export { ClientError } from "./types.js";
+export { createTypedCaller } from "./typed.js";
+export type { TypedCaller, BaseCaller, ProcedureDef, ProcedureNamespace, ProcedurePaths, PathInput, PathOutput, MergeProcedures, } from "./typed.js";
 //# sourceMappingURL=index.d.ts.map
