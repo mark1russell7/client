@@ -49,6 +49,44 @@ export {
   getBaseMeta,
 } from "./types.js";
 
+// Typed procedures interface for autocomplete
+export type {
+  MongoProcedures,
+  ProcedureInput,
+  ProcedureOutput,
+  // Individual procedure types
+  PingInput,
+  PingOutput,
+  InfoInput,
+  ListCollectionsInput,
+  ListCollectionsOutput,
+  CreateCollectionInput,
+  CreateCollectionOutput,
+  DropCollectionInput,
+  DropCollectionOutput,
+  StatsInput,
+  FindInput,
+  FindOutput,
+  GetInput,
+  GetOutput,
+  InsertInput,
+  InsertOutput,
+  UpdateInput,
+  UpdateOutput,
+  DeleteInput,
+  DeleteOutput,
+  CountInput,
+  CountOutput,
+  AggregateInput,
+  AggregateOutput,
+  ListIndexesInput,
+  ListIndexesOutput,
+  CreateIndexInput,
+  CreateIndexOutput,
+  DropIndexInput,
+  DropIndexOutput,
+} from "./procedures.types.js";
+
 export type {
   // Common
   PaginationInput,

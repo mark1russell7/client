@@ -55,5 +55,11 @@
   "dependencies": {
     "mongodb": "^7.0.0",
     "@mark1russell7/client": "github:mark1russell7/client#main"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client"
+    ]
   }
 }
