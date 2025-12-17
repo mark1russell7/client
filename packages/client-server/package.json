@@ -61,5 +61,11 @@
   },
   "optionalDependencies": {
     "express": "^5.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client"
+    ]
   }
 }
