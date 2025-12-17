@@ -10,14 +10,14 @@ importers:
     dependencies:
       '@mark1russell7/client':
         specifier: github:mark1russell7/client#main
-        version: https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68
       mongodb:
         specifier: ^7.0.0
         version: 7.0.0
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.3
@@ -27,8 +27,8 @@ importers:
 
 packages:
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658}
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68}
     version: 1.0.0
     engines: {node: '>=20'}
     hasBin: true
@@ -41,14 +41,14 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
 
-  '@mongodb-js/saslprep@1.4.3':
-    resolution: {integrity: sha512-9ovU6/3DzvahMYWOA3kZQNWqAfrFFXz+jucNHQ9HcVfBfalYJDncqs/RIgzEzfI4G3kBcCMfS8eDw/gunwfoqA==}
+  '@mongodb-js/saslprep@1.4.4':
+    resolution: {integrity: sha512-p7X/ytJDIdwUfFL/CLOhKgdfJe1Fa8uw9seJYvdOmnP9JBWGWHW69HkOixXS6Wy9yvGf1MbhcS6lVmrhy4jm2g==}
 
   '@types/node@22.19.3':
     resolution: {integrity: sha512-1N9SBnWYOJTrNZCdh/yJE+t910Y128BoyY+zBLWhL3r0TYzlTmFdXrPwHL9DyFZmlEXNQQolTZh3KHV31QDhyA==}
@@ -138,16 +138,16 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658':
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68':
     dependencies:
       ws: 8.18.3
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f': {}
 
-  '@mongodb-js/saslprep@1.4.3':
+  '@mongodb-js/saslprep@1.4.4':
     dependencies:
       sparse-bitfield: 3.0.3
 
@@ -172,7 +172,7 @@ snapshots:
 
   mongodb@7.0.0:
     dependencies:
-      '@mongodb-js/saslprep': 1.4.3
+      '@mongodb-js/saslprep': 1.4.4
       bson: 7.0.0
       mongodb-connection-string-url: 7.0.0
 
