@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "lib-refresh-schema",
+  "title": "Refresh a package",
+  "type": "object",
+  "properties": {
+    "packagePath": {
+      "type": "string",
+      "description": "Absolute path to the package to refresh"
+    },
+    "packageName": {
+      "type": "string",
+      "description": "Name of the package"
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Force full cleanup (rm node_modules, dist, lock) before install",
+      "default": false
+    },
+    "skipGit": {
+      "type": "boolean",
+      "description": "Skip git commit/push",
+      "default": false
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Preview changes without applying",
+      "default": false
+    }
+  },
+  "required": ["packagePath", "packageName"]
+}

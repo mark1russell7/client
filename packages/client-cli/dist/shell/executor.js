@@ -53,16 +53,16 @@ export function executeCommand(command, args = [], options = {}) {
     });
 }
 /**
- * Execute npm install
+ * Execute pnpm install
  */
-export async function npmInstall(cwd) {
-    return executeCommand("npm", ["install"], { cwd, timeout: 300000 });
+export async function pnpmInstall(cwd) {
+    return executeCommand("pnpm", ["install"], { cwd, timeout: 300000 });
 }
 /**
- * Execute npm run build
+ * Execute pnpm run build
  */
-export async function npmBuild(cwd) {
-    return executeCommand("npm", ["run", "build"], { cwd, timeout: 120000 });
+export async function pnpmBuild(cwd) {
+    return executeCommand("pnpm", ["run", "build"], { cwd, timeout: 120000 });
 }
 /**
  * Remove a directory recursively

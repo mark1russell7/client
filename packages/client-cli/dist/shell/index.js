@@ -1,5 +1,5 @@
 /**
  * Shell utilities
  */
-export { executeCommand, npmInstall, npmBuild, removeDir, removeFile, } from "./executor.js";
+export { executeCommand, pnpmInstall, pnpmBuild, removeDir, removeFile, } from "./executor.js";
 //# sourceMappingURL=index.js.map

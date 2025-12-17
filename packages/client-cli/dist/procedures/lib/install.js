@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { clone } from "../../git/index.js";
 import { buildDAGNodes, buildLeveledDAG, executeDAG, createProcessor } from "../../dag/index.js";
-import { npmInstall, npmBuild } from "../../shell/index.js";
+import { pnpmInstall, pnpmBuild } from "../../shell/index.js";
 import { libScan } from "./scan.js";
 /**
  * Resolve ~ to home directory
@@ -127,15 +127,15 @@ export async function libInstall(input) {
     // Phase 3: Install and build in DAG order
     const processor = createProcessor(async (node) => {
         const pkgStartTime = Date.now();
-        // npm install
-        const installResult = await npmInstall(node.repoPath);
+        // pnpm install
+        const installResult = await pnpmInstall(node.repoPath);
         if (!installResult.success) {
-            throw new Error(`npm install failed: ${installResult.stderr}`);
+            throw new Error(`pnpm install failed: ${installResult.stderr}`);
         }
-        // npm run build
-        const buildResult = await npmBuild(node.repoPath);
+        // pnpm run build
+        const buildResult = await pnpmBuild(node.repoPath);
         if (!buildResult.success) {
-            throw new Error(`npm run build failed: ${buildResult.stderr}`);
+            throw new Error(`pnpm run build failed: ${buildResult.stderr}`);
         }
         results.push({
             name: node.name,

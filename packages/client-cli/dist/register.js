@@ -9,8 +9,11 @@ import { libScan } from "./procedures/lib/scan.js";
 import { libRefresh } from "./procedures/lib/refresh.js";
 import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
 import { libInstall } from "./procedures/lib/install.js";
+import { libNew } from "./procedures/lib/new.js";
+import { libAudit } from "./procedures/lib/audit.js";
+import { procedureNew } from "./procedures/procedure/new.js";
 import { configInit, configAdd, configRemove, configGenerate, configValidate, } from "./procedures/config/index.js";
-import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, ConfigInitInputSchema, ConfigAddInputSchema, ConfigRemoveInputSchema, ConfigGenerateInputSchema, ConfigValidateInputSchema, } from "./types.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, ConfigInitInputSchema, ConfigAddInputSchema, ConfigRemoveInputSchema, ConfigGenerateInputSchema, ConfigValidateInputSchema, ProcedureNewInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -62,7 +65,12 @@ const libScanProcedure = createProcedure()
     .path(["lib", "scan"])
     .input(libScanInputSchema)
     .output(libScanOutputSchema)
-    .meta({ description: "Scan ~/git for packages and build package-to-repo mapping" })
+    .meta({
+    description: "Scan ~/git for packages and build package-to-repo mapping",
+    args: ["rootPath"],
+    shorts: {},
+    output: "json",
+})
     .handler(async (input) => {
     return libScan(input);
 })
@@ -72,7 +80,17 @@ const libRefreshProcedure = createProcedure()
     .input(libRefreshInputSchema)
     .output(libRefreshOutputSchema)
     .meta({
-    description: "Refresh a library (clean, install, build, commit). Use --recursive for dependencies.",
+    description: "Refresh a library (install, build, commit). Use -f for full cleanup, -d for dry-run.",
+    args: ["path"],
+    shorts: {
+        recursive: "r",
+        all: "a",
+        force: "f",
+        skipGit: "g",
+        autoConfirm: "y",
+        dryRun: "d",
+    },
+    output: "streaming",
 })
     .handler(async (input) => {
     return libRefresh(input);
@@ -85,7 +103,10 @@ const libRenameProcedure = createProcedure()
     .input(libRenameInputSchema)
     .output(libRenameOutputSchema)
     .meta({
-    description: "Rename a package across the codebase using ts-morph for AST-based import updates.",
+    description: "Rename a package across the codebase (AST-based import updates)",
+    args: ["oldName", "newName"],
+    shorts: { rootPath: "r", dryRun: "d" },
+    output: "text",
 })
     .handler(async (input) => {
     return libRename(input);
@@ -98,10 +119,45 @@ const libInstallProcedure = createProcedure()
     .input(libInstallInputSchema)
     .output(libInstallOutputSchema)
     .meta({
-    description: "Install the entire ecosystem from manifest (clone missing, install deps, build in DAG order).",
+    description: "Install ecosystem from manifest (clone, install, build in DAG order)",
+    args: [],
+    shorts: { rootPath: "r", dryRun: "d", continueOnError: "c", concurrency: "j" },
+    output: "streaming",
 })
     .handler(async (input) => {
     return libInstall(input);
+})
+    .build();
+const libNewInputSchema = zodAdapter(LibNewInputSchema);
+const libNewOutputSchema = outputSchema();
+const libNewProcedure = createProcedure()
+    .path(["lib", "new"])
+    .input(libNewInputSchema)
+    .output(libNewOutputSchema)
+    .meta({
+    description: "Create a new package with standard ecosystem structure",
+    args: ["name"],
+    shorts: { preset: "p", skipGit: "g", skipManifest: "m", dryRun: "d" },
+    output: "text",
+})
+    .handler(async (input) => {
+    return libNew(input);
+})
+    .build();
+const libAuditInputSchema = zodAdapter(LibAuditInputSchema);
+const libAuditOutputSchema = outputSchema();
+const libAuditProcedure = createProcedure()
+    .path(["lib", "audit"])
+    .input(libAuditInputSchema)
+    .output(libAuditOutputSchema)
+    .meta({
+    description: "Audit all packages against ecosystem projectTemplate",
+    args: [],
+    shorts: { rootPath: "r", fix: "f" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return libAudit(input);
 })
     .build();
 // =============================================================================
@@ -124,7 +180,12 @@ const configInitProcedure = createProcedure()
     .path(["config", "init"])
     .input(configInitInputSchema)
     .output(configInitOutputSchema)
-    .meta({ description: "Initialize project with dependencies.json using a preset" })
+    .meta({
+    description: "Initialize project with dependencies.json using a preset",
+    args: [],
+    shorts: { preset: "p", force: "f" },
+    output: "text",
+})
     .handler(async (input) => {
     return configInit(input);
 })
@@ -133,7 +194,12 @@ const configAddProcedure = createProcedure()
     .path(["config", "add"])
     .input(configAddInputSchema)
     .output(configAddOutputSchema)
-    .meta({ description: "Add a feature to dependencies.json" })
+    .meta({
+    description: "Add a feature to dependencies.json",
+    args: ["feature"],
+    shorts: {},
+    output: "text",
+})
     .handler(async (input) => {
     return configAdd(input);
 })
@@ -142,7 +208,12 @@ const configRemoveProcedure = createProcedure()
     .path(["config", "remove"])
     .input(configRemoveInputSchema)
     .output(configRemoveOutputSchema)
-    .meta({ description: "Remove a feature from dependencies.json" })
+    .meta({
+    description: "Remove a feature from dependencies.json",
+    args: ["feature"],
+    shorts: {},
+    output: "text",
+})
     .handler(async (input) => {
     return configRemove(input);
 })
@@ -151,7 +222,12 @@ const configGenerateProcedure = createProcedure()
     .path(["config", "generate"])
     .input(configGenerateInputSchema)
     .output(configGenerateOutputSchema)
-    .meta({ description: "Generate package.json, tsconfig.json, .gitignore from dependencies.json" })
+    .meta({
+    description: "Generate package.json, tsconfig.json from dependencies.json",
+    args: [],
+    shorts: {},
+    output: "text",
+})
     .handler(async (input) => {
     return configGenerate(input);
 })
@@ -160,9 +236,36 @@ const configValidateProcedure = createProcedure()
     .path(["config", "validate"])
     .input(configValidateInputSchema)
     .output(configValidateOutputSchema)
-    .meta({ description: "Validate dependencies.json against schema" })
+    .meta({
+    description: "Validate dependencies.json against schema",
+    args: [],
+    shorts: {},
+    output: "text",
+})
     .handler(async (input) => {
     return configValidate(input);
+})
+    .build();
+// =============================================================================
+// Procedure Procedure Schemas
+// =============================================================================
+const procedureNewInputSchema = zodAdapter(ProcedureNewInputSchema);
+const procedureNewOutputSchema = outputSchema();
+// =============================================================================
+// Procedure Procedure Definitions
+// =============================================================================
+const procedureNewProcedure = createProcedure()
+    .path(["procedure", "new"])
+    .input(procedureNewInputSchema)
+    .output(procedureNewOutputSchema)
+    .meta({
+    description: "Scaffold a new procedure with types and registration boilerplate",
+    args: ["name"],
+    shorts: { namespace: "n", description: "d", path: "p", dryRun: "D" },
+    output: "text",
+})
+    .handler(async (input) => {
+    return procedureNew(input);
 })
     .build();
 // =============================================================================
@@ -175,12 +278,16 @@ export function registerCliProcedures() {
         libRefreshProcedure,
         libRenameProcedure,
         libInstallProcedure,
+        libNewProcedure,
+        libAuditProcedure,
         // config procedures
         configInitProcedure,
         configAddProcedure,
         configRemoveProcedure,
         configGenerateProcedure,
         configValidateProcedure,
+        // procedure procedures
+        procedureNewProcedure,
     ]);
 }
 // Auto-register when this module is loaded

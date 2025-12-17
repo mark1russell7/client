@@ -28,13 +28,13 @@ export interface ShellOptions {
  */
 export declare function executeCommand(command: string, args?: string[], options?: ShellOptions): Promise<ShellResult>;
 /**
- * Execute npm install
+ * Execute pnpm install
  */
-export declare function npmInstall(cwd: string): Promise<ShellResult>;
+export declare function pnpmInstall(cwd: string): Promise<ShellResult>;
 /**
- * Execute npm run build
+ * Execute pnpm run build
  */
-export declare function npmBuild(cwd: string): Promise<ShellResult>;
+export declare function pnpmBuild(cwd: string): Promise<ShellResult>;
 /**
  * Remove a directory recursively
  */

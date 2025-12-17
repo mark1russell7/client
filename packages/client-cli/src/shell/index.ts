@@ -4,8 +4,8 @@
 
 export {
   executeCommand,
-  npmInstall,
-  npmBuild,
+  pnpmInstall,
+  pnpmBuild,
   removeDir,
   removeFile,
 } from "./executor.js";

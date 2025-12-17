@@ -40,6 +40,11 @@ export type {
   LibRenameInput,
   LibRenameOutput,
   RenameChange,
+  LibNewInput,
+  LibNewOutput,
+  LibAuditInput,
+  LibAuditOutput,
+  PackageAuditResult,
   DAGNode,
   DependencyDAG,
   DAGExecutionOptions,
@@ -49,13 +54,13 @@ export type {
   GitStatus,
 } from "./types.js";
 
-export { LibScanInputSchema, LibRefreshInputSchema } from "./types.js";
+export { LibScanInputSchema, LibRefreshInputSchema, LibNewInputSchema, LibAuditInputSchema } from "./types.js";
 
 // =============================================================================
 // Procedures (for direct use)
 // =============================================================================
 
-export { libScan, libRefresh, libRename, LibRenameInputSchema } from "./procedures/lib/index.js";
+export { libScan, libRefresh, libRename, LibRenameInputSchema, libNew, libAudit } from "./procedures/lib/index.js";
 
 // =============================================================================
 // DAG utilities
@@ -102,8 +107,8 @@ export {
 
 export {
   executeCommand,
-  npmInstall,
-  npmBuild,
+  pnpmInstall,
+  pnpmBuild,
   removeDir,
   removeFile,
 } from "./shell/index.js";

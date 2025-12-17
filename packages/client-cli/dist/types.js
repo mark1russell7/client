@@ -25,6 +25,8 @@ export const LibRefreshInputSchema = z.object({
     skipGit: z.boolean().default(false),
     /** Non-interactive mode (auto-confirm) */
     autoConfirm: z.boolean().default(false),
+    /** Preview changes without applying */
+    dryRun: z.boolean().default(false),
     /** Session ID for log grouping */
     sessionId: z.string().optional(),
 });
@@ -83,5 +85,46 @@ export const ConfigGenerateInputSchema = z.object({
 export const ConfigValidateInputSchema = z.object({
     /** Project path (defaults to cwd) */
     path: z.string().optional(),
+});
+// =============================================================================
+// lib.new Types
+// =============================================================================
+export const LibNewInputSchema = z.object({
+    /** Package name (without @mark1russell7/ prefix) */
+    name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens"),
+    /** Feature preset to use */
+    preset: z.string().default("lib"),
+    /** Root path for packages (defaults to ~/git) */
+    rootPath: z.string().optional(),
+    /** Skip git init and GitHub repo creation */
+    skipGit: z.boolean().default(false),
+    /** Skip adding to ecosystem manifest */
+    skipManifest: z.boolean().default(false),
+    /** Preview changes without creating */
+    dryRun: z.boolean().default(false),
+});
+// =============================================================================
+// lib.audit Types
+// =============================================================================
+export const LibAuditInputSchema = z.object({
+    /** Root path for packages (defaults to ~/git) */
+    rootPath: z.string().optional(),
+    /** Attempt to fix issues (create missing files/dirs) */
+    fix: z.boolean().default(false),
+});
+// =============================================================================
+// procedure.new Types
+// =============================================================================
+export const ProcedureNewInputSchema = z.object({
+    /** Procedure name (e.g., "greet" or "user.create") */
+    name: z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/, "Name must be lowercase dot-separated segments"),
+    /** Namespace override (defaults to first segment of name) */
+    namespace: z.string().optional(),
+    /** Procedure description for CLI help */
+    description: z.string().optional(),
+    /** Project path (defaults to cwd) */
+    path: z.string().optional(),
+    /** Preview changes without creating */
+    dryRun: z.boolean().default(false),
 });
 //# sourceMappingURL=types.js.map

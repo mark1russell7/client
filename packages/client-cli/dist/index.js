@@ -25,11 +25,11 @@
  * });
  * ```
  */
-export { LibScanInputSchema, LibRefreshInputSchema } from "./types.js";
+export { LibScanInputSchema, LibRefreshInputSchema, LibNewInputSchema, LibAuditInputSchema } from "./types.js";
 // =============================================================================
 // Procedures (for direct use)
 // =============================================================================
-export { libScan, libRefresh, libRename, LibRenameInputSchema } from "./procedures/lib/index.js";
+export { libScan, libRefresh, libRename, LibRenameInputSchema, libNew, libAudit } from "./procedures/lib/index.js";
 // =============================================================================
 // DAG utilities
 // =============================================================================
@@ -41,7 +41,7 @@ export { parseGitRef, isGitRef, isMark1Russell7Ref, extractMark1Russell7Deps, ge
 // =============================================================================
 // Shell utilities
 // =============================================================================
-export { executeCommand, npmInstall, npmBuild, removeDir, removeFile, } from "./shell/index.js";
+export { executeCommand, pnpmInstall, pnpmBuild, removeDir, removeFile, } from "./shell/index.js";
 // =============================================================================
 // Registration
 // =============================================================================

@@ -2,9 +2,9 @@
  * lib.refresh procedure
  *
  * Refreshes a library by:
- * 1. rm -rf node_modules/, dist/, package-lock.json
- * 2. npm install
- * 3. npm run build
+ * 1. rm -rf node_modules/, dist/, pnpm-lock.yaml
+ * 2. pnpm install
+ * 3. pnpm run build
  * 4. git add -A && git commit && git push
  *
  * With --recursive, processes dependencies in post-order (bottom-up).
@@ -28,7 +28,7 @@ import {
   createProcessor,
 } from "../../dag/index.js";
 import { ensureBranch, stageAll, commit, push, getGitStatus } from "../../git/index.js";
-import { removeDir, removeFile, npmInstall, npmBuild } from "../../shell/index.js";
+import { removeDir, removeFile, pnpmInstall, pnpmBuild } from "../../shell/index.js";
 
 interface PackageJson {
   name?: string;
@@ -59,6 +59,7 @@ async function pathExists(path: string): Promise<boolean> {
 interface RefreshOptions {
   force?: boolean;
   skipGit?: boolean;
+  dryRun?: boolean;
 }
 
 /**
@@ -67,8 +68,9 @@ interface RefreshOptions {
  * @param pkgPath - Path to the package
  * @param packageName - Name of the package
  * @param options - Refresh options
- *   - force: If true, removes node_modules, dist, and package-lock.json before install
+ *   - force: If true, removes node_modules, dist, and pnpm-lock.yaml before install
  *   - skipGit: If true, skips git commit/push
+ *   - dryRun: If true, only reports what would be done without executing
  */
 async function refreshSinglePackage(
   pkgPath: string,
@@ -76,14 +78,68 @@ async function refreshSinglePackage(
   options: RefreshOptions = {}
 ): Promise<RefreshResult> {
   const startTime = Date.now();
-  const { force = false, skipGit = false } = options;
+  const { force = false, skipGit = false, dryRun = false } = options;
+  const plannedOperations: string[] = [];
 
+  // Dry-run mode: collect planned operations
+  if (dryRun) {
+    if (force) {
+      const nodeModulesPath = join(pkgPath, "node_modules");
+      const distPath = join(pkgPath, "dist");
+      const lockPath = join(pkgPath, "pnpm-lock.yaml");
+      const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
+
+      if (await pathExists(nodeModulesPath)) {
+        plannedOperations.push("DELETE node_modules/");
+      }
+      if (await pathExists(distPath)) {
+        plannedOperations.push("DELETE dist/");
+      }
+      if (await pathExists(lockPath)) {
+        plannedOperations.push("DELETE pnpm-lock.yaml");
+      }
+      if (await pathExists(tsBuildInfoPath)) {
+        plannedOperations.push("DELETE tsconfig.tsbuildinfo");
+      }
+    }
+
+    plannedOperations.push("RUN pnpm install");
+    plannedOperations.push("RUN pnpm run build");
+
+    if (!skipGit) {
+      try {
+        const status = await getGitStatus(pkgPath);
+        if (!status.isClean) {
+          plannedOperations.push("GIT add -A");
+          plannedOperations.push("GIT commit");
+          plannedOperations.push("GIT push");
+        } else {
+          plannedOperations.push("GIT (no changes to commit)");
+        }
+      } catch {
+        plannedOperations.push("GIT commit and push (if changes)");
+      }
+    } else {
+      plannedOperations.push("GIT (skipped)");
+    }
+
+    return {
+      name: packageName,
+      path: pkgPath,
+      success: true,
+      duration: Date.now() - startTime,
+      plannedOperations,
+    };
+  }
+
+  // Actual execution
   try {
     // Step 1: Cleanup (only if force is true)
     if (force) {
       const nodeModulesPath = join(pkgPath, "node_modules");
       const distPath = join(pkgPath, "dist");
-      const lockPath = join(pkgPath, "package-lock.json");
+      const lockPath = join(pkgPath, "pnpm-lock.yaml");
+      const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
 
       if (await pathExists(nodeModulesPath)) {
         const result = await removeDir(nodeModulesPath);
@@ -121,35 +177,49 @@ async function refreshSinglePackage(
             path: pkgPath,
             success: false,
             duration: Date.now() - startTime,
-            error: `Failed to remove package-lock.json: ${result.stderr}`,
+            error: `Failed to remove pnpm-lock.yaml: ${result.stderr}`,
+            failedPhase: "cleanup",
+          };
+        }
+      }
+
+      if (await pathExists(tsBuildInfoPath)) {
+        const result = await removeFile(tsBuildInfoPath);
+        if (!result.success) {
+          return {
+            name: packageName,
+            path: pkgPath,
+            success: false,
+            duration: Date.now() - startTime,
+            error: `Failed to remove tsconfig.tsbuildinfo: ${result.stderr}`,
             failedPhase: "cleanup",
           };
         }
       }
     }
 
-    // Step 2: npm install
-    const installResult = await npmInstall(pkgPath);
+    // Step 2: pnpm install
+    const installResult = await pnpmInstall(pkgPath);
     if (!installResult.success) {
       return {
         name: packageName,
         path: pkgPath,
         success: false,
         duration: Date.now() - startTime,
-        error: `npm install failed: ${installResult.stderr}`,
+        error: `pnpm install failed: ${installResult.stderr}`,
         failedPhase: "install",
       };
     }
 
-    // Step 3: npm run build
-    const buildResult = await npmBuild(pkgPath);
+    // Step 3: pnpm run build
+    const buildResult = await pnpmBuild(pkgPath);
     if (!buildResult.success) {
       return {
         name: packageName,
         path: pkgPath,
         success: false,
         duration: Date.now() - startTime,
-        error: `npm run build failed: ${buildResult.stderr}`,
+        error: `pnpm run build failed: ${buildResult.stderr}`,
         failedPhase: "build",
       };
     }
@@ -205,6 +275,7 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
   const refreshOpts: RefreshOptions = {
     force: input.force,
     skipGit: input.skipGit,
+    dryRun: input.dryRun,
   };
 
   // Scan for all packages first (needed for --all and --recursive)

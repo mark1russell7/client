@@ -48,6 +48,7 @@ export const LibRefreshInputSchema: z.ZodObject<{
   force: z.ZodDefault<z.ZodBoolean>;
   skipGit: z.ZodDefault<z.ZodBoolean>;
   autoConfirm: z.ZodDefault<z.ZodBoolean>;
+  dryRun: z.ZodDefault<z.ZodBoolean>;
   sessionId: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Path to the library to refresh */
@@ -62,6 +63,8 @@ export const LibRefreshInputSchema: z.ZodObject<{
   skipGit: z.boolean().default(false),
   /** Non-interactive mode (auto-confirm) */
   autoConfirm: z.boolean().default(false),
+  /** Preview changes without applying */
+  dryRun: z.boolean().default(false),
   /** Session ID for log grouping */
   sessionId: z.string().optional(),
 });
@@ -81,6 +84,8 @@ export interface RefreshResult {
   error?: string;
   /** Phase where failure occurred */
   failedPhase?: "cleanup" | "install" | "build" | "git";
+  /** Planned operations (for dry-run mode) */
+  plannedOperations?: string[];
 }
 
 export interface LibRefreshOutput {
@@ -398,4 +403,138 @@ export interface ConfigValidateOutput {
   valid: boolean;
   errors: string[];
   output?: string;
+}
+
+// =============================================================================
+// lib.new Types
+// =============================================================================
+
+export const LibNewInputSchema: z.ZodObject<{
+  name: z.ZodString;
+  preset: z.ZodDefault<z.ZodString>;
+  rootPath: z.ZodOptional<z.ZodString>;
+  skipGit: z.ZodDefault<z.ZodBoolean>;
+  skipManifest: z.ZodDefault<z.ZodBoolean>;
+  dryRun: z.ZodDefault<z.ZodBoolean>;
+}> = z.object({
+  /** Package name (without @mark1russell7/ prefix) */
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens"),
+  /** Feature preset to use */
+  preset: z.string().default("lib"),
+  /** Root path for packages (defaults to ~/git) */
+  rootPath: z.string().optional(),
+  /** Skip git init and GitHub repo creation */
+  skipGit: z.boolean().default(false),
+  /** Skip adding to ecosystem manifest */
+  skipManifest: z.boolean().default(false),
+  /** Preview changes without creating */
+  dryRun: z.boolean().default(false),
+});
+
+export type LibNewInput = z.infer<typeof LibNewInputSchema>;
+
+export interface LibNewOutput {
+  /** Whether creation succeeded */
+  success: boolean;
+  /** Full package name (@mark1russell7/...) */
+  packageName: string;
+  /** Path to created package */
+  packagePath: string;
+  /** Files created */
+  created: string[];
+  /** Operations performed */
+  operations: string[];
+  /** Any errors encountered */
+  errors: string[];
+}
+
+// =============================================================================
+// lib.audit Types
+// =============================================================================
+
+export const LibAuditInputSchema: z.ZodObject<{
+  rootPath: z.ZodOptional<z.ZodString>;
+  fix: z.ZodDefault<z.ZodBoolean>;
+}> = z.object({
+  /** Root path for packages (defaults to ~/git) */
+  rootPath: z.string().optional(),
+  /** Attempt to fix issues (create missing files/dirs) */
+  fix: z.boolean().default(false),
+});
+
+export type LibAuditInput = z.infer<typeof LibAuditInputSchema>;
+
+export interface PackageAuditResult {
+  /** Package name */
+  name: string;
+  /** Package path */
+  path: string;
+  /** Whether package passes audit */
+  valid: boolean;
+  /** Missing required files */
+  missingFiles: string[];
+  /** Missing required directories */
+  missingDirs: string[];
+  /** Files that were fixed (if fix=true) */
+  fixedFiles?: string[];
+  /** Dirs that were fixed (if fix=true) */
+  fixedDirs?: string[];
+}
+
+export interface LibAuditOutput {
+  /** Overall success (all packages valid) */
+  success: boolean;
+  /** Project template used for validation */
+  template: {
+    files: string[];
+    dirs: string[];
+  };
+  /** Results per package */
+  results: PackageAuditResult[];
+  /** Summary counts */
+  summary: {
+    total: number;
+    valid: number;
+    invalid: number;
+  };
+}
+
+// =============================================================================
+// procedure.new Types
+// =============================================================================
+
+export const ProcedureNewInputSchema: z.ZodObject<{
+  name: z.ZodString;
+  namespace: z.ZodOptional<z.ZodString>;
+  description: z.ZodOptional<z.ZodString>;
+  path: z.ZodOptional<z.ZodString>;
+  dryRun: z.ZodDefault<z.ZodBoolean>;
+}> = z.object({
+  /** Procedure name (e.g., "greet" or "user.create") */
+  name: z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/, "Name must be lowercase dot-separated segments"),
+  /** Namespace override (defaults to first segment of name) */
+  namespace: z.string().optional(),
+  /** Procedure description for CLI help */
+  description: z.string().optional(),
+  /** Project path (defaults to cwd) */
+  path: z.string().optional(),
+  /** Preview changes without creating */
+  dryRun: z.boolean().default(false),
+});
+
+export type ProcedureNewInput = z.infer<typeof ProcedureNewInputSchema>;
+
+export interface ProcedureNewOutput {
+  /** Whether creation succeeded */
+  success: boolean;
+  /** Full procedure path (e.g., ["user", "create"]) */
+  procedurePath: string[];
+  /** Files created */
+  created: string[];
+  /** Files modified */
+  modified: string[];
+  /** Operations performed */
+  operations: string[];
+  /** Any errors encountered */
+  errors: string[];
 }

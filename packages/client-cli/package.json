@@ -12,14 +12,17 @@
       "import": "./dist/index.js"
     }
   },
+  "schematics": "./schematics/collection.json",
   "files": [
     "dist",
-    "src"
+    "src",
+    "schematics"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && tsc -p schematics/tsconfig.json",
+    "build:schematics": "tsc -p schematics/tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo",
+    "clean": "rm -rf dist .tsbuildinfo schematics/**/*.js schematics/**/*.d.ts schematics/**/*.map",
     "postinstall": "client announce"
   },
   "client": {
@@ -46,5 +49,12 @@
     "npm"
   ],
   "license": "MIT",
-  "sideEffects": false
+  "sideEffects": false,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/client-logger"
+    ]
+  }
 }

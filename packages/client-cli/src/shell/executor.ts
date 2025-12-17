@@ -94,17 +94,17 @@ export function executeCommand(
 }
 
 /**
- * Execute npm install
+ * Execute pnpm install
  */
-export async function npmInstall(cwd: string): Promise<ShellResult> {
-  return executeCommand("npm", ["install"], { cwd, timeout: 300000 });
+export async function pnpmInstall(cwd: string): Promise<ShellResult> {
+  return executeCommand("pnpm", ["install"], { cwd, timeout: 300000 });
 }
 
 /**
- * Execute npm run build
+ * Execute pnpm run build
  */
-export async function npmBuild(cwd: string): Promise<ShellResult> {
-  return executeCommand("npm", ["run", "build"], { cwd, timeout: 120000 });
+export async function pnpmBuild(cwd: string): Promise<ShellResult> {
+  return executeCommand("pnpm", ["run", "build"], { cwd, timeout: 120000 });
 }
 
 /**
