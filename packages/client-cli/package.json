@@ -29,16 +29,16 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
+    "@angular-devkit/schematics": "^19.0.0",
     "@mark1russell7/client": "github:mark1russell7/client#main",
     "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
-    "@angular-devkit/schematics": "^19.0.0",
     "ts-morph": "^24.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "typescript": "^5.9.3"
   },
   "keywords": [
     "cli",
@@ -55,6 +55,9 @@
       "@mark1russell7/cue",
       "@mark1russell7/client",
       "@mark1russell7/client-logger"
-    ]
+    ],
+    "overrides": {
+      "@mark1russell7/client": "link:../client"
+    }
   }
 }
