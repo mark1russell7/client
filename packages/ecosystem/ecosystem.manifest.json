@@ -61,6 +61,10 @@
     "@mark1russell7/splay-react": {
       "repo": "github:mark1russell7/splay-react#main",
       "path": "splay-react"
+    },
+    "@mark1russell7/minimongo": {
+      "repo": "github:mark1russell7/MiniMongo#main",
+      "path": "MiniMongo"
     }
   },
   "projectTemplate": {
