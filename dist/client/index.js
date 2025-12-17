@@ -29,4 +29,6 @@ export { createZodMiddleware, ValidationError, methodToKey, keyToMethod } from "
 // Context System
 export { mergeContext, normalizeCallOptions, isCallOptions } from "./context.js";
 export { ClientError } from "./types.js";
+// Typed Caller
+export { createTypedCaller } from "./typed.js";
 //# sourceMappingURL=index.js.map
