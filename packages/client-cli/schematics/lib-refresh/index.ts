@@ -56,6 +56,7 @@ function cleanupStep(options: LibRefreshOptions): Rule {
     const nodeModulesPath = join(options.packagePath, "node_modules");
     const distPath = join(options.packagePath, "dist");
     const lockPath = join(options.packagePath, "pnpm-lock.yaml");
+    const tsBuildInfoPath = join(options.packagePath, "tsconfig.tsbuildinfo");
 
     const toDelete: string[] = [];
 
@@ -90,6 +91,9 @@ function cleanupStep(options: LibRefreshOptions): Rule {
       }
       if (existsSync(lockPath)) {
         rmSync(lockPath, { force: true });
+      }
+      if(existsSync(tsBuildInfoPath)) {
+        rmSync(tsBuildInfoPath, { force: true });
       }
       addResult("cleanup", true, `Deleted: ${toDelete.join(", ")}`);
       context.logger.info(`Deleted: ${toDelete.join(", ")}`);
