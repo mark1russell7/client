@@ -1,0 +1,85 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@mark1russell7/client':
+        specifier: github:mark1russell7/client#main
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#main
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097
+      '@mark1russell7/logger':
+        specifier: github:mark1russell7/logger#main
+        version: https://codeload.github.com/mark1russell7/logger/tar.gz/621d63bc86886b99b60ac3405eb1ba26a4c43608
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+packages:
+
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658}
+    version: 1.0.0
+    engines: {node: '>=20'}
+    hasBin: true
+    peerDependencies:
+      express: ^4.0.0 || ^5.0.0
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      express:
+        optional: true
+      zod:
+        optional: true
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097}
+    version: 1.0.0
+    engines: {node: '>=25.0.0', npm: '>=11.0.0'}
+    hasBin: true
+
+  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/621d63bc86886b99b60ac3405eb1ba26a4c43608':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/logger/tar.gz/621d63bc86886b99b60ac3405eb1ba26a4c43608}
+    version: 1.0.0
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  ws@8.18.3:
+    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+snapshots:
+
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2c98741ce650bd74a96cd166672a184aa4f4e658':
+    dependencies:
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097': {}
+
+  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/621d63bc86886b99b60ac3405eb1ba26a4c43608':
+    dependencies:
+      '@mark1russell7/cue': https://codeload.github.com/mark1russell7/cue/tar.gz/e751d55e2bfe65ab4cff86768de8f387e9757097
+
+  typescript@5.9.3: {}
+
+  ws@8.18.3: {}

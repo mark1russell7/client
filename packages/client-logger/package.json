@@ -42,5 +42,12 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/logger"
+    ]
   }
 }
