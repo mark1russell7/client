@@ -12,6 +12,7 @@ import { libInstall } from "./procedures/lib/install.js";
 import { libNew } from "./procedures/lib/new.js";
 import { libAudit } from "./procedures/lib/audit.js";
 import { procedureNew } from "./procedures/procedure/new.js";
+import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import { configInit, configAdd, configRemove, configGenerate, configValidate, } from "./procedures/config/index.js";
 import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, ConfigInitInputSchema, ConfigAddInputSchema, ConfigRemoveInputSchema, ConfigGenerateInputSchema, ConfigValidateInputSchema, ProcedureNewInputSchema, } from "./types.js";
 function zodAdapter(schema) {
@@ -288,6 +289,7 @@ export function registerCliProcedures() {
         configValidateProcedure,
         // procedure procedures
         procedureNewProcedure,
+        ...procedureRegistryProcedures,
     ]);
 }
 // Auto-register when this module is loaded

@@ -13,6 +13,7 @@ import { libInstall } from "./procedures/lib/install.js";
 import { libNew } from "./procedures/lib/new.js";
 import { libAudit } from "./procedures/lib/audit.js";
 import { procedureNew } from "./procedures/procedure/new.js";
+import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
   configInit,
   configAdd,
@@ -380,6 +381,7 @@ export function registerCliProcedures(): void {
     configValidateProcedure,
     // procedure procedures
     procedureNewProcedure,
+    ...procedureRegistryProcedures,
   ]);
 }
 
