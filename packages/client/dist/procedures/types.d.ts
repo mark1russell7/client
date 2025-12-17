@@ -194,9 +194,9 @@ export interface Procedure<TInput = unknown, TOutput = unknown, TMeta extends Pr
      * This is a capability declaration - callers can still consume
      * streaming procedures in sponge mode (getting only the final value).
      */
-    streaming?: boolean;
+    streaming?: boolean | undefined;
     /** Server-side handler implementation */
-    handler?: ProcedureHandler<TInput, TOutput>;
+    handler?: ProcedureHandler<TInput, TOutput> | undefined;
 }
 /**
  * Procedure without type parameters for generic storage.
