@@ -154,6 +154,29 @@ export {
   constantProcedure,
   throwProcedure,
   tryCatchProcedure,
+  // Storage-backed registry
+  serializeProcedure,
+  deserializeProcedure,
+  deserializeProcedureSync,
+  getProcedureKey,
+  getSerializedKey,
+  serializeProcedures,
+  deserializeProcedures,
+  createDynamicHandlerLoader,
+  ProcedureStorageAdapter,
+  SyncedProcedureRegistry,
+  createSyncedRegistry,
+  createMemorySyncedRegistry,
+  createApiSyncedRegistry,
+  createHybridSyncedRegistry,
+  createCustomSyncedRegistry,
+  procedureRegisterProcedure,
+  procedureStoreProcedure,
+  procedureLoadProcedure,
+  procedureSyncProcedure,
+  procedureRemoteProcedure,
+  procedureStorageModule,
+  procedureStorageProcedures,
 } from "./procedures/index.js";
 
 export type {
@@ -181,6 +204,21 @@ export type {
   AnyProcedureRef,
   RefExecutor,
   HydrateOptions,
+  // Storage-backed registry types
+  SerializedProcedure,
+  HandlerReference,
+  HandlerLoader,
+  SyncDirection,
+  SyncConflict,
+  SyncResult,
+  SyncStatus,
+  SyncedRegistryOptions,
+  ProcedureStorageConfig,
+  SerializeOptions,
+  DeserializeOptions,
+  ProcedureStorageAdapterOptions,
+  SyncedRegistrationOptions,
+  CreateSyncedRegistryConfig,
 } from "./procedures/index.js";
 
 // ============================================================================
