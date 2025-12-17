@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@mark1russell7/client':
         specifier: github:mark1russell7/client#main
-        version: https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/0831ee2281c8232ae43bfe6055c9f47ecc5ed417
       '@mark1russell7/splay':
         specifier: github:mark1russell7/splay#main
         version: https://codeload.github.com/mark1russell7/splay/tar.gz/e65f01388a75b7d974d8fddf4441da9bf51c46b4
@@ -24,8 +24,8 @@ importers:
 
 packages:
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68}
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/0831ee2281c8232ae43bfe6055c9f47ecc5ed417':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/0831ee2281c8232ae43bfe6055c9f47ecc5ed417}
     version: 1.0.0
     engines: {node: '>=20'}
     hasBin: true
@@ -68,7 +68,7 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/39ae50a0ce8040c7513c426217c46b1cfbf5da68':
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/0831ee2281c8232ae43bfe6055c9f47ecc5ed417':
     dependencies:
       ws: 8.18.3
     transitivePeerDependencies:
