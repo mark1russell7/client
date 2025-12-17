@@ -1,30 +1,9 @@
-#!/usr/bin/env node
 /**
- * Mark CLI - Development workflow automation
+ * Mark CLI
  *
- * A declarative CLI that dispatches to client procedures.
- *
- * Usage:
- *   mark lib refresh [path] [-r|--recursive] [-y|--yes]
- *   mark lib scan [rootPath]
- *
- * @example
- * ```bash
- * # Refresh current directory
- * mark lib refresh
- *
- * # Refresh a specific package
- * mark lib refresh ~/git/logger
- *
- * # Recursive refresh (bottom-up DAG)
- * mark lib refresh ~/git/splay --recursive
- *
- * # Non-interactive mode
- * mark lib refresh . -r -y
- *
- * # Scan for packages
- * mark lib scan
- * ```
+ * A generic CLI that reflects registered procedures from client packages.
  */
-export {};
+export { run } from "./cli.js";
+export { parseFromSchema, generateHelp, type CLIMeta } from "./parse.js";
+export { formatOutput, type OutputFormat } from "./format.js";
 //# sourceMappingURL=index.d.ts.map

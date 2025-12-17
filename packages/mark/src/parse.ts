@@ -1,13 +1,12 @@
 /**
  * Schema-based CLI Argument Parser
  *
- * Parses CLI arguments based on Zod schema shape and procedure metadata.
+ * Parses CLI arguments based on procedure metadata.
+ * Validation is delegated to the procedure's schema.
  */
 
-import type { z } from "zod";
-
 /**
- * CLI metadata that can be attached to procedures
+ * CLI metadata that can be attached to procedures via .meta()
  */
 export interface CLIMeta {
   /** Description for help text */
@@ -43,141 +42,48 @@ function toKebab(str: string): string {
 }
 
 /**
- * Get the Zod type name from a schema
+ * Coerce a string value to appropriate type based on common patterns
  */
-function getZodType(schema: z.ZodTypeAny): string {
-  // Unwrap default/optional/nullable wrappers
-  let current = schema;
-  while (current._def) {
-    if (current._def.typeName === "ZodDefault") {
-      current = current._def.innerType;
-    } else if (current._def.typeName === "ZodOptional") {
-      current = current._def.innerType;
-    } else if (current._def.typeName === "ZodNullable") {
-      current = current._def.innerType;
-    } else {
-      break;
-    }
-  }
-  return current._def?.typeName ?? "ZodUnknown";
-}
-
-/**
- * Coerce a string value to the appropriate type based on schema
- */
-function coerce(value: unknown, schema: z.ZodTypeAny): unknown {
-  const typeName = getZodType(schema);
-
+function coerceValue(value: unknown): unknown {
   if (value === undefined || value === null) {
     return value;
   }
 
-  switch (typeName) {
-    case "ZodBoolean":
-      if (typeof value === "boolean") return value;
-      if (value === "true" || value === "1") return true;
-      if (value === "false" || value === "0") return false;
-      return Boolean(value);
-
-    case "ZodNumber":
-      if (typeof value === "number") return value;
-      const num = Number(value);
-      return isNaN(num) ? value : num;
-
-    case "ZodString":
-      return String(value);
-
-    case "ZodArray":
-      if (Array.isArray(value)) return value;
-      return [value];
-
-    default:
-      return value;
+  // Already not a string
+  if (typeof value !== "string") {
+    return value;
   }
-}
 
-/**
- * Check if a Zod schema field is required (no default, not optional)
- */
-function isRequired(schema: z.ZodTypeAny): boolean {
-  let current = schema;
-  while (current._def) {
-    if (current._def.typeName === "ZodDefault") {
-      return false; // has default
-    }
-    if (current._def.typeName === "ZodOptional") {
-      return false; // optional
-    }
-    if (current._def.typeName === "ZodNullable") {
-      current = current._def.innerType;
-    } else {
-      break;
+  // Boolean-like strings
+  if (value === "true") return true;
+  if (value === "false") return false;
+
+  // Number-like strings
+  const num = Number(value);
+  if (!isNaN(num) && value.trim() !== "") {
+    return num;
+  }
+
+  // JSON-like strings
+  if ((value.startsWith("{") && value.endsWith("}")) ||
+      (value.startsWith("[") && value.endsWith("]"))) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      // Not valid JSON, keep as string
     }
   }
-  return true;
+
+  return value;
 }
 
 /**
- * Get description from Zod schema
- */
-function getDescription(schema: z.ZodTypeAny): string | undefined {
-  return schema._def?.description;
-}
-
-/**
- * Extract field info from a Zod object schema
- */
-export interface FieldInfo {
-  name: string;
-  type: string;
-  required: boolean;
-  description?: string;
-  isBoolean: boolean;
-}
-
-export function extractFields(schema: z.ZodTypeAny): FieldInfo[] {
-  if (schema._def?.typeName !== "ZodObject") {
-    return [];
-  }
-
-  const shape = (schema as z.ZodObject<z.ZodRawShape>).shape;
-  const fields: FieldInfo[] = [];
-
-  for (const [name, fieldSchema] of Object.entries(shape)) {
-    const zodType = getZodType(fieldSchema as z.ZodTypeAny);
-    fields.push({
-      name,
-      type: zodType.replace("Zod", "").toLowerCase(),
-      required: isRequired(fieldSchema as z.ZodTypeAny),
-      description: getDescription(fieldSchema as z.ZodTypeAny),
-      isBoolean: zodType === "ZodBoolean",
-    });
-  }
-
-  return fields;
-}
-
-/**
- * Parse CLI parameters into procedure input based on schema and metadata
+ * Parse CLI parameters into procedure input based on metadata
  */
 export function parseFromSchema(
   params: Parameters,
-  schema: z.ZodTypeAny,
   meta: CLIMeta
 ): Record<string, unknown> {
-  if (schema._def?.typeName !== "ZodObject") {
-    // Not an object schema - try to use first arg as the whole input
-    if (params.first !== undefined) {
-      try {
-        return JSON.parse(params.first) as Record<string, unknown>;
-      } catch {
-        return { value: params.first };
-      }
-    }
-    return {};
-  }
-
-  const shape = (schema as z.ZodObject<z.ZodRawShape>).shape;
   const positionalArgs = meta.args ?? [];
   const shorts = meta.shorts ?? {};
   const input: Record<string, unknown> = {};
@@ -185,50 +91,54 @@ export function parseFromSchema(
   // 1. Parse positional args
   const positionalValues = params.array ?? [];
   positionalArgs.forEach((field, i) => {
-    if (positionalValues[i] !== undefined && shape[field]) {
-      input[field] = coerce(positionalValues[i], shape[field] as z.ZodTypeAny);
+    if (positionalValues[i] !== undefined) {
+      input[field] = coerceValue(positionalValues[i]);
     }
   });
 
-  // 2. Parse options (everything not positional)
+  // 2. Parse options from CLI flags
   const options = params.options ?? {};
 
-  for (const [field, fieldSchema] of Object.entries(shape)) {
-    if (positionalArgs.includes(field) && input[field] !== undefined) {
-      continue; // Already handled as positional
+  // Build reverse lookup for short flags
+  const shortToField: Record<string, string> = {};
+  for (const [field, short] of Object.entries(shorts)) {
+    shortToField[short] = field;
+  }
+
+  // Process all options
+  for (const [key, value] of Object.entries(options)) {
+    // Skip if it's a positional arg already set
+    if (positionalArgs.includes(key) && input[key] !== undefined) {
+      continue;
     }
 
-    const kebab = toKebab(field);
-    const short = shorts[field];
+    // Determine the field name
+    let field: string;
 
-    // Check various forms: --skip-git, --skipGit, -g
-    let value: unknown = undefined;
-
-    if (options[kebab] !== undefined) {
-      value = options[kebab];
-    } else if (options[field] !== undefined) {
-      value = options[field];
-    } else if (short && options[short] !== undefined) {
-      value = options[short];
+    if (shortToField[key]) {
+      // Short flag: -f → force
+      field = shortToField[key];
+    } else if (key.includes("-")) {
+      // Kebab case: skip-git → skipGit
+      field = key.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    } else {
+      // Already camelCase or exact match
+      field = key;
     }
 
-    if (value !== undefined) {
-      input[field] = coerce(value, fieldSchema as z.ZodTypeAny);
-    }
+    input[field] = coerceValue(value);
   }
 
   return input;
 }
 
 /**
- * Generate help text for a procedure based on its schema and metadata
+ * Generate help text for a procedure based on its metadata
  */
 export function generateHelp(
   path: string[],
-  schema: z.ZodTypeAny,
   meta: CLIMeta
 ): string {
-  const fields = extractFields(schema);
   const positionalArgs = meta.args ?? [];
   const shorts = meta.shorts ?? {};
 
@@ -249,25 +159,18 @@ export function generateHelp(
   if (positionalArgs.length > 0) {
     lines.push("Arguments:");
     for (const arg of positionalArgs) {
-      const field = fields.find((f) => f.name === arg);
-      const desc = field?.description ?? "";
-      const req = field?.required ? "(required)" : "(optional)";
-      lines.push(`  ${arg}  ${desc} ${req}`);
+      lines.push(`  ${arg}`);
     }
     lines.push("");
   }
 
-  // Options
-  const optionFields = fields.filter((f) => !positionalArgs.includes(f.name));
-  if (optionFields.length > 0) {
+  // Options (from shorts - these are the explicitly defined CLI options)
+  const shortEntries = Object.entries(shorts);
+  if (shortEntries.length > 0) {
     lines.push("Options:");
-    for (const field of optionFields) {
-      const kebab = toKebab(field.name);
-      const short = shorts[field.name];
-      const shortStr = short ? `-${short}, ` : "    ";
-      const desc = field.description ?? "";
-      const typeStr = field.isBoolean ? "" : ` <${field.type}>`;
-      lines.push(`  ${shortStr}--${kebab}${typeStr}  ${desc}`);
+    for (const [field, short] of shortEntries) {
+      const kebab = toKebab(field);
+      lines.push(`  -${short}, --${kebab}`);
     }
   }
 

@@ -1,4 +1,4 @@
 {
   "$schema": "./node_modules/@mark1russell7/cue/dependencies/schema.json",
-  "dependencies": ["node", "cue"]
+  "dependencies": ["node-cjs", "cue"]
 }

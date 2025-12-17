@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Mark CLI - Gluegun-based CLI
+ * Mark CLI
  *
- * A thin wrapper that dispatches to client procedures.
+ * A generic CLI that reflects registered procedures.
+ * Uses our own routing with Gluegun's toolbox for utilities.
  */
 /**
- * Build and run the CLI
+ * Run the CLI
  */
 declare function run(argv: string[]): Promise<void>;
 export { run };

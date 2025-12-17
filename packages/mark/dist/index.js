@@ -1,34 +1,16 @@
-#!/usr/bin/env node
+"use strict";
 /**
- * Mark CLI - Development workflow automation
+ * Mark CLI
  *
- * A declarative CLI that dispatches to client procedures.
- *
- * Usage:
- *   mark lib refresh [path] [-r|--recursive] [-y|--yes]
- *   mark lib scan [rootPath]
- *
- * @example
- * ```bash
- * # Refresh current directory
- * mark lib refresh
- *
- * # Refresh a specific package
- * mark lib refresh ~/git/logger
- *
- * # Recursive refresh (bottom-up DAG)
- * mark lib refresh ~/git/splay --recursive
- *
- * # Non-interactive mode
- * mark lib refresh . -r -y
- *
- * # Scan for packages
- * mark lib scan
- * ```
+ * A generic CLI that reflects registered procedures from client packages.
  */
-import { buildCLI } from "./parser.js";
-import { cliSpec } from "./spec.js";
-// Build and run the CLI
-const program = buildCLI(cliSpec);
-program.parse();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.formatOutput = exports.generateHelp = exports.parseFromSchema = exports.run = void 0;
+var cli_js_1 = require("./cli.js");
+Object.defineProperty(exports, "run", { enumerable: true, get: function () { return cli_js_1.run; } });
+var parse_js_1 = require("./parse.js");
+Object.defineProperty(exports, "parseFromSchema", { enumerable: true, get: function () { return parse_js_1.parseFromSchema; } });
+Object.defineProperty(exports, "generateHelp", { enumerable: true, get: function () { return parse_js_1.generateHelp; } });
+var format_js_1 = require("./format.js");
+Object.defineProperty(exports, "formatOutput", { enumerable: true, get: function () { return format_js_1.formatOutput; } });
 //# sourceMappingURL=index.js.map
