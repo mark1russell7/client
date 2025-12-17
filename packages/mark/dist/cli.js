@@ -52,22 +52,44 @@ function syncRegistryToTransport(transport, registry) {
     });
 }
 /**
- * Parse command line arguments
+ * Parse command line arguments with procedure-aware path detection
  */
-function parseArgs(argv) {
+function parseArgs(argv, procedures) {
     const path = [];
     const args = [];
     const options = {};
     let i = 0;
-    // First, collect path segments (non-option args before any options)
+    // Collect path segments, stopping when we find a matching procedure
     while (i < argv.length) {
         const current = argv[i];
         if (current === undefined || current.startsWith("-"))
             break;
-        path.push(current);
-        i++;
+        // Check if adding this segment would still match a procedure or be a prefix
+        const testPath = [...path, current];
+        const exactMatch = findProcedure(procedures, testPath);
+        const hasChildren = findChildren(procedures, testPath).length > 0;
+        if (exactMatch) {
+            // Found a procedure - add this segment and stop collecting path
+            path.push(current);
+            i++;
+            break;
+        }
+        else if (hasChildren) {
+            // This is a valid prefix (e.g., "procedure" has children like "procedure.get")
+            path.push(current);
+            i++;
+        }
+        else if (path.length === 0) {
+            // First segment must be part of a valid path
+            path.push(current);
+            i++;
+        }
+        else {
+            // No match and no children - this must be a positional arg
+            break;
+        }
     }
-    // Then parse remaining args and options
+    // Remaining non-option args are positional arguments
     while (i < argv.length) {
         const arg = argv[i];
         if (arg === undefined) {
@@ -231,8 +253,8 @@ async function run(argv) {
         gluegun_1.print.info(`mark v${VERSION}`);
         return;
     }
-    // Parse arguments
-    const { path, args, options } = parseArgs(argv);
+    // Parse arguments (needs procedures for path detection)
+    const { path, args, options } = parseArgs(argv, procedures);
     // Handle root help
     if (path.length === 0) {
         showRootHelp(procedures);
