@@ -56,6 +56,13 @@ import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import type { ProcedurePath, ProcedureContext } from "../procedures/types.js";
+import {
+  isAnyProcedureRef,
+  normalizeRef,
+  hydrateInput,
+  type ProcedureRef,
+  type AnyProcedureRef,
+} from "../procedures/ref.js";
 
 /**
  * Generate a unique message ID.
@@ -297,6 +304,131 @@ export class Client<TContext = {}> {
     }
 
     return value as TRes;
+  }
+
+  // ===========================================================================
+  // Procedure Reference Execution (Procedure-as-Data)
+  // ===========================================================================
+
+  /**
+   * Execute a procedure reference with automatic input hydration.
+   *
+   * This method supports procedure-as-data: procedures can be passed as inputs
+   * to other procedures, composed declaratively via JSON, or imperatively via TypeScript.
+   *
+   * **Input Hydration**: Any ProcedureRef or `$proc` objects in the input tree
+   * are automatically executed and replaced with their results before the
+   * main procedure runs.
+   *
+   * @param refOrPath - Procedure reference, JSON procedure ref, or procedure path
+   * @param input - Input for the procedure (only if path is provided)
+   * @returns Output of the procedure
+   *
+   * @example
+   * ```typescript
+   * import { proc } from "@mark1russell7/client";
+   *
+   * // Using proc() builder
+   * const result = await client.exec(
+   *   proc(["git", "add"]).input({ all: true }).build()
+   * );
+   *
+   * // Using JSON format
+   * const result = await client.exec({
+   *   $proc: ["git", "add"],
+   *   input: { all: true },
+   * });
+   *
+   * // Using path + input (simple form)
+   * const result = await client.exec(["git", "add"], { all: true });
+   *
+   * // Nested procedure refs (hydrated automatically)
+   * const result = await client.exec(
+   *   proc(["dag", "traverse"]).input({
+   *     visit: proc(["client", "chain"]).input({
+   *       steps: [
+   *         proc(["git", "add"]).input({ all: true }).ref,
+   *         proc(["git", "commit"]).input({ message: "auto" }).ref,
+   *       ],
+   *     }).ref,
+   *   }).build()
+   * );
+   * ```
+   */
+  async exec<TOutput = unknown>(
+    refOrPath: AnyProcedureRef | ProcedurePath,
+    input?: unknown
+  ): Promise<TOutput> {
+    // Normalize to ProcedureRef
+    let ref: ProcedureRef;
+
+    if (isAnyProcedureRef(refOrPath)) {
+      ref = normalizeRef(refOrPath);
+    } else if (Array.isArray(refOrPath) && refOrPath.every((s) => typeof s === "string")) {
+      // Path array provided, use second argument as input
+      ref = {
+        [Symbol.for("@mark/procedure") as typeof import("../procedures/ref.js").PROCEDURE_SYMBOL]: true,
+        path: refOrPath as ProcedurePath,
+        input: input ?? {},
+      } as ProcedureRef;
+    } else {
+      throw new Error("exec() requires a ProcedureRef, $proc JSON, or procedure path array");
+    }
+
+    // Create executor function for hydration
+    const executor = async <TIn, TOut>(path: ProcedurePath, inp: TIn): Promise<TOut> => {
+      return this.execInternal<TOut>(path, inp);
+    };
+
+    // Hydrate input (recursively execute any nested procedure refs)
+    const hydratedInput = await hydrateInput(ref.input, executor);
+
+    // Execute the main procedure with hydrated input
+    return this.execInternal<TOutput>(ref.path, hydratedInput);
+  }
+
+  /**
+   * Internal procedure execution (no hydration).
+   */
+  private async execInternal<TOutput>(
+    path: ProcedurePath,
+    input: unknown
+  ): Promise<TOutput> {
+    const procedure = this.procedureRegistry.get(path);
+
+    if (!procedure) {
+      // Try via transport (remote procedure)
+      const method = this.pathToMethod(path);
+      return this.call(method, input) as Promise<TOutput>;
+    }
+
+    // Validate input
+    const inputResult = procedure.input.safeParse(input);
+    if (!inputResult.success) {
+      throw new Error(`Input validation failed for ${path.join(".")}: ${inputResult.error.message}`);
+    }
+
+    // Execute handler if present
+    if (procedure.handler) {
+      const ctx: ProcedureContext = {
+        metadata: {},
+        path,
+      };
+
+      const output = await procedure.handler(inputResult.data, ctx);
+
+      // Validate output
+      const outputResult = procedure.output.safeParse(output);
+      if (!outputResult.success) {
+        throw new Error(`Output validation failed for ${path.join(".")}: ${outputResult.error.message}`);
+      }
+
+      return outputResult.data as TOutput;
+    }
+
+    // No local handler, try transport
+    const method = this.pathToMethod(path);
+    return this.call(method, inputResult.data) as Promise<TOutput>;
   }
 
   /**
