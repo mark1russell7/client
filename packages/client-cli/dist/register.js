@@ -11,9 +11,10 @@ import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
 import { libInstall } from "./procedures/lib/install.js";
 import { libNew } from "./procedures/lib/new.js";
 import { libAudit } from "./procedures/lib/audit.js";
+import { libPull } from "./procedures/lib/pull.js";
 import { procedureNew } from "./procedures/procedure/new.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
-import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, ProcedureNewInputSchema, } from "./types.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, ProcedureNewInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -160,6 +161,22 @@ const libAuditProcedure = createProcedure()
     return libAudit(input, ctx);
 })
     .build();
+const libPullInputSchema = zodAdapter(LibPullInputSchema);
+const libPullOutputSchema = outputSchema();
+const libPullProcedure = createProcedure()
+    .path(["lib", "pull"])
+    .input(libPullInputSchema)
+    .output(libPullOutputSchema)
+    .meta({
+    description: "Pull from remote for all packages in dependency order",
+    args: [],
+    shorts: { rootPath: "r", remote: "R", rebase: "b", dryRun: "d", continueOnError: "c", concurrency: "j" },
+    output: "streaming",
+})
+    .handler(async (input, ctx) => {
+    return libPull(input, ctx);
+})
+    .build();
 // =============================================================================
 // Procedure Procedure Schemas
 // =============================================================================
@@ -194,6 +211,7 @@ export function registerCliProcedures() {
         libInstallProcedure,
         libNewProcedure,
         libAuditProcedure,
+        libPullProcedure,
         // procedure procedures
         procedureNewProcedure,
         ...procedureRegistryProcedures,

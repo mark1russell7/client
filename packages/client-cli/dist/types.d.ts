@@ -307,4 +307,39 @@ export interface ProcedureNewOutput {
     /** Any errors encountered */
     errors: string[];
 }
+export declare const LibPullInputSchema: z.ZodObject<{
+    rootPath: z.ZodOptional<z.ZodString>;
+    remote: z.ZodDefault<z.ZodString>;
+    rebase: z.ZodDefault<z.ZodBoolean>;
+    dryRun: z.ZodDefault<z.ZodBoolean>;
+    continueOnError: z.ZodDefault<z.ZodBoolean>;
+    concurrency: z.ZodDefault<z.ZodNumber>;
+}>;
+export type LibPullInput = z.infer<typeof LibPullInputSchema>;
+export interface PullResult {
+    /** Package name */
+    name: string;
+    /** Package path */
+    path: string;
+    /** Whether pull succeeded */
+    success: boolean;
+    /** Duration in milliseconds */
+    duration: number;
+    /** Number of commits pulled */
+    commits: number;
+    /** Whether it was a fast-forward */
+    fastForward?: boolean;
+    /** Error if failed */
+    error?: string;
+    /** Planned operations (for dry-run mode) */
+    plannedOperations?: string[];
+}
+export interface LibPullOutput {
+    /** Overall success */
+    success: boolean;
+    /** Pull results for each package */
+    results: PullResult[];
+    /** Total duration in milliseconds */
+    totalDuration: number;
+}
 //# sourceMappingURL=types.d.ts.map

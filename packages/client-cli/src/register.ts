@@ -12,6 +12,7 @@ import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
 import { libInstall } from "./procedures/lib/install.js";
 import { libNew } from "./procedures/lib/new.js";
 import { libAudit } from "./procedures/lib/audit.js";
+import { libPull } from "./procedures/lib/pull.js";
 import { procedureNew } from "./procedures/procedure/new.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
@@ -20,6 +21,7 @@ import {
   LibInstallInputSchema,
   LibNewInputSchema,
   LibAuditInputSchema,
+  LibPullInputSchema,
   type LibScanInput,
   type LibScanOutput,
   type LibRefreshInput,
@@ -32,6 +34,8 @@ import {
   type LibNewOutput,
   type LibAuditInput,
   type LibAuditOutput,
+  type LibPullInput,
+  type LibPullOutput,
   ProcedureNewInputSchema,
   type ProcedureNewInput,
   type ProcedureNewOutput,
@@ -214,6 +218,24 @@ const libAuditProcedure = createProcedure()
   })
   .build();
 
+const libPullInputSchema = zodAdapter<LibPullInput>(LibPullInputSchema);
+const libPullOutputSchema = outputSchema<LibPullOutput>();
+
+const libPullProcedure = createProcedure()
+  .path(["lib", "pull"])
+  .input(libPullInputSchema)
+  .output(libPullOutputSchema)
+  .meta({
+    description: "Pull from remote for all packages in dependency order",
+    args: [],
+    shorts: { rootPath: "r", remote: "R", rebase: "b", dryRun: "d", continueOnError: "c", concurrency: "j" },
+    output: "streaming",
+  })
+  .handler(async (input: LibPullInput, ctx): Promise<LibPullOutput> => {
+    return libPull(input, ctx);
+  })
+  .build();
+
 // =============================================================================
 // Procedure Procedure Schemas
 // =============================================================================
@@ -253,6 +275,7 @@ export function registerCliProcedures(): void {
     libInstallProcedure,
     libNewProcedure,
     libAuditProcedure,
+    libPullProcedure,
     // procedure procedures
     procedureNewProcedure,
     ...procedureRegistryProcedures,

@@ -84,4 +84,21 @@ export const ProcedureNewInputSchema = z.object({
     /** Preview changes without creating */
     dryRun: z.boolean().default(false),
 });
+// =============================================================================
+// lib.pull Types
+// =============================================================================
+export const LibPullInputSchema = z.object({
+    /** Root path for packages (defaults to ~/git) */
+    rootPath: z.string().optional(),
+    /** Remote name (default: origin) */
+    remote: z.string().default("origin"),
+    /** Rebase instead of merge (default: false) */
+    rebase: z.boolean().default(false),
+    /** Preview changes without pulling */
+    dryRun: z.boolean().default(false),
+    /** Continue on error instead of stopping */
+    continueOnError: z.boolean().default(false),
+    /** Max parallel operations */
+    concurrency: z.number().default(4),
+});
 //# sourceMappingURL=types.js.map

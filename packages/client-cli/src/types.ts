@@ -432,3 +432,59 @@ export interface ProcedureNewOutput {
   /** Any errors encountered */
   errors: string[];
 }
+
+// =============================================================================
+// lib.pull Types
+// =============================================================================
+
+export const LibPullInputSchema: z.ZodObject<{
+  rootPath: z.ZodOptional<z.ZodString>;
+  remote: z.ZodDefault<z.ZodString>;
+  rebase: z.ZodDefault<z.ZodBoolean>;
+  dryRun: z.ZodDefault<z.ZodBoolean>;
+  continueOnError: z.ZodDefault<z.ZodBoolean>;
+  concurrency: z.ZodDefault<z.ZodNumber>;
+}> = z.object({
+  /** Root path for packages (defaults to ~/git) */
+  rootPath: z.string().optional(),
+  /** Remote name (default: origin) */
+  remote: z.string().default("origin"),
+  /** Rebase instead of merge (default: false) */
+  rebase: z.boolean().default(false),
+  /** Preview changes without pulling */
+  dryRun: z.boolean().default(false),
+  /** Continue on error instead of stopping */
+  continueOnError: z.boolean().default(false),
+  /** Max parallel operations */
+  concurrency: z.number().default(4),
+});
+
+export type LibPullInput = z.infer<typeof LibPullInputSchema>;
+
+export interface PullResult {
+  /** Package name */
+  name: string;
+  /** Package path */
+  path: string;
+  /** Whether pull succeeded */
+  success: boolean;
+  /** Duration in milliseconds */
+  duration: number;
+  /** Number of commits pulled */
+  commits: number;
+  /** Whether it was a fast-forward */
+  fastForward?: boolean;
+  /** Error if failed */
+  error?: string;
+  /** Planned operations (for dry-run mode) */
+  plannedOperations?: string[];
+}
+
+export interface LibPullOutput {
+  /** Overall success */
+  success: boolean;
+  /** Pull results for each package */
+  results: PullResult[];
+  /** Total duration in milliseconds */
+  totalDuration: number;
+}
