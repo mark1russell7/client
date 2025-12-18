@@ -1,53 +1,36 @@
 /**
  * Git operations utilities
+ *
+ * Uses ctx.client.call() to invoke git.* procedures for dogfooding.
  */
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
-const execAsync = promisify(exec);
-/**
- * Execute a git command in a specific directory
- */
-async function git(cwd, args) {
-    try {
-        return await execAsync(`git ${args}`, { cwd });
-    }
-    catch (error) {
-        const execError = error;
-        throw new Error(`Git command failed: git ${args}\n${execError.stderr ?? execError.message}`);
-    }
-}
 /**
  * Get the current branch name
  */
-export async function getCurrentBranch(repoPath) {
-    const { stdout } = await git(repoPath, "rev-parse --abbrev-ref HEAD");
-    return stdout.trim();
+export async function getCurrentBranch(repoPath, ctx) {
+    const result = await ctx.client.call(["git", "status"], { cwd: repoPath });
+    return result.branch;
 }
 /**
  * Get the git status of a repository
  */
-export async function getGitStatus(repoPath) {
-    const currentBranch = await getCurrentBranch(repoPath);
-    // Check for uncommitted changes
-    const { stdout: statusOutput } = await git(repoPath, "status --porcelain");
-    const lines = statusOutput.trim().split("\n").filter(Boolean);
-    const hasStagedChanges = lines.some((line) => line.startsWith("A ") || line.startsWith("M ") || line.startsWith("D "));
-    const hasUncommittedChanges = lines.length > 0;
-    const isClean = lines.length === 0;
+export async function getGitStatus(repoPath, ctx) {
+    const result = await ctx.client.call(["git", "status"], { cwd: repoPath });
+    const hasStagedChanges = result.files.some((f) => f.staged);
+    const hasUncommittedChanges = result.files.length > 0;
     return {
-        currentBranch,
+        currentBranch: result.branch,
         hasStagedChanges,
         hasUncommittedChanges,
-        isClean,
+        isClean: result.clean,
     };
 }
 /**
  * Get the remote URL of a repository
  */
-export async function getRemoteUrl(repoPath) {
+export async function getRemoteUrl(repoPath, ctx) {
     try {
-        const { stdout } = await git(repoPath, "remote get-url origin");
-        return stdout.trim() || undefined;
+        const result = await ctx.client.call(["git", "remote"], { cwd: repoPath, name: "origin" });
+        return result.url ?? undefined;
     }
     catch {
         return undefined;
@@ -56,42 +39,41 @@ export async function getRemoteUrl(repoPath) {
 /**
  * Stage all changes
  */
-export async function stageAll(repoPath) {
-    await git(repoPath, "add -A");
+export async function stageAll(repoPath, ctx) {
+    await ctx.client.call(["git", "add"], { all: true, cwd: repoPath });
 }
 /**
  * Commit with a message
  */
-export async function commit(repoPath, message) {
-    // Escape quotes in the message
-    const escapedMessage = message.replace(/"/g, '\\"');
-    await git(repoPath, `commit -m "${escapedMessage}"`);
+export async function commit(repoPath, message, ctx) {
+    await ctx.client.call(["git", "commit"], { message, cwd: repoPath });
 }
 /**
  * Push to remote
  */
-export async function push(repoPath) {
-    await git(repoPath, "push");
+export async function push(repoPath, ctx) {
+    await ctx.client.call(["git", "push"], { cwd: repoPath });
 }
 /**
  * Checkout a branch
  */
-export async function checkout(repoPath, branch) {
-    await git(repoPath, `checkout ${branch}`);
+export async function checkout(repoPath, branch, ctx) {
+    await ctx.client.call(["git", "checkout"], { ref: branch, cwd: repoPath });
 }
 /**
  * Pull from remote
  */
-export async function pull(repoPath) {
-    await git(repoPath, "pull");
+export async function pull(repoPath, ctx) {
+    await ctx.client.call(["git", "pull"], { cwd: repoPath });
 }
 /**
  * Check if a branch exists locally
  */
-export async function branchExists(repoPath, branch) {
+export async function branchExists(repoPath, branch, ctx) {
     try {
-        await git(repoPath, `rev-parse --verify ${branch}`);
-        return true;
+        // Use git.branch to list branches and check if it exists
+        const result = await ctx.client.call(["git", "branch"], { cwd: repoPath });
+        return result.branches.some((b) => b.name === branch);
     }
     catch {
         return false;
@@ -100,9 +82,12 @@ export async function branchExists(repoPath, branch) {
 /**
  * Clone a repository
  */
-export async function clone(url, targetPath, branch) {
-    const branchArg = branch ? `-b ${branch}` : "";
-    await execAsync(`git clone ${branchArg} ${url} "${targetPath}"`);
+export async function clone(url, targetPath, ctx, branch) {
+    const input = { url, dest: targetPath };
+    if (branch) {
+        input.branch = branch;
+    }
+    await ctx.client.call(["git", "clone"], input);
 }
 /**
  * Ensure the repo is on the correct branch
@@ -111,26 +96,26 @@ export async function clone(url, targetPath, branch) {
  * 2. Stage and commit any unstaged changes
  * 3. Checkout the required branch
  */
-export async function ensureBranch(repoPath, requiredBranch) {
-    const status = await getGitStatus(repoPath);
+export async function ensureBranch(repoPath, requiredBranch, ctx) {
+    const status = await getGitStatus(repoPath, ctx);
     const commits = [];
     if (status.currentBranch === requiredBranch) {
         return { switched: false, commits };
     }
     // Commit any staged changes first
     if (status.hasStagedChanges) {
-        await commit(repoPath, "WIP: Auto-commit staged changes before branch switch");
+        await commit(repoPath, "WIP: Auto-commit staged changes before branch switch", ctx);
         commits.push("Committed staged changes");
     }
     // Stage and commit any remaining changes
-    const statusAfter = await getGitStatus(repoPath);
+    const statusAfter = await getGitStatus(repoPath, ctx);
     if (statusAfter.hasUncommittedChanges) {
-        await stageAll(repoPath);
-        await commit(repoPath, "WIP: Auto-commit all changes before branch switch");
+        await stageAll(repoPath, ctx);
+        await commit(repoPath, "WIP: Auto-commit all changes before branch switch", ctx);
         commits.push("Committed all changes");
     }
     // Checkout the required branch
-    await checkout(repoPath, requiredBranch);
+    await checkout(repoPath, requiredBranch, ctx);
     commits.push(`Switched to branch ${requiredBranch}`);
     return { switched: true, commits };
 }

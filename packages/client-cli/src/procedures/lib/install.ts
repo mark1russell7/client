@@ -7,10 +7,9 @@
  * 3. Installs and builds all packages in DAG order
  */
 
-import { readFile, access } from "node:fs/promises";
-import { constants } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type {
   LibInstallInput,
   LibInstallOutput,
@@ -21,6 +20,9 @@ import { clone } from "../../git/index.js";
 import { buildDAGNodes, buildLeveledDAG, executeDAG, createProcessor } from "../../dag/index.js";
 import { pnpmInstall, pnpmBuild } from "../../shell/index.js";
 import { libScan } from "./scan.js";
+
+interface FsExistsOutput { exists: boolean; path: string; }
+interface FsReadJsonOutput<T> { path: string; data: T; }
 
 /**
  * Ecosystem manifest types (mirrors @mark1russell7/ecosystem)
@@ -65,10 +67,13 @@ function repoToGitUrl(repo: string): { url: string; branch: string } {
 /**
  * Check if a directory exists
  */
-async function dirExists(path: string): Promise<boolean> {
+async function dirExists(pathStr: string, ctx: ProcedureContext): Promise<boolean> {
   try {
-    await access(path, constants.F_OK);
-    return true;
+    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+      ["fs", "exists"],
+      { path: pathStr }
+    );
+    return result.exists;
   } catch {
     return false;
   }
@@ -77,11 +82,14 @@ async function dirExists(path: string): Promise<boolean> {
 /**
  * Load ecosystem manifest from local path
  */
-async function loadManifest(rootPath: string): Promise<EcosystemManifest> {
+async function loadManifest(rootPath: string, ctx: ProcedureContext): Promise<EcosystemManifest> {
   const localPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
   try {
-    const content = await readFile(localPath, "utf-8");
-    return JSON.parse(content) as EcosystemManifest;
+    const result = await ctx.client.call<{ path: string }, FsReadJsonOutput<EcosystemManifest>>(
+      ["fs", "read", "json"],
+      { path: localPath }
+    );
+    return result.data;
   } catch {
     throw new Error(
       `Could not load ecosystem manifest from ${localPath}. ` +
@@ -93,7 +101,7 @@ async function loadManifest(rootPath: string): Promise<EcosystemManifest> {
 /**
  * Install the entire ecosystem
  */
-export async function libInstall(input: LibInstallInput): Promise<LibInstallOutput> {
+export async function libInstall(input: LibInstallInput, ctx: ProcedureContext): Promise<LibInstallOutput> {
   const startTime = Date.now();
   const results: InstallResult[] = [];
   const cloned: string[] = [];
@@ -106,7 +114,7 @@ export async function libInstall(input: LibInstallInput): Promise<LibInstallOutp
 
   let manifest: EcosystemManifest;
   try {
-    manifest = await loadManifest(rootPath);
+    manifest = await loadManifest(rootPath, ctx);
   } catch (error) {
     return {
       success: false,
@@ -124,7 +132,7 @@ export async function libInstall(input: LibInstallInput): Promise<LibInstallOutp
   for (const [pkgName, entry] of Object.entries(manifest.packages)) {
     const pkgPath = join(resolvedRoot, entry.path);
 
-    if (await dirExists(pkgPath)) {
+    if (await dirExists(pkgPath, ctx)) {
       skipped.push(pkgName);
       continue;
     }
@@ -136,7 +144,7 @@ export async function libInstall(input: LibInstallInput): Promise<LibInstallOutp
 
     try {
       const { url, branch } = repoToGitUrl(entry.repo);
-      await clone(url, pkgPath, branch);
+      await clone(url, pkgPath, ctx, branch);
       cloned.push(pkgName);
     } catch (error) {
       errors.push(`Failed to clone ${pkgName}: ${error instanceof Error ? error.message : String(error)}`);
@@ -155,7 +163,7 @@ export async function libInstall(input: LibInstallInput): Promise<LibInstallOutp
   }
 
   // Phase 2: Scan and build DAG
-  const scanResult = await libScan({ rootPath: resolvedRoot });
+  const scanResult = await libScan({ rootPath: resolvedRoot }, ctx);
   const allNodes = buildDAGNodes(scanResult.packages);
   const dag = buildLeveledDAG(allNodes);
 

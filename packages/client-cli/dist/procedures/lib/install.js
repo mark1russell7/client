@@ -6,8 +6,6 @@
  * 2. Clones missing packages
  * 3. Installs and builds all packages in DAG order
  */
-import { readFile, access } from "node:fs/promises";
-import { constants } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { clone } from "../../git/index.js";
@@ -40,10 +38,10 @@ function repoToGitUrl(repo) {
 /**
  * Check if a directory exists
  */
-async function dirExists(path) {
+async function dirExists(pathStr, ctx) {
     try {
-        await access(path, constants.F_OK);
-        return true;
+        const result = await ctx.client.call(["fs", "exists"], { path: pathStr });
+        return result.exists;
     }
     catch {
         return false;
@@ -52,11 +50,11 @@ async function dirExists(path) {
 /**
  * Load ecosystem manifest from local path
  */
-async function loadManifest(rootPath) {
+async function loadManifest(rootPath, ctx) {
     const localPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
     try {
-        const content = await readFile(localPath, "utf-8");
-        return JSON.parse(content);
+        const result = await ctx.client.call(["fs", "read", "json"], { path: localPath });
+        return result.data;
     }
     catch {
         throw new Error(`Could not load ecosystem manifest from ${localPath}. ` +
@@ -66,7 +64,7 @@ async function loadManifest(rootPath) {
 /**
  * Install the entire ecosystem
  */
-export async function libInstall(input) {
+export async function libInstall(input, ctx) {
     const startTime = Date.now();
     const results = [];
     const cloned = [];
@@ -77,7 +75,7 @@ export async function libInstall(input) {
     const rootPath = input.rootPath ?? defaultRoot;
     let manifest;
     try {
-        manifest = await loadManifest(rootPath);
+        manifest = await loadManifest(rootPath, ctx);
     }
     catch (error) {
         return {
@@ -93,7 +91,7 @@ export async function libInstall(input) {
     // Phase 1: Clone missing packages
     for (const [pkgName, entry] of Object.entries(manifest.packages)) {
         const pkgPath = join(resolvedRoot, entry.path);
-        if (await dirExists(pkgPath)) {
+        if (await dirExists(pkgPath, ctx)) {
             skipped.push(pkgName);
             continue;
         }
@@ -103,7 +101,7 @@ export async function libInstall(input) {
         }
         try {
             const { url, branch } = repoToGitUrl(entry.repo);
-            await clone(url, pkgPath, branch);
+            await clone(url, pkgPath, ctx, branch);
             cloned.push(pkgName);
         }
         catch (error) {
@@ -121,7 +119,7 @@ export async function libInstall(input) {
         };
     }
     // Phase 2: Scan and build DAG
-    const scanResult = await libScan({ rootPath: resolvedRoot });
+    const scanResult = await libScan({ rootPath: resolvedRoot }, ctx);
     const allNodes = buildDAGNodes(scanResult.packages);
     const dag = buildLeveledDAG(allNodes);
     // Phase 3: Install and build in DAG order

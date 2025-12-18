@@ -1,20 +1,18 @@
 /**
  * procedure.new - Scaffold a new procedure
  *
- * Creates the procedure file, types, and registration boilerplate.
+ * Creates the procedure file, types, and registration boilerplate (test edit).
  * Supports dot-notation names like "user.create" which creates a
  * procedure at ["user", "create"] in the user/ namespace folder.
  */
 import { join } from "node:path";
-import { mkdir, writeFile, readFile, access } from "node:fs/promises";
-import { constants } from "node:fs";
 /**
  * Check if path exists
  */
-async function pathExists(path) {
+async function pathExists(pathStr, ctx) {
     try {
-        await access(path, constants.F_OK);
-        return true;
+        const result = await ctx.client.call(["fs", "exists"], { path: pathStr });
+        return result.exists;
     }
     catch {
         return false;
@@ -96,7 +94,7 @@ function generateIndexExport(filename, functionName) {
 /**
  * Scaffold a new procedure
  */
-export async function procedureNew(input) {
+export async function procedureNew(input, ctx) {
     const operations = [];
     const created = [];
     const modified = [];
@@ -128,21 +126,21 @@ export async function procedureNew(input) {
         return {
             success: true,
             procedurePath: segments,
-            created: [procedureFile, namespaceIndex].filter((f) => !pathExists(f)),
-            modified: [typesFile, namespaceIndex].filter(async (f) => await pathExists(f)),
+            created: [procedureFile, namespaceIndex].filter((f) => !pathExists(f, ctx)),
+            modified: [typesFile, namespaceIndex].filter(async (f) => await pathExists(f, ctx)),
             operations: dryRunOps,
             errors: [],
         };
     }
     try {
         // Step 1: Create namespace directory
-        if (!(await pathExists(namespacePath))) {
+        if (!(await pathExists(namespacePath, ctx))) {
             operations.push(`Creating directory: ${namespacePath}`);
-            await mkdir(namespacePath, { recursive: true });
+            await ctx.client.call(["fs", "mkdir"], { path: namespacePath, recursive: true });
             created.push(namespacePath);
         }
         // Step 2: Create procedure file
-        if (await pathExists(procedureFile)) {
+        if (await pathExists(procedureFile, ctx)) {
             errors.push(`Procedure file already exists: ${procedureFile}`);
             return {
                 success: false,
@@ -155,30 +153,32 @@ export async function procedureNew(input) {
         }
         operations.push(`Creating procedure file: ${procedureFile}`);
         const procedureContent = generateProcedureFile(segments, description);
-        await writeFile(procedureFile, procedureContent);
+        await ctx.client.call(["fs", "write"], { path: procedureFile, content: procedureContent });
         created.push(procedureFile);
         // Step 3: Create/update namespace index.ts
         const indexExport = generateIndexExport(procedureName, camelName);
-        if (await pathExists(namespaceIndex)) {
+        if (await pathExists(namespaceIndex, ctx)) {
             operations.push(`Updating index: ${namespaceIndex}`);
-            const existingContent = await readFile(namespaceIndex, "utf-8");
+            const readResult = await ctx.client.call(["fs", "read"], { path: namespaceIndex });
+            const existingContent = readResult.content;
             if (!existingContent.includes(`from "./${procedureName}.js"`)) {
-                await writeFile(namespaceIndex, existingContent + indexExport);
+                await ctx.client.call(["fs", "write"], { path: namespaceIndex, content: existingContent + indexExport });
                 modified.push(namespaceIndex);
             }
         }
         else {
             operations.push(`Creating index: ${namespaceIndex}`);
-            await writeFile(namespaceIndex, indexExport);
+            await ctx.client.call(["fs", "write"], { path: namespaceIndex, content: indexExport });
             created.push(namespaceIndex);
         }
         // Step 4: Add types to types.ts
-        if (await pathExists(typesFile)) {
+        if (await pathExists(typesFile, ctx)) {
             operations.push(`Appending types to: ${typesFile}`);
-            const existingTypes = await readFile(typesFile, "utf-8");
+            const readResult = await ctx.client.call(["fs", "read"], { path: typesFile });
+            const existingTypes = readResult.content;
             if (!existingTypes.includes(`${pascalName}Input`)) {
                 const newTypes = generateTypes(segments, description);
-                await writeFile(typesFile, existingTypes + newTypes);
+                await ctx.client.call(["fs", "write"], { path: typesFile, content: existingTypes + newTypes });
                 modified.push(typesFile);
             }
             else {

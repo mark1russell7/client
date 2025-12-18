@@ -19,11 +19,12 @@
  * ```
  */
 import { z } from "zod";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibRenameInput, LibRenameOutput } from "../../types.js";
 /**
  * Execute the lib.rename procedure
  */
-export declare function libRename(input: LibRenameInput): Promise<LibRenameOutput>;
+export declare function libRename(input: LibRenameInput, ctx: ProcedureContext): Promise<LibRenameOutput>;
 /**
  * Zod schema for input validation
  */

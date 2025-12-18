@@ -11,8 +11,7 @@
  */
 
 import { join } from "node:path";
-import { readFile, access } from "node:fs/promises";
-import { constants } from "node:fs";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type {
   LibRefreshInput,
   LibRefreshOutput,
@@ -30,6 +29,9 @@ import {
 import { ensureBranch, stageAll, commit, push, getGitStatus } from "../../git/index.js";
 import { removeDir, removeFile, pnpmInstall, pnpmBuild } from "../../shell/index.js";
 
+interface FsExistsOutput { exists: boolean; path: string; }
+interface FsReadJsonOutput<T> { path: string; data: T; }
+
 interface PackageJson {
   name?: string;
 }
@@ -37,20 +39,25 @@ interface PackageJson {
 /**
  * Read the package name from a package.json
  */
-async function getPackageName(pkgPath: string): Promise<string> {
+async function getPackageName(pkgPath: string, ctx: ProcedureContext): Promise<string> {
   const pkgJsonPath = join(pkgPath, "package.json");
-  const content = await readFile(pkgJsonPath, "utf-8");
-  const pkg = JSON.parse(content) as PackageJson;
-  return pkg.name ?? "unknown";
+  const result = await ctx.client.call<{ path: string }, FsReadJsonOutput<PackageJson>>(
+    ["fs", "read", "json"],
+    { path: pkgJsonPath }
+  );
+  return result.data.name ?? "unknown";
 }
 
 /**
  * Check if a path exists
  */
-async function pathExists(path: string): Promise<boolean> {
+async function pathExists(pathStr: string, ctx: ProcedureContext): Promise<boolean> {
   try {
-    await access(path, constants.F_OK);
-    return true;
+    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+      ["fs", "exists"],
+      { path: pathStr }
+    );
+    return result.exists;
   } catch {
     return false;
   }
@@ -75,6 +82,7 @@ interface RefreshOptions {
 async function refreshSinglePackage(
   pkgPath: string,
   packageName: string,
+  ctx: ProcedureContext,
   options: RefreshOptions = {}
 ): Promise<RefreshResult> {
   const startTime = Date.now();
@@ -89,16 +97,16 @@ async function refreshSinglePackage(
       const lockPath = join(pkgPath, "pnpm-lock.yaml");
       const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
 
-      if (await pathExists(nodeModulesPath)) {
+      if (await pathExists(nodeModulesPath, ctx)) {
         plannedOperations.push("DELETE node_modules/");
       }
-      if (await pathExists(distPath)) {
+      if (await pathExists(distPath, ctx)) {
         plannedOperations.push("DELETE dist/");
       }
-      if (await pathExists(lockPath)) {
+      if (await pathExists(lockPath, ctx)) {
         plannedOperations.push("DELETE pnpm-lock.yaml");
       }
-      if (await pathExists(tsBuildInfoPath)) {
+      if (await pathExists(tsBuildInfoPath, ctx)) {
         plannedOperations.push("DELETE tsconfig.tsbuildinfo");
       }
     }
@@ -108,7 +116,7 @@ async function refreshSinglePackage(
 
     if (!skipGit) {
       try {
-        const status = await getGitStatus(pkgPath);
+        const status = await getGitStatus(pkgPath, ctx);
         if (!status.isClean) {
           plannedOperations.push("GIT add -A");
           plannedOperations.push("GIT commit");
@@ -141,7 +149,7 @@ async function refreshSinglePackage(
       const lockPath = join(pkgPath, "pnpm-lock.yaml");
       const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
 
-      if (await pathExists(nodeModulesPath)) {
+      if (await pathExists(nodeModulesPath, ctx)) {
         const result = await removeDir(nodeModulesPath);
         if (!result.success) {
           return {
@@ -155,7 +163,7 @@ async function refreshSinglePackage(
         }
       }
 
-      if (await pathExists(distPath)) {
+      if (await pathExists(distPath, ctx)) {
         const result = await removeDir(distPath);
         if (!result.success) {
           return {
@@ -169,7 +177,7 @@ async function refreshSinglePackage(
         }
       }
 
-      if (await pathExists(lockPath)) {
+      if (await pathExists(lockPath, ctx)) {
         const result = await removeFile(lockPath);
         if (!result.success) {
           return {
@@ -183,7 +191,7 @@ async function refreshSinglePackage(
         }
       }
 
-      if (await pathExists(tsBuildInfoPath)) {
+      if (await pathExists(tsBuildInfoPath, ctx)) {
         const result = await removeFile(tsBuildInfoPath);
         if (!result.success) {
           return {
@@ -227,15 +235,16 @@ async function refreshSinglePackage(
     // Step 4: Git operations (unless skipGit is true)
     if (!skipGit) {
       try {
-        const status = await getGitStatus(pkgPath);
+        const status = await getGitStatus(pkgPath, ctx);
 
         if (!status.isClean) {
-          await stageAll(pkgPath);
+          await stageAll(pkgPath, ctx);
           await commit(
             pkgPath,
-            `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`
+            `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`,
+            ctx
           );
-          await push(pkgPath);
+          await push(pkgPath, ctx);
         }
       } catch (error) {
         return {
@@ -269,7 +278,7 @@ async function refreshSinglePackage(
 /**
  * Refresh a package and optionally its dependencies recursively
  */
-export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutput> {
+export async function libRefresh(input: LibRefreshInput, ctx: ProcedureContext): Promise<LibRefreshOutput> {
   const startTime = Date.now();
   const results: RefreshResult[] = [];
   const refreshOpts: RefreshOptions = {
@@ -279,7 +288,7 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
   };
 
   // Scan for all packages first (needed for --all and --recursive)
-  const scanResult = await libScan({});
+  const scanResult = await libScan({}, ctx);
   const allNodes = buildDAGNodes(scanResult.packages);
 
   // Handle --all flag: refresh all ecosystem packages
@@ -287,8 +296,8 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
     const dag = buildLeveledDAG(allNodes);
 
     const processor = createProcessor(async (node: DAGNode) => {
-      await ensureBranch(node.repoPath, node.requiredBranch);
-      const result = await refreshSinglePackage(node.repoPath, node.name, refreshOpts);
+      await ensureBranch(node.repoPath, node.requiredBranch, ctx);
+      const result = await refreshSinglePackage(node.repoPath, node.name, ctx, refreshOpts);
       if (!result.success) {
         throw new Error(result.error ?? "Unknown error");
       }
@@ -326,11 +335,11 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
     : join(process.cwd(), input.path);
 
   // Get the package name
-  const packageName = await getPackageName(pkgPath);
+  const packageName = await getPackageName(pkgPath, ctx);
 
   if (!input.recursive) {
     // Non-recursive: just refresh the single package
-    const result = await refreshSinglePackage(pkgPath, packageName, refreshOpts);
+    const result = await refreshSinglePackage(pkgPath, packageName, ctx, refreshOpts);
     results.push(result);
 
     return {
@@ -345,7 +354,7 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
 
   if (filteredNodes.size === 0) {
     // Package not found in scan, just refresh it directly
-    const result = await refreshSinglePackage(pkgPath, packageName, refreshOpts);
+    const result = await refreshSinglePackage(pkgPath, packageName, ctx, refreshOpts);
     results.push(result);
 
     return {
@@ -361,10 +370,10 @@ export async function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutp
   // Execute DAG (bottom-up, level 0 first)
   const processor = createProcessor(async (node: DAGNode) => {
     // Ensure we're on the correct branch
-    await ensureBranch(node.repoPath, node.requiredBranch);
+    await ensureBranch(node.repoPath, node.requiredBranch, ctx);
 
     // Refresh the package
-    const result = await refreshSinglePackage(node.repoPath, node.name, refreshOpts);
+    const result = await refreshSinglePackage(node.repoPath, node.name, ctx, refreshOpts);
 
     if (!result.success) {
       throw new Error(result.error ?? "Unknown error");

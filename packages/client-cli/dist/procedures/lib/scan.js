@@ -3,19 +3,18 @@
  *
  * Scans ~/git for all packages and builds a mapping of package name to repo path.
  */
-import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { getCurrentBranch, getRemoteUrl, isMark1Russell7Ref } from "../../git/index.js";
+import { isMark1Russell7Ref } from "../../git/index.js";
 const DEFAULT_ROOT = join(homedir(), "git");
 /**
  * Check if a directory contains a package.json
  */
-async function isPackageDir(dirPath) {
+async function isPackageDir(dirPath, ctx) {
     try {
         const pkgPath = join(dirPath, "package.json");
-        const stats = await stat(pkgPath);
-        return stats.isFile();
+        const result = await ctx.client.call(["fs", "exists"], { path: pkgPath });
+        return result.exists;
     }
     catch {
         return false;
@@ -24,11 +23,11 @@ async function isPackageDir(dirPath) {
 /**
  * Read and parse package.json
  */
-async function readPackageJson(dirPath) {
+async function readPackageJson(dirPath, ctx) {
     try {
         const pkgPath = join(dirPath, "package.json");
-        const content = await readFile(pkgPath, "utf-8");
-        return JSON.parse(content);
+        const result = await ctx.client.call(["fs", "read", "json"], { path: pkgPath });
+        return result.data;
     }
     catch {
         return null;
@@ -50,16 +49,24 @@ function extractMark1Russell7Deps(pkg) {
 /**
  * Scan a directory recursively for packages
  */
-async function scanDirectory(dirPath, packages, warnings, depth = 0, maxDepth = 2) {
+async function scanDirectory(dirPath, packages, warnings, ctx, depth = 0, maxDepth = 2) {
     if (depth > maxDepth)
         return;
     // Check if this directory is a package
-    if (await isPackageDir(dirPath)) {
-        const pkg = await readPackageJson(dirPath);
+    if (await isPackageDir(dirPath, ctx)) {
+        const pkg = await readPackageJson(dirPath, ctx);
         if (pkg?.name) {
             try {
-                const currentBranch = await getCurrentBranch(dirPath);
-                const gitRemote = await getRemoteUrl(dirPath);
+                const statusResult = await ctx.client.call(["git", "status"], { cwd: dirPath });
+                const currentBranch = statusResult.branch;
+                let gitRemote;
+                try {
+                    const remoteResult = await ctx.client.call(["git", "remote"], { cwd: dirPath, name: "origin" });
+                    gitRemote = remoteResult.url;
+                }
+                catch {
+                    // No remote configured
+                }
                 const mark1russell7Deps = extractMark1Russell7Deps(pkg);
                 const pkgInfo = {
                     name: pkg.name,
@@ -95,16 +102,16 @@ async function scanDirectory(dirPath, packages, warnings, depth = 0, maxDepth = 
     }
     // Scan subdirectories (but not node_modules, dist, etc.)
     try {
-        const entries = await readdir(dirPath, { withFileTypes: true });
-        for (const entry of entries) {
-            if (!entry.isDirectory())
+        const result = await ctx.client.call(["fs", "readdir"], { path: dirPath });
+        for (const entry of result.entries) {
+            if (!entry.isDirectory)
                 continue;
             // Skip common non-package directories
             const skipDirs = ["node_modules", "dist", ".git", ".vscode", "coverage"];
             if (skipDirs.includes(entry.name))
                 continue;
             const subPath = join(dirPath, entry.name);
-            await scanDirectory(subPath, packages, warnings, depth + 1, maxDepth);
+            await scanDirectory(subPath, packages, warnings, ctx, depth + 1, maxDepth);
         }
     }
     catch (error) {
@@ -117,12 +124,12 @@ async function scanDirectory(dirPath, packages, warnings, depth = 0, maxDepth = 
 /**
  * Scan for packages in the git directory
  */
-export async function libScan(input) {
+export async function libScan(input, ctx) {
     const rootPath = input.rootPath ?? DEFAULT_ROOT;
     const packages = {};
     const warnings = [];
     try {
-        await scanDirectory(rootPath, packages, warnings);
+        await scanDirectory(rootPath, packages, warnings, ctx);
     }
     catch (error) {
         warnings.push({

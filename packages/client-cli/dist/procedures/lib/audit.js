@@ -6,8 +6,6 @@
  */
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { readFile, access, mkdir, writeFile } from "node:fs/promises";
-import { constants } from "node:fs";
 /**
  * Resolve ~ to home directory
  */
@@ -20,10 +18,10 @@ function resolveRoot(root) {
 /**
  * Check if path exists
  */
-async function pathExists(path) {
+async function pathExists(pathStr, ctx) {
     try {
-        await access(path, constants.F_OK);
-        return true;
+        const result = await ctx.client.call(["fs", "exists"], { path: pathStr });
+        return result.exists;
     }
     catch {
         return false;
@@ -32,11 +30,11 @@ async function pathExists(path) {
 /**
  * Check for pnpm configuration issues
  */
-async function checkPnpmIssues(pkgPath) {
+async function checkPnpmIssues(pkgPath, ctx) {
     const issues = [];
     // Check for npm lockfile (should use pnpm)
     const npmLockPath = join(pkgPath, "package-lock.json");
-    if (await pathExists(npmLockPath)) {
+    if (await pathExists(npmLockPath, ctx)) {
         issues.push({
             type: "npm-lockfile",
             message: "Found package-lock.json - should use pnpm-lock.yaml instead",
@@ -44,13 +42,13 @@ async function checkPnpmIssues(pkgPath) {
     }
     // Read package.json to check for GitHub deps
     const pkgJsonPath = join(pkgPath, "package.json");
-    if (!(await pathExists(pkgJsonPath))) {
+    if (!(await pathExists(pkgJsonPath, ctx))) {
         return issues;
     }
     let pkgJson;
     try {
-        const content = await readFile(pkgJsonPath, "utf-8");
-        pkgJson = JSON.parse(content);
+        const result = await ctx.client.call(["fs", "read", "json"], { path: pkgJsonPath });
+        pkgJson = result.data;
     }
     catch {
         return issues;
@@ -85,15 +83,15 @@ async function checkPnpmIssues(pkgPath) {
 /**
  * Load ecosystem manifest
  */
-async function loadManifest(rootPath) {
+async function loadManifest(rootPath, ctx) {
     const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
-    const content = await readFile(manifestPath, "utf-8");
-    return JSON.parse(content);
+    const result = await ctx.client.call(["fs", "read", "json"], { path: manifestPath });
+    return result.data;
 }
 /**
  * Audit a single package against the template
  */
-async function auditPackage(pkgPath, pkgName, template, fix) {
+async function auditPackage(pkgPath, pkgName, template, fix, ctx) {
     const missingFiles = [];
     const missingDirs = [];
     const fixedFiles = [];
@@ -101,11 +99,11 @@ async function auditPackage(pkgPath, pkgName, template, fix) {
     // Check required directories
     for (const dir of template.dirs) {
         const dirPath = join(pkgPath, dir);
-        if (!(await pathExists(dirPath))) {
+        if (!(await pathExists(dirPath, ctx))) {
             missingDirs.push(dir);
             if (fix) {
                 try {
-                    await mkdir(dirPath, { recursive: true });
+                    await ctx.client.call(["fs", "mkdir"], { path: dirPath, recursive: true });
                     fixedDirs.push(dir);
                 }
                 catch {
@@ -117,17 +115,20 @@ async function auditPackage(pkgPath, pkgName, template, fix) {
     // Check required files
     for (const file of template.files) {
         const filePath = join(pkgPath, file);
-        if (!(await pathExists(filePath))) {
+        if (!(await pathExists(filePath, ctx))) {
             missingFiles.push(file);
             if (fix) {
                 // Only fix certain files with sensible defaults
                 try {
                     if (file === "dependencies.json") {
-                        await writeFile(filePath, JSON.stringify({ $schema: "./node_modules/@mark1russell7/cue/dependencies/schema.json", dependencies: ["ts", "node"] }, null, 2) + "\n");
+                        await ctx.client.call(["fs", "write"], {
+                            path: filePath,
+                            content: JSON.stringify({ $schema: "./node_modules/@mark1russell7/cue/dependencies/schema.json", dependencies: ["ts", "node"] }, null, 2) + "\n"
+                        });
                         fixedFiles.push(file);
                     }
                     else if (file === ".gitignore") {
-                        await writeFile(filePath, "node_modules/\ndist/\n.tsbuildinfo\n");
+                        await ctx.client.call(["fs", "write"], { path: filePath, content: "node_modules/\ndist/\n.tsbuildinfo\n" });
                         fixedFiles.push(file);
                     }
                     // Don't auto-create package.json or tsconfig.json - those need cue-config generate
@@ -139,7 +140,7 @@ async function auditPackage(pkgPath, pkgName, template, fix) {
         }
     }
     // Check pnpm configuration
-    const pnpmIssues = await checkPnpmIssues(pkgPath);
+    const pnpmIssues = await checkPnpmIssues(pkgPath, ctx);
     // Remove fixed items from missing lists
     const stillMissingFiles = missingFiles.filter((f) => !fixedFiles.includes(f));
     const stillMissingDirs = missingDirs.filter((d) => !fixedDirs.includes(d));
@@ -159,13 +160,13 @@ async function auditPackage(pkgPath, pkgName, template, fix) {
 /**
  * Audit all packages in the ecosystem against projectTemplate
  */
-export async function libAudit(input) {
+export async function libAudit(input, ctx) {
     const defaultRoot = join(homedir(), "git");
     const rootPath = input.rootPath ?? defaultRoot;
     // Load manifest
     let manifest;
     try {
-        manifest = await loadManifest(rootPath);
+        manifest = await loadManifest(rootPath, ctx);
     }
     catch (error) {
         return {
@@ -182,7 +183,7 @@ export async function libAudit(input) {
     for (const [pkgName, entry] of Object.entries(manifest.packages)) {
         const pkgPath = join(resolvedRoot, entry.path);
         // Skip if package directory doesn't exist
-        if (!(await pathExists(pkgPath))) {
+        if (!(await pathExists(pkgPath, ctx))) {
             results.push({
                 name: pkgName,
                 path: pkgPath,
@@ -193,7 +194,7 @@ export async function libAudit(input) {
             });
             continue;
         }
-        const result = await auditPackage(pkgPath, pkgName, template, input.fix);
+        const result = await auditPackage(pkgPath, pkgName, template, input.fix, ctx);
         results.push(result);
     }
     const validCount = results.filter((r) => r.valid).length;

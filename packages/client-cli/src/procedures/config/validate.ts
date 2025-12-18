@@ -5,17 +5,21 @@
  */
 
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
-import { constants } from "node:fs";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { ConfigValidateInput, ConfigValidateOutput } from "../../types.js";
+
+interface FsExistsOutput { exists: boolean; path: string; }
 
 /**
  * Check if a path exists
  */
-async function pathExists(path: string): Promise<boolean> {
+async function pathExists(pathStr: string, ctx: ProcedureContext): Promise<boolean> {
   try {
-    await access(path, constants.F_OK);
-    return true;
+    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+      ["fs", "exists"],
+      { path: pathStr }
+    );
+    return result.exists;
   } catch {
     return false;
   }
@@ -68,13 +72,14 @@ function runCueConfig(
  * Validate dependencies.json
  */
 export async function configValidate(
-  input: ConfigValidateInput
+  input: ConfigValidateInput,
+  ctx: ProcedureContext
 ): Promise<ConfigValidateOutput> {
   const projectPath = input.path ?? process.cwd();
 
   // Check if dependencies.json exists
   const depsPath = `${projectPath}/dependencies.json`;
-  if (!(await pathExists(depsPath))) {
+  if (!(await pathExists(depsPath, ctx))) {
     return {
       success: false,
       valid: false,

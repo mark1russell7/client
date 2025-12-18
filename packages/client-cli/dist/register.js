@@ -72,8 +72,8 @@ const libScanProcedure = createProcedure()
     shorts: {},
     output: "json",
 })
-    .handler(async (input) => {
-    return libScan(input);
+    .handler(async (input, ctx) => {
+    return libScan(input, ctx);
 })
     .build();
 const libRefreshProcedure = createProcedure()
@@ -93,8 +93,8 @@ const libRefreshProcedure = createProcedure()
     },
     output: "streaming",
 })
-    .handler(async (input) => {
-    return libRefresh(input);
+    .handler(async (input, ctx) => {
+    return libRefresh(input, ctx);
 })
     .build();
 const libRenameInputSchema = zodAdapter(LibRenameInputSchema);
@@ -109,8 +109,8 @@ const libRenameProcedure = createProcedure()
     shorts: { rootPath: "r", dryRun: "d" },
     output: "text",
 })
-    .handler(async (input) => {
-    return libRename(input);
+    .handler(async (input, ctx) => {
+    return libRename(input, ctx);
 })
     .build();
 const libInstallInputSchema = zodAdapter(LibInstallInputSchema);
@@ -125,8 +125,8 @@ const libInstallProcedure = createProcedure()
     shorts: { rootPath: "r", dryRun: "d", continueOnError: "c", concurrency: "j" },
     output: "streaming",
 })
-    .handler(async (input) => {
-    return libInstall(input);
+    .handler(async (input, ctx) => {
+    return libInstall(input, ctx);
 })
     .build();
 const libNewInputSchema = zodAdapter(LibNewInputSchema);
@@ -157,8 +157,8 @@ const libAuditProcedure = createProcedure()
     shorts: { rootPath: "r", fix: "f" },
     output: "json",
 })
-    .handler(async (input) => {
-    return libAudit(input);
+    .handler(async (input, ctx) => {
+    return libAudit(input, ctx);
 })
     .build();
 // =============================================================================
@@ -187,8 +187,8 @@ const configInitProcedure = createProcedure()
     shorts: { preset: "p", force: "f" },
     output: "text",
 })
-    .handler(async (input) => {
-    return configInit(input);
+    .handler(async (input, ctx) => {
+    return configInit(input, ctx);
 })
     .build();
 const configAddProcedure = createProcedure()
@@ -229,8 +229,8 @@ const configGenerateProcedure = createProcedure()
     shorts: {},
     output: "text",
 })
-    .handler(async (input) => {
-    return configGenerate(input);
+    .handler(async (input, ctx) => {
+    return configGenerate(input, ctx);
 })
     .build();
 const configValidateProcedure = createProcedure()
@@ -243,8 +243,8 @@ const configValidateProcedure = createProcedure()
     shorts: {},
     output: "text",
 })
-    .handler(async (input) => {
-    return configValidate(input);
+    .handler(async (input, ctx) => {
+    return configValidate(input, ctx);
 })
     .build();
 // =============================================================================
@@ -265,8 +265,8 @@ const procedureNewProcedure = createProcedure()
     shorts: { namespace: "n", description: "d", path: "p", dryRun: "D" },
     output: "text",
 })
-    .handler(async (input) => {
-    return procedureNew(input);
+    .handler(async (input, ctx) => {
+    return procedureNew(input, ctx);
 })
     .build();
 // =============================================================================

@@ -20,92 +20,61 @@
  */
 
 import { Project, SyntaxKind } from "ts-morph";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { z } from "zod";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibRenameInput, LibRenameOutput, RenameChange } from "../../types.js";
+
+interface FsGlobOutput { pattern: string; files: string[]; count: number; }
+interface FsExistsOutput { exists: boolean; path: string; }
+interface FsReadJsonOutput { path: string; data: unknown; }
+interface FsWriteOutput { path: string; bytesWritten: number; }
 
 /**
  * Find all package.json files under a root path (excluding node_modules)
  */
-function findPackageJsonFiles(rootPath: string): string[] {
-  const results: string[] = [];
-
-  function walk(dir: string): void {
-    try {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          // Skip node_modules, dist, .git
-          if (["node_modules", "dist", ".git", ".tsbuildinfo"].includes(entry.name)) {
-            continue;
-          }
-          walk(fullPath);
-        } else if (entry.name === "package.json") {
-          results.push(fullPath);
-        }
-      }
-    } catch {
-      // Skip directories we can't read
-    }
-  }
-
-  walk(rootPath);
-  return results;
+async function findPackageJsonFiles(rootPath: string, ctx: ProcedureContext): Promise<string[]> {
+  const result = await ctx.client.call<{ pattern: string; cwd?: string; ignore?: string[] }, FsGlobOutput>(
+    ["fs", "glob"],
+    { pattern: "**/package.json", cwd: rootPath, ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**"] }
+  );
+  return result.files;
 }
 
 /**
  * Find all TypeScript files under a root path (excluding node_modules, dist)
  */
-function findTypeScriptFiles(rootPath: string): string[] {
-  const results: string[] = [];
-
-  function walk(dir: string): void {
-    try {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          // Skip node_modules, dist, .git
-          if (["node_modules", "dist", ".git", ".tsbuildinfo"].includes(entry.name)) {
-            continue;
-          }
-          walk(fullPath);
-        } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) {
-          results.push(fullPath);
-        }
-      }
-    } catch {
-      // Skip directories we can't read
-    }
-  }
-
-  walk(rootPath);
-  return results;
+async function findTypeScriptFiles(rootPath: string, ctx: ProcedureContext): Promise<string[]> {
+  const result = await ctx.client.call<{ pattern: string; cwd?: string; ignore?: string[] }, FsGlobOutput>(
+    ["fs", "glob"],
+    { pattern: "**/*.{ts,tsx}", cwd: rootPath, ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**"] }
+  );
+  return result.files;
 }
 
 /**
  * Update package.json name field
  */
-function updatePackageJsonName(
+async function updatePackageJsonName(
   pkgPath: string,
   oldName: string,
   newName: string,
-  dryRun: boolean
-): RenameChange | null {
+  dryRun: boolean,
+  ctx: ProcedureContext
+): Promise<RenameChange | null> {
   try {
-    const content = fs.readFileSync(pkgPath, "utf-8");
-    const pkg = JSON.parse(content) as { name?: string };
+    const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
+      ["fs", "read", "json"],
+      { path: pkgPath }
+    );
+    const pkg = result.data as { name?: string };
 
     if (pkg.name === oldName) {
       if (!dryRun) {
         pkg.name = newName;
-        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+        await ctx.client.call<{ path: string; content: string }, FsWriteOutput>(
+          ["fs", "write"],
+          { path: pkgPath, content: JSON.stringify(pkg, null, 2) + "\n" }
+        );
       }
 
       return {
@@ -125,17 +94,21 @@ function updatePackageJsonName(
 /**
  * Update package.json dependencies
  */
-function updatePackageJsonDependencies(
+async function updatePackageJsonDependencies(
   pkgPath: string,
   oldName: string,
   newName: string,
-  dryRun: boolean
-): RenameChange[] {
+  dryRun: boolean,
+  ctx: ProcedureContext
+): Promise<RenameChange[]> {
   const changes: RenameChange[] = [];
 
   try {
-    const content = fs.readFileSync(pkgPath, "utf-8");
-    const pkg = JSON.parse(content) as Record<string, unknown>;
+    const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
+      ["fs", "read", "json"],
+      { path: pkgPath }
+    );
+    const pkg = result.data as Record<string, unknown>;
     let modified = false;
 
     const depFields = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
@@ -144,12 +117,8 @@ function updatePackageJsonDependencies(
       const deps = pkg[field] as Record<string, string> | undefined;
       if (deps && oldName in deps) {
         const oldValue = deps[oldName]!;
-        // Update the dependency name, keeping the version/URL
-        // If it's a github ref, update the repo name too
         let newValue = oldValue;
         if (oldValue.includes(`github:mark1russell7/${oldName.replace("@mark1russell7/", "")}`)) {
-          // Update github refs: github:mark1russell7/client#main → github:mark1russell7/client#main
-          // The repo name might be different from package name
           newValue = oldValue.replace(
             `github:mark1russell7/${oldName.replace("@mark1russell7/", "")}`,
             `github:mark1russell7/${newName.replace("@mark1russell7/", "")}`
@@ -173,7 +142,10 @@ function updatePackageJsonDependencies(
     }
 
     if (modified && !dryRun) {
-      fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+      await ctx.client.call<{ path: string; content: string }, FsWriteOutput>(
+        ["fs", "write"],
+        { path: pkgPath, content: JSON.stringify(pkg, null, 2) + "\n" }
+      );
     }
   } catch {
     // Skip files we can't parse
@@ -282,7 +254,7 @@ function updateTypeScriptImports(
 /**
  * Execute the lib.rename procedure
  */
-export async function libRename(input: LibRenameInput): Promise<LibRenameOutput> {
+export async function libRename(input: LibRenameInput, ctx: ProcedureContext): Promise<LibRenameOutput> {
   const { oldName, newName, rootPath = process.env["HOME"] + "/git", dryRun = false } = input;
 
   const changes: RenameChange[] = [];
@@ -291,7 +263,11 @@ export async function libRename(input: LibRenameInput): Promise<LibRenameOutput>
   // Resolve path
   const resolvedRoot = rootPath.replace(/^~/, process.env["HOME"] ?? "");
 
-  if (!fs.existsSync(resolvedRoot)) {
+  const existsResult = await ctx.client.call<{ path: string }, FsExistsOutput>(
+    ["fs", "exists"],
+    { path: resolvedRoot }
+  );
+  if (!existsResult.exists) {
     return {
       success: false,
       changes: [],
@@ -304,16 +280,16 @@ export async function libRename(input: LibRenameInput): Promise<LibRenameOutput>
   console.log(`[lib.rename] Scanning ${resolvedRoot}...`);
 
   // Find all package.json files
-  const packageJsonFiles = findPackageJsonFiles(resolvedRoot);
+  const packageJsonFiles = await findPackageJsonFiles(resolvedRoot, ctx);
   console.log(`[lib.rename] Found ${packageJsonFiles.length} package.json files`);
 
   // Find all TypeScript files
-  const tsFiles = findTypeScriptFiles(resolvedRoot);
+  const tsFiles = await findTypeScriptFiles(resolvedRoot, ctx);
   console.log(`[lib.rename] Found ${tsFiles.length} TypeScript files`);
 
   // 1. Update package.json name field (find the package being renamed)
   for (const pkgPath of packageJsonFiles) {
-    const change = updatePackageJsonName(pkgPath, oldName, newName, dryRun);
+    const change = await updatePackageJsonName(pkgPath, oldName, newName, dryRun, ctx);
     if (change) {
       changes.push(change);
       console.log(`[lib.rename] ${dryRun ? "Would update" : "Updated"} package name: ${pkgPath}`);
@@ -322,7 +298,7 @@ export async function libRename(input: LibRenameInput): Promise<LibRenameOutput>
 
   // 2. Update package.json dependencies
   for (const pkgPath of packageJsonFiles) {
-    const depChanges = updatePackageJsonDependencies(pkgPath, oldName, newName, dryRun);
+    const depChanges = await updatePackageJsonDependencies(pkgPath, oldName, newName, dryRun, ctx);
     changes.push(...depChanges);
     if (depChanges.length > 0) {
       console.log(

@@ -4,11 +4,17 @@
  * Scans ~/git for all packages and builds a mapping of package name to repo path.
  */
 
-import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibScanInput, LibScanOutput, PackageInfo } from "../../types.js";
-import { getCurrentBranch, getRemoteUrl, isMark1Russell7Ref } from "../../git/index.js";
+import { isMark1Russell7Ref } from "../../git/index.js";
+
+interface FsExistsOutput { exists: boolean; path: string; }
+interface FsReaddirOutput { path: string; entries: Array<{ name: string; isDirectory: boolean; isFile: boolean }>; }
+interface FsReadJsonOutput { path: string; data: unknown; }
+interface GitStatusOutput { branch: string; }
+interface GitRemoteOutput { name: string; url: string; }
 
 const DEFAULT_ROOT = join(homedir(), "git");
 
@@ -21,11 +27,14 @@ interface PackageJson {
 /**
  * Check if a directory contains a package.json
  */
-async function isPackageDir(dirPath: string): Promise<boolean> {
+async function isPackageDir(dirPath: string, ctx: ProcedureContext): Promise<boolean> {
   try {
     const pkgPath = join(dirPath, "package.json");
-    const stats = await stat(pkgPath);
-    return stats.isFile();
+    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+      ["fs", "exists"],
+      { path: pkgPath }
+    );
+    return result.exists;
   } catch {
     return false;
   }
@@ -34,11 +43,14 @@ async function isPackageDir(dirPath: string): Promise<boolean> {
 /**
  * Read and parse package.json
  */
-async function readPackageJson(dirPath: string): Promise<PackageJson | null> {
+async function readPackageJson(dirPath: string, ctx: ProcedureContext): Promise<PackageJson | null> {
   try {
     const pkgPath = join(dirPath, "package.json");
-    const content = await readFile(pkgPath, "utf-8");
-    return JSON.parse(content) as PackageJson;
+    const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
+      ["fs", "read", "json"],
+      { path: pkgPath }
+    );
+    return result.data as PackageJson;
   } catch {
     return null;
   }
@@ -67,19 +79,35 @@ async function scanDirectory(
   dirPath: string,
   packages: Record<string, PackageInfo>,
   warnings: Array<{ path: string; issue: string }>,
+  ctx: ProcedureContext,
   depth: number = 0,
   maxDepth: number = 2
 ): Promise<void> {
   if (depth > maxDepth) return;
 
   // Check if this directory is a package
-  if (await isPackageDir(dirPath)) {
-    const pkg = await readPackageJson(dirPath);
+  if (await isPackageDir(dirPath, ctx)) {
+    const pkg = await readPackageJson(dirPath, ctx);
 
     if (pkg?.name) {
       try {
-        const currentBranch = await getCurrentBranch(dirPath);
-        const gitRemote = await getRemoteUrl(dirPath);
+        const statusResult = await ctx.client.call<{ cwd?: string }, GitStatusOutput>(
+          ["git", "status"],
+          { cwd: dirPath }
+        );
+        const currentBranch = statusResult.branch;
+
+        let gitRemote: string | undefined;
+        try {
+          const remoteResult = await ctx.client.call<{ cwd?: string; name?: string }, GitRemoteOutput>(
+            ["git", "remote"],
+            { cwd: dirPath, name: "origin" }
+          );
+          gitRemote = remoteResult.url;
+        } catch {
+          // No remote configured
+        }
+
         const mark1russell7Deps = extractMark1Russell7Deps(pkg);
 
         const pkgInfo: PackageInfo = {
@@ -116,17 +144,20 @@ async function scanDirectory(
 
   // Scan subdirectories (but not node_modules, dist, etc.)
   try {
-    const entries = await readdir(dirPath, { withFileTypes: true });
+    const result = await ctx.client.call<{ path: string }, FsReaddirOutput>(
+      ["fs", "readdir"],
+      { path: dirPath }
+    );
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+    for (const entry of result.entries) {
+      if (!entry.isDirectory) continue;
 
       // Skip common non-package directories
       const skipDirs = ["node_modules", "dist", ".git", ".vscode", "coverage"];
       if (skipDirs.includes(entry.name)) continue;
 
       const subPath = join(dirPath, entry.name);
-      await scanDirectory(subPath, packages, warnings, depth + 1, maxDepth);
+      await scanDirectory(subPath, packages, warnings, ctx, depth + 1, maxDepth);
     }
   } catch (error) {
     warnings.push({
@@ -139,13 +170,13 @@ async function scanDirectory(
 /**
  * Scan for packages in the git directory
  */
-export async function libScan(input: LibScanInput): Promise<LibScanOutput> {
+export async function libScan(input: LibScanInput, ctx: ProcedureContext): Promise<LibScanOutput> {
   const rootPath = input.rootPath ?? DEFAULT_ROOT;
   const packages: Record<string, PackageInfo> = {};
   const warnings: Array<{ path: string; issue: string }> = [];
 
   try {
-    await scanDirectory(rootPath, packages, warnings);
+    await scanDirectory(rootPath, packages, warnings, ctx);
   } catch (error) {
     warnings.push({
       path: rootPath,

@@ -9,9 +9,10 @@
  *
  * With --recursive, processes dependencies in post-order (bottom-up).
  */
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibRefreshInput, LibRefreshOutput } from "../../types.js";
 /**
  * Refresh a package and optionally its dependencies recursively
  */
-export declare function libRefresh(input: LibRefreshInput): Promise<LibRefreshOutput>;
+export declare function libRefresh(input: LibRefreshInput, ctx: ProcedureContext): Promise<LibRefreshOutput>;
 //# sourceMappingURL=refresh.d.ts.map

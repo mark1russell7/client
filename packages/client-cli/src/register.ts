@@ -137,8 +137,8 @@ const libScanProcedure = createProcedure()
     shorts: {},
     output: "json",
   })
-  .handler(async (input: LibScanInput): Promise<LibScanOutput> => {
-    return libScan(input);
+  .handler(async (input: LibScanInput, ctx): Promise<LibScanOutput> => {
+    return libScan(input, ctx);
   })
   .build();
 
@@ -159,8 +159,8 @@ const libRefreshProcedure = createProcedure()
     },
     output: "streaming",
   })
-  .handler(async (input: LibRefreshInput): Promise<LibRefreshOutput> => {
-    return libRefresh(input);
+  .handler(async (input: LibRefreshInput, ctx): Promise<LibRefreshOutput> => {
+    return libRefresh(input, ctx);
   })
   .build();
 
@@ -177,8 +177,8 @@ const libRenameProcedure = createProcedure()
     shorts: { rootPath: "r", dryRun: "d" },
     output: "text",
   })
-  .handler(async (input: LibRenameInput): Promise<LibRenameOutput> => {
-    return libRename(input);
+  .handler(async (input: LibRenameInput, ctx): Promise<LibRenameOutput> => {
+    return libRename(input, ctx);
   })
   .build();
 
@@ -195,8 +195,8 @@ const libInstallProcedure = createProcedure()
     shorts: { rootPath: "r", dryRun: "d", continueOnError: "c", concurrency: "j" },
     output: "streaming",
   })
-  .handler(async (input: LibInstallInput): Promise<LibInstallOutput> => {
-    return libInstall(input);
+  .handler(async (input: LibInstallInput, ctx): Promise<LibInstallOutput> => {
+    return libInstall(input, ctx);
   })
   .build();
 
@@ -231,8 +231,8 @@ const libAuditProcedure = createProcedure()
     shorts: { rootPath: "r", fix: "f" },
     output: "json",
   })
-  .handler(async (input: LibAuditInput): Promise<LibAuditOutput> => {
-    return libAudit(input);
+  .handler(async (input: LibAuditInput, ctx): Promise<LibAuditOutput> => {
+    return libAudit(input, ctx);
   })
   .build();
 
@@ -269,8 +269,8 @@ const configInitProcedure = createProcedure()
     shorts: { preset: "p", force: "f" },
     output: "text",
   })
-  .handler(async (input: ConfigInitInput): Promise<ConfigInitOutput> => {
-    return configInit(input);
+  .handler(async (input: ConfigInitInput, ctx): Promise<ConfigInitOutput> => {
+    return configInit(input, ctx);
   })
   .build();
 
@@ -314,8 +314,8 @@ const configGenerateProcedure = createProcedure()
     shorts: {},
     output: "text",
   })
-  .handler(async (input: ConfigGenerateInput): Promise<ConfigGenerateOutput> => {
-    return configGenerate(input);
+  .handler(async (input: ConfigGenerateInput, ctx): Promise<ConfigGenerateOutput> => {
+    return configGenerate(input, ctx);
   })
   .build();
 
@@ -329,8 +329,8 @@ const configValidateProcedure = createProcedure()
     shorts: {},
     output: "text",
   })
-  .handler(async (input: ConfigValidateInput): Promise<ConfigValidateOutput> => {
-    return configValidate(input);
+  .handler(async (input: ConfigValidateInput, ctx): Promise<ConfigValidateOutput> => {
+    return configValidate(input, ctx);
   })
   .build();
 
@@ -355,8 +355,8 @@ const procedureNewProcedure = createProcedure()
     shorts: { namespace: "n", description: "d", path: "p", dryRun: "D" },
     output: "text",
   })
-  .handler(async (input: ProcedureNewInput): Promise<ProcedureNewOutput> => {
-    return procedureNew(input);
+  .handler(async (input: ProcedureNewInput, ctx): Promise<ProcedureNewOutput> => {
+    return procedureNew(input, ctx);
   })
   .build();
 

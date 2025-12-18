@@ -10,8 +10,6 @@
  * With --recursive, processes dependencies in post-order (bottom-up).
  */
 import { join } from "node:path";
-import { readFile, access } from "node:fs/promises";
-import { constants } from "node:fs";
 import { libScan } from "./scan.js";
 import { buildDAGNodes, filterDAGFromRoot, buildLeveledDAG, executeDAG, createProcessor, } from "../../dag/index.js";
 import { ensureBranch, stageAll, commit, push, getGitStatus } from "../../git/index.js";
@@ -19,19 +17,18 @@ import { removeDir, removeFile, pnpmInstall, pnpmBuild } from "../../shell/index
 /**
  * Read the package name from a package.json
  */
-async function getPackageName(pkgPath) {
+async function getPackageName(pkgPath, ctx) {
     const pkgJsonPath = join(pkgPath, "package.json");
-    const content = await readFile(pkgJsonPath, "utf-8");
-    const pkg = JSON.parse(content);
-    return pkg.name ?? "unknown";
+    const result = await ctx.client.call(["fs", "read", "json"], { path: pkgJsonPath });
+    return result.data.name ?? "unknown";
 }
 /**
  * Check if a path exists
  */
-async function pathExists(path) {
+async function pathExists(pathStr, ctx) {
     try {
-        await access(path, constants.F_OK);
-        return true;
+        const result = await ctx.client.call(["fs", "exists"], { path: pathStr });
+        return result.exists;
     }
     catch {
         return false;
@@ -47,7 +44,7 @@ async function pathExists(path) {
  *   - skipGit: If true, skips git commit/push
  *   - dryRun: If true, only reports what would be done without executing
  */
-async function refreshSinglePackage(pkgPath, packageName, options = {}) {
+async function refreshSinglePackage(pkgPath, packageName, ctx, options = {}) {
     const startTime = Date.now();
     const { force = false, skipGit = false, dryRun = false } = options;
     const plannedOperations = [];
@@ -58,16 +55,16 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
             const distPath = join(pkgPath, "dist");
             const lockPath = join(pkgPath, "pnpm-lock.yaml");
             const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
-            if (await pathExists(nodeModulesPath)) {
+            if (await pathExists(nodeModulesPath, ctx)) {
                 plannedOperations.push("DELETE node_modules/");
             }
-            if (await pathExists(distPath)) {
+            if (await pathExists(distPath, ctx)) {
                 plannedOperations.push("DELETE dist/");
             }
-            if (await pathExists(lockPath)) {
+            if (await pathExists(lockPath, ctx)) {
                 plannedOperations.push("DELETE pnpm-lock.yaml");
             }
-            if (await pathExists(tsBuildInfoPath)) {
+            if (await pathExists(tsBuildInfoPath, ctx)) {
                 plannedOperations.push("DELETE tsconfig.tsbuildinfo");
             }
         }
@@ -75,7 +72,7 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
         plannedOperations.push("RUN pnpm run build");
         if (!skipGit) {
             try {
-                const status = await getGitStatus(pkgPath);
+                const status = await getGitStatus(pkgPath, ctx);
                 if (!status.isClean) {
                     plannedOperations.push("GIT add -A");
                     plannedOperations.push("GIT commit");
@@ -108,7 +105,7 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
             const distPath = join(pkgPath, "dist");
             const lockPath = join(pkgPath, "pnpm-lock.yaml");
             const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
-            if (await pathExists(nodeModulesPath)) {
+            if (await pathExists(nodeModulesPath, ctx)) {
                 const result = await removeDir(nodeModulesPath);
                 if (!result.success) {
                     return {
@@ -121,7 +118,7 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
                     };
                 }
             }
-            if (await pathExists(distPath)) {
+            if (await pathExists(distPath, ctx)) {
                 const result = await removeDir(distPath);
                 if (!result.success) {
                     return {
@@ -134,7 +131,7 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
                     };
                 }
             }
-            if (await pathExists(lockPath)) {
+            if (await pathExists(lockPath, ctx)) {
                 const result = await removeFile(lockPath);
                 if (!result.success) {
                     return {
@@ -147,7 +144,7 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
                     };
                 }
             }
-            if (await pathExists(tsBuildInfoPath)) {
+            if (await pathExists(tsBuildInfoPath, ctx)) {
                 const result = await removeFile(tsBuildInfoPath);
                 if (!result.success) {
                     return {
@@ -188,11 +185,11 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
         // Step 4: Git operations (unless skipGit is true)
         if (!skipGit) {
             try {
-                const status = await getGitStatus(pkgPath);
+                const status = await getGitStatus(pkgPath, ctx);
                 if (!status.isClean) {
-                    await stageAll(pkgPath);
-                    await commit(pkgPath, `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`);
-                    await push(pkgPath);
+                    await stageAll(pkgPath, ctx);
+                    await commit(pkgPath, `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`, ctx);
+                    await push(pkgPath, ctx);
                 }
             }
             catch (error) {
@@ -226,7 +223,7 @@ async function refreshSinglePackage(pkgPath, packageName, options = {}) {
 /**
  * Refresh a package and optionally its dependencies recursively
  */
-export async function libRefresh(input) {
+export async function libRefresh(input, ctx) {
     const startTime = Date.now();
     const results = [];
     const refreshOpts = {
@@ -235,14 +232,14 @@ export async function libRefresh(input) {
         dryRun: input.dryRun,
     };
     // Scan for all packages first (needed for --all and --recursive)
-    const scanResult = await libScan({});
+    const scanResult = await libScan({}, ctx);
     const allNodes = buildDAGNodes(scanResult.packages);
     // Handle --all flag: refresh all ecosystem packages
     if (input.all) {
         const dag = buildLeveledDAG(allNodes);
         const processor = createProcessor(async (node) => {
-            await ensureBranch(node.repoPath, node.requiredBranch);
-            const result = await refreshSinglePackage(node.repoPath, node.name, refreshOpts);
+            await ensureBranch(node.repoPath, node.requiredBranch, ctx);
+            const result = await refreshSinglePackage(node.repoPath, node.name, ctx, refreshOpts);
             if (!result.success) {
                 throw new Error(result.error ?? "Unknown error");
             }
@@ -275,10 +272,10 @@ export async function libRefresh(input) {
         ? input.path
         : join(process.cwd(), input.path);
     // Get the package name
-    const packageName = await getPackageName(pkgPath);
+    const packageName = await getPackageName(pkgPath, ctx);
     if (!input.recursive) {
         // Non-recursive: just refresh the single package
-        const result = await refreshSinglePackage(pkgPath, packageName, refreshOpts);
+        const result = await refreshSinglePackage(pkgPath, packageName, ctx, refreshOpts);
         results.push(result);
         return {
             success: result.success,
@@ -290,7 +287,7 @@ export async function libRefresh(input) {
     const filteredNodes = filterDAGFromRoot(allNodes, packageName);
     if (filteredNodes.size === 0) {
         // Package not found in scan, just refresh it directly
-        const result = await refreshSinglePackage(pkgPath, packageName, refreshOpts);
+        const result = await refreshSinglePackage(pkgPath, packageName, ctx, refreshOpts);
         results.push(result);
         return {
             success: result.success,
@@ -303,9 +300,9 @@ export async function libRefresh(input) {
     // Execute DAG (bottom-up, level 0 first)
     const processor = createProcessor(async (node) => {
         // Ensure we're on the correct branch
-        await ensureBranch(node.repoPath, node.requiredBranch);
+        await ensureBranch(node.repoPath, node.requiredBranch, ctx);
         // Refresh the package
-        const result = await refreshSinglePackage(node.repoPath, node.name, refreshOpts);
+        const result = await refreshSinglePackage(node.repoPath, node.name, ctx, refreshOpts);
         if (!result.success) {
             throw new Error(result.error ?? "Unknown error");
         }

@@ -5,15 +5,13 @@
  * based on dependencies.json features using cue-config.
  */
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
-import { constants } from "node:fs";
 /**
  * Check if a path exists
  */
-async function pathExists(path) {
+async function pathExists(pathStr, ctx) {
     try {
-        await access(path, constants.F_OK);
-        return true;
+        const result = await ctx.client.call(["fs", "exists"], { path: pathStr });
+        return result.exists;
     }
     catch {
         return false;
@@ -56,13 +54,13 @@ function runCueConfig(args, cwd) {
 /**
  * Generate configuration files from dependencies.json
  */
-export async function configGenerate(input) {
+export async function configGenerate(input, ctx) {
     const projectPath = input.path ?? process.cwd();
     const generated = [];
     const errors = [];
     // Check if dependencies.json exists
     const depsPath = `${projectPath}/dependencies.json`;
-    if (!(await pathExists(depsPath))) {
+    if (!(await pathExists(depsPath, ctx))) {
         return {
             success: false,
             generated: [],

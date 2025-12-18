@@ -4,15 +4,13 @@
  * Initializes a project with dependencies.json using a preset.
  */
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
-import { constants } from "node:fs";
 /**
  * Check if a path exists
  */
-async function pathExists(path) {
+async function pathExists(pathStr, ctx) {
     try {
-        await access(path, constants.F_OK);
-        return true;
+        const result = await ctx.client.call(["fs", "exists"], { path: pathStr });
+        return result.exists;
     }
     catch {
         return false;
@@ -55,12 +53,12 @@ function runCueConfig(args, cwd) {
 /**
  * Initialize project configuration
  */
-export async function configInit(input) {
+export async function configInit(input, ctx) {
     const projectPath = input.path ?? process.cwd();
     const preset = input.preset ?? "lib";
     // Check if dependencies.json already exists
     const depsPath = `${projectPath}/dependencies.json`;
-    if ((await pathExists(depsPath)) && !input.force) {
+    if ((await pathExists(depsPath, ctx)) && !input.force) {
         return {
             success: false,
             preset,

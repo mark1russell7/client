@@ -1,23 +1,30 @@
 /**
  * procedure.new - Scaffold a new procedure
  *
- * Creates the procedure file, types, and registration boilerplate.
+ * Creates the procedure file, types, and registration boilerplate (test edit).
  * Supports dot-notation names like "user.create" which creates a
  * procedure at ["user", "create"] in the user/ namespace folder.
  */
 
 import { join } from "node:path";
-import { mkdir, writeFile, readFile, access } from "node:fs/promises";
-import { constants } from "node:fs";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { ProcedureNewInput, ProcedureNewOutput } from "../../types.js";
+
+interface FsExistsOutput { exists: boolean; path: string; }
+interface FsReadOutput { path: string; content: string; }
+interface FsWriteOutput { path: string; bytesWritten: number; }
+interface FsMkdirOutput { path: string; created: boolean; }
 
 /**
  * Check if path exists
  */
-async function pathExists(path: string): Promise<boolean> {
+async function pathExists(pathStr: string, ctx: ProcedureContext): Promise<boolean> {
   try {
-    await access(path, constants.F_OK);
-    return true;
+    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+      ["fs", "exists"],
+      { path: pathStr }
+    );
+    return result.exists;
   } catch {
     return false;
   }
@@ -109,7 +116,7 @@ function generateIndexExport(filename: string, functionName: string): string {
 /**
  * Scaffold a new procedure
  */
-export async function procedureNew(input: ProcedureNewInput): Promise<ProcedureNewOutput> {
+export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureContext): Promise<ProcedureNewOutput> {
   const operations: string[] = [];
   const created: string[] = [];
   const modified: string[] = [];
@@ -145,8 +152,8 @@ export async function procedureNew(input: ProcedureNewInput): Promise<ProcedureN
     return {
       success: true,
       procedurePath: segments,
-      created: [procedureFile, namespaceIndex].filter((f) => !pathExists(f)),
-      modified: [typesFile, namespaceIndex].filter(async (f) => await pathExists(f)),
+      created: [procedureFile, namespaceIndex].filter((f) => !pathExists(f, ctx)),
+      modified: [typesFile, namespaceIndex].filter(async (f) => await pathExists(f, ctx)),
       operations: dryRunOps,
       errors: [],
     };
@@ -154,14 +161,17 @@ export async function procedureNew(input: ProcedureNewInput): Promise<ProcedureN
 
   try {
     // Step 1: Create namespace directory
-    if (!(await pathExists(namespacePath))) {
+    if (!(await pathExists(namespacePath, ctx))) {
       operations.push(`Creating directory: ${namespacePath}`);
-      await mkdir(namespacePath, { recursive: true });
+      await ctx.client.call<{ path: string; recursive?: boolean }, FsMkdirOutput>(
+        ["fs", "mkdir"],
+        { path: namespacePath, recursive: true }
+      );
       created.push(namespacePath);
     }
 
     // Step 2: Create procedure file
-    if (await pathExists(procedureFile)) {
+    if (await pathExists(procedureFile, ctx)) {
       errors.push(`Procedure file already exists: ${procedureFile}`);
       return {
         success: false,
@@ -175,31 +185,51 @@ export async function procedureNew(input: ProcedureNewInput): Promise<ProcedureN
 
     operations.push(`Creating procedure file: ${procedureFile}`);
     const procedureContent = generateProcedureFile(segments, description);
-    await writeFile(procedureFile, procedureContent);
+    await ctx.client.call<{ path: string; content: string }, FsWriteOutput>(
+      ["fs", "write"],
+      { path: procedureFile, content: procedureContent }
+    );
     created.push(procedureFile);
 
     // Step 3: Create/update namespace index.ts
     const indexExport = generateIndexExport(procedureName, camelName);
-    if (await pathExists(namespaceIndex)) {
+    if (await pathExists(namespaceIndex, ctx)) {
       operations.push(`Updating index: ${namespaceIndex}`);
-      const existingContent = await readFile(namespaceIndex, "utf-8");
+      const readResult = await ctx.client.call<{ path: string }, FsReadOutput>(
+        ["fs", "read"],
+        { path: namespaceIndex }
+      );
+      const existingContent = readResult.content;
       if (!existingContent.includes(`from "./${procedureName}.js"`)) {
-        await writeFile(namespaceIndex, existingContent + indexExport);
+        await ctx.client.call<{ path: string; content: string }, FsWriteOutput>(
+          ["fs", "write"],
+          { path: namespaceIndex, content: existingContent + indexExport }
+        );
         modified.push(namespaceIndex);
       }
     } else {
       operations.push(`Creating index: ${namespaceIndex}`);
-      await writeFile(namespaceIndex, indexExport);
+      await ctx.client.call<{ path: string; content: string }, FsWriteOutput>(
+        ["fs", "write"],
+        { path: namespaceIndex, content: indexExport }
+      );
       created.push(namespaceIndex);
     }
 
     // Step 4: Add types to types.ts
-    if (await pathExists(typesFile)) {
+    if (await pathExists(typesFile, ctx)) {
       operations.push(`Appending types to: ${typesFile}`);
-      const existingTypes = await readFile(typesFile, "utf-8");
+      const readResult = await ctx.client.call<{ path: string }, FsReadOutput>(
+        ["fs", "read"],
+        { path: typesFile }
+      );
+      const existingTypes = readResult.content;
       if (!existingTypes.includes(`${pascalName}Input`)) {
         const newTypes = generateTypes(segments, description);
-        await writeFile(typesFile, existingTypes + newTypes);
+        await ctx.client.call<{ path: string; content: string }, FsWriteOutput>(
+          ["fs", "write"],
+          { path: typesFile, content: existingTypes + newTypes }
+        );
         modified.push(typesFile);
       } else {
         operations.push(`Types for ${pascalName} already exist, skipping`);

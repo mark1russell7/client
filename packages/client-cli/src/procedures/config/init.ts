@@ -5,17 +5,21 @@
  */
 
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
-import { constants } from "node:fs";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { ConfigInitInput, ConfigInitOutput } from "../../types.js";
+
+interface FsExistsOutput { exists: boolean; path: string; }
 
 /**
  * Check if a path exists
  */
-async function pathExists(path: string): Promise<boolean> {
+async function pathExists(pathStr: string, ctx: ProcedureContext): Promise<boolean> {
   try {
-    await access(path, constants.F_OK);
-    return true;
+    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+      ["fs", "exists"],
+      { path: pathStr }
+    );
+    return result.exists;
   } catch {
     return false;
   }
@@ -67,13 +71,13 @@ function runCueConfig(
 /**
  * Initialize project configuration
  */
-export async function configInit(input: ConfigInitInput): Promise<ConfigInitOutput> {
+export async function configInit(input: ConfigInitInput, ctx: ProcedureContext): Promise<ConfigInitOutput> {
   const projectPath = input.path ?? process.cwd();
   const preset = input.preset ?? "lib";
 
   // Check if dependencies.json already exists
   const depsPath = `${projectPath}/dependencies.json`;
-  if ((await pathExists(depsPath)) && !input.force) {
+  if ((await pathExists(depsPath, ctx)) && !input.force) {
     return {
       success: false,
       preset,
