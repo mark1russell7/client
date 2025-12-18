@@ -77,6 +77,10 @@
     "@mark1russell7/client-connection": {
       "repo": "github:mark1russell7/client-connection#main",
       "path": "client-connection"
+    },
+    "@mark1russell7/client-cue": {
+      "repo": "github:mark1russell7/client-cue#main",
+      "path": "client-cue"
     }
   },
   "projectTemplate": {
