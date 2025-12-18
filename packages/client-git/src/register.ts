@@ -16,6 +16,7 @@ import { gitCheckout } from "./procedures/git/checkout.js";
 import { gitBranch } from "./procedures/git/branch.js";
 import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
+import { gitInit } from "./procedures/git/init.js";
 import {
   GitStatusInputSchema,
   GitAddInputSchema,
@@ -47,6 +48,9 @@ import {
   type GitLogOutput,
   type GitDiffInput,
   type GitDiffOutput,
+  GitInitInputSchema,
+  type GitInitInput,
+  type GitInitOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -258,6 +262,22 @@ const gitDiffProcedure = createProcedure()
   })
   .build();
 
+
+const gitInitProcedure = createProcedure()
+  .path(["git", "init"])
+  .input(zodAdapter<GitInitInput>(GitInitInputSchema))
+  .output(outputSchema<GitInitOutput>())
+  .meta({
+    description: "Initialize a git repository",
+    args: [],
+    shorts: { cwd: "C", bare: "b", initialBranch: "B" },
+    output: "json",
+  })
+  .handler(async (input: GitInitInput): Promise<GitInitOutput> => {
+    return gitInit(input);
+  })
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
@@ -274,6 +294,7 @@ export function registerGitProcedures(): void {
     gitBranchProcedure,
     gitLogProcedure,
     gitDiffProcedure,
+    gitInitProcedure,
   ]);
 }
 

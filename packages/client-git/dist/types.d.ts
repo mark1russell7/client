@@ -147,4 +147,16 @@ export interface GitDiffOutput {
     deletions: number;
     diff?: string;
 }
+export declare const GitInitInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+    bare: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    initialBranch: z.ZodOptional<z.ZodString>;
+}>;
+export type GitInitInput = z.infer<typeof GitInitInputSchema>;
+export interface GitInitOutput {
+    /** The initialized repository path */
+    path: string;
+    /** Whether the repo was newly created */
+    created: boolean;
+}
 //# sourceMappingURL=types.d.ts.map

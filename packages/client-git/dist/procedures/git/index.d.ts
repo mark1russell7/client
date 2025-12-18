@@ -8,4 +8,5 @@ export { gitCheckout } from "./checkout.js";
 export { gitBranch } from "./branch.js";
 export { gitLog } from "./log.js";
 export { gitDiff } from "./diff.js";
+export { gitInit } from "./init.js";
 //# sourceMappingURL=index.d.ts.map

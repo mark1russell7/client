@@ -15,7 +15,8 @@ import { gitCheckout } from "./procedures/git/checkout.js";
 import { gitBranch } from "./procedures/git/branch.js";
 import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
-import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, } from "./types.js";
+import { gitInit } from "./procedures/git/init.js";
+import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, GitInitInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -196,6 +197,20 @@ const gitDiffProcedure = createProcedure()
     return gitDiff(input);
 })
     .build();
+const gitInitProcedure = createProcedure()
+    .path(["git", "init"])
+    .input(zodAdapter(GitInitInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Initialize a git repository",
+    args: [],
+    shorts: { cwd: "C", bare: "b", initialBranch: "B" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitInit(input);
+})
+    .build();
 // =============================================================================
 // Registration
 // =============================================================================
@@ -211,6 +226,7 @@ export function registerGitProcedures() {
         gitBranchProcedure,
         gitLogProcedure,
         gitDiffProcedure,
+        gitInitProcedure,
     ]);
 }
 // Auto-register when this module is loaded

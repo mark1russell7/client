@@ -314,3 +314,29 @@ export interface GitDiffOutput {
   deletions: number;
   diff?: string;
 }
+
+// =============================================================================
+// git.init Types - Initialize a git repository
+// =============================================================================
+
+export const GitInitInputSchema: z.ZodObject<{
+  cwd: z.ZodOptional<z.ZodString>;
+  bare: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+  initialBranch: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Directory to initialize (default: process.cwd()) */
+  cwd: z.string().optional(),
+  /** Create a bare repository (default: false) */
+  bare: z.boolean().optional().default(false),
+  /** Name for the initial branch */
+  initialBranch: z.string().optional(),
+});
+
+export type GitInitInput = z.infer<typeof GitInitInputSchema>;
+
+export interface GitInitOutput {
+  /** The initialized repository path */
+  path: string;
+  /** Whether the repo was newly created */
+  created: boolean;
+}

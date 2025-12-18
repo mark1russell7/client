@@ -134,4 +134,15 @@ export const GitDiffInputSchema = z.object({
     /** Working directory */
     cwd: z.string().optional(),
 });
+// =============================================================================
+// git.init Types - Initialize a git repository
+// =============================================================================
+export const GitInitInputSchema = z.object({
+    /** Directory to initialize (default: process.cwd()) */
+    cwd: z.string().optional(),
+    /** Create a bare repository (default: false) */
+    bare: z.boolean().optional().default(false),
+    /** Name for the initial branch */
+    initialBranch: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map

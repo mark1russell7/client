@@ -46,9 +46,6 @@
     "onlyBuiltDependencies": [
       "@mark1russell7/cue",
       "@mark1russell7/client"
-    ],
-    "overrides": {
-      "@mark1russell7/client": "link:../client"
-    }
+    ]
   }
 }
