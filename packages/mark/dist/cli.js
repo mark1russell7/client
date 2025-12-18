@@ -24,13 +24,32 @@ function pathToMethod(path) {
  * Register procedure handlers on the transport
  */
 function syncRegistryToTransport(transport, registry) {
+    // Helper to execute a procedure by path (for ctx.client.call)
+    async function execProcedure(path, input) {
+        const proc = registry.get(path);
+        if (!proc || !proc.handler) {
+            throw new Error(`Procedure not found: ${path.join(".")}`);
+        }
+        const ctx = createContext(path);
+        return proc.handler(input, ctx);
+    }
+    // Helper to create ProcedureContext with client.call support
+    function createContext(path) {
+        return {
+            metadata: {},
+            path,
+            client: {
+                call: (p, i) => execProcedure(p, i),
+            },
+        };
+    }
     for (const procedure of registry.getAll()) {
         if (procedure.handler) {
             const method = pathToMethod(procedure.path);
             transport.register(method, async (payload, message) => {
                 const context = {
+                    ...createContext(procedure.path),
                     metadata: message.metadata ?? {},
-                    path: procedure.path,
                     ...(message.signal ? { signal: message.signal } : {}),
                 };
                 return procedure.handler(payload, context);
@@ -42,8 +61,8 @@ function syncRegistryToTransport(transport, registry) {
             const method = pathToMethod(procedure.path);
             transport.register(method, async (payload, message) => {
                 const context = {
+                    ...createContext(procedure.path),
                     metadata: message.metadata ?? {},
-                    path: procedure.path,
                     ...(message.signal ? { signal: message.signal } : {}),
                 };
                 return procedure.handler(payload, context);

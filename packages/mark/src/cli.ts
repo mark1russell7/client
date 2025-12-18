@@ -12,6 +12,7 @@ import type {
   Method,
   Message,
   ProcedureContext,
+  ProcedurePath,
   AnyProcedure,
   ProcedureRegistry,
 } from "@mark1russell7/client";
@@ -36,13 +37,34 @@ function syncRegistryToTransport(
   transport: LocalTransport,
   registry: ProcedureRegistry
 ): void {
+  // Helper to execute a procedure by path (for ctx.client.call)
+  async function execProcedure<TOutput>(path: ProcedurePath, input: unknown): Promise<TOutput> {
+    const proc = registry.get(path);
+    if (!proc || !proc.handler) {
+      throw new Error(`Procedure not found: ${path.join(".")}`);
+    }
+    const ctx = createContext(path);
+    return proc.handler(input, ctx) as Promise<TOutput>;
+  }
+
+  // Helper to create ProcedureContext with client.call support
+  function createContext(path: ProcedurePath): ProcedureContext {
+    return {
+      metadata: {},
+      path,
+      client: {
+        call: <TInput, TOutput>(p: ProcedurePath, i: TInput) => execProcedure<TOutput>(p, i),
+      },
+    };
+  }
+
   for (const procedure of registry.getAll()) {
     if (procedure.handler) {
       const method = pathToMethod(procedure.path);
       transport.register(method, async (payload: unknown, message: Message<unknown>) => {
         const context: ProcedureContext = {
+          ...createContext(procedure.path),
           metadata: message.metadata ?? {},
-          path: procedure.path,
           ...(message.signal ? { signal: message.signal } : {}),
         };
         return procedure.handler!(payload, context);
@@ -55,8 +77,8 @@ function syncRegistryToTransport(
       const method = pathToMethod(procedure.path);
       transport.register(method, async (payload: unknown, message: Message<unknown>) => {
         const context: ProcedureContext = {
+          ...createContext(procedure.path),
           metadata: message.metadata ?? {},
-          path: procedure.path,
           ...(message.signal ? { signal: message.signal } : {}),
         };
         return procedure.handler!(payload, context);
