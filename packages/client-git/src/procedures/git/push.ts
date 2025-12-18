@@ -11,7 +11,8 @@ import type { GitPushInput, GitPushOutput } from "../../types.js";
  * Push to remote
  */
 export async function gitPush(input: GitPushInput): Promise<GitPushOutput> {
-  const { remote, branch, force, setUpstream, cwd } = input;
+  const { branch, force, setUpstream, cwd } = input;
+  const remoteName = input.remote ?? "origin";
   const opts = { cwd, encoding: "utf8" as const };
 
   // Get current branch if not specified
@@ -20,7 +21,7 @@ export async function gitPush(input: GitPushInput): Promise<GitPushOutput> {
   // Count commits to push
   let commits = 0;
   try {
-    const count = execSync(`git rev-list --count ${remote}/${branchName}..HEAD`, opts).trim();
+    const count = execSync(`git rev-list --count ${remoteName}/${branchName}..HEAD`, opts).trim();
     commits = parseInt(count, 10) || 0;
   } catch {
     // Remote branch may not exist yet
@@ -31,9 +32,9 @@ export async function gitPush(input: GitPushInput): Promise<GitPushOutput> {
   const args: string[] = ["git", "push"];
   if (setUpstream) args.push("-u");
   if (force) args.push("--force");
-  args.push(remote, branchName);
+  args.push(remoteName, branchName);
 
   execSync(args.join(" "), opts);
 
-  return { remote, branch: branchName, commits };
+  return { remote: remoteName, branch: branchName, commits };
 }
