@@ -156,4 +156,19 @@ export const GitRemoteInputSchema = z.object({
     /** Working directory */
     cwd: z.string().optional(),
 });
+// =============================================================================
+// git.fetch Types - Fetch from remote
+// =============================================================================
+export const GitFetchInputSchema = z.object({
+    /** Remote name (default: origin) */
+    remote: z.string().optional().default("origin"),
+    /** Specific branch to fetch (default: all) */
+    branch: z.string().optional(),
+    /** Fetch all remotes (default: false) */
+    all: z.boolean().optional().default(false),
+    /** Prune deleted branches (default: false) */
+    prune: z.boolean().optional().default(false),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map

@@ -171,4 +171,16 @@ export interface GitRemoteOutput {
     /** Remote URL */
     url: string;
 }
+export declare const GitFetchInputSchema: z.ZodObject<{
+    remote: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    branch: z.ZodOptional<z.ZodString>;
+    all: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    prune: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+export type GitFetchInput = z.infer<typeof GitFetchInputSchema>;
+export interface GitFetchOutput {
+    remote: string;
+    fetched: boolean;
+}
 //# sourceMappingURL=types.d.ts.map

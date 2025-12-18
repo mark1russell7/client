@@ -366,3 +366,33 @@ export interface GitRemoteOutput {
   /** Remote URL */
   url: string;
 }
+
+// =============================================================================
+// git.fetch Types - Fetch from remote
+// =============================================================================
+
+export const GitFetchInputSchema: z.ZodObject<{
+  remote: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+  branch: z.ZodOptional<z.ZodString>;
+  all: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+  prune: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Remote name (default: origin) */
+  remote: z.string().optional().default("origin"),
+  /** Specific branch to fetch (default: all) */
+  branch: z.string().optional(),
+  /** Fetch all remotes (default: false) */
+  all: z.boolean().optional().default(false),
+  /** Prune deleted branches (default: false) */
+  prune: z.boolean().optional().default(false),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitFetchInput = z.infer<typeof GitFetchInputSchema>;
+
+export interface GitFetchOutput {
+  remote: string;
+  fetched: boolean;
+}

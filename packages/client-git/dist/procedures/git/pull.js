@@ -8,7 +8,8 @@ import { execSync } from "node:child_process";
  * Pull from remote
  */
 export async function gitPull(input) {
-    const { remote, branch, rebase, cwd } = input;
+    const { branch, rebase, cwd } = input;
+    const remoteName = input.remote ?? "origin";
     const opts = { cwd, encoding: "utf8" };
     // Get current branch if not specified
     const branchName = branch || execSync("git rev-parse --abbrev-ref HEAD", opts).trim();
@@ -17,7 +18,7 @@ export async function gitPull(input) {
     const args = ["git", "pull"];
     if (rebase)
         args.push("--rebase");
-    args.push(remote, branchName);
+    args.push(remoteName, branchName);
     execSync(args.join(" "), opts);
     // Get new HEAD after pull
     const afterHead = execSync("git rev-parse HEAD", opts).trim();
@@ -29,6 +30,6 @@ export async function gitPull(input) {
     }
     // Check if it was fast-forward
     const fastForward = !rebase && beforeHead !== afterHead;
-    return { remote, branch: branchName, commits, fastForward };
+    return { remote: remoteName, branch: branchName, commits, fastForward };
 }
 //# sourceMappingURL=pull.js.map

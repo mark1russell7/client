@@ -11,7 +11,8 @@ import type { GitPullInput, GitPullOutput } from "../../types.js";
  * Pull from remote
  */
 export async function gitPull(input: GitPullInput): Promise<GitPullOutput> {
-  const { remote, branch, rebase, cwd } = input;
+  const { branch, rebase, cwd } = input;
+  const remoteName = input.remote ?? "origin";
   const opts = { cwd, encoding: "utf8" as const };
 
   // Get current branch if not specified
@@ -22,7 +23,7 @@ export async function gitPull(input: GitPullInput): Promise<GitPullOutput> {
 
   const args: string[] = ["git", "pull"];
   if (rebase) args.push("--rebase");
-  args.push(remote, branchName);
+  args.push(remoteName, branchName);
 
   execSync(args.join(" "), opts);
 
@@ -39,5 +40,5 @@ export async function gitPull(input: GitPullInput): Promise<GitPullOutput> {
   // Check if it was fast-forward
   const fastForward = !rebase && beforeHead !== afterHead;
 
-  return { remote, branch: branchName, commits, fastForward };
+  return { remote: remoteName, branch: branchName, commits, fastForward };
 }
