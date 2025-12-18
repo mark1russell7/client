@@ -216,4 +216,22 @@ export declare const coreModule: {
     procedures: AnyProcedure[];
 };
 export { chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, };
+export * from "./math.js";
+export * from "./comparison.js";
+export * from "./string.js";
+export * from "./type.js";
+export * from "./object.js";
+export * from "./array.js";
+export * from "./meta.js";
+/**
+ * All core procedures combined (control flow + math + comparison + string + type + object + array + meta).
+ */
+export declare const allCoreProcedures: AnyProcedure[];
+/**
+ * All core modules combined.
+ */
+export declare const allCoreModules: Array<{
+    name: string;
+    procedures: AnyProcedure[];
+}>;
 //# sourceMappingURL=index.d.ts.map
