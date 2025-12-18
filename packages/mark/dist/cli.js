@@ -254,11 +254,8 @@ async function run(argv) {
     // Dynamic imports for ESM packages (CLI is CommonJS for Gluegun compatibility)
     const clientModule = await import("@mark1russell7/client");
     const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
-    // Load procedure packages (side-effect imports that register procedures)
-    // Core client procedures are auto-registered when client is imported
-    await import("@mark1russell7/client-cli");
-    await import("@mark1russell7/client-logger");
     // Dynamic ecosystem discovery - load procedures from all ecosystem packages
+    // This includes client-cli, client-logger, and all other procedure packages
     const verbose = argv.includes("--verbose") || argv.includes("-V");
     await (0, ecosystem_1.loadEcosystemProcedures)(verbose);
     // Create client with local transport

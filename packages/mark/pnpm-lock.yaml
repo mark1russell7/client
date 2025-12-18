@@ -13,7 +13,7 @@ importers:
         version: https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
       '@mark1russell7/client-cli':
         specifier: github:mark1russell7/client-cli#main
-        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/5c9296ed607ceaf916c10df9a8a45a0367b6405c
+        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/ae5fecd1c9c1a1c0717037d6308a871b8b233bc0
       '@mark1russell7/client-logger':
         specifier: github:mark1russell7/client-logger#main
         version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180(zod@3.25.76)
@@ -63,16 +63,16 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/5c9296ed607ceaf916c10df9a8a45a0367b6405c':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/5c9296ed607ceaf916c10df9a8a45a0367b6405c}
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/ae5fecd1c9c1a1c0717037d6308a871b8b233bc0':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/ae5fecd1c9c1a1c0717037d6308a871b8b233bc0}
     version: 1.0.0
 
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366}
     version: 1.0.0
 
-  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/696afa98cd63776834ebe4ee4e0e3671d2eba8ef':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/696afa98cd63776834ebe4ee4e0e3671d2eba8ef}
+  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/bb41f26abaa11ca1afe73c57f5930ec083da5ace':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/bb41f26abaa11ca1afe73c57f5930ec083da5ace}
     version: 1.0.0
 
   '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180':
@@ -705,12 +705,12 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/5c9296ed607ceaf916c10df9a8a45a0367b6405c':
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/ae5fecd1c9c1a1c0717037d6308a871b8b233bc0':
     dependencies:
       '@angular-devkit/schematics': 19.2.19
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
       '@mark1russell7/client-fs': https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366
-      '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/696afa98cd63776834ebe4ee4e0e3671d2eba8ef
+      '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/bb41f26abaa11ca1afe73c57f5930ec083da5ace
       '@mark1russell7/client-logger': https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180(zod@3.25.76)
       ts-morph: 24.0.0
       zod: 3.25.76
@@ -729,7 +729,7 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/696afa98cd63776834ebe4ee4e0e3671d2eba8ef':
+  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/bb41f26abaa11ca1afe73c57f5930ec083da5ace':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
       zod: 3.25.76
