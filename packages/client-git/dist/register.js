@@ -16,7 +16,8 @@ import { gitBranch } from "./procedures/git/branch.js";
 import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
 import { gitInit } from "./procedures/git/init.js";
-import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, GitInitInputSchema, } from "./types.js";
+import { gitRemote } from "./procedures/git/remote.js";
+import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, GitInitInputSchema, GitRemoteInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -207,8 +208,22 @@ const gitInitProcedure = createProcedure()
     shorts: { cwd: "C", bare: "b", initialBranch: "B" },
     output: "json",
 })
+    .handler(async (input, ctx) => {
+    return gitInit(input, ctx);
+})
+    .build();
+const gitRemoteProcedure = createProcedure()
+    .path(["git", "remote"])
+    .input(zodAdapter(GitRemoteInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Get or set remote URLs",
+    args: [],
+    shorts: { name: "n", url: "u", cwd: "C" },
+    output: "json",
+})
     .handler(async (input) => {
-    return gitInit(input);
+    return gitRemote(input);
 })
     .build();
 // =============================================================================
@@ -227,6 +242,7 @@ export function registerGitProcedures() {
         gitLogProcedure,
         gitDiffProcedure,
         gitInitProcedure,
+        gitRemoteProcedure,
     ]);
 }
 // Auto-register when this module is loaded

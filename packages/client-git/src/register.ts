@@ -17,6 +17,7 @@ import { gitBranch } from "./procedures/git/branch.js";
 import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
 import { gitInit } from "./procedures/git/init.js";
+import { gitRemote } from "./procedures/git/remote.js";
 import {
   GitStatusInputSchema,
   GitAddInputSchema,
@@ -51,6 +52,9 @@ import {
   GitInitInputSchema,
   type GitInitInput,
   type GitInitOutput,
+  GitRemoteInputSchema,
+  type GitRemoteInput,
+  type GitRemoteOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -273,8 +277,23 @@ const gitInitProcedure = createProcedure()
     shorts: { cwd: "C", bare: "b", initialBranch: "B" },
     output: "json",
   })
-  .handler(async (input: GitInitInput): Promise<GitInitOutput> => {
-    return gitInit(input);
+  .handler(async (input: GitInitInput, ctx): Promise<GitInitOutput> => {
+    return gitInit(input, ctx);
+  })
+  .build();
+
+const gitRemoteProcedure = createProcedure()
+  .path(["git", "remote"])
+  .input(zodAdapter<GitRemoteInput>(GitRemoteInputSchema))
+  .output(outputSchema<GitRemoteOutput>())
+  .meta({
+    description: "Get or set remote URLs",
+    args: [],
+    shorts: { name: "n", url: "u", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitRemoteInput): Promise<GitRemoteOutput> => {
+    return gitRemote(input);
   })
   .build();
 
@@ -295,6 +314,7 @@ export function registerGitProcedures(): void {
     gitLogProcedure,
     gitDiffProcedure,
     gitInitProcedure,
+    gitRemoteProcedure,
   ]);
 }
 

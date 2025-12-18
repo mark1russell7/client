@@ -340,3 +340,29 @@ export interface GitInitOutput {
   /** Whether the repo was newly created */
   created: boolean;
 }
+
+// =============================================================================
+// git.remote Types - Get or set remote URLs
+// =============================================================================
+
+export const GitRemoteInputSchema: z.ZodObject<{
+  name: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+  url: z.ZodOptional<z.ZodString>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Remote name (default: origin) */
+  name: z.string().optional().default("origin"),
+  /** New URL to set (if provided, sets the URL; otherwise gets it) */
+  url: z.string().optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitRemoteInput = z.infer<typeof GitRemoteInputSchema>;
+
+export interface GitRemoteOutput {
+  /** Remote name */
+  name: string;
+  /** Remote URL */
+  url: string;
+}

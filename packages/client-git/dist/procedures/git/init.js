@@ -4,17 +4,17 @@
  * Initialize a git repository
  */
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 /**
  * Initialize a git repository
  */
-export async function gitInit(input) {
+export async function gitInit(input, ctx) {
     const cwd = input.cwd ? resolve(input.cwd) : process.cwd();
     const opts = { cwd, encoding: "utf8" };
     // Check if already a git repo
     const gitDir = join(cwd, ".git");
-    const alreadyExists = existsSync(gitDir);
+    const existsResult = await ctx.client.call(["fs", "exists"], { path: gitDir });
+    const alreadyExists = existsResult.exists;
     if (!alreadyExists) {
         let cmd = "git init";
         if (input.bare) {

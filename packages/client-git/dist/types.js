@@ -145,4 +145,15 @@ export const GitInitInputSchema = z.object({
     /** Name for the initial branch */
     initialBranch: z.string().optional(),
 });
+// =============================================================================
+// git.remote Types - Get or set remote URLs
+// =============================================================================
+export const GitRemoteInputSchema = z.object({
+    /** Remote name (default: origin) */
+    name: z.string().optional().default("origin"),
+    /** New URL to set (if provided, sets the URL; otherwise gets it) */
+    url: z.string().optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map

@@ -159,4 +159,16 @@ export interface GitInitOutput {
     /** Whether the repo was newly created */
     created: boolean;
 }
+export declare const GitRemoteInputSchema: z.ZodObject<{
+    name: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    url: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+export type GitRemoteInput = z.infer<typeof GitRemoteInputSchema>;
+export interface GitRemoteOutput {
+    /** Remote name */
+    name: string;
+    /** Remote URL */
+    url: string;
+}
 //# sourceMappingURL=types.d.ts.map
