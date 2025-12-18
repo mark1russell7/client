@@ -33,7 +33,9 @@
     "@mark1russell7/client": "github:mark1russell7/client#main",
     "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
     "ts-morph": "^24.0.0",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
+    "@mark1russell7/client-git": "github:mark1russell7/client-git#main"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
@@ -54,10 +56,9 @@
     "onlyBuiltDependencies": [
       "@mark1russell7/cue",
       "@mark1russell7/client",
-      "@mark1russell7/client-logger"
-    ],
-    "overrides": {
-      "@mark1russell7/client": "link:../client"
-    }
+      "@mark1russell7/client-logger",
+      "@mark1russell7/client-fs",
+      "@mark1russell7/client-git"
+    ]
   }
 }

@@ -3,13 +3,13 @@
  *
  * Creates a new package with standard ecosystem structure.
  * Reads projectTemplate from ecosystem.manifest.json (single source of truth).
+ * Uses fs.* and git.* procedures via ctx.client.call() for all operations.
  */
 
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { mkdir, writeFile, access, readFile } from "node:fs/promises";
-import { constants } from "node:fs";
 import { execSync } from "node:child_process";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibNewInput, LibNewOutput } from "../../types.js";
 
 /**
@@ -36,34 +36,9 @@ function resolveRoot(root: string): string {
 }
 
 /**
- * Check if path exists
- */
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Load ecosystem manifest
- */
-async function loadManifest(rootPath: string): Promise<EcosystemManifest | null> {
-  const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
-  try {
-    const content = await readFile(manifestPath, "utf-8");
-    return JSON.parse(content) as EcosystemManifest;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Create a new package with standard ecosystem structure
  */
-export async function libNew(input: LibNewInput): Promise<LibNewOutput> {
+export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise<LibNewOutput> {
   const operations: string[] = [];
   const created: string[] = [];
   const errors: string[] = [];
@@ -73,7 +48,17 @@ export async function libNew(input: LibNewInput): Promise<LibNewOutput> {
   const packageName = `@mark1russell7/${input.name}`;
 
   // Load manifest to get projectTemplate (single source of truth)
-  const manifest = await loadManifest(rootPath);
+  let manifest: EcosystemManifest | null = null;
+  const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
+  try {
+    const result = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
+      ["fs", "read", "json"],
+      { path: manifestPath }
+    );
+    manifest = result.data as EcosystemManifest;
+  } catch {
+    // Manifest doesn't exist, will use defaults
+  }
   const template = manifest?.projectTemplate ?? {
     files: ["package.json", "tsconfig.json", "dependencies.json", ".gitignore"],
     dirs: ["src", "dist"],
@@ -83,7 +68,11 @@ export async function libNew(input: LibNewInput): Promise<LibNewOutput> {
   const requiredDirs = template.dirs.filter((d) => d !== "dist");
 
   // Check if package already exists
-  if (await pathExists(packagePath)) {
+  const existsResult = await ctx.client.call<{ path: string }, { exists: boolean; path: string }>(
+    ["fs", "exists"],
+    { path: packagePath }
+  );
+  if (existsResult.exists) {
     return {
       success: false,
       packageName,
@@ -122,20 +111,29 @@ export async function libNew(input: LibNewInput): Promise<LibNewOutput> {
     // Step 1: Create directory structure from template
     operations.push(`Using projectTemplate from ${manifest ? "ecosystem.manifest.json" : "defaults"}`);
     operations.push("Creating directory structure");
-    await mkdir(packagePath, { recursive: true });
+    await ctx.client.call<{ path: string; recursive?: boolean }, { path: string; created: boolean }>(
+      ["fs", "mkdir"],
+      { path: packagePath, recursive: true }
+    );
     created.push(`${packagePath}/`);
 
     // Create required directories from template
     for (const dir of requiredDirs) {
       const dirPath = join(packagePath, dir);
-      await mkdir(dirPath, { recursive: true });
+      await ctx.client.call<{ path: string; recursive?: boolean }, { path: string; created: boolean }>(
+        ["fs", "mkdir"],
+        { path: dirPath, recursive: true }
+      );
       created.push(`${dirPath}/`);
     }
 
     // Create entry point in src if src exists
     if (requiredDirs.includes("src")) {
       const indexPath = join(packagePath, "src", "index.ts");
-      await writeFile(indexPath, "// Entry point\nexport {};\n");
+      await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
+        ["fs", "write"],
+        { path: indexPath, content: "// Entry point\nexport {};\n" }
+      );
       created.push(indexPath);
     }
 
@@ -160,12 +158,20 @@ export async function libNew(input: LibNewInput): Promise<LibNewOutput> {
     // Step 4: Git operations
     if (!input.skipGit) {
       operations.push("Initializing git repository");
-      execSync("git init", { cwd: packagePath, stdio: "pipe" });
-      execSync("git add -A", { cwd: packagePath, stdio: "pipe" });
-      execSync('git commit -m "Initial commit"', {
-        cwd: packagePath,
-        stdio: "pipe",
-      });
+      await ctx.client.call<{ cwd?: string }, { path: string; created: boolean }>(
+        ["git", "init"],
+        { cwd: packagePath }
+      );
+
+      await ctx.client.call<{ paths?: string[]; all?: boolean; cwd?: string }, { staged: string[] }>(
+        ["git", "add"],
+        { all: true, cwd: packagePath }
+      );
+
+      await ctx.client.call<{ message: string; cwd?: string }, { hash: string; message: string; author: string; date: string }>(
+        ["git", "commit"],
+        { message: "Initial commit", cwd: packagePath }
+      );
 
       operations.push("Creating GitHub repository");
       try {
@@ -185,17 +191,27 @@ export async function libNew(input: LibNewInput): Promise<LibNewOutput> {
       operations.push("Adding to ecosystem manifest");
       const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
 
-      if (await pathExists(manifestPath)) {
-        const { readFile } = await import("node:fs/promises");
-        const manifestContent = await readFile(manifestPath, "utf-8");
-        const manifest = JSON.parse(manifestContent);
+      const manifestExistsResult = await ctx.client.call<{ path: string }, { exists: boolean }>(
+        ["fs", "exists"],
+        { path: manifestPath }
+      );
+
+      if (manifestExistsResult.exists) {
+        const manifestReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
+          ["fs", "read", "json"],
+          { path: manifestPath }
+        );
+        const manifest = manifestReadResult.data as EcosystemManifest;
 
         if (!manifest.packages[packageName]) {
           manifest.packages[packageName] = {
             repo: `github:mark1russell7/${input.name}#main`,
             path: input.name,
           };
-          await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+          await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
+            ["fs", "write"],
+            { path: manifestPath, content: JSON.stringify(manifest, null, 2) + "\n" }
+          );
           operations.push(`Added ${packageName} to ecosystem manifest`);
         } else {
           operations.push(`${packageName} already in ecosystem manifest`);

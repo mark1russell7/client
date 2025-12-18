@@ -213,8 +213,8 @@ const libNewProcedure = createProcedure()
     shorts: { preset: "p", skipGit: "g", skipManifest: "m", dryRun: "d" },
     output: "text",
   })
-  .handler(async (input: LibNewInput): Promise<LibNewOutput> => {
-    return libNew(input);
+  .handler(async (input: LibNewInput, ctx): Promise<LibNewOutput> => {
+    return libNew(input, ctx);
   })
   .build();
 

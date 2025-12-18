@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "@mark1russell7/client-logger": {
+    "@mark1russell7/client-fs": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-17T18:12:02.984Z",
+      "registeredAt": "2025-12-18T06:16:22.612Z",
       "version": "1.0.0"
     }
   }
