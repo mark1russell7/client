@@ -410,9 +410,13 @@ export class Client<TContext = {}> {
 
     // Execute handler if present
     if (procedure.handler) {
+      const self = this;
       const ctx: ProcedureContext = {
         metadata: {},
         path,
+        client: {
+          call: <TInput, TOutput>(p: ProcedurePath, i: TInput) => self.execInternal<TOutput>(p, i),
+        },
       };
 
       const output = await procedure.handler(inputResult.data, ctx);
@@ -881,9 +885,13 @@ export class Client<TContext = {}> {
     try {
       // If procedure has a handler (server-side), execute directly
       if (procedure.handler) {
+        const self = this;
         const procedureContext: ProcedureContext = {
           metadata: context.metadata,
           path,
+          client: {
+            call: <TInput, TOutput>(p: ProcedurePath, i: TInput) => self.execInternal<TOutput>(p, i),
+          },
         };
 
         // Only set signal if provided (exactOptionalPropertyTypes)

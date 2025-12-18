@@ -340,9 +340,13 @@ export class Client {
         }
         // Execute handler if present
         if (procedure.handler) {
+            const self = this;
             const ctx = {
                 metadata: {},
                 path,
+                client: {
+                    call: (p, i) => self.execInternal(p, i),
+                },
             };
             const output = await procedure.handler(inputResult.data, ctx);
             // Validate output
@@ -718,9 +722,13 @@ export class Client {
         try {
             // If procedure has a handler (server-side), execute directly
             if (procedure.handler) {
+                const self = this;
                 const procedureContext = {
                     metadata: context.metadata,
                     path,
+                    client: {
+                        call: (p, i) => self.execInternal(p, i),
+                    },
                 };
                 // Only set signal if provided (exactOptionalPropertyTypes)
                 if (context.signal) {

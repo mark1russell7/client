@@ -6,38 +6,18 @@
  */
 import type { ServerTransport } from "../../../server/types.js";
 import type { Server } from "../../../server/server.js";
-import type { WebSocketServerTransportOptions, WebSocketMessage } from "./types.js";
-/**
- * WebSocket server transport adapter.
- *
- * Provides persistent, bidirectional RPC over WebSocket.
- * Perfect for real-time updates and streaming responses.
- *
- * @example
- * ```typescript
- * import { createServer } from "http";
- * const httpServer = createServer();
- *
- * const server = new Server();
- * const wsTransport = new WebSocketServerTransport(server, {
- *   server: httpServer,
- *   path: "/ws",
- *   authenticate: async (req) => {
- *     // Verify token from query string or headers
- *     return true;
- *   }
- * });
- *
- * await wsTransport.start();
- * httpServer.listen(3000);
- * ```
- */
+import type { WebSocketServerTransportOptions, WebSocketMessage, TrackedConnection, ConnectionEventHandler } from "./types.js";
 export declare class WebSocketServerTransport implements ServerTransport {
     readonly name = "websocket";
     private wss;
     private options;
     private server;
     private connections;
+    private trackedConnections;
+    private pendingRequests;
+    private connectionCounter;
+    private connectHandlers;
+    private disconnectHandlers;
     constructor(server: Server, options: WebSocketServerTransportOptions);
     start(): Promise<void>;
     stop(): Promise<void>;
@@ -70,5 +50,40 @@ export declare class WebSocketServerTransport implements ServerTransport {
      * Get number of connected clients.
      */
     getConnectionCount(): number;
+    /**
+     * Get all tracked connections.
+     */
+    getTrackedConnections(): TrackedConnection[];
+    /**
+     * Get a specific tracked connection by ID.
+     */
+    getTrackedConnection(connectionId: string): TrackedConnection | undefined;
+    /**
+     * Send a message to a specific connection.
+     */
+    sendToConnection(connectionId: string, message: WebSocketMessage): void;
+    /**
+     * Call a procedure on a specific client (server-to-client RPC).
+     * Returns a promise that resolves with the client's response.
+     */
+    callClient(connectionId: string, path: string[], input: unknown, timeout?: number): Promise<unknown>;
+    /**
+     * Register a handler for new connections.
+     * Returns a function to unregister the handler.
+     */
+    onConnect(handler: ConnectionEventHandler): () => void;
+    /**
+     * Register a handler for disconnections.
+     * Returns a function to unregister the handler.
+     */
+    onDisconnect(handler: ConnectionEventHandler): () => void;
+    /**
+     * Update metadata for a tracked connection.
+     */
+    updateConnectionMetadata(connectionId: string, metadata: Record<string, unknown>): void;
+    /**
+     * Set discovered procedures for a tracked connection.
+     */
+    setConnectionProcedures(connectionId: string, procedures: string[]): void;
 }
 //# sourceMappingURL=transport.d.ts.map

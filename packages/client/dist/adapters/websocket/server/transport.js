@@ -5,37 +5,19 @@
  * Supports bidirectional streaming and persistent connections.
  */
 import { WebSocketServer, WebSocket } from "ws";
-/**
- * WebSocket server transport adapter.
- *
- * Provides persistent, bidirectional RPC over WebSocket.
- * Perfect for real-time updates and streaming responses.
- *
- * @example
- * ```typescript
- * import { createServer } from "http";
- * const httpServer = createServer();
- *
- * const server = new Server();
- * const wsTransport = new WebSocketServerTransport(server, {
- *   server: httpServer,
- *   path: "/ws",
- *   authenticate: async (req) => {
- *     // Verify token from query string or headers
- *     return true;
- *   }
- * });
- *
- * await wsTransport.start();
- * httpServer.listen(3000);
- * ```
- */
 export class WebSocketServerTransport {
     name = "websocket";
     wss = null;
     options;
     server;
     connections = new Set();
+    // Tracked connections with IDs for bidirectional RPC
+    trackedConnections = new Map();
+    pendingRequests = new Map();
+    connectionCounter = 0;
+    // Connection lifecycle event handlers
+    connectHandlers = [];
+    disconnectHandlers = [];
     constructor(server, options) {
         this.server = server;
         this.options = {
@@ -104,16 +86,37 @@ export class WebSocketServerTransport {
      * Handle new WebSocket connection.
      */
     handleConnection(ws, req) {
-        // Track connection
+        // Track connection (legacy)
         this.connections.add(ws);
-        // Call user connection handler
+        // Create tracked connection with ID
+        const connectionId = `conn_${++this.connectionCounter}_${Date.now()}`;
+        const trackedConnection = {
+            id: connectionId,
+            socket: ws,
+            connectedAt: new Date(),
+            metadata: {
+                remoteAddress: req.socket.remoteAddress,
+                headers: req.headers,
+            },
+        };
+        this.trackedConnections.set(connectionId, trackedConnection);
+        // Call user connection handler (legacy)
         if (this.options.onConnection) {
             this.options.onConnection(ws, req);
+        }
+        // Emit connect event
+        for (const handler of this.connectHandlers) {
+            try {
+                handler(trackedConnection);
+            }
+            catch (error) {
+                console.error("[WebSocket] Connect handler error:", error);
+            }
         }
         // Handle messages
         ws.on("message", async (data) => {
             try {
-                await this.handleMessage(ws, data, req);
+                await this.handleMessage(ws, data, req, connectionId);
             }
             catch (error) {
                 console.error("[WebSocket] Message handling error:", error);
@@ -123,17 +126,31 @@ export class WebSocketServerTransport {
         // Handle close
         ws.on("close", () => {
             this.connections.delete(ws);
+            const conn = this.trackedConnections.get(connectionId);
+            if (conn) {
+                this.trackedConnections.delete(connectionId);
+                // Emit disconnect event
+                for (const handler of this.disconnectHandlers) {
+                    try {
+                        handler(conn);
+                    }
+                    catch (error) {
+                        console.error("[WebSocket] Disconnect handler error:", error);
+                    }
+                }
+            }
         });
         // Handle errors
         ws.on("error", (error) => {
             console.error("[WebSocket] Connection error:", error);
             this.connections.delete(ws);
+            this.trackedConnections.delete(connectionId);
         });
     }
     /**
      * Handle WebSocket message.
      */
-    async handleMessage(ws, data, req) {
+    async handleMessage(ws, data, req, connectionId) {
         // Parse message
         let message;
         try {
@@ -157,6 +174,21 @@ export class WebSocketServerTransport {
             // Just acknowledge, no action needed
             return;
         }
+        // Handle server-response (response to server-initiated request)
+        if (message.type === "server-response") {
+            const pending = this.pendingRequests.get(message.id);
+            if (pending) {
+                clearTimeout(pending.timeout);
+                this.pendingRequests.delete(message.id);
+                if (message.error) {
+                    pending.reject(new Error(message.error.message));
+                }
+                else {
+                    pending.resolve(message.result);
+                }
+            }
+            return;
+        }
         // Validate request message
         if (!message.id || message.type !== "request" || !message.method) {
             this.sendError(ws, message.id || "unknown", "Invalid message format");
@@ -170,6 +202,7 @@ export class WebSocketServerTransport {
             metadata: {
                 ...message.metadata,
                 // Add connection info
+                connectionId,
                 remoteAddress: req.socket.remoteAddress,
                 headers: req.headers,
             },
@@ -247,6 +280,104 @@ export class WebSocketServerTransport {
      */
     getConnectionCount() {
         return this.connections.size;
+    }
+    // ===========================================================================
+    // Tracked Connection Methods (for bidirectional RPC)
+    // ===========================================================================
+    /**
+     * Get all tracked connections.
+     */
+    getTrackedConnections() {
+        return Array.from(this.trackedConnections.values());
+    }
+    /**
+     * Get a specific tracked connection by ID.
+     */
+    getTrackedConnection(connectionId) {
+        return this.trackedConnections.get(connectionId);
+    }
+    /**
+     * Send a message to a specific connection.
+     */
+    sendToConnection(connectionId, message) {
+        const conn = this.trackedConnections.get(connectionId);
+        if (conn) {
+            this.send(conn.socket, message);
+        }
+    }
+    /**
+     * Call a procedure on a specific client (server-to-client RPC).
+     * Returns a promise that resolves with the client's response.
+     */
+    callClient(connectionId, path, input, timeout = 30000) {
+        const conn = this.trackedConnections.get(connectionId);
+        if (!conn) {
+            return Promise.reject(new Error(`Connection not found: ${connectionId}`));
+        }
+        const requestId = `sreq_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        return new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                this.pendingRequests.delete(requestId);
+                reject(new Error(`Request timeout after ${timeout}ms`));
+            }, timeout);
+            this.pendingRequests.set(requestId, {
+                id: requestId,
+                resolve,
+                reject,
+                timeout: timeoutHandle,
+            });
+            const message = {
+                type: "server-request",
+                id: requestId,
+                path,
+                input,
+            };
+            this.send(conn.socket, message);
+        });
+    }
+    /**
+     * Register a handler for new connections.
+     * Returns a function to unregister the handler.
+     */
+    onConnect(handler) {
+        this.connectHandlers.push(handler);
+        return () => {
+            const index = this.connectHandlers.indexOf(handler);
+            if (index >= 0) {
+                this.connectHandlers.splice(index, 1);
+            }
+        };
+    }
+    /**
+     * Register a handler for disconnections.
+     * Returns a function to unregister the handler.
+     */
+    onDisconnect(handler) {
+        this.disconnectHandlers.push(handler);
+        return () => {
+            const index = this.disconnectHandlers.indexOf(handler);
+            if (index >= 0) {
+                this.disconnectHandlers.splice(index, 1);
+            }
+        };
+    }
+    /**
+     * Update metadata for a tracked connection.
+     */
+    updateConnectionMetadata(connectionId, metadata) {
+        const conn = this.trackedConnections.get(connectionId);
+        if (conn) {
+            conn.metadata = { ...conn.metadata, ...metadata };
+        }
+    }
+    /**
+     * Set discovered procedures for a tracked connection.
+     */
+    setConnectionProcedures(connectionId, procedures) {
+        const conn = this.trackedConnections.get(connectionId);
+        if (conn) {
+            conn.procedures = procedures;
+        }
     }
 }
 //# sourceMappingURL=transport.js.map

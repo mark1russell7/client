@@ -97,6 +97,34 @@ export interface ProcedureContext {
      * ```
      */
     bus?: EventBus;
+    /**
+     * Client for calling other procedures.
+     * Enables inter-procedure communication via the RPC mechanism.
+     *
+     * @example
+     * ```typescript
+     * handler: async (input, ctx) => {
+     *   // Call fs.mkdir procedure
+     *   await ctx.client.call(["fs", "mkdir"], { path: input.dir });
+     *
+     *   // Call git.init procedure
+     *   await ctx.client.call(["git", "init"], { cwd: input.dir });
+     *
+     *   return { created: true };
+     * }
+     * ```
+     */
+    client: ProcedureClient;
+}
+/**
+ * Interface for procedure-to-procedure calls.
+ * Implemented by both Client and ProcedureServer's internal caller.
+ */
+export interface ProcedureClient {
+    /**
+     * Call a procedure by path.
+     */
+    call<TInput = unknown, TOutput = unknown>(path: ProcedurePath, input: TInput): Promise<TOutput>;
 }
 /**
  * Standard procedure handler function (single return).

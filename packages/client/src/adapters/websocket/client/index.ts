@@ -5,7 +5,13 @@
  */
 
 // Types
-export type { WebSocketTransportOptions, WebSocketMessage } from "./types.js";
+export type {
+  WebSocketTransportOptions,
+  WebSocketMessage,
+  ServerRequestMessage,
+  ServerRequestHandler,
+  EventHandler,
+} from "./types.js";
 export { WebSocketState } from "./types.js";
 
 // Transport

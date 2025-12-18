@@ -6,7 +6,7 @@
  */
 
 import type { Transport, Message, ResponseItem } from "../../../client/types.js";
-import type { WebSocketTransportOptions, WebSocketMessage } from "./types.js";
+import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler } from "./types.js";
 import { WebSocketState } from "./types.js";
 
 /**
@@ -60,6 +60,8 @@ export class WebSocketTransport implements Transport {
     onDisconnect: ((reason?: string) => void) | undefined;
     onReconnecting: ((attempt: number) => void) | undefined;
     onError: ((error: Error) => void) | undefined;
+    onServerRequest: ServerRequestHandler | undefined;
+    onEvent: EventHandler | undefined;
   };
   private pendingRequests: Map<string, PendingRequest<any>> = new Map();
   private reconnectAttempts = 0;
@@ -87,6 +89,8 @@ export class WebSocketTransport implements Transport {
       onDisconnect: options.onDisconnect,
       onReconnecting: options.onReconnecting,
       onError: options.onError,
+      onServerRequest: options.onServerRequest,
+      onEvent: options.onEvent,
     };
 
     // Auto-connect
@@ -271,6 +275,24 @@ export class WebSocketTransport implements Transport {
       return;
     }
 
+    // Handle server-request (server-initiated procedure call)
+    if (message.type === "server-request") {
+      this.handleServerRequest(message);
+      return;
+    }
+
+    // Handle event (subscription event from server)
+    if (message.type === "event") {
+      if (this.options.onEvent && message.topic && message.subscriptionId) {
+        try {
+          this.options.onEvent(message.topic, message.data, message.subscriptionId);
+        } catch (error) {
+          console.error(`[${this.name}] Event handler error:`, error);
+        }
+      }
+      return;
+    }
+
     // Handle response
     const pending = this.pendingRequests.get(message.id);
     if (!pending) {
@@ -429,6 +451,55 @@ export class WebSocketTransport implements Transport {
 
       checkConnection();
     });
+  }
+
+  /**
+   * Handle server-initiated procedure call.
+   */
+  private async handleServerRequest(message: WebSocketMessage): Promise<void> {
+    const { id, path, input } = message;
+
+    if (!path || !Array.isArray(path)) {
+      console.error(`[${this.name}] Invalid server-request: missing path`);
+      return;
+    }
+
+    if (!this.options.onServerRequest) {
+      // No handler registered - send error response
+      const response: WebSocketMessage = {
+        id,
+        type: "server-response",
+        error: {
+          code: "NO_HANDLER",
+          message: "No server request handler registered",
+          retryable: false,
+        },
+      };
+      this.ws?.send(JSON.stringify(response));
+      return;
+    }
+
+    try {
+      const result = await this.options.onServerRequest(path, input);
+      const response: WebSocketMessage = {
+        id,
+        type: "server-response",
+        result,
+      };
+      this.ws?.send(JSON.stringify(response));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const response: WebSocketMessage = {
+        id,
+        type: "server-response",
+        error: {
+          code: "HANDLER_ERROR",
+          message: errorMessage,
+          retryable: false,
+        },
+      };
+      this.ws?.send(JSON.stringify(response));
+    }
   }
 
   /**
