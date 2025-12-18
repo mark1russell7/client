@@ -12,6 +12,6 @@
  * await client.call(["fs", "write"], { path: "./out.txt", content: "hello" });
  * ```
  */
-
 export * from "./procedures/fs.js";
 export * from "./register.js";
+//# sourceMappingURL=index.d.ts.map
