@@ -180,6 +180,9 @@ export declare class ProcedureRegistry {
  * Used for module self-registration pattern where modules
  * register their procedures at import time.
  *
+ * Note: Uses globalThis with a Symbol key to ensure there's truly
+ * only one registry across ESM/CJS boundaries and dynamic imports.
+ *
  * @example
  * ```typescript
  * // In a module's register.ts (side-effect import)
