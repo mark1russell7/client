@@ -73,6 +73,10 @@ export declare class WebSocketTransport implements Transport {
      */
     private waitForConnection;
     /**
+     * Handle server-initiated procedure call.
+     */
+    private handleServerRequest;
+    /**
      * Close WebSocket connection.
      */
     close(): Promise<void>;

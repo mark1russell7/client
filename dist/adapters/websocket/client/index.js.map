@@ -1,1 +1,1 @@
-{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../src/adapters/websocket/client/index.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAIH,OAAO,EAAE,cAAc,EAAE,MAAM,YAAY,CAAC;AAE5C,YAAY;AACZ,OAAO,EAAE,kBAAkB,EAAE,MAAM,gBAAgB,CAAC"}
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../src/adapters/websocket/client/index.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAUH,OAAO,EAAE,cAAc,EAAE,MAAM,YAAY,CAAC;AAE5C,YAAY;AACZ,OAAO,EAAE,kBAAkB,EAAE,MAAM,gBAAgB,CAAC"}

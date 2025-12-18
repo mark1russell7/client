@@ -97,6 +97,18 @@ export interface WebSocketTransportOptions {
    * Callback on connection error.
    */
   onError?: (error: Error) => void;
+
+  /**
+   * Handler for server-initiated procedure calls.
+   * Called when the server wants to call a procedure on this client.
+   */
+  onServerRequest?: ServerRequestHandler;
+
+  /**
+   * Handler for subscription events.
+   * Called when the server pushes an event to a subscribed topic.
+   */
+  onEvent?: EventHandler;
 }
 
 /**
@@ -118,7 +130,7 @@ export interface WebSocketMessage<T = unknown> {
   id: string;
 
   /** Message type */
-  type: "request" | "response" | "error" | "stream" | "ping" | "pong";
+  type: "request" | "response" | "error" | "stream" | "ping" | "pong" | "server-request" | "server-response" | "event";
 
   /** RPC method (for requests) */
   method?: {
@@ -126,6 +138,15 @@ export interface WebSocketMessage<T = unknown> {
     operation: string;
     version?: string;
   };
+
+  /** Procedure path (for server-request) */
+  path?: string[];
+
+  /** Input data (for server-request) */
+  input?: unknown;
+
+  /** Result data (for server-response) */
+  result?: unknown;
 
   /** Message payload */
   payload?: T;
@@ -153,4 +174,41 @@ export interface WebSocketMessage<T = unknown> {
     /** Is this the last message in the stream? */
     done: boolean;
   };
+
+  /** Topic (for event messages) */
+  topic?: string;
+
+  /** Data (for event messages) */
+  data?: unknown;
+
+  /** Subscription ID (for event messages) */
+  subscriptionId?: string;
 }
+
+/**
+ * Server request message (server-initiated procedure call).
+ */
+export interface ServerRequestMessage {
+  id: string;
+  type: "server-request";
+  path: string[];
+  input?: unknown;
+}
+
+/**
+ * Handler for server-initiated procedure calls.
+ * Should return the result of executing the procedure.
+ */
+export type ServerRequestHandler = (
+  path: string[],
+  input: unknown
+) => Promise<unknown>;
+
+/**
+ * Handler for subscription events.
+ */
+export type EventHandler = (
+  topic: string,
+  data: unknown,
+  subscriptionId: string
+) => void;

@@ -162,6 +162,15 @@ export class Server {
   }
 
   /**
+   * Get all registered transports.
+   *
+   * @returns Array of server transports
+   */
+  getTransports(): ServerTransport[] {
+    return [...this.transports];
+  }
+
+  /**
    * Start all server transports.
    * Begins listening for incoming requests.
    */

@@ -150,11 +150,39 @@ export class ProcedureServer extends Server {
                     metadata: {},
                 };
             }
+            // Create the call function for inter-procedure communication
+            const callProcedure = async (targetPath, input) => {
+                const targetProc = self.procedureRegistry.get(targetPath);
+                if (!targetProc) {
+                    throw new Error(`Procedure not found: ${pathToKey(targetPath)}`);
+                }
+                if (!targetProc.handler) {
+                    throw new Error(`Procedure has no handler: ${pathToKey(targetPath)}`);
+                }
+                // Validate input
+                const inputResult = targetProc.input.safeParse(input);
+                if (!inputResult.success) {
+                    throw new Error(`Input validation failed: ${inputResult.error.message}`);
+                }
+                // Create nested context (inherits metadata, signal)
+                const nestedContext = {
+                    metadata: request.metadata,
+                    repository: self,
+                    path: targetPath,
+                    client: { call: callProcedure },
+                };
+                if (request.signal) {
+                    nestedContext.signal = request.signal;
+                }
+                // Execute and return
+                return await targetProc.handler(inputResult.data, nestedContext);
+            };
             // Create procedure context
             const context = {
                 metadata: request.metadata,
                 repository: self,
                 path: procedure.path,
+                client: { call: callProcedure },
             };
             // Only set signal if provided (exactOptionalPropertyTypes)
             if (request.signal) {

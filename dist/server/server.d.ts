@@ -116,6 +116,12 @@ export declare class Server {
      */
     addTransport(transport: ServerTransport): void;
     /**
+     * Get all registered transports.
+     *
+     * @returns Array of server transports
+     */
+    getTransports(): ServerTransport[];
+    /**
      * Start all server transports.
      * Begins listening for incoming requests.
      */

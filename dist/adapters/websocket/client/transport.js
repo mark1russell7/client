@@ -53,6 +53,8 @@ export class WebSocketTransport {
             onDisconnect: options.onDisconnect,
             onReconnecting: options.onReconnecting,
             onError: options.onError,
+            onServerRequest: options.onServerRequest,
+            onEvent: options.onEvent,
         };
         // Auto-connect
         this.connect();
@@ -207,6 +209,23 @@ export class WebSocketTransport {
             this.ws?.send(JSON.stringify(pong));
             return;
         }
+        // Handle server-request (server-initiated procedure call)
+        if (message.type === "server-request") {
+            this.handleServerRequest(message);
+            return;
+        }
+        // Handle event (subscription event from server)
+        if (message.type === "event") {
+            if (this.options.onEvent && message.topic && message.subscriptionId) {
+                try {
+                    this.options.onEvent(message.topic, message.data, message.subscriptionId);
+                }
+                catch (error) {
+                    console.error(`[${this.name}] Event handler error:`, error);
+                }
+            }
+            return;
+        }
         // Handle response
         const pending = this.pendingRequests.get(message.id);
         if (!pending) {
@@ -353,6 +372,52 @@ export class WebSocketTransport {
             };
             checkConnection();
         });
+    }
+    /**
+     * Handle server-initiated procedure call.
+     */
+    async handleServerRequest(message) {
+        const { id, path, input } = message;
+        if (!path || !Array.isArray(path)) {
+            console.error(`[${this.name}] Invalid server-request: missing path`);
+            return;
+        }
+        if (!this.options.onServerRequest) {
+            // No handler registered - send error response
+            const response = {
+                id,
+                type: "server-response",
+                error: {
+                    code: "NO_HANDLER",
+                    message: "No server request handler registered",
+                    retryable: false,
+                },
+            };
+            this.ws?.send(JSON.stringify(response));
+            return;
+        }
+        try {
+            const result = await this.options.onServerRequest(path, input);
+            const response = {
+                id,
+                type: "server-response",
+                result,
+            };
+            this.ws?.send(JSON.stringify(response));
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const response = {
+                id,
+                type: "server-response",
+                error: {
+                    code: "HANDLER_ERROR",
+                    message: errorMessage,
+                    retryable: false,
+                },
+            };
+            this.ws?.send(JSON.stringify(response));
+        }
     }
     /**
      * Close WebSocket connection.
