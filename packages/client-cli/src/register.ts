@@ -15,23 +15,11 @@ import { libAudit } from "./procedures/lib/audit.js";
 import { procedureNew } from "./procedures/procedure/new.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
-  configInit,
-  configAdd,
-  configRemove,
-  configGenerate,
-  configValidate,
-} from "./procedures/config/index.js";
-import {
   LibScanInputSchema,
   LibRefreshInputSchema,
   LibInstallInputSchema,
   LibNewInputSchema,
   LibAuditInputSchema,
-  ConfigInitInputSchema,
-  ConfigAddInputSchema,
-  ConfigRemoveInputSchema,
-  ConfigGenerateInputSchema,
-  ConfigValidateInputSchema,
   type LibScanInput,
   type LibScanOutput,
   type LibRefreshInput,
@@ -44,16 +32,6 @@ import {
   type LibNewOutput,
   type LibAuditInput,
   type LibAuditOutput,
-  type ConfigInitInput,
-  type ConfigInitOutput,
-  type ConfigAddInput,
-  type ConfigAddOutput,
-  type ConfigRemoveInput,
-  type ConfigRemoveOutput,
-  type ConfigGenerateInput,
-  type ConfigGenerateOutput,
-  type ConfigValidateInput,
-  type ConfigValidateOutput,
   ProcedureNewInputSchema,
   type ProcedureNewInput,
   type ProcedureNewOutput,
@@ -237,104 +215,6 @@ const libAuditProcedure = createProcedure()
   .build();
 
 // =============================================================================
-// Config Procedure Schemas
-// =============================================================================
-
-const configInitInputSchema = zodAdapter<ConfigInitInput>(ConfigInitInputSchema);
-const configInitOutputSchema = outputSchema<ConfigInitOutput>();
-
-const configAddInputSchema = zodAdapter<ConfigAddInput>(ConfigAddInputSchema);
-const configAddOutputSchema = outputSchema<ConfigAddOutput>();
-
-const configRemoveInputSchema = zodAdapter<ConfigRemoveInput>(ConfigRemoveInputSchema);
-const configRemoveOutputSchema = outputSchema<ConfigRemoveOutput>();
-
-const configGenerateInputSchema = zodAdapter<ConfigGenerateInput>(ConfigGenerateInputSchema);
-const configGenerateOutputSchema = outputSchema<ConfigGenerateOutput>();
-
-const configValidateInputSchema = zodAdapter<ConfigValidateInput>(ConfigValidateInputSchema);
-const configValidateOutputSchema = outputSchema<ConfigValidateOutput>();
-
-// =============================================================================
-// Config Procedure Definitions
-// =============================================================================
-
-const configInitProcedure = createProcedure()
-  .path(["config", "init"])
-  .input(configInitInputSchema)
-  .output(configInitOutputSchema)
-  .meta({
-    description: "Initialize project with dependencies.json using a preset",
-    args: [],
-    shorts: { preset: "p", force: "f" },
-    output: "text",
-  })
-  .handler(async (input: ConfigInitInput, ctx): Promise<ConfigInitOutput> => {
-    return configInit(input, ctx);
-  })
-  .build();
-
-const configAddProcedure = createProcedure()
-  .path(["config", "add"])
-  .input(configAddInputSchema)
-  .output(configAddOutputSchema)
-  .meta({
-    description: "Add a feature to dependencies.json",
-    args: ["feature"],
-    shorts: {},
-    output: "text",
-  })
-  .handler(async (input: ConfigAddInput): Promise<ConfigAddOutput> => {
-    return configAdd(input);
-  })
-  .build();
-
-const configRemoveProcedure = createProcedure()
-  .path(["config", "remove"])
-  .input(configRemoveInputSchema)
-  .output(configRemoveOutputSchema)
-  .meta({
-    description: "Remove a feature from dependencies.json",
-    args: ["feature"],
-    shorts: {},
-    output: "text",
-  })
-  .handler(async (input: ConfigRemoveInput): Promise<ConfigRemoveOutput> => {
-    return configRemove(input);
-  })
-  .build();
-
-const configGenerateProcedure = createProcedure()
-  .path(["config", "generate"])
-  .input(configGenerateInputSchema)
-  .output(configGenerateOutputSchema)
-  .meta({
-    description: "Generate package.json, tsconfig.json from dependencies.json",
-    args: [],
-    shorts: {},
-    output: "text",
-  })
-  .handler(async (input: ConfigGenerateInput, ctx): Promise<ConfigGenerateOutput> => {
-    return configGenerate(input, ctx);
-  })
-  .build();
-
-const configValidateProcedure = createProcedure()
-  .path(["config", "validate"])
-  .input(configValidateInputSchema)
-  .output(configValidateOutputSchema)
-  .meta({
-    description: "Validate dependencies.json against schema",
-    args: [],
-    shorts: {},
-    output: "text",
-  })
-  .handler(async (input: ConfigValidateInput, ctx): Promise<ConfigValidateOutput> => {
-    return configValidate(input, ctx);
-  })
-  .build();
-
-// =============================================================================
 // Procedure Procedure Schemas
 // =============================================================================
 
@@ -373,12 +253,6 @@ export function registerCliProcedures(): void {
     libInstallProcedure,
     libNewProcedure,
     libAuditProcedure,
-    // config procedures
-    configInitProcedure,
-    configAddProcedure,
-    configRemoveProcedure,
-    configGenerateProcedure,
-    configValidateProcedure,
     // procedure procedures
     procedureNewProcedure,
     ...procedureRegistryProcedures,

@@ -31,7 +31,7 @@ export async function libNew(input, ctx) {
     let manifest = null;
     const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
     try {
-        const result = await ctx.client.call(["fs", "read", "json"], { path: manifestPath });
+        const result = await ctx.client.call(["fs", "read.json"], { path: manifestPath });
         manifest = result.data;
     }
     catch {
@@ -134,7 +134,7 @@ export async function libNew(input, ctx) {
             const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
             const manifestExistsResult = await ctx.client.call(["fs", "exists"], { path: manifestPath });
             if (manifestExistsResult.exists) {
-                const manifestReadResult = await ctx.client.call(["fs", "read", "json"], { path: manifestPath });
+                const manifestReadResult = await ctx.client.call(["fs", "read.json"], { path: manifestPath });
                 const manifest = manifestReadResult.data;
                 if (!manifest.packages[packageName]) {
                     manifest.packages[packageName] = {

@@ -96,7 +96,7 @@ async function checkPnpmIssues(pkgPath: string, ctx: ProcedureContext): Promise<
   let pkgJson: PackageJson;
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read", "json"],
+      ["fs", "read.json"],
       { path: pkgJsonPath }
     );
     pkgJson = result.data as PackageJson;
@@ -143,7 +143,7 @@ async function checkPnpmIssues(pkgPath: string, ctx: ProcedureContext): Promise<
 async function loadManifest(rootPath: string, ctx: ProcedureContext): Promise<EcosystemManifest> {
   const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
   const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-    ["fs", "read", "json"],
+    ["fs", "read.json"],
     { path: manifestPath }
   );
   return result.data as EcosystemManifest;

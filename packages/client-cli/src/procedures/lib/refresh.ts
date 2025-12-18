@@ -42,7 +42,7 @@ interface PackageJson {
 async function getPackageName(pkgPath: string, ctx: ProcedureContext): Promise<string> {
   const pkgJsonPath = join(pkgPath, "package.json");
   const result = await ctx.client.call<{ path: string }, FsReadJsonOutput<PackageJson>>(
-    ["fs", "read", "json"],
+    ["fs", "read.json"],
     { path: pkgJsonPath }
   );
   return result.data.name ?? "unknown";

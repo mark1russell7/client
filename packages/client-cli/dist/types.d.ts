@@ -214,65 +214,6 @@ export interface LibInstallOutput {
     /** Total duration in milliseconds */
     totalDuration: number;
 }
-export declare const ConfigInitInputSchema: z.ZodObject<{
-    path: z.ZodOptional<z.ZodString>;
-    preset: z.ZodOptional<z.ZodString>;
-    force: z.ZodDefault<z.ZodBoolean>;
-}>;
-export type ConfigInitInput = z.infer<typeof ConfigInitInputSchema>;
-export interface ConfigInitOutput {
-    success: boolean;
-    preset: string;
-    created: string[];
-    errors: string[];
-    output?: string;
-}
-export declare const ConfigAddInputSchema: z.ZodObject<{
-    feature: z.ZodString;
-    path: z.ZodOptional<z.ZodString>;
-}>;
-export type ConfigAddInput = z.infer<typeof ConfigAddInputSchema>;
-export interface ConfigAddOutput {
-    success: boolean;
-    feature: string;
-    added: boolean;
-    alreadyPresent: boolean;
-    errors: string[];
-    output?: string;
-}
-export declare const ConfigRemoveInputSchema: z.ZodObject<{
-    feature: z.ZodString;
-    path: z.ZodOptional<z.ZodString>;
-}>;
-export type ConfigRemoveInput = z.infer<typeof ConfigRemoveInputSchema>;
-export interface ConfigRemoveOutput {
-    success: boolean;
-    feature: string;
-    removed: boolean;
-    notPresent: boolean;
-    errors: string[];
-    output?: string;
-}
-export declare const ConfigGenerateInputSchema: z.ZodObject<{
-    path: z.ZodOptional<z.ZodString>;
-}>;
-export type ConfigGenerateInput = z.infer<typeof ConfigGenerateInputSchema>;
-export interface ConfigGenerateOutput {
-    success: boolean;
-    generated: string[];
-    errors: string[];
-    output?: string;
-}
-export declare const ConfigValidateInputSchema: z.ZodObject<{
-    path: z.ZodOptional<z.ZodString>;
-}>;
-export type ConfigValidateInput = z.infer<typeof ConfigValidateInputSchema>;
-export interface ConfigValidateOutput {
-    success: boolean;
-    valid: boolean;
-    errors: string[];
-    output?: string;
-}
 export declare const LibNewInputSchema: z.ZodObject<{
     name: z.ZodString;
     preset: z.ZodDefault<z.ZodString>;

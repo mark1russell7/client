@@ -39,7 +39,7 @@ async function findTypeScriptFiles(rootPath, ctx) {
  */
 async function updatePackageJsonName(pkgPath, oldName, newName, dryRun, ctx) {
     try {
-        const result = await ctx.client.call(["fs", "read", "json"], { path: pkgPath });
+        const result = await ctx.client.call(["fs", "read.json"], { path: pkgPath });
         const pkg = result.data;
         if (pkg.name === oldName) {
             if (!dryRun) {
@@ -65,7 +65,7 @@ async function updatePackageJsonName(pkgPath, oldName, newName, dryRun, ctx) {
 async function updatePackageJsonDependencies(pkgPath, oldName, newName, dryRun, ctx) {
     const changes = [];
     try {
-        const result = await ctx.client.call(["fs", "read", "json"], { path: pkgPath });
+        const result = await ctx.client.call(["fs", "read.json"], { path: pkgPath });
         const pkg = result.data;
         let modified = false;
         const depFields = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];

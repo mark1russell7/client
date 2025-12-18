@@ -19,7 +19,7 @@ import { removeDir, removeFile, pnpmInstall, pnpmBuild } from "../../shell/index
  */
 async function getPackageName(pkgPath, ctx) {
     const pkgJsonPath = join(pkgPath, "package.json");
-    const result = await ctx.client.call(["fs", "read", "json"], { path: pkgJsonPath });
+    const result = await ctx.client.call(["fs", "read.json"], { path: pkgJsonPath });
     return result.data.name ?? "unknown";
 }
 /**

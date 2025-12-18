@@ -26,7 +26,7 @@ async function isPackageDir(dirPath, ctx) {
 async function readPackageJson(dirPath, ctx) {
     try {
         const pkgPath = join(dirPath, "package.json");
-        const result = await ctx.client.call(["fs", "read", "json"], { path: pkgPath });
+        const result = await ctx.client.call(["fs", "read.json"], { path: pkgPath });
         return result.data;
     }
     catch {
@@ -104,7 +104,7 @@ async function scanDirectory(dirPath, packages, warnings, ctx, depth = 0, maxDep
     try {
         const result = await ctx.client.call(["fs", "readdir"], { path: dirPath });
         for (const entry of result.entries) {
-            if (!entry.isDirectory)
+            if (entry.type !== "directory")
                 continue;
             // Skip common non-package directories
             const skipDirs = ["node_modules", "dist", ".git", ".vscode", "coverage"];

@@ -86,7 +86,7 @@ async function loadManifest(rootPath: string, ctx: ProcedureContext): Promise<Ec
   const localPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput<EcosystemManifest>>(
-      ["fs", "read", "json"],
+      ["fs", "read.json"],
       { path: localPath }
     );
     return result.data;

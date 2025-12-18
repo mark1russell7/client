@@ -63,7 +63,7 @@ async function updatePackageJsonName(
 ): Promise<RenameChange | null> {
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read", "json"],
+      ["fs", "read.json"],
       { path: pkgPath }
     );
     const pkg = result.data as { name?: string };
@@ -105,7 +105,7 @@ async function updatePackageJsonDependencies(
 
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read", "json"],
+      ["fs", "read.json"],
       { path: pkgPath }
     );
     const pkg = result.data as Record<string, unknown>;

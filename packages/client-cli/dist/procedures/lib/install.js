@@ -53,7 +53,7 @@ async function dirExists(pathStr, ctx) {
 async function loadManifest(rootPath, ctx) {
     const localPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
     try {
-        const result = await ctx.client.call(["fs", "read", "json"], { path: localPath });
+        const result = await ctx.client.call(["fs", "read.json"], { path: localPath });
         return result.data;
     }
     catch {

@@ -11,7 +11,7 @@ import type { LibScanInput, LibScanOutput, PackageInfo } from "../../types.js";
 import { isMark1Russell7Ref } from "../../git/index.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
-interface FsReaddirOutput { path: string; entries: Array<{ name: string; isDirectory: boolean; isFile: boolean }>; }
+interface FsReaddirOutput { path: string; entries: Array<{ name: string; path: string; type: "file" | "directory" | "symlink" | "other" }>; }
 interface FsReadJsonOutput { path: string; data: unknown; }
 interface GitStatusOutput { branch: string; }
 interface GitRemoteOutput { name: string; url: string; }
@@ -47,7 +47,7 @@ async function readPackageJson(dirPath: string, ctx: ProcedureContext): Promise<
   try {
     const pkgPath = join(dirPath, "package.json");
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read", "json"],
+      ["fs", "read.json"],
       { path: pkgPath }
     );
     return result.data as PackageJson;
@@ -150,7 +150,7 @@ async function scanDirectory(
     );
 
     for (const entry of result.entries) {
-      if (!entry.isDirectory) continue;
+      if (entry.type !== "directory") continue;
 
       // Skip common non-package directories
       const skipDirs = ["node_modules", "dist", ".git", ".vscode", "coverage"];

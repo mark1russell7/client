@@ -52,7 +52,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
   const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
   try {
     const result = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
-      ["fs", "read", "json"],
+      ["fs", "read.json"],
       { path: manifestPath }
     );
     manifest = result.data as EcosystemManifest;
@@ -198,7 +198,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
 
       if (manifestExistsResult.exists) {
         const manifestReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
-          ["fs", "read", "json"],
+          ["fs", "read.json"],
           { path: manifestPath }
         );
         const manifest = manifestReadResult.data as EcosystemManifest;

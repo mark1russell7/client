@@ -47,7 +47,7 @@ async function checkPnpmIssues(pkgPath, ctx) {
     }
     let pkgJson;
     try {
-        const result = await ctx.client.call(["fs", "read", "json"], { path: pkgJsonPath });
+        const result = await ctx.client.call(["fs", "read.json"], { path: pkgJsonPath });
         pkgJson = result.data;
     }
     catch {
@@ -85,7 +85,7 @@ async function checkPnpmIssues(pkgPath, ctx) {
  */
 async function loadManifest(rootPath, ctx) {
     const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
-    const result = await ctx.client.call(["fs", "read", "json"], { path: manifestPath });
+    const result = await ctx.client.call(["fs", "read.json"], { path: manifestPath });
     return result.data;
 }
 /**
