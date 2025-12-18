@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/client-connection",
+  "version": "1.0.0",
+  "description": "Connection management procedures for bidirectional RPC - connection.list, connection.call, etc.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,11 +19,35 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
   },
-  "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "zod": "^3.24.0"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "keywords": [
+    "connection",
+    "websocket",
+    "rpc",
+    "bidirectional",
+    "client",
+    "procedures"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client"
+    ]
   }
 }

@@ -2,6 +2,7 @@
   "$schema": "./node_modules/@mark1russell7/cue/dependencies/schema.json",
   "dependencies": [
     "ts",
-    "cue"
+    "cue",
+    "node"
   ]
 }

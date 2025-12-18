@@ -12,8 +12,8 @@
  * await client.call(["connection", "call"], { clientId: "abc", path: ["render"], input: data });
  * ```
  */
-
 export * from "./procedures/connection/index.js";
 export * from "./register.js";
 export * from "./types.js";
 export { connectionManager, getConnectionManager, type TrackedConnection } from "./manager.js";
+//# sourceMappingURL=index.d.ts.map
