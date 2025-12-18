@@ -13,6 +13,6 @@
  * await client.call(["git", "commit"], { message: "feat: add feature" });
  * ```
  */
-
 export * from "./procedures/git.js";
 export * from "./register.js";
+//# sourceMappingURL=index.js.map

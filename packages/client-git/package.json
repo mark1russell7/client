@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/client-git",
+  "version": "1.0.0",
+  "description": "Git operations as RPC procedures - git.add, git.commit, git.push, etc.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,11 +19,36 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
   },
-  "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "zod": "^3.24.0"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "keywords": [
+    "git",
+    "client",
+    "procedures",
+    "rpc"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client"
+    ],
+    "overrides": {
+      "@mark1russell7/client": "link:../client"
+    }
   }
 }
