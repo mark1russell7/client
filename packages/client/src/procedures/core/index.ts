@@ -518,3 +518,55 @@ export {
   throwProcedure,
   tryCatchProcedure,
 };
+
+// =============================================================================
+// Import additional procedure modules
+// =============================================================================
+
+export * from "./math.js";
+export * from "./comparison.js";
+export * from "./string.js";
+export * from "./type.js";
+export * from "./object.js";
+export * from "./array.js";
+export * from "./meta.js";
+
+// =============================================================================
+// Combined exports for all core procedures
+// =============================================================================
+
+import { mathProcedures, mathModule } from "./math.js";
+import { comparisonProcedures, comparisonModule } from "./comparison.js";
+import { stringProcedures, stringModule } from "./string.js";
+import { typeProcedures, typeModule } from "./type.js";
+import { objectProcedures, objectModule } from "./object.js";
+import { arrayProcedures, arrayModule } from "./array.js";
+import { metaProcedures, metaModule } from "./meta.js";
+
+/**
+ * All core procedures combined (control flow + math + comparison + string + type + object + array + meta).
+ */
+export const allCoreProcedures: AnyProcedure[] = [
+  ...coreProcedures,
+  ...mathProcedures,
+  ...comparisonProcedures,
+  ...stringProcedures,
+  ...typeProcedures,
+  ...objectProcedures,
+  ...arrayProcedures,
+  ...metaProcedures,
+];
+
+/**
+ * All core modules combined.
+ */
+export const allCoreModules: Array<{ name: string; procedures: AnyProcedure[] }> = [
+  coreModule,
+  mathModule,
+  comparisonModule,
+  stringModule,
+  typeModule,
+  objectModule,
+  arrayModule,
+  metaModule,
+];
