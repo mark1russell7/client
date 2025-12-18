@@ -73,6 +73,10 @@
     "@mark1russell7/client-git": {
       "repo": "github:mark1russell7/client-git#main",
       "path": "client-git"
+    },
+    "@mark1russell7/client-connection": {
+      "repo": "github:mark1russell7/client-connection#main",
+      "path": "client-connection"
     }
   },
   "projectTemplate": {
