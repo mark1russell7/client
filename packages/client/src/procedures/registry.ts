@@ -378,10 +378,32 @@ export class ProcedureRegistry {
 // =============================================================================
 
 /**
+ * Symbol key for storing registry on globalThis.
+ * This ensures there's only ONE registry across all module loads,
+ * regardless of ESM/CJS interop issues or multiple import paths.
+ */
+const REGISTRY_KEY = Symbol.for("@mark1russell7/client/PROCEDURE_REGISTRY");
+
+/**
+ * Get or create the global registry singleton.
+ * Uses Symbol.for to ensure the same symbol is used across all contexts.
+ */
+function getGlobalRegistry(): ProcedureRegistry {
+  const g = globalThis as Record<symbol, ProcedureRegistry | undefined>;
+  if (!g[REGISTRY_KEY]) {
+    g[REGISTRY_KEY] = new ProcedureRegistry();
+  }
+  return g[REGISTRY_KEY];
+}
+
+/**
  * Global procedure registry singleton.
  *
  * Used for module self-registration pattern where modules
  * register their procedures at import time.
+ *
+ * Note: Uses globalThis with a Symbol key to ensure there's truly
+ * only one registry across ESM/CJS boundaries and dynamic imports.
  *
  * @example
  * ```typescript
@@ -395,4 +417,4 @@ export class ProcedureRegistry {
  * import 'my-module/register';
  * ```
  */
-export const PROCEDURE_REGISTRY : ProcedureRegistry = new ProcedureRegistry();
+export const PROCEDURE_REGISTRY: ProcedureRegistry = getGlobalRegistry();
