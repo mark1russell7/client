@@ -123,6 +123,5 @@ export function visualizeDAG<TNode extends DAGNode>(
     }
   }
 
-  return lines.join("
-");
+  return lines.join("\n");
 }
