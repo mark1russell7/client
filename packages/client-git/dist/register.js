@@ -17,7 +17,8 @@ import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
 import { gitInit } from "./procedures/git/init.js";
 import { gitRemote } from "./procedures/git/remote.js";
-import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, GitInitInputSchema, GitRemoteInputSchema, } from "./types.js";
+import { gitFetch } from "./procedures/git/fetch.js";
+import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, GitInitInputSchema, GitRemoteInputSchema, GitFetchInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -226,6 +227,20 @@ const gitRemoteProcedure = createProcedure()
     return gitRemote(input);
 })
     .build();
+const gitFetchProcedure = createProcedure()
+    .path(["git", "fetch"])
+    .input(zodAdapter(GitFetchInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Fetch from remote",
+    args: [],
+    shorts: { remote: "r", branch: "b", all: "a", prune: "p", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitFetch(input);
+})
+    .build();
 // =============================================================================
 // Registration
 // =============================================================================
@@ -243,6 +258,7 @@ export function registerGitProcedures() {
         gitDiffProcedure,
         gitInitProcedure,
         gitRemoteProcedure,
+        gitFetchProcedure,
     ]);
 }
 // Auto-register when this module is loaded

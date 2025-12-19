@@ -18,6 +18,7 @@ import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
 import { gitInit } from "./procedures/git/init.js";
 import { gitRemote } from "./procedures/git/remote.js";
+import { gitFetch } from "./procedures/git/fetch.js";
 import {
   GitStatusInputSchema,
   GitAddInputSchema,
@@ -55,6 +56,9 @@ import {
   GitRemoteInputSchema,
   type GitRemoteInput,
   type GitRemoteOutput,
+  GitFetchInputSchema,
+  type GitFetchInput,
+  type GitFetchOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -297,6 +301,21 @@ const gitRemoteProcedure = createProcedure()
   })
   .build();
 
+const gitFetchProcedure = createProcedure()
+  .path(["git", "fetch"])
+  .input(zodAdapter<GitFetchInput>(GitFetchInputSchema))
+  .output(outputSchema<GitFetchOutput>())
+  .meta({
+    description: "Fetch from remote",
+    args: [],
+    shorts: { remote: "r", branch: "b", all: "a", prune: "p", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitFetchInput): Promise<GitFetchOutput> => {
+    return gitFetch(input);
+  })
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
@@ -315,6 +334,7 @@ export function registerGitProcedures(): void {
     gitDiffProcedure,
     gitInitProcedure,
     gitRemoteProcedure,
+    gitFetchProcedure,
   ]);
 }
 
