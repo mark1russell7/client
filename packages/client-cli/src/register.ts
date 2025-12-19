@@ -15,6 +15,7 @@ import { libAudit } from "./procedures/lib/audit.js";
 import { libPull } from "./procedures/lib/pull.js";
 import { procedureNew } from "./procedures/procedure/new.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
+import { dagTraverse } from "./procedures/dag/traverse.js";
 import {
   LibScanInputSchema,
   LibRefreshInputSchema,
@@ -39,6 +40,9 @@ import {
   ProcedureNewInputSchema,
   type ProcedureNewInput,
   type ProcedureNewOutput,
+  DagTraverseInputSchema,
+  type DagTraverseInput,
+  type DagTraverseOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -262,6 +266,34 @@ const procedureNewProcedure = createProcedure()
   })
   .build();
 
+
+
+// =============================================================================
+// DAG Procedure Schemas
+// =============================================================================
+
+const dagTraverseInputSchema = zodAdapter<DagTraverseInput>(DagTraverseInputSchema);
+const dagTraverseOutputSchema = outputSchema<DagTraverseOutput>();
+
+// =============================================================================
+// DAG Procedure Definitions
+// =============================================================================
+
+const dagTraverseProcedure = createProcedure()
+  .path(["dag", "traverse"])
+  .input(dagTraverseInputSchema)
+  .output(dagTraverseOutputSchema)
+  .meta({
+    description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
+    args: [],
+    shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
+    output: "streaming",
+  })
+  .handler(async (input: DagTraverseInput, ctx): Promise<DagTraverseOutput> => {
+    return dagTraverse(input, ctx);
+  })
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
@@ -279,6 +311,8 @@ export function registerCliProcedures(): void {
     // procedure procedures
     procedureNewProcedure,
     ...procedureRegistryProcedures,
+    // dag procedures
+    dagTraverseProcedure,
   ]);
 }
 

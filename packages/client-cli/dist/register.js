@@ -14,7 +14,8 @@ import { libAudit } from "./procedures/lib/audit.js";
 import { libPull } from "./procedures/lib/pull.js";
 import { procedureNew } from "./procedures/procedure/new.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
-import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, ProcedureNewInputSchema, } from "./types.js";
+import { dagTraverse } from "./procedures/dag/traverse.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, ProcedureNewInputSchema, DagTraverseInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -200,6 +201,28 @@ const procedureNewProcedure = createProcedure()
 })
     .build();
 // =============================================================================
+// DAG Procedure Schemas
+// =============================================================================
+const dagTraverseInputSchema = zodAdapter(DagTraverseInputSchema);
+const dagTraverseOutputSchema = outputSchema();
+// =============================================================================
+// DAG Procedure Definitions
+// =============================================================================
+const dagTraverseProcedure = createProcedure()
+    .path(["dag", "traverse"])
+    .input(dagTraverseInputSchema)
+    .output(dagTraverseOutputSchema)
+    .meta({
+    description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
+    args: [],
+    shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
+    output: "streaming",
+})
+    .handler(async (input, ctx) => {
+    return dagTraverse(input, ctx);
+})
+    .build();
+// =============================================================================
 // Registration
 // =============================================================================
 export function registerCliProcedures() {
@@ -215,6 +238,8 @@ export function registerCliProcedures() {
         // procedure procedures
         procedureNewProcedure,
         ...procedureRegistryProcedures,
+        // dag procedures
+        dagTraverseProcedure,
     ]);
 }
 // Auto-register when this module is loaded
