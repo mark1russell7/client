@@ -19,22 +19,7 @@
  * });
  * ```
  */
-
-// Types
-export type {
-  ShellRunInput,
-  ShellRunOutput,
-  ShellExecInput,
-  ShellExecOutput,
-  ShellWhichInput,
-  ShellWhichOutput,
-} from "./types.js";
-
-export {
-  ShellRunInputSchema,
-  ShellExecInputSchema,
-  ShellWhichInputSchema,
-} from "./types.js";
-
-// Procedures
+export type { ShellRunInput, ShellRunOutput, ShellExecInput, ShellExecOutput, ShellWhichInput, ShellWhichOutput, } from "./types.js";
+export { ShellRunInputSchema, ShellExecInputSchema, ShellWhichInputSchema, } from "./types.js";
 export { shellRun, shellExec, shellWhich } from "./procedures/shell/index.js";
+//# sourceMappingURL=index.d.ts.map

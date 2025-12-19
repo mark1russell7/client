@@ -8,7 +8,14 @@ import { z } from "zod";
 // shell.run Types
 // =============================================================================
 
-export const ShellRunInputSchema = z.object({
+export const ShellRunInputSchema: z.ZodObject<{
+  command: z.ZodString;
+  args: z.ZodDefault<z.ZodArray<z.ZodString>>;
+  cwd: z.ZodOptional<z.ZodString>;
+  env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+  timeout: z.ZodOptional<z.ZodNumber>;
+  encoding: z.ZodDefault<z.ZodString>;
+}> = z.object({
   /** Command to run */
   command: z.string(),
   /** Arguments to pass */
@@ -42,7 +49,15 @@ export interface ShellRunOutput {
 // shell.exec Types (more options)
 // =============================================================================
 
-export const ShellExecInputSchema = z.object({
+export const ShellExecInputSchema: z.ZodObject<{
+  command: z.ZodString;
+  cwd: z.ZodOptional<z.ZodString>;
+  env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+  timeout: z.ZodOptional<z.ZodNumber>;
+  shell: z.ZodDefault<z.ZodUnion<[z.ZodBoolean, z.ZodString]>>;
+  maxBuffer: z.ZodOptional<z.ZodNumber>;
+  stdin: z.ZodOptional<z.ZodString>;
+}> = z.object({
   /** Full command string to execute via shell */
   command: z.string(),
   /** Working directory */
@@ -75,7 +90,9 @@ export interface ShellExecOutput {
 // shell.which Types
 // =============================================================================
 
-export const ShellWhichInputSchema = z.object({
+export const ShellWhichInputSchema: z.ZodObject<{
+  command: z.ZodString;
+}> = z.object({
   /** Command to find */
   command: z.string(),
 });
