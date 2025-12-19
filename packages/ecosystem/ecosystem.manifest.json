@@ -81,6 +81,10 @@
     "@mark1russell7/client-cue": {
       "repo": "github:mark1russell7/client-cue#main",
       "path": "client-cue"
+    },
+    "@mark1russell7/test": {
+      "repo": "github:mark1russell7/test#main",
+      "path": "test"
     }
   },
   "projectTemplate": {
