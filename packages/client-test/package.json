@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
+  "name": "@mark1russell7/client-test",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,6 +23,13 @@
   "sideEffects": false,
   "devDependencies": {
     "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "description": "Test execution procedures for the ecosystem",
+  "dependencies": {
+    "zod": "^3.24.0",
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main"
   }
 }
