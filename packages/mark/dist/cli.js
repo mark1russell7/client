@@ -271,6 +271,25 @@ async function run(argv) {
     }
     // Parse arguments (needs procedures for path detection)
     const { path, args, options } = parseArgs(argv, procedures);
+    // Handle --json flag for raw procedure reference execution
+    const jsonInput = options["json"];
+    if (jsonInput && typeof jsonInput === "string") {
+        try {
+            // Parse JSON and check for $proc
+            const parsed = JSON.parse(jsonInput);
+            if (parsed && typeof parsed === "object" && "$proc" in parsed) {
+                // Execute as procedure reference via client.exec()
+                const result = await client.exec(parsed);
+                (0, format_1.formatOutput)(gluegun_1.print, result, "json");
+                return;
+            }
+        }
+        catch (e) {
+            gluegun_1.print.error(`Failed to parse --json input: ${e instanceof Error ? e.message : String(e)}`);
+            process.exitCode = 1;
+            return;
+        }
+    }
     // Handle root help
     if (path.length === 0) {
         showRootHelp(procedures);

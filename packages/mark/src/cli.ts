@@ -305,6 +305,28 @@ async function run(argv: string[]): Promise<void> {
   // Parse arguments (needs procedures for path detection)
   const { path, args, options } = parseArgs(argv, procedures);
 
+  
+
+  // Handle --json flag for raw procedure reference execution
+  const jsonInput = options["json"] as string | undefined;
+  if (jsonInput && typeof jsonInput === "string") {
+    try {
+      // Parse JSON and check for $proc
+      const parsed = JSON.parse(jsonInput);
+
+      if (parsed && typeof parsed === "object" && "$proc" in parsed) {
+        // Execute as procedure reference via client.exec()
+        const result = await client.exec(parsed);
+        formatOutput(print as unknown as Print, result, "json");
+        return;
+      }
+    } catch (e) {
+      print.error(`Failed to parse --json input: ${e instanceof Error ? e.message : String(e)}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   // Handle root help
   if (path.length === 0) {
     showRootHelp(procedures);
