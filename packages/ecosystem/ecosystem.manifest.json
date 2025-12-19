@@ -85,6 +85,18 @@
     "@mark1russell7/test": {
       "repo": "github:mark1russell7/test#main",
       "path": "test"
+    },
+    "@mark1russell7/client-dag": {
+      "repo": "github:mark1russell7/client-dag#main",
+      "path": "client-dag"
+    },
+    "@mark1russell7/client-shell": {
+      "repo": "github:mark1russell7/client-shell#main",
+      "path": "client-shell"
+    },
+    "@mark1russell7/client-test": {
+      "repo": "github:mark1russell7/client-test#main",
+      "path": "client-test"
     }
   },
   "projectTemplate": {
