@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "@mark1russell7/client-logger": {
+    "@mark1russell7/client-procedure": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-17T18:01:35.938Z",
-      "version": "1.0.0"
-    },
-    "@mark1russell7/client-cli": {
-      "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-19T06:00:42.274Z",
-      "version": "1.0.0"
+      "registeredAt": "2025-12-19T21:33:15.908Z",
+      "version": "0.0.0"
     },
     "@mark1russell7/client-shell": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-19T20:03:29.122Z",
+      "registeredAt": "2025-12-19T21:33:15.925Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/client-lib": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-19T21:33:16.376Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-test": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-19T20:03:29.663Z",
+      "registeredAt": "2025-12-19T21:34:27.286Z",
       "version": "0.0.0"
     }
   }

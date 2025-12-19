@@ -14,15 +14,21 @@ importers:
       '@mark1russell7/client-cli':
         specifier: github:mark1russell7/client-cli#main
         version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/d9ce628065e9b55d11f982126c585462b60a6268
+      '@mark1russell7/client-lib':
+        specifier: github:mark1russell7/client-lib#main
+        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/9d1ffc753f3e4a7d66f2c7bd5d98a5489f09c3ed
       '@mark1russell7/client-logger':
         specifier: github:mark1russell7/client-logger#main
         version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180(zod@3.25.76)
+      '@mark1russell7/client-procedure':
+        specifier: github:mark1russell7/client-procedure#main
+        version: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/2c7909e27246b1b8cc305b2ad90b6c04f72fcc18
       '@mark1russell7/client-shell':
-        specifier: file:../client-shell
-        version: file:../client-shell
+        specifier: github:mark1russell7/client-shell#main
+        version: https://codeload.github.com/mark1russell7/client-shell/tar.gz/e260faacd99afb491df0ad5c414c3adf850a13ab
       '@mark1russell7/client-test':
-        specifier: file:../client-test
-        version: file:../client-test
+        specifier: github:mark1russell7/client-test#main
+        version: https://codeload.github.com/mark1russell7/client-test/tar.gz/870ce8a8faeaf3477d0531a001c559348fa801da
       gluegun:
         specifier: ^5.2.2
         version: 5.2.2
@@ -73,6 +79,10 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/d9ce628065e9b55d11f982126c585462b60a6268}
     version: 1.0.0
 
+  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/98f10a9753b761b3f549abd21db504e5100ab4bd':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-dag/tar.gz/98f10a9753b761b3f549abd21db504e5100ab4bd}
+    version: 0.0.0
+
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366}
     version: 1.0.0
@@ -81,15 +91,25 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/e620f49462b2ed2aa882503d00cd8bc9750ebf4d}
     version: 1.0.0
 
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/9d1ffc753f3e4a7d66f2c7bd5d98a5489f09c3ed':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/9d1ffc753f3e4a7d66f2c7bd5d98a5489f09c3ed}
+    version: 0.0.0
+
   '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180}
     version: 1.0.0
 
-  '@mark1russell7/client-shell@file:../client-shell':
-    resolution: {directory: ../client-shell, type: directory}
+  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/2c7909e27246b1b8cc305b2ad90b6c04f72fcc18':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/2c7909e27246b1b8cc305b2ad90b6c04f72fcc18}
+    version: 0.0.0
 
-  '@mark1russell7/client-test@file:../client-test':
-    resolution: {directory: ../client-test, type: directory}
+  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/e260faacd99afb491df0ad5c414c3adf850a13ab':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-shell/tar.gz/e260faacd99afb491df0ad5c414c3adf850a13ab}
+    version: 0.0.0
+
+  '@mark1russell7/client-test@https://codeload.github.com/mark1russell7/client-test/tar.gz/870ce8a8faeaf3477d0531a001c559348fa801da':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-test/tar.gz/870ce8a8faeaf3477d0531a001c559348fa801da}
+    version: 0.0.0
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119}
@@ -732,6 +752,8 @@ snapshots:
       - express
       - utf-8-validate
 
+  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/98f10a9753b761b3f549abd21db504e5100ab4bd': {}
+
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
@@ -750,6 +772,19 @@ snapshots:
       - express
       - utf-8-validate
 
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/9d1ffc753f3e4a7d66f2c7bd5d98a5489f09c3ed':
+    dependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
+      '@mark1russell7/client-dag': https://codeload.github.com/mark1russell7/client-dag/tar.gz/98f10a9753b761b3f549abd21db504e5100ab4bd
+      '@mark1russell7/client-fs': https://codeload.github.com/mark1russell7/client-fs/tar.gz/97824a7a17bc1570682daaae8ce10a1355e3d366
+      '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/e620f49462b2ed2aa882503d00cd8bc9750ebf4d
+      ts-morph: 24.0.0
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - express
+      - utf-8-validate
+
   '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180(zod@3.25.76)':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
@@ -761,7 +796,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@mark1russell7/client-shell@file:../client-shell':
+  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/2c7909e27246b1b8cc305b2ad90b6c04f72fcc18':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
       zod: 3.25.76
@@ -770,10 +805,19 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-test@file:../client-test':
+  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/e260faacd99afb491df0ad5c414c3adf850a13ab':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
-      '@mark1russell7/client-shell': file:../client-shell
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - express
+      - utf-8-validate
+
+  '@mark1russell7/client-test@https://codeload.github.com/mark1russell7/client-test/tar.gz/870ce8a8faeaf3477d0531a001c559348fa801da':
+    dependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
+      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/e260faacd99afb491df0ad5c414c3adf850a13ab
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
