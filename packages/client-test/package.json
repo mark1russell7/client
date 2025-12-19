@@ -31,7 +31,7 @@
   "dependencies": {
     "zod": "^3.24.0",
     "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-shell": "file:../client-shell"
+    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main"
   },
   "client": {
     "procedures": "./dist/register.js"
