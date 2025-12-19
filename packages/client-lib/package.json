@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client-lib",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
+  },
+  "sideEffects": false,
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "description": "Library management procedures - scan, refresh, install, pull, etc.",
+  "dependencies": {
+    "zod": "^3.24.0",
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
+    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
+    "@mark1russell7/client-dag": "github:mark1russell7/client-dag#main",
+    "ts-morph": "^24.0.0"
+  },
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/client-git",
+      "@mark1russell7/client-fs",
+      "@mark1russell7/client-dag"
+    ]
+  }
+}
