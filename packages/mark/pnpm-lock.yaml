@@ -17,6 +17,12 @@ importers:
       '@mark1russell7/client-logger':
         specifier: github:mark1russell7/client-logger#main
         version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180(zod@3.25.76)
+      '@mark1russell7/client-shell':
+        specifier: file:../client-shell
+        version: file:../client-shell
+      '@mark1russell7/client-test':
+        specifier: file:../client-test
+        version: file:../client-test
       gluegun:
         specifier: ^5.2.2
         version: 5.2.2
@@ -78,6 +84,12 @@ packages:
   '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-logger/tar.gz/04a11675d5002ae28dbd6e6dac34a3383fe65180}
     version: 1.0.0
+
+  '@mark1russell7/client-shell@file:../client-shell':
+    resolution: {directory: ../client-shell, type: directory}
+
+  '@mark1russell7/client-test@file:../client-test':
+    resolution: {directory: ../client-test, type: directory}
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119}
@@ -748,6 +760,25 @@ snapshots:
       - express
       - utf-8-validate
       - zod
+
+  '@mark1russell7/client-shell@file:../client-shell':
+    dependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - express
+      - utf-8-validate
+
+  '@mark1russell7/client-test@file:../client-test':
+    dependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)
+      '@mark1russell7/client-shell': file:../client-shell
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - express
+      - utf-8-validate
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(zod@3.25.76)':
     dependencies:

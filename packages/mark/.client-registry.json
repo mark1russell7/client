@@ -10,6 +10,16 @@
       "proceduresPath": "./dist/register.js",
       "registeredAt": "2025-12-19T06:00:42.274Z",
       "version": "1.0.0"
+    },
+    "@mark1russell7/client-shell": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-19T20:03:29.122Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/client-test": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-19T20:03:29.663Z",
+      "version": "0.0.0"
     }
   }
 }
