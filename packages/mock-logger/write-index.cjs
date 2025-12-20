@@ -1,4 +1,6 @@
-/**
+const fs = require('fs');
+const path = require('path');
+const content = `/**
  * @mark1russell7/mock-logger
  *
  * Mock Logger for unit testing.
@@ -119,3 +121,6 @@ export function createMockLogger(options: CreateMockLoggerOptions = {}): MockLog
     hasLoggedAtLevel(l: LogLevel, p: string | RegExp): boolean { return entries.some(e => e.level === l && matchMessage(e, p)); },
   };
 }
+`;
+fs.writeFileSync(path.join(__dirname, 'src/index.ts'), content);
+console.log('Written');
