@@ -30,12 +30,6 @@
     "vitest": "^3.0.0"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "*",
     "vitest": "^3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@mark1russell7/client": {
-      "optional": true
-    }
   }
 }
