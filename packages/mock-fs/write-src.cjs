@@ -1,4 +1,7 @@
-/**
+const fs = require('fs');
+const path = require('path');
+
+const code = `/**
  * @mark1russell7/mock-fs
  */
 
@@ -24,7 +27,9 @@ export interface CreateMockFsOptions {
   initialDirs?: string[] | undefined;
 }
 
-function normalizePath(p: string): string { let r = p.split("\\").join("/"); while (r.endsWith("/")) r = r.slice(0, -1); return r; }
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/").replace(/\/+$/g, "");
+}
 
 export function createMockFs(options: CreateMockFsOptions = {}): MockFs {
   const files = new Map<string, MockFsEntry>();
@@ -75,7 +80,7 @@ export function createMockFs(options: CreateMockFsOptions = {}): MockFs {
     readdir(p: string): string[] {
       const np = normalizePath(p);
       const prefix = np === "" ? "" : np + "/";
-      const entries: Set<string> = new Set();
+      const entries = new Set();
       for (const key of files.keys()) {
         if (key.startsWith(prefix) && key !== np) {
           const rest = key.slice(prefix.length);
@@ -88,3 +93,7 @@ export function createMockFs(options: CreateMockFsOptions = {}): MockFs {
     reset(): void { files.clear(); },
   };
 }
+`;
+
+fs.writeFileSync(path.join(__dirname, 'src/index.ts'), code);
+console.log('Written mock-fs/src/index.ts');

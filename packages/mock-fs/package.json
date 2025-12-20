@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
+  "name": "@mark1russell7/mock-fs",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,10 +11,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "src"
-  ],
+  "files": ["dist", "src"],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -23,6 +20,11 @@
   "sideEffects": false,
   "devDependencies": {
     "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "vitest": "^3.0.0"
   }
 }
