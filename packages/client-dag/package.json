@@ -18,12 +18,17 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "sideEffects": false,
   "devDependencies": {
     "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^3.0.0",
+    "@mark1russell7/test": "github:mark1russell7/test#main"
   },
   "description": "Generic DAG algorithms for dependency management"
 }
