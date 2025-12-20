@@ -117,6 +117,10 @@
     "@mark1russell7/client-vitest": {
       "repo": "github:mark1russell7/client-vitest#main",
       "path": "client-vitest"
+    },
+    "@mark1russell7/scaffold": {
+      "repo": "github:mark1russell7/scaffold#main",
+      "path": "scaffold"
     }
   },
   "projectTemplate": {
