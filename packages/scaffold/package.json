@@ -13,13 +13,15 @@
   },
   "files": [
     "dist",
+    "schematics",
     "src"
   ],
   "scripts": {
-    "build": "tsc -b && npm run build:schematics",
+    "build": "tsc -b && npm run build:schematics && npm run copy:schematics",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo",
-    "build:schematics": "tsc -p src/schematics/tsconfig.json"
+    "clean": "rm -rf dist schematics .tsbuildinfo",
+    "build:schematics": "tsc -p src/schematics/tsconfig.json",
+    "copy:schematics": "cp src/schematics/collection.json schematics/schematics/ && cp src/schematics/lib-new/schema.json schematics/schematics/lib-new/ && cp src/schematics/lib-refresh/schema.json schematics/schematics/lib-refresh/"
   },
   "sideEffects": false,
   "devDependencies": {
@@ -28,7 +30,7 @@
     "@types/node": "^22.0.0"
   },
   "description": "Schema-driven scaffolding system with Angular Schematics",
-  "schematics": "./schematics/collection.json",
+  "schematics": "./schematics/schematics/collection.json",
   "dependencies": {
     "@angular-devkit/schematics": "^19.0.0",
     "ts-morph": "^24.0.0"

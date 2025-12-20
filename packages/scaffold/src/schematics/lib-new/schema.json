@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "lib-new-schema",
+  "title": "Create new package",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Package name (without @mark1russell7/ prefix)",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "preset": {
+      "type": "string",
+      "description": "Feature preset to use",
+      "default": "lib",
+      "enum": ["lib", "react-lib", "app"]
+    },
+    "rootPath": {
+      "type": "string",
+      "description": "Root directory for packages (default: ~/git)",
+      "default": "~/git"
+    },
+    "skipGit": {
+      "type": "boolean",
+      "description": "Skip git init and GitHub repo creation",
+      "default": false
+    },
+    "skipManifest": {
+      "type": "boolean",
+      "description": "Skip adding to ecosystem manifest",
+      "default": false
+    }
+  },
+  "required": ["name"]
+}
