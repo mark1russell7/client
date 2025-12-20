@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
+  "name": "@mark1russell7/scaffold",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,13 +16,21 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && npm run build:schematics",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "build:schematics": "tsc -p src/schematics/tsconfig.json"
   },
   "sideEffects": false,
   "devDependencies": {
     "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@types/node": "^22.0.0"
+  },
+  "description": "Schema-driven scaffolding system with Angular Schematics",
+  "schematics": "./schematics/collection.json",
+  "dependencies": {
+    "@angular-devkit/schematics": "^19.0.0",
+    "ts-morph": "^24.0.0"
   }
 }
