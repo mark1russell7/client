@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
+  "name": "@mark1russell7/client-vitest",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,10 +11,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "src"
-  ],
+  "files": ["dist", "src"],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -23,6 +20,21 @@
   "sideEffects": false,
   "devDependencies": {
     "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "dependencies": {
+    "vitest": "^3.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "zod": "^3.24.0",
+    "@mark1russell7/client": "github:mark1russell7/client#main"
+  },
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/client"
+    ]
   }
 }
