@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@mark1russell7/client':
         specifier: github:mark1russell7/client#main
-        version: https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(express@5.2.1)(zod@3.25.76)
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(express@5.2.1)(zod@3.25.76)
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -20,7 +20,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/a98f684936a3f20cd01326c5d47838d6739241b7
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
@@ -37,8 +37,8 @@ importers:
 
 packages:
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119}
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde}
     version: 1.0.0
     engines: {node: '>=20'}
     hasBin: true
@@ -51,8 +51,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a98f684936a3f20cd01326c5d47838d6739241b7':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/a98f684936a3f20cd01326c5d47838d6739241b7}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
@@ -371,7 +371,7 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/2cf0d7cbcc6fc0dcbc812c2f8f7eec6f7b412119(express@5.2.1)(zod@3.25.76)':
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(express@5.2.1)(zod@3.25.76)':
     dependencies:
       ws: 8.18.3
     optionalDependencies:
@@ -381,7 +381,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/61c8ea18d0663b752f50caec236926d57646405f': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a98f684936a3f20cd01326c5d47838d6739241b7': {}
 
   '@types/body-parser@1.19.6':
     dependencies:
