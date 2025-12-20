@@ -101,6 +101,22 @@
     "@mark1russell7/client-lib": {
       "repo": "github:mark1russell7/client-lib#main",
       "path": "client-lib"
+    },
+    "@mark1russell7/mock-client": {
+      "repo": "github:mark1russell7/mock-client#main",
+      "path": "mock-client"
+    },
+    "@mark1russell7/mock-logger": {
+      "repo": "github:mark1russell7/mock-logger#main",
+      "path": "mock-logger"
+    },
+    "@mark1russell7/mock-fs": {
+      "repo": "github:mark1russell7/mock-fs#main",
+      "path": "mock-fs"
+    },
+    "@mark1russell7/client-vitest": {
+      "repo": "github:mark1russell7/client-vitest#main",
+      "path": "client-vitest"
     }
   },
   "projectTemplate": {
