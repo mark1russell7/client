@@ -16,7 +16,7 @@
  * });
  * ```
  */
-import type { UserConfig } from "vitest/config";
-export declare const sharedConfig: UserConfig;
+import type { ViteUserConfig } from "vitest/config";
+export declare const sharedConfig: ViteUserConfig;
 export default sharedConfig;
 //# sourceMappingURL=vitest.shared.d.ts.map
