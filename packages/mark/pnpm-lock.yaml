@@ -29,6 +29,9 @@ importers:
       '@mark1russell7/client-test':
         specifier: github:mark1russell7/client-test#main
         version: https://codeload.github.com/mark1russell7/client-test/tar.gz/870ce8a8faeaf3477d0531a001c559348fa801da
+      '@mark1russell7/client-vitest':
+        specifier: link:../client-vitest
+        version: link:../client-vitest
       gluegun:
         specifier: ^5.2.2
         version: 5.2.2
