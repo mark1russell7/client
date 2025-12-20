@@ -20,7 +20,8 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "postinstall": "client announce"
   },
   "client": {
     "procedures": "./dist/register.js"
