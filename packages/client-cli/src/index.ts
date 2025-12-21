@@ -1,35 +1,28 @@
 /**
- * client-cli
+ * @mark1russell7/client-cli
  *
- * CLI operations as RPC procedures.
- * Enables lib.scan and lib.refresh via client.call().
+ * Angular Schematics for the mark1russell7 ecosystem.
+ *
+ * NOTE: All procedures and utilities have been moved to their canonical packages:
+ * - lib.*, ecosystem.*, dag.* procedures → @mark1russell7/client-lib
+ * - procedure.* procedures → @mark1russell7/client-procedure
+ * - DAG algorithms → @mark1russell7/client-dag
+ * - Git utilities → @mark1russell7/client-git
+ * - FS utilities → @mark1russell7/client-fs
+ *
+ * This package now only provides Angular Schematics for:
+ * - lib-new: Create new packages in the ecosystem
+ * - lib-refresh: Refresh package dependencies
  *
  * @example
- * ```typescript
- * import { Client } from "@mark1russell7/client";
- *
- * const client = new Client(...);
- *
- * // Scan for packages
- * const { packages, warnings } = await client.call(["lib", "scan"], {});
- * console.log(Object.keys(packages));
- *
- * // Refresh a single package
- * await client.call(["lib", "refresh"], { path: "./my-package" });
- *
- * // Recursive refresh (bottom-up DAG)
- * await client.call(["lib", "refresh"], {
- *   path: "./my-package",
- *   recursive: true,
- *   autoConfirm: true, // non-interactive
- * });
+ * ```bash
+ * # Use via the mark CLI
+ * mark lib new my-package
+ * mark lib refresh --all
  * ```
  */
 
-// =============================================================================
-// Types
-// =============================================================================
-
+// Re-export from canonical packages for backwards compatibility
 export type {
   LibScanInput,
   LibScanOutput,
@@ -52,71 +45,15 @@ export type {
   DAGResult,
   GitRef,
   GitStatus,
-} from "./types.js";
-
-export { LibScanInputSchema, LibRefreshInputSchema, LibNewInputSchema, LibAuditInputSchema } from "./types.js";
-
-// =============================================================================
-// Procedures (for direct use)
-// =============================================================================
-
-export { libScan, libRefresh, libRename, LibRenameInputSchema, libNew, libAudit } from "./procedures/lib/index.js";
-
-// =============================================================================
-// DAG utilities
-// =============================================================================
+} from "@mark1russell7/client-lib";
 
 export {
-  buildLeveledDAG,
-  getTopologicalOrder,
-  visualizeDAG,
-  executeDAG,
-  executeDAGSequential,
-  createProcessor,
-  buildDAGNodes,
-  filterDAGFromRoot,
-  getAncestors,
-  getDescendants,
-} from "./dag/index.js";
+  LibScanInputSchema,
+  LibRefreshInputSchema,
+  LibRenameInputSchema,
+  LibNewInputSchema,
+  LibAuditInputSchema,
+} from "@mark1russell7/client-lib";
 
-// =============================================================================
-// Git utilities
-// =============================================================================
-
-export {
-  parseGitRef,
-  isGitRef,
-  isMark1Russell7Ref,
-  extractMark1Russell7Deps,
-  getPackageNameFromRef,
-  getCurrentBranch,
-  getGitStatus,
-  getRemoteUrl,
-  stageAll,
-  commit,
-  push,
-  checkout,
-  pull,
-  branchExists,
-  ensureBranch,
-} from "./git/index.js";
-
-// =============================================================================
-// Shell utilities
-// =============================================================================
-
-export {
-  executeCommand,
-  pnpmInstall,
-  pnpmBuild,
-  removeDir,
-  removeFile,
-} from "./shell/index.js";
-
-export type { ShellResult, ShellOptions } from "./shell/index.js";
-
-// =============================================================================
-// Registration
-// =============================================================================
-
+// Note: registerCliProcedures is a no-op, kept for backwards compatibility
 export { registerCliProcedures } from "./register.js";

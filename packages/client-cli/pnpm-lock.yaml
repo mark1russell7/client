@@ -14,21 +14,9 @@ importers:
       '@mark1russell7/client':
         specifier: github:mark1russell7/client#main
         version: https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
-      '@mark1russell7/client-fs':
-        specifier: github:mark1russell7/client-fs#main
-        version: https://codeload.github.com/mark1russell7/client-fs/tar.gz/172880e11342e3d277b96650c3fab2fa9e27b7c3
-      '@mark1russell7/client-git':
-        specifier: github:mark1russell7/client-git#main
-        version: https://codeload.github.com/mark1russell7/client-git/tar.gz/f3b7186b0b6fac7b10a0f143833a7849588a6106
-      '@mark1russell7/client-logger':
-        specifier: github:mark1russell7/client-logger#main
-        version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9(zod@3.25.76)
-      ts-morph:
-        specifier: ^24.0.0
-        version: 24.0.0
-      zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+      '@mark1russell7/client-lib':
+        specifier: github:mark1russell7/client-lib#main
+        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
@@ -58,6 +46,10 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
+  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8}
+    version: 0.0.0
+
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/172880e11342e3d277b96650c3fab2fa9e27b7c3':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-fs/tar.gz/172880e11342e3d277b96650c3fab2fa9e27b7c3}
     version: 1.0.0
@@ -66,9 +58,9 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/f3b7186b0b6fac7b10a0f143833a7849588a6106}
     version: 1.0.0
 
-  '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9}
-    version: 1.0.0
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3}
+    version: 0.0.0
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde}
@@ -89,10 +81,6 @@ packages:
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
-
-  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/15325110d11a4234e8b0881a4d87a22513771b5c':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/logger/tar.gz/15325110d11a4234e8b0881a4d87a22513771b5c}
-    version: 1.0.0
 
   '@ts-morph/common@0.25.0':
     resolution: {integrity: sha512-kMnZz+vGGHi4GoHnLmMhGNjm44kGtKUXGnOvrKmMwAuvNjM/PgKVGfUnL7IDvK7Jb2QQ82jq3Zmp04Gy+r3Dkg==}
@@ -334,6 +322,8 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
+  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8': {}
+
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/172880e11342e3d277b96650c3fab2fa9e27b7c3':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
@@ -352,16 +342,18 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9(zod@3.25.76)':
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
-      '@mark1russell7/cue': https://codeload.github.com/mark1russell7/cue/tar.gz/a98f684936a3f20cd01326c5d47838d6739241b7
-      '@mark1russell7/logger': https://codeload.github.com/mark1russell7/logger/tar.gz/15325110d11a4234e8b0881a4d87a22513771b5c
+      '@mark1russell7/client-dag': https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8
+      '@mark1russell7/client-fs': https://codeload.github.com/mark1russell7/client-fs/tar.gz/172880e11342e3d277b96650c3fab2fa9e27b7c3
+      '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/f3b7186b0b6fac7b10a0f143833a7849588a6106
+      ts-morph: 24.0.0
+      zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
       - express
       - utf-8-validate
-      - zod
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)':
     dependencies:
@@ -373,8 +365,6 @@ snapshots:
       - utf-8-validate
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a98f684936a3f20cd01326c5d47838d6739241b7': {}
-
-  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/15325110d11a4234e8b0881a4d87a22513771b5c': {}
 
   '@ts-morph/common@0.25.0':
     dependencies:

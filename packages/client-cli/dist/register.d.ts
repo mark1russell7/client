@@ -1,9 +1,12 @@
 /**
  * Procedure Registration for CLI operations
  *
- * NOTE: lib.* procedures are now registered by client-lib (their canonical home).
- * This file only registers procedure.* and dag.* procedures.
- * TODO: Move procedure.* to client-procedure and dag.* to client-dag.
+ * NOTE: All procedures have been moved to their canonical homes:
+ * - lib.* procedures are registered by client-lib
+ * - procedure.* procedures are registered by client-procedure
+ * - dag.* procedures are registered by client-lib
+ *
+ * This file is kept for backwards compatibility but registers nothing.
  */
 export declare function registerCliProcedures(): void;
 //# sourceMappingURL=register.d.ts.map

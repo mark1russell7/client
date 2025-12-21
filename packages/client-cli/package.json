@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-cli",
   "version": "1.0.0",
-  "description": "CLI operations as RPC procedures - lib.refresh, lib.scan, DAG traversal",
+  "description": "Angular Schematics for the mark1russell7 ecosystem - lib-new, lib-refresh",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,17 +25,10 @@
     "clean": "rm -rf dist .tsbuildinfo schematics/**/*.js schematics/**/*.d.ts schematics/**/*.map",
     "postinstall": "client announce"
   },
-  "client": {
-    "procedures": "./dist/register.js"
-  },
   "dependencies": {
     "@angular-devkit/schematics": "^19.0.0",
     "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
-    "ts-morph": "^24.0.0",
-    "zod": "^3.24.0",
-    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
-    "@mark1russell7/client-git": "github:mark1russell7/client-git#main"
+    "@mark1russell7/client-lib": "github:mark1russell7/client-lib#main"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
@@ -44,11 +37,9 @@
   },
   "keywords": [
     "cli",
-    "client",
-    "procedures",
-    "rpc",
-    "dag",
-    "npm"
+    "schematics",
+    "angular",
+    "scaffolding"
   ],
   "license": "MIT",
   "sideEffects": false,
@@ -56,9 +47,7 @@
     "onlyBuiltDependencies": [
       "@mark1russell7/cue",
       "@mark1russell7/client",
-      "@mark1russell7/client-logger",
-      "@mark1russell7/client-fs",
-      "@mark1russell7/client-git"
+      "@mark1russell7/client-lib"
     ]
   }
 }
