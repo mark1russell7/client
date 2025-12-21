@@ -30,5 +30,11 @@
     "vitest": "^3.0.0",
     "@mark1russell7/test": "github:mark1russell7/test#main"
   },
-  "description": "Generic DAG algorithms for dependency management"
+  "description": "Generic DAG algorithms for dependency management",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/test"
+    ]
+  }
 }
