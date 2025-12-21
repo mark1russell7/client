@@ -398,3 +398,24 @@ export interface GitFetchOutput {
   remote: string;
   fetched: boolean;
 }
+
+// =============================================================================
+// git.* Predicate Types
+// =============================================================================
+
+export const GitPredicateInputSchema: z.ZodObject<{
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Working directory (default: process.cwd()) */
+  cwd: z.string().optional(),
+});
+
+export type GitPredicateInput = {
+  /** Working directory (default: process.cwd()) */
+  cwd?: string | undefined;
+};
+
+export interface GitPredicateOutput {
+  /** The predicate result */
+  value: boolean;
+}

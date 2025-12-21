@@ -20,6 +20,14 @@ import { gitInit } from "./procedures/git/init.js";
 import { gitRemote } from "./procedures/git/remote.js";
 import { gitFetch } from "./procedures/git/fetch.js";
 import {
+  gitHasChanges,
+  gitHasStagedChanges,
+  gitHasUnstagedChanges,
+  gitHasUntrackedFiles,
+  gitHasLocalCommits,
+  gitIsClean,
+} from "./procedures/git/predicates.js";
+import {
   GitStatusInputSchema,
   GitAddInputSchema,
   GitCommitInputSchema,
@@ -59,6 +67,9 @@ import {
   GitFetchInputSchema,
   type GitFetchInput,
   type GitFetchOutput,
+  GitPredicateInputSchema,
+  type GitPredicateInput,
+  type GitPredicateOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -317,6 +328,100 @@ const gitFetchProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// Predicate Procedures (boolean checks for conditionals)
+// =============================================================================
+
+const gitHasChangesProcedure = createProcedure()
+  .path(["git", "hasChanges"])
+  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
+  .output(outputSchema<GitPredicateOutput>())
+  .meta({
+    description: "Check if there are any changes (unstaged, staged, or untracked)",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
+    return gitHasChanges(input);
+  })
+  .build();
+
+const gitHasStagedChangesProcedure = createProcedure()
+  .path(["git", "hasStagedChanges"])
+  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
+  .output(outputSchema<GitPredicateOutput>())
+  .meta({
+    description: "Check if there are any staged changes ready to commit",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
+    return gitHasStagedChanges(input);
+  })
+  .build();
+
+const gitHasUnstagedChangesProcedure = createProcedure()
+  .path(["git", "hasUnstagedChanges"])
+  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
+  .output(outputSchema<GitPredicateOutput>())
+  .meta({
+    description: "Check if there are any unstaged changes",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
+    return gitHasUnstagedChanges(input);
+  })
+  .build();
+
+const gitHasUntrackedFilesProcedure = createProcedure()
+  .path(["git", "hasUntrackedFiles"])
+  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
+  .output(outputSchema<GitPredicateOutput>())
+  .meta({
+    description: "Check if there are any untracked files",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
+    return gitHasUntrackedFiles(input);
+  })
+  .build();
+
+const gitHasLocalCommitsProcedure = createProcedure()
+  .path(["git", "hasLocalCommits"])
+  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
+  .output(outputSchema<GitPredicateOutput>())
+  .meta({
+    description: "Check if there are local commits that haven't been pushed",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
+    return gitHasLocalCommits(input);
+  })
+  .build();
+
+const gitIsCleanProcedure = createProcedure()
+  .path(["git", "isClean"])
+  .input(zodAdapter<GitPredicateInput>(GitPredicateInputSchema))
+  .output(outputSchema<GitPredicateOutput>())
+  .meta({
+    description: "Check if the working directory is clean",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
+    return gitIsClean(input);
+  })
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -335,6 +440,13 @@ export function registerGitProcedures(): void {
     gitInitProcedure,
     gitRemoteProcedure,
     gitFetchProcedure,
+    // Predicate procedures
+    gitHasChangesProcedure,
+    gitHasStagedChangesProcedure,
+    gitHasUnstagedChangesProcedure,
+    gitHasUntrackedFilesProcedure,
+    gitHasLocalCommitsProcedure,
+    gitIsCleanProcedure,
   ]);
 }
 

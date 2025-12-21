@@ -185,4 +185,15 @@ export interface GitFetchOutput {
     remote: string;
     fetched: boolean;
 }
+export declare const GitPredicateInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+export type GitPredicateInput = {
+    /** Working directory (default: process.cwd()) */
+    cwd?: string | undefined;
+};
+export interface GitPredicateOutput {
+    /** The predicate result */
+    value: boolean;
+}
 //# sourceMappingURL=types.d.ts.map

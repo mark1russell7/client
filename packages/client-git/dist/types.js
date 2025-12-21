@@ -171,4 +171,11 @@ export const GitFetchInputSchema = z.object({
     /** Working directory */
     cwd: z.string().optional(),
 });
+// =============================================================================
+// git.* Predicate Types
+// =============================================================================
+export const GitPredicateInputSchema = z.object({
+    /** Working directory (default: process.cwd()) */
+    cwd: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map
