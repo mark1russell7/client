@@ -254,19 +254,16 @@ async function refreshSinglePackage(
     }
 
     // Step 4: Git operations (unless skipGit is true)
+    // Always run add/commit/push - they handle no-op cases gracefully
     if (!skipGit) {
       try {
-        const status = await getGitStatus(pkgPath, ctx);
-
-        if (!status.isClean) {
-          await stageAll(pkgPath, ctx);
-          await commit(
-            pkgPath,
-            `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`,
-            ctx
-          );
-          await push(pkgPath, ctx);
-        }
+        await stageAll(pkgPath, ctx);
+        await commit(
+          pkgPath,
+          `Refreshed package ${packageName}\n\n🤖 Generated with mark lib refresh`,
+          ctx
+        );
+        await push(pkgPath, ctx);
       } catch (error) {
         return {
           name: packageName,
