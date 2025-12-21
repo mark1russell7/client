@@ -148,7 +148,10 @@ export async function dagTraverse(
       };
 
       // Hydrate the input (execute any nested procedure refs like chain steps)
-      const hydratedInput = await hydrateInput(visitInput, executor);
+      // Push "dag.traverse" onto context stack so refs with $when: "dag.traverse" execute
+      const hydratedInput = await hydrateInput(visitInput, executor, {
+        contextStack: ["dag.traverse"],
+      });
 
       // Execute visit procedure with hydrated input
       const output = await ctx.client.call(visitPath, hydratedInput);
