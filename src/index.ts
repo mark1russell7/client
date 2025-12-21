@@ -214,6 +214,8 @@ export type {
   AnyProcedureRef,
   RefExecutor,
   HydrateOptions,
+  StepResultInfo,
+  ContinueDecision,
   // Storage-backed registry types
   SerializedProcedure,
   HandlerReference,

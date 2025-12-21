@@ -93,6 +93,38 @@ export const WHEN_NEVER: string = "$never";
 export const WHEN_PARENT: string = "$parent";
 
 // =============================================================================
+// Step Result Info (for $continueIf handlers)
+// =============================================================================
+
+/**
+ * Information passed to $continueIf handlers about the result of a procedure execution.
+ */
+export interface StepResultInfo {
+  /** Whether the procedure executed successfully */
+  success: boolean;
+
+  /** The procedure's output (if success) */
+  result?: unknown;
+
+  /** Error message (if failed) */
+  error?: string;
+
+  /** Whether the operation was a no-op (from result.skipped if present) */
+  skipped?: boolean;
+
+  /** The procedure path that was executed */
+  proc: ProcedurePath;
+}
+
+/**
+ * Decision returned by $continueIf handlers.
+ */
+export interface ContinueDecision {
+  /** Whether to continue execution (true) or propagate the error (false) */
+  continue: boolean;
+}
+
+// =============================================================================
 // Procedure Reference Types
 // =============================================================================
 
