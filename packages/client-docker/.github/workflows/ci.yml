@@ -20,6 +20,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Setup Docker on Windows/macOS (Linux has it by default)
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        if: runner.os != 'Linux'
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -40,9 +45,9 @@ jobs:
       - name: Run unit tests
         run: pnpm test:unit
 
-      - name: Run integration tests (Ubuntu only)
-        if: runner.os == 'Linux'
+      - name: Run integration tests
         run: pnpm test:integration
+        timeout-minutes: 10
 
       - name: Type check
         run: pnpm typecheck
