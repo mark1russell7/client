@@ -186,9 +186,9 @@ async function refreshSinglePackage(
 
       if (await pathExists(lockPath, ctx)) {
         try {
-          await ctx.client.call<{ path: string }, { path: string; removed: boolean }>(
-            ["fs", "unlink"],
-            { path: lockPath }
+          await ctx.client.call<{ path: string; force?: boolean }, { removed: boolean }>(
+            ["fs", "rm"],
+            { path: lockPath, force: true }
           );
         } catch (error) {
           return {
@@ -204,9 +204,9 @@ async function refreshSinglePackage(
 
       if (await pathExists(tsBuildInfoPath, ctx)) {
         try {
-          await ctx.client.call<{ path: string }, { path: string; removed: boolean }>(
-            ["fs", "unlink"],
-            { path: tsBuildInfoPath }
+          await ctx.client.call<{ path: string; force?: boolean }, { removed: boolean }>(
+            ["fs", "rm"],
+            { path: tsBuildInfoPath, force: true }
           );
         } catch (error) {
           return {

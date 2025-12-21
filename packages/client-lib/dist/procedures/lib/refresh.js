@@ -136,7 +136,7 @@ async function refreshSinglePackage(pkgPath, packageName, ctx, options = {}) {
             }
             if (await pathExists(lockPath, ctx)) {
                 try {
-                    await ctx.client.call(["fs", "unlink"], { path: lockPath });
+                    await ctx.client.call(["fs", "rm"], { path: lockPath, force: true });
                 }
                 catch (error) {
                     return {
@@ -151,7 +151,7 @@ async function refreshSinglePackage(pkgPath, packageName, ctx, options = {}) {
             }
             if (await pathExists(tsBuildInfoPath, ctx)) {
                 try {
-                    await ctx.client.call(["fs", "unlink"], { path: tsBuildInfoPath });
+                    await ctx.client.call(["fs", "rm"], { path: tsBuildInfoPath, force: true });
                 }
                 catch (error) {
                     return {
