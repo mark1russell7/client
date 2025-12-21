@@ -357,6 +357,18 @@ async function run(argv: string[]): Promise<void> {
   // Execute the procedure
   const meta = (proc.metadata ?? {}) as CLIMeta;
 
+  // Extract --format flag before parsing (it's a CLI-level option, not procedure input)
+  const formatOverride = options["format"] as string | undefined;
+  const validFormats = ["text", "json", "table", "streaming"];
+  if (formatOverride && !validFormats.includes(formatOverride)) {
+    print.error(`Invalid format: ${formatOverride}. Valid formats: ${validFormats.join(", ")}`);
+    process.exitCode = 1;
+    return;
+  }
+  // Remove format from options so it doesn't get passed to procedure
+  delete options["format"];
+  delete options["f"];
+
   // Build parameters for parsing
   const parameters = {
     array: args,
@@ -367,8 +379,8 @@ async function run(argv: string[]): Promise<void> {
     // Parse input from CLI args
     const input = parseFromSchema(parameters, meta);
 
-    // Show spinner for streaming output
-    const outputFormat = meta.output ?? "text";
+    // Use --format override if provided, otherwise use procedure's default
+    const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
     let spinner: ReturnType<typeof print.spin> | undefined;
 
     if (outputFormat === "streaming") {
@@ -389,7 +401,7 @@ async function run(argv: string[]): Promise<void> {
       spinner.succeed(`${path.join(" ")} complete`);
     }
 
-    formatOutput(print as unknown as Print, result, outputFormat as "text" | "json" | "table" | "streaming");
+    formatOutput(print as unknown as Print, result, outputFormat);
   } catch (error) {
     print.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

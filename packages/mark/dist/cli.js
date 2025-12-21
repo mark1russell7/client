@@ -316,6 +316,17 @@ async function run(argv) {
     }
     // Execute the procedure
     const meta = (proc.metadata ?? {});
+    // Extract --format flag before parsing (it's a CLI-level option, not procedure input)
+    const formatOverride = options["format"];
+    const validFormats = ["text", "json", "table", "streaming"];
+    if (formatOverride && !validFormats.includes(formatOverride)) {
+        gluegun_1.print.error(`Invalid format: ${formatOverride}. Valid formats: ${validFormats.join(", ")}`);
+        process.exitCode = 1;
+        return;
+    }
+    // Remove format from options so it doesn't get passed to procedure
+    delete options["format"];
+    delete options["f"];
     // Build parameters for parsing
     const parameters = {
         array: args,
@@ -324,8 +335,8 @@ async function run(argv) {
     try {
         // Parse input from CLI args
         const input = (0, parse_1.parseFromSchema)(parameters, meta);
-        // Show spinner for streaming output
-        const outputFormat = meta.output ?? "text";
+        // Use --format override if provided, otherwise use procedure's default
+        const outputFormat = (formatOverride ?? meta.output ?? "text");
         let spinner;
         if (outputFormat === "streaming") {
             spinner = gluegun_1.print.spin(`Running ${path.join(" ")}...`);
