@@ -84,6 +84,8 @@ export interface GitCommitOutput {
   message: string;
   author: string;
   date: string;
+  /** True if commit was skipped (nothing to commit) */
+  skipped?: boolean;
 }
 
 // =============================================================================

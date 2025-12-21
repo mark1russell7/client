@@ -14,6 +14,22 @@ export async function gitCommit(input: GitCommitInput): Promise<GitCommitOutput>
   const { message, all, amend, cwd } = input;
   const opts = { cwd, encoding: "utf8" as const };
 
+  // Check if there's anything to commit (unless amending)
+  if (!amend) {
+    const status = execSync("git status --porcelain", opts).trim();
+    if (!status && !all) {
+      // Nothing staged and not using -a, skip commit
+      return { hash: "", message: "", author: "", date: "", skipped: true };
+    }
+    // If using -a, check if there are any modified files
+    if (all) {
+      const hasChanges = status.length > 0;
+      if (!hasChanges) {
+        return { hash: "", message: "", author: "", date: "", skipped: true };
+      }
+    }
+  }
+
   const args: string[] = ["git", "commit"];
   if (all) args.push("-a");
   if (amend) args.push("--amend");

@@ -1,1 +1,1 @@
-{"version":3,"file":"commit.d.ts","sourceRoot":"","sources":["../../../src/procedures/git/commit.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAGH,OAAO,KAAK,EAAE,cAAc,EAAE,eAAe,EAAE,MAAM,gBAAgB,CAAC;AAEtE;;GAEG;AACH,wBAAsB,SAAS,CAAC,KAAK,EAAE,cAAc,GAAG,OAAO,CAAC,eAAe,CAAC,CAiB/E"}
+{"version":3,"file":"commit.d.ts","sourceRoot":"","sources":["../../../src/procedures/git/commit.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAGH,OAAO,KAAK,EAAE,cAAc,EAAE,eAAe,EAAE,MAAM,gBAAgB,CAAC;AAEtE;;GAEG;AACH,wBAAsB,SAAS,CAAC,KAAK,EAAE,cAAc,GAAG,OAAO,CAAC,eAAe,CAAC,CAiC/E"}
