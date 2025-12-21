@@ -137,6 +137,10 @@
     "@mark1russell7/client-docker": {
       "repo": "github:mark1russell7/client-docker#main",
       "path": "client-docker"
+    },
+    "@mark1russell7/test-pkg-1766325068327": {
+      "repo": "github:mark1russell7/test-pkg-1766325068327#main",
+      "path": "test-pkg-1766325068327"
     }
   },
   "projectTemplate": {
