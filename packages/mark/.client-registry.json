@@ -8,27 +8,32 @@
     },
     "@mark1russell7/client-cli": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T03:47:28.493Z",
+      "registeredAt": "2025-12-21T07:17:32.470Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-lib": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T05:40:35.488Z",
+      "registeredAt": "2025-12-21T07:15:01.386Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-test": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T04:05:34.709Z",
+      "registeredAt": "2025-12-21T07:17:32.491Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-pnpm": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T05:22:55.393Z",
+      "registeredAt": "2025-12-21T07:12:29.690Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-fs": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T05:40:36.077Z",
+      "registeredAt": "2025-12-21T07:12:27.818Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-logger": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T07:17:31.496Z",
       "version": "1.0.0"
     }
   }
