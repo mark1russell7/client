@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
+  "name": "@mark1russell7/client-playground",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,8 +21,12 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": false,
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
   }
 }
