@@ -13,13 +13,23 @@
     },
     "@mark1russell7/client-lib": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T04:05:34.685Z",
+      "registeredAt": "2025-12-21T05:40:35.488Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-test": {
       "proceduresPath": "./dist/register.js",
       "registeredAt": "2025-12-21T04:05:34.709Z",
       "version": "0.0.0"
+    },
+    "@mark1russell7/client-pnpm": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T05:22:55.393Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-fs": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T05:40:36.077Z",
+      "version": "1.0.0"
     }
   }
 }

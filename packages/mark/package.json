@@ -29,15 +29,16 @@
   "dependencies": {
     "@mark1russell7/client": "github:mark1russell7/client#main",
     "@mark1russell7/client-cli": "github:mark1russell7/client-cli#main",
+    "@mark1russell7/client-lib": "github:mark1russell7/client-lib#main",
     "@mark1russell7/client-logger": "github:mark1russell7/client-logger#main",
+    "@mark1russell7/client-pnpm": "github:mark1russell7/client-pnpm#main",
+    "@mark1russell7/client-procedure": "github:mark1russell7/client-procedure#main",
     "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main",
     "@mark1russell7/client-test": "github:mark1russell7/client-test#main",
-    "@mark1russell7/client-lib": "github:mark1russell7/client-lib#main",
+    "@mark1russell7/client-vitest": "github:mark1russell7/client-vitest#main",
     "gluegun": "^5.2.2",
     "tslib": "^2.8.1",
-    "zod": "^3.24.0",
-    "@mark1russell7/client-procedure": "github:mark1russell7/client-procedure#main",
-    "@mark1russell7/client-vitest": "link:../client-vitest"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
@@ -56,15 +57,19 @@
   "sideEffects": false,
   "pnpm": {
     "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
       "@mark1russell7/client",
       "@mark1russell7/client-cli",
+      "@mark1russell7/client-fs",
+      "@mark1russell7/client-git",
+      "@mark1russell7/client-lib",
       "@mark1russell7/client-logger",
+      "@mark1russell7/client-pnpm",
+      "@mark1russell7/client-procedure",
       "@mark1russell7/client-shell",
       "@mark1russell7/client-test",
-      "@mark1russell7/client-lib",
-      "@mark1russell7/client-procedure",
-      "@mark1russell7/client-vitest"
+      "@mark1russell7/client-vitest",
+      "@mark1russell7/cue",
+      "esbuild"
     ]
   }
 }
