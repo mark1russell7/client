@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-cli": "file:../client-cli",
-    "@mark1russell7/client-pnpm": "file:../client-pnpm",
+    "@mark1russell7/client-cli": "github:mark1russell7/client-cli#main",
+    "@mark1russell7/client-pnpm": "github:mark1russell7/client-pnpm#main",
     "@mark1russell7/client-lib": "github:mark1russell7/client-lib#main",
     "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
     "@mark1russell7/client-dag": "github:mark1russell7/client-dag#main",
