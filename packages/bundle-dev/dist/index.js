@@ -24,6 +24,6 @@
  * await client.call(["lib", "new"], { name: "my-package" });
  * ```
  */
-
 // Re-export register for convenience
 export * from "./register.js";
+//# sourceMappingURL=index.js.map
