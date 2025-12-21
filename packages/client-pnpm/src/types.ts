@@ -138,3 +138,25 @@ export const PnpmRunInputSchema: z.ZodObject<{
 });
 
 export type PnpmRunInput = z.infer<typeof PnpmRunInputSchema>;
+
+// =============================================================================
+// pnpm.store.path Types - Get pnpm store path for snapshot/restore
+// =============================================================================
+
+export const PnpmStorePathInputSchema: z.ZodObject<{
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Working directory (affects store path on some configurations) */
+  cwd: z.string().optional(),
+});
+
+export type PnpmStorePathInput = z.infer<typeof PnpmStorePathInputSchema>;
+
+export interface PnpmStorePathOutput {
+  /** Absolute path to the pnpm store */
+  path: string;
+  /** Whether store exists */
+  exists: boolean;
+  /** Platform (win32, darwin, linux) */
+  platform: string;
+}

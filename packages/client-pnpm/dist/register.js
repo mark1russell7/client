@@ -4,8 +4,8 @@
  * Provides pnpm.install, pnpm.add, pnpm.remove, pnpm.link, pnpm.run procedures.
  */
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
-import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun } from "./procedures/pnpm/index.js";
-import { PnpmInstallInputSchema, PnpmAddInputSchema, PnpmRemoveInputSchema, PnpmLinkInputSchema, PnpmRunInputSchema, } from "./types.js";
+import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
+import { PnpmInstallInputSchema, PnpmAddInputSchema, PnpmRemoveInputSchema, PnpmLinkInputSchema, PnpmRunInputSchema, PnpmStorePathInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -114,6 +114,20 @@ const pnpmRunProcedure = createProcedure()
     return pnpmRun(input, ctx);
 })
     .build();
+const pnpmStorePathProcedure = createProcedure()
+    .path(["pnpm", "store", "path"])
+    .input(zodAdapter(PnpmStorePathInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Get pnpm store path for snapshot/restore",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return pnpmStorePath(input);
+})
+    .build();
 // =============================================================================
 // Registration
 // =============================================================================
@@ -124,6 +138,7 @@ export function registerPnpmProcedures() {
         pnpmRemoveProcedure,
         pnpmLinkProcedure,
         pnpmRunProcedure,
+        pnpmStorePathProcedure,
     ]);
 }
 // Auto-register

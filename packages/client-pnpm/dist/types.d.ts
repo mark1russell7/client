@@ -53,4 +53,16 @@ export declare const PnpmRunInputSchema: z.ZodObject<{
     timeout: z.ZodOptional<z.ZodNumber>;
 }>;
 export type PnpmRunInput = z.infer<typeof PnpmRunInputSchema>;
+export declare const PnpmStorePathInputSchema: z.ZodObject<{
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+export type PnpmStorePathInput = z.infer<typeof PnpmStorePathInputSchema>;
+export interface PnpmStorePathOutput {
+    /** Absolute path to the pnpm store */
+    path: string;
+    /** Whether store exists */
+    exists: boolean;
+    /** Platform (win32, darwin, linux) */
+    platform: string;
+}
 //# sourceMappingURL=types.d.ts.map

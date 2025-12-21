@@ -7,3 +7,4 @@ export { pnpmAdd } from "./add.js";
 export { pnpmRemove } from "./remove.js";
 export { pnpmLink } from "./link.js";
 export { pnpmRun } from "./run.js";
+export { pnpmStorePath } from "./store.js";

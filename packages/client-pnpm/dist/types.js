@@ -73,4 +73,11 @@ export const PnpmRunInputSchema = z.object({
     /** Timeout in milliseconds */
     timeout: z.number().optional(),
 });
+// =============================================================================
+// pnpm.store.path Types - Get pnpm store path for snapshot/restore
+// =============================================================================
+export const PnpmStorePathInputSchema = z.object({
+    /** Working directory (affects store path on some configurations) */
+    cwd: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map
