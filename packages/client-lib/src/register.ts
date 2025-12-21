@@ -1,5 +1,8 @@
 /**
  * Procedure Registration for lib operations
+ *
+ * This is the canonical home for lib.* procedures.
+ * client-cli no longer registers these to avoid duplicates.
  */
 
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
@@ -88,7 +91,10 @@ function outputSchema<T>(): ZodLikeSchema<T> {
   };
 }
 
-// lib.scan procedure
+// =============================================================================
+// lib.* Procedures
+// =============================================================================
+
 const libScanProcedure = createProcedure()
   .path(["lib", "scan"])
   .input(zodAdapter<LibScanInput>(LibScanInputSchema))
@@ -104,7 +110,6 @@ const libScanProcedure = createProcedure()
   })
   .build();
 
-// lib.refresh procedure
 const libRefreshProcedure = createProcedure()
   .path(["lib", "refresh"])
   .input(zodAdapter<LibRefreshInput>(LibRefreshInputSchema))
@@ -120,7 +125,6 @@ const libRefreshProcedure = createProcedure()
   })
   .build();
 
-// lib.rename procedure
 const libRenameProcedure = createProcedure()
   .path(["lib", "rename"])
   .input(zodAdapter<LibRenameInput>(LibRenameInputSchema))
@@ -136,7 +140,6 @@ const libRenameProcedure = createProcedure()
   })
   .build();
 
-// lib.install procedure
 const libInstallProcedure = createProcedure()
   .path(["lib", "install"])
   .input(zodAdapter<LibInstallInput>(LibInstallInputSchema))
@@ -152,7 +155,6 @@ const libInstallProcedure = createProcedure()
   })
   .build();
 
-// lib.new procedure
 const libNewProcedure = createProcedure()
   .path(["lib", "new"])
   .input(zodAdapter<LibNewInput>(LibNewInputSchema))
@@ -168,7 +170,6 @@ const libNewProcedure = createProcedure()
   })
   .build();
 
-// lib.audit procedure
 const libAuditProcedure = createProcedure()
   .path(["lib", "audit"])
   .input(zodAdapter<LibAuditInput>(LibAuditInputSchema))
@@ -184,7 +185,6 @@ const libAuditProcedure = createProcedure()
   })
   .build();
 
-// lib.pull procedure
 const libPullProcedure = createProcedure()
   .path(["lib", "pull"])
   .input(zodAdapter<LibPullInput>(LibPullInputSchema))
@@ -200,7 +200,10 @@ const libPullProcedure = createProcedure()
   })
   .build();
 
-// ecosystem.procedures procedure
+// =============================================================================
+// ecosystem.* Procedures
+// =============================================================================
+
 const ecosystemProceduresProcedure = createProcedure()
   .path(["ecosystem", "procedures"])
   .input(zodAdapter<EcosystemProceduresInput>(EcosystemProceduresInputSchema))
@@ -216,8 +219,13 @@ const ecosystemProceduresProcedure = createProcedure()
   })
   .build();
 
+// =============================================================================
+// Registration
+// =============================================================================
+
 export function registerLibProcedures(): void {
   registerProcedures([
+    // lib.* procedures (canonical home)
     libScanProcedure,
     libRefreshProcedure,
     libRenameProcedure,
@@ -225,6 +233,7 @@ export function registerLibProcedures(): void {
     libNewProcedure,
     libAuditProcedure,
     libPullProcedure,
+    // ecosystem.* procedures
     ecosystemProceduresProcedure,
   ]);
 }

@@ -1,5 +1,8 @@
 /**
  * Procedure Registration for lib operations
+ *
+ * This is the canonical home for lib.* procedures.
+ * client-cli no longer registers these to avoid duplicates.
  */
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { libScan, libRefresh, libRename, libInstall, libNew, libAudit, libPull, } from "./procedures/lib/index.js";
@@ -42,7 +45,9 @@ function outputSchema() {
         _output: undefined,
     };
 }
-// lib.scan procedure
+// =============================================================================
+// lib.* Procedures
+// =============================================================================
 const libScanProcedure = createProcedure()
     .path(["lib", "scan"])
     .input(zodAdapter(LibScanInputSchema))
@@ -57,7 +62,6 @@ const libScanProcedure = createProcedure()
     return libScan(input, ctx);
 })
     .build();
-// lib.refresh procedure
 const libRefreshProcedure = createProcedure()
     .path(["lib", "refresh"])
     .input(zodAdapter(LibRefreshInputSchema))
@@ -72,7 +76,6 @@ const libRefreshProcedure = createProcedure()
     return libRefresh(input, ctx);
 })
     .build();
-// lib.rename procedure
 const libRenameProcedure = createProcedure()
     .path(["lib", "rename"])
     .input(zodAdapter(LibRenameInputSchema))
@@ -87,7 +90,6 @@ const libRenameProcedure = createProcedure()
     return libRename(input, ctx);
 })
     .build();
-// lib.install procedure
 const libInstallProcedure = createProcedure()
     .path(["lib", "install"])
     .input(zodAdapter(LibInstallInputSchema))
@@ -102,7 +104,6 @@ const libInstallProcedure = createProcedure()
     return libInstall(input, ctx);
 })
     .build();
-// lib.new procedure
 const libNewProcedure = createProcedure()
     .path(["lib", "new"])
     .input(zodAdapter(LibNewInputSchema))
@@ -117,7 +118,6 @@ const libNewProcedure = createProcedure()
     return libNew(input, ctx);
 })
     .build();
-// lib.audit procedure
 const libAuditProcedure = createProcedure()
     .path(["lib", "audit"])
     .input(zodAdapter(LibAuditInputSchema))
@@ -132,7 +132,6 @@ const libAuditProcedure = createProcedure()
     return libAudit(input, ctx);
 })
     .build();
-// lib.pull procedure
 const libPullProcedure = createProcedure()
     .path(["lib", "pull"])
     .input(zodAdapter(LibPullInputSchema))
@@ -147,7 +146,9 @@ const libPullProcedure = createProcedure()
     return libPull(input, ctx);
 })
     .build();
-// ecosystem.procedures procedure
+// =============================================================================
+// ecosystem.* Procedures
+// =============================================================================
 const ecosystemProceduresProcedure = createProcedure()
     .path(["ecosystem", "procedures"])
     .input(zodAdapter(EcosystemProceduresInputSchema))
@@ -162,8 +163,12 @@ const ecosystemProceduresProcedure = createProcedure()
     return ecosystemProcedures(input, ctx);
 })
     .build();
+// =============================================================================
+// Registration
+// =============================================================================
 export function registerLibProcedures() {
     registerProcedures([
+        // lib.* procedures (canonical home)
         libScanProcedure,
         libRefreshProcedure,
         libRenameProcedure,
@@ -171,6 +176,7 @@ export function registerLibProcedures() {
         libNewProcedure,
         libAuditProcedure,
         libPullProcedure,
+        // ecosystem.* procedures
         ecosystemProceduresProcedure,
     ]);
 }
