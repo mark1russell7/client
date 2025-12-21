@@ -34,7 +34,7 @@
  */
 
 import type { ProcedureContext, ProcedurePath } from "@mark1russell7/client";
-import { isAnyProcedureRef } from "@mark1russell7/client";
+import { isAnyProcedureRef, hydrateInput } from "@mark1russell7/client";
 import type {
   DAGNode,
   DagTraverseInput,
@@ -138,8 +138,16 @@ export async function dagTraverse(
         },
       };
 
-      // Execute visit procedure
-      const output = await ctx.client.call(visitPath, visitInput);
+      // Create executor for hydration
+      const executor = async <TIn, TOut>(path: ProcedurePath, inp: TIn): Promise<TOut> => {
+        return ctx.client.call(path, inp) as Promise<TOut>;
+      };
+
+      // Hydrate the input (execute any nested procedure refs like chain steps)
+      const hydratedInput = await hydrateInput(visitInput, executor);
+
+      // Execute visit procedure with hydrated input
+      const output = await ctx.client.call(visitPath, hydratedInput);
 
       results.push({
         name: node.name,

@@ -5,6 +5,21 @@
       "proceduresPath": "./dist/register.js",
       "registeredAt": "2025-12-21T04:05:06.719Z",
       "version": "1.0.0"
+    },
+    "@mark1russell7/client-shell": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T05:20:43.533Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/client-fs": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T05:20:43.546Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-pnpm": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T05:20:44.724Z",
+      "version": "1.0.0"
     }
   }
 }

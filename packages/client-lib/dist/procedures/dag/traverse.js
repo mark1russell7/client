@@ -32,7 +32,7 @@
  * - "$parent": Defer to parent procedure (dag.traverse executes per-node)
  * - "$never": Never auto-execute, pass as pure data
  */
-import { isAnyProcedureRef } from "@mark1russell7/client";
+import { isAnyProcedureRef, hydrateInput } from "@mark1russell7/client";
 import { libScan } from "../lib/scan.js";
 import { buildDAGNodes, buildLeveledDAG, executeDAG, createProcessor, filterDAGFromRoot, } from "../../dag/index.js";
 /**
@@ -112,8 +112,14 @@ export async function dagTraverse(input, ctx) {
                     dependencies: node.dependencies,
                 },
             };
-            // Execute visit procedure
-            const output = await ctx.client.call(visitPath, visitInput);
+            // Create executor for hydration
+            const executor = async (path, inp) => {
+                return ctx.client.call(path, inp);
+            };
+            // Hydrate the input (execute any nested procedure refs like chain steps)
+            const hydratedInput = await hydrateInput(visitInput, executor);
+            // Execute visit procedure with hydrated input
+            const output = await ctx.client.call(visitPath, hydratedInput);
             results.push({
                 name: node.name,
                 path: node.repoPath,
