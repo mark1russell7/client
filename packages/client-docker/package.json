@@ -24,6 +24,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:integration": "vitest run __tests__/docker.integration.test.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "postinstall": "client announce"
