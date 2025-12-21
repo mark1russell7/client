@@ -12,8 +12,8 @@ importers:
         specifier: github:mark1russell7/client#main
         version: https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68(zod@3.25.76)
       '@mark1russell7/client-cli':
-        specifier: file:../client-cli
-        version: file:../client-cli
+        specifier: github:mark1russell7/client-cli#main
+        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/d7fb1c977740bf703796f4c05fcc7b7067cf0a80
       '@mark1russell7/client-dag':
         specifier: github:mark1russell7/client-dag#main
         version: https://codeload.github.com/mark1russell7/client-dag/tar.gz/2f0b320d274343e7f83d1e29689736dd511ff18b
@@ -27,8 +27,8 @@ importers:
         specifier: github:mark1russell7/client-lib#main
         version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/92322ccd555fedbf25b3867a25fd2334315bcb96
       '@mark1russell7/client-pnpm':
-        specifier: file:../client-pnpm
-        version: file:../client-pnpm
+        specifier: github:mark1russell7/client-pnpm#main
+        version: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/24a5c07b4f1b619b1b8b86a0a3b4cbd21540d5da
       '@mark1russell7/client-procedure':
         specifier: github:mark1russell7/client-procedure#main
         version: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055
@@ -45,8 +45,9 @@ importers:
 
 packages:
 
-  '@mark1russell7/client-cli@file:../client-cli':
-    resolution: {directory: ../client-cli, type: directory}
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/d7fb1c977740bf703796f4c05fcc7b7067cf0a80':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/d7fb1c977740bf703796f4c05fcc7b7067cf0a80}
+    version: 1.0.0
 
   '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/2f0b320d274343e7f83d1e29689736dd511ff18b':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-dag/tar.gz/2f0b320d274343e7f83d1e29689736dd511ff18b}
@@ -64,8 +65,9 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/92322ccd555fedbf25b3867a25fd2334315bcb96}
     version: 0.0.0
 
-  '@mark1russell7/client-pnpm@file:../client-pnpm':
-    resolution: {directory: ../client-pnpm, type: directory}
+  '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/24a5c07b4f1b619b1b8b86a0a3b4cbd21540d5da':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/24a5c07b4f1b619b1b8b86a0a3b4cbd21540d5da}
+    version: 1.0.0
 
   '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055}
@@ -156,7 +158,7 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/client-cli@file:../client-cli':
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/d7fb1c977740bf703796f4c05fcc7b7067cf0a80':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68(zod@3.25.76)
       '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/97d434bf14d3dc9ff07044d413a62d14a0b058d5
@@ -199,7 +201,7 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-pnpm@file:../client-pnpm':
+  '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/24a5c07b4f1b619b1b8b86a0a3b4cbd21540d5da':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68(zod@3.25.76)
       '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/97d434bf14d3dc9ff07044d413a62d14a0b058d5
