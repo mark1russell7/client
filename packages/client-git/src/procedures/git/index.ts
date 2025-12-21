@@ -11,3 +11,12 @@ export { gitDiff } from "./diff.js";
 export { gitInit } from "./init.js";
 export { gitRemote } from "./remote.js";
 export { gitFetch } from "./fetch.js";
+export {
+  gitStashList,
+  gitStashPush,
+  gitStashPop,
+  gitStashApply,
+  gitStashDrop,
+  gitStashExport,
+  gitStashImport,
+} from "./stash.js";

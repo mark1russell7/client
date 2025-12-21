@@ -178,4 +178,61 @@ export const GitPredicateInputSchema = z.object({
     /** Working directory (default: process.cwd()) */
     cwd: z.string().optional(),
 });
+// git.stash.list
+export const GitStashListInputSchema = z.object({
+    /** Working directory (default: process.cwd()) */
+    cwd: z.string().optional(),
+});
+// git.stash.push
+export const GitStashPushInputSchema = z.object({
+    /** Stash message */
+    message: z.string().optional(),
+    /** Include untracked files (default: false) */
+    includeUntracked: z.boolean().optional(),
+    /** Keep staged changes in index (default: false) */
+    keepIndex: z.boolean().optional(),
+    /** Specific paths to stash */
+    paths: z.array(z.string()).optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
+// git.stash.pop
+export const GitStashPopInputSchema = z.object({
+    /** Stash index to pop (default: 0 = most recent) */
+    index: z.number().optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
+// git.stash.apply
+export const GitStashApplyInputSchema = z.object({
+    /** Stash index to apply (default: 0 = most recent) */
+    index: z.number().optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
+// git.stash.drop
+export const GitStashDropInputSchema = z.object({
+    /** Stash index to drop (default: 0 = most recent) */
+    index: z.number().optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
+// git.stash.export - Export stash as patch for snapshot storage
+export const GitStashExportInputSchema = z.object({
+    /** Stash index to export (default: 0 = most recent) */
+    index: z.number().optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
+// git.stash.import - Import stash from patch
+export const GitStashImportInputSchema = z.object({
+    /** Patch content to apply and stash */
+    patch: z.string(),
+    /** Message for the new stash */
+    message: z.string().optional(),
+    /** Include untracked files (default: false) */
+    includeUntracked: z.boolean().optional(),
+    /** Working directory */
+    cwd: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map

@@ -419,3 +419,188 @@ export interface GitPredicateOutput {
   /** The predicate result */
   value: boolean;
 }
+
+// =============================================================================
+// git.stash.* Types - Stash operations
+// =============================================================================
+
+export interface GitStashEntry {
+  /** Stash index (0 = most recent) */
+  index: number;
+  /** Stash reference (e.g., stash@{0}) */
+  ref: string;
+  /** Commit hash of the stash */
+  hash: string;
+  /** Stash message */
+  message: string;
+}
+
+// git.stash.list
+export const GitStashListInputSchema: z.ZodObject<{
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Working directory (default: process.cwd()) */
+  cwd: z.string().optional(),
+});
+
+export type GitStashListInput = z.infer<typeof GitStashListInputSchema>;
+
+export interface GitStashListOutput {
+  /** List of stashes */
+  stashes: GitStashEntry[];
+  /** Total count */
+  count: number;
+}
+
+// git.stash.push
+export const GitStashPushInputSchema: z.ZodObject<{
+  message: z.ZodOptional<z.ZodString>;
+  includeUntracked: z.ZodOptional<z.ZodBoolean>;
+  keepIndex: z.ZodOptional<z.ZodBoolean>;
+  paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Stash message */
+  message: z.string().optional(),
+  /** Include untracked files (default: false) */
+  includeUntracked: z.boolean().optional(),
+  /** Keep staged changes in index (default: false) */
+  keepIndex: z.boolean().optional(),
+  /** Specific paths to stash */
+  paths: z.array(z.string()).optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitStashPushInput = z.infer<typeof GitStashPushInputSchema>;
+
+export interface GitStashPushOutput {
+  /** Whether changes were stashed */
+  stashed: boolean;
+  /** Stash reference if created */
+  ref?: string | undefined;
+  /** Stash message */
+  message?: string | undefined;
+}
+
+// git.stash.pop
+export const GitStashPopInputSchema: z.ZodObject<{
+  index: z.ZodOptional<z.ZodNumber>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Stash index to pop (default: 0 = most recent) */
+  index: z.number().optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitStashPopInput = z.infer<typeof GitStashPopInputSchema>;
+
+export interface GitStashPopOutput {
+  /** Whether stash was applied */
+  applied: boolean;
+  /** Stash reference that was popped */
+  ref: string;
+  /** Whether stash was dropped (false if conflict) */
+  dropped: boolean;
+  /** Whether there was a merge conflict */
+  conflict?: boolean | undefined;
+}
+
+// git.stash.apply
+export const GitStashApplyInputSchema: z.ZodObject<{
+  index: z.ZodOptional<z.ZodNumber>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Stash index to apply (default: 0 = most recent) */
+  index: z.number().optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitStashApplyInput = z.infer<typeof GitStashApplyInputSchema>;
+
+export interface GitStashApplyOutput {
+  /** Whether stash was applied */
+  applied: boolean;
+  /** Stash reference that was applied */
+  ref: string;
+  /** Whether there was a merge conflict */
+  conflict?: boolean | undefined;
+}
+
+// git.stash.drop
+export const GitStashDropInputSchema: z.ZodObject<{
+  index: z.ZodOptional<z.ZodNumber>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Stash index to drop (default: 0 = most recent) */
+  index: z.number().optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitStashDropInput = z.infer<typeof GitStashDropInputSchema>;
+
+export interface GitStashDropOutput {
+  /** Whether stash was dropped */
+  dropped: boolean;
+  /** Stash reference that was dropped */
+  ref: string;
+}
+
+// git.stash.export - Export stash as patch for snapshot storage
+export const GitStashExportInputSchema: z.ZodObject<{
+  index: z.ZodOptional<z.ZodNumber>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Stash index to export (default: 0 = most recent) */
+  index: z.number().optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitStashExportInput = z.infer<typeof GitStashExportInputSchema>;
+
+export interface GitStashExportOutput {
+  /** Stash reference */
+  ref: string;
+  /** Commit hash */
+  hash: string;
+  /** Stash message */
+  message: string;
+  /** Patch content (diff) */
+  patch: string;
+  /** Whether stash includes untracked files */
+  hasUntracked: boolean;
+  /** Untracked files patch if present */
+  untrackedPatch?: string | undefined;
+}
+
+// git.stash.import - Import stash from patch
+export const GitStashImportInputSchema: z.ZodObject<{
+  patch: z.ZodString;
+  message: z.ZodOptional<z.ZodString>;
+  includeUntracked: z.ZodOptional<z.ZodBoolean>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Patch content to apply and stash */
+  patch: z.string(),
+  /** Message for the new stash */
+  message: z.string().optional(),
+  /** Include untracked files (default: false) */
+  includeUntracked: z.boolean().optional(),
+  /** Working directory */
+  cwd: z.string().optional(),
+});
+
+export type GitStashImportInput = z.infer<typeof GitStashImportInputSchema>;
+
+export interface GitStashImportOutput {
+  /** Whether import succeeded */
+  imported: boolean;
+  /** New stash reference if created */
+  ref?: string | undefined;
+  /** Error message if failed */
+  error?: string | undefined;
+}

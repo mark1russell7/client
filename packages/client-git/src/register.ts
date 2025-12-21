@@ -28,6 +28,15 @@ import {
   gitIsClean,
 } from "./procedures/git/predicates.js";
 import {
+  gitStashList,
+  gitStashPush,
+  gitStashPop,
+  gitStashApply,
+  gitStashDrop,
+  gitStashExport,
+  gitStashImport,
+} from "./procedures/git/stash.js";
+import {
   GitStatusInputSchema,
   GitAddInputSchema,
   GitCommitInputSchema,
@@ -70,6 +79,27 @@ import {
   GitPredicateInputSchema,
   type GitPredicateInput,
   type GitPredicateOutput,
+  GitStashListInputSchema,
+  GitStashPushInputSchema,
+  GitStashPopInputSchema,
+  GitStashApplyInputSchema,
+  GitStashDropInputSchema,
+  GitStashExportInputSchema,
+  GitStashImportInputSchema,
+  type GitStashListInput,
+  type GitStashListOutput,
+  type GitStashPushInput,
+  type GitStashPushOutput,
+  type GitStashPopInput,
+  type GitStashPopOutput,
+  type GitStashApplyInput,
+  type GitStashApplyOutput,
+  type GitStashDropInput,
+  type GitStashDropOutput,
+  type GitStashExportInput,
+  type GitStashExportOutput,
+  type GitStashImportInput,
+  type GitStashImportOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -422,6 +452,115 @@ const gitIsCleanProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// Stash Procedures
+// =============================================================================
+
+const gitStashListProcedure = createProcedure()
+  .path(["git", "stash", "list"])
+  .input(zodAdapter<GitStashListInput>(GitStashListInputSchema))
+  .output(outputSchema<GitStashListOutput>())
+  .meta({
+    description: "List all stashes",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashListInput): Promise<GitStashListOutput> => {
+    return gitStashList(input);
+  })
+  .build();
+
+const gitStashPushProcedure = createProcedure()
+  .path(["git", "stash", "push"])
+  .input(zodAdapter<GitStashPushInput>(GitStashPushInputSchema))
+  .output(outputSchema<GitStashPushOutput>())
+  .meta({
+    description: "Push changes to stash",
+    args: ["message"],
+    shorts: { message: "m", includeUntracked: "u", keepIndex: "k", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashPushInput): Promise<GitStashPushOutput> => {
+    return gitStashPush(input);
+  })
+  .build();
+
+const gitStashPopProcedure = createProcedure()
+  .path(["git", "stash", "pop"])
+  .input(zodAdapter<GitStashPopInput>(GitStashPopInputSchema))
+  .output(outputSchema<GitStashPopOutput>())
+  .meta({
+    description: "Pop stash (apply and remove)",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashPopInput): Promise<GitStashPopOutput> => {
+    return gitStashPop(input);
+  })
+  .build();
+
+const gitStashApplyProcedure = createProcedure()
+  .path(["git", "stash", "apply"])
+  .input(zodAdapter<GitStashApplyInput>(GitStashApplyInputSchema))
+  .output(outputSchema<GitStashApplyOutput>())
+  .meta({
+    description: "Apply stash without removing",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashApplyInput): Promise<GitStashApplyOutput> => {
+    return gitStashApply(input);
+  })
+  .build();
+
+const gitStashDropProcedure = createProcedure()
+  .path(["git", "stash", "drop"])
+  .input(zodAdapter<GitStashDropInput>(GitStashDropInputSchema))
+  .output(outputSchema<GitStashDropOutput>())
+  .meta({
+    description: "Drop a stash",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashDropInput): Promise<GitStashDropOutput> => {
+    return gitStashDrop(input);
+  })
+  .build();
+
+const gitStashExportProcedure = createProcedure()
+  .path(["git", "stash", "export"])
+  .input(zodAdapter<GitStashExportInput>(GitStashExportInputSchema))
+  .output(outputSchema<GitStashExportOutput>())
+  .meta({
+    description: "Export stash as patch for snapshot storage",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashExportInput): Promise<GitStashExportOutput> => {
+    return gitStashExport(input);
+  })
+  .build();
+
+const gitStashImportProcedure = createProcedure()
+  .path(["git", "stash", "import"])
+  .input(zodAdapter<GitStashImportInput>(GitStashImportInputSchema))
+  .output(outputSchema<GitStashImportOutput>())
+  .meta({
+    description: "Import stash from patch",
+    args: ["patch"],
+    shorts: { message: "m", includeUntracked: "u", cwd: "C" },
+    output: "json",
+  })
+  .handler(async (input: GitStashImportInput): Promise<GitStashImportOutput> => {
+    return gitStashImport(input);
+  })
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -447,6 +586,14 @@ export function registerGitProcedures(): void {
     gitHasUntrackedFilesProcedure,
     gitHasLocalCommitsProcedure,
     gitIsCleanProcedure,
+    // Stash procedures
+    gitStashListProcedure,
+    gitStashPushProcedure,
+    gitStashPopProcedure,
+    gitStashApplyProcedure,
+    gitStashDropProcedure,
+    gitStashExportProcedure,
+    gitStashImportProcedure,
   ]);
 }
 
