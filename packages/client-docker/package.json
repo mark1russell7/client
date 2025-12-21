@@ -23,6 +23,9 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "postinstall": "client announce"
   },
   "dependencies": {
@@ -33,7 +36,8 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   },
   "keywords": [
     "docker",
