@@ -125,6 +125,10 @@
     "@mark1russell7/client-pnpm": {
       "repo": "github:mark1russell7/client-pnpm#main",
       "path": "client-pnpm"
+    },
+    "@mark1russell7/bundle-dev": {
+      "repo": "github:mark1russell7/bundle-dev#main",
+      "path": "bundle-dev"
     }
   },
   "projectTemplate": {
