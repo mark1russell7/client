@@ -126,9 +126,17 @@
       "repo": "github:mark1russell7/client-pnpm#main",
       "path": "client-pnpm"
     },
+    "@mark1russell7/client-procedure": {
+      "repo": "github:mark1russell7/client-procedure#main",
+      "path": "client-procedure"
+    },
     "@mark1russell7/bundle-dev": {
       "repo": "github:mark1russell7/bundle-dev#main",
       "path": "bundle-dev"
+    },
+    "@mark1russell7/client-docker": {
+      "repo": "github:mark1russell7/client-docker#main",
+      "path": "client-docker"
     }
   },
   "projectTemplate": {

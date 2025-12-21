@@ -24,7 +24,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "echo 'No tests for ecosystem package'"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
