@@ -10,6 +10,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./register.js": {
+      "import": "./dist/register.js"
     }
   },
   "files": [
