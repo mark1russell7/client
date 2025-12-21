@@ -1,0 +1,1 @@
+{"version":3,"file":"install.d.ts","sourceRoot":"","sources":["../../../src/procedures/pnpm/install.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAC9D,OAAO,KAAK,EAAE,gBAAgB,EAAE,iBAAiB,EAAE,MAAM,gBAAgB,CAAC;AAE1E;;;;;;;;;;;;;GAaG;AACH,wBAAsB,WAAW,CAC/B,KAAK,EAAE,gBAAgB,EACvB,GAAG,EAAE,gBAAgB,GACpB,OAAO,CAAC,iBAAiB,CAAC,CAqD5B"}
