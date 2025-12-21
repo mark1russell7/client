@@ -96,6 +96,8 @@ export type {
   AnyProcedureRef,
   RefExecutor,
   HydrateOptions,
+  StepResultInfo,
+  ContinueDecision,
 } from "./ref.js";
 
 // Core language procedures (chain, parallel, if, etc.)
