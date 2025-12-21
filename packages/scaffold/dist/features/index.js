@@ -53,9 +53,9 @@ function toFeature(name) {
         vitest: Feature.Vitest,
         react: Feature.React,
         node: Feature.Node,
-        "node-cjs": Feature.Node,
+        "node-cjs": Feature.NodeCJS,
         vite: Feature.Vite,
-        "vite-react": Feature.Vite,
+        "vite-react": Feature.ViteReact,
         cue: Feature.Cue,
     };
     return map[name] ?? null;

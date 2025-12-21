@@ -48,6 +48,8 @@ export enum Feature {
   Vite = "vite",
   /** CUE config */
   Cue = "cue",
+  NodeCJS = "node-cjs",
+  ViteReact = "vite-react",
 }
 
 /**

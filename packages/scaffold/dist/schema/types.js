@@ -47,5 +47,7 @@ export var Feature;
     Feature["Vite"] = "vite";
     /** CUE config */
     Feature["Cue"] = "cue";
+    Feature["NodeCJS"] = "node-cjs";
+    Feature["ViteReact"] = "vite-react";
 })(Feature || (Feature = {}));
 //# sourceMappingURL=types.js.map

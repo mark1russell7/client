@@ -43,7 +43,9 @@ export declare enum Feature {
     /** Vite bundler */
     Vite = "vite",
     /** CUE config */
-    Cue = "cue"
+    Cue = "cue",
+    NodeCJS = "node-cjs",
+    ViteReact = "vite-react"
 }
 /**
  * File metadata - attached to file entries
