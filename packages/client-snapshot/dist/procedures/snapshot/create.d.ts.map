@@ -1,0 +1,1 @@
+{"version":3,"file":"create.d.ts","sourceRoot":"","sources":["../../../src/procedures/snapshot/create.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAUH,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAC9D,OAAO,KAAK,EACV,mBAAmB,EACnB,oBAAoB,EAIrB,MAAM,gBAAgB,CAAC;AAExB;;GAEG;AACH,wBAAsB,cAAc,CAClC,KAAK,EAAE,mBAAmB,EAC1B,GAAG,EAAE,gBAAgB,GACpB,OAAO,CAAC,oBAAoB,CAAC,CAgG/B"}

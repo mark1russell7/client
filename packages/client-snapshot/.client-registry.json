@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "@mark1russell7/client-s3": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T16:35:38.656Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-pnpm": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T16:35:40.786Z",
+      "version": "1.0.0"
+    }
+  }
+}

@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/client-snapshot",
+  "version": "1.0.0",
+  "description": "Environment snapshot/restore procedures for testing and recovery",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,6 +10,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./register.js": {
+      "import": "./dist/register.js"
     }
   },
   "files": [
@@ -18,11 +22,43 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
   },
-  "sideEffects": false,
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-s3": "github:mark1russell7/client-s3#main",
+    "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
+    "@mark1russell7/client-pnpm": "github:mark1russell7/client-pnpm#main",
+    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
+    "zod": "^3.24.0",
+    "tar": "^7.5.0"
+  },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@types/node": "^22.0.0",
+    "@types/tar": "^6.1.11",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "snapshot",
+    "restore",
+    "environment",
+    "testing"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/client-s3",
+      "@mark1russell7/client-git",
+      "@mark1russell7/client-pnpm",
+      "@mark1russell7/client-fs"
+    ]
   }
 }

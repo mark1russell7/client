@@ -1,0 +1,1 @@
+{"version":3,"file":"diff.d.ts","sourceRoot":"","sources":["../../../src/procedures/snapshot/diff.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAKH,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAC9D,OAAO,KAAK,EACV,iBAAiB,EACjB,kBAAkB,EAGnB,MAAM,gBAAgB,CAAC;AAExB;;GAEG;AACH,wBAAsB,YAAY,CAChC,KAAK,EAAE,iBAAiB,EACxB,GAAG,EAAE,gBAAgB,GACpB,OAAO,CAAC,kBAAkB,CAAC,CAoI7B"}

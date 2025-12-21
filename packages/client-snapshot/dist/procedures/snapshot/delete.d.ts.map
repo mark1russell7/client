@@ -1,0 +1,1 @@
+{"version":3,"file":"delete.d.ts","sourceRoot":"","sources":["../../../src/procedures/snapshot/delete.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAC9D,OAAO,KAAK,EAAE,mBAAmB,EAAE,oBAAoB,EAAE,MAAM,gBAAgB,CAAC;AAEhF;;GAEG;AACH,wBAAsB,cAAc,CAClC,KAAK,EAAE,mBAAmB,EAC1B,GAAG,EAAE,gBAAgB,GACpB,OAAO,CAAC,oBAAoB,CAAC,CA+B/B"}

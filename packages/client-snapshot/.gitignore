@@ -9,3 +9,8 @@ npm-debug.log*
 package-lock.json.bak
 *.tsbuildinfo
 cue.mod/pkg/
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
