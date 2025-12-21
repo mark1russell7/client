@@ -56,7 +56,7 @@ describe.skipIf(!isDockerAvailable())("Docker Integration (Real)", () => {
     expect(result.stdout).toContain("hello from docker");
   });
 
-  it("should run a named container in detached mode", () => {
+  it("should run a named container in detached mode", { timeout: 30000 }, () => {
     // Run container
     const runResult = docker(`run -d --name ${testContainerName} alpine:latest sleep 30`);
     expect(runResult.exitCode).toBe(0);
@@ -88,7 +88,7 @@ describe.skipIf(!isDockerAvailable())("Docker Integration (Real)", () => {
     }
   });
 
-  it("should get container logs", () => {
+  it("should get container logs", { timeout: 15000 }, () => {
     const containerName = testContainerName + "-logs";
 
     // Run container that outputs something
