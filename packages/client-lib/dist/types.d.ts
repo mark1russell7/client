@@ -317,11 +317,17 @@ export interface LibPullOutput {
     /** Total duration in milliseconds */
     totalDuration: number;
 }
+/**
+ * Schema for $proc references with $when control.
+ */
+declare const ProcRefSchema: z.ZodObject<{
+    $proc: z.ZodArray<z.ZodString>;
+    input: z.ZodOptional<z.ZodUnknown>;
+    $when: z.ZodOptional<z.ZodString>;
+    $name: z.ZodOptional<z.ZodString>;
+}>;
 export declare const DagTraverseInputSchema: z.ZodObject<{
-    visit: z.ZodUnion<[z.ZodArray<z.ZodString>, z.ZodObject<{
-        $proc: z.ZodArray<z.ZodString>;
-        input: z.ZodOptional<z.ZodUnknown>;
-    }>]>;
+    visit: z.ZodUnion<[z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
     filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
     root: z.ZodOptional<z.ZodString>;
     concurrency: z.ZodDefault<z.ZodNumber>;
@@ -344,4 +350,5 @@ export interface DagTraverseOutput {
     visited: number;
     failed: number;
 }
+export {};
 //# sourceMappingURL=types.d.ts.map

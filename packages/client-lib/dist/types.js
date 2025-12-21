@@ -102,11 +102,29 @@ export const LibPullInputSchema = z.object({
 // =============================================================================
 // dag.traverse Types
 // =============================================================================
+/**
+ * Schema for $proc references with $when control.
+ */
+const ProcRefSchema = z.object({
+    $proc: z.array(z.string()),
+    input: z.unknown().optional(),
+    $when: z.string().optional(),
+    $name: z.string().optional(),
+});
 export const DagTraverseInputSchema = z.object({
-    /** Procedure to execute for each node (path or $proc reference) */
+    /**
+     * Procedure to execute for each node.
+     * - Array: procedure path, e.g., ["git", "add"]
+     * - $proc with $when: "$never" or "$parent": deferred, executed per-node
+     *
+     * Example:
+     * ```json
+     * { "$proc": ["git", "add"], "input": { "all": true }, "$when": "$parent" }
+     * ```
+     */
     visit: z.union([
         z.array(z.string()),
-        z.object({ $proc: z.array(z.string()), input: z.unknown().optional() }),
+        ProcRefSchema,
     ]),
     /** Filter to specific package names */
     filter: z.array(z.string()).optional(),

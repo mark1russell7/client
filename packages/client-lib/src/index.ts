@@ -63,13 +63,3 @@ export {
   extractMark1Russell7Deps,
   getPackageNameFromRef,
 } from "./git/index.js";
-
-// Re-export shell utilities
-export {
-  executeCommand,
-  pnpmInstall,
-  pnpmBuild,
-  removeDir,
-  removeFile,
-} from "./shell/index.js";
-export type { ShellResult, ShellOptions } from "./shell/index.js";

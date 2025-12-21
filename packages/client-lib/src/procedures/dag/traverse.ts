@@ -6,33 +6,35 @@
  *
  * This enables declarative composition of traversals:
  * ```typescript
- * // Execute git pull on all packages
- * await client.exec({
- *   $proc: ["dag", "traverse"],
- *   input: {
- *     visit: { $proc: ["git", "pull"], input: {} }
- *   }
- * });
- *
- * // Chain multiple operations per package
+ * // Execute git add on all packages (using $when: "$parent")
  * await client.exec({
  *   $proc: ["dag", "traverse"],
  *   input: {
  *     visit: {
- *       $proc: ["client", "chain"],
- *       input: {
- *         steps: [
- *           { $proc: ["git", "add"], input: { all: true } },
- *           { $proc: ["git", "commit"], input: { message: "auto" } },
- *         ]
- *       }
+ *       $proc: ["git", "add"],
+ *       input: { all: true },
+ *       $when: "$parent"  // Defer to dag.traverse
  *     }
  *   }
  * });
+ *
+ * // Simple form with just procedure path
+ * await client.exec({
+ *   $proc: ["dag", "traverse"],
+ *   input: {
+ *     visit: ["git", "add"]
+ *   }
+ * });
  * ```
+ *
+ * The `$when` field controls when nested $proc refs are executed:
+ * - "$immediate" (default): Execute during hydration
+ * - "$parent": Defer to parent procedure (dag.traverse executes per-node)
+ * - "$never": Never auto-execute, pass as pure data
  */
 
 import type { ProcedureContext, ProcedurePath } from "@mark1russell7/client";
+import { isAnyProcedureRef } from "@mark1russell7/client";
 import type {
   DAGNode,
   DagTraverseInput,
@@ -92,17 +94,21 @@ export async function dagTraverse(
   // Build DAG for dependency-ordered execution
   const dag = buildLeveledDAG(allNodes);
 
-  // Determine visit procedure path and base input
+  // Determine how to execute the visit procedure
+  // visit can be:
+  // - Array: procedure path like ["git", "add"]
+  // - $proc ref: { $proc: [...], input: {...}, $when: "$parent" }
+  const visitIsRef = isAnyProcedureRef(input.visit);
   let visitPath: ProcedurePath;
   let baseInput: unknown = {};
 
   if (Array.isArray(input.visit)) {
     visitPath = input.visit;
-  } else if (typeof input.visit === "object" && "$proc" in input.visit) {
+  } else if (visitIsRef && typeof input.visit === "object" && "$proc" in input.visit) {
     visitPath = input.visit.$proc;
     baseInput = input.visit.input ?? {};
   } else {
-    throw new Error("visit must be a procedure path or $proc reference");
+    throw new Error("visit must be a procedure path or $proc reference with $when");
   }
 
   // Create processor that executes visit procedure per node

@@ -8,7 +8,6 @@
 
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { execSync } from "node:child_process";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibNewInput, LibNewOutput } from "../../types.js";
 
@@ -139,17 +138,23 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
 
     // Step 2: Run cue-config init
     operations.push(`Running cue-config init --preset ${input.preset}`);
-    execSync(`npx cue-config init --preset ${input.preset} --force`, {
+    await ctx.client.call<
+      { command: string; cwd?: string },
+      { exitCode: number; stdout: string; stderr: string }
+    >(["shell", "exec"], {
+      command: `npx cue-config init --preset ${input.preset} --force`,
       cwd: packagePath,
-      stdio: "pipe",
     });
     created.push(join(packagePath, "dependencies.json"));
 
     // Step 3: Run cue-config generate
     operations.push("Running cue-config generate");
-    execSync("npx cue-config generate", {
+    await ctx.client.call<
+      { command: string; cwd?: string },
+      { exitCode: number; stdout: string; stderr: string }
+    >(["shell", "exec"], {
+      command: "npx cue-config generate",
       cwd: packagePath,
-      stdio: "pipe",
     });
     created.push(join(packagePath, "package.json"));
     created.push(join(packagePath, "tsconfig.json"));
@@ -175,10 +180,13 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
 
       operations.push("Creating GitHub repository");
       try {
-        execSync(
-          `gh repo create mark1russell7/${input.name} --private --source . --push`,
-          { cwd: packagePath, stdio: "pipe" }
-        );
+        await ctx.client.call<
+          { command: string; cwd?: string },
+          { exitCode: number; stdout: string; stderr: string }
+        >(["shell", "exec"], {
+          command: `gh repo create mark1russell7/${input.name} --private --source . --push`,
+          cwd: packagePath,
+        });
         operations.push("Pushed to GitHub");
       } catch (ghError) {
         // GitHub repo might already exist or gh not available

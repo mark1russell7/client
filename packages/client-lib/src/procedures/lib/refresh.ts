@@ -27,7 +27,6 @@ import {
   createProcessor,
 } from "../../dag/index.js";
 import { ensureBranch, stageAll, commit, push, getGitStatus } from "../../git/index.js";
-import { removeDir, removeFile, pnpmInstall, pnpmBuild } from "../../shell/index.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
 interface FsReadJsonOutput<T> { path: string; data: T; }
@@ -150,56 +149,72 @@ async function refreshSinglePackage(
       const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
 
       if (await pathExists(nodeModulesPath, ctx)) {
-        const result = await removeDir(nodeModulesPath);
-        if (!result.success) {
+        try {
+          await ctx.client.call<{ path: string; recursive?: boolean }, { removed: boolean }>(
+            ["fs", "rm"],
+            { path: nodeModulesPath, recursive: true }
+          );
+        } catch (error) {
           return {
             name: packageName,
             path: pkgPath,
             success: false,
             duration: Date.now() - startTime,
-            error: `Failed to remove node_modules: ${result.stderr}`,
+            error: `Failed to remove node_modules: ${error instanceof Error ? error.message : String(error)}`,
             failedPhase: "cleanup",
           };
         }
       }
 
       if (await pathExists(distPath, ctx)) {
-        const result = await removeDir(distPath);
-        if (!result.success) {
+        try {
+          await ctx.client.call<{ path: string; recursive?: boolean }, { removed: boolean }>(
+            ["fs", "rm"],
+            { path: distPath, recursive: true }
+          );
+        } catch (error) {
           return {
             name: packageName,
             path: pkgPath,
             success: false,
             duration: Date.now() - startTime,
-            error: `Failed to remove dist: ${result.stderr}`,
+            error: `Failed to remove dist: ${error instanceof Error ? error.message : String(error)}`,
             failedPhase: "cleanup",
           };
         }
       }
 
       if (await pathExists(lockPath, ctx)) {
-        const result = await removeFile(lockPath);
-        if (!result.success) {
+        try {
+          await ctx.client.call<{ path: string }, { path: string; removed: boolean }>(
+            ["fs", "unlink"],
+            { path: lockPath }
+          );
+        } catch (error) {
           return {
             name: packageName,
             path: pkgPath,
             success: false,
             duration: Date.now() - startTime,
-            error: `Failed to remove pnpm-lock.yaml: ${result.stderr}`,
+            error: `Failed to remove pnpm-lock.yaml: ${error instanceof Error ? error.message : String(error)}`,
             failedPhase: "cleanup",
           };
         }
       }
 
       if (await pathExists(tsBuildInfoPath, ctx)) {
-        const result = await removeFile(tsBuildInfoPath);
-        if (!result.success) {
+        try {
+          await ctx.client.call<{ path: string }, { path: string; removed: boolean }>(
+            ["fs", "unlink"],
+            { path: tsBuildInfoPath }
+          );
+        } catch (error) {
           return {
             name: packageName,
             path: pkgPath,
             success: false,
             duration: Date.now() - startTime,
-            error: `Failed to remove tsconfig.tsbuildinfo: ${result.stderr}`,
+            error: `Failed to remove tsconfig.tsbuildinfo: ${error instanceof Error ? error.message : String(error)}`,
             failedPhase: "cleanup",
           };
         }
@@ -207,7 +222,10 @@ async function refreshSinglePackage(
     }
 
     // Step 2: pnpm install
-    const installResult = await pnpmInstall(pkgPath);
+    const installResult = await ctx.client.call<
+      { cwd?: string },
+      { exitCode: number; stdout: string; stderr: string; success: boolean; duration: number }
+    >(["pnpm", "install"], { cwd: pkgPath });
     if (!installResult.success) {
       return {
         name: packageName,
@@ -220,7 +238,10 @@ async function refreshSinglePackage(
     }
 
     // Step 3: pnpm run build
-    const buildResult = await pnpmBuild(pkgPath);
+    const buildResult = await ctx.client.call<
+      { script: string; cwd?: string },
+      { exitCode: number; stdout: string; stderr: string; success: boolean; duration: number }
+    >(["pnpm", "run"], { script: "build", cwd: pkgPath });
     if (!buildResult.success) {
       return {
         name: packageName,

@@ -18,7 +18,6 @@ import type {
 } from "../../types.js";
 import { clone } from "../../git/index.js";
 import { buildDAGNodes, buildLeveledDAG, executeDAG, createProcessor } from "../../dag/index.js";
-import { pnpmInstall, pnpmBuild } from "../../shell/index.js";
 import { libScan } from "./scan.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
@@ -172,13 +171,19 @@ export async function libInstall(input: LibInstallInput, ctx: ProcedureContext):
     const pkgStartTime = Date.now();
 
     // pnpm install
-    const installResult = await pnpmInstall(node.repoPath);
+    const installResult = await ctx.client.call<
+      { cwd?: string },
+      { exitCode: number; stdout: string; stderr: string; success: boolean; duration: number }
+    >(["pnpm", "install"], { cwd: node.repoPath });
     if (!installResult.success) {
       throw new Error(`pnpm install failed: ${installResult.stderr}`);
     }
 
     // pnpm run build
-    const buildResult = await pnpmBuild(node.repoPath);
+    const buildResult = await ctx.client.call<
+      { script: string; cwd?: string },
+      { exitCode: number; stdout: string; stderr: string; success: boolean; duration: number }
+    >(["pnpm", "run"], { script: "build", cwd: node.repoPath });
     if (!buildResult.success) {
       throw new Error(`pnpm run build failed: ${buildResult.stderr}`);
     }

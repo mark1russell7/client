@@ -34,6 +34,8 @@
     "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
     "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
     "@mark1russell7/client-dag": "github:mark1russell7/client-dag#main",
+    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main",
+    "@mark1russell7/client-pnpm": "github:mark1russell7/client-pnpm#main",
     "ts-morph": "^24.0.0"
   },
   "client": {
@@ -45,7 +47,9 @@
       "@mark1russell7/client",
       "@mark1russell7/client-git",
       "@mark1russell7/client-fs",
-      "@mark1russell7/client-dag"
+      "@mark1russell7/client-dag",
+      "@mark1russell7/client-shell",
+      "@mark1russell7/client-pnpm"
     ]
   }
 }
