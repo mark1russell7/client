@@ -13,6 +13,12 @@ import {
   libPull,
 } from "./procedures/lib/index.js";
 import {
+  ecosystemProcedures,
+  EcosystemProceduresInputSchema,
+  type EcosystemProceduresInput,
+  type EcosystemProceduresOutput,
+} from "./procedures/ecosystem/index.js";
+import {
   LibScanInputSchema,
   LibRefreshInputSchema,
   LibRenameInputSchema,
@@ -194,6 +200,22 @@ const libPullProcedure = createProcedure()
   })
   .build();
 
+// ecosystem.procedures procedure
+const ecosystemProceduresProcedure = createProcedure()
+  .path(["ecosystem", "procedures"])
+  .input(zodAdapter<EcosystemProceduresInput>(EcosystemProceduresInputSchema))
+  .output(outputSchema<EcosystemProceduresOutput>())
+  .meta({
+    description: "List all procedures across the ecosystem",
+    args: [],
+    shorts: { namespace: "n" },
+    output: "json",
+  })
+  .handler(async (input: EcosystemProceduresInput, ctx: ProcedureContext): Promise<EcosystemProceduresOutput> => {
+    return ecosystemProcedures(input, ctx);
+  })
+  .build();
+
 export function registerLibProcedures(): void {
   registerProcedures([
     libScanProcedure,
@@ -203,6 +225,7 @@ export function registerLibProcedures(): void {
     libNewProcedure,
     libAuditProcedure,
     libPullProcedure,
+    ecosystemProceduresProcedure,
   ]);
 }
 

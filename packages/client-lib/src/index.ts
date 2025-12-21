@@ -18,6 +18,18 @@ export {
   libPull,
 } from "./procedures/lib/index.js";
 
+// Re-export ecosystem procedures
+export {
+  ecosystemProcedures,
+  EcosystemProceduresInputSchema,
+} from "./procedures/ecosystem/index.js";
+export type {
+  EcosystemProceduresInput,
+  EcosystemProceduresOutput,
+  ProcedureInfo,
+  PackageProcedures,
+} from "./procedures/ecosystem/index.js";
+
 // Re-export DAG utilities (ecosystem-specific)
 export {
   buildDAGNodes,

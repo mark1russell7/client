@@ -3,6 +3,7 @@
  */
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { libScan, libRefresh, libRename, libInstall, libNew, libAudit, libPull, } from "./procedures/lib/index.js";
+import { ecosystemProcedures, EcosystemProceduresInputSchema, } from "./procedures/ecosystem/index.js";
 import { LibScanInputSchema, LibRefreshInputSchema, LibRenameInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
@@ -146,6 +147,21 @@ const libPullProcedure = createProcedure()
     return libPull(input, ctx);
 })
     .build();
+// ecosystem.procedures procedure
+const ecosystemProceduresProcedure = createProcedure()
+    .path(["ecosystem", "procedures"])
+    .input(zodAdapter(EcosystemProceduresInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "List all procedures across the ecosystem",
+    args: [],
+    shorts: { namespace: "n" },
+    output: "json",
+})
+    .handler(async (input, ctx) => {
+    return ecosystemProcedures(input, ctx);
+})
+    .build();
 export function registerLibProcedures() {
     registerProcedures([
         libScanProcedure,
@@ -155,6 +171,7 @@ export function registerLibProcedures() {
         libNewProcedure,
         libAuditProcedure,
         libPullProcedure,
+        ecosystemProceduresProcedure,
     ]);
 }
 // Auto-register

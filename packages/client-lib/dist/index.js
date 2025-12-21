@@ -7,6 +7,8 @@
 export * from "./types.js";
 // Re-export procedures
 export { libScan, libRefresh, libRename, libInstall, libNew, libAudit, libPull, } from "./procedures/lib/index.js";
+// Re-export ecosystem procedures
+export { ecosystemProcedures, EcosystemProceduresInputSchema, } from "./procedures/ecosystem/index.js";
 // Re-export DAG utilities (ecosystem-specific)
 export { buildDAGNodes, filterDAGFromRoot, getAncestors, getDescendants, buildLeveledDAG, getTopologicalOrder, visualizeDAG, executeDAG, executeDAGSequential, createProcessor, } from "./dag/index.js";
 // Re-export git utilities
