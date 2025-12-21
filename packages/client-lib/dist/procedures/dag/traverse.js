@@ -112,9 +112,13 @@ export async function dagTraverse(input, ctx) {
                     dependencies: node.dependencies,
                 },
             };
-            // Create executor for hydration
+            // Create executor for hydration that injects cwd into every call
             const executor = async (path, inp) => {
-                return ctx.client.call(path, inp);
+                // Inject cwd into the input so nested procedures run in correct directory
+                const inputWithCwd = typeof inp === "object" && inp !== null
+                    ? { ...inp, cwd: node.repoPath }
+                    : inp;
+                return ctx.client.call(path, inputWithCwd);
             };
             // Hydrate the input (execute any nested procedure refs like chain steps)
             const hydratedInput = await hydrateInput(visitInput, executor);
