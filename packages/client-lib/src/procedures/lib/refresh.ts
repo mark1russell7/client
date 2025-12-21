@@ -150,9 +150,9 @@ async function refreshSinglePackage(
 
       if (await pathExists(nodeModulesPath, ctx)) {
         try {
-          await ctx.client.call<{ path: string; recursive?: boolean }, { removed: boolean }>(
+          await ctx.client.call<{ path: string; recursive?: boolean; force?: boolean }, { removed: boolean }>(
             ["fs", "rm"],
-            { path: nodeModulesPath, recursive: true }
+            { path: nodeModulesPath, recursive: true, force: true }
           );
         } catch (error) {
           return {
@@ -168,9 +168,9 @@ async function refreshSinglePackage(
 
       if (await pathExists(distPath, ctx)) {
         try {
-          await ctx.client.call<{ path: string; recursive?: boolean }, { removed: boolean }>(
+          await ctx.client.call<{ path: string; recursive?: boolean; force?: boolean }, { removed: boolean }>(
             ["fs", "rm"],
-            { path: distPath, recursive: true }
+            { path: distPath, recursive: true, force: true }
           );
         } catch (error) {
           return {

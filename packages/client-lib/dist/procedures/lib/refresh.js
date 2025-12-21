@@ -106,7 +106,7 @@ async function refreshSinglePackage(pkgPath, packageName, ctx, options = {}) {
             const tsBuildInfoPath = join(pkgPath, "tsconfig.tsbuildinfo");
             if (await pathExists(nodeModulesPath, ctx)) {
                 try {
-                    await ctx.client.call(["fs", "rm"], { path: nodeModulesPath, recursive: true });
+                    await ctx.client.call(["fs", "rm"], { path: nodeModulesPath, recursive: true, force: true });
                 }
                 catch (error) {
                     return {
@@ -121,7 +121,7 @@ async function refreshSinglePackage(pkgPath, packageName, ctx, options = {}) {
             }
             if (await pathExists(distPath, ctx)) {
                 try {
-                    await ctx.client.call(["fs", "rm"], { path: distPath, recursive: true });
+                    await ctx.client.call(["fs", "rm"], { path: distPath, recursive: true, force: true });
                 }
                 catch (error) {
                     return {
