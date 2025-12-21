@@ -64,6 +64,10 @@ export declare const PROCEDURE_WHEN_KEY: string;
  */
 export declare const PROCEDURE_NAME_KEY: string;
 /**
+ * JSON key used to reference outputs from named stages.
+ */
+export declare const OUTPUT_REF_KEY: string;
+/**
  * Execute immediately during hydration (default behavior).
  */
 export declare const WHEN_IMMEDIATE: string;
@@ -97,6 +101,51 @@ export interface ContinueDecision {
     /** Whether to continue execution (true) or propagate the error (false) */
     continue: boolean;
 }
+/**
+ * A reference to an output from a named stage.
+ *
+ * Reference syntax:
+ * - `"stageName"` - reference full output of named stage
+ * - `"stageName.field"` - reference field in output
+ * - `"stageName.nested.path"` - deep path traversal
+ * - `"$last"` - reference previous stage output
+ * - `"$last.value"` - reference field in previous output
+ */
+export interface OutputRef {
+    /** Path to a named output, optionally with property path */
+    readonly $ref: string;
+}
+/**
+ * Scope for tracking outputs during chain execution.
+ * Scopes form a tree structure for nested chains.
+ */
+export interface RefScope {
+    /** Named outputs in this scope */
+    outputs: Map<string, unknown>;
+    /** Previous step output ($last) */
+    last?: unknown | undefined;
+    /** Parent scope for nested chains */
+    parent?: RefScope | undefined;
+    /** This scope's name (if in a named chain) */
+    name?: string | undefined;
+}
+/**
+ * Create a new RefScope with optional parent.
+ */
+export declare function createRefScope(parent?: RefScope, name?: string): RefScope;
+/**
+ * Get a value by path from an object.
+ * Supports dot-separated paths like "foo.bar.baz".
+ */
+export declare function getPath(obj: unknown, path: string[]): unknown;
+/**
+ * Resolve an output reference within a scope.
+ *
+ * @param refPath - The reference path (e.g., "stageName.value" or "$last.value")
+ * @param scope - The current scope to resolve within
+ * @returns The resolved value, or undefined if not found
+ */
+export declare function resolveOutputRef(refPath: string, scope: RefScope): unknown;
 /**
  * Execution timing for procedure references.
  * - `"$immediate"`: Execute during hydration (default)
@@ -171,6 +220,10 @@ export declare function isProcedureRefJson(value: unknown): value is ProcedureRe
  * Check if a value is any form of procedure reference.
  */
 export declare function isAnyProcedureRef(value: unknown): value is AnyProcedureRef;
+/**
+ * Check if a value is an output reference ($ref).
+ */
+export declare function isOutputRef(value: unknown): value is OutputRef;
 /**
  * Get the $when value from a procedure reference.
  * Returns "$immediate" if not specified.
@@ -275,11 +328,13 @@ export type RefExecutor = <TInput, TOutput>(path: ProcedurePath, input: TInput) 
  */
 export interface HydrateOptions {
     /** Maximum depth for recursive hydration (default: 10) */
-    maxDepth?: number;
+    maxDepth?: number | undefined;
     /** Whether to execute refs in parallel when possible (default: false) */
-    parallel?: boolean;
+    parallel?: boolean | undefined;
     /** Initial context stack for named contexts */
-    contextStack?: string[];
+    contextStack?: string[] | undefined;
+    /** Scope for resolving output references ($ref) */
+    scope?: RefScope | undefined;
 }
 /**
  * Hydrate an input tree by executing any nested procedure references.

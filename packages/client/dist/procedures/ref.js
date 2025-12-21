@@ -65,6 +65,10 @@ export const PROCEDURE_WHEN_KEY = "$when";
  * JSON key used to name a context for deferred execution.
  */
 export const PROCEDURE_NAME_KEY = "$name";
+/**
+ * JSON key used to reference outputs from named stages.
+ */
+export const OUTPUT_REF_KEY = "$ref";
 // =============================================================================
 // Execution Timing Constants
 // =============================================================================
@@ -80,6 +84,56 @@ export const WHEN_NEVER = "$never";
  * Defer to parent procedure - pass as data for parent to execute.
  */
 export const WHEN_PARENT = "$parent";
+/**
+ * Create a new RefScope with optional parent.
+ */
+export function createRefScope(parent, name) {
+    return {
+        outputs: new Map(),
+        parent,
+        name,
+    };
+}
+/**
+ * Get a value by path from an object.
+ * Supports dot-separated paths like "foo.bar.baz".
+ */
+export function getPath(obj, path) {
+    let value = obj;
+    for (const key of path) {
+        if (value && typeof value === "object") {
+            value = value[key];
+        }
+        else {
+            return undefined;
+        }
+    }
+    return value;
+}
+/**
+ * Resolve an output reference within a scope.
+ *
+ * @param refPath - The reference path (e.g., "stageName.value" or "$last.value")
+ * @param scope - The current scope to resolve within
+ * @returns The resolved value, or undefined if not found
+ */
+export function resolveOutputRef(refPath, scope) {
+    const parts = refPath.split(".");
+    const [first, ...rest] = parts;
+    // Handle $last reference
+    if (first === "$last") {
+        return getPath(scope.last, rest);
+    }
+    // Look up in current scope, then parent scopes
+    let currentScope = scope;
+    while (currentScope) {
+        if (currentScope.outputs.has(first)) {
+            return getPath(currentScope.outputs.get(first), rest);
+        }
+        currentScope = currentScope.parent;
+    }
+    return undefined;
+}
 // =============================================================================
 // Type Guards
 // =============================================================================
@@ -106,6 +160,15 @@ export function isProcedureRefJson(value) {
  */
 export function isAnyProcedureRef(value) {
     return isProcedureRef(value) || isProcedureRefJson(value);
+}
+/**
+ * Check if a value is an output reference ($ref).
+ */
+export function isOutputRef(value) {
+    return (typeof value === "object" &&
+        value !== null &&
+        OUTPUT_REF_KEY in value &&
+        typeof value[OUTPUT_REF_KEY] === "string");
 }
 /**
  * Get the $when value from a procedure reference.
@@ -323,8 +386,8 @@ export function normalizeRef(ref) {
  * ```
  */
 export async function hydrateInput(input, executor, options = {}) {
-    const { maxDepth = 10, contextStack = [] } = options;
-    const ctx = { executor, maxDepth, contextStack };
+    const { maxDepth = 10, contextStack = [], scope } = options;
+    const ctx = { executor, maxDepth, contextStack, scope };
     return hydrateValue(input, ctx, 0);
 }
 /**
@@ -340,6 +403,14 @@ async function hydrateValue(value, ctx, depth) {
         return value;
     }
     if (typeof value !== "object") {
+        return value;
+    }
+    // Check if this is an output reference ($ref)
+    if (isOutputRef(value)) {
+        if (ctx.scope) {
+            return resolveOutputRef(value.$ref, ctx.scope);
+        }
+        // No scope available - return the $ref as-is (will be resolved later by chain)
         return value;
     }
     // Check if this is a procedure reference ($proc)
@@ -378,6 +449,17 @@ async function hydrateValue(value, ctx, depth) {
     }
     // Handle arrays
     if (Array.isArray(value)) {
+        // Check if this is an array of procedure refs (implicit chain)
+        // Only treat as implicit chain if ALL elements are procedure refs
+        if (value.length > 0 && value.every((item) => isAnyProcedureRef(item))) {
+            // Transform to explicit chain
+            const implicitChain = {
+                $proc: ["client", "chain"],
+                input: { steps: value },
+            };
+            // Hydrate the implicit chain (which will execute it)
+            return hydrateValue(implicitChain, ctx, depth);
+        }
         const hydrated = await Promise.all(value.map((item) => hydrateValue(item, ctx, depth + 1)));
         return hydrated;
     }
