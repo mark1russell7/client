@@ -350,5 +350,21 @@ export interface DagTraverseOutput {
     visited: number;
     failed: number;
 }
+export declare const CoreCatchInputSchema: z.ZodObject<{
+    try: z.ZodUnknown;
+    handler: z.ZodOptional<z.ZodUnknown>;
+    cwd: z.ZodOptional<z.ZodString>;
+}>;
+export type CoreCatchInput = z.infer<typeof CoreCatchInputSchema>;
+export interface CoreCatchOutput {
+    /** Whether the try succeeded */
+    success: boolean;
+    /** Result from try (if success) or handler decision */
+    result?: unknown;
+    /** Error message if failed */
+    error?: string;
+    /** Whether execution should continue (from handler) */
+    continue: boolean;
+}
 export {};
 //# sourceMappingURL=types.d.ts.map

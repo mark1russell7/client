@@ -137,4 +137,27 @@ export const DagTraverseInputSchema = z.object({
     /** Preview without executing (default: false) */
     dryRun: z.boolean().default(false),
 });
+// =============================================================================
+// core.catch Types
+// =============================================================================
+export const CoreCatchInputSchema = z.object({
+    /**
+     * Procedure ref to try executing.
+     * Should use $when: "catch" so it's not auto-executed during hydration.
+     *
+     * Example:
+     * ```json
+     * { "$proc": ["git", "commit"], "input": { "message": "auto" }, "$when": "catch" }
+     * ```
+     */
+    try: z.unknown(),
+    /**
+     * Handler procedure ref called on error.
+     * Receives StepResultInfo (success, error, proc) merged with its input.
+     * Should return ContinueDecision { continue: boolean }.
+     */
+    handler: z.unknown().optional(),
+    /** Working directory for procedure execution */
+    cwd: z.string().optional(),
+});
 //# sourceMappingURL=types.js.map

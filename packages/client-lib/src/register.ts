@@ -22,6 +22,7 @@ import {
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
 import { dagTraverse } from "./procedures/dag/index.js";
+import { coreCatch } from "./procedures/core/index.js";
 import {
   LibScanInputSchema,
   LibRefreshInputSchema,
@@ -31,6 +32,7 @@ import {
   LibAuditInputSchema,
   LibPullInputSchema,
   DagTraverseInputSchema,
+  CoreCatchInputSchema,
   type LibScanInput,
   type LibScanOutput,
   type LibRefreshInput,
@@ -47,6 +49,8 @@ import {
   type LibPullOutput,
   type DagTraverseInput,
   type DagTraverseOutput,
+  type CoreCatchInput,
+  type CoreCatchOutput,
 } from "./types.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 
@@ -243,6 +247,25 @@ const dagTraverseProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// core.* Procedures
+// =============================================================================
+
+const coreCatchProcedure = createProcedure()
+  .path(["core", "catch"])
+  .input(zodAdapter<CoreCatchInput>(CoreCatchInputSchema))
+  .output(outputSchema<CoreCatchOutput>())
+  .meta({
+    description: "Execute a procedure with error handling",
+    args: [],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: CoreCatchInput, ctx: ProcedureContext): Promise<CoreCatchOutput> => {
+    return coreCatch(input, ctx);
+  })
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -260,6 +283,8 @@ export function registerLibProcedures(): void {
     ecosystemProceduresProcedure,
     // dag.* procedures (canonical home)
     dagTraverseProcedure,
+    // core.* procedures
+    coreCatchProcedure,
   ]);
 }
 

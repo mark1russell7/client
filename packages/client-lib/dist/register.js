@@ -8,7 +8,8 @@ import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { libScan, libRefresh, libRename, libInstall, libNew, libAudit, libPull, } from "./procedures/lib/index.js";
 import { ecosystemProcedures, EcosystemProceduresInputSchema, } from "./procedures/ecosystem/index.js";
 import { dagTraverse } from "./procedures/dag/index.js";
-import { LibScanInputSchema, LibRefreshInputSchema, LibRenameInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, DagTraverseInputSchema, } from "./types.js";
+import { coreCatch } from "./procedures/core/index.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibRenameInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, DagTraverseInputSchema, CoreCatchInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -182,6 +183,23 @@ const dagTraverseProcedure = createProcedure()
 })
     .build();
 // =============================================================================
+// core.* Procedures
+// =============================================================================
+const coreCatchProcedure = createProcedure()
+    .path(["core", "catch"])
+    .input(zodAdapter(CoreCatchInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Execute a procedure with error handling",
+    args: [],
+    shorts: {},
+    output: "json",
+})
+    .handler(async (input, ctx) => {
+    return coreCatch(input, ctx);
+})
+    .build();
+// =============================================================================
 // Registration
 // =============================================================================
 export function registerLibProcedures() {
@@ -198,6 +216,8 @@ export function registerLibProcedures() {
         ecosystemProceduresProcedure,
         // dag.* procedures (canonical home)
         dagTraverseProcedure,
+        // core.* procedures
+        coreCatchProcedure,
     ]);
 }
 // Auto-register

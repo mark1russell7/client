@@ -527,3 +527,45 @@ export interface DagTraverseOutput {
   visited: number;
   failed: number;
 }
+
+// =============================================================================
+// core.catch Types
+// =============================================================================
+
+export const CoreCatchInputSchema: z.ZodObject<{
+  try: z.ZodUnknown;
+  handler: z.ZodOptional<z.ZodUnknown>;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /**
+   * Procedure ref to try executing.
+   * Should use $when: "catch" so it's not auto-executed during hydration.
+   *
+   * Example:
+   * ```json
+   * { "$proc": ["git", "commit"], "input": { "message": "auto" }, "$when": "catch" }
+   * ```
+   */
+  try: z.unknown(),
+  /**
+   * Handler procedure ref called on error.
+   * Receives StepResultInfo (success, error, proc) merged with its input.
+   * Should return ContinueDecision { continue: boolean }.
+   */
+  handler: z.unknown().optional(),
+  /** Working directory for procedure execution */
+  cwd: z.string().optional(),
+});
+
+export type CoreCatchInput = z.infer<typeof CoreCatchInputSchema>;
+
+export interface CoreCatchOutput {
+  /** Whether the try succeeded */
+  success: boolean;
+  /** Result from try (if success) or handler decision */
+  result?: unknown;
+  /** Error message if failed */
+  error?: string;
+  /** Whether execution should continue (from handler) */
+  continue: boolean;
+}
