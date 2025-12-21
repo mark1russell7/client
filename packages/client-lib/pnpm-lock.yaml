@@ -35,7 +35,7 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.3
@@ -79,8 +79,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
@@ -200,7 +200,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8': {}
 
   '@ts-morph/common@0.25.0':
     dependencies:
