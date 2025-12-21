@@ -1,8 +1,12 @@
 /**
  * Procedure Registration for procedure operations
+ *
+ * This is the canonical home for procedure.* procedures.
+ * client-cli no longer registers these to avoid duplicates.
  */
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { procedureNew } from "./procedures/procedure/index.js";
+import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import { ProcedureNewInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
@@ -47,10 +51,10 @@ const procedureNewProcedure = createProcedure()
     .input(zodAdapter(ProcedureNewInputSchema))
     .output(outputSchema())
     .meta({
-    description: "Scaffold a new procedure",
+    description: "Scaffold a new procedure with types and registration boilerplate",
     args: ["name"],
-    shorts: { dryRun: "n" },
-    output: "json",
+    shorts: { namespace: "n", description: "d", path: "p", dryRun: "D" },
+    output: "text",
 })
     .handler(async (input, ctx) => {
     return procedureNew(input, ctx);
@@ -58,7 +62,10 @@ const procedureNewProcedure = createProcedure()
     .build();
 export function registerProcedureProcedures() {
     registerProcedures([
+        // procedure.new
         procedureNewProcedure,
+        // procedure.list, procedure.get, procedure.export (from registry.ts)
+        ...procedureRegistryProcedures,
     ]);
 }
 // Auto-register
