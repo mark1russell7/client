@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-cli",
   "version": "1.0.0",
-  "description": "Angular Schematics for the mark1russell7 ecosystem - lib-new, lib-refresh",
+  "description": "CLI execution wrapper - exposes cli.exec procedure for running CLI commands",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,23 +12,20 @@
       "import": "./dist/index.js"
     }
   },
-  "schematics": "./schematics/collection.json",
   "files": [
     "dist",
-    "src",
-    "schematics"
+    "src"
   ],
   "scripts": {
-    "build": "tsc -b && tsc -p schematics/tsconfig.json",
-    "build:schematics": "tsc -p schematics/tsconfig.json",
+    "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo schematics/**/*.js schematics/**/*.d.ts schematics/**/*.map",
+    "clean": "rm -rf dist .tsbuildinfo",
     "postinstall": "client announce"
   },
   "dependencies": {
-    "@angular-devkit/schematics": "^19.0.0",
     "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-lib": "github:mark1russell7/client-lib#main"
+    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
@@ -37,17 +34,20 @@
   },
   "keywords": [
     "cli",
-    "schematics",
-    "angular",
-    "scaffolding"
+    "exec",
+    "shell",
+    "wrapper"
   ],
   "license": "MIT",
   "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@mark1russell7/cue",
       "@mark1russell7/client",
-      "@mark1russell7/client-lib"
+      "@mark1russell7/client-shell"
     ]
   }
 }
