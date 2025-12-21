@@ -69,6 +69,17 @@ const anySchema: {
 // Chain Procedure
 // =============================================================================
 
+import type { ProcedureContext } from "../types.js";
+import {
+  isAnyProcedureRef,
+  normalizeRef,
+  createRefScope,
+  isOutputRef,
+  resolveOutputRef,
+  type RefScope,
+  type ProcedureRefJson,
+} from "../ref.js";
+
 interface ChainInput {
   /** Procedures to execute in sequence */
   steps: unknown[];
@@ -87,6 +98,41 @@ interface ChainOutput {
 
 type ChainProcedure = Procedure<ChainInput, ChainOutput, { description: string; tags: string[] }>;
 
+/**
+ * Resolve any $ref values in an object using the given scope.
+ */
+function resolveRefs(value: unknown, scope: RefScope): unknown {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (typeof value !== "object") {
+    return value;
+  }
+
+  // Handle $ref
+  if (isOutputRef(value)) {
+    return resolveOutputRef(value.$ref, scope);
+  }
+
+  // Handle arrays
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveRefs(item, scope));
+  }
+
+  // Handle plain objects (but not procedure refs - those should be executed)
+  if (!isAnyProcedureRef(value)) {
+    const obj = value as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      result[key] = resolveRefs(val, scope);
+    }
+    return result;
+  }
+
+  return value;
+}
+
 const chainProcedure: ChainProcedure = defineProcedure({
   path: ["chain"],
   input: anySchema as any,
@@ -95,14 +141,45 @@ const chainProcedure: ChainProcedure = defineProcedure({
     description: "Execute procedures sequentially",
     tags: ["core", "control-flow"],
   },
-  handler: async (input: ChainInput): Promise<ChainOutput> => {
+  handler: async (input: ChainInput, ctx?: ProcedureContext): Promise<ChainOutput> => {
     const { steps } = input;
     const results: unknown[] = [];
+    const scope = createRefScope();
 
     for (const step of steps) {
-      // If step is a procedure ref, it should already be hydrated by exec()
-      // If it's a raw value, use it directly
-      results.push(step);
+      let result: unknown;
+
+      if (isAnyProcedureRef(step)) {
+        // This is a procedure reference - execute it
+        const normalized = normalizeRef(step);
+        const stepName = (step as ProcedureRefJson).$name;
+
+        // Resolve any $refs in the step's input
+        const resolvedInput = resolveRefs(normalized.input, scope);
+
+        // Execute the procedure
+        if (ctx?.client) {
+          result = await ctx.client.call(normalized.path, resolvedInput);
+        } else {
+          // No client context - just use the resolved input as result
+          result = resolvedInput;
+        }
+
+        // Store named output
+        if (stepName) {
+          scope.outputs.set(stepName, result);
+        }
+      } else if (isOutputRef(step)) {
+        // This is an output reference - resolve it
+        result = resolveOutputRef(step.$ref, scope);
+      } else {
+        // Raw value - resolve any nested $refs and use directly
+        result = resolveRefs(step, scope);
+      }
+
+      // Update $last
+      scope.last = result;
+      results.push(result);
     }
 
     return {
@@ -186,14 +263,27 @@ const conditionalProcedure: ConditionalProcedure = defineProcedure({
     description: "Conditional execution (if/then/else)",
     tags: ["core", "control-flow"],
   },
-  handler: async (input: ConditionalInput): Promise<unknown> => {
+  handler: async (input: ConditionalInput, ctx?: ProcedureContext): Promise<unknown> => {
     const { condition, then: thenValue, else: elseValue } = input;
 
-    // Condition is already evaluated (hydrated)
-    if (condition) {
-      return thenValue;
+    // Determine truthiness - check for .value property (from predicates like git.hasChanges)
+    let isTruthy: boolean;
+    if (condition && typeof condition === "object" && "value" in condition) {
+      isTruthy = Boolean((condition as { value: unknown }).value);
+    } else {
+      isTruthy = Boolean(condition);
     }
-    return elseValue;
+
+    // Select the branch to execute/return
+    const selectedBranch = isTruthy ? thenValue : elseValue;
+
+    // If the branch is a procedure ref, execute it
+    if (selectedBranch && isAnyProcedureRef(selectedBranch) && ctx?.client) {
+      const normalized = normalizeRef(selectedBranch);
+      return ctx.client.call(normalized.path, normalized.input);
+    }
+
+    return selectedBranch;
   },
 });
 

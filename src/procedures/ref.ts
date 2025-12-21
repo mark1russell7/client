@@ -73,6 +73,11 @@ export const PROCEDURE_WHEN_KEY: string = "$when";
  */
 export const PROCEDURE_NAME_KEY: string = "$name";
 
+/**
+ * JSON key used to reference outputs from named stages.
+ */
+export const OUTPUT_REF_KEY: string = "$ref";
+
 // =============================================================================
 // Execution Timing Constants
 // =============================================================================
@@ -122,6 +127,98 @@ export interface StepResultInfo {
 export interface ContinueDecision {
   /** Whether to continue execution (true) or propagate the error (false) */
   continue: boolean;
+}
+
+// =============================================================================
+// Output Reference Types (for $ref)
+// =============================================================================
+
+/**
+ * A reference to an output from a named stage.
+ *
+ * Reference syntax:
+ * - `"stageName"` - reference full output of named stage
+ * - `"stageName.field"` - reference field in output
+ * - `"stageName.nested.path"` - deep path traversal
+ * - `"$last"` - reference previous stage output
+ * - `"$last.value"` - reference field in previous output
+ */
+export interface OutputRef {
+  /** Path to a named output, optionally with property path */
+  readonly $ref: string;
+}
+
+/**
+ * Scope for tracking outputs during chain execution.
+ * Scopes form a tree structure for nested chains.
+ */
+export interface RefScope {
+  /** Named outputs in this scope */
+  outputs: Map<string, unknown>;
+
+  /** Previous step output ($last) */
+  last?: unknown | undefined;
+
+  /** Parent scope for nested chains */
+  parent?: RefScope | undefined;
+
+  /** This scope's name (if in a named chain) */
+  name?: string | undefined;
+}
+
+/**
+ * Create a new RefScope with optional parent.
+ */
+export function createRefScope(parent?: RefScope, name?: string): RefScope {
+  return {
+    outputs: new Map(),
+    parent,
+    name,
+  };
+}
+
+/**
+ * Get a value by path from an object.
+ * Supports dot-separated paths like "foo.bar.baz".
+ */
+export function getPath(obj: unknown, path: string[]): unknown {
+  let value = obj;
+  for (const key of path) {
+    if (value && typeof value === "object") {
+      value = (value as Record<string, unknown>)[key];
+    } else {
+      return undefined;
+    }
+  }
+  return value;
+}
+
+/**
+ * Resolve an output reference within a scope.
+ *
+ * @param refPath - The reference path (e.g., "stageName.value" or "$last.value")
+ * @param scope - The current scope to resolve within
+ * @returns The resolved value, or undefined if not found
+ */
+export function resolveOutputRef(refPath: string, scope: RefScope): unknown {
+  const parts = refPath.split(".");
+  const [first, ...rest] = parts;
+
+  // Handle $last reference
+  if (first === "$last") {
+    return getPath(scope.last, rest);
+  }
+
+  // Look up in current scope, then parent scopes
+  let currentScope: RefScope | undefined = scope;
+  while (currentScope) {
+    if (currentScope.outputs.has(first!)) {
+      return getPath(currentScope.outputs.get(first!), rest);
+    }
+    currentScope = currentScope.parent;
+  }
+
+  return undefined;
 }
 
 // =============================================================================
@@ -237,6 +334,18 @@ export function isProcedureRefJson(value: unknown): value is ProcedureRefJson {
  */
 export function isAnyProcedureRef(value: unknown): value is AnyProcedureRef {
   return isProcedureRef(value) || isProcedureRefJson(value);
+}
+
+/**
+ * Check if a value is an output reference ($ref).
+ */
+export function isOutputRef(value: unknown): value is OutputRef {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    OUTPUT_REF_KEY in value &&
+    typeof (value as Record<string, unknown>)[OUTPUT_REF_KEY] === "string"
+  );
 }
 
 /**
@@ -484,13 +593,16 @@ export type RefExecutor = <TInput, TOutput>(
  */
 export interface HydrateOptions {
   /** Maximum depth for recursive hydration (default: 10) */
-  maxDepth?: number;
+  maxDepth?: number | undefined;
 
   /** Whether to execute refs in parallel when possible (default: false) */
-  parallel?: boolean;
+  parallel?: boolean | undefined;
 
   /** Initial context stack for named contexts */
-  contextStack?: string[];
+  contextStack?: string[] | undefined;
+
+  /** Scope for resolving output references ($ref) */
+  scope?: RefScope | undefined;
 }
 
 /**
@@ -500,6 +612,7 @@ interface HydrateContext {
   executor: RefExecutor;
   maxDepth: number;
   contextStack: string[];
+  scope?: RefScope | undefined;
 }
 
 /**
@@ -532,8 +645,8 @@ export async function hydrateInput<T>(
   executor: RefExecutor,
   options: HydrateOptions = {}
 ): Promise<T> {
-  const { maxDepth = 10, contextStack = [] } = options;
-  const ctx: HydrateContext = { executor, maxDepth, contextStack };
+  const { maxDepth = 10, contextStack = [], scope } = options;
+  const ctx: HydrateContext = { executor, maxDepth, contextStack, scope };
   return hydrateValue(input, ctx, 0);
 }
 
@@ -556,6 +669,15 @@ async function hydrateValue<T>(
   }
 
   if (typeof value !== "object") {
+    return value;
+  }
+
+  // Check if this is an output reference ($ref)
+  if (isOutputRef(value)) {
+    if (ctx.scope) {
+      return resolveOutputRef(value.$ref, ctx.scope) as T;
+    }
+    // No scope available - return the $ref as-is (will be resolved later by chain)
     return value;
   }
 
@@ -602,6 +724,18 @@ async function hydrateValue<T>(
 
   // Handle arrays
   if (Array.isArray(value)) {
+    // Check if this is an array of procedure refs (implicit chain)
+    // Only treat as implicit chain if ALL elements are procedure refs
+    if (value.length > 0 && value.every((item) => isAnyProcedureRef(item))) {
+      // Transform to explicit chain
+      const implicitChain: ProcedureRefJson = {
+        $proc: ["client", "chain"],
+        input: { steps: value },
+      };
+      // Hydrate the implicit chain (which will execute it)
+      return hydrateValue(implicitChain as unknown as T, ctx, depth);
+    }
+
     const hydrated = await Promise.all(
       value.map((item) => hydrateValue(item, ctx, depth + 1))
     );

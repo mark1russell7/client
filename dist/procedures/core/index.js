@@ -56,6 +56,36 @@ const anySchema = {
     safeParse: (data) => ({ success: true, data }),
     _output: undefined,
 };
+import { isAnyProcedureRef, normalizeRef, createRefScope, isOutputRef, resolveOutputRef, } from "../ref.js";
+/**
+ * Resolve any $ref values in an object using the given scope.
+ */
+function resolveRefs(value, scope) {
+    if (value === null || value === undefined) {
+        return value;
+    }
+    if (typeof value !== "object") {
+        return value;
+    }
+    // Handle $ref
+    if (isOutputRef(value)) {
+        return resolveOutputRef(value.$ref, scope);
+    }
+    // Handle arrays
+    if (Array.isArray(value)) {
+        return value.map((item) => resolveRefs(item, scope));
+    }
+    // Handle plain objects (but not procedure refs - those should be executed)
+    if (!isAnyProcedureRef(value)) {
+        const obj = value;
+        const result = {};
+        for (const [key, val] of Object.entries(obj)) {
+            result[key] = resolveRefs(val, scope);
+        }
+        return result;
+    }
+    return value;
+}
 const chainProcedure = defineProcedure({
     path: ["chain"],
     input: anySchema,
@@ -64,13 +94,42 @@ const chainProcedure = defineProcedure({
         description: "Execute procedures sequentially",
         tags: ["core", "control-flow"],
     },
-    handler: async (input) => {
+    handler: async (input, ctx) => {
         const { steps } = input;
         const results = [];
+        const scope = createRefScope();
         for (const step of steps) {
-            // If step is a procedure ref, it should already be hydrated by exec()
-            // If it's a raw value, use it directly
-            results.push(step);
+            let result;
+            if (isAnyProcedureRef(step)) {
+                // This is a procedure reference - execute it
+                const normalized = normalizeRef(step);
+                const stepName = step.$name;
+                // Resolve any $refs in the step's input
+                const resolvedInput = resolveRefs(normalized.input, scope);
+                // Execute the procedure
+                if (ctx?.client) {
+                    result = await ctx.client.call(normalized.path, resolvedInput);
+                }
+                else {
+                    // No client context - just use the resolved input as result
+                    result = resolvedInput;
+                }
+                // Store named output
+                if (stepName) {
+                    scope.outputs.set(stepName, result);
+                }
+            }
+            else if (isOutputRef(step)) {
+                // This is an output reference - resolve it
+                result = resolveOutputRef(step.$ref, scope);
+            }
+            else {
+                // Raw value - resolve any nested $refs and use directly
+                result = resolveRefs(step, scope);
+            }
+            // Update $last
+            scope.last = result;
+            results.push(result);
         }
         return {
             results,
@@ -109,13 +168,24 @@ const conditionalProcedure = defineProcedure({
         description: "Conditional execution (if/then/else)",
         tags: ["core", "control-flow"],
     },
-    handler: async (input) => {
+    handler: async (input, ctx) => {
         const { condition, then: thenValue, else: elseValue } = input;
-        // Condition is already evaluated (hydrated)
-        if (condition) {
-            return thenValue;
+        // Determine truthiness - check for .value property (from predicates like git.hasChanges)
+        let isTruthy;
+        if (condition && typeof condition === "object" && "value" in condition) {
+            isTruthy = Boolean(condition.value);
         }
-        return elseValue;
+        else {
+            isTruthy = Boolean(condition);
+        }
+        // Select the branch to execute/return
+        const selectedBranch = isTruthy ? thenValue : elseValue;
+        // If the branch is a procedure ref, execute it
+        if (selectedBranch && isAnyProcedureRef(selectedBranch) && ctx?.client) {
+            const normalized = normalizeRef(selectedBranch);
+            return ctx.client.call(normalized.path, normalized.input);
+        }
+        return selectedBranch;
     },
 });
 const andProcedure = defineProcedure({
