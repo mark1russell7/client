@@ -58,23 +58,39 @@ export {
 
 // Procedure reference system (procedure-as-data)
 export {
+  // Constants
   PROCEDURE_SYMBOL,
   PROCEDURE_JSON_KEY,
+  PROCEDURE_WHEN_KEY,
+  PROCEDURE_NAME_KEY,
+  WHEN_IMMEDIATE,
+  WHEN_NEVER,
+  WHEN_PARENT,
+  // Type guards
   isProcedureRef,
   isProcedureRefJson,
   isAnyProcedureRef,
+  getRefWhen,
+  getRefName,
+  shouldExecuteRef,
+  // Builder
   proc,
   ProcedureRefBuilder,
+  // Conversion
   fromJson,
   toJson,
   normalizeRef,
+  // Hydration
   hydrateInput,
+  executeRef,
+  // Templates
   extractTemplate,
   parseProcedureJson,
   stringifyProcedureJson,
 } from "./ref.js";
 
 export type {
+  ProcedureWhen,
   ProcedureRef,
   ProcedureRefJson,
   AnyProcedureRef,

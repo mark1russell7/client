@@ -33,7 +33,7 @@ export { defineProcedure, defineStub, createProcedure, ProcedureBuilder, namespa
 // Manual registration helpers
 registerModule, registerProcedures, createAndRegister, 
 // Procedure reference system (procedure-as-data)
-PROCEDURE_SYMBOL, PROCEDURE_JSON_KEY, isProcedureRef, isProcedureRefJson, isAnyProcedureRef, proc, ProcedureRefBuilder, fromJson, toJson, normalizeRef, hydrateInput, extractTemplate, parseProcedureJson, stringifyProcedureJson, 
+PROCEDURE_SYMBOL, PROCEDURE_JSON_KEY, PROCEDURE_WHEN_KEY, PROCEDURE_NAME_KEY, WHEN_IMMEDIATE, WHEN_NEVER, WHEN_PARENT, isProcedureRef, isProcedureRefJson, isAnyProcedureRef, getRefWhen, getRefName, shouldExecuteRef, proc, ProcedureRefBuilder, fromJson, toJson, normalizeRef, hydrateInput, executeRef, extractTemplate, parseProcedureJson, stringifyProcedureJson, 
 // Core language procedures
 coreProcedures, coreModule, chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, 
 // Storage-backed registry

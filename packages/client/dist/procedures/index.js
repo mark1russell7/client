@@ -15,7 +15,19 @@ export { createCollectionProcedures, genericCollectionProcedures, collectionModu
 // Manual registration helpers
 export { registerModule, registerProcedures, createAndRegister, } from "./discovery.js";
 // Procedure reference system (procedure-as-data)
-export { PROCEDURE_SYMBOL, PROCEDURE_JSON_KEY, isProcedureRef, isProcedureRefJson, isAnyProcedureRef, proc, ProcedureRefBuilder, fromJson, toJson, normalizeRef, hydrateInput, extractTemplate, parseProcedureJson, stringifyProcedureJson, } from "./ref.js";
+export { 
+// Constants
+PROCEDURE_SYMBOL, PROCEDURE_JSON_KEY, PROCEDURE_WHEN_KEY, PROCEDURE_NAME_KEY, WHEN_IMMEDIATE, WHEN_NEVER, WHEN_PARENT, 
+// Type guards
+isProcedureRef, isProcedureRefJson, isAnyProcedureRef, getRefWhen, getRefName, shouldExecuteRef, 
+// Builder
+proc, ProcedureRefBuilder, 
+// Conversion
+fromJson, toJson, normalizeRef, 
+// Hydration
+hydrateInput, executeRef, 
+// Templates
+extractTemplate, parseProcedureJson, stringifyProcedureJson, } from "./ref.js";
 // Core language procedures (chain, parallel, if, etc.)
 export { coreProcedures, coreModule, chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, } from "./core/index.js";
 // Storage-backed registry

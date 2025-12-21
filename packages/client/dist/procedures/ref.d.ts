@@ -7,43 +7,42 @@
  * Key concepts:
  * - PROCEDURE_SYMBOL: Symbol tag to identify procedure references in JSON/objects
  * - ProcedureRef: A reference to a procedure with pre-bound input
+ * - $when: Controls when a procedure reference is executed during hydration
+ * - $name: Names a context so nested refs can defer execution to it
  * - hydrateInput: Walks input tree and executes nested procedure references
+ * - executeRef: Helper for procedures to execute deferred refs
  * - proc(): Factory function to create procedure references
+ *
+ * ## Execution Control with $when
+ *
+ * The `$when` field controls when a procedure reference is executed:
+ * - `"$immediate"` (or absent): Execute during hydration (default)
+ * - `"$never"`: Never execute during hydration, pass as pure data
+ * - `"$parent"`: Defer to parent procedure (pass as data)
+ * - `"someName"`: Defer to named ancestor context (matched via $name)
+ *
+ * ## Named Contexts with $name
+ *
+ * Use `$name` to create a named execution context that nested refs can target:
  *
  * @example
  * ```typescript
- * // Imperative (TypeScript)
- * const pipeline = proc(["dag", "traverse"])
- *   .input({
- *     visit: proc(["client", "chain"]).input({
- *       steps: [
- *         proc(["git", "add"]).input({ all: true }),
- *         proc(["git", "commit"]).input({ message: "auto" }),
- *         proc(["git", "push"]).input({}),
- *       ],
- *     }),
- *   });
- *
- * // Declarative (JSON) - equivalent
+ * // Declarative (JSON) with execution control
  * const pipelineJson = {
+ *   $name: "traversal",
  *   $proc: ["dag", "traverse"],
  *   input: {
  *     visit: {
- *       $proc: ["client", "chain"],
- *       input: {
- *         steps: [
- *           { $proc: ["git", "add"], input: { all: true } },
- *           { $proc: ["git", "commit"], input: { message: "auto" } },
- *           { $proc: ["git", "push"], input: {} },
- *         ],
- *       },
+ *       $proc: ["git", "add"],
+ *       input: { all: true },
+ *       $when: "traversal",  // Defer to traversal context
  *     },
  *   },
  * };
  *
- * // Both can be called via client.call()
- * await client.call(pipeline);
- * await client.call(pipelineJson);
+ * // The inner $proc is NOT executed during hydration.
+ * // dag.traverse receives it as data and executes per-node.
+ * await client.exec(pipelineJson);
  * ```
  */
 import type { ProcedurePath } from "./types.js";
@@ -54,11 +53,38 @@ import type { ProcedurePath } from "./types.js";
 export declare const PROCEDURE_SYMBOL: symbol;
 /**
  * JSON key used to identify procedure references in serialized form.
- * When parsing JSON, objects with this key are treated as procedure refs.
  */
 export declare const PROCEDURE_JSON_KEY: string;
 /**
- * A reference to a procedure with pre-bound input.
+ * JSON key used to control when a procedure reference is executed.
+ */
+export declare const PROCEDURE_WHEN_KEY: string;
+/**
+ * JSON key used to name a context for deferred execution.
+ */
+export declare const PROCEDURE_NAME_KEY: string;
+/**
+ * Execute immediately during hydration (default behavior).
+ */
+export declare const WHEN_IMMEDIATE: string;
+/**
+ * Never execute during hydration - pass as pure data.
+ */
+export declare const WHEN_NEVER: string;
+/**
+ * Defer to parent procedure - pass as data for parent to execute.
+ */
+export declare const WHEN_PARENT: string;
+/**
+ * Execution timing for procedure references.
+ * - `"$immediate"`: Execute during hydration (default)
+ * - `"$never"`: Never execute, pass as pure data
+ * - `"$parent"`: Defer to parent procedure
+ * - `string`: Defer to named ancestor context
+ */
+export type ProcedureWhen = "$immediate" | "$never" | "$parent" | string;
+/**
+ * A reference to a procedure with pre-bound input (runtime form).
  * Can be passed as input to other procedures and will be executed during hydration.
  *
  * @example
@@ -77,6 +103,10 @@ export interface ProcedureRef<TInput = unknown, TOutput = unknown> {
     readonly path: ProcedurePath;
     /** Pre-bound input for the procedure */
     readonly input: TInput;
+    /** Optional name for this execution context */
+    readonly $name?: string;
+    /** When to execute this reference */
+    readonly $when?: ProcedureWhen;
     /**
      * Phantom type for output inference.
      * Not present at runtime, used for TypeScript type inference.
@@ -91,7 +121,17 @@ export interface ProcedureRefJson<TInput = unknown> {
     /** JSON key identifying this as a procedure reference */
     readonly $proc: ProcedurePath;
     /** Pre-bound input for the procedure */
-    readonly input: TInput;
+    readonly input?: TInput;
+    /** Optional name for this execution context (for nested refs to target) */
+    readonly $name?: string;
+    /**
+     * When to execute this reference:
+     * - "$immediate" (or absent): Execute during hydration
+     * - "$never": Never execute, pass as pure data
+     * - "$parent": Defer to parent procedure
+     * - "someName": Defer to named ancestor context
+     */
+    readonly $when?: ProcedureWhen;
 }
 /**
  * Either a runtime ProcedureRef or JSON-serialized form.
@@ -110,16 +150,53 @@ export declare function isProcedureRefJson(value: unknown): value is ProcedureRe
  */
 export declare function isAnyProcedureRef(value: unknown): value is AnyProcedureRef;
 /**
+ * Get the $when value from a procedure reference.
+ * Returns "$immediate" if not specified.
+ */
+export declare function getRefWhen(ref: AnyProcedureRef): ProcedureWhen;
+/**
+ * Get the $name value from a procedure reference, if any.
+ */
+export declare function getRefName(ref: AnyProcedureRef): string | undefined;
+/**
+ * Check if a procedure reference should be executed in the given context.
+ *
+ * @param ref - The procedure reference to check
+ * @param contextStack - Stack of named contexts (innermost first)
+ * @param isParentContext - Whether we're checking from a parent procedure
+ * @returns true if the ref should be executed now
+ */
+export declare function shouldExecuteRef(ref: AnyProcedureRef, contextStack: string[], isParentContext?: boolean): boolean;
+/**
  * Builder for creating procedure references with a fluent API.
  */
 export declare class ProcedureRefBuilder<TInput = unknown, TOutput = unknown> {
     private _path;
     private _input;
+    private _name?;
+    private _when?;
     constructor(path: ProcedurePath);
     /**
      * Set the input for this procedure reference.
      */
     input<T>(input: T): ProcedureRefBuilder<T, TOutput>;
+    /**
+     * Name this execution context (for nested refs to target with $when).
+     */
+    name(name: string): this;
+    /**
+     * Set when this reference should be executed.
+     * @param when - "$immediate", "$never", "$parent", or a named context
+     */
+    when(when: ProcedureWhen): this;
+    /**
+     * Shorthand for .when("$never") - pass as pure data.
+     */
+    defer(): this;
+    /**
+     * Shorthand for .when("$parent") - defer to parent procedure.
+     */
+    deferToParent(): this;
     /**
      * Build the procedure reference object.
      */
@@ -179,17 +256,19 @@ export interface HydrateOptions {
     maxDepth?: number;
     /** Whether to execute refs in parallel when possible (default: false) */
     parallel?: boolean;
+    /** Initial context stack for named contexts */
+    contextStack?: string[];
 }
 /**
  * Hydrate an input tree by executing any nested procedure references.
  *
  * Walks the input object tree and replaces any ProcedureRef or ProcedureRefJson
- * objects with the result of executing that procedure.
+ * objects with the result of executing that procedure, respecting $when timing.
  *
  * @param input - The input object potentially containing procedure references
  * @param executor - Function to execute procedure references
  * @param options - Hydration options
- * @returns The hydrated input with all procedure refs replaced by their results
+ * @returns The hydrated input with executed procedure refs replaced by their results
  *
  * @example
  * ```typescript
@@ -206,6 +285,28 @@ export interface HydrateOptions {
  * ```
  */
 export declare function hydrateInput<T>(input: T, executor: RefExecutor, options?: HydrateOptions): Promise<T>;
+/**
+ * Execute a deferred procedure reference.
+ *
+ * This is a helper for procedures that receive deferred refs (via $when)
+ * and need to execute them with additional context.
+ *
+ * @param ref - The procedure reference to execute
+ * @param executor - Function to execute the procedure
+ * @param additionalInput - Additional input to merge (e.g., cwd for dag.traverse)
+ * @returns The result of executing the procedure
+ *
+ * @example
+ * ```typescript
+ * // In dag.traverse, execute a deferred ref with cwd
+ * const result = await executeRef(
+ *   input.visit,
+ *   (path, input) => ctx.client.call(path, input),
+ *   { cwd: node.repoPath }
+ * );
+ * ```
+ */
+export declare function executeRef<TOutput = unknown>(ref: AnyProcedureRef, executor: RefExecutor, additionalInput?: Record<string, unknown>): Promise<TOutput>;
 /**
  * Extract a JSON template from a procedure reference.
  * Useful for serializing imperative procedure compositions.
