@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client-docker",
+  "version": "1.0.0",
+  "description": "Wraps Docker CLI commands as procedures using client-shell",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./register.js": {
+      "import": "./dist/register.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
+  },
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "docker",
+    "containers",
+    "procedures"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/client-shell"
+    ]
+  }
+}
