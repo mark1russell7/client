@@ -455,3 +455,51 @@ export interface LibPullOutput {
   /** Total duration in milliseconds */
   totalDuration: number;
 }
+
+// =============================================================================
+// dag.traverse Types
+// =============================================================================
+
+export const DagTraverseInputSchema: z.ZodObject<{
+  visit: z.ZodUnion<[z.ZodArray<z.ZodString>, z.ZodObject<{ $proc: z.ZodArray<z.ZodString>; input: z.ZodOptional<z.ZodUnknown> }>]>;
+  filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+  root: z.ZodOptional<z.ZodString>;
+  concurrency: z.ZodDefault<z.ZodNumber>;
+  continueOnError: z.ZodDefault<z.ZodBoolean>;
+  dryRun: z.ZodDefault<z.ZodBoolean>;
+}> = z.object({
+  /** Procedure to execute for each node (path or $proc reference) */
+  visit: z.union([
+    z.array(z.string()),
+    z.object({ $proc: z.array(z.string()), input: z.unknown().optional() }),
+  ]),
+  /** Filter to specific package names */
+  filter: z.array(z.string()).optional(),
+  /** Start from specific root package */
+  root: z.string().optional(),
+  /** Max parallel operations (default: 4) */
+  concurrency: z.number().default(4),
+  /** Continue on error (default: false) */
+  continueOnError: z.boolean().default(false),
+  /** Preview without executing (default: false) */
+  dryRun: z.boolean().default(false),
+});
+
+export type DagTraverseInput = z.infer<typeof DagTraverseInputSchema>;
+
+export interface TraverseNodeResult {
+  name: string;
+  path: string;
+  success: boolean;
+  duration: number;
+  error?: string | undefined;
+  output?: unknown | undefined;
+}
+
+export interface DagTraverseOutput {
+  success: boolean;
+  results: TraverseNodeResult[];
+  totalDuration: number;
+  visited: number;
+  failed: number;
+}

@@ -7,7 +7,8 @@
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { libScan, libRefresh, libRename, libInstall, libNew, libAudit, libPull, } from "./procedures/lib/index.js";
 import { ecosystemProcedures, EcosystemProceduresInputSchema, } from "./procedures/ecosystem/index.js";
-import { LibScanInputSchema, LibRefreshInputSchema, LibRenameInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, } from "./types.js";
+import { dagTraverse } from "./procedures/dag/index.js";
+import { LibScanInputSchema, LibRefreshInputSchema, LibRenameInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, DagTraverseInputSchema, } from "./types.js";
 function zodAdapter(schema) {
     return {
         parse: (data) => schema.parse(data),
@@ -164,6 +165,23 @@ const ecosystemProceduresProcedure = createProcedure()
 })
     .build();
 // =============================================================================
+// dag.* Procedures
+// =============================================================================
+const dagTraverseProcedure = createProcedure()
+    .path(["dag", "traverse"])
+    .input(zodAdapter(DagTraverseInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
+    args: [],
+    shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
+    output: "streaming",
+})
+    .handler(async (input, ctx) => {
+    return dagTraverse(input, ctx);
+})
+    .build();
+// =============================================================================
 // Registration
 // =============================================================================
 export function registerLibProcedures() {
@@ -178,6 +196,8 @@ export function registerLibProcedures() {
         libPullProcedure,
         // ecosystem.* procedures
         ecosystemProceduresProcedure,
+        // dag.* procedures (canonical home)
+        dagTraverseProcedure,
     ]);
 }
 // Auto-register

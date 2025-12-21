@@ -21,6 +21,7 @@ import {
   type EcosystemProceduresInput,
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
+import { dagTraverse } from "./procedures/dag/index.js";
 import {
   LibScanInputSchema,
   LibRefreshInputSchema,
@@ -29,6 +30,7 @@ import {
   LibNewInputSchema,
   LibAuditInputSchema,
   LibPullInputSchema,
+  DagTraverseInputSchema,
   type LibScanInput,
   type LibScanOutput,
   type LibRefreshInput,
@@ -43,6 +45,8 @@ import {
   type LibAuditOutput,
   type LibPullInput,
   type LibPullOutput,
+  type DagTraverseInput,
+  type DagTraverseOutput,
 } from "./types.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 
@@ -220,6 +224,25 @@ const ecosystemProceduresProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// dag.* Procedures
+// =============================================================================
+
+const dagTraverseProcedure = createProcedure()
+  .path(["dag", "traverse"])
+  .input(zodAdapter<DagTraverseInput>(DagTraverseInputSchema))
+  .output(outputSchema<DagTraverseOutput>())
+  .meta({
+    description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
+    args: [],
+    shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
+    output: "streaming",
+  })
+  .handler(async (input: DagTraverseInput, ctx: ProcedureContext): Promise<DagTraverseOutput> => {
+    return dagTraverse(input, ctx);
+  })
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -235,6 +258,8 @@ export function registerLibProcedures(): void {
     libPullProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
+    // dag.* procedures (canonical home)
+    dagTraverseProcedure,
   ]);
 }
 

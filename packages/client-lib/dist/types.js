@@ -99,4 +99,24 @@ export const LibPullInputSchema = z.object({
     /** Max parallel operations */
     concurrency: z.number().default(4),
 });
+// =============================================================================
+// dag.traverse Types
+// =============================================================================
+export const DagTraverseInputSchema = z.object({
+    /** Procedure to execute for each node (path or $proc reference) */
+    visit: z.union([
+        z.array(z.string()),
+        z.object({ $proc: z.array(z.string()), input: z.unknown().optional() }),
+    ]),
+    /** Filter to specific package names */
+    filter: z.array(z.string()).optional(),
+    /** Start from specific root package */
+    root: z.string().optional(),
+    /** Max parallel operations (default: 4) */
+    concurrency: z.number().default(4),
+    /** Continue on error (default: false) */
+    continueOnError: z.boolean().default(false),
+    /** Preview without executing (default: false) */
+    dryRun: z.boolean().default(false),
+});
 //# sourceMappingURL=types.js.map

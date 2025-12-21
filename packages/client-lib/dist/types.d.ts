@@ -317,4 +317,31 @@ export interface LibPullOutput {
     /** Total duration in milliseconds */
     totalDuration: number;
 }
+export declare const DagTraverseInputSchema: z.ZodObject<{
+    visit: z.ZodUnion<[z.ZodArray<z.ZodString>, z.ZodObject<{
+        $proc: z.ZodArray<z.ZodString>;
+        input: z.ZodOptional<z.ZodUnknown>;
+    }>]>;
+    filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    root: z.ZodOptional<z.ZodString>;
+    concurrency: z.ZodDefault<z.ZodNumber>;
+    continueOnError: z.ZodDefault<z.ZodBoolean>;
+    dryRun: z.ZodDefault<z.ZodBoolean>;
+}>;
+export type DagTraverseInput = z.infer<typeof DagTraverseInputSchema>;
+export interface TraverseNodeResult {
+    name: string;
+    path: string;
+    success: boolean;
+    duration: number;
+    error?: string | undefined;
+    output?: unknown | undefined;
+}
+export interface DagTraverseOutput {
+    success: boolean;
+    results: TraverseNodeResult[];
+    totalDuration: number;
+    visited: number;
+    failed: number;
+}
 //# sourceMappingURL=types.d.ts.map
