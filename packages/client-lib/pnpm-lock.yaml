@@ -19,7 +19,7 @@ importers:
         version: https://codeload.github.com/mark1russell7/client-fs/tar.gz/c01ed46a86ec813c9931a812738e87d9c3a41fa7
       '@mark1russell7/client-git':
         specifier: github:mark1russell7/client-git#main
-        version: https://codeload.github.com/mark1russell7/client-git/tar.gz/30b33658e46f312fc79ede01dd673012f6d82cb9
+        version: https://codeload.github.com/mark1russell7/client-git/tar.gz/06adf8fe8702a00c668daa6dc2bda0feac1d993d
       '@mark1russell7/client-pnpm':
         specifier: github:mark1russell7/client-pnpm#main
         version: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/24a5c07b4f1b619b1b8b86a0a3b4cbd21540d5da
@@ -53,8 +53,8 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-fs/tar.gz/c01ed46a86ec813c9931a812738e87d9c3a41fa7}
     version: 1.0.0
 
-  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/30b33658e46f312fc79ede01dd673012f6d82cb9':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/30b33658e46f312fc79ede01dd673012f6d82cb9}
+  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/06adf8fe8702a00c668daa6dc2bda0feac1d993d':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/06adf8fe8702a00c668daa6dc2bda0feac1d993d}
     version: 1.0.0
 
   '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/24a5c07b4f1b619b1b8b86a0a3b4cbd21540d5da':
@@ -163,7 +163,7 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/30b33658e46f312fc79ede01dd673012f6d82cb9':
+  '@mark1russell7/client-git@https://codeload.github.com/mark1russell7/client-git/tar.gz/06adf8fe8702a00c668daa6dc2bda0feac1d993d':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/72c2396db5b655987098d23af18360c6a57d1487(zod@3.25.76)
       zod: 3.25.76
