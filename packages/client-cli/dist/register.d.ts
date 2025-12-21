@@ -1,8 +1,9 @@
 /**
  * Procedure Registration for CLI operations
  *
- * Registers lib.scan, lib.refresh procedures with the client system.
- * This file is referenced by package.json's client.procedures field.
+ * NOTE: lib.* procedures are now registered by client-lib (their canonical home).
+ * This file only registers procedure.* and dag.* procedures.
+ * TODO: Move procedure.* to client-procedure and dag.* to client-dag.
  */
 export declare function registerCliProcedures(): void;
 //# sourceMappingURL=register.d.ts.map

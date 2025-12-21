@@ -1,42 +1,16 @@
 /**
  * Procedure Registration for CLI operations
  *
- * Registers lib.scan, lib.refresh procedures with the client system.
- * This file is referenced by package.json's client.procedures field.
+ * NOTE: lib.* procedures are now registered by client-lib (their canonical home).
+ * This file only registers procedure.* and dag.* procedures.
+ * TODO: Move procedure.* to client-procedure and dag.* to client-dag.
  */
 
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
-import { libScan } from "./procedures/lib/scan.js";
-import { libRefresh } from "./procedures/lib/refresh.js";
-import { libRename, LibRenameInputSchema } from "./procedures/lib/rename.js";
-import { libInstall } from "./procedures/lib/install.js";
-import { libNew } from "./procedures/lib/new.js";
-import { libAudit } from "./procedures/lib/audit.js";
-import { libPull } from "./procedures/lib/pull.js";
 import { procedureNew } from "./procedures/procedure/new.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import { dagTraverse } from "./procedures/dag/traverse.js";
 import {
-  LibScanInputSchema,
-  LibRefreshInputSchema,
-  LibInstallInputSchema,
-  LibNewInputSchema,
-  LibAuditInputSchema,
-  LibPullInputSchema,
-  type LibScanInput,
-  type LibScanOutput,
-  type LibRefreshInput,
-  type LibRefreshOutput,
-  type LibRenameInput,
-  type LibRenameOutput,
-  type LibInstallInput,
-  type LibInstallOutput,
-  type LibNewInput,
-  type LibNewOutput,
-  type LibAuditInput,
-  type LibAuditOutput,
-  type LibPullInput,
-  type LibPullOutput,
   ProcedureNewInputSchema,
   type ProcedureNewInput,
   type ProcedureNewOutput,
@@ -101,146 +75,6 @@ function outputSchema<T>(): ZodLikeSchema<T> {
 }
 
 // =============================================================================
-// Schemas
-// =============================================================================
-
-const libScanInputSchema = zodAdapter<LibScanInput>(LibScanInputSchema);
-const libScanOutputSchema = outputSchema<LibScanOutput>();
-const libRefreshInputSchema = zodAdapter<LibRefreshInput>(LibRefreshInputSchema);
-const libRefreshOutputSchema = outputSchema<LibRefreshOutput>();
-
-// =============================================================================
-// Procedure Definitions
-// =============================================================================
-
-const libScanProcedure = createProcedure()
-  .path(["lib", "scan"])
-  .input(libScanInputSchema)
-  .output(libScanOutputSchema)
-  .meta({
-    description: "Scan ~/git for packages and build package-to-repo mapping",
-    args: ["rootPath"],
-    shorts: {},
-    output: "json",
-  })
-  .handler(async (input: LibScanInput, ctx): Promise<LibScanOutput> => {
-    return libScan(input, ctx);
-  })
-  .build();
-
-const libRefreshProcedure = createProcedure()
-  .path(["lib", "refresh"])
-  .input(libRefreshInputSchema)
-  .output(libRefreshOutputSchema)
-  .meta({
-    description: "Refresh a library (install, build, commit). Use -f for full cleanup, -d for dry-run.",
-    args: ["path"],
-    shorts: {
-      recursive: "r",
-      all: "a",
-      force: "f",
-      skipGit: "g",
-      autoConfirm: "y",
-      dryRun: "d",
-    },
-    output: "streaming",
-  })
-  .handler(async (input: LibRefreshInput, ctx): Promise<LibRefreshOutput> => {
-    return libRefresh(input, ctx);
-  })
-  .build();
-
-const libRenameInputSchema = zodAdapter<LibRenameInput>(LibRenameInputSchema);
-const libRenameOutputSchema = outputSchema<LibRenameOutput>();
-
-const libRenameProcedure = createProcedure()
-  .path(["lib", "rename"])
-  .input(libRenameInputSchema)
-  .output(libRenameOutputSchema)
-  .meta({
-    description: "Rename a package across the codebase (AST-based import updates)",
-    args: ["oldName", "newName"],
-    shorts: { rootPath: "r", dryRun: "d" },
-    output: "text",
-  })
-  .handler(async (input: LibRenameInput, ctx): Promise<LibRenameOutput> => {
-    return libRename(input, ctx);
-  })
-  .build();
-
-const libInstallInputSchema = zodAdapter<LibInstallInput>(LibInstallInputSchema);
-const libInstallOutputSchema = outputSchema<LibInstallOutput>();
-
-const libInstallProcedure = createProcedure()
-  .path(["lib", "install"])
-  .input(libInstallInputSchema)
-  .output(libInstallOutputSchema)
-  .meta({
-    description: "Install ecosystem from manifest (clone, install, build in DAG order)",
-    args: [],
-    shorts: { rootPath: "r", dryRun: "d", continueOnError: "c", concurrency: "j" },
-    output: "streaming",
-  })
-  .handler(async (input: LibInstallInput, ctx): Promise<LibInstallOutput> => {
-    return libInstall(input, ctx);
-  })
-  .build();
-
-const libNewInputSchema = zodAdapter<LibNewInput>(LibNewInputSchema);
-const libNewOutputSchema = outputSchema<LibNewOutput>();
-
-const libNewProcedure = createProcedure()
-  .path(["lib", "new"])
-  .input(libNewInputSchema)
-  .output(libNewOutputSchema)
-  .meta({
-    description: "Create a new package with standard ecosystem structure",
-    args: ["name"],
-    shorts: { preset: "p", skipGit: "g", skipManifest: "m", dryRun: "d" },
-    output: "text",
-  })
-  .handler(async (input: LibNewInput, ctx): Promise<LibNewOutput> => {
-    return libNew(input, ctx);
-  })
-  .build();
-
-const libAuditInputSchema = zodAdapter<LibAuditInput>(LibAuditInputSchema);
-const libAuditOutputSchema = outputSchema<LibAuditOutput>();
-
-const libAuditProcedure = createProcedure()
-  .path(["lib", "audit"])
-  .input(libAuditInputSchema)
-  .output(libAuditOutputSchema)
-  .meta({
-    description: "Audit all packages against ecosystem projectTemplate",
-    args: [],
-    shorts: { rootPath: "r", fix: "f" },
-    output: "json",
-  })
-  .handler(async (input: LibAuditInput, ctx): Promise<LibAuditOutput> => {
-    return libAudit(input, ctx);
-  })
-  .build();
-
-const libPullInputSchema = zodAdapter<LibPullInput>(LibPullInputSchema);
-const libPullOutputSchema = outputSchema<LibPullOutput>();
-
-const libPullProcedure = createProcedure()
-  .path(["lib", "pull"])
-  .input(libPullInputSchema)
-  .output(libPullOutputSchema)
-  .meta({
-    description: "Pull from remote for all packages in dependency order",
-    args: [],
-    shorts: { rootPath: "r", remote: "R", rebase: "b", dryRun: "d", continueOnError: "c", concurrency: "j" },
-    output: "streaming",
-  })
-  .handler(async (input: LibPullInput, ctx): Promise<LibPullOutput> => {
-    return libPull(input, ctx);
-  })
-  .build();
-
-// =============================================================================
 // Procedure Procedure Schemas
 // =============================================================================
 
@@ -265,8 +99,6 @@ const procedureNewProcedure = createProcedure()
     return procedureNew(input, ctx);
   })
   .build();
-
-
 
 // =============================================================================
 // DAG Procedure Schemas
@@ -299,15 +131,8 @@ const dagTraverseProcedure = createProcedure()
 // =============================================================================
 
 export function registerCliProcedures(): void {
+  // NOTE: lib.* procedures are registered by client-lib (proper owner).
   registerProcedures([
-    // lib procedures
-    libScanProcedure,
-    libRefreshProcedure,
-    libRenameProcedure,
-    libInstallProcedure,
-    libNewProcedure,
-    libAuditProcedure,
-    libPullProcedure,
     // procedure procedures
     procedureNewProcedure,
     ...procedureRegistryProcedures,
