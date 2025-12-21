@@ -40,6 +40,11 @@
     "test:coverage": "vitest run --coverage"
   },
   "sideEffects": false,
+  "dependencies": {
+    "@mark1russell7/mock-client": "github:mark1russell7/mock-client#main",
+    "@mark1russell7/mock-fs": "github:mark1russell7/mock-fs#main",
+    "@mark1russell7/mock-logger": "github:mark1russell7/mock-logger#main"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
     "@types/node": "^22.0.0",

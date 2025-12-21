@@ -7,6 +7,16 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@mark1russell7/mock-client':
+        specifier: github:mark1russell7/mock-client#main
+        version: https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e(vitest@3.2.4(@types/node@22.19.3))
+      '@mark1russell7/mock-fs':
+        specifier: github:mark1russell7/mock-fs#main
+        version: https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0(vitest@3.2.4(@types/node@22.19.3))
+      '@mark1russell7/mock-logger':
+        specifier: github:mark1russell7/mock-logger#main
+        version: https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784(vitest@3.2.4(@types/node@22.19.3))
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
@@ -233,6 +243,24 @@ packages:
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
+
+  '@mark1russell7/mock-client@https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e}
+    version: 0.0.0
+    peerDependencies:
+      vitest: ^3.0.0
+
+  '@mark1russell7/mock-fs@https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0}
+    version: 0.0.0
+    peerDependencies:
+      vitest: ^3.0.0
+
+  '@mark1russell7/mock-logger@https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784}
+    version: 0.0.0
+    peerDependencies:
+      vitest: ^3.0.0
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -915,6 +943,18 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca': {}
+
+  '@mark1russell7/mock-client@https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      vitest: 3.2.4(@types/node@22.19.3)
+
+  '@mark1russell7/mock-fs@https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      vitest: 3.2.4(@types/node@22.19.3)
+
+  '@mark1russell7/mock-logger@https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      vitest: 3.2.4(@types/node@22.19.3)
 
   '@pkgjs/parseargs@0.11.0':
     optional: true

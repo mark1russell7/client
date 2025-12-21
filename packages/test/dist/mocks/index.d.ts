@@ -1,52 +1,12 @@
 /**
- * Mock utilities for testing procedures
+ * Re-exports from standalone mock packages
  *
- * Provides mock factories for Client, ProcedureContext, and other core types.
+ * The mock implementations live in their own packages:
+ * - @mark1russell7/mock-client
+ * - @mark1russell7/mock-fs
+ * - @mark1russell7/mock-logger
  */
-import type { Mock } from "vitest";
-/**
- * Mock ProcedureContext for unit testing procedures
- */
-export interface MockProcedureContext {
-    cwd: string;
-    log: {
-        info: Mock;
-        warn: Mock;
-        error: Mock;
-        debug: Mock;
-    };
-    client: {
-        call: Mock;
-        exec: Mock;
-    };
-}
-/**
- * Create a mock ProcedureContext
- */
-export declare function createMockContext(options?: {
-    cwd?: string;
-}): MockProcedureContext;
-/**
- * Mock child_process exec for testing shell commands
- */
-export interface MockExecResult {
-    stdout: string;
-    stderr: string;
-    exitCode: number;
-}
-export declare function createMockExec(results: Map<string, MockExecResult>): Mock;
-/**
- * Mock filesystem operations
- */
-export interface MockFs {
-    files: Map<string, string>;
-    dirs: Set<string>;
-    readFile: Mock;
-    writeFile: Mock;
-    mkdir: Mock;
-    readdir: Mock;
-    stat: Mock;
-    exists: Mock;
-}
-export declare function createMockFs(initialFiles?: Record<string, string>, initialDirs?: string[]): MockFs;
+export { createMockClient, createMockContext, mockOutput, mockError, mockDelayed, type MockClient, type MockProcedureContext, type MockCallRecord, type MockResponse, type MockFn, type ProcedurePath, type CreateMockClientOptions, } from "@mark1russell7/mock-client";
+export { createMockFs, type MockFs, type MockFsEntry, type CreateMockFsOptions, } from "@mark1russell7/mock-fs";
+export { createMockLogger, LogLevel, LOG_LEVEL_NAMES, type MockLogger, type CapturedLogEntry, type LogOptions, type CreateMockLoggerOptions, } from "@mark1russell7/mock-logger";
 //# sourceMappingURL=index.d.ts.map
