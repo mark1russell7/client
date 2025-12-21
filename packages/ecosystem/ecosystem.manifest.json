@@ -121,6 +121,10 @@
     "@mark1russell7/scaffold": {
       "repo": "github:mark1russell7/scaffold#main",
       "path": "scaffold"
+    },
+    "@mark1russell7/client-pnpm": {
+      "repo": "github:mark1russell7/client-pnpm#main",
+      "path": "client-pnpm"
     }
   },
   "projectTemplate": {
