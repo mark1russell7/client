@@ -3,7 +3,7 @@
   "packages": {
     "@mark1russell7/client-procedure": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T03:19:07.825Z",
+      "registeredAt": "2025-12-21T04:05:34.350Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-cli": {
@@ -13,7 +13,12 @@
     },
     "@mark1russell7/client-lib": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T02:47:41.583Z",
+      "registeredAt": "2025-12-21T04:05:34.685Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/client-test": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T04:05:34.709Z",
       "version": "0.0.0"
     }
   }
