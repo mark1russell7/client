@@ -16,7 +16,7 @@ importers:
         version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/d7fb1c977740bf703796f4c05fcc7b7067cf0a80
       '@mark1russell7/client-lib':
         specifier: github:mark1russell7/client-lib#main
-        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/eb17758e8f7ef8ecf0ff4fb72b253cd8545ce250
+        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/a6381f44094d9cd54b7e171964293ef36ee4728b
       '@mark1russell7/client-logger':
         specifier: github:mark1russell7/client-logger#main
         version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/611cbab3f9fb93d0542ee455d0c3f87494b74698(zod@3.25.76)
@@ -48,12 +48,18 @@ importers:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca
+      '@mark1russell7/test':
+        specifier: github:mark1russell7/test#main
+        version: https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6(vitest@3.2.4(@types/node@22.19.3))
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.3)
 
 packages:
 
@@ -267,8 +273,8 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/d7fb1c977740bf703796f4c05fcc7b7067cf0a80}
     version: 1.0.0
 
-  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/f3b4b2ea91cbbe3f50165be70694c66011209bb3':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-dag/tar.gz/f3b4b2ea91cbbe3f50165be70694c66011209bb3}
+  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/9a95751f26bb3b2895ab135fcd11b16119c27e31':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-dag/tar.gz/9a95751f26bb3b2895ab135fcd11b16119c27e31}
     version: 0.0.0
 
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/2942f64c293cee777e87b8822251b348d8c20685':
@@ -279,8 +285,8 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/06adf8fe8702a00c668daa6dc2bda0feac1d993d}
     version: 1.0.0
 
-  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/eb17758e8f7ef8ecf0ff4fb72b253cd8545ce250':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/eb17758e8f7ef8ecf0ff4fb72b253cd8545ce250}
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/a6381f44094d9cd54b7e171964293ef36ee4728b':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/a6381f44094d9cd54b7e171964293ef36ee4728b}
     version: 0.0.0
 
   '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/611cbab3f9fb93d0542ee455d0c3f87494b74698':
@@ -335,9 +341,31 @@ packages:
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
 
-  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/b509ee2e638bc67d447f0b22b9b363f3b636d7ce':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/logger/tar.gz/b509ee2e638bc67d447f0b22b9b363f3b636d7ce}
+  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/629d1b5fd2dc9e27be0010c150932a162a63ec91':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/logger/tar.gz/629d1b5fd2dc9e27be0010c150932a162a63ec91}
     version: 1.0.0
+
+  '@mark1russell7/mock-client@https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e}
+    version: 0.0.0
+    peerDependencies:
+      vitest: ^3.0.0
+
+  '@mark1russell7/mock-fs@https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0}
+    version: 0.0.0
+    peerDependencies:
+      vitest: ^3.0.0
+
+  '@mark1russell7/mock-logger@https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784}
+    version: 0.0.0
+    peerDependencies:
+      vitest: ^3.0.0
+
+  '@mark1russell7/test@https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6}
+    version: 0.0.0
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -1416,7 +1444,7 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/f3b4b2ea91cbbe3f50165be70694c66011209bb3': {}
+  '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/9a95751f26bb3b2895ab135fcd11b16119c27e31': {}
 
   '@mark1russell7/client-fs@https://codeload.github.com/mark1russell7/client-fs/tar.gz/2942f64c293cee777e87b8822251b348d8c20685':
     dependencies:
@@ -1436,10 +1464,10 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/eb17758e8f7ef8ecf0ff4fb72b253cd8545ce250':
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/a6381f44094d9cd54b7e171964293ef36ee4728b':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/72c2396db5b655987098d23af18360c6a57d1487(zod@3.25.76)
-      '@mark1russell7/client-dag': https://codeload.github.com/mark1russell7/client-dag/tar.gz/f3b4b2ea91cbbe3f50165be70694c66011209bb3
+      '@mark1russell7/client-dag': https://codeload.github.com/mark1russell7/client-dag/tar.gz/9a95751f26bb3b2895ab135fcd11b16119c27e31
       '@mark1russell7/client-fs': https://codeload.github.com/mark1russell7/client-fs/tar.gz/2942f64c293cee777e87b8822251b348d8c20685
       '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/06adf8fe8702a00c668daa6dc2bda0feac1d993d
       '@mark1russell7/client-pnpm': https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/83eee94462a7751a6798d61e9aec0d0aacfdb5d3
@@ -1455,7 +1483,7 @@ snapshots:
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/72c2396db5b655987098d23af18360c6a57d1487(zod@3.25.76)
       '@mark1russell7/cue': https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca
-      '@mark1russell7/logger': https://codeload.github.com/mark1russell7/logger/tar.gz/b509ee2e638bc67d447f0b22b9b363f3b636d7ce
+      '@mark1russell7/logger': https://codeload.github.com/mark1russell7/logger/tar.gz/629d1b5fd2dc9e27be0010c150932a162a63ec91
     transitivePeerDependencies:
       - bufferutil
       - express
@@ -1560,7 +1588,27 @@ snapshots:
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca': {}
 
-  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/b509ee2e638bc67d447f0b22b9b363f3b636d7ce': {}
+  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/629d1b5fd2dc9e27be0010c150932a162a63ec91': {}
+
+  '@mark1russell7/mock-client@https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      vitest: 3.2.4(@types/node@22.19.3)
+
+  '@mark1russell7/mock-fs@https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      vitest: 3.2.4(@types/node@22.19.3)
+
+  '@mark1russell7/mock-logger@https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      vitest: 3.2.4(@types/node@22.19.3)
+
+  '@mark1russell7/test@https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6(vitest@3.2.4(@types/node@22.19.3))':
+    dependencies:
+      '@mark1russell7/mock-client': https://codeload.github.com/mark1russell7/mock-client/tar.gz/c81413164a5ab0c173e5cf33e92a5bf7de31444e(vitest@3.2.4(@types/node@22.19.3))
+      '@mark1russell7/mock-fs': https://codeload.github.com/mark1russell7/mock-fs/tar.gz/d358c59eac8b0151545dcd6b44f67cd84d4fb1c0(vitest@3.2.4(@types/node@22.19.3))
+      '@mark1russell7/mock-logger': https://codeload.github.com/mark1russell7/mock-logger/tar.gz/1aa6d2458d4054ced2be207872ebebcc09b85784(vitest@3.2.4(@types/node@22.19.3))
+    transitivePeerDependencies:
+      - vitest
 
   '@pkgjs/parseargs@0.11.0':
     optional: true

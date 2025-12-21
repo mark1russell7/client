@@ -1,0 +1,52 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Setup Docker on Windows/macOS for integration tests
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        if: runner.os != 'Linux'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build CLI
+        run: pnpm build
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        timeout-minutes: 30
+        env:
+          # Increase Node memory for long tests
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Type check
+        run: pnpm typecheck

@@ -24,6 +24,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
     "prepare": "npm run build",
+    "test:e2e": "vitest run e2e/",
+    "test:e2e:watch": "vitest e2e/",
     "postinstall": "client announce"
   },
   "dependencies": {
@@ -42,8 +44,10 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/test": "github:mark1russell7/test#main",
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   },
   "keywords": [
     "cli",
@@ -69,6 +73,7 @@
       "@mark1russell7/client-test",
       "@mark1russell7/client-vitest",
       "@mark1russell7/cue",
+      "@mark1russell7/test",
       "esbuild"
     ]
   }
