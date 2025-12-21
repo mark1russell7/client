@@ -3,7 +3,7 @@
   "packages": {
     "@mark1russell7/client-procedure": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-20T23:47:41.709Z",
+      "registeredAt": "2025-12-21T03:19:07.825Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-cli": {

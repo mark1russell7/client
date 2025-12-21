@@ -13,16 +13,16 @@ importers:
         version: https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
       '@mark1russell7/client-cli':
         specifier: github:mark1russell7/client-cli#main
-        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/2fa059b5da90feb2f99b7a415e4d4fde973d5fe0
+        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/ca7eee88b639c2c602e379e2f3d47f3ea28a75c1(zod@3.25.76)
       '@mark1russell7/client-lib':
         specifier: github:mark1russell7/client-lib#main
-        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/d6885387e6ba7047354cef7eefc882b34a45cf6b
+        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3
       '@mark1russell7/client-logger':
         specifier: github:mark1russell7/client-logger#main
         version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9(zod@3.25.76)
       '@mark1russell7/client-procedure':
         specifier: github:mark1russell7/client-procedure#main
-        version: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/b4af36773ed720155905dcc19aca549f7018a170
+        version: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/00ad6c4e0e39e46fbab4be818dadc0a7ea12b51e
       '@mark1russell7/client-shell':
         specifier: github:mark1russell7/client-shell#main
         version: https://codeload.github.com/mark1russell7/client-shell/tar.gz/87f6d35c08fec3474397e10628f7115594fc167a
@@ -78,8 +78,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/2fa059b5da90feb2f99b7a415e4d4fde973d5fe0':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/2fa059b5da90feb2f99b7a415e4d4fde973d5fe0}
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/ca7eee88b639c2c602e379e2f3d47f3ea28a75c1':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/ca7eee88b639c2c602e379e2f3d47f3ea28a75c1}
     version: 1.0.0
 
   '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8':
@@ -94,16 +94,16 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/f3b7186b0b6fac7b10a0f143833a7849588a6106}
     version: 1.0.0
 
-  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/d6885387e6ba7047354cef7eefc882b34a45cf6b':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/d6885387e6ba7047354cef7eefc882b34a45cf6b}
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3}
     version: 0.0.0
 
   '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9}
     version: 1.0.0
 
-  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/b4af36773ed720155905dcc19aca549f7018a170':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/b4af36773ed720155905dcc19aca549f7018a170}
+  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/00ad6c4e0e39e46fbab4be818dadc0a7ea12b51e':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/00ad6c4e0e39e46fbab4be818dadc0a7ea12b51e}
     version: 0.0.0
 
   '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/87f6d35c08fec3474397e10628f7115594fc167a':
@@ -740,20 +740,17 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/2fa059b5da90feb2f99b7a415e4d4fde973d5fe0':
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/ca7eee88b639c2c602e379e2f3d47f3ea28a75c1(zod@3.25.76)':
     dependencies:
       '@angular-devkit/schematics': 19.2.19
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
-      '@mark1russell7/client-fs': https://codeload.github.com/mark1russell7/client-fs/tar.gz/172880e11342e3d277b96650c3fab2fa9e27b7c3
-      '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/f3b7186b0b6fac7b10a0f143833a7849588a6106
-      '@mark1russell7/client-logger': https://codeload.github.com/mark1russell7/client-logger/tar.gz/ddbae178b2bcdb2c0730c3094d7557e4c084e8e9(zod@3.25.76)
-      ts-morph: 24.0.0
-      zod: 3.25.76
+      '@mark1russell7/client-lib': https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3
     transitivePeerDependencies:
       - bufferutil
       - chokidar
       - express
       - utf-8-validate
+      - zod
 
   '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8': {}
 
@@ -775,7 +772,7 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/d6885387e6ba7047354cef7eefc882b34a45cf6b':
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/1ed46afa648e3a1ca1e6bd4aef82e4360c0c9ab3':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
       '@mark1russell7/client-dag': https://codeload.github.com/mark1russell7/client-dag/tar.gz/0ce84ad815936429abb545a8e9b0b087fc412be8
@@ -799,7 +796,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/b4af36773ed720155905dcc19aca549f7018a170':
+  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/00ad6c4e0e39e46fbab4be818dadc0a7ea12b51e':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/fc3d61818a90ae878797e9b4e95dcb6fd0c1ecde(zod@3.25.76)
       zod: 3.25.76
