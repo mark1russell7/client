@@ -1,39 +1,39 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "@mark1russell7/client-procedure": {
+    "@mark1russell7/client-pnpm": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T04:05:34.350Z",
-      "version": "0.0.0"
-    },
-    "@mark1russell7/client-cli": {
-      "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T07:17:32.470Z",
+      "registeredAt": "2025-12-21T16:11:09.577Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-lib": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T07:21:28.130Z",
+      "registeredAt": "2025-12-22T04:44:53.903Z",
       "version": "0.0.0"
     },
-    "@mark1russell7/client-test": {
+    "@mark1russell7/client-shell": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T07:17:32.491Z",
+      "registeredAt": "2025-12-22T04:44:51.145Z",
       "version": "0.0.0"
     },
-    "@mark1russell7/client-pnpm": {
+    "@mark1russell7/client-procedure": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T07:12:29.690Z",
-      "version": "1.0.0"
-    },
-    "@mark1russell7/client-fs": {
-      "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T07:12:27.818Z",
-      "version": "1.0.0"
+      "registeredAt": "2025-12-22T04:44:51.174Z",
+      "version": "0.0.0"
     },
     "@mark1russell7/client-logger": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T07:17:31.496Z",
+      "registeredAt": "2025-12-22T04:44:51.202Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-test": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-22T04:44:52.944Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/client-cli": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-22T04:44:52.969Z",
       "version": "1.0.0"
     }
   }
