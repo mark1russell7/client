@@ -1,0 +1,1 @@
+{"version":3,"file":"multipart-upload.d.ts","sourceRoot":"","sources":["../../../src/procedures/s3/multipart-upload.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAIH,OAAO,KAAK,EAAE,sBAAsB,EAAE,uBAAuB,EAAE,MAAM,gBAAgB,CAAC;AAEtF;;;;;;;;;;;;;;;GAeG;AACH,wBAAsB,iBAAiB,CACrC,KAAK,EAAE,sBAAsB,GAC5B,OAAO,CAAC,uBAAuB,CAAC,CAwBlC"}
