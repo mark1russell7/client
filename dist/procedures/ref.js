@@ -420,8 +420,10 @@ async function hydrateValue(value, ctx, depth) {
         if (!shouldExecuteRef(value, ctx.contextStack, false)) {
             // Don't execute - pass through as data
             // But still hydrate the input for any nested $immediate refs
+            // Skip implicit chain detection inside procedure ref inputs to prevent double-wrapping
             const ref = normalizeRef(value);
-            const hydratedInput = await hydrateValue(ref.input, ctx, depth + 1);
+            const inputCtx = { ...ctx, skipImplicitChain: true };
+            const hydratedInput = await hydrateValue(ref.input, inputCtx, depth + 1);
             // Return the ref with hydrated input
             if (isProcedureRefJson(value)) {
                 return {
@@ -440,7 +442,8 @@ async function hydrateValue(value, ctx, depth) {
         const ref = normalizeRef(value);
         // Push this context name if present
         const newStack = name ? [name, ...ctx.contextStack] : ctx.contextStack;
-        const newCtx = { ...ctx, contextStack: newStack };
+        // Skip implicit chain detection inside procedure ref inputs to prevent double-wrapping
+        const newCtx = { ...ctx, contextStack: newStack, skipImplicitChain: true };
         // First, hydrate the input of the procedure reference itself
         const hydratedInput = await hydrateValue(ref.input, newCtx, depth + 1);
         // Then execute the procedure with hydrated input
@@ -451,14 +454,18 @@ async function hydrateValue(value, ctx, depth) {
     if (Array.isArray(value)) {
         // Check if this is an array of procedure refs (implicit chain)
         // Only treat as implicit chain if ALL elements are procedure refs
-        if (value.length > 0 && value.every((item) => isAnyProcedureRef(item))) {
+        // Skip if we're already inside an implicit chain to prevent infinite recursion
+        if (!ctx.skipImplicitChain &&
+            value.length > 0 &&
+            value.every((item) => isAnyProcedureRef(item))) {
             // Transform to explicit chain
             const implicitChain = {
                 $proc: ["client", "chain"],
                 input: { steps: value },
             };
-            // Hydrate the implicit chain (which will execute it)
-            return hydrateValue(implicitChain, ctx, depth);
+            // Hydrate the implicit chain with skipImplicitChain flag to prevent recursion
+            const chainCtx = { ...ctx, skipImplicitChain: true };
+            return hydrateValue(implicitChain, chainCtx, depth);
         }
         const hydrated = await Promise.all(value.map((item) => hydrateValue(item, ctx, depth + 1)));
         return hydrated;
