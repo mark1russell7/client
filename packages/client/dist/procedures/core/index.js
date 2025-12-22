@@ -95,9 +95,11 @@ const chainProcedure = defineProcedure({
         tags: ["core", "control-flow"],
     },
     handler: async (input, ctx) => {
-        const { steps } = input;
+        const { steps, ...parentInput } = input;
         const results = [];
         const scope = createRefScope();
+        // Extract context to propagate to steps (e.g., cwd, node)
+        const { cwd, node } = parentInput;
         for (const step of steps) {
             let result;
             if (isAnyProcedureRef(step)) {
@@ -106,9 +108,15 @@ const chainProcedure = defineProcedure({
                 const stepName = step.$name;
                 // Resolve any $refs in the step's input
                 const resolvedInput = resolveRefs(normalized.input, scope);
+                // Merge parent context (cwd, node) with step input
+                const stepInput = {
+                    ...(typeof resolvedInput === "object" && resolvedInput !== null ? resolvedInput : {}),
+                    ...(cwd ? { cwd } : {}),
+                    ...(node ? { node } : {}),
+                };
                 // Execute the procedure
                 if (ctx?.client) {
-                    result = await ctx.client.call(normalized.path, resolvedInput);
+                    result = await ctx.client.call(normalized.path, stepInput);
                 }
                 else {
                     // No client context - just use the resolved input as result
@@ -169,7 +177,9 @@ const conditionalProcedure = defineProcedure({
         tags: ["core", "control-flow"],
     },
     handler: async (input, ctx) => {
-        const { condition, then: thenValue, else: elseValue } = input;
+        const { condition, then: thenValue, else: elseValue, ...parentInput } = input;
+        // Extract context to propagate to branches (e.g., cwd, node)
+        const { cwd, node } = parentInput;
         // Determine truthiness - check for .value property (from predicates like git.hasChanges)
         let isTruthy;
         if (condition && typeof condition === "object" && "value" in condition) {
@@ -183,7 +193,13 @@ const conditionalProcedure = defineProcedure({
         // If the branch is a procedure ref, execute it
         if (selectedBranch && isAnyProcedureRef(selectedBranch) && ctx?.client) {
             const normalized = normalizeRef(selectedBranch);
-            return ctx.client.call(normalized.path, normalized.input);
+            // Merge parent context (cwd, node) with branch input
+            const branchInput = {
+                ...(typeof normalized.input === "object" && normalized.input !== null ? normalized.input : {}),
+                ...(cwd ? { cwd } : {}),
+                ...(node ? { node } : {}),
+            };
+            return ctx.client.call(normalized.path, branchInput);
         }
         return selectedBranch;
     },

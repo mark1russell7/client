@@ -41,6 +41,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "watch": "tsc -b --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepare": "npm run build",
     "postinstall": "node -e \"const p='./dist/procedures/cli/index.js';require('fs').existsSync(p)&&require('child_process').execSync('node '+p+' announce',{stdio:'inherit'})\""
   },
@@ -49,10 +51,13 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/mock-client": "github:mark1russell7/mock-client#main",
+    "@mark1russell7/test": "github:mark1russell7/test#main",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.16"
   },
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0",
@@ -83,6 +88,8 @@
   "license": "MIT",
   "sideEffects": false,
   "pnpm": {
-    "onlyBuiltDependencies": ["@mark1russell7/cue"]
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue"
+    ]
   }
 }
