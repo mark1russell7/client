@@ -137,6 +137,18 @@
     "@mark1russell7/client-docker": {
       "repo": "github:mark1russell7/client-docker#main",
       "path": "client-docker"
+    },
+    "@mark1russell7/client-playground": {
+      "repo": "github:mark1russell7/client-playground#main",
+      "path": "client-playground"
+    },
+    "@mark1russell7/client-s3": {
+      "repo": "github:mark1russell7/client-s3#main",
+      "path": "client-s3"
+    },
+    "@mark1russell7/client-snapshot": {
+      "repo": "github:mark1russell7/client-snapshot#main",
+      "path": "client-snapshot"
     }
   },
   "projectTemplate": {
