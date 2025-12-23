@@ -110,13 +110,36 @@ export {
   andProcedure,
   orProcedure,
   notProcedure,
+  allProcedure,
+  anyProcedure,
+  noneProcedure,
   mapProcedure,
   reduceProcedure,
   identityProcedure,
   constantProcedure,
   throwProcedure,
   tryCatchProcedure,
+  // Schemas and result types
+  anySchema,
 } from "./core/index.js";
+
+// Meta-procedures for runtime procedure definition
+export {
+  defineProcedureProcedure,
+  getProcedureProcedure,
+  listProceduresProcedure,
+  deleteProcedureProcedure,
+  metaProcedures,
+  getRuntimeProcedure,
+  hasRuntimeProcedure,
+  getAllRuntimeProcedures,
+  clearRuntimeProcedures,
+} from "./define-procedure.js";
+export type {
+  AggregationDefinition,
+  DefineProcedureInput,
+  DefineProcedureOutput,
+} from "./define-procedure.js";
 
 // Storage-backed registry
 export {
@@ -170,6 +193,7 @@ export {
 
 import { coreProcedures as _coreProcedures } from "./core/index.js";
 import { procedureStorageProcedures as _storageProcedures } from "./storage/index.js";
+import { metaProcedures as _metaProcedures } from "./define-procedure.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
 
 // Register core procedures when this module is imported
@@ -182,6 +206,12 @@ try {
   }
   // Also register storage procedures
   for (const proc of _storageProcedures) {
+    if (!PROCEDURE_REGISTRY.has(proc.path)) {
+      PROCEDURE_REGISTRY.register(proc);
+    }
+  }
+  // Also register meta-procedures
+  for (const proc of _metaProcedures) {
     if (!PROCEDURE_REGISTRY.has(proc.path)) {
       PROCEDURE_REGISTRY.register(proc);
     }

@@ -8,6 +8,8 @@
 
 import type {
   OutputConfig,
+  SpongeOutputConfig,
+  StreamOutputConfig,
   HandlerOutputConfig,
   HandlerCallback,
 } from "./consumption.js";
@@ -191,11 +193,31 @@ async function invokeHandler(
  * Consume a generator based on output configuration.
  * Returns either a single value (sponge/handler) or an async iterable (stream).
  *
+ * The return type is refined based on the config type:
+ * - SpongeOutputConfig → Promise<T>
+ * - StreamOutputConfig → AsyncIterable<T>
+ * - HandlerOutputConfig → Promise<T>
+ *
  * @param generator - The async generator to consume
  * @param config - Output configuration
  * @param resolveProcedure - Function to resolve procedure path callbacks
  * @returns Either a single value or an async iterable
  */
+export async function consumeGenerator<T>(
+  generator: AsyncGenerator<T, void, unknown>,
+  config: SpongeOutputConfig,
+  resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>
+): Promise<T>;
+export async function consumeGenerator<T>(
+  generator: AsyncGenerator<T, void, unknown>,
+  config: StreamOutputConfig,
+  resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>
+): Promise<AsyncIterable<T>>;
+export async function consumeGenerator<T>(
+  generator: AsyncGenerator<T, void, unknown>,
+  config: HandlerOutputConfig,
+  resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>
+): Promise<T>;
 export async function consumeGenerator<T>(
   generator: AsyncGenerator<T, void, unknown>,
   config: OutputConfig,

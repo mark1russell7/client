@@ -164,4 +164,28 @@ export declare function stream(options?: Omit<StreamOutputConfig, "type">): Stre
  * Create a handler output config.
  */
 export declare function handlers<TProgress = unknown, TComplete = unknown>(config: HandlerOutputConfig<TProgress, TComplete>): HandlerOutputConfig<TProgress, TComplete>;
+/**
+ * Consumption mode - how the caller wants to receive the output.
+ */
+export type ConsumptionMode = 'sponge' | 'stream' | 'handlers';
+/**
+ * Infer consumption mode from output config.
+ */
+export type InferConsumptionMode<TConfig extends OutputConfig | undefined> = TConfig extends StreamOutputConfig ? 'stream' : TConfig extends HandlerOutputConfig ? 'handlers' : 'sponge';
+/**
+ * The result type based on consumption mode.
+ *
+ * - sponge: Returns Promise<T> (accumulated single value)
+ * - stream: Returns AsyncIterable<T> (values as they arrive)
+ * - handlers: Returns void (values delivered via callbacks)
+ */
+export type ConsumptionResult<T, TMode extends ConsumptionMode> = TMode extends 'sponge' ? Promise<T> : TMode extends 'stream' ? AsyncIterable<T> : TMode extends 'handlers' ? void : never;
+/**
+ * Infer the result type from output config and value type.
+ */
+export type InferConsumptionResult<T, TConfig extends OutputConfig | undefined> = ConsumptionResult<T, InferConsumptionMode<TConfig>>;
+/**
+ * Type-safe consumption mode check.
+ */
+export declare function getConsumptionMode(config: OutputConfig | undefined): ConsumptionMode;
 //# sourceMappingURL=consumption.d.ts.map

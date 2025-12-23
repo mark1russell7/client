@@ -223,7 +223,27 @@ export interface Procedure<TInput = unknown, TOutput = unknown, TMeta extends Pr
      * streaming procedures in sponge mode (getting only the final value).
      */
     streaming?: boolean | undefined;
-    /** Server-side handler implementation */
+    /**
+     * Output mode declaration - how the procedure produces its output.
+     *
+     * - `single`: Returns a single value (default) - most procedures
+     * - `stream`: Returns multiple values over time (generator that yields many times)
+     * - `batch`: Returns an array of values all at once
+     *
+     * The consumer can choose their consumption mode (sponge/stream/handlers)
+     * independently. The system translates automatically:
+     *
+     * | Producer Mode | Consumer Mode | Result Type              |
+     * |---------------|---------------|--------------------------|
+     * | single        | sponge        | Promise<T>               |
+     * | single        | stream        | AsyncIterable<T> (1 item)|
+     * | stream        | sponge        | Promise<T> (last value)  |
+     * | stream        | stream        | AsyncIterable<T>         |
+     * | batch         | sponge        | Promise<T[]>             |
+     * | batch         | stream        | AsyncIterable<T>         |
+     */
+    outputMode?: 'single' | 'stream' | 'batch' | undefined;
+    /** Server-side handler implementation (optional for stubs and aggregations) */
     handler?: ProcedureHandler<TInput, TOutput> | undefined;
 }
 /**
@@ -231,6 +251,14 @@ export interface Procedure<TInput = unknown, TOutput = unknown, TMeta extends Pr
  * Uses `any` for handler to allow covariant/contravariant type compatibility.
  */
 export type AnyProcedure = Procedure<any, any, ProcedureMetadata>;
+/**
+ * How a procedure produces its output.
+ */
+export type OutputMode = 'single' | 'stream' | 'batch';
+/**
+ * Default output mode when not specified.
+ */
+export declare const DEFAULT_OUTPUT_MODE: OutputMode;
 /**
  * Result of a procedure call.
  */
