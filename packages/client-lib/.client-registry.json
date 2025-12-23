@@ -1,24 +1,14 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "@mark1russell7/client-git": {
-      "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T05:40:03.466Z",
-      "version": "1.0.0"
-    },
-    "@mark1russell7/client-shell": {
-      "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-22T04:44:06.934Z",
-      "version": "0.0.0"
-    },
     "@mark1russell7/client-fs": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T05:20:43.546Z",
+      "registeredAt": "2025-12-23T02:56:10.373Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-pnpm": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-22T04:44:09.463Z",
+      "registeredAt": "2025-12-23T02:56:13.717Z",
       "version": "1.0.0"
     }
   }
