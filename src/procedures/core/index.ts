@@ -47,23 +47,10 @@
 
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
+import { anySchema } from "./schemas.js";
 
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-/**
- * Schema that accepts any value (for dynamic procedure composition).
- */
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
+// Re-export for convenience
+export { anySchema } from "./schemas.js";
 
 // =============================================================================
 // Chain Procedure
@@ -310,93 +297,105 @@ const conditionalProcedure: ConditionalProcedure = defineProcedure({
 });
 
 // =============================================================================
-// And Procedure
+// Logic Operators (unified with group theory)
 // =============================================================================
+
+import {
+  andHandler,
+  orHandler,
+  notHandler,
+  allHandler,
+  anyHandler as anyLogicHandler,
+  noneHandler,
+  andMetadata,
+  orMetadata,
+  notMetadata,
+  allMetadata,
+  anyMetadata,
+  noneMetadata,
+  type LogicMetadata,
+} from "./logic.js";
 
 interface AndInput {
   /** Values to AND together (short-circuit) */
   values: unknown[];
 }
 
-type AndProcedure = Procedure<AndInput, unknown, { description: string; tags: string[] }>;
+type AndProcedure = Procedure<AndInput, unknown, LogicMetadata>;
 
 const andProcedure: AndProcedure = defineProcedure({
   path: ["and"],
   input: anySchema as any,
   output: anySchema as any,
-  metadata: {
-    description: "Short-circuit AND (returns first falsy or last value)",
-    tags: ["core", "logic"],
-  },
-  handler: async (input: AndInput): Promise<unknown> => {
-    const { values } = input;
-
-    // Values are already hydrated
-    for (const value of values) {
-      if (!value) {
-        return value; // Return first falsy
-      }
-    }
-
-    return values[values.length - 1]; // Return last value
-  },
+  metadata: andMetadata,
+  handler: andHandler,
 });
-
-// =============================================================================
-// Or Procedure
-// =============================================================================
 
 interface OrInput {
   /** Values to OR together (short-circuit) */
   values: unknown[];
 }
 
-type OrProcedure = Procedure<OrInput, unknown, { description: string; tags: string[] }>;
+type OrProcedure = Procedure<OrInput, unknown, LogicMetadata>;
 
 const orProcedure: OrProcedure = defineProcedure({
   path: ["or"],
   input: anySchema as any,
   output: anySchema as any,
-  metadata: {
-    description: "Short-circuit OR (returns first truthy value)",
-    tags: ["core", "logic"],
-  },
-  handler: async (input: OrInput): Promise<unknown> => {
-    const { values } = input;
-
-    // Values are already hydrated
-    for (const value of values) {
-      if (value) {
-        return value; // Return first truthy
-      }
-    }
-
-    return values[values.length - 1]; // Return last value (all falsy)
-  },
+  metadata: orMetadata,
+  handler: orHandler,
 });
-
-// =============================================================================
-// Not Procedure
-// =============================================================================
 
 interface NotInput {
   /** Value to negate */
   value: unknown;
 }
 
-type NotProcedure = Procedure<NotInput, boolean, { description: string; tags: string[] }>;
+type NotProcedure = Procedure<NotInput, boolean, LogicMetadata>;
 
 const notProcedure: NotProcedure = defineProcedure({
   path: ["not"],
   input: anySchema as any,
   output: anySchema as any,
-  metadata: {
-    description: "Logical NOT",
-    tags: ["core", "logic"],
-  },
-  handler: async (input: NotInput): Promise<boolean> => {
-    return !input.value;
-  },
+  metadata: notMetadata,
+  handler: notHandler,
+});
+
+// Additional logic operators with boolean results
+
+interface VariadicBoolInput {
+  /** Values to evaluate */
+  values: unknown[];
+}
+
+type AllProcedure = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
+
+const allProcedure: AllProcedure = defineProcedure({
+  path: ["all"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: allMetadata,
+  handler: allHandler,
+});
+
+type AnyProcedureType = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
+
+const anyProcedure: AnyProcedureType = defineProcedure({
+  path: ["any"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: anyMetadata,
+  handler: anyLogicHandler,
+});
+
+type NoneProcedure = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
+
+const noneProcedure: NoneProcedure = defineProcedure({
+  path: ["none"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: noneMetadata,
+  handler: noneHandler,
 });
 
 // =============================================================================
@@ -596,11 +595,17 @@ export const coreProcedures: AnyProcedure[] = namespace(["client"], [
   chainProcedure as AnyProcedure,
   parallelProcedure as AnyProcedure,
   conditionalProcedure as AnyProcedure,
+  // Logic operators (unified with group theory)
   andProcedure as AnyProcedure,
   orProcedure as AnyProcedure,
   notProcedure as AnyProcedure,
+  allProcedure as AnyProcedure,
+  anyProcedure as AnyProcedure,
+  noneProcedure as AnyProcedure,
+  // Collection operators
   mapProcedure as AnyProcedure,
   reduceProcedure as AnyProcedure,
+  // Utility operators
   identityProcedure as AnyProcedure,
   constantProcedure as AnyProcedure,
   throwProcedure as AnyProcedure,
@@ -620,16 +625,27 @@ export {
   chainProcedure,
   parallelProcedure,
   conditionalProcedure,
+  // Logic operators
   andProcedure,
   orProcedure,
   notProcedure,
+  allProcedure,
+  anyProcedure,
+  noneProcedure,
+  // Collection operators
   mapProcedure,
   reduceProcedure,
+  // Utility operators
   identityProcedure,
   constantProcedure,
   throwProcedure,
   tryCatchProcedure,
 };
+
+// Re-export schemas, result types, and logic utilities
+export * from "./schemas.js";
+export * from "./results.js";
+export * from "./logic.js";
 
 // =============================================================================
 // Import additional procedure modules

@@ -5,7 +5,7 @@
  * The default behavior returns the last yielded value.
  * Custom accumulators can combine all yields into a single result.
  */
-import type { OutputConfig, HandlerOutputConfig } from "./consumption.js";
+import type { SpongeOutputConfig, StreamOutputConfig, HandlerOutputConfig } from "./consumption.js";
 import type { ProcedurePath } from "../procedures/types.js";
 /**
  * Accumulator function that combines yielded values.
@@ -77,12 +77,19 @@ export declare function spongeWithHandlers<TProgress, TComplete>(generator: Asyn
  * Consume a generator based on output configuration.
  * Returns either a single value (sponge/handler) or an async iterable (stream).
  *
+ * The return type is refined based on the config type:
+ * - SpongeOutputConfig → Promise<T>
+ * - StreamOutputConfig → AsyncIterable<T>
+ * - HandlerOutputConfig → Promise<T>
+ *
  * @param generator - The async generator to consume
  * @param config - Output configuration
  * @param resolveProcedure - Function to resolve procedure path callbacks
  * @returns Either a single value or an async iterable
  */
-export declare function consumeGenerator<T>(generator: AsyncGenerator<T, void, unknown>, config: OutputConfig, resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>): Promise<T | AsyncIterable<T>>;
+export declare function consumeGenerator<T>(generator: AsyncGenerator<T, void, unknown>, config: SpongeOutputConfig, resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>): Promise<T>;
+export declare function consumeGenerator<T>(generator: AsyncGenerator<T, void, unknown>, config: StreamOutputConfig, resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>): Promise<AsyncIterable<T>>;
+export declare function consumeGenerator<T>(generator: AsyncGenerator<T, void, unknown>, config: HandlerOutputConfig, resolveProcedure?: (path: ProcedurePath, input: unknown) => Promise<void>): Promise<T>;
 /**
  * Check if a value is an async generator.
  */

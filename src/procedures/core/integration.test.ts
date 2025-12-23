@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { chainProcedure, conditionalProcedure } from "./index.js";
-import type { ProcedureContext } from "../../types.js";
+import type { ProcedureContext } from "../types.js";
 
 /**
  * Simple inline mock client for tests

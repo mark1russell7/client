@@ -85,4 +85,14 @@ export function stream(options) {
 export function handlers(config) {
     return config;
 }
+/**
+ * Type-safe consumption mode check.
+ */
+export function getConsumptionMode(config) {
+    if (isStreamConfig(config))
+        return 'stream';
+    if (isHandlerConfig(config))
+        return 'handlers';
+    return 'sponge';
+}
 //# sourceMappingURL=consumption.js.map

@@ -45,6 +45,7 @@
  * ```
  */
 import type { AnyProcedure, Procedure } from "../types.js";
+export { anySchema } from "./schemas.js";
 interface ChainInput {
     /** Procedures to execute in sequence */
     steps: unknown[];
@@ -101,33 +102,35 @@ type ConditionalProcedure = Procedure<ConditionalInput, unknown, {
     tags: string[];
 }>;
 declare const conditionalProcedure: ConditionalProcedure;
+import { type LogicMetadata } from "./logic.js";
 interface AndInput {
     /** Values to AND together (short-circuit) */
     values: unknown[];
 }
-type AndProcedure = Procedure<AndInput, unknown, {
-    description: string;
-    tags: string[];
-}>;
+type AndProcedure = Procedure<AndInput, unknown, LogicMetadata>;
 declare const andProcedure: AndProcedure;
 interface OrInput {
     /** Values to OR together (short-circuit) */
     values: unknown[];
 }
-type OrProcedure = Procedure<OrInput, unknown, {
-    description: string;
-    tags: string[];
-}>;
+type OrProcedure = Procedure<OrInput, unknown, LogicMetadata>;
 declare const orProcedure: OrProcedure;
 interface NotInput {
     /** Value to negate */
     value: unknown;
 }
-type NotProcedure = Procedure<NotInput, boolean, {
-    description: string;
-    tags: string[];
-}>;
+type NotProcedure = Procedure<NotInput, boolean, LogicMetadata>;
 declare const notProcedure: NotProcedure;
+interface VariadicBoolInput {
+    /** Values to evaluate */
+    values: unknown[];
+}
+type AllProcedure = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
+declare const allProcedure: AllProcedure;
+type AnyProcedureType = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
+declare const anyProcedure: AnyProcedureType;
+type NoneProcedure = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
+declare const noneProcedure: NoneProcedure;
 interface MapInput {
     /** Array to map over */
     items: unknown[];
@@ -215,7 +218,10 @@ export declare const coreModule: {
     name: string;
     procedures: AnyProcedure[];
 };
-export { chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, };
+export { chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, allProcedure, anyProcedure, noneProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, };
+export * from "./schemas.js";
+export * from "./results.js";
+export * from "./logic.js";
 export * from "./math.js";
 export * from "./comparison.js";
 export * from "./string.js";

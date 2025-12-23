@@ -120,18 +120,6 @@ async function invokeHandler(handler, value, resolveProcedure) {
         await handler(value);
     }
 }
-// =============================================================================
-// Generator Consumption
-// =============================================================================
-/**
- * Consume a generator based on output configuration.
- * Returns either a single value (sponge/handler) or an async iterable (stream).
- *
- * @param generator - The async generator to consume
- * @param config - Output configuration
- * @param resolveProcedure - Function to resolve procedure path callbacks
- * @returns Either a single value or an async iterable
- */
 export async function consumeGenerator(generator, config, resolveProcedure) {
     if (isSpongeConfig(config)) {
         const result = await sponge(generator, config.accumulate);

@@ -255,9 +255,7 @@ export class ProcedureServer extends Server {
     registerFromRegistry() {
         const procedures = this.procedureRegistry.getAll();
         for (const procedure of procedures) {
-            if (procedure.handler) {
-                this.registerProcedure(procedure);
-            }
+            this.registerProcedure(procedure);
         }
     }
     /**

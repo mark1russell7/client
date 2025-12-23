@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { chainProcedure } from "./index.js";
-import type { ProcedureContext } from "../../types.js";
+import type { ProcedureContext } from "../types.js";
 
 /**
  * Simple inline mock client for tests
@@ -286,11 +286,18 @@ describe("chain procedure", () => {
 
   describe("without client context", () => {
     it("returns resolved input when no client", async () => {
+      // Create a context WITHOUT a client
+      const noClientCtx: ProcedureContext = {
+        metadata: {},
+        path: ["test", "chain"],
+        client: undefined as any,
+      };
+
       const result = await chainProcedure.handler({
         steps: [
           { $proc: ["test", "step"], input: { foo: "bar" } },
         ],
-      });
+      }, noClientCtx);
 
       // Without client, just returns the resolved input
       expect(result.results[0]).toEqual({ foo: "bar" });

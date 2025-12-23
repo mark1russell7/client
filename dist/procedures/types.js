@@ -16,4 +16,8 @@ export function pathToKey(path) {
 export function keyToPath(key) {
     return key.split(".");
 }
+/**
+ * Default output mode when not specified.
+ */
+export const DEFAULT_OUTPUT_MODE = 'single';
 //# sourceMappingURL=types.js.map

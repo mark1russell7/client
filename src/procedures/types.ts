@@ -289,7 +289,28 @@ export interface Procedure<
    */
   streaming?: boolean | undefined;
 
-  /** Server-side handler implementation */
+  /**
+   * Output mode declaration - how the procedure produces its output.
+   *
+   * - `single`: Returns a single value (default) - most procedures
+   * - `stream`: Returns multiple values over time (generator that yields many times)
+   * - `batch`: Returns an array of values all at once
+   *
+   * The consumer can choose their consumption mode (sponge/stream/handlers)
+   * independently. The system translates automatically:
+   *
+   * | Producer Mode | Consumer Mode | Result Type              |
+   * |---------------|---------------|--------------------------|
+   * | single        | sponge        | Promise<T>               |
+   * | single        | stream        | AsyncIterable<T> (1 item)|
+   * | stream        | sponge        | Promise<T> (last value)  |
+   * | stream        | stream        | AsyncIterable<T>         |
+   * | batch         | sponge        | Promise<T[]>             |
+   * | batch         | stream        | AsyncIterable<T>         |
+   */
+  outputMode?: 'single' | 'stream' | 'batch' | undefined;
+
+  /** Server-side handler implementation (optional for stubs and aggregations) */
   handler?: ProcedureHandler<TInput, TOutput> | undefined;
 }
 
@@ -298,6 +319,20 @@ export interface Procedure<
  * Uses `any` for handler to allow covariant/contravariant type compatibility.
  */
 export type AnyProcedure = Procedure<any, any, ProcedureMetadata>;
+
+// =============================================================================
+// Output Mode Types
+// =============================================================================
+
+/**
+ * How a procedure produces its output.
+ */
+export type OutputMode = 'single' | 'stream' | 'batch';
+
+/**
+ * Default output mode when not specified.
+ */
+export const DEFAULT_OUTPUT_MODE: OutputMode = 'single';
 
 // =============================================================================
 // Procedure Result Types

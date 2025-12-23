@@ -45,17 +45,9 @@
  * ```
  */
 import { defineProcedure, namespace } from "../define.js";
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-/**
- * Schema that accepts any value (for dynamic procedure composition).
- */
-const anySchema = {
-    parse: (data) => data,
-    safeParse: (data) => ({ success: true, data }),
-    _output: undefined,
-};
+import { anySchema } from "./schemas.js";
+// Re-export for convenience
+export { anySchema } from "./schemas.js";
 import { isAnyProcedureRef, normalizeRef, createRefScope, isOutputRef, resolveOutputRef, } from "../ref.js";
 /**
  * Resolve any $ref values in an object using the given scope.
@@ -204,55 +196,51 @@ const conditionalProcedure = defineProcedure({
         return selectedBranch;
     },
 });
+// =============================================================================
+// Logic Operators (unified with group theory)
+// =============================================================================
+import { andHandler, orHandler, notHandler, allHandler, anyHandler as anyLogicHandler, noneHandler, andMetadata, orMetadata, notMetadata, allMetadata, anyMetadata, noneMetadata, } from "./logic.js";
 const andProcedure = defineProcedure({
     path: ["and"],
     input: anySchema,
     output: anySchema,
-    metadata: {
-        description: "Short-circuit AND (returns first falsy or last value)",
-        tags: ["core", "logic"],
-    },
-    handler: async (input) => {
-        const { values } = input;
-        // Values are already hydrated
-        for (const value of values) {
-            if (!value) {
-                return value; // Return first falsy
-            }
-        }
-        return values[values.length - 1]; // Return last value
-    },
+    metadata: andMetadata,
+    handler: andHandler,
 });
 const orProcedure = defineProcedure({
     path: ["or"],
     input: anySchema,
     output: anySchema,
-    metadata: {
-        description: "Short-circuit OR (returns first truthy value)",
-        tags: ["core", "logic"],
-    },
-    handler: async (input) => {
-        const { values } = input;
-        // Values are already hydrated
-        for (const value of values) {
-            if (value) {
-                return value; // Return first truthy
-            }
-        }
-        return values[values.length - 1]; // Return last value (all falsy)
-    },
+    metadata: orMetadata,
+    handler: orHandler,
 });
 const notProcedure = defineProcedure({
     path: ["not"],
     input: anySchema,
     output: anySchema,
-    metadata: {
-        description: "Logical NOT",
-        tags: ["core", "logic"],
-    },
-    handler: async (input) => {
-        return !input.value;
-    },
+    metadata: notMetadata,
+    handler: notHandler,
+});
+const allProcedure = defineProcedure({
+    path: ["all"],
+    input: anySchema,
+    output: anySchema,
+    metadata: allMetadata,
+    handler: allHandler,
+});
+const anyProcedure = defineProcedure({
+    path: ["any"],
+    input: anySchema,
+    output: anySchema,
+    metadata: anyMetadata,
+    handler: anyLogicHandler,
+});
+const noneProcedure = defineProcedure({
+    path: ["none"],
+    input: anySchema,
+    output: anySchema,
+    metadata: noneMetadata,
+    handler: noneHandler,
 });
 const mapProcedure = defineProcedure({
     path: ["map"],
@@ -354,11 +342,17 @@ export const coreProcedures = namespace(["client"], [
     chainProcedure,
     parallelProcedure,
     conditionalProcedure,
+    // Logic operators (unified with group theory)
     andProcedure,
     orProcedure,
     notProcedure,
+    allProcedure,
+    anyProcedure,
+    noneProcedure,
+    // Collection operators
     mapProcedure,
     reduceProcedure,
+    // Utility operators
     identityProcedure,
     constantProcedure,
     throwProcedure,
@@ -372,7 +366,17 @@ export const coreModule = {
     procedures: coreProcedures,
 };
 // Re-export individual procedures for direct access
-export { chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, };
+export { chainProcedure, parallelProcedure, conditionalProcedure, 
+// Logic operators
+andProcedure, orProcedure, notProcedure, allProcedure, anyProcedure, noneProcedure, 
+// Collection operators
+mapProcedure, reduceProcedure, 
+// Utility operators
+identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, };
+// Re-export schemas, result types, and logic utilities
+export * from "./schemas.js";
+export * from "./results.js";
+export * from "./logic.js";
 // =============================================================================
 // Import additional procedure modules
 // =============================================================================

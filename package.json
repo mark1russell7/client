@@ -89,7 +89,8 @@
   "sideEffects": false,
   "pnpm": {
     "onlyBuiltDependencies": [
-      "@mark1russell7/cue"
+      "@mark1russell7/cue",
+      "esbuild"
     ]
   }
 }

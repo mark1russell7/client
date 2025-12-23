@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { conditionalProcedure } from "./index.js";
-import type { ProcedureContext } from "../../types.js";
+import type { ProcedureContext } from "../types.js";
 
 /**
  * Simple inline mock client for tests
@@ -410,21 +410,35 @@ describe("conditional procedure", () => {
 
   describe("without client context", () => {
     it("returns then value without executing procedure", async () => {
+      // Create a context WITHOUT a client
+      const noClientCtx: ProcedureContext = {
+        metadata: {},
+        path: ["test", "conditional"],
+        client: undefined as any,
+      };
+
       const result = await conditionalProcedure.handler({
         condition: true,
         then: { $proc: ["test", "action"], input: { foo: "bar" } },
-      });
+      }, noClientCtx);
 
       // Without client, returns the procedure ref as-is
       expect(result).toEqual({ $proc: ["test", "action"], input: { foo: "bar" } });
     });
 
     it("returns raw else value without client", async () => {
+      // Create a context WITHOUT a client
+      const noClientCtx: ProcedureContext = {
+        metadata: {},
+        path: ["test", "conditional"],
+        client: undefined as any,
+      };
+
       const result = await conditionalProcedure.handler({
         condition: false,
         then: "yes",
         else: "no",
-      });
+      }, noClientCtx);
 
       expect(result).toBe("no");
     });

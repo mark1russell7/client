@@ -241,3 +241,48 @@ export function handlers<TProgress = unknown, TComplete = unknown>(
 ): HandlerOutputConfig<TProgress, TComplete> {
   return config;
 }
+
+// =============================================================================
+// Type-Refined Consumption Result
+// =============================================================================
+
+/**
+ * Consumption mode - how the caller wants to receive the output.
+ */
+export type ConsumptionMode = 'sponge' | 'stream' | 'handlers';
+
+/**
+ * Infer consumption mode from output config.
+ */
+export type InferConsumptionMode<TConfig extends OutputConfig | undefined> =
+  TConfig extends StreamOutputConfig ? 'stream' :
+  TConfig extends HandlerOutputConfig ? 'handlers' :
+  'sponge';
+
+/**
+ * The result type based on consumption mode.
+ *
+ * - sponge: Returns Promise<T> (accumulated single value)
+ * - stream: Returns AsyncIterable<T> (values as they arrive)
+ * - handlers: Returns void (values delivered via callbacks)
+ */
+export type ConsumptionResult<T, TMode extends ConsumptionMode> =
+  TMode extends 'sponge' ? Promise<T> :
+  TMode extends 'stream' ? AsyncIterable<T> :
+  TMode extends 'handlers' ? void :
+  never;
+
+/**
+ * Infer the result type from output config and value type.
+ */
+export type InferConsumptionResult<T, TConfig extends OutputConfig | undefined> =
+  ConsumptionResult<T, InferConsumptionMode<TConfig>>;
+
+/**
+ * Type-safe consumption mode check.
+ */
+export function getConsumptionMode(config: OutputConfig | undefined): ConsumptionMode {
+  if (isStreamConfig(config)) return 'stream';
+  if (isHandlerConfig(config)) return 'handlers';
+  return 'sponge';
+}
