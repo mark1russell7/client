@@ -22,6 +22,146 @@ export interface CLIMeta {
 }
 
 /**
+ * Zod-like schema shape for introspection
+ */
+interface ZodShape {
+  _def?: {
+    typeName?: string;
+    shape?: () => Record<string, ZodField>;
+    innerType?: ZodShape;
+    defaultValue?: () => unknown;
+    description?: string;
+  };
+  shape?: Record<string, ZodField>;
+  description?: string;
+}
+
+interface ZodField {
+  _def?: {
+    typeName?: string;
+    description?: string;
+    innerType?: ZodField;
+    defaultValue?: () => unknown;
+    values?: readonly string[];
+  };
+  description?: string;
+  isOptional?: () => boolean;
+}
+
+/**
+ * Extracted schema field info for help generation
+ */
+export interface SchemaFieldInfo {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string | undefined;
+  defaultValue: unknown;
+  enumValues: readonly string[] | undefined;
+}
+
+/**
+ * Extract field information from a Zod-like schema
+ */
+export function extractSchemaFields(schema: unknown): SchemaFieldInfo[] {
+  if (!schema || typeof schema !== "object") {
+    return [];
+  }
+
+  const zodSchema = schema as ZodShape;
+  const fields: SchemaFieldInfo[] = [];
+
+  // Get the shape from the schema
+  let shape: Record<string, ZodField> | undefined;
+
+  if (zodSchema._def?.shape) {
+    shape = zodSchema._def.shape();
+  } else if (zodSchema.shape && typeof zodSchema.shape === "object") {
+    shape = zodSchema.shape as Record<string, ZodField>;
+  }
+
+  if (!shape) {
+    return [];
+  }
+
+  for (const [name, field] of Object.entries(shape)) {
+    const info = extractFieldInfo(name, field);
+    if (info) {
+      fields.push(info);
+    }
+  }
+
+  return fields;
+}
+
+/**
+ * Extract info from a single schema field
+ */
+function extractFieldInfo(name: string, field: ZodField): SchemaFieldInfo | null {
+  if (!field || typeof field !== "object") {
+    return null;
+  }
+
+  const def = field._def;
+  let typeName = def?.typeName ?? "unknown";
+  let required = true;
+  let description = def?.description ?? field.description;
+  let defaultValue: unknown;
+  let enumValues: readonly string[] | undefined;
+  let innerField = field;
+
+  // Unwrap optional/default wrappers
+  while (innerField._def) {
+    const innerDef = innerField._def;
+
+    if (innerDef.typeName === "ZodOptional") {
+      required = false;
+      if (innerDef.innerType) {
+        innerField = innerDef.innerType;
+      } else {
+        break;
+      }
+    } else if (innerDef.typeName === "ZodDefault") {
+      required = false;
+      defaultValue = innerDef.defaultValue?.();
+      if (innerDef.innerType) {
+        innerField = innerDef.innerType;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  // Get the actual type
+  const finalDef = innerField._def;
+  if (finalDef?.typeName) {
+    typeName = finalDef.typeName.replace("Zod", "").toLowerCase();
+  }
+
+  // Get enum values if applicable
+  if (finalDef?.typeName === "ZodEnum" && finalDef.values) {
+    enumValues = finalDef.values;
+    typeName = "enum";
+  }
+
+  // Get description from inner type if not on outer
+  if (!description && finalDef?.description) {
+    description = finalDef.description;
+  }
+
+  return {
+    name,
+    type: typeName,
+    required,
+    description,
+    defaultValue,
+    enumValues,
+  };
+}
+
+/**
  * Gluegun parameters shape
  */
 export interface Parameters {
@@ -133,11 +273,12 @@ export function parseFromSchema(
 }
 
 /**
- * Generate help text for a procedure based on its metadata
+ * Generate help text for a procedure based on its metadata and schema
  */
 export function generateHelp(
   path: string[],
-  meta: CLIMeta
+  meta: CLIMeta,
+  schema?: unknown
 ): string {
   const positionalArgs = meta.args ?? [];
   const shorts = meta.shorts ?? {};
@@ -155,24 +296,86 @@ export function generateHelp(
     lines.push("");
   }
 
-  // Positional args
+  // Extract schema fields for enhanced help
+  const schemaFields = schema ? extractSchemaFields(schema) : [];
+  const schemaFieldMap = new Map(schemaFields.map(f => [f.name, f]));
+
+  // Positional args with schema info
   if (positionalArgs.length > 0) {
     lines.push("Arguments:");
     for (const arg of positionalArgs) {
-      lines.push(`  ${arg}`);
+      const fieldInfo = schemaFieldMap.get(arg);
+      const typeStr = fieldInfo ? ` (${fieldInfo.type})` : "";
+      const reqStr = fieldInfo?.required ? " [required]" : "";
+      const descStr = fieldInfo?.description ? `  ${fieldInfo.description}` : "";
+      lines.push(`  ${arg}${typeStr}${reqStr}`);
+      if (descStr) {
+        lines.push(`    ${descStr}`);
+      }
     }
     lines.push("");
   }
 
-  // Options (from shorts - these are the explicitly defined CLI options)
-  const shortEntries = Object.entries(shorts);
-  if (shortEntries.length > 0) {
-    lines.push("Options:");
-    for (const [field, short] of shortEntries) {
-      const kebab = toKebab(field);
-      lines.push(`  -${short}, --${kebab}`);
+  // Build set of fields that have explicit shorts
+  const fieldsWithShorts = new Set(Object.keys(shorts));
+
+  // Options section
+  const optionLines: string[] = [];
+
+  // First, add options from shorts
+  for (const [field, short] of Object.entries(shorts)) {
+    const kebab = toKebab(field);
+    const fieldInfo = schemaFieldMap.get(field);
+    const typeStr = fieldInfo ? ` <${fieldInfo.type}>` : "";
+    const descStr = fieldInfo?.description ?? "";
+    const defaultStr = fieldInfo?.defaultValue !== undefined
+      ? ` (default: ${JSON.stringify(fieldInfo.defaultValue)})`
+      : "";
+    const enumStr = fieldInfo?.enumValues
+      ? ` [${fieldInfo.enumValues.join("|")}]`
+      : "";
+
+    optionLines.push(`  -${short}, --${kebab}${typeStr}${enumStr}${defaultStr}`);
+    if (descStr) {
+      optionLines.push(`        ${descStr}`);
     }
   }
+
+  // Then, add options from schema that don't have shorts (and aren't positional)
+  const positionalSet = new Set(positionalArgs);
+  for (const field of schemaFields) {
+    if (fieldsWithShorts.has(field.name) || positionalSet.has(field.name)) {
+      continue;
+    }
+
+    const kebab = toKebab(field.name);
+    const typeStr = ` <${field.type}>`;
+    const reqStr = field.required ? " [required]" : "";
+    const defaultStr = field.defaultValue !== undefined
+      ? ` (default: ${JSON.stringify(field.defaultValue)})`
+      : "";
+    const enumStr = field.enumValues
+      ? ` [${field.enumValues.join("|")}]`
+      : "";
+    const descStr = field.description ?? "";
+
+    optionLines.push(`      --${kebab}${typeStr}${enumStr}${reqStr}${defaultStr}`);
+    if (descStr) {
+      optionLines.push(`        ${descStr}`);
+    }
+  }
+
+  if (optionLines.length > 0) {
+    lines.push("Options:");
+    lines.push(...optionLines);
+  }
+
+  // Standard options
+  lines.push("");
+  lines.push("Global Options:");
+  lines.push("  -h, --help       Show this help message");
+  lines.push("  -f, --format     Output format: text|json|table|streaming");
+  lines.push("  -V, --verbose    Show verbose output");
 
   return lines.join("\n");
 }

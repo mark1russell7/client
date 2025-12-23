@@ -20,6 +20,21 @@ export interface CLIMeta {
     interactive?: boolean;
 }
 /**
+ * Extracted schema field info for help generation
+ */
+export interface SchemaFieldInfo {
+    name: string;
+    type: string;
+    required: boolean;
+    description: string | undefined;
+    defaultValue: unknown;
+    enumValues: readonly string[] | undefined;
+}
+/**
+ * Extract field information from a Zod-like schema
+ */
+export declare function extractSchemaFields(schema: unknown): SchemaFieldInfo[];
+/**
  * Gluegun parameters shape
  */
 export interface Parameters {
@@ -36,7 +51,7 @@ export interface Parameters {
  */
 export declare function parseFromSchema(params: Parameters, meta: CLIMeta): Record<string, unknown>;
 /**
- * Generate help text for a procedure based on its metadata
+ * Generate help text for a procedure based on its metadata and schema
  */
-export declare function generateHelp(path: string[], meta: CLIMeta): string;
+export declare function generateHelp(path: string[], meta: CLIMeta, schema?: unknown): string;
 //# sourceMappingURL=parse.d.ts.map

@@ -183,9 +183,9 @@ function findChildren(procedures, path) {
 function showHelp(procedures, path) {
     const proc = findProcedure(procedures, path);
     if (proc) {
-        // Show help for specific command
+        // Show help for specific command with schema introspection
         const meta = (proc.metadata ?? {});
-        gluegun_1.print.info((0, parse_1.generateHelp)(path, meta));
+        gluegun_1.print.info((0, parse_1.generateHelp)(path, meta, proc.input));
         return;
     }
     // Show help for group

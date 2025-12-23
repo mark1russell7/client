@@ -202,9 +202,9 @@ function showHelp(procedures: AnyProcedure[], path: string[]): void {
   const proc = findProcedure(procedures, path);
 
   if (proc) {
-    // Show help for specific command
+    // Show help for specific command with schema introspection
     const meta = (proc.metadata ?? {}) as CLIMeta;
-    print.info(generateHelp(path, meta));
+    print.info(generateHelp(path, meta, proc.input));
     return;
   }
 
