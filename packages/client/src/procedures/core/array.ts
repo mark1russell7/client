@@ -509,6 +509,297 @@ const rangeProcedure: RangeProcedure = defineProcedure({
 });
 
 // =============================================================================
+// Filter Procedure (Core Logic + Filtering Separation)
+// =============================================================================
+
+interface FilterInput {
+  /** Array to filter */
+  items: unknown[];
+  /** Property to match against */
+  key?: string;
+  /** Value to match (equality check) */
+  value?: unknown;
+  /** Values to match (any of these) */
+  values?: unknown[];
+  /** Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith' */
+  match?: 'equals' | 'not' | 'in' | 'notIn' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte';
+  /** Invert the filter */
+  invert?: boolean;
+}
+
+type FilterProcedure = Procedure<FilterInput, unknown[], { description: string; tags: string[] }>;
+
+const filterProcedure: FilterProcedure = defineProcedure({
+  path: ["filter"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Filter array by property value or predicate",
+    tags: ["core", "array", "filter"],
+  },
+  handler: async (input: FilterInput): Promise<unknown[]> => {
+    const { items, key, value, values, match = 'equals', invert = false } = input;
+
+    const predicate = (item: unknown): boolean => {
+      const itemValue = key ? (item as Record<string, unknown>)[key] : item;
+
+      let result: boolean;
+      switch (match) {
+        case 'equals':
+          result = itemValue === value;
+          break;
+        case 'not':
+          result = itemValue !== value;
+          break;
+        case 'in':
+          result = (values ?? []).includes(itemValue);
+          break;
+        case 'notIn':
+          result = !(values ?? []).includes(itemValue);
+          break;
+        case 'contains':
+          result = typeof itemValue === 'string' && typeof value === 'string' && itemValue.includes(value);
+          break;
+        case 'startsWith':
+          result = typeof itemValue === 'string' && typeof value === 'string' && itemValue.startsWith(value);
+          break;
+        case 'endsWith':
+          result = typeof itemValue === 'string' && typeof value === 'string' && itemValue.endsWith(value);
+          break;
+        case 'gt':
+          result = typeof itemValue === 'number' && typeof value === 'number' && itemValue > value;
+          break;
+        case 'gte':
+          result = typeof itemValue === 'number' && typeof value === 'number' && itemValue >= value;
+          break;
+        case 'lt':
+          result = typeof itemValue === 'number' && typeof value === 'number' && itemValue < value;
+          break;
+        case 'lte':
+          result = typeof itemValue === 'number' && typeof value === 'number' && itemValue <= value;
+          break;
+        default:
+          result = Boolean(itemValue);
+      }
+
+      return invert ? !result : result;
+    };
+
+    return items.filter(predicate);
+  },
+});
+
+// =============================================================================
+// Where Procedure (Filter shorthand)
+// =============================================================================
+
+interface WhereInput {
+  /** Array to filter */
+  items: unknown[];
+  /** Object with key-value pairs to match */
+  where: Record<string, unknown>;
+}
+
+type WhereProcedure = Procedure<WhereInput, unknown[], { description: string; tags: string[] }>;
+
+const whereProcedure: WhereProcedure = defineProcedure({
+  path: ["where"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Filter array where all key-value pairs match",
+    tags: ["core", "array", "filter"],
+  },
+  handler: async (input: WhereInput): Promise<unknown[]> => {
+    const { items, where } = input;
+    return items.filter((item) => {
+      const obj = item as Record<string, unknown>;
+      return Object.entries(where).every(([key, value]) => obj[key] === value);
+    });
+  },
+});
+
+// =============================================================================
+// Pluck Procedure (Extract single property)
+// =============================================================================
+
+interface PluckInput {
+  /** Array of objects */
+  items: unknown[];
+  /** Property to extract */
+  key: string;
+}
+
+type PluckProcedure = Procedure<PluckInput, unknown[], { description: string; tags: string[] }>;
+
+const pluckProcedure: PluckProcedure = defineProcedure({
+  path: ["pluck"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Extract single property from all items",
+    tags: ["core", "array", "transform"],
+  },
+  handler: async (input: PluckInput): Promise<unknown[]> => {
+    return input.items.map((item) => (item as Record<string, unknown>)[input.key]);
+  },
+});
+
+// =============================================================================
+// ArrPick Procedure (Select multiple properties from array items)
+// =============================================================================
+
+interface ArrPickInput {
+  /** Array of objects */
+  items: unknown[];
+  /** Properties to keep */
+  keys: string[];
+}
+
+type ArrPickProcedure = Procedure<ArrPickInput, unknown[], { description: string; tags: string[] }>;
+
+const arrPickProcedure: ArrPickProcedure = defineProcedure({
+  path: ["arrPick"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Keep only specified properties from all items",
+    tags: ["core", "array", "transform"],
+  },
+  handler: async (input: ArrPickInput): Promise<unknown[]> => {
+    return input.items.map((item) => {
+      const obj = item as Record<string, unknown>;
+      const result: Record<string, unknown> = {};
+      for (const key of input.keys) {
+        if (key in obj) {
+          result[key] = obj[key];
+        }
+      }
+      return result;
+    });
+  },
+});
+
+// =============================================================================
+// ArrOmit Procedure (Remove properties from array items)
+// =============================================================================
+
+interface ArrOmitInput {
+  /** Array of objects */
+  items: unknown[];
+  /** Properties to remove */
+  keys: string[];
+}
+
+type ArrOmitProcedure = Procedure<ArrOmitInput, unknown[], { description: string; tags: string[] }>;
+
+const arrOmitProcedure: ArrOmitProcedure = defineProcedure({
+  path: ["arrOmit"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Remove specified properties from all array items",
+    tags: ["core", "array", "transform"],
+  },
+  handler: async (input: ArrOmitInput): Promise<unknown[]> => {
+    const keysToOmit = new Set(input.keys);
+    return input.items.map((item) => {
+      const obj = item as Record<string, unknown>;
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (!keysToOmit.has(key)) {
+          result[key] = value;
+        }
+      }
+      return result;
+    });
+  },
+});
+
+// =============================================================================
+// Partition Procedure (Split by predicate)
+// =============================================================================
+
+interface PartitionInput {
+  /** Array to partition */
+  items: unknown[];
+  /** Property to check for truthiness */
+  key: string;
+  /** Value to match for truthy partition */
+  value?: unknown;
+}
+
+interface PartitionOutput {
+  /** Items that matched */
+  truthy: unknown[];
+  /** Items that didn't match */
+  falsy: unknown[];
+}
+
+type PartitionProcedure = Procedure<PartitionInput, PartitionOutput, { description: string; tags: string[] }>;
+
+const partitionProcedure: PartitionProcedure = defineProcedure({
+  path: ["partition"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Split array into two arrays based on predicate",
+    tags: ["core", "array", "filter"],
+  },
+  handler: async (input: PartitionInput): Promise<PartitionOutput> => {
+    const truthy: unknown[] = [];
+    const falsy: unknown[] = [];
+
+    for (const item of input.items) {
+      const itemValue = (item as Record<string, unknown>)[input.key];
+      const matches = input.value !== undefined ? itemValue === input.value : Boolean(itemValue);
+      if (matches) {
+        truthy.push(item);
+      } else {
+        falsy.push(item);
+      }
+    }
+
+    return { truthy, falsy };
+  },
+});
+
+// =============================================================================
+// Count Procedure (Count matching items)
+// =============================================================================
+
+interface CountInput {
+  /** Array to count */
+  items: unknown[];
+  /** Optional property to check for truthiness */
+  key?: string;
+  /** Optional value to match */
+  value?: unknown;
+}
+
+type CountProcedure = Procedure<CountInput, number, { description: string; tags: string[] }>;
+
+const countProcedure: CountProcedure = defineProcedure({
+  path: ["count"],
+  input: anySchema as any,
+  output: anySchema as any,
+  metadata: {
+    description: "Count items matching criteria (or total if no criteria)",
+    tags: ["core", "array", "filter"],
+  },
+  handler: async (input: CountInput): Promise<number> => {
+    if (!input.key) {
+      return input.items.length;
+    }
+
+    return input.items.filter((item) => {
+      const itemValue = (item as Record<string, unknown>)[input.key!];
+      return input.value !== undefined ? itemValue === input.value : Boolean(itemValue);
+    }).length;
+  },
+});
+
+// =============================================================================
 // Export Array Procedures
 // =============================================================================
 
@@ -516,10 +807,12 @@ const rangeProcedure: RangeProcedure = defineProcedure({
  * All array procedures (before namespacing).
  */
 const arrayProceduresRaw: AnyProcedure[] = [
+  // Access
   firstProcedure as AnyProcedure,
   lastProcedure as AnyProcedure,
   nthProcedure as AnyProcedure,
   arrLengthProcedure as AnyProcedure,
+  // Transform
   flattenProcedure as AnyProcedure,
   reverseProcedure as AnyProcedure,
   sortProcedure as AnyProcedure,
@@ -529,11 +822,22 @@ const arrayProceduresRaw: AnyProcedure[] = [
   groupByProcedure as AnyProcedure,
   zipProcedure as AnyProcedure,
   unzipProcedure as AnyProcedure,
+  // Search
   indexOfProcedure as AnyProcedure,
   containsProcedure as AnyProcedure,
+  // Mutation (immutable)
   pushProcedure as AnyProcedure,
   unshiftProcedure as AnyProcedure,
+  // Generation
   rangeProcedure as AnyProcedure,
+  // Filtering (Core Logic + Filtering Separation)
+  filterProcedure as AnyProcedure,
+  whereProcedure as AnyProcedure,
+  pluckProcedure as AnyProcedure,
+  arrPickProcedure as AnyProcedure,
+  arrOmitProcedure as AnyProcedure,
+  partitionProcedure as AnyProcedure,
+  countProcedure as AnyProcedure,
 ];
 
 /**
@@ -551,10 +855,12 @@ export const arrayModule: { name: string; procedures: AnyProcedure[] } = {
 
 // Re-export individual procedures for direct access
 export {
+  // Access
   firstProcedure,
   lastProcedure,
   nthProcedure,
   arrLengthProcedure,
+  // Transform
   flattenProcedure,
   reverseProcedure,
   sortProcedure,
@@ -564,9 +870,20 @@ export {
   groupByProcedure,
   zipProcedure,
   unzipProcedure,
+  // Search
   indexOfProcedure,
   containsProcedure,
+  // Mutation (immutable)
   pushProcedure,
   unshiftProcedure,
+  // Generation
   rangeProcedure,
+  // Filtering (Core Logic + Filtering Separation)
+  filterProcedure,
+  whereProcedure,
+  pluckProcedure,
+  arrPickProcedure,
+  arrOmitProcedure,
+  partitionProcedure,
+  countProcedure,
 };

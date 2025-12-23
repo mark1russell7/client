@@ -35,7 +35,11 @@ registerModule, registerProcedures, createAndRegister,
 // Procedure reference system (procedure-as-data)
 PROCEDURE_SYMBOL, PROCEDURE_JSON_KEY, PROCEDURE_WHEN_KEY, PROCEDURE_NAME_KEY, WHEN_IMMEDIATE, WHEN_NEVER, WHEN_PARENT, isProcedureRef, isProcedureRefJson, isAnyProcedureRef, getRefWhen, getRefName, shouldExecuteRef, proc, ProcedureRefBuilder, fromJson, toJson, normalizeRef, hydrateInput, executeRef, extractTemplate, parseProcedureJson, stringifyProcedureJson, 
 // Core language procedures
-coreProcedures, coreModule, chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, 
+coreProcedures, coreModule, chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, allProcedure, anyProcedure, noneProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, 
+// Common schemas
+anySchema, 
+// Meta-procedures for runtime definition
+defineProcedureProcedure, getProcedureProcedure, listProceduresProcedure, deleteProcedureProcedure, metaProcedures, getRuntimeProcedure, hasRuntimeProcedure, getAllRuntimeProcedures, clearRuntimeProcedures, 
 // Storage-backed registry
 serializeProcedure, deserializeProcedure, deserializeProcedureSync, getProcedureKey, getSerializedKey, serializeProcedures, deserializeProcedures, createDynamicHandlerLoader, ProcedureStorageAdapter, SyncedProcedureRegistry, createSyncedRegistry, createMemorySyncedRegistry, createApiSyncedRegistry, createHybridSyncedRegistry, createCustomSyncedRegistry, procedureRegisterProcedure, procedureStoreProcedure, procedureLoadProcedure, procedureSyncProcedure, procedureRemoteProcedure, procedureStorageModule, procedureStorageProcedures, } from "./procedures/index.js";
 export { flattenRoute, buildResponse, createRoute, mergeRoutes, isBatchRoute, } from "./client/call-types.js";
