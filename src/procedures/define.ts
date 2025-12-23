@@ -1,7 +1,67 @@
 /**
  * Procedure Definition Helper
  *
- * Factory function for creating well-typed procedure definitions.
+ * Factory functions for creating well-typed procedure definitions.
+ *
+ * ## defineProcedure vs createProcedure
+ *
+ * This module provides two ways to create procedures:
+ *
+ * ### 1. defineProcedure (Declarative - Recommended for most cases)
+ *
+ * Use `defineProcedure` when:
+ * - You have all the procedure properties available upfront
+ * - You want a concise, single-expression definition
+ * - You're defining static procedures at module load time
+ * - You prefer declarative configuration
+ *
+ * ```typescript
+ * const myProcedure = defineProcedure({
+ *   path: ['users', 'get'],
+ *   input: z.object({ id: z.string() }),
+ *   output: z.object({ id: z.string(), name: z.string() }),
+ *   metadata: { description: 'Get a user' },
+ *   handler: async ({ id }) => fetchUser(id),
+ * });
+ * ```
+ *
+ * ### 2. createProcedure (Builder - For complex/dynamic scenarios)
+ *
+ * Use `createProcedure` (builder pattern) when:
+ * - Building procedures conditionally or dynamically
+ * - Composing procedures from multiple sources
+ * - Schemas are determined at runtime
+ * - You want to reuse partial configurations
+ * - Working with code generation or metaprogramming
+ *
+ * ```typescript
+ * const builder = createProcedure()
+ *   .path(['users', 'get'])
+ *   .input(inputSchema);
+ *
+ * if (featureFlags.includeExtendedOutput) {
+ *   builder.output(extendedOutputSchema);
+ * } else {
+ *   builder.output(basicOutputSchema);
+ * }
+ *
+ * const myProcedure = builder.handler(myHandler).build();
+ * ```
+ *
+ * ### 3. defineStub (Client-side type stubs)
+ *
+ * Use `defineStub` when:
+ * - You need type definitions without implementation
+ * - Building client-side code that calls remote procedures
+ * - Generating TypeScript types from procedure definitions
+ *
+ * ### Summary
+ *
+ * | Function          | Use Case                       | Returns         |
+ * |-------------------|--------------------------------|-----------------|
+ * | `defineProcedure` | Static, declarative definition | Procedure       |
+ * | `createProcedure` | Dynamic, builder pattern       | ProcedureBuilder|
+ * | `defineStub`      | Client-side type stubs         | Procedure (no handler) |
  */
 
 import type { ZodLike } from "../client/validation/types.js";
