@@ -67,9 +67,7 @@ const fsReadProcedure = createProcedure()
     shorts: { encoding: "e" },
     output: "json",
 })
-    .handler(async (input) => {
-    return read(input);
-})
+    .handler(read)
     .build();
 const fsWriteProcedure = createProcedure()
     .path(["fs", "write"])
@@ -81,9 +79,7 @@ const fsWriteProcedure = createProcedure()
     shorts: { encoding: "e", mode: "m" },
     output: "json",
 })
-    .handler(async (input) => {
-    return write(input);
-})
+    .handler(write)
     .build();
 const fsExistsProcedure = createProcedure()
     .path(["fs", "exists"])
@@ -95,9 +91,7 @@ const fsExistsProcedure = createProcedure()
     shorts: {},
     output: "json",
 })
-    .handler(async (input) => {
-    return exists(input);
-})
+    .handler(exists)
     .build();
 const fsMkdirProcedure = createProcedure()
     .path(["fs", "mkdir"])
@@ -109,9 +103,7 @@ const fsMkdirProcedure = createProcedure()
     shorts: { recursive: "r" },
     output: "json",
 })
-    .handler(async (input) => {
-    return mkdir(input);
-})
+    .handler(mkdir)
     .build();
 const fsRmProcedure = createProcedure()
     .path(["fs", "rm"])
@@ -123,9 +115,7 @@ const fsRmProcedure = createProcedure()
     shorts: { recursive: "r", force: "f" },
     output: "json",
 })
-    .handler(async (input) => {
-    return rm(input);
-})
+    .handler(rm)
     .build();
 const fsReaddirProcedure = createProcedure()
     .path(["fs", "readdir"])
@@ -137,9 +127,7 @@ const fsReaddirProcedure = createProcedure()
     shorts: { recursive: "r", includeStats: "s" },
     output: "json",
 })
-    .handler(async (input) => {
-    return readdir(input);
-})
+    .handler(readdir)
     .build();
 const fsStatProcedure = createProcedure()
     .path(["fs", "stat"])
@@ -151,9 +139,7 @@ const fsStatProcedure = createProcedure()
     shorts: {},
     output: "json",
 })
-    .handler(async (input) => {
-    return stat(input);
-})
+    .handler(stat)
     .build();
 const fsCopyProcedure = createProcedure()
     .path(["fs", "copy"])
@@ -165,9 +151,7 @@ const fsCopyProcedure = createProcedure()
     shorts: { recursive: "r", overwrite: "o" },
     output: "json",
 })
-    .handler(async (input) => {
-    return copy(input);
-})
+    .handler(copy)
     .build();
 const fsMoveProcedure = createProcedure()
     .path(["fs", "move"])
@@ -179,9 +163,7 @@ const fsMoveProcedure = createProcedure()
     shorts: { overwrite: "o" },
     output: "json",
 })
-    .handler(async (input) => {
-    return move(input);
-})
+    .handler(move)
     .build();
 const fsGlobProcedure = createProcedure()
     .path(["fs", "glob"])
@@ -193,9 +175,7 @@ const fsGlobProcedure = createProcedure()
     shorts: { cwd: "c", absolute: "a", dot: "d" },
     output: "json",
 })
-    .handler(async (input) => {
-    return glob(input);
-})
+    .handler(glob)
     .build();
 const fsReadJsonProcedure = createProcedure()
     .path(["fs", "read.json"])
@@ -207,9 +187,7 @@ const fsReadJsonProcedure = createProcedure()
     shorts: {},
     output: "json",
 })
-    .handler(async (input) => {
-    return readJson(input);
-})
+    .handler(readJson)
     .build();
 // =============================================================================
 // Registration

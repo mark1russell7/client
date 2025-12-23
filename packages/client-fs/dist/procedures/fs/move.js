@@ -3,7 +3,10 @@
  *
  * Move or rename file/directory
  */
-import { rename, stat, rm, cp } from "node:fs/promises";
+import { rename } from "node:fs/promises";
+import { stat } from "./stat.js";
+import { copy } from "./copy.js";
+import { rm } from "./rm.js";
 /**
  * Move or rename file/directory
  */
@@ -11,7 +14,7 @@ export async function move(input) {
     const { src, dest, overwrite } = input;
     if (!overwrite) {
         try {
-            await stat(dest);
+            await stat({ path: dest });
             throw new Error(`Destination already exists: ${dest}`);
         }
         catch (err) {
@@ -24,8 +27,8 @@ export async function move(input) {
     }
     catch (err) {
         if (err.code === "EXDEV") {
-            await cp(src, dest, { recursive: true, force: overwrite });
-            await rm(src, { recursive: true });
+            await copy({ src, dest, recursive: true, overwrite });
+            await rm({ path: src, recursive: true, force: false });
         }
         else {
             throw err;

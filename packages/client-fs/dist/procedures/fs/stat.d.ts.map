@@ -1,1 +1,1 @@
-{"version":3,"file":"stat.d.ts","sourceRoot":"","sources":["../../../src/procedures/fs/stat.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAGH,OAAO,KAAK,EAAE,SAAS,EAAE,UAAU,EAAE,MAAM,gBAAgB,CAAC;AAE5D;;GAEG;AACH,wBAAsB,IAAI,CAAC,KAAK,EAAE,SAAS,GAAG,OAAO,CAAC,UAAU,CAAC,CAiBhE"}
+{"version":3,"file":"stat.d.ts","sourceRoot":"","sources":["../../../src/procedures/fs/stat.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAGH,OAAO,EAAY,KAAK,SAAS,EAAE,KAAK,UAAU,EAAE,MAAM,gBAAgB,CAAC;AAE3E;;GAEG;AACH,wBAAsB,IAAI,CAAC,KAAK,EAAE,SAAS,GAAG,OAAO,CAAC,UAAU,CAAC,CAiBhE"}

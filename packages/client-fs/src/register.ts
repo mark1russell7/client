@@ -122,9 +122,7 @@ const fsReadProcedure = createProcedure()
     shorts: { encoding: "e" },
     output: "json",
   })
-  .handler(async (input: ReadInput): Promise<ReadOutput> => {
-    return read(input);
-  })
+  .handler(read)
   .build();
 
 const fsWriteProcedure = createProcedure()
@@ -137,9 +135,7 @@ const fsWriteProcedure = createProcedure()
     shorts: { encoding: "e", mode: "m" },
     output: "json",
   })
-  .handler(async (input: WriteInput): Promise<WriteOutput> => {
-    return write(input);
-  })
+  .handler(write)
   .build();
 
 const fsExistsProcedure = createProcedure()
@@ -152,9 +148,7 @@ const fsExistsProcedure = createProcedure()
     shorts: {},
     output: "json",
   })
-  .handler(async (input: ExistsInput): Promise<ExistsOutput> => {
-    return exists(input);
-  })
+  .handler(exists)
   .build();
 
 const fsMkdirProcedure = createProcedure()
@@ -167,9 +161,7 @@ const fsMkdirProcedure = createProcedure()
     shorts: { recursive: "r" },
     output: "json",
   })
-  .handler(async (input: MkdirInput): Promise<MkdirOutput> => {
-    return mkdir(input);
-  })
+  .handler(mkdir)
   .build();
 
 const fsRmProcedure = createProcedure()
@@ -182,9 +174,7 @@ const fsRmProcedure = createProcedure()
     shorts: { recursive: "r", force: "f" },
     output: "json",
   })
-  .handler(async (input: RmInput): Promise<RmOutput> => {
-    return rm(input);
-  })
+  .handler(rm)
   .build();
 
 const fsReaddirProcedure = createProcedure()
@@ -197,9 +187,7 @@ const fsReaddirProcedure = createProcedure()
     shorts: { recursive: "r", includeStats: "s" },
     output: "json",
   })
-  .handler(async (input: ReaddirInput): Promise<ReaddirOutput> => {
-    return readdir(input);
-  })
+  .handler(readdir)
   .build();
 
 const fsStatProcedure = createProcedure()
@@ -212,9 +200,7 @@ const fsStatProcedure = createProcedure()
     shorts: {},
     output: "json",
   })
-  .handler(async (input: StatInput): Promise<StatOutput> => {
-    return stat(input);
-  })
+  .handler(stat)
   .build();
 
 const fsCopyProcedure = createProcedure()
@@ -227,9 +213,7 @@ const fsCopyProcedure = createProcedure()
     shorts: { recursive: "r", overwrite: "o" },
     output: "json",
   })
-  .handler(async (input: CopyInput): Promise<CopyOutput> => {
-    return copy(input);
-  })
+  .handler(copy)
   .build();
 
 const fsMoveProcedure = createProcedure()
@@ -242,9 +226,7 @@ const fsMoveProcedure = createProcedure()
     shorts: { overwrite: "o" },
     output: "json",
   })
-  .handler(async (input: MoveInput): Promise<MoveOutput> => {
-    return move(input);
-  })
+  .handler(move)
   .build();
 
 const fsGlobProcedure = createProcedure()
@@ -257,9 +239,7 @@ const fsGlobProcedure = createProcedure()
     shorts: { cwd: "c", absolute: "a", dot: "d" },
     output: "json",
   })
-  .handler(async (input: GlobInput): Promise<GlobOutput> => {
-    return glob(input);
-  })
+  .handler(glob)
   .build();
 
 const fsReadJsonProcedure = createProcedure()
@@ -272,9 +252,7 @@ const fsReadJsonProcedure = createProcedure()
     shorts: {},
     output: "json",
   })
-  .handler(async (input: ReadJsonInput): Promise<ReadJsonOutput> => {
-    return readJson(input);
-  })
+  .handler(readJson)
   .build();
 
 // =============================================================================

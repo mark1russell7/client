@@ -4,21 +4,17 @@
  * Check if file or directory exists
  */
 
-import { stat } from "node:fs/promises";
-import type { ExistsInput, ExistsOutput } from "../../types.js";
+import { type ExistsInput, type ExistsOutput } from "../../types.js";
+import { stat } from "./stat.js";
 
 /**
  * Check if file or directory exists
  */
 export async function exists(input: ExistsInput): Promise<ExistsOutput> {
-  const { path } = input;
   try {
-    const stats = await stat(path);
-    let type: "file" | "directory" | "other" = "other";
-    if (stats.isFile()) type = "file";
-    else if (stats.isDirectory()) type = "directory";
-    return { exists: true, path, type };
+    const stats = await stat(input);
+    return { exists: true, stats };
   } catch {
-    return { exists: false, path };
+    return { exists: false };
   }
 }

@@ -3,8 +3,10 @@
  *
  * Read directory contents
  */
-import { readdir as fsReaddir, stat } from "node:fs/promises";
+import { readdir as fsReaddir } from "node:fs/promises";
 import { join } from "node:path";
+import { FileType } from "../../types.js";
+import { stat } from "./stat.js";
 /**
  * Read directory contents
  */
@@ -15,19 +17,14 @@ export async function readdir(input) {
         const items = await fsReaddir(dir, { withFileTypes: true });
         for (const item of items) {
             const fullPath = join(dir, item.name);
-            let type = "other";
+            let type = FileType.Other;
             if (item.isFile())
-                type = "file";
+                type = FileType.File;
             else if (item.isDirectory())
-                type = "directory";
+                type = FileType.Directory;
             const entry = { name: item.name, path: fullPath, type };
             if (includeStats) {
-                const stats = await stat(fullPath);
-                entry.stats = {
-                    size: stats.size,
-                    mtime: stats.mtime.toISOString(),
-                    ctime: stats.ctime.toISOString(),
-                };
+                entry.stats = await stat({ path: fullPath });
             }
             entries.push(entry);
             if (recursive && item.isDirectory()) {

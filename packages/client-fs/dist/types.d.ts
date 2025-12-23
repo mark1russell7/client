@@ -1,6 +1,7 @@
 /**
  * Type definitions for client-fs procedures
  */
+import type { Stats } from "node:fs";
 import { z } from "zod";
 export declare const ReadInputSchema: z.ZodObject<{
     path: z.ZodString;
@@ -13,7 +14,7 @@ export interface ReadOutput {
     /** File path */
     path: string;
     /** File size in bytes */
-    size: number;
+    stats: StatOutput;
 }
 export declare const WriteInputSchema: z.ZodObject<{
     path: z.ZodString;
@@ -28,18 +29,32 @@ export interface WriteOutput {
     /** Bytes written */
     bytesWritten: number;
 }
+export declare const FileTypeInputSchema: z.ZodObject<{
+    path: z.ZodString;
+}>;
+export type FileTypeInput = z.infer<typeof FileTypeInputSchema>;
+export interface FileTypeOutput {
+    /** Path that was checked */
+    path: string;
+    /** Type if exists: file, directory, or other */
+    type: FileType;
+    stats: Stats;
+}
 export declare const ExistsInputSchema: z.ZodObject<{
     path: z.ZodString;
 }>;
 export type ExistsInput = z.infer<typeof ExistsInputSchema>;
-export interface ExistsOutput {
-    /** Whether the path exists */
-    exists: boolean;
-    /** Path that was checked */
-    path: string;
-    /** Type if exists: file, directory, or other */
-    type?: "file" | "directory" | "other";
+export declare enum FileType {
+    File = "file",
+    Directory = "directory",
+    Other = "other"
 }
+export type ExistsOutput = {
+    exists: false;
+} | {
+    exists: true;
+    stats: StatOutput;
+};
 export declare const MkdirInputSchema: z.ZodObject<{
     path: z.ZodString;
     recursive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
@@ -75,13 +90,9 @@ export interface ReaddirEntry {
     /** Full path */
     path: string;
     /** Type: file, directory, or other */
-    type: "file" | "directory" | "other";
+    type: FileType;
     /** Stats if includeStats was true */
-    stats?: {
-        size: number;
-        mtime: string;
-        ctime: string;
-    };
+    stats?: StatOutput;
 }
 export interface ReaddirOutput {
     /** Directory path */
@@ -97,7 +108,7 @@ export interface StatOutput {
     /** Path */
     path: string;
     /** Type: file, directory, or other */
-    type: "file" | "directory" | "other";
+    type: FileType;
     /** Size in bytes */
     size: number;
     /** Last modified time (ISO string) */
@@ -156,5 +167,6 @@ export interface ReadJsonOutput {
     path: string;
     /** Parsed JSON data */
     data: unknown;
+    stats: StatOutput;
 }
 //# sourceMappingURL=types.d.ts.map

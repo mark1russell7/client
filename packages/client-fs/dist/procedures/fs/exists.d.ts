@@ -3,7 +3,7 @@
  *
  * Check if file or directory exists
  */
-import type { ExistsInput, ExistsOutput } from "../../types.js";
+import { type ExistsInput, type ExistsOutput } from "../../types.js";
 /**
  * Check if file or directory exists
  */

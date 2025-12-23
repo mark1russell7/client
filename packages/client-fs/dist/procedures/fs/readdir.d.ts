@@ -3,7 +3,7 @@
  *
  * Read directory contents
  */
-import type { ReaddirInput, ReaddirOutput } from "../../types.js";
+import { type ReaddirInput, type ReaddirOutput } from "../../types.js";
 /**
  * Read directory contents
  */

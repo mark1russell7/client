@@ -3,7 +3,7 @@
  *
  * Get file or directory stats
  */
-import type { StatInput, StatOutput } from "../../types.js";
+import { type StatInput, type StatOutput } from "../../types.js";
 /**
  * Get file or directory stats
  */

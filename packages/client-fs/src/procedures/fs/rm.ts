@@ -4,8 +4,9 @@
  * Remove file or directory
  */
 
-import { rm as fsRm, stat } from "node:fs/promises";
+import { rm as fsRm } from "node:fs/promises";
 import type { RmInput, RmOutput } from "../../types.js";
+import { stat } from "./stat.js";
 
 /**
  * Remove file or directory
@@ -13,7 +14,7 @@ import type { RmInput, RmOutput } from "../../types.js";
 export async function rm(input: RmInput): Promise<RmOutput> {
   const { path, recursive, force } = input;
   try {
-    await stat(path);
+    await stat(input);
     await fsRm(path, { recursive, force });
     return { path, removed: true };
   } catch (err) {

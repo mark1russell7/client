@@ -5,7 +5,7 @@
  */
 
 import { stat as fsStat } from "node:fs/promises";
-import type { StatInput, StatOutput } from "../../types.js";
+import { FileType, type StatInput, type StatOutput } from "../../types.js";
 
 /**
  * Get file or directory stats
@@ -14,9 +14,9 @@ export async function stat(input: StatInput): Promise<StatOutput> {
   const { path } = input;
   const stats = await fsStat(path);
 
-  let type: "file" | "directory" | "other" = "other";
-  if (stats.isFile()) type = "file";
-  else if (stats.isDirectory()) type = "directory";
+  let type: FileType = FileType.Other;
+  if (stats.isFile()) type = FileType.File;
+  else if (stats.isDirectory()) type = FileType.Directory;
 
   return {
     path,

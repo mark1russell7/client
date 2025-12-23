@@ -4,8 +4,9 @@
  * Create directory
  */
 
-import { mkdir as fsMkdir, stat } from "node:fs/promises";
+import { mkdir as fsMkdir } from "node:fs/promises";
 import type { MkdirInput, MkdirOutput } from "../../types.js";
+import { stat } from "./stat.js";
 
 /**
  * Create directory
@@ -13,7 +14,7 @@ import type { MkdirInput, MkdirOutput } from "../../types.js";
 export async function mkdir(input: MkdirInput): Promise<MkdirOutput> {
   const { path, recursive } = input;
   try {
-    await stat(path);
+    await stat(input);
     return { path, created: false };
   } catch {
     await fsMkdir(path, { recursive });

@@ -3,23 +3,18 @@
  *
  * Check if file or directory exists
  */
-import { stat } from "node:fs/promises";
+import {} from "../../types.js";
+import { stat } from "./stat.js";
 /**
  * Check if file or directory exists
  */
 export async function exists(input) {
-    const { path } = input;
     try {
-        const stats = await stat(path);
-        let type = "other";
-        if (stats.isFile())
-            type = "file";
-        else if (stats.isDirectory())
-            type = "directory";
-        return { exists: true, path, type };
+        const stats = await stat(input);
+        return { exists: true, stats };
     }
     catch {
-        return { exists: false, path };
+        return { exists: false };
     }
 }
 //# sourceMappingURL=exists.js.map

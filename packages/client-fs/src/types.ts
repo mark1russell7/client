@@ -2,6 +2,7 @@
  * Type definitions for client-fs procedures
  */
 
+import type { Stats } from "node:fs";
 import { z } from "zod";
 
 // =============================================================================
@@ -26,7 +27,7 @@ export interface ReadOutput {
   /** File path */
   path: string;
   /** File size in bytes */
-  size: number;
+  stats: StatOutput;
 }
 
 // =============================================================================
@@ -58,6 +59,24 @@ export interface WriteOutput {
   bytesWritten: number;
 }
 
+
+export const FileTypeInputSchema : z.ZodObject<{
+  path: z.ZodString;
+}> = z.object({
+  /** Path to check */
+  path: z.string(),
+});
+
+export type FileTypeInput = z.infer<typeof FileTypeInputSchema>;
+export interface FileTypeOutput {
+  /** Path that was checked */
+  path : string;
+  /** Type if exists: file, directory, or other */
+  type : FileType;
+  stats : Stats
+}
+
+
 // =============================================================================
 // exists Types - Check if file or directory exists
 // =============================================================================
@@ -70,15 +89,13 @@ export const ExistsInputSchema: z.ZodObject<{
 });
 
 export type ExistsInput = z.infer<typeof ExistsInputSchema>;
-
-export interface ExistsOutput {
-  /** Whether the path exists */
-  exists: boolean;
-  /** Path that was checked */
-  path: string;
-  /** Type if exists: file, directory, or other */
-  type?: "file" | "directory" | "other";
+export enum FileType {
+  File = "file",
+  Directory = "directory",
+  Other = "other",
 }
+
+export type ExistsOutput = {exists : false} | {exists : true, stats : StatOutput};
 
 // =============================================================================
 // mkdir Types - Create directory
@@ -154,13 +171,9 @@ export interface ReaddirEntry {
   /** Full path */
   path: string;
   /** Type: file, directory, or other */
-  type: "file" | "directory" | "other";
+  type: FileType;
   /** Stats if includeStats was true */
-  stats?: {
-    size: number;
-    mtime: string;
-    ctime: string;
-  };
+  stats?: StatOutput;
 }
 
 export interface ReaddirOutput {
@@ -187,7 +200,7 @@ export interface StatOutput {
   /** Path */
   path: string;
   /** Type: file, directory, or other */
-  type: "file" | "directory" | "other";
+  type: FileType;
   /** Size in bytes */
   size: number;
   /** Last modified time (ISO string) */
@@ -302,4 +315,5 @@ export interface ReadJsonOutput {
   path: string;
   /** Parsed JSON data */
   data: unknown;
+  stats : StatOutput
 }

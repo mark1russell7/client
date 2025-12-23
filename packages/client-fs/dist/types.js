@@ -24,6 +24,10 @@ export const WriteInputSchema = z.object({
     /** Write mode: write (overwrite) or append (default: write) */
     mode: z.enum(["write", "append"]).optional().default("write"),
 });
+export const FileTypeInputSchema = z.object({
+    /** Path to check */
+    path: z.string(),
+});
 // =============================================================================
 // exists Types - Check if file or directory exists
 // =============================================================================
@@ -31,6 +35,12 @@ export const ExistsInputSchema = z.object({
     /** Path to check */
     path: z.string(),
 });
+export var FileType;
+(function (FileType) {
+    FileType["File"] = "file";
+    FileType["Directory"] = "directory";
+    FileType["Other"] = "other";
+})(FileType || (FileType = {}));
 // =============================================================================
 // mkdir Types - Create directory
 // =============================================================================

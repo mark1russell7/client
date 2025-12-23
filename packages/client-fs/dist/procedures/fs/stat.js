@@ -4,17 +4,18 @@
  * Get file or directory stats
  */
 import { stat as fsStat } from "node:fs/promises";
+import { FileType } from "../../types.js";
 /**
  * Get file or directory stats
  */
 export async function stat(input) {
     const { path } = input;
     const stats = await fsStat(path);
-    let type = "other";
+    let type = FileType.Other;
     if (stats.isFile())
-        type = "file";
+        type = FileType.File;
     else if (stats.isDirectory())
-        type = "directory";
+        type = FileType.Directory;
     return {
         path,
         type,

@@ -3,14 +3,15 @@
  *
  * Remove file or directory
  */
-import { rm as fsRm, stat } from "node:fs/promises";
+import { rm as fsRm } from "node:fs/promises";
+import { stat } from "./stat.js";
 /**
  * Remove file or directory
  */
 export async function rm(input) {
     const { path, recursive, force } = input;
     try {
-        await stat(path);
+        await stat(input);
         await fsRm(path, { recursive, force });
         return { path, removed: true };
     }
