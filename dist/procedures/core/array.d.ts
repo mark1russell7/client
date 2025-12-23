@@ -164,6 +164,101 @@ type RangeProcedure = Procedure<RangeInput, number[], {
     tags: string[];
 }>;
 declare const rangeProcedure: RangeProcedure;
+interface FilterInput {
+    /** Array to filter */
+    items: unknown[];
+    /** Property to match against */
+    key?: string;
+    /** Value to match (equality check) */
+    value?: unknown;
+    /** Values to match (any of these) */
+    values?: unknown[];
+    /** Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith' */
+    match?: 'equals' | 'not' | 'in' | 'notIn' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte';
+    /** Invert the filter */
+    invert?: boolean;
+}
+type FilterProcedure = Procedure<FilterInput, unknown[], {
+    description: string;
+    tags: string[];
+}>;
+declare const filterProcedure: FilterProcedure;
+interface WhereInput {
+    /** Array to filter */
+    items: unknown[];
+    /** Object with key-value pairs to match */
+    where: Record<string, unknown>;
+}
+type WhereProcedure = Procedure<WhereInput, unknown[], {
+    description: string;
+    tags: string[];
+}>;
+declare const whereProcedure: WhereProcedure;
+interface PluckInput {
+    /** Array of objects */
+    items: unknown[];
+    /** Property to extract */
+    key: string;
+}
+type PluckProcedure = Procedure<PluckInput, unknown[], {
+    description: string;
+    tags: string[];
+}>;
+declare const pluckProcedure: PluckProcedure;
+interface ArrPickInput {
+    /** Array of objects */
+    items: unknown[];
+    /** Properties to keep */
+    keys: string[];
+}
+type ArrPickProcedure = Procedure<ArrPickInput, unknown[], {
+    description: string;
+    tags: string[];
+}>;
+declare const arrPickProcedure: ArrPickProcedure;
+interface ArrOmitInput {
+    /** Array of objects */
+    items: unknown[];
+    /** Properties to remove */
+    keys: string[];
+}
+type ArrOmitProcedure = Procedure<ArrOmitInput, unknown[], {
+    description: string;
+    tags: string[];
+}>;
+declare const arrOmitProcedure: ArrOmitProcedure;
+interface PartitionInput {
+    /** Array to partition */
+    items: unknown[];
+    /** Property to check for truthiness */
+    key: string;
+    /** Value to match for truthy partition */
+    value?: unknown;
+}
+interface PartitionOutput {
+    /** Items that matched */
+    truthy: unknown[];
+    /** Items that didn't match */
+    falsy: unknown[];
+}
+type PartitionProcedure = Procedure<PartitionInput, PartitionOutput, {
+    description: string;
+    tags: string[];
+}>;
+declare const partitionProcedure: PartitionProcedure;
+interface CountInput {
+    /** Array to count */
+    items: unknown[];
+    /** Optional property to check for truthiness */
+    key?: string;
+    /** Optional value to match */
+    value?: unknown;
+}
+type CountProcedure = Procedure<CountInput, number, {
+    description: string;
+    tags: string[];
+}>;
+declare const countProcedure: CountProcedure;
 /**
  * All array procedures namespaced under "client".
  */
@@ -175,5 +270,5 @@ export declare const arrayModule: {
     name: string;
     procedures: AnyProcedure[];
 };
-export { firstProcedure, lastProcedure, nthProcedure, arrLengthProcedure, flattenProcedure, reverseProcedure, sortProcedure, sliceProcedure, arrConcatProcedure, uniqueProcedure, groupByProcedure, zipProcedure, unzipProcedure, indexOfProcedure, containsProcedure, pushProcedure, unshiftProcedure, rangeProcedure, };
+export { firstProcedure, lastProcedure, nthProcedure, arrLengthProcedure, flattenProcedure, reverseProcedure, sortProcedure, sliceProcedure, arrConcatProcedure, uniqueProcedure, groupByProcedure, zipProcedure, unzipProcedure, indexOfProcedure, containsProcedure, pushProcedure, unshiftProcedure, rangeProcedure, filterProcedure, whereProcedure, pluckProcedure, arrPickProcedure, arrOmitProcedure, partitionProcedure, countProcedure, };
 //# sourceMappingURL=array.d.ts.map

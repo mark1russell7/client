@@ -157,12 +157,27 @@ export {
   andProcedure,
   orProcedure,
   notProcedure,
+  allProcedure,
+  anyProcedure,
+  noneProcedure,
   mapProcedure,
   reduceProcedure,
   identityProcedure,
   constantProcedure,
   throwProcedure,
   tryCatchProcedure,
+  // Common schemas
+  anySchema,
+  // Meta-procedures for runtime definition
+  defineProcedureProcedure,
+  getProcedureProcedure,
+  listProceduresProcedure,
+  deleteProcedureProcedure,
+  metaProcedures,
+  getRuntimeProcedure,
+  hasRuntimeProcedure,
+  getAllRuntimeProcedures,
+  clearRuntimeProcedures,
   // Storage-backed registry
   serializeProcedure,
   deserializeProcedure,
@@ -231,6 +246,10 @@ export type {
   ProcedureStorageAdapterOptions,
   SyncedRegistrationOptions,
   CreateSyncedRegistryConfig,
+  // Meta-procedure types
+  AggregationDefinition,
+  DefineProcedureInput,
+  DefineProcedureOutput,
 } from "./procedures/index.js";
 
 // ============================================================================
