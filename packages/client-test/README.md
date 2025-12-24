@@ -1,46 +1,128 @@
 # @mark1russell7/client-test
 
-Test execution procedures. Run tests and collect coverage.
+[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-test.svg)](https://www.npmjs.com/package/@mark1russell7/client-test)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Test execution procedures for the ecosystem - run tests and collect coverage via client procedures.
+
+## Overview
+
+`client-test` provides client procedures for running tests across the ecosystem. It wraps test runners (primarily Vitest) and exposes them as callable procedures, enabling test execution as part of automated workflows, DAG traversals, and CLI commands.
+
+### Key Features
+
+- **Test Execution**: Run tests via `client.call(["test", "run"], {...})`
+- **Coverage Reporting**: Collect and validate coverage metrics
+- **Watch Mode**: Interactive test watching during development
+- **Pattern Matching**: Run specific test files or suites
+- **Threshold Validation**: Enforce minimum coverage requirements
+- **Integration Ready**: Works with DAG traversal for multi-package testing
 
 ## Installation
 
 ```bash
-npm install github:mark1russell7/client-test#main
+npm install @mark1russell7/client-test
 ```
+
+### Dependencies
+
+- `@mark1russell7/client` - Client RPC system
+- `@mark1russell7/client-shell` - Shell command execution
+- `zod` - Schema validation
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph "Application Layer"
+        App[Application Code]
+        CLI[CLI Commands]
+        DAG[DAG Traversal]
+    end
+
+    subgraph "client-test Package"
+        Register[register.ts<br/>Auto-registration]
+        TestRun[test.run<br/>Procedure]
+        TestCoverage[test.coverage<br/>Procedure]
+        Schemas[Zod Schemas<br/>Input Validation]
+    end
+
+    subgraph "Execution Layer"
+        Shell[client-shell<br/>shell.exec]
+        Vitest[Vitest CLI<br/>npx vitest]
+    end
+
+    App -->|call test.run| TestRun
+    CLI -->|call test.coverage| TestCoverage
+    DAG -->|batch test.run| TestRun
+
+    Register -->|registers| TestRun
+    Register -->|registers| TestCoverage
+
+    TestRun -->|validates with| Schemas
+    TestCoverage -->|validates with| Schemas
+
+    TestRun -->|shell.exec| Shell
+    TestCoverage -->|shell.exec| Shell
+
+    Shell -->|spawns| Vitest
+
+    Vitest -->|stdout/stderr| Shell
+    Shell -->|result| TestRun
+    Shell -->|result| TestCoverage
+
+    style Register fill:#e1f5ff
+    style TestRun fill:#e8f5e9
+    style TestCoverage fill:#e8f5e9
+    style Schemas fill:#fff4e1
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Application                                     │
-│                                                                              │
-│   await client.call(["test", "run"], { cwd: "/my/project" })                │
-│                                                                              │
-└───────────────────────────────────┬─────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            client-test                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────────────────────┐  ┌─────────────────────────────────────┐  │
-│  │         test.run            │  │          test.coverage              │  │
-│  │                             │  │                                     │  │
-│  │  Run tests with options:    │  │  Run tests with coverage:          │  │
-│  │  • Pattern matching         │  │  • Coverage reporting              │  │
-│  │  • Watch mode               │  │  • Threshold validation            │  │
-│  │  • Reporter selection       │  │                                     │  │
-│  │  • Timeout configuration    │  │                                     │  │
-│  └─────────────────────────────┘  └─────────────────────────────────────┘  │
-│                                                                              │
-│                                    │                                         │
-│                                    ▼                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │                         client-shell                                     ││
-│  │              shell.run("npx", ["vitest", ...args])                      ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+
+### Test Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Client as Client RPC
+    participant TestProc as test.run Procedure
+    participant Shell as client-shell
+    participant Vitest as Vitest Process
+
+    App->>Client: call(["test", "run"], {cwd, pattern})
+    Client->>TestProc: Route to handler
+    TestProc->>TestProc: Validate input (Zod)
+    TestProc->>TestProc: Build vitest args
+    TestProc->>Shell: shell.exec("vitest run ...")
+    Shell->>Vitest: spawn process
+    Vitest->>Vitest: Execute tests
+    Vitest-->>Shell: stdout/stderr + exit code
+    Shell-->>TestProc: {exitCode, stdout, stderr}
+    TestProc->>TestProc: Calculate duration
+    TestProc-->>Client: {success, exitCode, stdout, stderr, duration}
+    Client-->>App: Test result
+```
+
+### Coverage Flow
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Client as Client RPC
+    participant Coverage as test.coverage
+    participant Shell as client-shell
+    participant Vitest as Vitest + Coverage
+
+    App->>Client: call(["test", "coverage"], {threshold: 80})
+    Client->>Coverage: Route to handler
+    Coverage->>Coverage: Build args with --coverage
+    Coverage->>Shell: shell.exec("vitest run --coverage")
+    Shell->>Vitest: spawn with coverage
+    Vitest->>Vitest: Run tests + collect coverage
+    Vitest-->>Shell: stdout with coverage report
+    Shell-->>Coverage: {exitCode, stdout, stderr}
+    Coverage->>Coverage: Parse coverage % from output
+    Coverage->>Coverage: Validate against threshold
+    Coverage-->>Client: {success, coverage, ...}
+    Client-->>App: Coverage result
 ```
 
 ## Quick Start
