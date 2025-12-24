@@ -149,10 +149,6 @@
     "@mark1russell7/client-snapshot": {
       "repo": "github:mark1russell7/client-snapshot#main",
       "path": "client-snapshot"
-    },
-    "@mark1russell7/test-pkg-1766502963389": {
-      "repo": "github:mark1russell7/test-pkg-1766502963389#main",
-      "path": "test-pkg-1766502963389"
     }
   },
   "projectTemplate": {
