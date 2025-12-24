@@ -8,6 +8,19 @@
  * 4. git add -A && git commit && git push
  *
  * With --recursive, processes dependencies in post-order (bottom-up).
+ *
+ * @deprecated This imperative implementation is deprecated.
+ * Use the aggregation version via `registerAggregationProcedures()` instead:
+ * - Import: `import { registerAggregationProcedures } from "@mark1russell7/client-lib"`
+ * - Register: `await registerAggregationProcedures(client)`
+ * - Call: `await client.call(["agg", "lib", "refresh"], input)`
+ *
+ * The aggregation version (libRefreshAggregation) provides:
+ * - Declarative JSON-serializable definition
+ * - Runtime introspection
+ * - Consistent error handling via the aggregation executor
+ *
+ * This imperative version will be removed in v2.0.
  */
 
 import { join } from "node:path";
@@ -295,6 +308,9 @@ async function refreshSinglePackage(
 
 /**
  * Refresh a package and optionally its dependencies recursively
+ *
+ * @deprecated Use libRefreshAggregation via registerAggregationProcedures() instead.
+ * This imperative version will be removed in v2.0.
  */
 export async function libRefresh(input: LibRefreshInput, ctx: ProcedureContext): Promise<LibRefreshOutput> {
   const startTime = Date.now();

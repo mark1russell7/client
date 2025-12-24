@@ -288,5 +288,14 @@ export function registerLibProcedures(): void {
   ]);
 }
 
+// Re-export aggregation registration for convenience
+export {
+  registerAggregationProcedures,
+  getAllAggregations,
+  getAggregation,
+  listAggregationPaths,
+  aggregationRegistry,
+} from "./register-aggregations.js";
+
 // Auto-register
 registerLibProcedures();

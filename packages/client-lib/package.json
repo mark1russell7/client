@@ -19,24 +19,26 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
     "postinstall": "client announce"
   },
   "sideEffects": false,
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
   },
   "description": "Library management procedures - scan, refresh, install, pull, etc.",
   "dependencies": {
-    "zod": "^3.24.0",
     "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
-    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
     "@mark1russell7/client-dag": "github:mark1russell7/client-dag#main",
-    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main",
+    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
+    "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
     "@mark1russell7/client-pnpm": "github:mark1russell7/client-pnpm#main",
-    "ts-morph": "^24.0.0"
+    "@mark1russell7/client-shell": "github:mark1russell7/client-shell#main",
+    "ts-morph": "^24.0.0",
+    "zod": "^3.24.0"
   },
   "client": {
     "procedures": "./dist/register.js"

@@ -220,6 +220,8 @@ export function registerLibProcedures() {
         coreCatchProcedure,
     ]);
 }
+// Re-export aggregation registration for convenience
+export { registerAggregationProcedures, getAllAggregations, getAggregation, listAggregationPaths, aggregationRegistry, } from "./register-aggregations.js";
 // Auto-register
 registerLibProcedures();
 //# sourceMappingURL=register.js.map

@@ -63,3 +63,12 @@ export {
   extractMark1Russell7Deps,
   getPackageNameFromRef,
 } from "./git/index.js";
+
+// Re-export aggregation registration
+export {
+  registerAggregationProcedures,
+  getAllAggregations,
+  getAggregation,
+  listAggregationPaths,
+  aggregationRegistry,
+} from "./register-aggregations.js";

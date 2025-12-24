@@ -5,4 +5,5 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 export declare function registerLibProcedures(): void;
+export { registerAggregationProcedures, getAllAggregations, getAggregation, listAggregationPaths, aggregationRegistry, } from "./register-aggregations.js";
 //# sourceMappingURL=register.d.ts.map
