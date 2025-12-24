@@ -1,12 +1,40 @@
 # @mark1russell7/client-shell
 
-Low-level shell command execution as RPC procedures. Foundation layer for all CLI wrapper packages.
+[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-shell.svg)](https://www.npmjs.com/package/@mark1russell7/client-shell)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+
+**Generic shell command execution procedures - the foundation layer for all CLI wrapper packages in the Mark ecosystem.**
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation](#installation)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Use Cases](#use-cases)
+- [Cross-Platform Notes](#cross-platform-notes)
+
+## Overview
+
+`@mark1russell7/client-shell` provides low-level shell command execution as RPC procedures:
+
+- **shell.run**: Spawn processes with arguments (no shell interpretation, safer)
+- **shell.exec**: Execute command strings via shell (supports pipes, redirects)
+- **shell.which**: Find command paths cross-platform
+
+This package is the foundation for all CLI wrapper packages (`client-cli`, `client-pnpm`, `client-git`, etc.).
 
 ## Installation
 
 ```bash
 npm install github:mark1russell7/client-shell#main
 ```
+
+**Dependencies:**
+- `@mark1russell7/client` (peer dependency)
+- `zod` ^3.24.0
 
 ## Architecture
 
