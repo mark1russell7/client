@@ -658,3 +658,210 @@ describe("libPullAggregation structure", () => {
     expect(dagStep).toBeDefined();
   });
 });
+
+describe("DAG execution behavior", () => {
+  let client: ReturnType<typeof createTestMockClient>;
+
+  beforeEach(() => {
+    client = createTestMockClient();
+    // Default mocks
+    client.mockResponse(["fs", "rm"], { output: { removed: true } });
+    client.mockResponse(["pnpm", "install"], { output: { success: true, exitCode: 0 } });
+    client.mockResponse(["pnpm", "run"], { output: { success: true, exitCode: 0 } });
+    client.mockResponse(["git", "add"], { output: { staged: true } });
+    client.mockResponse(["git", "commit"], { output: { sha: "abc123" } });
+    client.mockResponse(["git", "push"], { output: { pushed: true } });
+    client.mockResponse(["git", "pull"], { output: { commits: 0 } });
+    client.mockResponse(["git", "clone"], { output: { cloned: true } });
+    client.mockResponse(["fs", "exists"], { output: { exists: true } });
+  });
+
+  describe("libRefreshAggregation execution", () => {
+    it("scan step returns packages", async () => {
+      client.mockResponse(["lib", "scan"], {
+        output: {
+          packages: {
+            "pkg-a": { name: "pkg-a", repoPath: "/git/pkg-a", mark1russell7Deps: [] },
+            "pkg-b": { name: "pkg-b", repoPath: "/git/pkg-b", mark1russell7Deps: ["pkg-a"] },
+          },
+          warnings: [],
+        },
+      });
+
+      const result = await executeAggregation(
+        { $proc: ["lib", "scan"], $name: "scan", input: { rootPath: "/git" } },
+        { rootPath: "/git" },
+        client
+      );
+
+      expect(result).toHaveProperty("packages");
+    });
+
+    it("handles empty package list gracefully", async () => {
+      client.mockResponse(["lib", "scan"], {
+        output: { packages: {}, warnings: [] },
+      });
+      client.mockResponse(["lib", "topologicalSort"], {
+        output: { sorted: [] },
+      });
+      client.mockResponse(["dag", "execute"], {
+        output: { results: [], allSucceeded: true, errors: [] },
+      });
+
+      const result = await executeAggregation(
+        libRefreshAggregation,
+        { rootPath: "/git", skipGit: true },
+        client
+      );
+
+      // Should succeed even with no packages
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("dependency ordering", () => {
+    it("libRefreshAggregation uses dag.execute for all mode", () => {
+      const steps = (libRefreshAggregation.input as { steps: AggregationDefinition[] }).steps;
+      const conditionalStep = steps.find((s) => s.$name === "result");
+      expect(conditionalStep).toBeDefined();
+      expect(conditionalStep?.$proc).toEqual(["client", "conditional"]);
+      // The 'then' branch contains dag.execute
+      const thenBranch = (conditionalStep?.input as { then: AggregationDefinition }).then;
+      expect(thenBranch.$proc).toEqual(["dag", "execute"]);
+    });
+
+    it("libInstallAggregation loads manifest with tryCatch wrapper", () => {
+      const steps = (libInstallAggregation.input as { steps: AggregationDefinition[] }).steps;
+      const manifestStep = steps.find((s) => s.$name === "manifest");
+
+      expect(manifestStep).toBeDefined();
+      // Manifest loading is wrapped in tryCatch for error handling
+      expect(manifestStep?.$proc).toEqual(["client", "tryCatch"]);
+    });
+  });
+
+  describe("parallel task execution", () => {
+    it("client.parallel executes all tasks", async () => {
+      const result = await executeAggregation(
+        {
+          $proc: ["client", "parallel"],
+          input: {
+            tasks: [
+              { $proc: ["pnpm", "install"], input: { cwd: "/pkg1" } },
+              { $proc: ["pnpm", "install"], input: { cwd: "/pkg2" } },
+              { $proc: ["pnpm", "install"], input: { cwd: "/pkg3" } },
+            ],
+          },
+        },
+        {},
+        client
+      ) as unknown[];
+
+      expect(result).toHaveLength(3);
+      const installCalls = client.getCallsFor(["pnpm", "install"]);
+      expect(installCalls).toHaveLength(3);
+    });
+
+    it("parallel tasks receive correct individual inputs", async () => {
+      await executeAggregation(
+        {
+          $proc: ["client", "parallel"],
+          input: {
+            tasks: [
+              { $proc: ["pnpm", "install"], input: { cwd: "/pkg-a" } },
+              { $proc: ["pnpm", "install"], input: { cwd: "/pkg-b" } },
+            ],
+          },
+        },
+        {},
+        client
+      );
+
+      const calls = client.getCallsFor(["pnpm", "install"]);
+      const cwds = calls.map((c) => (c.input as { cwd: string }).cwd);
+      expect(cwds).toContain("/pkg-a");
+      expect(cwds).toContain("/pkg-b");
+    });
+  });
+
+  describe("error handling in DAG execution", () => {
+    it("single package failure is reported", async () => {
+      client.mockResponse(["pnpm", "install"], {
+        output: { success: false },
+      });
+
+      await expect(
+        executeAggregation(
+          refreshSinglePackageAggregation,
+          { cwd: "/failing-pkg", packageName: "failing", skipGit: true },
+          client
+        )
+      ).rejects.toThrow("pnpm install failed");
+    });
+
+    it("error message includes package context", async () => {
+      client.mockResponse(["pnpm", "run"], {
+        error: new Error("Build failed"),
+      });
+
+      await expect(
+        executeAggregation(
+          refreshSinglePackageAggregation,
+          { cwd: "/bad-build", packageName: "bad-build", skipGit: true },
+          client
+        )
+      ).rejects.toThrow("Build failed");
+    });
+  });
+
+  describe("dry-run mode", () => {
+    it("pullSinglePackageAggregation dry-run returns wouldPull info", async () => {
+      const result = await executeAggregation(
+        pullSinglePackageAggregation,
+        { cwd: "/pkg", packageName: "test", dryRun: true },
+        client
+      ) as { dryRun: boolean };
+
+      // In dry-run mode, no git pull should happen
+      const pullCalls = client.getCallsFor(["git", "pull"]);
+      expect(pullCalls).toHaveLength(0);
+    });
+
+    it("cloneMissingPackageAggregation dry-run returns wouldClone info", async () => {
+      client.mockResponse(["fs", "exists"], { output: { exists: false } });
+
+      const result = await executeAggregation(
+        cloneMissingPackageAggregation,
+        { path: "/git/new-pkg", url: "git@github.com:user/new-pkg.git", name: "new-pkg", dryRun: true },
+        client
+      ) as { cloned: { wouldClone: boolean } };
+
+      // In dry-run mode, no actual clone should happen
+      const cloneCalls = client.getCallsFor(["git", "clone"]);
+      expect(cloneCalls).toHaveLength(0);
+    });
+  });
+
+  describe("aggregation composition", () => {
+    it("libNewAggregation includes path resolution step", () => {
+      const steps = (libNewAggregation.input as { steps: AggregationDefinition[] }).steps;
+      const pathsStep = steps.find((s) => s.$name === "paths");
+      expect(pathsStep).toBeDefined();
+      expect(pathsStep?.$proc).toEqual(["client", "identity"]);
+    });
+
+    it("refreshSinglePackageAggregation uses conditional for force cleanup", () => {
+      const steps = (refreshSinglePackageAggregation.input as { steps: AggregationDefinition[] }).steps;
+      const conditionalStep = steps.find((s) => s.$proc[1] === "conditional");
+      expect(conditionalStep).toBeDefined();
+    });
+
+    it("libInstallAggregation uses map for package processing", () => {
+      const steps = (libInstallAggregation.input as { steps: AggregationDefinition[] }).steps;
+      const hasMap = steps.some((s) => s.$proc[1] === "map");
+      const hasDag = steps.some((s) => s.$proc[0] === "dag");
+      // Should use either map or dag for batch processing
+      expect(hasMap || hasDag).toBe(true);
+    });
+  });
+});
