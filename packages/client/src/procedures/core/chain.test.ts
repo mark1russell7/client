@@ -319,5 +319,162 @@ describe("chain procedure", () => {
         )
       ).rejects.toThrow("Step failed");
     });
+
+    it("error in step 3 of 5 stops execution", async () => {
+      const callOrder: string[] = [];
+      mockClient.mockImplementation(["test", "step1"], () => {
+        callOrder.push("step1");
+        return { value: 1 };
+      });
+      mockClient.mockImplementation(["test", "step2"], () => {
+        callOrder.push("step2");
+        return { value: 2 };
+      });
+      mockClient.mockImplementation(["test", "step3"], () => {
+        callOrder.push("step3");
+        throw new Error("Step 3 exploded");
+      });
+      mockClient.mockImplementation(["test", "step4"], () => {
+        callOrder.push("step4");
+        return { value: 4 };
+      });
+      mockClient.mockImplementation(["test", "step5"], () => {
+        callOrder.push("step5");
+        return { value: 5 };
+      });
+
+      await expect(
+        chainProcedure.handler(
+          {
+            steps: [
+              { $proc: ["test", "step1"], input: {} },
+              { $proc: ["test", "step2"], input: {} },
+              { $proc: ["test", "step3"], input: {} },
+              { $proc: ["test", "step4"], input: {} },
+              { $proc: ["test", "step5"], input: {} },
+            ],
+          },
+          ctx
+        )
+      ).rejects.toThrow("Step 3 exploded");
+
+      // Verify steps 4 and 5 were never called
+      expect(callOrder).toEqual(["step1", "step2", "step3"]);
+    });
+
+    it("preserves error message from failing step", async () => {
+      const customError = new Error("Custom validation error: field 'name' is required");
+      mockClient.mockResponse(["test", "validate"], { error: customError });
+
+      await expect(
+        chainProcedure.handler(
+          {
+            steps: [
+              { $proc: ["test", "validate"], input: { data: {} } },
+            ],
+          },
+          ctx
+        )
+      ).rejects.toThrow("Custom validation error: field 'name' is required");
+    });
+
+    it("first step failure prevents all subsequent steps", async () => {
+      const callOrder: string[] = [];
+      mockClient.mockImplementation(["test", "first"], () => {
+        callOrder.push("first");
+        throw new Error("First step failed");
+      });
+      mockClient.mockImplementation(["test", "second"], () => {
+        callOrder.push("second");
+        return {};
+      });
+
+      await expect(
+        chainProcedure.handler(
+          {
+            steps: [
+              { $proc: ["test", "first"], input: {} },
+              { $proc: ["test", "second"], input: {} },
+            ],
+          },
+          ctx
+        )
+      ).rejects.toThrow("First step failed");
+
+      expect(callOrder).toEqual(["first"]);
+    });
+
+    it("last step failure still throws", async () => {
+      mockClient.mockResponse(["test", "success1"], { output: { ok: true } });
+      mockClient.mockResponse(["test", "success2"], { output: { ok: true } });
+      mockClient.mockResponse(["test", "failLast"], { error: new Error("Last step failed") });
+
+      await expect(
+        chainProcedure.handler(
+          {
+            steps: [
+              { $proc: ["test", "success1"], input: {} },
+              { $proc: ["test", "success2"], input: {} },
+              { $proc: ["test", "failLast"], input: {} },
+            ],
+          },
+          ctx
+        )
+      ).rejects.toThrow("Last step failed");
+    });
+
+    it("error with nested chain", async () => {
+      // Simulating a nested chain error
+      mockClient.mockResponse(["test", "outerStep"], { output: { value: 1 } });
+      mockClient.mockImplementation(["client", "chain"], () => {
+        throw new Error("Inner chain failed");
+      });
+
+      await expect(
+        chainProcedure.handler(
+          {
+            steps: [
+              { $proc: ["test", "outerStep"], input: {} },
+              { $proc: ["client", "chain"], input: { steps: [] } },
+            ],
+          },
+          ctx
+        )
+      ).rejects.toThrow("Inner chain failed");
+    });
+
+    it("error type is preserved (Error vs TypeError)", async () => {
+      const typeError = new TypeError("Cannot read property of undefined");
+      mockClient.mockResponse(["test", "typeError"], { error: typeError });
+
+      try {
+        await chainProcedure.handler(
+          {
+            steps: [{ $proc: ["test", "typeError"], input: {} }],
+          },
+          ctx
+        );
+        expect.fail("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(TypeError);
+        expect((error as TypeError).message).toBe("Cannot read property of undefined");
+      }
+    });
+
+    it("async error is properly caught", async () => {
+      mockClient.mockImplementation(["test", "asyncFail"], async () => {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        throw new Error("Async operation failed");
+      });
+
+      await expect(
+        chainProcedure.handler(
+          {
+            steps: [{ $proc: ["test", "asyncFail"], input: {} }],
+          },
+          ctx
+        )
+      ).rejects.toThrow("Async operation failed");
+    });
   });
 });
