@@ -31,7 +31,9 @@
   "sideEffects": false,
   "dependencies": {
     "@mark1russell7/client-server-mongo": "github:mark1russell7/client-server-mongo#main",
-    "@mark1russell7/client-mongo": "github:mark1russell7/client-mongo#main"
+    "@mark1russell7/client-mongo": "github:mark1russell7/client-mongo#main",
+    "@mark1russell7/client-mongo": "github:mark1russell7/client#main"
+
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -42,7 +44,8 @@
     "onlyBuiltDependencies": [
       "@mark1russell7/cue",
       "@mark1russell7/client-server-mongo",
-      "@mark1russell7/client-mongo"
+      "@mark1russell7/client-mongo",
+      "@mark1russell7/client"
     ]
   },
   "keywords": [

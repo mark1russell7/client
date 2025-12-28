@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@mark1russell7/client-mongo':
-        specifier: github:mark1russell7/client-mongo#main
-        version: https://codeload.github.com/mark1russell7/client-mongo/tar.gz/002a27c39c0800324c690ffee57b66096dce6bb4(express@5.2.1)(zod@3.25.76)
+        specifier: github:mark1russell7/client#main
+        version: '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76)'
       '@mark1russell7/client-server-mongo':
         specifier: github:mark1russell7/client-server-mongo#main
         version: https://codeload.github.com/mark1russell7/client-server-mongo/tar.gz/1807805a67388f7849ecd10357f5085d5e33800a(express@5.2.1)
@@ -27,8 +27,17 @@ importers:
 
 packages:
 
-  '@mark1russell7/client-mongo@https://codeload.github.com/mark1russell7/client-mongo/tar.gz/002a27c39c0800324c690ffee57b66096dce6bb4':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-mongo/tar.gz/002a27c39c0800324c690ffee57b66096dce6bb4}
+  '@mark1russell7/client-collections@https://codeload.github.com/mark1russell7/client-collections/tar.gz/2801c223350f075cd82f3895fe250a91249124e8':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-collections/tar.gz/2801c223350f075cd82f3895fe250a91249124e8}
+    version: 0.0.1
+    peerDependencies:
+      '@mark1russell7/client': '*'
+    peerDependenciesMeta:
+      '@mark1russell7/client':
+        optional: true
+
+  '@mark1russell7/client-mongo@https://codeload.github.com/mark1russell7/client-mongo/tar.gz/665ef03c5a5e17305e498a1405be6cfcacf4daa1':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-mongo/tar.gz/665ef03c5a5e17305e498a1405be6cfcacf4daa1}
     version: 1.0.0
     engines: {node: '>=20.0.0'}
 
@@ -414,9 +423,14 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/client-mongo@https://codeload.github.com/mark1russell7/client-mongo/tar.gz/002a27c39c0800324c690ffee57b66096dce6bb4(express@5.2.1)(zod@3.25.76)':
+  '@mark1russell7/client-collections@https://codeload.github.com/mark1russell7/client-collections/tar.gz/2801c223350f075cd82f3895fe250a91249124e8(@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76))':
+    optionalDependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76)
+
+  '@mark1russell7/client-mongo@https://codeload.github.com/mark1russell7/client-mongo/tar.gz/665ef03c5a5e17305e498a1405be6cfcacf4daa1(express@5.2.1)(zod@3.25.76)':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client-collections': https://codeload.github.com/mark1russell7/client-collections/tar.gz/2801c223350f075cd82f3895fe250a91249124e8(@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76))
       mongodb: 7.0.0
     transitivePeerDependencies:
       - '@aws-sdk/credential-providers'
@@ -434,7 +448,7 @@ snapshots:
   '@mark1russell7/client-server-mongo@https://codeload.github.com/mark1russell7/client-server-mongo/tar.gz/1807805a67388f7849ecd10357f5085d5e33800a(express@5.2.1)':
     dependencies:
       '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76)
-      '@mark1russell7/client-mongo': https://codeload.github.com/mark1russell7/client-mongo/tar.gz/002a27c39c0800324c690ffee57b66096dce6bb4(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client-mongo': https://codeload.github.com/mark1russell7/client-mongo/tar.gz/665ef03c5a5e17305e498a1405be6cfcacf4daa1(express@5.2.1)(zod@3.25.76)
       '@mark1russell7/client-server': https://codeload.github.com/mark1russell7/client-server/tar.gz/76b5a7666c7366c27b1a30c620abe2a35a044a50
       zod: 3.25.76
     transitivePeerDependencies:
