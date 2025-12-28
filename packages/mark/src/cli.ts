@@ -19,6 +19,8 @@ import type {
 import { parseFromSchema, generateHelp, type CLIMeta } from "./parse";
 import { formatOutput, type Print } from "./format";
 import { loadEcosystemProcedures } from "./ecosystem";
+import { startServerMode, extractPort, extractHost } from "./server-mode";
+import { tryClientMode } from "./client-mode";
 
 const VERSION = "1.0.0";
 
@@ -279,13 +281,28 @@ function showRootHelp(procedures: AnyProcedure[]): void {
  * Run the CLI
  */
 async function run(argv: string[]): Promise<void> {
+  // Handle --version early (no imports needed)
+  if (argv.includes("--version") || argv.includes("-v")) {
+    print.info(`mark v${VERSION}`);
+    return;
+  }
+
+  const verbose = argv.includes("--verbose") || argv.includes("-V");
+
+  // Handle --server flag: start server mode
+  if (argv.includes("--server")) {
+    const port = extractPort(argv) ?? 3000;
+    const host = extractHost(argv) ?? "0.0.0.0";
+    await startServerMode({ port, host, verbose });
+    return; // Server mode keeps running
+  }
+
   // Dynamic imports for ESM packages (CLI is CommonJS for Gluegun compatibility)
   const clientModule = await import("@mark1russell7/client");
   const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
 
   // Dynamic ecosystem discovery - load procedures from all ecosystem packages
   // This includes client-cli, client-logger, and all other procedure packages
-  const verbose = argv.includes("--verbose") || argv.includes("-V");
   await loadEcosystemProcedures(verbose);
 
   // Create client with local transport
@@ -296,14 +313,25 @@ async function run(argv: string[]): Promise<void> {
   // Get all registered procedures
   const procedures = PROCEDURE_REGISTRY.getAll();
 
-  // Handle --version
-  if (argv.includes("--version") || argv.includes("-v")) {
-    print.info(`mark v${VERSION}`);
-    return;
-  }
-
   // Parse arguments (needs procedures for path detection)
   const { path, args, options } = parseArgs(argv, procedures);
+
+  // Try client mode: connect to running server if available (unless --local)
+  if (!argv.includes("--local") && path.length > 0 && !options["help"] && !options["h"]) {
+    const clientResult = await tryClientMode(path, args, options, procedures);
+    if (clientResult !== null) {
+      if (clientResult.success) {
+        // Determine output format
+        const meta = (findProcedure(procedures, path)?.metadata ?? {}) as CLIMeta;
+        const formatOverride = options["format"] as string | undefined;
+        const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
+        formatOutput(print as unknown as Print, clientResult.result, outputFormat);
+        return;
+      }
+      // If clientResult returned but not success, still fall through to local
+    }
+    // clientResult is null means no server, fall through to local execution
+  }
 
   
 
