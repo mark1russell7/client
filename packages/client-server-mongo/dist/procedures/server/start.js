@@ -13,9 +13,8 @@
  */
 export async function serverMongoStart(input, ctx) {
     const { port = 3000, host = "0.0.0.0", mongoUri, database, transports } = input;
-    // Import and register mongo procedures
-    const { registerMongoProcedures } = await import("@mark1russell7/client-mongo");
-    registerMongoProcedures();
+    // Import client-mongo (auto-registers procedures on import)
+    await import("@mark1russell7/client-mongo");
     // Connect to MongoDB if URI provided
     if (mongoUri || database) {
         const { connect } = await import("@mark1russell7/client-mongo");
