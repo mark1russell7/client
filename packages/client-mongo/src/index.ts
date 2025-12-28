@@ -123,6 +123,13 @@ export type {
 } from "./types.js";
 
 // =============================================================================
+// Storage (CollectionStorage implementation)
+// =============================================================================
+
+export { MongoStorage } from "./storage/index.js";
+export type { MongoStorageOptions } from "./storage/index.js";
+
+// =============================================================================
 // Procedure Registration
 // =============================================================================
 

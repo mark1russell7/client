@@ -32,6 +32,10 @@ export {
 // Type guards
 hasCollection, requireCollection, getBaseMeta, } from "./types.js";
 // =============================================================================
+// Storage (CollectionStorage implementation)
+// =============================================================================
+export { MongoStorage } from "./storage/index.js";
+// =============================================================================
 // Procedure Registration
 // =============================================================================
 export { registerMongoProcedures, procedures } from "./register.js";

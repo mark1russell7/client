@@ -26,6 +26,8 @@ export type { MongoConnection, MongoConnectionOptions } from "./connection.js";
 export { hasCollection, requireCollection, getBaseMeta, } from "./types.js";
 export type { MongoProcedures, ProcedureInput, ProcedureOutput, PingInput, PingOutput, InfoInput, ListCollectionsInput, ListCollectionsOutput, CreateCollectionInput, CreateCollectionOutput, DropCollectionInput, DropCollectionOutput, StatsInput, FindInput, FindOutput, GetInput, GetOutput, InsertInput, InsertOutput, UpdateInput, UpdateOutput, DeleteInput, DeleteOutput, CountInput, CountOutput, AggregateInput, AggregateOutput, ListIndexesInput, ListIndexesOutput, CreateIndexInput, CreateIndexOutput, DropIndexInput, DropIndexOutput, } from "./procedures.types.js";
 export type { PaginationInput, PaginationOutput, SortOrder, SortSpec, DocumentId, BaseDocument, MongoDocument, DocumentQuery, DocumentUpdate, BaseMeta, CollectionMeta, BulkInsertOne, BulkUpdateOne, BulkDeleteOne, BulkOperation, BulkWriteResult, IndexSpec, IndexOptions, IndexInfo, CollectionOptions, CollectionStats, DatabaseInfo, AggregationStage, AggregationOptions, } from "./types.js";
+export { MongoStorage } from "./storage/index.js";
+export type { MongoStorageOptions } from "./storage/index.js";
 export { registerMongoProcedures, procedures } from "./register.js";
 export * from "./procedures/index.js";
 export type { Db, Collection, Document, ObjectId, Filter, UpdateFilter, FindOptions, AggregateOptions, } from "mongodb";

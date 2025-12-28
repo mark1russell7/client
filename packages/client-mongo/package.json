@@ -57,13 +57,15 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "mongodb": "^7.0.0",
-    "@mark1russell7/client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-collections": "github:mark1russell7/client-collections#main",
+    "mongodb": "^7.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@mark1russell7/cue",
-      "@mark1russell7/client"
+      "@mark1russell7/client",
+      "@mark1russell7/client-collections"
     ]
   }
 }

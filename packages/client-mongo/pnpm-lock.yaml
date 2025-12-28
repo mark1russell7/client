@@ -11,6 +11,9 @@ importers:
       '@mark1russell7/client':
         specifier: github:mark1russell7/client#main
         version: https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68
+      '@mark1russell7/client-collections':
+        specifier: github:mark1russell7/client-collections#main
+        version: https://codeload.github.com/mark1russell7/client-collections/tar.gz/3ea5c524eae8a476384a73e104c6933353af350d(@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68)
       mongodb:
         specifier: ^7.0.0
         version: 7.0.0
@@ -26,6 +29,15 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@mark1russell7/client-collections@https://codeload.github.com/mark1russell7/client-collections/tar.gz/3ea5c524eae8a476384a73e104c6933353af350d':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-collections/tar.gz/3ea5c524eae8a476384a73e104c6933353af350d}
+    version: 0.0.1
+    peerDependencies:
+      '@mark1russell7/client': '*'
+    peerDependenciesMeta:
+      '@mark1russell7/client':
+        optional: true
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68':
     resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68}
@@ -137,6 +149,10 @@ packages:
         optional: true
 
 snapshots:
+
+  '@mark1russell7/client-collections@https://codeload.github.com/mark1russell7/client-collections/tar.gz/3ea5c524eae8a476384a73e104c6933353af350d(@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68)':
+    optionalDependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68':
     dependencies:
