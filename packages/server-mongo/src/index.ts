@@ -1,6 +1,8 @@
 /**
  * @mark1russell7/server-mongo
  *
+ * @deprecated Use @mark1russell7/server with --procedures @mark1russell7/client-mongo/register instead.
+ *
  * Runnable MongoDB server exposing mongo procedures via client-server peering.
  */
 

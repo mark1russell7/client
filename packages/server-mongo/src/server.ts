@@ -24,6 +24,12 @@ import { config } from "./config.js";
 import { serverMongoStart } from "@mark1russell7/client-server-mongo";
 
 async function main(): Promise<void> {
+  // Deprecation notice
+  console.warn(`\x1b[33m[DEPRECATED]\x1b[0m server-mongo is deprecated.`);
+  console.warn(`Use the general 'server' package instead:`);
+  console.warn(`  npx @mark1russell7/server --procedures @mark1russell7/client-mongo/register --port ${config.port}`);
+  console.warn(``);
+
   console.log(`Starting MongoDB server...`);
   console.log(`  Port: ${config.port}`);
   console.log(`  Host: ${config.host}`);

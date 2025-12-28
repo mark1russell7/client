@@ -1,5 +1,11 @@
 # @mark1russell7/server-mongo
 
+> **DEPRECATED**: This package is deprecated. Use the general `@mark1russell7/server` package instead:
+> ```bash
+> npx @mark1russell7/server --procedures @mark1russell7/client-mongo/register --port 3000
+> ```
+> The general server package supports any procedure packages and flexible transport configuration.
+
 Standalone MongoDB server exposing MongoDB procedures via HTTP. Run as a service to enable remote MongoDB access through the client-server peering pattern.
 
 ## Architecture Overview
