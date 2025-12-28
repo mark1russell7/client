@@ -10,6 +10,8 @@ import {
   WebSocketServerTransport,
   type ProcedureRegistry,
   PROCEDURE_REGISTRY,
+  rpcServerUrlStrategy,
+  defaultServerUrlStrategy,
 } from "@mark1russell7/client";
 import type { TransportConfig, TransportType } from "../types.js";
 
@@ -96,7 +98,7 @@ class PeerImpl implements Peer {
     }
   }
 
-  private async startHttpTransport(config: { type: "http"; port?: number; host?: string; basePath?: string; cors?: boolean }): Promise<void> {
+  private async startHttpTransport(config: { type: "http"; port?: number; host?: string; basePath?: string; cors?: boolean; urlStrategy?: "rest" | "rpc" }): Promise<void> {
     // Dynamic import to avoid bundling express if not used
     const express = (await import("express")).default;
 
@@ -106,12 +108,16 @@ class PeerImpl implements Peer {
     const port = config.port ?? 3000;
     const host = config.host ?? "0.0.0.0";
 
+    // Select URL strategy based on config
+    const urlStrategy = config.urlStrategy === "rpc" ? rpcServerUrlStrategy : defaultServerUrlStrategy;
+
     const httpTransport = new HttpServerTransport(this.server, {
       app,
       port,
       host,
       basePath: config.basePath ?? "/api",
       cors: config.cors ?? true,
+      urlStrategy,
     });
 
     this.server.addTransport(httpTransport);

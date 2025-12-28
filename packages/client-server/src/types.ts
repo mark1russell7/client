@@ -15,6 +15,8 @@ export interface HttpTransportConfig {
   basePath?: string;
   cors?: boolean;
   corsOrigins?: string[];
+  /** URL strategy: "rest" (default) or "rpc" for /rpc/service/operation format */
+  urlStrategy?: "rest" | "rpc";
 }
 
 export interface WebSocketTransportConfig {
