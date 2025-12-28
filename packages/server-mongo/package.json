@@ -1,10 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/server-mongo",
+  "version": "0.0.1",
+  "description": "Runnable MongoDB server exposing mongo procedures via client-server",
+  "license": "MIT",
+  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "server-mongo": "./dist/server.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,11 +24,38 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "start": "node dist/server.js",
+    "postinstall": "client announce"
   },
   "sideEffects": false,
+  "dependencies": {
+    "@mark1russell7/client-server-mongo": "github:mark1russell7/client-server-mongo#main",
+    "@mark1russell7/client-mongo": "github:mark1russell7/client-mongo#main"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
+    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client-server-mongo",
+      "@mark1russell7/client-mongo"
+    ]
+  },
+  "keywords": [
+    "mongodb",
+    "server",
+    "procedures",
+    "rpc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mark1russell7/server-mongo.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
