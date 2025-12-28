@@ -146,6 +146,7 @@ class PeerImpl implements Peer {
     });
 
     this.server.addTransport(wsTransport);
+    await wsTransport.start();
 
     // Start the HTTP server for WebSocket upgrades
     await new Promise<void>((resolve) => {
