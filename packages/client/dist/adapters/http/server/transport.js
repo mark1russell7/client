@@ -67,7 +67,7 @@ export class HttpServerTransport {
                     HTTPMethod.PATCH,
                     HTTPMethod.OPTIONS,
                 ],
-                allowedHeaders: ["Content-Type", "Authorization"],
+                allowedHeaders: ["Content-Type", "Authorization", "collection", "collectionName", "database"],
                 credentials: true,
             };
             this.app.use((req, res, next) => {

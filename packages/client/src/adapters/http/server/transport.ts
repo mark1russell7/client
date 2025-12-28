@@ -86,7 +86,7 @@ export class HttpServerTransport implements ServerTransport {
           HTTPMethod.PATCH,
           HTTPMethod.OPTIONS,
         ],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "collection", "collectionName", "database"],
         credentials: true,
       };
 
