@@ -169,6 +169,10 @@
     "@mark1russell7/server-mongo": {
       "repo": "github:mark1russell7/server-mongo#main",
       "path": "server-mongo"
+    },
+    "@mark1russell7/server": {
+      "repo": "github:mark1russell7/server#main",
+      "path": "server"
     }
   },
   "projectTemplate": {
