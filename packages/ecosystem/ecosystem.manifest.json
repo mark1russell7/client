@@ -157,6 +157,18 @@
     "@mark1russell7/client-node": {
       "repo": "github:mark1russell7/client-node#main",
       "path": "client-node"
+    },
+    "@mark1russell7/client-vite": {
+      "repo": "github:mark1russell7/client-vite#main",
+      "path": "client-vite"
+    },
+    "@mark1russell7/client-server-mongo": {
+      "repo": "github:mark1russell7/client-server-mongo#main",
+      "path": "client-server-mongo"
+    },
+    "@mark1russell7/server-mongo": {
+      "repo": "github:mark1russell7/server-mongo#main",
+      "path": "server-mongo"
     }
   },
   "projectTemplate": {
