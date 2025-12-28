@@ -2,12 +2,16 @@
  * cli.run procedure
  *
  * Wraps the mark CLI as a procedure using client-shell.
+ * Supports connecting to running CLI server for lower latency.
  * This allows calling any mark CLI command programmatically.
  */
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { CliRunInput, CliRunOutput } from "../../types.js";
 /**
  * Run a mark CLI command
+ *
+ * First tries to connect to running CLI server for lower latency.
+ * Falls back to shell execution if no server is available.
  *
  * @example
  * // Equivalent to: mark lib new my-package
