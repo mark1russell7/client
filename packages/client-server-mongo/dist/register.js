@@ -53,7 +53,7 @@ const serverMongoStartProcedure = createProcedure()
     shorts: { port: "p", host: "h" },
     output: "json",
 })
-    .handler(async (input) => serverMongoStart(input))
+    .handler(async (input, ctx) => serverMongoStart(input, ctx))
     .build();
 const serverMongoStopProcedure = createProcedure()
     .path(["server", "mongo", "stop"])

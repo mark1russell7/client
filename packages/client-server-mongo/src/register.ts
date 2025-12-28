@@ -77,7 +77,7 @@ const serverMongoStartProcedure = createProcedure()
     shorts: { port: "p", host: "h" },
     output: "json",
   })
-  .handler(async (input: ServerMongoStartInput): Promise<ServerMongoStartOutput> => serverMongoStart(input))
+  .handler(async (input, ctx): Promise<ServerMongoStartOutput> => serverMongoStart(input, ctx))
   .build();
 
 const serverMongoStopProcedure = createProcedure()

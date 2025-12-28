@@ -1,29 +1,31 @@
 /**
  * server.mongo.start procedure - Start MongoDB peer server
+ *
+ * Uses server.create procedure internally (dogfooding) to create the peer.
  */
 
-import type { ServerMongoStartInput, ServerMongoStartOutput, PeerEndpoint } from "../../types.js";
-import { mongoServerManager } from "../../server-manager.js";
+import type { ProcedureContext } from "@mark1russell7/client";
+import type { ServerMongoStartInput, ServerMongoStartOutput, TransportConfig } from "../../types.js";
 
-// Dynamic imports to avoid circular dependencies
-let createPeerFn: unknown;
-let connectFn: unknown;
-
-async function ensureImports(): Promise<void> {
-  if (!createPeerFn) {
-    const clientServer = await import("@mark1russell7/client-server");
-    createPeerFn = clientServer.createPeer;
-  }
-  if (!connectFn) {
-    const clientMongo = await import("@mark1russell7/client-mongo");
-    connectFn = clientMongo.connect;
-  }
+interface ServerCreateOutput {
+  serverId: string;
+  endpoints: Array<{ type: string; address: string }>;
+  procedureCount: number;
 }
 
-export async function serverMongoStart(input: ServerMongoStartInput): Promise<ServerMongoStartOutput> {
-  await ensureImports();
-
-  const { port = 3000, host = "0.0.0.0", mongoUri, database } = input;
+/**
+ * Start a MongoDB peer server
+ *
+ * This procedure:
+ * 1. Registers mongo procedures
+ * 2. Connects to MongoDB (if URI provided)
+ * 3. Calls server.create procedure (dogfooding) to create the peer
+ */
+export async function serverMongoStart(
+  input: ServerMongoStartInput,
+  ctx: ProcedureContext
+): Promise<ServerMongoStartOutput> {
+  const { port = 3000, host = "0.0.0.0", mongoUri, database, transports } = input;
 
   // Import and register mongo procedures
   const { registerMongoProcedures } = await import("@mark1russell7/client-mongo");
@@ -31,50 +33,39 @@ export async function serverMongoStart(input: ServerMongoStartInput): Promise<Se
 
   // Connect to MongoDB if URI provided
   if (mongoUri || database) {
-    const connect = connectFn as (opts?: { uri?: string | undefined; database?: string | undefined }) => Promise<void>;
+    const { connect } = await import("@mark1russell7/client-mongo");
     const connectOpts: { uri?: string; database?: string } = {};
     if (mongoUri) connectOpts.uri = mongoUri;
     if (database) connectOpts.database = database;
     await connect(connectOpts);
   }
 
-  // Create peer with HTTP transport
-  const createPeer = createPeerFn as (opts: {
-    id?: string;
-    transports: Array<{ type: string; port: number; host?: string; basePath?: string; cors?: boolean }>;
-    autoRegister?: boolean;
-  }) => Promise<{
-    id: string;
-    start: () => Promise<void>;
-    stop: () => Promise<void>;
-    getEndpoints: () => PeerEndpoint[];
-    getServer: () => { getProcedureCount: () => number };
-  }>;
+  // Build transport configuration
+  const transportConfig: TransportConfig[] = transports ?? [
+    {
+      type: "http",
+      port,
+      host,
+      basePath: "/api",
+      cors: true,
+    },
+  ];
 
-  const peer = await createPeer({
-    id: `mongo-peer-${Date.now()}`,
-    transports: [
-      {
-        type: "http",
-        port,
-        host,
-        basePath: "/api",
-        cors: true,
-      },
-    ],
-    autoRegister: true,
-  });
-
-  await peer.start();
-
-  const endpoints = peer.getEndpoints();
-  const procedureCount = peer.getServer().getProcedureCount();
-
-  const serverId = mongoServerManager.register(peer, endpoints, procedureCount);
+  // DOGFOOD: Use server.create procedure to create the peer
+  const result = await ctx.client.call<
+    { transports: TransportConfig[]; autoRegister: boolean },
+    ServerCreateOutput
+  >(
+    ["server", "create"],
+    {
+      transports: transportConfig,
+      autoRegister: true,
+    }
+  );
 
   return {
-    serverId,
-    endpoints,
-    procedureCount,
+    serverId: result.serverId,
+    endpoints: result.endpoints,
+    procedureCount: result.procedureCount,
   };
 }

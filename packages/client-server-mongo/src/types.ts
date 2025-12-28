@@ -8,20 +8,46 @@ import { z } from "zod";
 // server.mongo.start - Start MongoDB peer server
 // ============================================================================
 
+/**
+ * Transport configuration for the server
+ */
+export const TransportConfigSchema: z.ZodObject<{
+  type: z.ZodEnum<["http", "websocket", "local"]>;
+  port: z.ZodOptional<z.ZodNumber>;
+  host: z.ZodOptional<z.ZodString>;
+  basePath: z.ZodOptional<z.ZodString>;
+  cors: z.ZodOptional<z.ZodBoolean>;
+  corsOrigins: z.ZodOptional<z.ZodArray<z.ZodString>>;
+  path: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  type: z.enum(["http", "websocket", "local"]),
+  port: z.number().optional(),
+  host: z.string().optional(),
+  basePath: z.string().optional(),
+  cors: z.boolean().optional(),
+  corsOrigins: z.array(z.string()).optional(),
+  path: z.string().optional(),
+});
+
+export type TransportConfig = z.infer<typeof TransportConfigSchema>;
+
 export const ServerMongoStartInputSchema: z.ZodObject<{
   port: z.ZodOptional<z.ZodNumber>;
   host: z.ZodOptional<z.ZodString>;
   mongoUri: z.ZodOptional<z.ZodString>;
   database: z.ZodOptional<z.ZodString>;
+  transports: z.ZodOptional<z.ZodArray<typeof TransportConfigSchema>>;
 }> = z.object({
-  /** Port to listen on */
+  /** Port to listen on (default: 3000) */
   port: z.number().optional(),
-  /** Host to bind to */
+  /** Host to bind to (default: 0.0.0.0) */
   host: z.string().optional(),
   /** MongoDB connection URI */
   mongoUri: z.string().optional(),
   /** Database name */
   database: z.string().optional(),
+  /** Custom transport configuration (overrides port/host) */
+  transports: z.array(TransportConfigSchema).optional(),
 });
 
 export type ServerMongoStartInput = z.infer<typeof ServerMongoStartInputSchema>;
