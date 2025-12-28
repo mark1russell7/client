@@ -75,16 +75,21 @@ function isPlainObject(value) {
 // Type Helpers
 // =============================================================================
 /**
+ * Known keys that distinguish CallOptions from legacy Metadata.
+ * If any of these keys are present, the object is CallOptions.
+ */
+const CALL_OPTIONS_KEYS = ["context", "metadata", "signal", "schema"];
+/**
  * Check if options object is CallOptions or legacy Metadata.
  *
- * CallOptions has at least one of: context, signal, schema
+ * CallOptions has at least one of the known CallOptions keys.
  * Metadata is a plain object without these specific keys.
  */
 export function isCallOptions(options) {
     if (!options || typeof options !== "object") {
         return false;
     }
-    return "context" in options || "signal" in options || "schema" in options;
+    return CALL_OPTIONS_KEYS.some((key) => key in options);
 }
 /**
  * Normalize call options to always be CallOptions format.
