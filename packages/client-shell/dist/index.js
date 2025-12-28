@@ -22,4 +22,6 @@
 export { ShellRunInputSchema, ShellExecInputSchema, ShellWhichInputSchema, } from "./types.js";
 // Procedures
 export { shellRun, shellExec, shellWhich } from "./procedures/shell/index.js";
+// Registration
+export { registerShellProcedures } from "./register.js";
 //# sourceMappingURL=index.js.map

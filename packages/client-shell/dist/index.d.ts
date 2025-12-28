@@ -22,4 +22,5 @@
 export type { ShellRunInput, ShellRunOutput, ShellExecInput, ShellExecOutput, ShellWhichInput, ShellWhichOutput, } from "./types.js";
 export { ShellRunInputSchema, ShellExecInputSchema, ShellWhichInputSchema, } from "./types.js";
 export { shellRun, shellExec, shellWhich } from "./procedures/shell/index.js";
+export { registerShellProcedures } from "./register.js";
 //# sourceMappingURL=index.d.ts.map

@@ -38,3 +38,6 @@ export {
 
 // Procedures
 export { shellRun, shellExec, shellWhich } from "./procedures/shell/index.js";
+
+// Registration
+export { registerShellProcedures } from "./register.js";
