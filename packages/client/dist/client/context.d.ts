@@ -104,7 +104,7 @@ export declare function mergeContext<T extends object>(base: T | undefined, ...o
 /**
  * Check if options object is CallOptions or legacy Metadata.
  *
- * CallOptions has at least one of: context, signal, schema
+ * CallOptions has at least one of the known CallOptions keys.
  * Metadata is a plain object without these specific keys.
  */
 export declare function isCallOptions<TContext>(options: CallOptions<TContext> | Metadata | undefined): options is CallOptions<TContext>;
