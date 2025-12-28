@@ -3,17 +3,17 @@
   "packages": {
     "@mark1russell7/client-pnpm": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-21T16:11:09.577Z",
+      "registeredAt": "2025-12-28T04:51:53.998Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-lib": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-22T04:44:53.903Z",
+      "registeredAt": "2025-12-28T04:51:54.696Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-shell": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-22T04:44:51.145Z",
+      "registeredAt": "2025-12-28T04:51:53.318Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-procedure": {
@@ -33,7 +33,12 @@
     },
     "@mark1russell7/client-cli": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-22T04:44:52.969Z",
+      "registeredAt": "2025-12-28T04:51:53.981Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-git": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-28T04:51:53.337Z",
       "version": "1.0.0"
     }
   }
