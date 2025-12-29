@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/mcp",
+  "version": "0.0.1",
+  "description": "Core MCP types and utilities for procedure-to-tool mapping",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,8 +22,15 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": false,
+  "dependencies": {
+    "zod-to-json-schema": "^3.24.5"
+  },
+  "peerDependencies": {
+    "@mark1russell7/client": "*"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/client": "github:mark1russell7/client#main"
   }
 }

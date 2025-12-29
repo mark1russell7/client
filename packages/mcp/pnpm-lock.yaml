@@ -1,0 +1,93 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      zod-to-json-schema:
+        specifier: ^3.24.5
+        version: 3.25.1(zod@3.25.76)
+    devDependencies:
+      '@mark1russell7/client':
+        specifier: github:mark1russell7/client#main
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/77c21b2b882c2df6866d3f82ced7f77aabf4a218(zod@3.25.76)
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#main
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+packages:
+
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/77c21b2b882c2df6866d3f82ced7f77aabf4a218':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/77c21b2b882c2df6866d3f82ced7f77aabf4a218}
+    version: 1.0.0
+    engines: {node: '>=20'}
+    hasBin: true
+    peerDependencies:
+      express: ^4.0.0 || ^5.0.0
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      express:
+        optional: true
+      zod:
+        optional: true
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd}
+    version: 1.0.0
+    engines: {node: '>=25.0.0', npm: '>=11.0.0'}
+    hasBin: true
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  ws@8.18.3:
+    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  zod-to-json-schema@3.25.1:
+    resolution: {integrity: sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA==}
+    peerDependencies:
+      zod: ^3.25 || ^4
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+snapshots:
+
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/77c21b2b882c2df6866d3f82ced7f77aabf4a218(zod@3.25.76)':
+    dependencies:
+      ws: 8.18.3
+    optionalDependencies:
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd': {}
+
+  typescript@5.9.3: {}
+
+  ws@8.18.3: {}
+
+  zod-to-json-schema@3.25.1(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
+
+  zod@3.25.76: {}
