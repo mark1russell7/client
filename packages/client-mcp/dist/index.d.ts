@@ -7,36 +7,12 @@
  *
  * @packageDocumentation
  */
-
-// Transport
 export { McpServerTransport } from "./transport/mcp-transport.js";
 export { createStdioTransport } from "./transport/stdio.js";
 export { createSseTransport } from "./transport/sse.js";
-
-// Types
-export type {
-  McpServerTransportOptions,
-  McpServerTransportState,
-  SseTransportOptions,
-} from "./types.js";
-
-// Procedures
+export type { McpServerTransportOptions, McpServerTransportState, SseTransportOptions, } from "./types.js";
 export { mcpServeProcedure } from "./procedures/mcp/serve.js";
 export { mcpListToolsProcedure } from "./procedures/mcp/list-tools.js";
-
-// Re-export core MCP types for convenience
-export type {
-  McpTool,
-  McpToolDefinition,
-  McpToolFilter,
-  McpServerInfo,
-  McpTransportType,
-} from "@mark1russell7/mcp";
-
-// Re-export mapping utilities
-export {
-  proceduresToMcpTools,
-  procedureToMcpTool,
-  encodePath,
-  decodePath,
-} from "@mark1russell7/mcp";
+export type { McpTool, McpToolDefinition, McpToolFilter, McpServerInfo, McpTransportType, } from "@mark1russell7/mcp";
+export { proceduresToMcpTools, procedureToMcpTool, encodePath, decodePath, } from "@mark1russell7/mcp";
+//# sourceMappingURL=index.d.ts.map
