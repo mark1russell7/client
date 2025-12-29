@@ -29,7 +29,6 @@
 - **Event Bus**: Pub/sub messaging with async iteration support
 - **Error System**: 70+ error codes with rich metadata and recovery suggestions
 
-
 ## Installation
 
 ```bash
