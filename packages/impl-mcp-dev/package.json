@@ -1,10 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/impl-mcp-dev",
+  "version": "0.0.1",
+  "description": "Ready-to-use MCP server exposing the procedure ecosystem to Claude",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "mcp-server": "./bin/mcp-server.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,6 +17,7 @@
   },
   "files": [
     "dist",
+    "bin",
     "src"
   ],
   "scripts": {
@@ -21,7 +26,13 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": false,
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-mcp": "github:mark1russell7/client-mcp#main",
+    "@mark1russell7/bundle-dev": "github:mark1russell7/bundle-dev#main"
+  },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "^5.9.3",
     "@mark1russell7/cue": "github:mark1russell7/cue#main"
   }
