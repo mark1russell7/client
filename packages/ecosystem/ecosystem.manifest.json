@@ -173,6 +173,14 @@
     "@mark1russell7/server": {
       "repo": "github:mark1russell7/server#main",
       "path": "server"
+    },
+    "@mark1russell7/mcp": {
+      "repo": "github:mark1russell7/mcp#main",
+      "path": "mcp"
+    },
+    "@mark1russell7/client-mcp": {
+      "repo": "github:mark1russell7/client-mcp#main",
+      "path": "client-mcp"
     }
   },
   "projectTemplate": {
