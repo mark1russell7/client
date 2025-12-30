@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "@mark1russell7/client-cli": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-30T02:44:27.974Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-lib": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-30T02:44:29.070Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/bundle-dev": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-30T02:44:33.376Z",
+      "version": "1.0.0"
+    }
+  }
+}
