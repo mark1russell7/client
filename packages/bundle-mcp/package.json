@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "unnamed",
-  "version": "0.0.0",
+  "name": "@mark1russell7/bundle-mcp",
+  "version": "1.0.0",
+  "description": "Curated MCP bundle - high-level orchestration tools for Claude",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,6 +10,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./register.js": {
+      "import": "./dist/register.js"
     }
   },
   "files": [
@@ -18,11 +22,64 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
   },
   "sideEffects": false,
+  "dependencies": {
+    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client-cli": "github:mark1russell7/client-cli#main",
+    "@mark1russell7/client-lib": "github:mark1russell7/client-lib#main",
+    "@mark1russell7/client-procedure": "github:mark1russell7/client-procedure#main",
+    "@mark1russell7/client-cue": "github:mark1russell7/client-cue#main",
+    "@mark1russell7/client-docker": "github:mark1russell7/client-docker#main",
+    "@mark1russell7/client-snapshot": "github:mark1russell7/client-snapshot#main",
+    "@mark1russell7/client-mongo": "github:mark1russell7/client-mongo#main",
+    "@mark1russell7/client-sqlite": "github:mark1russell7/client-sqlite#main",
+    "@mark1russell7/client-s3": "github:mark1russell7/client-s3#main",
+    "@mark1russell7/client-vitest": "github:mark1russell7/client-vitest#main",
+    "@mark1russell7/client-test": "github:mark1russell7/client-test#main"
+  },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "bundle",
+    "mcp",
+    "procedures",
+    "claude"
+  ],
+  "license": "MIT",
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/client-cli",
+      "@mark1russell7/client-lib",
+      "@mark1russell7/client-procedure",
+      "@mark1russell7/client-cue",
+      "@mark1russell7/client-docker",
+      "@mark1russell7/client-snapshot",
+      "@mark1russell7/client-mongo",
+      "@mark1russell7/client-sqlite",
+      "@mark1russell7/client-s3",
+      "@mark1russell7/client-vitest",
+      "@mark1russell7/client-test",
+      "@mark1russell7/client-shell",
+      "@mark1russell7/client-fs",
+      "@mark1russell7/client-git",
+      "@mark1russell7/client-pnpm",
+      "@mark1russell7/client-dag",
+      "@mark1russell7/docker-sqlite",
+      "@mark1russell7/mock-client",
+      "@mark1russell7/mock-fs",
+      "@mark1russell7/mock-logger",
+      "@mark1russell7/test",
+      "@mark1russell7/logger"
+    ]
   }
 }
