@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
   "packages": {
-    "@mark1russell7/client-cli": {
+    "@mark1russell7/client-docker": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-30T02:44:27.974Z",
+      "registeredAt": "2026-01-02T17:03:04.923Z",
       "version": "1.0.0"
     },
-    "@mark1russell7/client-lib": {
+    "@mark1russell7/client-snapshot": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-30T02:44:29.070Z",
-      "version": "0.0.0"
+      "registeredAt": "2026-01-02T17:03:07.925Z",
+      "version": "1.0.0"
     },
-    "@mark1russell7/bundle-dev": {
+    "@mark1russell7/bundle-mcp": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2025-12-30T02:44:33.376Z",
+      "registeredAt": "2026-01-02T17:03:09.324Z",
       "version": "1.0.0"
     }
   }
