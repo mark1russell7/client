@@ -185,6 +185,10 @@
     "@mark1russell7/impl-mcp-dev": {
       "repo": "github:mark1russell7/impl-mcp-dev#main",
       "path": "impl-mcp-dev"
+    },
+    "@mark1russell7/bundle-mcp": {
+      "repo": "github:mark1russell7/bundle-mcp#main",
+      "path": "bundle-mcp"
     }
   },
   "projectTemplate": {
