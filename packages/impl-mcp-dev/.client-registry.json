@@ -1,19 +1,44 @@
 {
   "schemaVersion": 1,
   "packages": {
+    "@mark1russell7/client-sqlite": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2026-01-06T02:16:56.696Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-procedure": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2026-01-06T02:16:57.001Z",
+      "version": "0.0.0"
+    },
+    "@mark1russell7/client-cue": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2026-01-06T02:16:57.157Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-mongo": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2026-01-06T02:16:58.069Z",
+      "version": "1.0.0"
+    },
     "@mark1russell7/client-docker": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2026-01-02T17:03:04.923Z",
+      "registeredAt": "2026-01-06T02:16:58.083Z",
+      "version": "1.0.0"
+    },
+    "@mark1russell7/client-cli": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2026-01-06T02:16:58.096Z",
       "version": "1.0.0"
     },
     "@mark1russell7/client-snapshot": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2026-01-02T17:03:07.925Z",
+      "registeredAt": "2026-01-06T02:16:59.673Z",
       "version": "1.0.0"
     },
     "@mark1russell7/bundle-mcp": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2026-01-02T17:03:09.324Z",
+      "registeredAt": "2026-01-06T03:25:13.182Z",
       "version": "1.0.0"
     }
   }
