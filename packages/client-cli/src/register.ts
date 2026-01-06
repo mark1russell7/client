@@ -4,6 +4,9 @@
  * Provides cli.run procedure for calling mark CLI commands via client-shell.
  */
 
+// Import shell dependency to ensure shell.exec is registered
+import "@mark1russell7/client-shell";
+
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { cliRun } from "./procedures/cli/index.js";
 import { CliRunInputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
