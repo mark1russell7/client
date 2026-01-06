@@ -3,6 +3,8 @@
  *
  * Provides pnpm.install, pnpm.add, pnpm.remove, pnpm.link, pnpm.run procedures.
  */
+// Import shell dependency to ensure shell.exec is registered
+import "@mark1russell7/client-shell";
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import { PnpmInstallInputSchema, PnpmAddInputSchema, PnpmRemoveInputSchema, PnpmLinkInputSchema, PnpmRunInputSchema, PnpmStorePathInputSchema, } from "./types.js";
