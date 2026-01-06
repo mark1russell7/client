@@ -5,6 +5,9 @@
  * docker.rm, docker.ps, docker.logs, docker.compose.up, docker.compose.down procedures.
  */
 
+// Import shell dependency to ensure shell.exec is registered
+import "@mark1russell7/client-shell";
+
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import {
   dockerRun,

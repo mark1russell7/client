@@ -4,6 +4,8 @@
  * Provides docker.run, docker.build, docker.pull, docker.exec, docker.stop,
  * docker.rm, docker.ps, docker.logs, docker.compose.up, docker.compose.down procedures.
  */
+// Import shell dependency to ensure shell.exec is registered
+import "@mark1russell7/client-shell";
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { dockerRun, dockerBuild, dockerPull, dockerExec, dockerStop, dockerRm, dockerPs, dockerLogs, dockerComposeUp, dockerComposeDown, } from "./procedures/docker/index.js";
 import { DockerRunInputSchema, DockerBuildInputSchema, DockerPullInputSchema, DockerExecInputSchema, DockerStopInputSchema, DockerRmInputSchema, DockerPsInputSchema, DockerLogsInputSchema, DockerComposeUpInputSchema, DockerComposeDownInputSchema, } from "./types.js";
