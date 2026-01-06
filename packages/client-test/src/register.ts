@@ -2,6 +2,9 @@
  * Procedure Registration for test operations
  */
 
+// Import shell dependency to ensure shell.exec is registered
+import "@mark1russell7/client-shell";
+
 import { createProcedure, registerProcedures } from "@mark1russell7/client";
 import { testRun } from "./procedures/test/run.js";
 import { testCoverage } from "./procedures/test/coverage.js";
