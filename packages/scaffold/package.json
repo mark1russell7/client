@@ -19,9 +19,9 @@
   "scripts": {
     "build": "tsc -b && npm run build:schematics && npm run copy:schematics",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist schematics .tsbuildinfo",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('schematics',{recursive:true,force:true});require('fs').rmSync('.tsbuildinfo',{force:true})\"",
     "build:schematics": "tsc -p src/schematics/tsconfig.json",
-    "copy:schematics": "cp src/schematics/collection.json schematics/schematics/ && cp src/schematics/lib-new/schema.json schematics/schematics/lib-new/ && cp src/schematics/lib-refresh/schema.json schematics/schematics/lib-refresh/"
+    "copy:schematics": "node -e \"const fs=require('fs');fs.copyFileSync('src/schematics/collection.json','schematics/schematics/collection.json');fs.copyFileSync('src/schematics/lib-new/schema.json','schematics/schematics/lib-new/schema.json');fs.copyFileSync('src/schematics/lib-refresh/schema.json','schematics/schematics/lib-refresh/schema.json')\""
   },
   "sideEffects": false,
   "devDependencies": {
