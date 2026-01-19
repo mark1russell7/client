@@ -1,0 +1,35 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#main
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+packages:
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd}
+    version: 1.0.0
+    engines: {node: '>=25.0.0', npm: '>=11.0.0'}
+    hasBin: true
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+snapshots:
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd': {}
+
+  typescript@5.9.3: {}
