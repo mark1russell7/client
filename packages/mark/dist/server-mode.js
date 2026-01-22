@@ -1,17 +1,12 @@
-"use strict";
 /**
  * CLI Server Mode
  *
  * Runs the CLI as a persistent server, exposing all ecosystem procedures
  * via HTTP. Uses server.create procedure internally (dogfooding).
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startServerMode = startServerMode;
-exports.extractPort = extractPort;
-exports.extractHost = extractHost;
-const gluegun_1 = require("gluegun");
-const ecosystem_1 = require("./ecosystem");
-const lockfile_1 = require("./lockfile");
+import { print } from "./print.js";
+import { loadEcosystemProcedures } from "./ecosystem.js";
+import { writeLockfile, removeLockfile, getLockfilePath } from "./lockfile.js";
 /**
  * Convert procedure path to transport method
  */
@@ -95,14 +90,14 @@ function buildTransports(options) {
 /**
  * Start CLI in server mode
  */
-async function startServerMode(options) {
+export async function startServerMode(options) {
     const { port = 3000, verbose = false } = options;
-    gluegun_1.print.info("Starting CLI server mode...");
+    print.info("Starting CLI server mode...");
     // Load all ecosystem procedures
     if (verbose) {
-        gluegun_1.print.info("Loading ecosystem procedures...");
+        print.info("Loading ecosystem procedures...");
     }
-    await (0, ecosystem_1.loadEcosystemProcedures)(verbose);
+    await loadEcosystemProcedures(verbose);
     // Dynamic imports
     const clientModule = await import("@mark1russell7/client");
     const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
@@ -121,27 +116,27 @@ async function startServerMode(options) {
         autoRegister: true,
     });
     // Write lockfile for client discovery
-    await (0, lockfile_1.writeLockfile)({
+    await writeLockfile({
         pid: process.pid,
         port,
         transport: options.transport ?? "http",
         endpoint: result.endpoints[0]?.address ?? `http://localhost:${port}/api`,
         startedAt: new Date().toISOString(),
     });
-    gluegun_1.print.success("\nCLI Server running!");
-    gluegun_1.print.info(`  PID: ${process.pid}`);
-    gluegun_1.print.info(`  Server ID: ${result.serverId}`);
-    gluegun_1.print.info(`  Procedures: ${result.procedureCount}`);
-    gluegun_1.print.info(`  Lockfile: ${(0, lockfile_1.getLockfilePath)()}`);
-    gluegun_1.print.info("\nEndpoints:");
+    print.success("\nCLI Server running!");
+    print.info(`  PID: ${process.pid}`);
+    print.info(`  Server ID: ${result.serverId}`);
+    print.info(`  Procedures: ${result.procedureCount}`);
+    print.info(`  Lockfile: ${getLockfilePath()}`);
+    print.info("\nEndpoints:");
     for (const endpoint of result.endpoints) {
-        gluegun_1.print.info(`  [${endpoint.type}] ${endpoint.address}`);
+        print.info(`  [${endpoint.type}] ${endpoint.address}`);
     }
-    gluegun_1.print.info("\nPress Ctrl+C to stop.");
+    print.info("\nPress Ctrl+C to stop.");
     // Handle shutdown
     const cleanup = async () => {
-        gluegun_1.print.info("\nStopping server...");
-        await (0, lockfile_1.removeLockfile)();
+        print.info("\nStopping server...");
+        await removeLockfile();
         process.exit(0);
     };
     process.on("SIGINT", cleanup);
@@ -154,7 +149,7 @@ async function startServerMode(options) {
 /**
  * Extract port from argv
  */
-function extractPort(argv) {
+export function extractPort(argv) {
     const portIdx = argv.indexOf("--port");
     if (portIdx !== -1) {
         const portValue = argv[portIdx + 1];
@@ -169,7 +164,7 @@ function extractPort(argv) {
 /**
  * Extract host from argv
  */
-function extractHost(argv) {
+export function extractHost(argv) {
     const hostIdx = argv.indexOf("--host");
     if (hostIdx !== -1) {
         const hostValue = argv[hostIdx + 1];

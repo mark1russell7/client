@@ -3,10 +3,10 @@
  * Mark CLI
  *
  * A generic CLI that reflects registered procedures.
- * Uses our own routing with Gluegun's toolbox for utilities.
+ * Uses custom procedure-based routing with modern terminal utilities.
  */
 
-import { print } from "gluegun";
+import { print } from "./print.js";
 import type {
   LocalTransport,
   Method,
@@ -16,11 +16,11 @@ import type {
   AnyProcedure,
   ProcedureRegistry,
 } from "@mark1russell7/client";
-import { parseFromSchema, generateHelp, type CLIMeta } from "./parse";
-import { formatOutput, type Print } from "./format";
-import { loadEcosystemProcedures } from "./ecosystem";
-import { startServerMode, extractPort, extractHost } from "./server-mode";
-import { tryClientMode } from "./client-mode";
+import { parseFromSchema, generateHelp, type CLIMeta } from "./parse.js";
+import { formatOutput, type Print } from "./format.js";
+import { loadEcosystemProcedures } from "./ecosystem.js";
+import { startServerMode, extractPort, extractHost } from "./server-mode.js";
+import { tryClientMode } from "./client-mode.js";
 
 const VERSION = "1.0.0";
 
@@ -297,7 +297,7 @@ async function run(argv: string[]): Promise<void> {
     return; // Server mode keeps running
   }
 
-  // Dynamic imports for ESM packages (CLI is CommonJS for Gluegun compatibility)
+  // Dynamic imports for ecosystem packages
   const clientModule = await import("@mark1russell7/client");
   const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
 

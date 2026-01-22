@@ -1,18 +1,13 @@
-"use strict";
 /**
  * Schema-based CLI Argument Parser
  *
  * Parses CLI arguments based on procedure metadata.
  * Validation is delegated to the procedure's schema.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractSchemaFields = extractSchemaFields;
-exports.parseFromSchema = parseFromSchema;
-exports.generateHelp = generateHelp;
 /**
  * Extract field information from a Zod-like schema
  */
-function extractSchemaFields(schema) {
+export function extractSchemaFields(schema) {
     if (!schema || typeof schema !== "object") {
         return [];
     }
@@ -142,7 +137,7 @@ function coerceValue(value) {
 /**
  * Parse CLI parameters into procedure input based on metadata
  */
-function parseFromSchema(params, meta) {
+export function parseFromSchema(params, meta) {
     const positionalArgs = meta.args ?? [];
     const shorts = meta.shorts ?? {};
     const input = {};
@@ -187,7 +182,7 @@ function parseFromSchema(params, meta) {
 /**
  * Generate help text for a procedure based on its metadata and schema
  */
-function generateHelp(path, meta, schema) {
+export function generateHelp(path, meta, schema) {
     const positionalArgs = meta.args ?? [];
     const shorts = meta.shorts ?? {};
     const lines = [];

@@ -5,9 +5,9 @@
  * via HTTP. Uses server.create procedure internally (dogfooding).
  */
 
-import { print } from "gluegun";
-import { loadEcosystemProcedures } from "./ecosystem";
-import { writeLockfile, removeLockfile, getLockfilePath } from "./lockfile";
+import { print } from "./print.js";
+import { loadEcosystemProcedures } from "./ecosystem.js";
+import { writeLockfile, removeLockfile, getLockfilePath } from "./lockfile.js";
 import type {
   LocalTransport,
   Method,

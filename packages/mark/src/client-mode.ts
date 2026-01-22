@@ -5,9 +5,9 @@
  * Falls back to local execution if no server is available.
  */
 
-import { readLockfile, isServerAlive } from "./lockfile";
+import { readLockfile, isServerAlive } from "./lockfile.js";
 import type { AnyProcedure } from "@mark1russell7/client";
-import { parseFromSchema, type CLIMeta } from "./parse";
+import { parseFromSchema, type CLIMeta } from "./parse.js";
 
 interface ClientModeResult {
   success: boolean;

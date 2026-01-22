@@ -3,7 +3,7 @@
  * Mark CLI
  *
  * A generic CLI that reflects registered procedures.
- * Uses our own routing with Gluegun's toolbox for utilities.
+ * Uses custom procedure-based routing with modern terminal utilities.
  */
 /**
  * Run the CLI

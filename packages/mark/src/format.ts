@@ -7,7 +7,7 @@
 export type OutputFormat = "text" | "json" | "table" | "streaming";
 
 /**
- * Gluegun print interface (subset we use)
+ * Print interface (used by formatOutput)
  */
 export interface Print {
   info: (message: string) => void;

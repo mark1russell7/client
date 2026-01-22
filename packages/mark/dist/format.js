@@ -1,15 +1,12 @@
-"use strict";
 /**
  * Output Formatting
  *
  * Formats procedure results for CLI output based on metadata hints.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.formatOutput = formatOutput;
 /**
  * Format and print the result based on output format hint
  */
-function formatOutput(print, result, format = "text") {
+export function formatOutput(print, result, format = "text") {
     if (result === undefined || result === null) {
         return;
     }

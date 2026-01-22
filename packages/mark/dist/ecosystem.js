@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Ecosystem-based Procedure Discovery
  *
@@ -12,14 +11,9 @@
  * 3. If it has client.procedures, dynamically import it
  * 4. Procedures auto-register via PROCEDURE_REGISTRY
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.discoverFromEcosystem = discoverFromEcosystem;
-exports.loadEcosystemProcedures = loadEcosystemProcedures;
-exports.listEcosystemProcedurePackages = listEcosystemProcedurePackages;
-const tslib_1 = require("tslib");
-const fs = tslib_1.__importStar(require("node:fs"));
-const path = tslib_1.__importStar(require("node:path"));
-const os = tslib_1.__importStar(require("node:os"));
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 // =============================================================================
 // Discovery
 // =============================================================================
@@ -47,7 +41,7 @@ function readJson(filePath) {
 /**
  * Discover packages with procedures from ecosystem manifest
  */
-function discoverFromEcosystem() {
+export function discoverFromEcosystem() {
     const discovered = [];
     // Find ecosystem manifest
     const manifestPath = path.join(os.homedir(), "git", "ecosystem", "ecosystem.manifest.json");
@@ -78,7 +72,7 @@ function discoverFromEcosystem() {
 /**
  * Dynamically load procedures from discovered packages
  */
-async function loadEcosystemProcedures(verbose = false) {
+export async function loadEcosystemProcedures(verbose = false) {
     const discovered = discoverFromEcosystem();
     const loaded = [];
     for (const pkg of discovered) {
@@ -112,7 +106,7 @@ async function loadEcosystemProcedures(verbose = false) {
 /**
  * Get list of ecosystem packages that have procedures
  */
-function listEcosystemProcedurePackages() {
+export function listEcosystemProcedurePackages() {
     return discoverFromEcosystem().map((pkg) => ({
         name: pkg.name,
         path: pkg.path,

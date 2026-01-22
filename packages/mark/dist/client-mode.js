@@ -1,26 +1,23 @@
-"use strict";
 /**
  * CLI Client Mode
  *
  * Connects to a running CLI server and executes commands remotely.
  * Falls back to local execution if no server is available.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.tryClientMode = tryClientMode;
-const lockfile_1 = require("./lockfile");
-const parse_1 = require("./parse");
+import { readLockfile, isServerAlive } from "./lockfile.js";
+import { parseFromSchema } from "./parse.js";
 /**
  * Try to execute command via running server
  * Returns null if no server available (should fall back to local)
  */
-async function tryClientMode(path, args, options, procedures) {
+export async function tryClientMode(path, args, options, procedures) {
     // Check for running server
-    const lockfile = await (0, lockfile_1.readLockfile)();
+    const lockfile = await readLockfile();
     if (!lockfile) {
         return null; // No lockfile, fall back to local
     }
     // Verify server is still alive
-    if (!(await (0, lockfile_1.isServerAlive)(lockfile))) {
+    if (!(await isServerAlive(lockfile))) {
         return null; // Server not running, fall back to local
     }
     try {
@@ -40,7 +37,7 @@ async function tryClientMode(path, args, options, procedures) {
         // Parse input from CLI args
         const meta = (proc.metadata ?? {});
         const parameters = { array: args, options };
-        let input = (0, parse_1.parseFromSchema)(parameters, meta);
+        let input = parseFromSchema(parameters, meta);
         // Validate input if schema exists
         if (proc.input) {
             input = proc.input.parse(input);
