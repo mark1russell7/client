@@ -62,27 +62,28 @@ function rotateLog(): void {
  * Find the CLI entry point
  */
 function findCliPath(): string {
-  // Try to find the mark CLI in node_modules/.bin or as a direct path
+  // First, try to use the currently running script if it's the CLI
+  const currentScript = process.argv[1];
+  if (currentScript && (currentScript.endsWith("cli.js") || currentScript.includes("cli/dist"))) {
+    return currentScript;
+  }
+
+  // Try to find the mark CLI in node_modules or as a direct path
   const candidates = [
-    // If running from CLI itself, use the same entry
-    path.join(process.cwd(), "node_modules", ".bin", "mark"),
     path.join(process.cwd(), "node_modules", "@mark1russell7", "cli", "dist", "cli.js"),
-    // Global install
-    "mark",
+    path.join(process.cwd(), "node_modules", ".bin", "mark"),
+    // Check parent directories for monorepo setups
+    path.join(process.cwd(), "..", "cli", "dist", "cli.js"),
   ];
 
   // Check which candidate exists
   for (const candidate of candidates) {
-    if (candidate === "mark") {
-      // Global command, assume it exists
-      return candidate;
-    }
     if (fs.existsSync(candidate)) {
       return candidate;
     }
   }
 
-  // Fallback: assume mark is in PATH
+  // Fallback: try mark in PATH (will fail if not installed globally)
   return "mark";
 }
 
