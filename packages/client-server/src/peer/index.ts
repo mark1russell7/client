@@ -58,15 +58,18 @@ class PeerImpl implements Peer {
   private transports: TransportConfig[];
   private endpoints: PeerEndpoint[] = [];
   private started = false;
+  private registry: ProcedureRegistry;
+  private startTime: number = Date.now();
 
   constructor(options: PeerOptions) {
     this.id = options.id;
     this.transports = options.transports;
+    this.registry = options.registry ?? PROCEDURE_REGISTRY;
 
     // Create procedure server
     this.server = new ProcedureServer({
       autoRegister: options.autoRegister ?? true,
-      registry: options.registry ?? PROCEDURE_REGISTRY,
+      registry: this.registry,
     });
   }
 
@@ -107,6 +110,29 @@ class PeerImpl implements Peer {
 
     const port = config.port ?? 3000;
     const host = config.host ?? "0.0.0.0";
+    const basePath = config.basePath ?? "/api";
+
+    // Health endpoint for container orchestration
+    app.get(`${basePath}/health`, (_req, res) => {
+      const procedureCount = this.registry.getAll().filter((p) => p.handler).length;
+      res.json({
+        status: "ok",
+        uptime: Date.now() - this.startTime,
+        procedures: procedureCount,
+        peerId: this.id,
+      });
+    });
+
+    // Also add at root /health for convenience
+    app.get("/health", (_req, res) => {
+      const procedureCount = this.registry.getAll().filter((p) => p.handler).length;
+      res.json({
+        status: "ok",
+        uptime: Date.now() - this.startTime,
+        procedures: procedureCount,
+        peerId: this.id,
+      });
+    });
 
     // Select URL strategy based on config
     const urlStrategy = config.urlStrategy === "rpc" ? rpcServerUrlStrategy : defaultServerUrlStrategy;
@@ -115,7 +141,7 @@ class PeerImpl implements Peer {
       app,
       port,
       host,
-      basePath: config.basePath ?? "/api",
+      basePath,
       cors: config.cors ?? true,
       urlStrategy,
     });
@@ -125,7 +151,7 @@ class PeerImpl implements Peer {
 
     this.endpoints.push({
       type: "http",
-      address: `http://${host === "0.0.0.0" ? "localhost" : host}:${port}${config.basePath ?? "/api"}`,
+      address: `http://${host === "0.0.0.0" ? "localhost" : host}:${port}${basePath}`,
     });
   }
 

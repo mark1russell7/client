@@ -165,3 +165,76 @@ export interface ProcedureUpdateMessage {
   added?: ProcedureInfo[];
   removed?: string[]; // Procedure paths as strings
 }
+
+// =============================================================================
+// server.start Types
+// =============================================================================
+
+export interface ServerStartInput {
+  /** Port to listen on */
+  port?: number;
+  /** Host to bind to */
+  host?: string;
+  /** Transport type */
+  transport?: "http" | "websocket" | "both";
+}
+
+export interface ServerStartOutput {
+  /** Whether start succeeded */
+  success: boolean;
+  /** Process ID of server */
+  pid?: number;
+  /** Port server is running on */
+  port?: number;
+  /** Endpoint URL */
+  endpoint?: string;
+  /** Log file path */
+  logFile?: string;
+  /** Status message */
+  message: string;
+}
+
+// =============================================================================
+// server.stop Types
+// =============================================================================
+
+export interface ServerStopInput {
+  /** Force kill with SIGKILL instead of SIGTERM */
+  force?: boolean;
+}
+
+export interface ServerStopOutput {
+  /** Whether stop succeeded */
+  success: boolean;
+  /** Status message */
+  message: string;
+}
+
+// =============================================================================
+// server.status Types
+// =============================================================================
+
+export interface ServerStatusInput {
+  // No input required
+}
+
+export interface ServerStatusOutput {
+  /** Whether server is running */
+  running: boolean;
+  /** Process ID */
+  pid?: number;
+  /** Port */
+  port?: number;
+  /** Endpoint URL */
+  endpoint?: string;
+  /** Transport type */
+  transport?: string;
+  /** When server started (ISO string) */
+  startedAt?: string;
+  /** Human-readable uptime */
+  uptime?: string;
+  /** Log file path */
+  logFile?: string;
+  /** Status message */
+  message: string;
+}

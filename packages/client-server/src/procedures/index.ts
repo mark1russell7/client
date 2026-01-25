@@ -15,3 +15,12 @@ export type { ServerDisconnectInput, ServerDisconnectOutput } from "./server.dis
 
 export { manifestGenerateProcedure } from "./manifest.generate.js";
 export type { ManifestGenerateInput, ManifestGenerateOutput } from "./manifest.generate.js";
+
+export { serverStartProcedure } from "./server.start.js";
+export type { ServerStartInput, ServerStartOutput } from "./server.start.js";
+
+export { serverStopProcedure } from "./server.stop.js";
+export type { ServerStopInput, ServerStopOutput } from "./server.stop.js";
+
+export { serverStatusProcedure } from "./server.status.js";
+export type { ServerStatusInput, ServerStatusOutput } from "./server.status.js";

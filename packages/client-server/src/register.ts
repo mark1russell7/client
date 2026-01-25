@@ -13,6 +13,9 @@ import { serverConnectProcedure } from "./procedures/server.connect.js";
 import { serverDisconnectProcedure } from "./procedures/server.disconnect.js";
 import { manifestGenerateProcedure } from "./procedures/manifest.generate.js";
 import { discoveryAnnounceProcedure } from "./discovery/index.js";
+import { serverStartProcedure } from "./procedures/server.start.js";
+import { serverStopProcedure } from "./procedures/server.stop.js";
+import { serverStatusProcedure } from "./procedures/server.status.js";
 
 /**
  * All server procedures
@@ -23,6 +26,9 @@ export const procedures: readonly AnyProcedure[] = [
   serverDisconnectProcedure,
   manifestGenerateProcedure,
   discoveryAnnounceProcedure,
+  serverStartProcedure,
+  serverStopProcedure,
+  serverStatusProcedure,
 ];
 
 /**
