@@ -31,4 +31,16 @@ export declare function isServerAlive(lockfile: LockfileData): Promise<boolean>;
  * Get lockfile path (for debugging)
  */
 export declare function getLockfilePath(): string;
+/**
+ * Get log file path
+ */
+export declare function getLogPath(): string;
+/**
+ * Get lockfile directory path
+ */
+export declare function getLockfileDir(): string;
+/**
+ * Rotate log file (move current to .1)
+ */
+export declare function rotateLogFile(): Promise<void>;
 //# sourceMappingURL=lockfile.d.ts.map

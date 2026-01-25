@@ -13,34 +13,34 @@ importers:
         version: 0.7.0
       '@mark1russell7/client':
         specifier: github:mark1russell7/client#main
-        version: https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
       '@mark1russell7/client-cli':
         specifier: github:mark1russell7/client-cli#main
-        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/470519d2ab1c124a86ae5705ce10e48b71c0fbe8(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-cli/tar.gz/6225a7255a376ebd252837e10bf8b984b0f0ab96(express@5.2.1)
       '@mark1russell7/client-lib':
         specifier: github:mark1russell7/client-lib#main
-        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/8bff3a823f673bbd2c6ea8ed03a47420ebd38e97(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-lib/tar.gz/b0dd3374844dc8cb106ab426c017f7fb0753c0fb(express@5.2.1)
       '@mark1russell7/client-logger':
         specifier: github:mark1russell7/client-logger#main
-        version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/611cbab3f9fb93d0542ee455d0c3f87494b74698(express@5.2.1)(zod@3.25.76)
+        version: https://codeload.github.com/mark1russell7/client-logger/tar.gz/7f198a9ce4d91c9a235178eb38f6ae21ea6daf29(express@5.2.1)(zod@3.25.76)
       '@mark1russell7/client-pnpm':
         specifier: github:mark1russell7/client-pnpm#main
-        version: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/83eee94462a7751a6798d61e9aec0d0aacfdb5d3(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/98242ec7da41999a55621e6d3ae9c212d029f4e7(express@5.2.1)
       '@mark1russell7/client-procedure':
         specifier: github:mark1russell7/client-procedure#main
-        version: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/6f72d4eb1ac541dc01451222b48b5929431b63c4(express@5.2.1)
       '@mark1russell7/client-server':
         specifier: github:mark1russell7/client-server#main
-        version: https://codeload.github.com/mark1russell7/client-server/tar.gz/76b5a7666c7366c27b1a30c620abe2a35a044a50
+        version: https://codeload.github.com/mark1russell7/client-server/tar.gz/8ed5bfd5da31b76ffe2b9fa24517f9caf3b6e14d
       '@mark1russell7/client-shell':
         specifier: github:mark1russell7/client-shell#main
-        version: https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c(express@5.2.1)
       '@mark1russell7/client-test':
         specifier: github:mark1russell7/client-test#main
-        version: https://codeload.github.com/mark1russell7/client-test/tar.gz/3494871a889fab43306f7663be511834ba2c6f9f(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-test/tar.gz/506644750aaade37422bbbd93b299c733774aea9(express@5.2.1)
       '@mark1russell7/client-vitest':
         specifier: github:mark1russell7/client-vitest#main
-        version: https://codeload.github.com/mark1russell7/client-vitest/tar.gz/691a706366dec92ee2084ec1eba85643df0c5e6f(@types/node@22.19.3)(express@5.2.1)
+        version: https://codeload.github.com/mark1russell7/client-vitest/tar.gz/3e981f8dc372247d5804f64528949632854760ae(@types/node@22.19.7)(express@5.2.1)
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -59,19 +59,19 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd
       '@mark1russell7/test':
         specifier: github:mark1russell7/test#main
-        version: https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6(vitest@3.2.4(@types/node@22.19.3))
+        version: https://codeload.github.com/mark1russell7/test/tar.gz/a8abc333c888f74b59496553af3b88765ea3eae8(vitest@3.2.4(@types/node@22.19.7))
       '@types/node':
         specifier: ^22.0.0
-        version: 22.19.3
+        version: 22.19.7
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
-        version: 3.2.4(@types/node@22.19.3)
+        version: 3.2.4(@types/node@22.19.7)
 
 packages:
 
@@ -87,13 +87,13 @@ packages:
     resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/parser@7.28.5':
-    resolution: {integrity: sha512-KKBU1VGYR7ORr3At5HAtUQ+TV3SzRCXmA/8OdDZiLDBIZxVyzXuztPjfLd3BV1PRAQGCMWWSHYhL0F8d5uHBDQ==}
+  '@babel/parser@7.28.6':
+    resolution: {integrity: sha512-TeR9zWR18BvbfPmGbLampPMW+uW1NZnJlRuuHso8i87QZNq2JRF9i6RgxRqtEq+wQGsS19NNTWr2duhnE49mfQ==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  '@babel/types@7.28.5':
-    resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
+  '@babel/types@7.28.6':
+    resolution: {integrity: sha512-0ZrskXVEHSWIqZM/sQZ4EV3jZJXRkio/WCxaqKZP1g//CEWEPSfeZFcms4XeKBCHU0ZKnIkdJeU/kF+eRp5lBg==}
     engines: {node: '>=6.9.0'}
 
   '@bcoe/v8-coverage@1.0.2':
@@ -289,8 +289,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/470519d2ab1c124a86ae5705ce10e48b71c0fbe8':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/470519d2ab1c124a86ae5705ce10e48b71c0fbe8}
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/6225a7255a376ebd252837e10bf8b984b0f0ab96':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-cli/tar.gz/6225a7255a376ebd252837e10bf8b984b0f0ab96}
     version: 1.0.0
 
   '@mark1russell7/client-dag@https://codeload.github.com/mark1russell7/client-dag/tar.gz/d3b54f334f6fa3fe68e83ee675807d060c9f6a51':
@@ -305,37 +305,37 @@ packages:
     resolution: {tarball: https://codeload.github.com/mark1russell7/client-git/tar.gz/d02757848c886612c0a66938605057c00c271ab4}
     version: 1.0.0
 
-  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/8bff3a823f673bbd2c6ea8ed03a47420ebd38e97':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/8bff3a823f673bbd2c6ea8ed03a47420ebd38e97}
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/b0dd3374844dc8cb106ab426c017f7fb0753c0fb':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-lib/tar.gz/b0dd3374844dc8cb106ab426c017f7fb0753c0fb}
     version: 0.0.0
 
-  '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/611cbab3f9fb93d0542ee455d0c3f87494b74698':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-logger/tar.gz/611cbab3f9fb93d0542ee455d0c3f87494b74698}
+  '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/7f198a9ce4d91c9a235178eb38f6ae21ea6daf29':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-logger/tar.gz/7f198a9ce4d91c9a235178eb38f6ae21ea6daf29}
     version: 1.0.0
 
-  '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/83eee94462a7751a6798d61e9aec0d0aacfdb5d3':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/83eee94462a7751a6798d61e9aec0d0aacfdb5d3}
+  '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/98242ec7da41999a55621e6d3ae9c212d029f4e7':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/98242ec7da41999a55621e6d3ae9c212d029f4e7}
     version: 1.0.0
 
-  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055}
+  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/6f72d4eb1ac541dc01451222b48b5929431b63c4':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-procedure/tar.gz/6f72d4eb1ac541dc01451222b48b5929431b63c4}
     version: 0.0.0
 
-  '@mark1russell7/client-server@https://codeload.github.com/mark1russell7/client-server/tar.gz/76b5a7666c7366c27b1a30c620abe2a35a044a50':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-server/tar.gz/76b5a7666c7366c27b1a30c620abe2a35a044a50}
+  '@mark1russell7/client-server@https://codeload.github.com/mark1russell7/client-server/tar.gz/8ed5bfd5da31b76ffe2b9fa24517f9caf3b6e14d':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-server/tar.gz/8ed5bfd5da31b76ffe2b9fa24517f9caf3b6e14d}
     version: 1.0.0
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4}
+  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c}
     version: 0.0.0
 
-  '@mark1russell7/client-test@https://codeload.github.com/mark1russell7/client-test/tar.gz/3494871a889fab43306f7663be511834ba2c6f9f':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-test/tar.gz/3494871a889fab43306f7663be511834ba2c6f9f}
+  '@mark1russell7/client-test@https://codeload.github.com/mark1russell7/client-test/tar.gz/506644750aaade37422bbbd93b299c733774aea9':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-test/tar.gz/506644750aaade37422bbbd93b299c733774aea9}
     version: 0.0.0
 
-  '@mark1russell7/client-vitest@https://codeload.github.com/mark1russell7/client-vitest/tar.gz/691a706366dec92ee2084ec1eba85643df0c5e6f':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client-vitest/tar.gz/691a706366dec92ee2084ec1eba85643df0c5e6f}
+  '@mark1russell7/client-vitest@https://codeload.github.com/mark1russell7/client-vitest/tar.gz/3e981f8dc372247d5804f64528949632854760ae':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-vitest/tar.gz/3e981f8dc372247d5804f64528949632854760ae}
     version: 0.0.0
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef':
@@ -352,36 +352,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb}
-    version: 1.0.0
-    engines: {node: '>=20'}
-    hasBin: true
-    peerDependencies:
-      express: ^4.0.0 || ^5.0.0
-      zod: ^3.0.0
-    peerDependenciesMeta:
-      express:
-        optional: true
-      zod:
-        optional: true
-
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba}
-    version: 1.0.0
-    engines: {node: '>=20'}
-    hasBin: true
-    peerDependencies:
-      express: ^4.0.0 || ^5.0.0
-      zod: ^3.0.0
-    peerDependenciesMeta:
-      express:
-        optional: true
-      zod:
-        optional: true
-
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
@@ -408,121 +380,136 @@ packages:
     peerDependencies:
       vitest: ^3.0.0
 
-  '@mark1russell7/test@https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6}
+  '@mark1russell7/test@https://codeload.github.com/mark1russell7/test/tar.gz/a8abc333c888f74b59496553af3b88765ea3eae8':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/test/tar.gz/a8abc333c888f74b59496553af3b88765ea3eae8}
     version: 0.0.0
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@rollup/rollup-android-arm-eabi@4.54.0':
-    resolution: {integrity: sha512-OywsdRHrFvCdvsewAInDKCNyR3laPA2mc9bRYJ6LBp5IyvF3fvXbbNR0bSzHlZVFtn6E0xw2oZlyjg4rKCVcng==}
+  '@rollup/rollup-android-arm-eabi@4.56.0':
+    resolution: {integrity: sha512-LNKIPA5k8PF1+jAFomGe3qN3bbIgJe/IlpDBwuVjrDKrJhVWywgnJvflMt/zkbVNLFtF1+94SljYQS6e99klnw==}
     cpu: [arm]
     os: [android]
 
-  '@rollup/rollup-android-arm64@4.54.0':
-    resolution: {integrity: sha512-Skx39Uv+u7H224Af+bDgNinitlmHyQX1K/atIA32JP3JQw6hVODX5tkbi2zof/E69M1qH2UoN3Xdxgs90mmNYw==}
+  '@rollup/rollup-android-arm64@4.56.0':
+    resolution: {integrity: sha512-lfbVUbelYqXlYiU/HApNMJzT1E87UPGvzveGg2h0ktUNlOCxKlWuJ9jtfvs1sKHdwU4fzY7Pl8sAl49/XaEk6Q==}
     cpu: [arm64]
     os: [android]
 
-  '@rollup/rollup-darwin-arm64@4.54.0':
-    resolution: {integrity: sha512-k43D4qta/+6Fq+nCDhhv9yP2HdeKeP56QrUUTW7E6PhZP1US6NDqpJj4MY0jBHlJivVJD5P8NxrjuobZBJTCRw==}
+  '@rollup/rollup-darwin-arm64@4.56.0':
+    resolution: {integrity: sha512-EgxD1ocWfhoD6xSOeEEwyE7tDvwTgZc8Bss7wCWe+uc7wO8G34HHCUH+Q6cHqJubxIAnQzAsyUsClt0yFLu06w==}
     cpu: [arm64]
     os: [darwin]
 
-  '@rollup/rollup-darwin-x64@4.54.0':
-    resolution: {integrity: sha512-cOo7biqwkpawslEfox5Vs8/qj83M/aZCSSNIWpVzfU2CYHa2G3P1UN5WF01RdTHSgCkri7XOlTdtk17BezlV3A==}
+  '@rollup/rollup-darwin-x64@4.56.0':
+    resolution: {integrity: sha512-1vXe1vcMOssb/hOF8iv52A7feWW2xnu+c8BV4t1F//m9QVLTfNVpEdja5ia762j/UEJe2Z1jAmEqZAK42tVW3g==}
     cpu: [x64]
     os: [darwin]
 
-  '@rollup/rollup-freebsd-arm64@4.54.0':
-    resolution: {integrity: sha512-miSvuFkmvFbgJ1BevMa4CPCFt5MPGw094knM64W9I0giUIMMmRYcGW/JWZDriaw/k1kOBtsWh1z6nIFV1vPNtA==}
+  '@rollup/rollup-freebsd-arm64@4.56.0':
+    resolution: {integrity: sha512-bof7fbIlvqsyv/DtaXSck4VYQ9lPtoWNFCB/JY4snlFuJREXfZnm+Ej6yaCHfQvofJDXLDMTVxWscVSuQvVWUQ==}
     cpu: [arm64]
     os: [freebsd]
 
-  '@rollup/rollup-freebsd-x64@4.54.0':
-    resolution: {integrity: sha512-KGXIs55+b/ZfZsq9aR026tmr/+7tq6VG6MsnrvF4H8VhwflTIuYh+LFUlIsRdQSgrgmtM3fVATzEAj4hBQlaqQ==}
+  '@rollup/rollup-freebsd-x64@4.56.0':
+    resolution: {integrity: sha512-KNa6lYHloW+7lTEkYGa37fpvPq+NKG/EHKM8+G/g9WDU7ls4sMqbVRV78J6LdNuVaeeK5WB9/9VAFbKxcbXKYg==}
     cpu: [x64]
     os: [freebsd]
 
-  '@rollup/rollup-linux-arm-gnueabihf@4.54.0':
-    resolution: {integrity: sha512-EHMUcDwhtdRGlXZsGSIuXSYwD5kOT9NVnx9sqzYiwAc91wfYOE1g1djOEDseZJKKqtHAHGwnGPQu3kytmfaXLQ==}
+  '@rollup/rollup-linux-arm-gnueabihf@4.56.0':
+    resolution: {integrity: sha512-E8jKK87uOvLrrLN28jnAAAChNq5LeCd2mGgZF+fGF5D507WlG/Noct3lP/QzQ6MrqJ5BCKNwI9ipADB6jyiq2A==}
     cpu: [arm]
     os: [linux]
 
-  '@rollup/rollup-linux-arm-musleabihf@4.54.0':
-    resolution: {integrity: sha512-+pBrqEjaakN2ySv5RVrj/qLytYhPKEUwk+e3SFU5jTLHIcAtqh2rLrd/OkbNuHJpsBgxsD8ccJt5ga/SeG0JmA==}
+  '@rollup/rollup-linux-arm-musleabihf@4.56.0':
+    resolution: {integrity: sha512-jQosa5FMYF5Z6prEpTCCmzCXz6eKr/tCBssSmQGEeozA9tkRUty/5Vx06ibaOP9RCrW1Pvb8yp3gvZhHwTDsJw==}
     cpu: [arm]
     os: [linux]
 
-  '@rollup/rollup-linux-arm64-gnu@4.54.0':
-    resolution: {integrity: sha512-NSqc7rE9wuUaRBsBp5ckQ5CVz5aIRKCwsoa6WMF7G01sX3/qHUw/z4pv+D+ahL1EIKy6Enpcnz1RY8pf7bjwng==}
+  '@rollup/rollup-linux-arm64-gnu@4.56.0':
+    resolution: {integrity: sha512-uQVoKkrC1KGEV6udrdVahASIsaF8h7iLG0U0W+Xn14ucFwi6uS539PsAr24IEF9/FoDtzMeeJXJIBo5RkbNWvQ==}
     cpu: [arm64]
     os: [linux]
 
-  '@rollup/rollup-linux-arm64-musl@4.54.0':
-    resolution: {integrity: sha512-gr5vDbg3Bakga5kbdpqx81m2n9IX8M6gIMlQQIXiLTNeQW6CucvuInJ91EuCJ/JYvc+rcLLsDFcfAD1K7fMofg==}
+  '@rollup/rollup-linux-arm64-musl@4.56.0':
+    resolution: {integrity: sha512-vLZ1yJKLxhQLFKTs42RwTwa6zkGln+bnXc8ueFGMYmBTLfNu58sl5/eXyxRa2RarTkJbXl8TKPgfS6V5ijNqEA==}
     cpu: [arm64]
     os: [linux]
 
-  '@rollup/rollup-linux-loong64-gnu@4.54.0':
-    resolution: {integrity: sha512-gsrtB1NA3ZYj2vq0Rzkylo9ylCtW/PhpLEivlgWe0bpgtX5+9j9EZa0wtZiCjgu6zmSeZWyI/e2YRX1URozpIw==}
+  '@rollup/rollup-linux-loong64-gnu@4.56.0':
+    resolution: {integrity: sha512-FWfHOCub564kSE3xJQLLIC/hbKqHSVxy8vY75/YHHzWvbJL7aYJkdgwD/xGfUlL5UV2SB7otapLrcCj2xnF1dg==}
     cpu: [loong64]
     os: [linux]
 
-  '@rollup/rollup-linux-ppc64-gnu@4.54.0':
-    resolution: {integrity: sha512-y3qNOfTBStmFNq+t4s7Tmc9hW2ENtPg8FeUD/VShI7rKxNW7O4fFeaYbMsd3tpFlIg1Q8IapFgy7Q9i2BqeBvA==}
+  '@rollup/rollup-linux-loong64-musl@4.56.0':
+    resolution: {integrity: sha512-z1EkujxIh7nbrKL1lmIpqFTc/sr0u8Uk0zK/qIEFldbt6EDKWFk/pxFq3gYj4Bjn3aa9eEhYRlL3H8ZbPT1xvA==}
+    cpu: [loong64]
+    os: [linux]
+
+  '@rollup/rollup-linux-ppc64-gnu@4.56.0':
+    resolution: {integrity: sha512-iNFTluqgdoQC7AIE8Q34R3AuPrJGJirj5wMUErxj22deOcY7XwZRaqYmB6ZKFHoVGqRcRd0mqO+845jAibKCkw==}
     cpu: [ppc64]
     os: [linux]
 
-  '@rollup/rollup-linux-riscv64-gnu@4.54.0':
-    resolution: {integrity: sha512-89sepv7h2lIVPsFma8iwmccN7Yjjtgz0Rj/Ou6fEqg3HDhpCa+Et+YSufy27i6b0Wav69Qv4WBNl3Rs6pwhebQ==}
+  '@rollup/rollup-linux-ppc64-musl@4.56.0':
+    resolution: {integrity: sha512-MtMeFVlD2LIKjp2sE2xM2slq3Zxf9zwVuw0jemsxvh1QOpHSsSzfNOTH9uYW9i1MXFxUSMmLpeVeUzoNOKBaWg==}
+    cpu: [ppc64]
+    os: [linux]
+
+  '@rollup/rollup-linux-riscv64-gnu@4.56.0':
+    resolution: {integrity: sha512-in+v6wiHdzzVhYKXIk5U74dEZHdKN9KH0Q4ANHOTvyXPG41bajYRsy7a8TPKbYPl34hU7PP7hMVHRvv/5aCSew==}
     cpu: [riscv64]
     os: [linux]
 
-  '@rollup/rollup-linux-riscv64-musl@4.54.0':
-    resolution: {integrity: sha512-ZcU77ieh0M2Q8Ur7D5X7KvK+UxbXeDHwiOt/CPSBTI1fBmeDMivW0dPkdqkT4rOgDjrDDBUed9x4EgraIKoR2A==}
+  '@rollup/rollup-linux-riscv64-musl@4.56.0':
+    resolution: {integrity: sha512-yni2raKHB8m9NQpI9fPVwN754mn6dHQSbDTwxdr9SE0ks38DTjLMMBjrwvB5+mXrX+C0npX0CVeCUcvvvD8CNQ==}
     cpu: [riscv64]
     os: [linux]
 
-  '@rollup/rollup-linux-s390x-gnu@4.54.0':
-    resolution: {integrity: sha512-2AdWy5RdDF5+4YfG/YesGDDtbyJlC9LHmL6rZw6FurBJ5n4vFGupsOBGfwMRjBYH7qRQowT8D/U4LoSvVwOhSQ==}
+  '@rollup/rollup-linux-s390x-gnu@4.56.0':
+    resolution: {integrity: sha512-zhLLJx9nQPu7wezbxt2ut+CI4YlXi68ndEve16tPc/iwoylWS9B3FxpLS2PkmfYgDQtosah07Mj9E0khc3Y+vQ==}
     cpu: [s390x]
     os: [linux]
 
-  '@rollup/rollup-linux-x64-gnu@4.54.0':
-    resolution: {integrity: sha512-WGt5J8Ij/rvyqpFexxk3ffKqqbLf9AqrTBbWDk7ApGUzaIs6V+s2s84kAxklFwmMF/vBNGrVdYgbblCOFFezMQ==}
+  '@rollup/rollup-linux-x64-gnu@4.56.0':
+    resolution: {integrity: sha512-MVC6UDp16ZSH7x4rtuJPAEoE1RwS8N4oK9DLHy3FTEdFoUTCFVzMfJl/BVJ330C+hx8FfprA5Wqx4FhZXkj2Kw==}
     cpu: [x64]
     os: [linux]
 
-  '@rollup/rollup-linux-x64-musl@4.54.0':
-    resolution: {integrity: sha512-JzQmb38ATzHjxlPHuTH6tE7ojnMKM2kYNzt44LO/jJi8BpceEC8QuXYA908n8r3CNuG/B3BV8VR3Hi1rYtmPiw==}
+  '@rollup/rollup-linux-x64-musl@4.56.0':
+    resolution: {integrity: sha512-ZhGH1eA4Qv0lxaV00azCIS1ChedK0V32952Md3FtnxSqZTBTd6tgil4nZT5cU8B+SIw3PFYkvyR4FKo2oyZIHA==}
     cpu: [x64]
     os: [linux]
 
-  '@rollup/rollup-openharmony-arm64@4.54.0':
-    resolution: {integrity: sha512-huT3fd0iC7jigGh7n3q/+lfPcXxBi+om/Rs3yiFxjvSxbSB6aohDFXbWvlspaqjeOh+hx7DDHS+5Es5qRkWkZg==}
+  '@rollup/rollup-openbsd-x64@4.56.0':
+    resolution: {integrity: sha512-O16XcmyDeFI9879pEcmtWvD/2nyxR9mF7Gs44lf1vGGx8Vg2DRNx11aVXBEqOQhWb92WN4z7fW/q4+2NYzCbBA==}
+    cpu: [x64]
+    os: [openbsd]
+
+  '@rollup/rollup-openharmony-arm64@4.56.0':
+    resolution: {integrity: sha512-LhN/Reh+7F3RCgQIRbgw8ZMwUwyqJM+8pXNT6IIJAqm2IdKkzpCh/V9EdgOMBKuebIrzswqy4ATlrDgiOwbRcQ==}
     cpu: [arm64]
     os: [openharmony]
 
-  '@rollup/rollup-win32-arm64-msvc@4.54.0':
-    resolution: {integrity: sha512-c2V0W1bsKIKfbLMBu/WGBz6Yci8nJ/ZJdheE0EwB73N3MvHYKiKGs3mVilX4Gs70eGeDaMqEob25Tw2Gb9Nqyw==}
+  '@rollup/rollup-win32-arm64-msvc@4.56.0':
+    resolution: {integrity: sha512-kbFsOObXp3LBULg1d3JIUQMa9Kv4UitDmpS+k0tinPBz3watcUiV2/LUDMMucA6pZO3WGE27P7DsfaN54l9ing==}
     cpu: [arm64]
     os: [win32]
 
-  '@rollup/rollup-win32-ia32-msvc@4.54.0':
-    resolution: {integrity: sha512-woEHgqQqDCkAzrDhvDipnSirm5vxUXtSKDYTVpZG3nUdW/VVB5VdCYA2iReSj/u3yCZzXID4kuKG7OynPnB3WQ==}
+  '@rollup/rollup-win32-ia32-msvc@4.56.0':
+    resolution: {integrity: sha512-vSSgny54D6P4vf2izbtFm/TcWYedw7f8eBrOiGGecyHyQB9q4Kqentjaj8hToe+995nob/Wv48pDqL5a62EWtg==}
     cpu: [ia32]
     os: [win32]
 
-  '@rollup/rollup-win32-x64-gnu@4.54.0':
-    resolution: {integrity: sha512-dzAc53LOuFvHwbCEOS0rPbXp6SIhAf2txMP5p6mGyOXXw5mWY8NGGbPMPrs4P1WItkfApDathBj/NzMLUZ9rtQ==}
+  '@rollup/rollup-win32-x64-gnu@4.56.0':
+    resolution: {integrity: sha512-FeCnkPCTHQJFbiGG49KjV5YGW/8b9rrXAM2Mz2kiIoktq2qsJxRD5giEMEOD2lPdgs72upzefaUvS+nc8E3UzQ==}
     cpu: [x64]
     os: [win32]
 
-  '@rollup/rollup-win32-x64-msvc@4.54.0':
-    resolution: {integrity: sha512-hYT5d3YNdSh3mbCU1gwQyPgQd3T2ne0A3KG8KSBdav5TiBg6eInVmV+TeR5uHufiIgSFg0XsOWGW5/RhNcSvPg==}
+  '@rollup/rollup-win32-x64-msvc@4.56.0':
+    resolution: {integrity: sha512-H8AE9Ur/t0+1VXujj90w0HrSOuv0Nq9r1vSZF2t5km20NTfosQsGGUXDaKdQZzwuLts7IyL1fYT4hM95TI9c4g==}
     cpu: [x64]
     os: [win32]
 
@@ -538,8 +525,8 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
-  '@types/node@22.19.3':
-    resolution: {integrity: sha512-1N9SBnWYOJTrNZCdh/yJE+t910Y128BoyY+zBLWhL3r0TYzlTmFdXrPwHL9DyFZmlEXNQQolTZh3KHV31QDhyA==}
+  '@types/node@22.19.7':
+    resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
 
   '@vitest/coverage-v8@3.2.4':
     resolution: {integrity: sha512-EyF9SXU6kS5Ku/U82E259WSnvg6c8KTjppUncuNdm5QHpe17mwREHnjDzozC8x9MZ0xfBUFSaLkRv4TMA75ALQ==}
@@ -603,14 +590,14 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
-  ast-v8-to-istanbul@0.3.9:
-    resolution: {integrity: sha512-dSC6tJeOJxbZrPzPbv5mMd6CMiQ1ugaVXXPRad2fXUSsy1kstFn9XQWemV9VW7Y7kpxgQ/4WMoZfwdH8XSU48w==}
+  ast-v8-to-istanbul@0.3.10:
+    resolution: {integrity: sha512-p4K7vMz2ZSk3wN8l5o3y2bJAoZXT3VuJI5OLTATY/01CYWumWvwkUw0SqDBnNq6IiTO3qDa1eSQDibAV8g7XOQ==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  body-parser@2.2.1:
-    resolution: {integrity: sha512-nfDwkulwiZYQIGwxdy0RUmowMhKcFVcYXUU7m4QlKYim1rUtg83xm2yjZ40QjDuc291AJjjeSc9b++AWHSgSHw==}
+  body-parser@2.2.2:
+    resolution: {integrity: sha512-oP5VkATKlNwcgvxi0vM0p/D3n2C3EReYVX+DNYs5TjZFn/oQt2j+4sVJtSMr18pdRr8wjTcBl6LoV+FUwzPmNA==}
     engines: {node: '>=18'}
 
   brace-expansion@2.0.2:
@@ -640,8 +627,8 @@ packages:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
 
-  check-error@2.1.1:
-    resolution: {integrity: sha512-OAlb+T7V4Op9OwdkjmguYRqncdlx5JiofwOAUkmTF+jNdHwzTaTs4sRAGpzLF3oOz5xAyDGrPgeIDFQmDOTiJw==}
+  check-error@2.1.3:
+    resolution: {integrity: sha512-PAJdDJusoxnwm1VwW07VWwUN1sl7smmC3OKggvndJFadxxDRyFJBX/ggnu/KE4kQAB7a3Dp8f/YXC1FlUprWmA==}
     engines: {node: '>= 16'}
 
   cli-cursor@5.0.0:
@@ -836,8 +823,8 @@ packages:
     resolution: {integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==}
     engines: {node: '>= 0.8'}
 
-  iconv-lite@0.7.1:
-    resolution: {integrity: sha512-2Tth85cXwGFHfvRgZWszZSvdo+0Xsqmw8k8ZwxScfcBneNUraK+dxRxRm24nszx80Y0TVio8kKLt5sLE7ZCLlw==}
+  iconv-lite@0.7.2:
+    resolution: {integrity: sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw==}
     engines: {node: '>=0.10.0'}
 
   inherits@2.0.4:
@@ -1017,8 +1004,8 @@ packages:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
 
-  qs@6.14.0:
-    resolution: {integrity: sha512-YWWTjgABSKcvs/nWBi9PycY/JiPJqOD4JA6o9Sej2AtvSGarXxKC3OQSk4pAarbdQlKAh5D4FCQkJNkW+GAn3w==}
+  qs@6.14.1:
+    resolution: {integrity: sha512-4EK3+xJl8Ts67nLYNwqw/dsFVnCf+qR7RgXSK9jEEm9unao3njwMDdmsdvoKBKHzxd7tCYz5e5M+SnMjdtXGQQ==}
     engines: {node: '>=0.6'}
 
   range-parser@1.2.1:
@@ -1033,8 +1020,8 @@ packages:
     resolution: {integrity: sha512-oMA2dcrw6u0YfxJQXm342bFKX/E4sG9rbTzO9ptUcR/e8A33cHuvStiYOwH7fszkZlZ1z/ta9AAoPk2F4qIOHA==}
     engines: {node: '>=18'}
 
-  rollup@4.54.0:
-    resolution: {integrity: sha512-3nk8Y3a9Ea8szgKhinMlGMhGMw89mqule3KWczxhIzqudyHdCIOHw8WJlj/r329fACjKLEh13ZSk7oE22kyeIw==}
+  rollup@4.56.0:
+    resolution: {integrity: sha512-9FwVqlgUHzbXtDg9RCMgodF3Ua4Na6Gau+Sdt9vyCN4RhHfVKX2DCHy3BjMLTDd47ITDhYAnTwGulWTblJSDLg==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
@@ -1201,8 +1188,8 @@ packages:
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
 
-  vite@7.3.0:
-    resolution: {integrity: sha512-dZwN5L1VlUBewiP6H9s2+B3e3Jg96D0vzN+Ry73sOefebhYr9f94wwkMNN/9ouoU8pV1BqA1d1zGk8928cx0rg==}
+  vite@7.3.1:
+    resolution: {integrity: sha512-w+N7Hifpc3gRjZ63vYBXA56dvvRlNWRczTdmCBBa+CotUzAPf5b7YMdMR/8CQoeYE5LX3W4wj6RYTgonm1b9DA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -1290,8 +1277,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.18.3:
-    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+  ws@8.19.0:
+    resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -1321,11 +1308,11 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.28.5': {}
 
-  '@babel/parser@7.28.5':
+  '@babel/parser@7.28.6':
     dependencies:
-      '@babel/types': 7.28.5
+      '@babel/types': 7.28.6
 
-  '@babel/types@7.28.5':
+  '@babel/types@7.28.6':
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
@@ -1449,10 +1436,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/470519d2ab1c124a86ae5705ce10e48b71c0fbe8(express@5.2.1)':
+  '@mark1russell7/client-cli@https://codeload.github.com/mark1russell7/client-cli/tar.gz/6225a7255a376ebd252837e10bf8b984b0f0ab96(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
-      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4(express@5.2.1)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c(express@5.2.1)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
@@ -1479,14 +1466,14 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/8bff3a823f673bbd2c6ea8ed03a47420ebd38e97(express@5.2.1)':
+  '@mark1russell7/client-lib@https://codeload.github.com/mark1russell7/client-lib/tar.gz/b0dd3374844dc8cb106ab426c017f7fb0753c0fb(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
       '@mark1russell7/client-dag': https://codeload.github.com/mark1russell7/client-dag/tar.gz/d3b54f334f6fa3fe68e83ee675807d060c9f6a51
       '@mark1russell7/client-fs': https://codeload.github.com/mark1russell7/client-fs/tar.gz/23aa2c146179c59ea91086b2d44a74b13f0d53e5(express@5.2.1)
       '@mark1russell7/client-git': https://codeload.github.com/mark1russell7/client-git/tar.gz/d02757848c886612c0a66938605057c00c271ab4(express@5.2.1)
-      '@mark1russell7/client-pnpm': https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/83eee94462a7751a6798d61e9aec0d0aacfdb5d3(express@5.2.1)
-      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4(express@5.2.1)
+      '@mark1russell7/client-pnpm': https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/98242ec7da41999a55621e6d3ae9c212d029f4e7(express@5.2.1)
+      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c(express@5.2.1)
       ts-morph: 24.0.0
       zod: 3.25.76
     transitivePeerDependencies:
@@ -1494,10 +1481,10 @@ snapshots:
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/611cbab3f9fb93d0542ee455d0c3f87494b74698(express@5.2.1)(zod@3.25.76)':
+  '@mark1russell7/client-logger@https://codeload.github.com/mark1russell7/client-logger/tar.gz/7f198a9ce4d91c9a235178eb38f6ae21ea6daf29(express@5.2.1)(zod@3.25.76)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
-      '@mark1russell7/cue': https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/cue': https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd
       '@mark1russell7/logger': https://codeload.github.com/mark1russell7/logger/tar.gz/26f942c6d4ab8a0e5880bbe727a3c3aa695ed75e
     transitivePeerDependencies:
       - bufferutil
@@ -1505,28 +1492,28 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/83eee94462a7751a6798d61e9aec0d0aacfdb5d3(express@5.2.1)':
+  '@mark1russell7/client-pnpm@https://codeload.github.com/mark1russell7/client-pnpm/tar.gz/98242ec7da41999a55621e6d3ae9c212d029f4e7(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
-      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4(express@5.2.1)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c(express@5.2.1)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/5664a67491f33d996ef9a26e248a960a3109d055(express@5.2.1)':
+  '@mark1russell7/client-procedure@https://codeload.github.com/mark1russell7/client-procedure/tar.gz/6f72d4eb1ac541dc01451222b48b5929431b63c4(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-server@https://codeload.github.com/mark1russell7/client-server/tar.gz/76b5a7666c7366c27b1a30c620abe2a35a044a50':
+  '@mark1russell7/client-server@https://codeload.github.com/mark1russell7/client-server/tar.gz/8ed5bfd5da31b76ffe2b9fa24517f9caf3b6e14d':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
       zod: 3.25.76
       zod-to-json-schema: 3.25.1(zod@3.25.76)
     optionalDependencies:
@@ -1536,30 +1523,30 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4(express@5.2.1)':
+  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-test@https://codeload.github.com/mark1russell7/client-test/tar.gz/3494871a889fab43306f7663be511834ba2c6f9f(express@5.2.1)':
+  '@mark1russell7/client-test@https://codeload.github.com/mark1russell7/client-test/tar.gz/506644750aaade37422bbbd93b299c733774aea9(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
-      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/5cc94b427a608861ff92476743df5d0c013eacb4(express@5.2.1)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
+      '@mark1russell7/client-shell': https://codeload.github.com/mark1russell7/client-shell/tar.gz/376d9777111a75979ab25631bd377bd1e5a9dc9c(express@5.2.1)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
       - express
       - utf-8-validate
 
-  '@mark1russell7/client-vitest@https://codeload.github.com/mark1russell7/client-vitest/tar.gz/691a706366dec92ee2084ec1eba85643df0c5e6f(@types/node@22.19.3)(express@5.2.1)':
+  '@mark1russell7/client-vitest@https://codeload.github.com/mark1russell7/client-vitest/tar.gz/3e981f8dc372247d5804f64528949632854760ae(@types/node@22.19.7)(express@5.2.1)':
     dependencies:
-      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)
-      '@vitest/coverage-v8': 3.2.4(vitest@3.2.4(@types/node@22.19.3))
-      vitest: 3.2.4(@types/node@22.19.3)
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)
+      '@vitest/coverage-v8': 3.2.4(vitest@3.2.4(@types/node@22.19.7))
+      vitest: 3.2.4(@types/node@22.19.7)
       zod: 3.25.76
     transitivePeerDependencies:
       - '@edge-runtime/vm'
@@ -1587,7 +1574,7 @@ snapshots:
 
   '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/013d3a86dc55d9c643f33c34f7264decb58a85ef(express@5.2.1)(zod@3.25.76)':
     dependencies:
-      ws: 8.18.3
+      ws: 8.19.0
     optionalDependencies:
       express: 5.2.1
       zod: 3.25.76
@@ -1595,117 +1582,106 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/50367bc3e6e4bd23ee729646f73c6784e4f4bbfb(express@5.2.1)(zod@3.25.76)':
-    dependencies:
-      ws: 8.18.3
-    optionalDependencies:
-      express: 5.2.1
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
-  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/57548f5db081298b52ee8730e57f2836d49398ba(express@5.2.1)(zod@3.25.76)':
-    dependencies:
-      ws: 8.18.3
-    optionalDependencies:
-      express: 5.2.1
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/a5971a5188da0ff656bcd228084a68d3f378b3c8': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/145a0dfe224f5999dcb4a789ded642da387f78bd': {}
 
   '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/26f942c6d4ab8a0e5880bbe727a3c3aa695ed75e': {}
 
-  '@mark1russell7/mock-client@https://codeload.github.com/mark1russell7/mock-client/tar.gz/8eb85edf7fa188125511fabe0e758febc3485b62(vitest@3.2.4(@types/node@22.19.3))':
+  '@mark1russell7/mock-client@https://codeload.github.com/mark1russell7/mock-client/tar.gz/8eb85edf7fa188125511fabe0e758febc3485b62(vitest@3.2.4(@types/node@22.19.7))':
     dependencies:
-      vitest: 3.2.4(@types/node@22.19.3)
+      vitest: 3.2.4(@types/node@22.19.7)
 
-  '@mark1russell7/mock-fs@https://codeload.github.com/mark1russell7/mock-fs/tar.gz/9077adf95a04bbfce04ad8eb416a3dfe971ac8eb(vitest@3.2.4(@types/node@22.19.3))':
+  '@mark1russell7/mock-fs@https://codeload.github.com/mark1russell7/mock-fs/tar.gz/9077adf95a04bbfce04ad8eb416a3dfe971ac8eb(vitest@3.2.4(@types/node@22.19.7))':
     dependencies:
-      vitest: 3.2.4(@types/node@22.19.3)
+      vitest: 3.2.4(@types/node@22.19.7)
 
-  '@mark1russell7/mock-logger@https://codeload.github.com/mark1russell7/mock-logger/tar.gz/899b2d2f8ff1822aefe88407cb3d45f0b8ccfcce(vitest@3.2.4(@types/node@22.19.3))':
+  '@mark1russell7/mock-logger@https://codeload.github.com/mark1russell7/mock-logger/tar.gz/899b2d2f8ff1822aefe88407cb3d45f0b8ccfcce(vitest@3.2.4(@types/node@22.19.7))':
     dependencies:
-      vitest: 3.2.4(@types/node@22.19.3)
+      vitest: 3.2.4(@types/node@22.19.7)
 
-  '@mark1russell7/test@https://codeload.github.com/mark1russell7/test/tar.gz/f3d0c499a468239f985774112a1f7b404e7d3bd6(vitest@3.2.4(@types/node@22.19.3))':
+  '@mark1russell7/test@https://codeload.github.com/mark1russell7/test/tar.gz/a8abc333c888f74b59496553af3b88765ea3eae8(vitest@3.2.4(@types/node@22.19.7))':
     dependencies:
-      '@mark1russell7/mock-client': https://codeload.github.com/mark1russell7/mock-client/tar.gz/8eb85edf7fa188125511fabe0e758febc3485b62(vitest@3.2.4(@types/node@22.19.3))
-      '@mark1russell7/mock-fs': https://codeload.github.com/mark1russell7/mock-fs/tar.gz/9077adf95a04bbfce04ad8eb416a3dfe971ac8eb(vitest@3.2.4(@types/node@22.19.3))
-      '@mark1russell7/mock-logger': https://codeload.github.com/mark1russell7/mock-logger/tar.gz/899b2d2f8ff1822aefe88407cb3d45f0b8ccfcce(vitest@3.2.4(@types/node@22.19.3))
+      '@mark1russell7/mock-client': https://codeload.github.com/mark1russell7/mock-client/tar.gz/8eb85edf7fa188125511fabe0e758febc3485b62(vitest@3.2.4(@types/node@22.19.7))
+      '@mark1russell7/mock-fs': https://codeload.github.com/mark1russell7/mock-fs/tar.gz/9077adf95a04bbfce04ad8eb416a3dfe971ac8eb(vitest@3.2.4(@types/node@22.19.7))
+      '@mark1russell7/mock-logger': https://codeload.github.com/mark1russell7/mock-logger/tar.gz/899b2d2f8ff1822aefe88407cb3d45f0b8ccfcce(vitest@3.2.4(@types/node@22.19.7))
     transitivePeerDependencies:
       - vitest
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@rollup/rollup-android-arm-eabi@4.54.0':
+  '@rollup/rollup-android-arm-eabi@4.56.0':
     optional: true
 
-  '@rollup/rollup-android-arm64@4.54.0':
+  '@rollup/rollup-android-arm64@4.56.0':
     optional: true
 
-  '@rollup/rollup-darwin-arm64@4.54.0':
+  '@rollup/rollup-darwin-arm64@4.56.0':
     optional: true
 
-  '@rollup/rollup-darwin-x64@4.54.0':
+  '@rollup/rollup-darwin-x64@4.56.0':
     optional: true
 
-  '@rollup/rollup-freebsd-arm64@4.54.0':
+  '@rollup/rollup-freebsd-arm64@4.56.0':
     optional: true
 
-  '@rollup/rollup-freebsd-x64@4.54.0':
+  '@rollup/rollup-freebsd-x64@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-arm-gnueabihf@4.54.0':
+  '@rollup/rollup-linux-arm-gnueabihf@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-arm-musleabihf@4.54.0':
+  '@rollup/rollup-linux-arm-musleabihf@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-arm64-gnu@4.54.0':
+  '@rollup/rollup-linux-arm64-gnu@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-arm64-musl@4.54.0':
+  '@rollup/rollup-linux-arm64-musl@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-loong64-gnu@4.54.0':
+  '@rollup/rollup-linux-loong64-gnu@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-ppc64-gnu@4.54.0':
+  '@rollup/rollup-linux-loong64-musl@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-riscv64-gnu@4.54.0':
+  '@rollup/rollup-linux-ppc64-gnu@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-riscv64-musl@4.54.0':
+  '@rollup/rollup-linux-ppc64-musl@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-s390x-gnu@4.54.0':
+  '@rollup/rollup-linux-riscv64-gnu@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-x64-gnu@4.54.0':
+  '@rollup/rollup-linux-riscv64-musl@4.56.0':
     optional: true
 
-  '@rollup/rollup-linux-x64-musl@4.54.0':
+  '@rollup/rollup-linux-s390x-gnu@4.56.0':
     optional: true
 
-  '@rollup/rollup-openharmony-arm64@4.54.0':
+  '@rollup/rollup-linux-x64-gnu@4.56.0':
     optional: true
 
-  '@rollup/rollup-win32-arm64-msvc@4.54.0':
+  '@rollup/rollup-linux-x64-musl@4.56.0':
     optional: true
 
-  '@rollup/rollup-win32-ia32-msvc@4.54.0':
+  '@rollup/rollup-openbsd-x64@4.56.0':
     optional: true
 
-  '@rollup/rollup-win32-x64-gnu@4.54.0':
+  '@rollup/rollup-openharmony-arm64@4.56.0':
     optional: true
 
-  '@rollup/rollup-win32-x64-msvc@4.54.0':
+  '@rollup/rollup-win32-arm64-msvc@4.56.0':
+    optional: true
+
+  '@rollup/rollup-win32-ia32-msvc@4.56.0':
+    optional: true
+
+  '@rollup/rollup-win32-x64-gnu@4.56.0':
+    optional: true
+
+  '@rollup/rollup-win32-x64-msvc@4.56.0':
     optional: true
 
   '@ts-morph/common@0.25.0':
@@ -1723,15 +1699,15 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
-  '@types/node@22.19.3':
+  '@types/node@22.19.7':
     dependencies:
       undici-types: 6.21.0
 
-  '@vitest/coverage-v8@3.2.4(vitest@3.2.4(@types/node@22.19.3))':
+  '@vitest/coverage-v8@3.2.4(vitest@3.2.4(@types/node@22.19.7))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 1.0.2
-      ast-v8-to-istanbul: 0.3.9
+      ast-v8-to-istanbul: 0.3.10
       debug: 4.4.3
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
@@ -1742,7 +1718,7 @@ snapshots:
       std-env: 3.10.0
       test-exclude: 7.0.1
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/node@22.19.3)
+      vitest: 3.2.4(@types/node@22.19.7)
     transitivePeerDependencies:
       - supports-color
 
@@ -1754,13 +1730,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(vite@7.3.0(@types/node@22.19.3))':
+  '@vitest/mocker@3.2.4(vite@7.3.1(@types/node@22.19.7))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.0(@types/node@22.19.3)
+      vite: 7.3.1(@types/node@22.19.7)
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -1806,7 +1782,7 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  ast-v8-to-istanbul@0.3.9:
+  ast-v8-to-istanbul@0.3.10:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
@@ -1814,15 +1790,15 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  body-parser@2.2.1:
+  body-parser@2.2.2:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
       debug: 4.4.3
       http-errors: 2.0.1
-      iconv-lite: 0.7.1
+      iconv-lite: 0.7.2
       on-finished: 2.4.1
-      qs: 6.14.0
+      qs: 6.14.1
       raw-body: 3.0.2
       type-is: 2.0.1
     transitivePeerDependencies:
@@ -1853,14 +1829,14 @@ snapshots:
   chai@5.3.3:
     dependencies:
       assertion-error: 2.0.1
-      check-error: 2.1.1
+      check-error: 2.1.3
       deep-eql: 5.0.2
       loupe: 3.2.1
       pathval: 2.0.1
 
   chalk@5.6.2: {}
 
-  check-error@2.1.1: {}
+  check-error@2.1.3: {}
 
   cli-cursor@5.0.0:
     dependencies:
@@ -1987,7 +1963,7 @@ snapshots:
   express@5.2.1:
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.2.1
+      body-parser: 2.2.2
       content-disposition: 1.0.1
       content-type: 1.0.5
       cookie: 0.7.2
@@ -2006,7 +1982,7 @@ snapshots:
       once: 1.4.0
       parseurl: 1.3.3
       proxy-addr: 2.0.7
-      qs: 6.14.0
+      qs: 6.14.1
       range-parser: 1.2.1
       router: 2.2.0
       send: 1.2.1
@@ -2106,7 +2082,7 @@ snapshots:
       toidentifier: 1.0.1
     optional: true
 
-  iconv-lite@0.7.1:
+  iconv-lite@0.7.2:
     dependencies:
       safer-buffer: 2.1.2
     optional: true
@@ -2174,8 +2150,8 @@ snapshots:
 
   magicast@0.3.5:
     dependencies:
-      '@babel/parser': 7.28.5
-      '@babel/types': 7.28.5
+      '@babel/parser': 7.28.6
+      '@babel/types': 7.28.6
       source-map-js: 1.2.1
 
   make-dir@4.0.0:
@@ -2280,7 +2256,7 @@ snapshots:
       ipaddr.js: 1.9.1
     optional: true
 
-  qs@6.14.0:
+  qs@6.14.1:
     dependencies:
       side-channel: 1.1.0
     optional: true
@@ -2292,7 +2268,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       http-errors: 2.0.1
-      iconv-lite: 0.7.1
+      iconv-lite: 0.7.2
       unpipe: 1.0.0
     optional: true
 
@@ -2301,32 +2277,35 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  rollup@4.54.0:
+  rollup@4.56.0:
     dependencies:
       '@types/estree': 1.0.8
     optionalDependencies:
-      '@rollup/rollup-android-arm-eabi': 4.54.0
-      '@rollup/rollup-android-arm64': 4.54.0
-      '@rollup/rollup-darwin-arm64': 4.54.0
-      '@rollup/rollup-darwin-x64': 4.54.0
-      '@rollup/rollup-freebsd-arm64': 4.54.0
-      '@rollup/rollup-freebsd-x64': 4.54.0
-      '@rollup/rollup-linux-arm-gnueabihf': 4.54.0
-      '@rollup/rollup-linux-arm-musleabihf': 4.54.0
-      '@rollup/rollup-linux-arm64-gnu': 4.54.0
-      '@rollup/rollup-linux-arm64-musl': 4.54.0
-      '@rollup/rollup-linux-loong64-gnu': 4.54.0
-      '@rollup/rollup-linux-ppc64-gnu': 4.54.0
-      '@rollup/rollup-linux-riscv64-gnu': 4.54.0
-      '@rollup/rollup-linux-riscv64-musl': 4.54.0
-      '@rollup/rollup-linux-s390x-gnu': 4.54.0
-      '@rollup/rollup-linux-x64-gnu': 4.54.0
-      '@rollup/rollup-linux-x64-musl': 4.54.0
-      '@rollup/rollup-openharmony-arm64': 4.54.0
-      '@rollup/rollup-win32-arm64-msvc': 4.54.0
-      '@rollup/rollup-win32-ia32-msvc': 4.54.0
-      '@rollup/rollup-win32-x64-gnu': 4.54.0
-      '@rollup/rollup-win32-x64-msvc': 4.54.0
+      '@rollup/rollup-android-arm-eabi': 4.56.0
+      '@rollup/rollup-android-arm64': 4.56.0
+      '@rollup/rollup-darwin-arm64': 4.56.0
+      '@rollup/rollup-darwin-x64': 4.56.0
+      '@rollup/rollup-freebsd-arm64': 4.56.0
+      '@rollup/rollup-freebsd-x64': 4.56.0
+      '@rollup/rollup-linux-arm-gnueabihf': 4.56.0
+      '@rollup/rollup-linux-arm-musleabihf': 4.56.0
+      '@rollup/rollup-linux-arm64-gnu': 4.56.0
+      '@rollup/rollup-linux-arm64-musl': 4.56.0
+      '@rollup/rollup-linux-loong64-gnu': 4.56.0
+      '@rollup/rollup-linux-loong64-musl': 4.56.0
+      '@rollup/rollup-linux-ppc64-gnu': 4.56.0
+      '@rollup/rollup-linux-ppc64-musl': 4.56.0
+      '@rollup/rollup-linux-riscv64-gnu': 4.56.0
+      '@rollup/rollup-linux-riscv64-musl': 4.56.0
+      '@rollup/rollup-linux-s390x-gnu': 4.56.0
+      '@rollup/rollup-linux-x64-gnu': 4.56.0
+      '@rollup/rollup-linux-x64-musl': 4.56.0
+      '@rollup/rollup-openbsd-x64': 4.56.0
+      '@rollup/rollup-openharmony-arm64': 4.56.0
+      '@rollup/rollup-win32-arm64-msvc': 4.56.0
+      '@rollup/rollup-win32-ia32-msvc': 4.56.0
+      '@rollup/rollup-win32-x64-gnu': 4.56.0
+      '@rollup/rollup-win32-x64-msvc': 4.56.0
       fsevents: 2.3.3
 
   router@2.2.0:
@@ -2512,13 +2491,13 @@ snapshots:
   vary@1.1.2:
     optional: true
 
-  vite-node@3.2.4(@types/node@22.19.3):
+  vite-node@3.2.4(@types/node@22.19.7):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.0(@types/node@22.19.3)
+      vite: 7.3.1(@types/node@22.19.7)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -2533,23 +2512,23 @@ snapshots:
       - tsx
       - yaml
 
-  vite@7.3.0(@types/node@22.19.3):
+  vite@7.3.1(@types/node@22.19.7):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.54.0
+      rollup: 4.56.0
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 22.19.3
+      '@types/node': 22.19.7
       fsevents: 2.3.3
 
-  vitest@3.2.4(@types/node@22.19.3):
+  vitest@3.2.4(@types/node@22.19.7):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@7.3.0(@types/node@22.19.3))
+      '@vitest/mocker': 3.2.4(vite@7.3.1(@types/node@22.19.7))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -2567,11 +2546,11 @@ snapshots:
       tinyglobby: 0.2.15
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.0(@types/node@22.19.3)
-      vite-node: 3.2.4(@types/node@22.19.3)
+      vite: 7.3.1(@types/node@22.19.7)
+      vite-node: 3.2.4(@types/node@22.19.7)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 22.19.3
+      '@types/node': 22.19.7
     transitivePeerDependencies:
       - jiti
       - less
@@ -2610,7 +2589,7 @@ snapshots:
   wrappy@1.0.2:
     optional: true
 
-  ws@8.18.3: {}
+  ws@8.19.0: {}
 
   zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:

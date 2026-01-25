@@ -9,6 +9,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 const LOCKFILE_DIR = path.join(os.homedir(), ".mark");
 const LOCKFILE_PATH = path.join(LOCKFILE_DIR, "server.lock");
+const LOG_PATH = path.join(LOCKFILE_DIR, "server.log");
+const LOG_PREV_PATH = path.join(LOCKFILE_DIR, "server.log.1");
 /**
  * Write server lockfile
  */
@@ -59,5 +61,37 @@ export async function isServerAlive(lockfile) {
  */
 export function getLockfilePath() {
     return LOCKFILE_PATH;
+}
+/**
+ * Get log file path
+ */
+export function getLogPath() {
+    return LOG_PATH;
+}
+/**
+ * Get lockfile directory path
+ */
+export function getLockfileDir() {
+    return LOCKFILE_DIR;
+}
+/**
+ * Rotate log file (move current to .1)
+ */
+export async function rotateLogFile() {
+    try {
+        await fs.mkdir(LOCKFILE_DIR, { recursive: true });
+        // Check if current log exists
+        try {
+            await fs.access(LOG_PATH);
+            // Move current to previous
+            await fs.rename(LOG_PATH, LOG_PREV_PATH);
+        }
+        catch {
+            // No current log, nothing to rotate
+        }
+    }
+    catch {
+        // Ignore rotation errors
+    }
 }
 //# sourceMappingURL=lockfile.js.map
