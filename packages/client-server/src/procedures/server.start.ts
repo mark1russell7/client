@@ -64,8 +64,13 @@ function rotateLog(): void {
 function findCliPath(): string {
   // First, try to use the currently running script if it's the CLI
   const currentScript = process.argv[1];
-  if (currentScript && (currentScript.endsWith("cli.js") || currentScript.includes("cli/dist"))) {
-    return currentScript;
+  if (currentScript) {
+    // Normalize path for cross-platform check
+    const normalized = currentScript.replace(/\\/g, "/");
+    if (normalized.endsWith("cli.js") || normalized.includes("cli/dist")) {
+      // Return absolute path
+      return path.resolve(currentScript);
+    }
   }
 
   // Try to find the mark CLI in node_modules or as a direct path
@@ -74,6 +79,8 @@ function findCliPath(): string {
     path.join(process.cwd(), "node_modules", ".bin", "mark"),
     // Check parent directories for monorepo setups
     path.join(process.cwd(), "..", "cli", "dist", "cli.js"),
+    // Direct check in current directory
+    path.join(process.cwd(), "dist", "cli.js"),
   ];
 
   // Check which candidate exists
