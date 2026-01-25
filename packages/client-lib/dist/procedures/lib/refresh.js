@@ -181,24 +181,34 @@ async function refreshSinglePackage(pkgPath, packageName, ctx, options = {}) {
         // Step 2: pnpm install
         const installResult = await ctx.client.call(["pnpm", "install"], { cwd: pkgPath });
         if (!installResult.success) {
+            // Include both stdout and stderr since pnpm can output errors to either
+            const errorOutput = [installResult.stderr, installResult.stdout]
+                .filter(Boolean)
+                .join("\n")
+                .trim();
             return {
                 name: packageName,
                 path: pkgPath,
                 success: false,
                 duration: Date.now() - startTime,
-                error: `pnpm install failed: ${installResult.stderr}`,
+                error: `pnpm install failed (exit ${installResult.exitCode}): ${errorOutput || "no output"}`,
                 failedPhase: "install",
             };
         }
         // Step 3: pnpm run build
         const buildResult = await ctx.client.call(["pnpm", "run"], { script: "build", cwd: pkgPath });
         if (!buildResult.success) {
+            // Include both stdout and stderr since TypeScript errors go to stdout
+            const errorOutput = [buildResult.stderr, buildResult.stdout]
+                .filter(Boolean)
+                .join("\n")
+                .trim();
             return {
                 name: packageName,
                 path: pkgPath,
                 success: false,
                 duration: Date.now() - startTime,
-                error: `pnpm run build failed: ${buildResult.stderr}`,
+                error: `pnpm run build failed (exit ${buildResult.exitCode}): ${errorOutput || "no output"}`,
                 failedPhase: "build",
             };
         }
