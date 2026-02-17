@@ -105,7 +105,7 @@ export const serverStartProcedure: Procedure<
   .meta({
     description: "Start CLI server as background daemon",
     args: [],
-    shorts: { p: "port", h: "host" },
+    shorts: { port: "p", host: "h" },
   })
   .handler(async (input: ServerStartInput): Promise<ServerStartOutput> => {
     const port = input.port ?? 3000;
