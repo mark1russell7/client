@@ -148,13 +148,10 @@ function parseArgs(
       } else {
         const key = arg.slice(2);
         const next = argv[i + 1];
+        // Take the next value if it exists and doesn't look like another flag
         if (next !== undefined && !next.startsWith("-")) {
-          if (next !== "true" && next !== "false" && !/^\d+$/.test(next)) {
-            options[key] = next;
-            i++;
-          } else {
-            options[key] = true;
-          }
+          options[key] = next;
+          i++;
         } else {
           options[key] = true;
         }
