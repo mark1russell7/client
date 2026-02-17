@@ -12,8 +12,30 @@ import {
   PROCEDURE_REGISTRY,
   rpcServerUrlStrategy,
   defaultServerUrlStrategy,
+  defaultUrlPattern,
+  type Method,
 } from "@mark1russell7/client";
+import type { Request } from "express";
 import type { TransportConfig, TransportType } from "../types.js";
+
+/**
+ * URL strategy that matches the client's defaultUrlPattern
+ * Maps: POST /api/server/status → { service: "server", operation: "status" }
+ */
+function patternUrlStrategy(req: Request): Method | null {
+  const basePath = "/api";
+  let path = req.path;
+
+  // Remove base path prefix if present
+  if (path.startsWith(basePath)) {
+    path = path.slice(basePath.length);
+  }
+
+  // Use the client's defaultUrlPattern parser
+  // Cast method to expected type (parser doesn't actually use it for this pattern)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return defaultUrlPattern.parse(path, req.method.toUpperCase() as any);
+}
 
 // =============================================================================
 // Types
@@ -135,7 +157,12 @@ class PeerImpl implements Peer {
     });
 
     // Select URL strategy based on config
-    const urlStrategy = config.urlStrategy === "rpc" ? rpcServerUrlStrategy : defaultServerUrlStrategy;
+    // Default to patternUrlStrategy which matches the client's defaultUrlPattern
+    const urlStrategy = config.urlStrategy === "rpc"
+      ? rpcServerUrlStrategy
+      : config.urlStrategy === "rest"
+        ? defaultServerUrlStrategy
+        : patternUrlStrategy;
 
     const httpTransport = new HttpServerTransport(this.server, {
       app,
