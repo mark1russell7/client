@@ -8,7 +8,7 @@
     },
     "@mark1russell7/client-lib": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2026-01-25T02:20:59.351Z",
+      "registeredAt": "2026-01-25T02:50:45.260Z",
       "version": "0.0.0"
     },
     "@mark1russell7/client-shell": {
@@ -48,7 +48,7 @@
     },
     "@mark1russell7/client-server": {
       "proceduresPath": "./dist/register.js",
-      "registeredAt": "2026-01-25T02:20:58.971Z",
+      "registeredAt": "2026-01-25T02:58:51.099Z",
       "version": "1.0.0"
     }
   }

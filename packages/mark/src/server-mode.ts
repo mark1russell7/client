@@ -153,9 +153,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   const clientModule = await import("@mark1russell7/client");
   const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
 
-  // Import and register server procedures
-  const clientServer = await import("@mark1russell7/client-server");
-  clientServer.registerServerProcedures();
+  // Note: Server procedures are already loaded via loadEcosystemProcedures above
+  // since client-server is in the ecosystem. No need to call registerServerProcedures().
 
   // Create local transport and sync registry
   const transport = new LocalTransport();
