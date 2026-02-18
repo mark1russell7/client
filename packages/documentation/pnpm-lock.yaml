@@ -10,15 +10,15 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
 
 packages:
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
@@ -30,6 +30,6 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab': {}
 
   typescript@5.9.3: {}
