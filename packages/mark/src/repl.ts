@@ -11,10 +11,6 @@ import { spawn, type ChildProcess } from "node:child_process";
 import * as path from "node:path";
 import { print } from "./print.js";
 import { readLockfile, isServerAlive } from "./lockfile.js";
-import { loadEcosystemProcedures } from "./ecosystem.js";
-import { parseFromSchema, type CLIMeta } from "./parse.js";
-import { formatOutput, type Print } from "./format.js";
-import type { AnyProcedure } from "@mark1russell7/client";
 
 export interface ReplOptions {
   /** Connect to existing server instead of starting one */
@@ -138,10 +134,10 @@ async function executeCommand(
 
 /**
  * Parse REPL input into command path and arguments
+ * Does NOT validate against local procedures - sends to server for validation
  */
 function parseReplInput(
-  input: string,
-  procedures: AnyProcedure[]
+  input: string
 ): { path: string[]; args: string[]; options: Record<string, unknown> } | null {
   const tokens = input.trim().split(/\s+/);
   if (tokens.length === 0 || tokens[0] === "") {
@@ -154,32 +150,16 @@ function parseReplInput(
 
   let i = 0;
 
-  // Collect path segments
-  while (i < tokens.length) {
+  // Collect path segments (non-option tokens until we hit options or run out)
+  // We collect up to 3 segments as path (service.operation.subop), rest are args
+  while (i < tokens.length && path.length < 3) {
     const token = tokens[i];
     if (!token || token.startsWith("-")) break;
-
-    const testPath = [...path, token];
-    const exactMatch = procedures.find(
-      (p) => p.path.length === testPath.length && p.path.every((seg, j) => seg === testPath[j])
-    );
-    const hasChildren = procedures.some(
-      (p) => p.path.length > testPath.length && testPath.every((seg, j) => seg === p.path[j])
-    );
-
-    if (exactMatch) {
-      path.push(token);
-      i++;
-      break;
-    } else if (hasChildren || path.length === 0) {
-      path.push(token);
-      i++;
-    } else {
-      break;
-    }
+    path.push(token);
+    i++;
   }
 
-  // Parse remaining as args and options
+  // If we have more non-option tokens after 3 path segments, they're positional args
   while (i < tokens.length) {
     const token = tokens[i];
     if (!token) {
@@ -229,12 +209,6 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 
   let serverInfo: ServerInfo;
   let serverProcess: ChildProcess | undefined;
-
-  // Load procedures for parsing and help
-  await loadEcosystemProcedures(verbose);
-  const clientModule = await import("@mark1russell7/client");
-  const { PROCEDURE_REGISTRY } = clientModule;
-  const procedures = PROCEDURE_REGISTRY.getAll();
 
   if (connect) {
     // Connect to existing server
@@ -328,19 +302,9 @@ export async function startRepl(options: ReplOptions): Promise<void> {
     }
 
     // Parse and execute command
-    const parsed = parseReplInput(input, procedures);
+    const parsed = parseReplInput(input);
     if (!parsed || parsed.path.length === 0) {
       print.error("Invalid command. Type .help for help.");
-      rl.prompt();
-      return;
-    }
-
-    const proc = procedures.find(
-      (p) => p.path.length === parsed.path.length && p.path.every((seg, i) => seg === parsed.path[i])
-    );
-
-    if (!proc) {
-      print.error(`Unknown command: ${parsed.path.join(" ")}`);
       rl.prompt();
       return;
     }
@@ -348,22 +312,22 @@ export async function startRepl(options: ReplOptions): Promise<void> {
     try {
       const start = Date.now();
 
-      // Parse input using procedure metadata
-      const meta = (proc.metadata ?? {}) as CLIMeta;
-      const parameters = { array: parsed.args, options: parsed.options };
-      let cmdInput = parseFromSchema(parameters, meta);
-
-      // Validate if schema exists
-      if (proc.input) {
-        cmdInput = proc.input.parse(cmdInput) as Record<string, unknown>;
+      // Build input from positional args and options
+      // Server will handle validation
+      const cmdInput: Record<string, unknown> = { ...parsed.options };
+      if (parsed.args.length > 0) {
+        cmdInput["_args"] = parsed.args;
       }
 
       const result = await executeCommand(serverInfo.endpoint, parsed.path, cmdInput);
       const elapsed = Date.now() - start;
 
-      // Format output
-      const outputFormat = (meta.output ?? "text") as "text" | "json" | "table" | "streaming";
-      formatOutput(print as unknown as Print, result, outputFormat);
+      // Output as JSON (server decides format)
+      if (typeof result === "object" && result !== null) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(result);
+      }
 
       if (verbose) {
         print.info(`(${elapsed}ms)`);
