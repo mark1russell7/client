@@ -276,48 +276,39 @@ function showRootHelp(procedures: AnyProcedure[]): void {
 }
 
 /**
- * Run the CLI
+ * CLI execution context, created once and reused
  */
-async function run(argv: string[]): Promise<void> {
-  // Handle --version early (no imports needed)
-  if (argv.includes("--version") || argv.includes("-v")) {
-    print.info(`mark v${VERSION}`);
-    return;
-  }
+export interface CliContext {
+  client: InstanceType<typeof import("@mark1russell7/client").Client>;
+  procedures: AnyProcedure[];
+  verbose: boolean;
+}
 
-  const verbose = argv.includes("--verbose") || argv.includes("-V");
-
-  // Handle --server flag: start server mode
-  if (argv.includes("--server")) {
-    const port = extractPort(argv) ?? 3000;
-    const host = extractHost(argv) ?? "0.0.0.0";
-    await startServerMode({ port, host, verbose });
-    return; // Server mode keeps running
-  }
-
-  // Handle -i / --interactive flag: start REPL
-  if (argv.includes("-i") || argv.includes("--interactive")) {
-    const connect = argv.includes("--connect");
-    const port = extractPort(argv) ?? undefined;
-    await startRepl({ connect, port, verbose });
-    return;
-  }
-
-  // Dynamic imports for ecosystem packages
+/**
+ * Initialize the CLI context (load ecosystem, create client)
+ * This is the expensive part (~4s). Call once, reuse many times.
+ */
+export async function initCli(verbose = false): Promise<CliContext> {
   const clientModule = await import("@mark1russell7/client");
   const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
 
-  // Dynamic ecosystem discovery - load procedures from all ecosystem packages
-  // This includes client-cli, client-logger, and all other procedure packages
   await loadEcosystemProcedures(verbose);
 
-  // Create client with local transport
   const transport = new LocalTransport();
   syncRegistryToTransport(transport, PROCEDURE_REGISTRY);
   const client = new Client({ transport });
 
-  // Get all registered procedures
   const procedures = PROCEDURE_REGISTRY.getAll();
+
+  return { client, procedures, verbose };
+}
+
+/**
+ * Execute a single command given argv tokens.
+ * Reusable by both CLI entry point and REPL.
+ */
+export async function executeArgs(argv: string[], ctx: CliContext): Promise<void> {
+  const { client, procedures } = ctx;
 
   // Parse arguments (needs procedures for path detection)
   const { path, args, options } = parseArgs(argv, procedures);
@@ -327,29 +318,21 @@ async function run(argv: string[]): Promise<void> {
     const clientResult = await tryClientMode(path, args, options, procedures);
     if (clientResult !== null) {
       if (clientResult.success) {
-        // Determine output format
         const meta = (findProcedure(procedures, path)?.metadata ?? {}) as CLIMeta;
         const formatOverride = options["format"] as string | undefined;
         const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
         formatOutput(print as unknown as Print, clientResult.result, outputFormat);
         return;
       }
-      // If clientResult returned but not success, still fall through to local
     }
-    // clientResult is null means no server, fall through to local execution
   }
-
-  
 
   // Handle --json flag for raw procedure reference execution
   const jsonInput = options["json"] as string | undefined;
   if (jsonInput && typeof jsonInput === "string") {
     try {
-      // Parse JSON and check for $proc
       const parsed = JSON.parse(jsonInput);
-
       if (parsed && typeof parsed === "object" && "$proc" in parsed) {
-        // Execute as procedure reference via client.exec()
         const result = await client.exec(parsed);
         formatOutput(print as unknown as Print, result, "json");
         return;
@@ -377,7 +360,6 @@ async function run(argv: string[]): Promise<void> {
   const proc = findProcedure(procedures, path);
 
   if (!proc) {
-    // Maybe it's a group?
     const children = findChildren(procedures, path);
     if (children.length > 0) {
       showHelp(procedures, path);
@@ -391,7 +373,6 @@ async function run(argv: string[]): Promise<void> {
   // Execute the procedure
   const meta = (proc.metadata ?? {}) as CLIMeta;
 
-  // Extract --format flag before parsing (it's a CLI-level option, not procedure input)
   const formatOverride = options["format"] as string | undefined;
   const validFormats = ["text", "json", "table", "streaming"];
   if (formatOverride && !validFormats.includes(formatOverride)) {
@@ -399,21 +380,13 @@ async function run(argv: string[]): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  // Remove format from options so it doesn't get passed to procedure
   delete options["format"];
   delete options["f"];
 
-  // Build parameters for parsing
-  const parameters = {
-    array: args,
-    options,
-  };
+  const parameters = { array: args, options };
 
   try {
-    // Parse input from CLI args
     const input = parseFromSchema(parameters, meta);
-
-    // Use --format override if provided, otherwise use procedure's default
     const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
     let spinner: ReturnType<typeof print.spin> | undefined;
 
@@ -421,7 +394,6 @@ async function run(argv: string[]): Promise<void> {
       spinner = print.spin(`Running ${path.join(" ")}...`);
     }
 
-    // Validate and call
     let validated = input;
     if (proc.input) {
       validated = proc.input.parse(input) as Record<string, unknown>;
@@ -430,7 +402,6 @@ async function run(argv: string[]): Promise<void> {
     const method = pathToMethod(path);
     const result = await client.call(method, validated);
 
-    // Stop spinner and format output
     if (spinner) {
       spinner.succeed(`${path.join(" ")} complete`);
     }
@@ -440,6 +411,37 @@ async function run(argv: string[]): Promise<void> {
     print.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
   }
+}
+
+/**
+ * Run the CLI
+ */
+async function run(argv: string[]): Promise<void> {
+  // Handle --version early (no imports needed)
+  if (argv.includes("--version") || argv.includes("-v")) {
+    print.info(`mark v${VERSION}`);
+    return;
+  }
+
+  const verbose = argv.includes("--verbose") || argv.includes("-V");
+
+  // Handle --server flag: start server mode
+  if (argv.includes("--server")) {
+    const port = extractPort(argv) ?? 3000;
+    const host = extractHost(argv) ?? "0.0.0.0";
+    await startServerMode({ port, host, verbose });
+    return;
+  }
+
+  // Handle -i / --interactive flag: start REPL
+  if (argv.includes("-i") || argv.includes("--interactive")) {
+    await startRepl({ verbose });
+    return;
+  }
+
+  // Normal CLI: init once, execute once
+  const ctx = await initCli(verbose);
+  await executeArgs(argv, ctx);
 }
 
 // Entry point

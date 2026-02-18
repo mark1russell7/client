@@ -1,15 +1,10 @@
 /**
  * Interactive REPL Mode
  *
- * Starts an interactive session with fast command execution via HTTP.
- * By default, starts its own server on a random port.
- * Use --connect to connect to an existing server.
+ * Thin wrapper around the CLI. Loads procedures once,
+ * then executes each line through the same code path as `mark <command>`.
  */
 export interface ReplOptions {
-    /** Connect to existing server instead of starting one */
-    connect?: boolean | undefined;
-    /** Port to connect to (with --connect) or start on */
-    port?: number | undefined;
     /** Verbose output */
     verbose?: boolean | undefined;
 }
