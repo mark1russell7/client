@@ -10,25 +10,25 @@ importers:
     dependencies:
       '@angular-devkit/schematics':
         specifier: ^19.0.0
-        version: 19.2.19
+        version: 19.2.20
       ts-morph:
         specifier: ^24.0.0
         version: 24.0.0
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6
       '@types/node':
         specifier: ^22.0.0
-        version: 22.19.3
+        version: 22.19.11
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
 
 packages:
 
-  '@angular-devkit/core@19.2.19':
-    resolution: {integrity: sha512-JbLL+4IMLMBgjLZlnPG4lYDfz4zGrJ/s6Aoon321NJKuw1Kb1k5KpFu9dUY0BqLIe8xPQ2UJBpI+xXdK5MXMHQ==}
+  '@angular-devkit/core@19.2.20':
+    resolution: {integrity: sha512-4AAmHlv+H1/2Nmsp6QsX8YQxjC/v5QAzc+76He7K/x3iIuLCntQE2BYxonSZMiQ3M8gc/yxTfyZoPYjSDDvWMA==}
     engines: {node: ^18.19.1 || ^20.11.1 || >=22.0.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
     peerDependencies:
       chokidar: ^4.0.0
@@ -36,15 +36,15 @@ packages:
       chokidar:
         optional: true
 
-  '@angular-devkit/schematics@19.2.19':
-    resolution: {integrity: sha512-J4Jarr0SohdrHcb40gTL4wGPCQ952IMWF1G/MSAQfBAPvA9ZKApYhpxcY7PmehVePve+ujpus1dGsJ7dPxz8Kg==}
+  '@angular-devkit/schematics@19.2.20':
+    resolution: {integrity: sha512-o2eexF1fLZU93V3utiQLNgyNaGvFhDqpITNQcI1qzv2ZkvFHg9WZjFtZKtm805JAE/DND8oAJ1p+BoxU++Qg8g==}
     engines: {node: ^18.19.1 || ^20.11.1 || >=22.0.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
@@ -52,8 +52,8 @@ packages:
   '@ts-morph/common@0.25.0':
     resolution: {integrity: sha512-kMnZz+vGGHi4GoHnLmMhGNjm44kGtKUXGnOvrKmMwAuvNjM/PgKVGfUnL7IDvK7Jb2QQ82jq3Zmp04Gy+r3Dkg==}
 
-  '@types/node@22.19.3':
-    resolution: {integrity: sha512-1N9SBnWYOJTrNZCdh/yJE+t910Y128BoyY+zBLWhL3r0TYzlTmFdXrPwHL9DyFZmlEXNQQolTZh3KHV31QDhyA==}
+  '@types/node@22.19.11':
+    resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -253,7 +253,7 @@ packages:
 
 snapshots:
 
-  '@angular-devkit/core@19.2.19':
+  '@angular-devkit/core@19.2.20':
     dependencies:
       ajv: 8.17.1
       ajv-formats: 3.0.1(ajv@8.17.1)
@@ -262,9 +262,9 @@ snapshots:
       rxjs: 7.8.1
       source-map: 0.7.4
 
-  '@angular-devkit/schematics@19.2.19':
+  '@angular-devkit/schematics@19.2.20':
     dependencies:
-      '@angular-devkit/core': 19.2.19
+      '@angular-devkit/core': 19.2.20
       jsonc-parser: 3.3.1
       magic-string: 0.30.17
       ora: 5.4.1
@@ -274,7 +274,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6': {}
 
   '@ts-morph/common@0.25.0':
     dependencies:
@@ -282,7 +282,7 @@ snapshots:
       path-browserify: 1.0.1
       tinyglobby: 0.2.15
 
-  '@types/node@22.19.3':
+  '@types/node@22.19.11':
     dependencies:
       undici-types: 6.21.0
 
