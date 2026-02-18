@@ -11,6 +11,7 @@ import { formatOutput } from "./format.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
 import { startServerMode, extractPort, extractHost } from "./server-mode.js";
 import { tryClientMode } from "./client-mode.js";
+import { startRepl } from "./repl.js";
 const VERSION = "1.0.0";
 /**
  * Convert procedure path to transport method
@@ -258,6 +259,13 @@ async function run(argv) {
         const host = extractHost(argv) ?? "0.0.0.0";
         await startServerMode({ port, host, verbose });
         return; // Server mode keeps running
+    }
+    // Handle -i / --interactive flag: start REPL
+    if (argv.includes("-i") || argv.includes("--interactive")) {
+        const connect = argv.includes("--connect");
+        const port = extractPort(argv) ?? undefined;
+        await startRepl({ connect, port, verbose });
+        return;
     }
     // Dynamic imports for ecosystem packages
     const clientModule = await import("@mark1russell7/client");
