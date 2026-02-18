@@ -10,24 +10,24 @@ importers:
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6
       '@types/node':
         specifier: ^22.0.0
-        version: 22.19.3
+        version: 22.19.11
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
 
 packages:
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca':
-    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6}
     version: 1.0.0
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
 
-  '@types/node@22.19.3':
-    resolution: {integrity: sha512-1N9SBnWYOJTrNZCdh/yJE+t910Y128BoyY+zBLWhL3r0TYzlTmFdXrPwHL9DyFZmlEXNQQolTZh3KHV31QDhyA==}
+  '@types/node@22.19.11':
+    resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -39,9 +39,9 @@ packages:
 
 snapshots:
 
-  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca': {}
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/97dd60765909531d239d7efcd615aa0dee5f7dd6': {}
 
-  '@types/node@22.19.3':
+  '@types/node@22.19.11':
     dependencies:
       undici-types: 6.21.0
 
