@@ -121,6 +121,10 @@ export {
   tryCatchProcedure,
   // Schemas and result types
   anySchema,
+  typedAnySchema,
+  zodAdapter,
+  outputSchema,
+  type ZodLikeSchema,
 } from "./core/index.js";
 
 // Meta-procedures for runtime procedure definition

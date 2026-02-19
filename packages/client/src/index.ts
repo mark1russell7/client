@@ -168,6 +168,9 @@ export {
   tryCatchProcedure,
   // Common schemas
   anySchema,
+  typedAnySchema,
+  zodAdapter,
+  outputSchema,
   // Meta-procedures for runtime definition
   defineProcedureProcedure,
   getProcedureProcedure,
@@ -246,6 +249,8 @@ export type {
   ProcedureStorageAdapterOptions,
   SyncedRegistrationOptions,
   CreateSyncedRegistryConfig,
+  // Schema types
+  ZodLikeSchema,
   // Meta-procedure types
   AggregationDefinition,
   DefineProcedureInput,
