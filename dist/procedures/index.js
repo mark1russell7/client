@@ -31,7 +31,7 @@ extractTemplate, parseProcedureJson, stringifyProcedureJson, } from "./ref.js";
 // Core language procedures (chain, parallel, if, etc.)
 export { coreProcedures, coreModule, chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, allProcedure, anyProcedure, noneProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, 
 // Schemas and result types
-anySchema, } from "./core/index.js";
+anySchema, typedAnySchema, zodAdapter, outputSchema, } from "./core/index.js";
 // Meta-procedures for runtime procedure definition
 export { defineProcedureProcedure, getProcedureProcedure, listProceduresProcedure, deleteProcedureProcedure, metaProcedures, getRuntimeProcedure, hasRuntimeProcedure, getAllRuntimeProcedures, clearRuntimeProcedures, } from "./define-procedure.js";
 // Storage-backed registry

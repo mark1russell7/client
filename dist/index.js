@@ -37,7 +37,7 @@ PROCEDURE_SYMBOL, PROCEDURE_JSON_KEY, PROCEDURE_WHEN_KEY, PROCEDURE_NAME_KEY, WH
 // Core language procedures
 coreProcedures, coreModule, chainProcedure, parallelProcedure, conditionalProcedure, andProcedure, orProcedure, notProcedure, allProcedure, anyProcedure, noneProcedure, mapProcedure, reduceProcedure, identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, 
 // Common schemas
-anySchema, 
+anySchema, typedAnySchema, zodAdapter, outputSchema, 
 // Meta-procedures for runtime definition
 defineProcedureProcedure, getProcedureProcedure, listProceduresProcedure, deleteProcedureProcedure, metaProcedures, getRuntimeProcedure, hasRuntimeProcedure, getAllRuntimeProcedures, clearRuntimeProcedures, 
 // Storage-backed registry
