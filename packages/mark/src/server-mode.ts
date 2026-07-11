@@ -7,7 +7,7 @@
 
 import { print } from "./print.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
-import { writeLockfile, removeLockfile, getLockfilePath } from "./lockfile.js";
+import { writeLockfile, removeLockfileForPort, getLockfilePath } from "./lockfile.js";
 import type {
   LocalTransport,
   Method,
@@ -199,7 +199,7 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   // Handle shutdown
   const cleanup = async () => {
     print.info("\nStopping server...");
-    await removeLockfile();
+    await removeLockfileForPort(port);
     process.exit(0);
   };
 

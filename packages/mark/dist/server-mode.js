@@ -6,7 +6,7 @@
  */
 import { print } from "./print.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
-import { writeLockfile, removeLockfile, getLockfilePath } from "./lockfile.js";
+import { writeLockfile, removeLockfileForPort, getLockfilePath } from "./lockfile.js";
 /**
  * Convert procedure path to transport method
  */
@@ -135,7 +135,7 @@ export async function startServerMode(options) {
     // Handle shutdown
     const cleanup = async () => {
         print.info("\nStopping server...");
-        await removeLockfile();
+        await removeLockfileForPort(port);
         process.exit(0);
     };
     process.on("SIGINT", cleanup);

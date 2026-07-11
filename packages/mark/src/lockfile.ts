@@ -1,8 +1,8 @@
 /**
  * Lockfile Management
  *
- * Manages the CLI server lockfile for client discovery.
- * Lockfile location: ~/.mark/server.lock
+ * Manages CLI server lockfiles for client discovery.
+ * Each server gets its own lockfile: ~/.mark/servers/<port>.lock
  */
 
 import * as fs from "node:fs/promises";
@@ -17,25 +17,37 @@ export interface LockfileData {
   startedAt: string;
 }
 
-const LOCKFILE_DIR = path.join(os.homedir(), ".mark");
-const LOCKFILE_PATH = path.join(LOCKFILE_DIR, "server.lock");
-const LOG_PATH = path.join(LOCKFILE_DIR, "server.log");
-const LOG_PREV_PATH = path.join(LOCKFILE_DIR, "server.log.1");
+const MARK_DIR = path.join(os.homedir(), ".mark");
+const SERVERS_DIR = path.join(MARK_DIR, "servers");
+const LOG_PATH = path.join(MARK_DIR, "server.log");
+const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
+
+// Legacy single lockfile (for migration)
+const LEGACY_LOCKFILE_PATH = path.join(MARK_DIR, "server.lock");
 
 /**
- * Write server lockfile
+ * Get lockfile path for a specific port
  */
-export async function writeLockfile(data: LockfileData): Promise<void> {
-  await fs.mkdir(LOCKFILE_DIR, { recursive: true });
-  await fs.writeFile(LOCKFILE_PATH, JSON.stringify(data, null, 2));
+function lockfilePath(port: number): string {
+  return path.join(SERVERS_DIR, `${port}.lock`);
 }
 
 /**
- * Read server lockfile
+ * Write server lockfile for a specific port
  */
-export async function readLockfile(): Promise<LockfileData | null> {
+export async function writeLockfile(data: LockfileData): Promise<void> {
+  await fs.mkdir(SERVERS_DIR, { recursive: true });
+  await fs.writeFile(lockfilePath(data.port), JSON.stringify(data, null, 2));
+  // Also write legacy lockfile for backward compat
+  await fs.writeFile(LEGACY_LOCKFILE_PATH, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Read lockfile for a specific port
+ */
+export async function readLockfileForPort(port: number): Promise<LockfileData | null> {
   try {
-    const content = await fs.readFile(LOCKFILE_PATH, "utf-8");
+    const content = await fs.readFile(lockfilePath(port), "utf-8");
     return JSON.parse(content);
   } catch {
     return null;
@@ -43,11 +55,81 @@ export async function readLockfile(): Promise<LockfileData | null> {
 }
 
 /**
- * Remove server lockfile
+ * Read any available server lockfile (for client-mode auto-discovery)
+ */
+export async function readLockfile(): Promise<LockfileData | null> {
+  const all = await readAllLockfiles();
+  // Return first alive server
+  for (const data of all) {
+    if (await isServerAlive(data)) {
+      return data;
+    }
+  }
+  return null;
+}
+
+/**
+ * Read all server lockfiles
+ */
+export async function readAllLockfiles(): Promise<LockfileData[]> {
+  const results: LockfileData[] = [];
+  try {
+    const files = await fs.readdir(SERVERS_DIR);
+    for (const file of files) {
+      if (file.endsWith(".lock")) {
+        try {
+          const content = await fs.readFile(path.join(SERVERS_DIR, file), "utf-8");
+          results.push(JSON.parse(content));
+        } catch {
+          // Skip corrupt lockfiles
+        }
+      }
+    }
+  } catch {
+    // Directory doesn't exist yet
+  }
+
+  // Also check legacy lockfile if no per-port files found
+  if (results.length === 0) {
+    try {
+      const content = await fs.readFile(LEGACY_LOCKFILE_PATH, "utf-8");
+      const data = JSON.parse(content) as LockfileData;
+      results.push(data);
+    } catch {
+      // No legacy lockfile
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Remove server lockfile for a specific port
+ */
+export async function removeLockfileForPort(port: number): Promise<void> {
+  try {
+    await fs.unlink(lockfilePath(port));
+  } catch {
+    // Ignore if doesn't exist
+  }
+  // Also try to clean legacy lockfile if it matches this port
+  try {
+    const content = await fs.readFile(LEGACY_LOCKFILE_PATH, "utf-8");
+    const data = JSON.parse(content) as LockfileData;
+    if (data.port === port) {
+      await fs.unlink(LEGACY_LOCKFILE_PATH);
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Remove server lockfile (legacy - removes the single lockfile)
  */
 export async function removeLockfile(): Promise<void> {
   try {
-    await fs.unlink(LOCKFILE_PATH);
+    await fs.unlink(LEGACY_LOCKFILE_PATH);
   } catch {
     // Ignore if doesn't exist
   }
@@ -58,21 +140,27 @@ export async function removeLockfile(): Promise<void> {
  */
 export async function isServerAlive(lockfile: LockfileData): Promise<boolean> {
   try {
-    // Check if process is running by sending signal 0
     process.kill(lockfile.pid, 0);
     return true;
   } catch {
     // Process not running, clean up stale lockfile
-    await removeLockfile();
+    await removeLockfileForPort(lockfile.port);
     return false;
   }
 }
 
 /**
- * Get lockfile path (for debugging)
+ * Get lockfile directory path
  */
-export function getLockfilePath(): string {
-  return LOCKFILE_PATH;
+export function getLockfileDir(): string {
+  return MARK_DIR;
+}
+
+/**
+ * Get servers directory path
+ */
+export function getServersDir(): string {
+  return SERVERS_DIR;
 }
 
 /**
@@ -83,10 +171,10 @@ export function getLogPath(): string {
 }
 
 /**
- * Get lockfile directory path
+ * Get lockfile path (for display)
  */
-export function getLockfileDir(): string {
-  return LOCKFILE_DIR;
+export function getLockfilePath(): string {
+  return LEGACY_LOCKFILE_PATH;
 }
 
 /**
@@ -94,11 +182,9 @@ export function getLockfileDir(): string {
  */
 export async function rotateLogFile(): Promise<void> {
   try {
-    await fs.mkdir(LOCKFILE_DIR, { recursive: true });
-    // Check if current log exists
+    await fs.mkdir(MARK_DIR, { recursive: true });
     try {
       await fs.access(LOG_PATH);
-      // Move current to previous
       await fs.rename(LOG_PATH, LOG_PREV_PATH);
     } catch {
       // No current log, nothing to rotate

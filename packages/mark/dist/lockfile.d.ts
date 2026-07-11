@@ -1,8 +1,8 @@
 /**
  * Lockfile Management
  *
- * Manages the CLI server lockfile for client discovery.
- * Lockfile location: ~/.mark/server.lock
+ * Manages CLI server lockfiles for client discovery.
+ * Each server gets its own lockfile: ~/.mark/servers/<port>.lock
  */
 export interface LockfileData {
     pid: number;
@@ -12,15 +12,27 @@ export interface LockfileData {
     startedAt: string;
 }
 /**
- * Write server lockfile
+ * Write server lockfile for a specific port
  */
 export declare function writeLockfile(data: LockfileData): Promise<void>;
 /**
- * Read server lockfile
+ * Read lockfile for a specific port
+ */
+export declare function readLockfileForPort(port: number): Promise<LockfileData | null>;
+/**
+ * Read any available server lockfile (for client-mode auto-discovery)
  */
 export declare function readLockfile(): Promise<LockfileData | null>;
 /**
- * Remove server lockfile
+ * Read all server lockfiles
+ */
+export declare function readAllLockfiles(): Promise<LockfileData[]>;
+/**
+ * Remove server lockfile for a specific port
+ */
+export declare function removeLockfileForPort(port: number): Promise<void>;
+/**
+ * Remove server lockfile (legacy - removes the single lockfile)
  */
 export declare function removeLockfile(): Promise<void>;
 /**
@@ -28,17 +40,21 @@ export declare function removeLockfile(): Promise<void>;
  */
 export declare function isServerAlive(lockfile: LockfileData): Promise<boolean>;
 /**
- * Get lockfile path (for debugging)
+ * Get lockfile directory path
  */
-export declare function getLockfilePath(): string;
+export declare function getLockfileDir(): string;
+/**
+ * Get servers directory path
+ */
+export declare function getServersDir(): string;
 /**
  * Get log file path
  */
 export declare function getLogPath(): string;
 /**
- * Get lockfile directory path
+ * Get lockfile path (for display)
  */
-export declare function getLockfileDir(): string;
+export declare function getLockfilePath(): string;
 /**
  * Rotate log file (move current to .1)
  */
