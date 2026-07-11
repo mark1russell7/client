@@ -20,7 +20,7 @@ export const serverDisconnectProcedure: Procedure<
   .path(["server", "disconnect"])
   .input(serverDisconnectInputSchema)
   .output(serverDisconnectOutputSchema)
-  .meta({ description: "Disconnect from a remote peer" })
+  .meta({ description: "Disconnect from a remote peer", args: ["connectionId"] })
   .handler(async (input: ServerDisconnectInput) => {
     const success = await disconnect(input.connectionId);
     return { success };

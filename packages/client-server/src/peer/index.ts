@@ -131,7 +131,10 @@ class PeerImpl implements Peer {
     app.use(express.json());
 
     const port = config.port ?? 3000;
-    const host = config.host ?? "0.0.0.0";
+    // Loopback by default so the full procedure registry (incl. shell.run / fs.write) is not
+    // served unauthenticated on all interfaces. Pass host: "0.0.0.0" to expose on the LAN
+    // deliberately. See documentation/BUGS-2026-07.md (H19).
+    const host = config.host ?? "127.0.0.1";
     const basePath = config.basePath ?? "/api";
 
     // Health endpoint for container orchestration
@@ -188,7 +191,10 @@ class PeerImpl implements Peer {
     const { createServer } = await import("http");
 
     const port = config.port ?? 3001;
-    const host = config.host ?? "0.0.0.0";
+    // Loopback by default so the full procedure registry (incl. shell.run / fs.write) is not
+    // served unauthenticated on all interfaces. Pass host: "0.0.0.0" to expose on the LAN
+    // deliberately. See documentation/BUGS-2026-07.md (H19).
+    const host = config.host ?? "127.0.0.1";
     const path = config.path ?? "/ws";
 
     const httpServer = createServer();

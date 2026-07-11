@@ -11,9 +11,10 @@ import { schema } from "../schema.js";
 import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
 
 // Lockfile paths (same as cli/src/lockfile.ts)
-const LOCKFILE_DIR = path.join(os.homedir(), ".mark");
-const LOCKFILE_PATH = path.join(LOCKFILE_DIR, "server.lock");
-const LOG_PATH = path.join(LOCKFILE_DIR, "server.log");
+const MARK_DIR = path.join(os.homedir(), ".mark");
+const SERVERS_DIR = path.join(MARK_DIR, "servers");
+const LEGACY_LOCKFILE_PATH = path.join(MARK_DIR, "server.lock");
+const LOG_PATH = path.join(MARK_DIR, "server.log");
 
 const serverStatusInputSchema = schema<ServerStatusInput>();
 const serverStatusOutputSchema = schema<ServerStatusOutput>();
@@ -27,11 +28,11 @@ interface LockfileData {
 }
 
 /**
- * Read lockfile synchronously
+ * Read lockfile for a specific port
  */
-function readLockfileSync(): LockfileData | null {
+function readLockfileForPort(port: number): LockfileData | null {
   try {
-    const content = fs.readFileSync(LOCKFILE_PATH, "utf-8");
+    const content = fs.readFileSync(path.join(SERVERS_DIR, `${port}.lock`), "utf-8");
     return JSON.parse(content);
   } catch {
     return null;
@@ -39,13 +40,44 @@ function readLockfileSync(): LockfileData | null {
 }
 
 /**
- * Remove lockfile
+ * Read all server lockfiles
  */
-function removeLockfile(): void {
+function readAllLockfiles(): LockfileData[] {
+  const results: LockfileData[] = [];
   try {
-    fs.unlinkSync(LOCKFILE_PATH);
+    const files = fs.readdirSync(SERVERS_DIR);
+    for (const file of files) {
+      if (file.endsWith(".lock")) {
+        try {
+          const content = fs.readFileSync(path.join(SERVERS_DIR, file), "utf-8");
+          results.push(JSON.parse(content));
+        } catch {
+          // Skip corrupt lockfiles
+        }
+      }
+    }
   } catch {
-    // Ignore if doesn't exist
+    // Directory doesn't exist
+  }
+  if (results.length === 0) {
+    try {
+      const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
+      results.push(JSON.parse(content));
+    } catch {
+      // No legacy lockfile
+    }
+  }
+  return results;
+}
+
+/**
+ * Remove lockfile for a port
+ */
+function removeLockfileForPort(port: number): void {
+  try {
+    fs.unlinkSync(path.join(SERVERS_DIR, `${port}.lock`));
+  } catch {
+    // Ignore
   }
 }
 
@@ -97,44 +129,81 @@ export const serverStatusProcedure: Procedure<
   .output(serverStatusOutputSchema)
   .meta({
     description: "Get CLI server status",
+    args: [],
+    shorts: { port: "p" },
     output: "text",
   })
-  .handler(async (_input: ServerStatusInput): Promise<ServerStatusOutput> => {
-    // Read lockfile
-    const lockfile = readLockfileSync();
+  .handler(async (input: ServerStatusInput): Promise<ServerStatusOutput> => {
+    // Get target servers
+    let targets: LockfileData[];
+    if (input.port !== undefined) {
+      const lockfile = readLockfileForPort(input.port);
+      targets = lockfile ? [lockfile] : [];
+    } else {
+      targets = readAllLockfiles();
+    }
 
-    if (!lockfile) {
+    if (targets.length === 0) {
       return {
         running: false,
-        message: "Server is not running",
+        message: input.port
+          ? `No server found on port ${input.port}`
+          : "No servers running",
       };
     }
 
-    const { pid, port, endpoint, startedAt, transport } = lockfile;
+    // For single server, return detailed info
+    if (targets.length === 1) {
+      const lockfile = targets[0]!;
+      const { pid, port, endpoint, startedAt, transport } = lockfile;
 
-    // Check if process is actually running
-    if (!isProcessAlive(pid)) {
-      // Clean up stale lockfile
-      removeLockfile();
+      if (!isProcessAlive(pid)) {
+        removeLockfileForPort(port);
+        return {
+          running: false,
+          message: "Server is not running (cleaned up stale lockfile)",
+        };
+      }
+
+      const uptime = formatUptime(startedAt);
       return {
-        running: false,
-        message: "Server is not running (cleaned up stale lockfile)",
+        running: true,
+        pid,
+        port,
+        endpoint,
+        transport,
+        startedAt,
+        uptime,
+        logFile: LOG_PATH,
+        message: `Server running (PID ${pid}, port ${port}, uptime ${uptime})`,
       };
     }
 
-    // Server is running
-    const uptime = formatUptime(startedAt);
+    // Multiple servers - summarize
+    const lines: string[] = [];
+    let anyRunning = false;
+
+    for (const lockfile of targets) {
+      const { pid, port, endpoint, startedAt } = lockfile;
+      if (!isProcessAlive(pid)) {
+        removeLockfileForPort(port);
+        continue;
+      }
+      anyRunning = true;
+      const uptime = formatUptime(startedAt);
+      lines.push(`  Port ${port}: PID ${pid}, uptime ${uptime}, ${endpoint}`);
+    }
+
+    if (!anyRunning) {
+      return {
+        running: false,
+        message: "No servers running (cleaned up stale lockfiles)",
+      };
+    }
 
     return {
       running: true,
-      pid,
-      port,
-      endpoint,
-      transport,
-      startedAt,
-      uptime,
-      logFile: LOG_PATH,
-      message: `Server running (PID ${pid}, port ${port}, uptime ${uptime})`,
+      message: `${lines.length} server(s) running:\n${lines.join("\n")}`,
     };
   })
   .build();

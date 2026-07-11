@@ -12,22 +12,31 @@ import { schema } from "../schema.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
 // Lockfile paths (same as cli/src/lockfile.ts)
-const LOCKFILE_DIR = path.join(os.homedir(), ".mark");
-const LOCKFILE_PATH = path.join(LOCKFILE_DIR, "server.lock");
-const LOG_PATH = path.join(LOCKFILE_DIR, "server.log");
-const LOG_PREV_PATH = path.join(LOCKFILE_DIR, "server.log.1");
+const MARK_DIR = path.join(os.homedir(), ".mark");
+const SERVERS_DIR = path.join(MARK_DIR, "servers");
+const LEGACY_LOCKFILE_PATH = path.join(MARK_DIR, "server.lock");
+const LOG_PATH = path.join(MARK_DIR, "server.log");
+const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
 const serverStartInputSchema = schema<ServerStartInput>();
 const serverStartOutputSchema = schema<ServerStartOutput>();
 
 /**
- * Read lockfile synchronously
+ * Read lockfile for a specific port
  */
-function readLockfileSync(): { pid: number; port: number; endpoint: string; startedAt: string } | null {
+function readLockfileForPort(port: number): { pid: number; port: number; endpoint: string; startedAt: string } | null {
   try {
-    const content = fs.readFileSync(LOCKFILE_PATH, "utf-8");
+    const content = fs.readFileSync(path.join(SERVERS_DIR, `${port}.lock`), "utf-8");
     return JSON.parse(content);
   } catch {
+    // Try legacy lockfile
+    try {
+      const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
+      const data = JSON.parse(content);
+      if (data.port === port) return data;
+    } catch {
+      // No lockfile
+    }
     return null;
   }
 }
@@ -49,7 +58,7 @@ function isProcessAlive(pid: number): boolean {
  */
 function rotateLog(): void {
   try {
-    fs.mkdirSync(LOCKFILE_DIR, { recursive: true });
+    fs.mkdirSync(MARK_DIR, { recursive: true });
     if (fs.existsSync(LOG_PATH)) {
       fs.renameSync(LOG_PATH, LOG_PREV_PATH);
     }
@@ -109,23 +118,25 @@ export const serverStartProcedure: Procedure<
   })
   .handler(async (input: ServerStartInput): Promise<ServerStartOutput> => {
     const port = input.port ?? 3000;
-    const host = input.host ?? "0.0.0.0";
+    // Loopback by default; pass host: "0.0.0.0" to expose on the LAN deliberately.
+    // See documentation/BUGS-2026-07.md (H19).
+    const host = input.host ?? "127.0.0.1";
     const transport = input.transport ?? "http";
 
-    // Check if server is already running
-    const existing = readLockfileSync();
+    // Check if server is already running on this port
+    const existing = readLockfileForPort(port);
     if (existing && isProcessAlive(existing.pid)) {
       return {
         success: false,
-        message: `Server already running (PID ${existing.pid}, port ${existing.port})`,
+        message: `Server already running on port ${port} (PID ${existing.pid})`,
       };
     }
 
     // Rotate log file
     rotateLog();
 
-    // Ensure log directory exists
-    fs.mkdirSync(LOCKFILE_DIR, { recursive: true });
+    // Ensure directories exist
+    fs.mkdirSync(SERVERS_DIR, { recursive: true });
 
     // Open log file for writing
     const logFd = fs.openSync(LOG_PATH, "a");
@@ -165,23 +176,34 @@ export const serverStartProcedure: Procedure<
     child.unref();
     fs.closeSync(logFd);
 
-    // Wait a moment for server to start and write lockfile
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Poll for lockfile (server takes ~4-8s to load ecosystem)
+    const maxWait = 15000;
+    const pollInterval = 500;
+    const startTime = Date.now();
 
-    // Read lockfile to confirm server started
-    const lockfile = readLockfileSync();
-    if (lockfile && isProcessAlive(lockfile.pid)) {
-      return {
-        success: true,
-        pid: lockfile.pid,
-        port: lockfile.port,
-        endpoint: lockfile.endpoint,
-        logFile: LOG_PATH,
-        message: `Server started (PID ${lockfile.pid})`,
-      };
+    while (Date.now() - startTime < maxWait) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      // Check if child died
+      if (child.pid && !isProcessAlive(child.pid)) {
+        break;
+      }
+
+      // Check for lockfile
+      const lockfile = readLockfileForPort(port);
+      if (lockfile && isProcessAlive(lockfile.pid)) {
+        return {
+          success: true,
+          pid: lockfile.pid,
+          port: lockfile.port,
+          endpoint: lockfile.endpoint,
+          logFile: LOG_PATH,
+          message: `Server started (PID ${lockfile.pid})`,
+        };
+      }
     }
 
-    // Check if child is still running
+    // Timed out waiting for lockfile, but child may still be alive
     if (child.pid && isProcessAlive(child.pid)) {
       return {
         success: true,
@@ -189,7 +211,7 @@ export const serverStartProcedure: Procedure<
         port,
         endpoint: `http://${host === "0.0.0.0" ? "localhost" : host}:${port}/api`,
         logFile: LOG_PATH,
-        message: `Server starting (PID ${child.pid})`,
+        message: `Server starting (PID ${child.pid}, still loading...)`,
       };
     }
 

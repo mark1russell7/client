@@ -16,6 +16,8 @@ import { discoveryAnnounceProcedure } from "./discovery/index.js";
 import { serverStartProcedure } from "./procedures/server.start.js";
 import { serverStopProcedure } from "./procedures/server.stop.js";
 import { serverStatusProcedure } from "./procedures/server.status.js";
+import { serverCallProcedure } from "./procedures/server.call.js";
+import { serverConnectionsProcedure } from "./procedures/server.connections.js";
 
 /**
  * All server procedures
@@ -29,6 +31,8 @@ export const procedures: readonly AnyProcedure[] = [
   serverStartProcedure,
   serverStopProcedure,
   serverStatusProcedure,
+  serverCallProcedure,
+  serverConnectionsProcedure,
 ];
 
 /**

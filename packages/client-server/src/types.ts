@@ -199,6 +199,8 @@ export interface ServerStartOutput {
 // =============================================================================
 
 export interface ServerStopInput {
+  /** Port of server to stop (stops all if omitted) */
+  port?: number;
   /** Force kill with SIGKILL instead of SIGTERM */
   force?: boolean;
 }
@@ -215,7 +217,8 @@ export interface ServerStopOutput {
 // =============================================================================
 
 export interface ServerStatusInput {
-  // No input required
+  /** Port to check (shows all if omitted) */
+  port?: number;
 }
 
 export interface ServerStatusOutput {

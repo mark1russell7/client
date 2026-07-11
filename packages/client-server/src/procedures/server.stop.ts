@@ -11,18 +11,27 @@ import { schema } from "../schema.js";
 import type { ServerStopInput, ServerStopOutput } from "../types.js";
 
 // Lockfile paths (same as cli/src/lockfile.ts)
-const LOCKFILE_DIR = path.join(os.homedir(), ".mark");
-const LOCKFILE_PATH = path.join(LOCKFILE_DIR, "server.lock");
+const MARK_DIR = path.join(os.homedir(), ".mark");
+const SERVERS_DIR = path.join(MARK_DIR, "servers");
+const LEGACY_LOCKFILE_PATH = path.join(MARK_DIR, "server.lock");
+
+interface LockfileData {
+  pid: number;
+  port: number;
+  endpoint: string;
+  startedAt: string;
+  transport?: string;
+}
 
 const serverStopInputSchema = schema<ServerStopInput>();
 const serverStopOutputSchema = schema<ServerStopOutput>();
 
 /**
- * Read lockfile synchronously
+ * Read lockfile for a specific port
  */
-function readLockfileSync(): { pid: number; port: number; endpoint: string; startedAt: string } | null {
+function readLockfileForPort(port: number): LockfileData | null {
   try {
-    const content = fs.readFileSync(LOCKFILE_PATH, "utf-8");
+    const content = fs.readFileSync(path.join(SERVERS_DIR, `${port}.lock`), "utf-8");
     return JSON.parse(content);
   } catch {
     return null;
@@ -30,13 +39,55 @@ function readLockfileSync(): { pid: number; port: number; endpoint: string; star
 }
 
 /**
- * Remove lockfile
+ * Read all server lockfiles
  */
-function removeLockfile(): void {
+function readAllLockfiles(): LockfileData[] {
+  const results: LockfileData[] = [];
   try {
-    fs.unlinkSync(LOCKFILE_PATH);
+    const files = fs.readdirSync(SERVERS_DIR);
+    for (const file of files) {
+      if (file.endsWith(".lock")) {
+        try {
+          const content = fs.readFileSync(path.join(SERVERS_DIR, file), "utf-8");
+          results.push(JSON.parse(content));
+        } catch {
+          // Skip corrupt lockfiles
+        }
+      }
+    }
   } catch {
-    // Ignore if doesn't exist
+    // Directory doesn't exist
+  }
+  // Fallback to legacy lockfile
+  if (results.length === 0) {
+    try {
+      const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
+      results.push(JSON.parse(content));
+    } catch {
+      // No legacy lockfile
+    }
+  }
+  return results;
+}
+
+/**
+ * Remove lockfile for a port
+ */
+function removeLockfileForPort(port: number): void {
+  try {
+    fs.unlinkSync(path.join(SERVERS_DIR, `${port}.lock`));
+  } catch {
+    // Ignore
+  }
+  // Also clean legacy lockfile if it matches
+  try {
+    const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
+    const data = JSON.parse(content) as LockfileData;
+    if (data.port === port) {
+      fs.unlinkSync(LEGACY_LOCKFILE_PATH);
+    }
+  } catch {
+    // Ignore
   }
 }
 
@@ -74,71 +125,74 @@ export const serverStopProcedure: Procedure<
   .output(serverStopOutputSchema)
   .meta({
     description: "Stop running CLI server",
+    args: [],
+    shorts: { port: "p" },
   })
   .handler(async (input: ServerStopInput): Promise<ServerStopOutput> => {
     const force = input.force ?? false;
+    const signal: NodeJS.Signals = force ? "SIGKILL" : "SIGTERM";
 
-    // Read lockfile
-    const lockfile = readLockfileSync();
+    // Get target servers
+    let targets: LockfileData[];
+    if (input.port !== undefined) {
+      const lockfile = readLockfileForPort(input.port);
+      targets = lockfile ? [lockfile] : [];
+    } else {
+      targets = readAllLockfiles();
+    }
 
-    if (!lockfile) {
+    if (targets.length === 0) {
       return {
         success: false,
-        message: "No server lockfile found. Server may not be running.",
+        message: input.port
+          ? `No server found on port ${input.port}`
+          : "No servers running",
       };
     }
 
-    const { pid, port } = lockfile;
+    const results: string[] = [];
+    let allSuccess = true;
 
-    // Check if process is running
-    if (!isProcessAlive(pid)) {
-      // Clean up stale lockfile
-      removeLockfile();
-      return {
-        success: true,
-        message: `Server not running (stale lockfile cleaned up)`,
-      };
-    }
+    for (const lockfile of targets) {
+      const { pid, port } = lockfile;
 
-    // Send signal to stop
-    const signal = force ? "SIGKILL" : "SIGTERM";
-    const sent = killProcess(pid, signal);
-
-    if (!sent) {
-      return {
-        success: false,
-        message: `Failed to send ${signal} to process ${pid}`,
-      };
-    }
-
-    // Wait for process to die (up to 5 seconds for SIGTERM, immediate for SIGKILL)
-    const maxWait = force ? 500 : 5000;
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < maxWait) {
       if (!isProcessAlive(pid)) {
-        // Process stopped, clean up lockfile
-        removeLockfile();
-        return {
-          success: true,
-          message: `Server stopped (PID ${pid}, port ${port})`,
-        };
+        removeLockfileForPort(port);
+        results.push(`Port ${port}: cleaned up stale lockfile`);
+        continue;
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const sent = killProcess(pid, signal);
+      if (!sent) {
+        allSuccess = false;
+        results.push(`Port ${port}: failed to send ${signal} to PID ${pid}`);
+        continue;
+      }
+
+      // Wait for process to die
+      const maxWait = force ? 500 : 5000;
+      const startTime = Date.now();
+      let stopped = false;
+
+      while (Date.now() - startTime < maxWait) {
+        if (!isProcessAlive(pid)) {
+          removeLockfileForPort(port);
+          results.push(`Port ${port}: stopped (PID ${pid})`);
+          stopped = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      if (!stopped) {
+        allSuccess = false;
+        results.push(`Port ${port}: PID ${pid} did not stop${force ? "" : " (try --force)"}`);
+      }
     }
 
-    // Process didn't stop with SIGTERM, suggest force
-    if (!force) {
-      return {
-        success: false,
-        message: `Server (PID ${pid}) did not stop gracefully. Use --force to kill.`,
-      };
-    }
-
-    // If we sent SIGKILL and it's still running, something is wrong
     return {
-      success: false,
-      message: `Failed to kill server (PID ${pid})`,
+      success: allSuccess,
+      message: results.join("\n"),
     };
   })
   .build();

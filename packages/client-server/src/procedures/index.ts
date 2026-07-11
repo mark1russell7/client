@@ -24,3 +24,9 @@ export type { ServerStopInput, ServerStopOutput } from "./server.stop.js";
 
 export { serverStatusProcedure } from "./server.status.js";
 export type { ServerStatusInput, ServerStatusOutput } from "./server.status.js";
+
+export { serverCallProcedure } from "./server.call.js";
+export type { ServerCallInput, ServerCallOutput } from "./server.call.js";
+
+export { serverConnectionsProcedure } from "./server.connections.js";
+export type { ServerConnectionsInput, ServerConnectionsOutput } from "./server.connections.js";
