@@ -4,46 +4,9 @@
  * Provides s3.upload, s3.download, s3.list, s3.delete, and s3.multipart.* procedures.
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { s3Upload, s3Download, s3List, s3Delete, s3MultipartInit, s3MultipartUpload, s3MultipartComplete, s3MultipartAbort, } from "./procedures/s3/index.js";
 import { S3UploadInputSchema, S3DownloadInputSchema, S3ListInputSchema, S3DeleteInputSchema, S3MultipartInitInputSchema, S3MultipartUploadInputSchema, S3MultipartCompleteInputSchema, S3MultipartAbortInputSchema, } from "./types.js";
-function zodAdapter(schema) {
-    return {
-        parse: (data) => schema.parse(data),
-        safeParse: (data) => {
-            try {
-                const parsed = schema.parse(data);
-                return { success: true, data: parsed };
-            }
-            catch (error) {
-                const err = error;
-                return {
-                    success: false,
-                    error: {
-                        message: err.message ?? "Validation failed",
-                        errors: Array.isArray(err.errors)
-                            ? err.errors.map((e) => {
-                                const errObj = e;
-                                return {
-                                    path: (errObj.path ?? []),
-                                    message: errObj.message ?? "Unknown error",
-                                };
-                            })
-                            : [],
-                    },
-                };
-            }
-        },
-        _output: undefined,
-    };
-}
-function outputSchema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
 // =============================================================================
 // Procedures
 // =============================================================================
