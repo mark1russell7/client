@@ -1,20 +1,7 @@
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
-import { z } from "zod";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { VitestRunInputSchema, VitestWatchInputSchema, } from "./types.js";
 import { vitestRun } from "./procedures/vitest/run.js";
 import { vitestWatch } from "./procedures/vitest/watch.js";
-function zodAdapter(schema) {
-    return {
-        parse: (input) => schema.parse(input),
-        safeParse: (input) => schema.safeParse(input),
-    };
-}
-function outputSchema() {
-    return {
-        parse: (output) => output,
-        safeParse: (output) => ({ success: true, data: output }),
-    };
-}
 const vitestRunProcedure = createProcedure()
     .path(["vitest", "run"])
     .input(zodAdapter(VitestRunInputSchema))

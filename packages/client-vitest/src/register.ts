@@ -1,5 +1,4 @@
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
-import { z } from "zod";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import {
   VitestRunInputSchema,
   
@@ -10,26 +9,6 @@ import {
 } from "./types.js";
 import { vitestRun } from "./procedures/vitest/run.js";
 import { vitestWatch } from "./procedures/vitest/watch.js";
-
-function zodAdapter<T>(schema: z.ZodType<T>): {
-  parse: (input: unknown) => T;
-  safeParse: (input: unknown) => z.SafeParseReturnType<unknown, T>;
-} {
-  return {
-    parse: (input: unknown): T => schema.parse(input),
-    safeParse: (input: unknown) => schema.safeParse(input),
-  };
-}
-
-function outputSchema<T>(): {
-  parse: (output: unknown) => T;
-  safeParse: (output: unknown) => { success: true; data: T };
-} {
-  return {
-    parse: (output: unknown): T => output as T,
-    safeParse: (output: unknown) => ({ success: true as const, data: output as T }),
-  };
-}
 
 const vitestRunProcedure = createProcedure()
   .path(["vitest", "run"])
