@@ -176,6 +176,31 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     created.push(join(packagePath, "tsconfig.json"));
     created.push(join(packagePath, ".gitignore"));
 
+    // Step 3.5: cue-config generate writes package.json with the CUE default name ("unnamed").
+    // Patch in the real package name before git init/commit so the package is valid on disk.
+    // See documentation/BUGS-2026-07.md (C5).
+    operations.push("Setting package name");
+    const pkgJsonPath = join(packagePath, "package.json");
+    try {
+      const pkgReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
+        ["fs", "read.json"],
+        { path: pkgJsonPath }
+      );
+      const pkgJson = (pkgReadResult.data ?? {}) as Record<string, unknown>;
+      if (pkgJson["name"] !== packageName) {
+        pkgJson["name"] = packageName;
+        await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
+          ["fs", "write"],
+          { path: pkgJsonPath, content: JSON.stringify(pkgJson, null, 2) + "\n" }
+        );
+        operations.push(`Set package name to ${packageName}`);
+      }
+    } catch (nameError) {
+      errors.push(
+        `Failed to set package name: ${nameError instanceof Error ? nameError.message : String(nameError)}`
+      );
+    }
+
     // Step 4: Git operations
     if (!input.skipGit) {
       operations.push("Initializing git repository");

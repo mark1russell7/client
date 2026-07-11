@@ -195,20 +195,20 @@ export async function libRename(input, ctx) {
             summary: { packageNames: 0, dependencies: 0, imports: 0, total: 0 },
         };
     }
-    console.log(`[lib.rename] ${dryRun ? "[DRY RUN] " : ""}Renaming "${oldName}" → "${newName}"`);
-    console.log(`[lib.rename] Scanning ${resolvedRoot}...`);
+    console.error(`[lib.rename] ${dryRun ? "[DRY RUN] " : ""}Renaming "${oldName}" → "${newName}"`);
+    console.error(`[lib.rename] Scanning ${resolvedRoot}...`);
     // Find all package.json files
     const packageJsonFiles = await findPackageJsonFiles(resolvedRoot, ctx);
-    console.log(`[lib.rename] Found ${packageJsonFiles.length} package.json files`);
+    console.error(`[lib.rename] Found ${packageJsonFiles.length} package.json files`);
     // Find all TypeScript files
     const tsFiles = await findTypeScriptFiles(resolvedRoot, ctx);
-    console.log(`[lib.rename] Found ${tsFiles.length} TypeScript files`);
+    console.error(`[lib.rename] Found ${tsFiles.length} TypeScript files`);
     // 1. Update package.json name field (find the package being renamed)
     for (const pkgPath of packageJsonFiles) {
         const change = await updatePackageJsonName(pkgPath, oldName, newName, dryRun, ctx);
         if (change) {
             changes.push(change);
-            console.log(`[lib.rename] ${dryRun ? "Would update" : "Updated"} package name: ${pkgPath}`);
+            console.error(`[lib.rename] ${dryRun ? "Would update" : "Updated"} package name: ${pkgPath}`);
         }
     }
     // 2. Update package.json dependencies
@@ -216,7 +216,7 @@ export async function libRename(input, ctx) {
         const depChanges = await updatePackageJsonDependencies(pkgPath, oldName, newName, dryRun, ctx);
         changes.push(...depChanges);
         if (depChanges.length > 0) {
-            console.log(`[lib.rename] ${dryRun ? "Would update" : "Updated"} ${depChanges.length} dependencies in: ${pkgPath}`);
+            console.error(`[lib.rename] ${dryRun ? "Would update" : "Updated"} ${depChanges.length} dependencies in: ${pkgPath}`);
         }
     }
     // 3. Update TypeScript imports using ts-morph
@@ -224,7 +224,7 @@ export async function libRename(input, ctx) {
         const importChanges = updateTypeScriptImports(tsFiles, oldName, newName, dryRun);
         changes.push(...importChanges);
         if (importChanges.length > 0) {
-            console.log(`[lib.rename] ${dryRun ? "Would update" : "Updated"} ${importChanges.length} TypeScript imports`);
+            console.error(`[lib.rename] ${dryRun ? "Would update" : "Updated"} ${importChanges.length} TypeScript imports`);
         }
     }
     catch (error) {
@@ -238,7 +238,7 @@ export async function libRename(input, ctx) {
         imports: changes.filter((c) => c.type === "import" || c.type === "dynamic-import").length,
         total: changes.length,
     };
-    console.log(`[lib.rename] Summary: ${summary.packageNames} package names, ${summary.dependencies} dependencies, ${summary.imports} imports`);
+    console.error(`[lib.rename] Summary: ${summary.packageNames} package names, ${summary.dependencies} dependencies, ${summary.imports} imports`);
     return {
         success: errors.length === 0,
         changes,

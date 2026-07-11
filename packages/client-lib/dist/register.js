@@ -4,49 +4,12 @@
  * This is the canonical home for lib.* procedures.
  * client-cli no longer registers these to avoid duplicates.
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { libScan, libRefresh, libRename, libInstall, libNew, libAudit, libPull, } from "./procedures/lib/index.js";
 import { ecosystemProcedures, EcosystemProceduresInputSchema, } from "./procedures/ecosystem/index.js";
 import { dagTraverse } from "./procedures/dag/index.js";
 import { coreCatch } from "./procedures/core/index.js";
 import { LibScanInputSchema, LibRefreshInputSchema, LibRenameInputSchema, LibInstallInputSchema, LibNewInputSchema, LibAuditInputSchema, LibPullInputSchema, DagTraverseInputSchema, CoreCatchInputSchema, } from "./types.js";
-function zodAdapter(schema) {
-    return {
-        parse: (data) => schema.parse(data),
-        safeParse: (data) => {
-            try {
-                const parsed = schema.parse(data);
-                return { success: true, data: parsed };
-            }
-            catch (error) {
-                const err = error;
-                return {
-                    success: false,
-                    error: {
-                        message: err.message ?? "Validation failed",
-                        errors: Array.isArray(err.errors)
-                            ? err.errors.map((e) => {
-                                const errObj = e;
-                                return {
-                                    path: (errObj.path ?? []),
-                                    message: errObj.message ?? "Unknown error",
-                                };
-                            })
-                            : [],
-                    },
-                };
-            }
-        },
-        _output: undefined,
-    };
-}
-function outputSchema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
 // =============================================================================
 // lib.* Procedures
 // =============================================================================
