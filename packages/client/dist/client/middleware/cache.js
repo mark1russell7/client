@@ -6,15 +6,40 @@
  */
 import { compose, lruMap, ttlMap, hashMap } from "../../collections/index.js";
 /**
+ * Deterministic stringify for cache keys: recursively sorts object keys at every depth, so
+ * payloads that are structurally equal (regardless of key order) map to the same key, and
+ * null / primitive / array payloads are handled without throwing.
+ *
+ * Replaces a prior `JSON.stringify(payload, Object.keys(payload).sort())` which misused the
+ * array-replacer form of JSON.stringify: that filters keys at *every* depth (so `{filter:{a:1}}`
+ * and `{filter:{b:2}}` collided to the same key and returned each other's cached response) and
+ * threw `TypeError` on null/primitive payloads. See documentation/BUGS-2026-07.md (C1).
+ */
+export function stableStringify(value) {
+    if (typeof value === "bigint")
+        return `${value}n`;
+    if (value === null || typeof value !== "object") {
+        // Primitives — and undefined/function/symbol (JSON.stringify → undefined): never throw.
+        return JSON.stringify(value) ?? String(value);
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map(stableStringify).join(",")}]`;
+    }
+    const obj = value;
+    const body = Object.keys(obj)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
+        .join(",");
+    return `{${body}}`;
+}
+/**
  * Default cache key generator.
  */
-function defaultKeyGenerator(method, payload) {
+export function defaultKeyGenerator(method, payload) {
     const methodKey = method.version
         ? `${method.version}:${method.service}.${method.operation}`
         : `${method.service}.${method.operation}`;
-    // Include payload in key (stable JSON stringify)
-    const payloadKey = JSON.stringify(payload, Object.keys(payload).sort());
-    return `${methodKey}:${payloadKey}`;
+    return `${methodKey}:${stableStringify(payload)}`;
 }
 /**
  * Default should cache predicate - only cache successful responses.
