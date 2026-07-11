@@ -15,7 +15,7 @@ export async function shellWhich(input: ShellWhichInput): Promise<ShellWhichOutp
   const cmd = isWindows ? `where ${input.command}` : `which ${input.command}`;
 
   try {
-    const { stdout } = await execAsync(cmd);
+    const { stdout } = await execAsync(cmd, { windowsHide: true });
     const path = stdout.trim().split("\n")[0]?.trim() ?? null;
 
     return {

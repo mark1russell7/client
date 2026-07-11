@@ -23,6 +23,7 @@ export async function shellExec(input: ShellExecInput): Promise<ShellExecOutput>
       timeout: input.timeout,
       shell: shellOpt,
       maxBuffer: input.maxBuffer,
+      windowsHide: true,
     });
 
     return {

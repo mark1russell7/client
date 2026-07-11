@@ -17,6 +17,7 @@ export async function shellExec(input) {
             timeout: input.timeout,
             shell: shellOpt,
             maxBuffer: input.maxBuffer,
+            windowsHide: true,
         });
         return {
             exitCode: 0,

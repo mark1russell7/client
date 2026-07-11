@@ -16,6 +16,7 @@ export async function shellRun(input: ShellRunInput): Promise<ShellRunOutput> {
       env: input.env ? { ...process.env, ...input.env } : process.env,
       timeout: input.timeout,
       shell: false,
+      windowsHide: true,
     });
 
     let stdout = "";

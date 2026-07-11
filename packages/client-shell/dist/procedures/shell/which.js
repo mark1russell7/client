@@ -10,7 +10,7 @@ export async function shellWhich(input) {
     const isWindows = process.platform === "win32";
     const cmd = isWindows ? `where ${input.command}` : `which ${input.command}`;
     try {
-        const { stdout } = await execAsync(cmd);
+        const { stdout } = await execAsync(cmd, { windowsHide: true });
         const path = stdout.trim().split("\n")[0]?.trim() ?? null;
         return {
             path,

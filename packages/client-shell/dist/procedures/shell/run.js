@@ -12,6 +12,7 @@ export async function shellRun(input) {
             env: input.env ? { ...process.env, ...input.env } : process.env,
             timeout: input.timeout,
             shell: false,
+            windowsHide: true,
         });
         let stdout = "";
         let stderr = "";
