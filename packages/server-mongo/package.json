@@ -32,7 +32,7 @@
   "dependencies": {
     "@mark1russell7/client-server-mongo": "github:mark1russell7/client-server-mongo#main",
     "@mark1russell7/client-mongo": "github:mark1russell7/client-mongo#main",
-    "@mark1russell7/client-mongo": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "github:mark1russell7/client#main"
 
   },
   "devDependencies": {
