@@ -4,7 +4,7 @@
  * Registers logging procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
 import { createLogger, LogLevel, LOG_LEVEL_NAMES, } from "@mark1russell7/logger";
 // =============================================================================
 // Logger Instance
@@ -18,13 +18,6 @@ export function getLogger() {
 }
 export function setLogger(newLogger) {
     logger = newLogger;
-}
-function schema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
 }
 /**
  * Build log options, excluding undefined values for exactOptionalPropertyTypes.
@@ -42,11 +35,11 @@ function buildLogOptions(input) {
 // =============================================================================
 // Schemas
 // =============================================================================
-const logInputSchema = schema();
-const logOutputSchema = schema();
-const setLevelInputSchema = schema();
-const getLevelOutputSchema = schema();
-const voidSchema = schema();
+const logInputSchema = outputSchema();
+const logOutputSchema = outputSchema();
+const setLevelInputSchema = outputSchema();
+const getLevelOutputSchema = outputSchema();
+const voidSchema = outputSchema();
 // =============================================================================
 // Procedure Definitions
 // =============================================================================

@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
 import {
   createLogger,
   LogLevel,
@@ -28,29 +28,6 @@ export function getLogger(): Logger {
 
 export function setLogger(newLogger: Logger): void {
   logger = newLogger;
-}
-
-// =============================================================================
-// Minimal Schema Helpers (Zod-like interface for procedure system)
-// =============================================================================
-
-interface ZodErrorLike {
-  message: string;
-  errors: Array<{ path: (string | number)[]; message: string }>;
-}
-
-interface ZodLikeSchema<T> {
-  parse(data: unknown): T;
-  safeParse(data: unknown): { success: true; data: T } | { success: false; error: ZodErrorLike };
-  _output: T;
-}
-
-function schema<T>(): ZodLikeSchema<T> {
-  return {
-    parse: (data: unknown) => data as T,
-    safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
-    _output: undefined as unknown as T,
-  };
 }
 
 /**
@@ -92,11 +69,11 @@ interface GetLevelOutput {
 // Schemas
 // =============================================================================
 
-const logInputSchema = schema<LogInput>();
-const logOutputSchema = schema<LogOutput>();
-const setLevelInputSchema = schema<SetLevelInput>();
-const getLevelOutputSchema = schema<GetLevelOutput>();
-const voidSchema = schema<void>();
+const logInputSchema = outputSchema<LogInput>();
+const logOutputSchema = outputSchema<LogOutput>();
+const setLevelInputSchema = outputSchema<SetLevelInput>();
+const getLevelOutputSchema = outputSchema<GetLevelOutput>();
+const voidSchema = outputSchema<void>();
 
 // =============================================================================
 // Procedure Definitions
