@@ -1,48 +1,12 @@
 /**
  * Procedure Registration for Vite dev server management
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { viteDev } from "./procedures/vite/dev.js";
 import { viteBuild } from "./procedures/vite/build.js";
 import { vitePreview } from "./procedures/vite/preview.js";
 import { viteStop } from "./procedures/vite/stop.js";
 import { ViteDevInputSchema, ViteBuildInputSchema, VitePreviewInputSchema, ViteStopInputSchema, } from "./types.js";
-function zodAdapter(schema) {
-    return {
-        parse: (data) => schema.parse(data),
-        safeParse: (data) => {
-            try {
-                return { success: true, data: schema.parse(data) };
-            }
-            catch (error) {
-                const err = error;
-                return {
-                    success: false,
-                    error: {
-                        message: err.message ?? "Validation failed",
-                        errors: Array.isArray(err.errors)
-                            ? err.errors.map((e) => {
-                                const errObj = e;
-                                return {
-                                    path: (errObj.path ?? []),
-                                    message: errObj.message ?? "Unknown error",
-                                };
-                            })
-                            : [],
-                    },
-                };
-            }
-        },
-        _output: undefined,
-    };
-}
-function outputSchema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
 const viteDevProcedure = createProcedure()
     .path(["vite", "dev"])
     .input(zodAdapter(ViteDevInputSchema))
