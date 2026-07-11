@@ -4,7 +4,7 @@
  * Registers connection.* procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { list } from "./procedures/connection/list.js";
 import { get } from "./procedures/connection/get.js";
 import { call } from "./procedures/connection/call.js";
@@ -13,43 +13,6 @@ import { subscribe } from "./procedures/connection/subscribe.js";
 import { unsubscribe } from "./procedures/connection/unsubscribe.js";
 import { publish } from "./procedures/connection/publish.js";
 import { ListInputSchema, GetInputSchema, CallInputSchema, BroadcastInputSchema, SubscribeInputSchema, UnsubscribeInputSchema, PublishInputSchema, } from "./types.js";
-function zodAdapter(schema) {
-    return {
-        parse: (data) => schema.parse(data),
-        safeParse: (data) => {
-            try {
-                const parsed = schema.parse(data);
-                return { success: true, data: parsed };
-            }
-            catch (error) {
-                const err = error;
-                return {
-                    success: false,
-                    error: {
-                        message: err.message ?? "Validation failed",
-                        errors: Array.isArray(err.errors)
-                            ? err.errors.map((e) => {
-                                const errObj = e;
-                                return {
-                                    path: (errObj.path ?? []),
-                                    message: errObj.message ?? "Unknown error",
-                                };
-                            })
-                            : [],
-                    },
-                };
-            }
-        },
-        _output: undefined,
-    };
-}
-function outputSchema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
 // =============================================================================
 // Procedure Definitions
 // =============================================================================
