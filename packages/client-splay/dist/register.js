@@ -4,20 +4,13 @@
  * Registers client-splay bridge procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
-function schema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
+import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
 // =============================================================================
 // Schemas
 // =============================================================================
-const voidSchema = schema();
-const bridgeInfoSchema = schema();
-const healthCheckSchema = schema();
+const voidSchema = outputSchema();
+const bridgeInfoSchema = outputSchema();
+const healthCheckSchema = outputSchema();
 // =============================================================================
 // Bridge Procedures
 // =============================================================================

@@ -5,30 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
-
-// =============================================================================
-// Minimal Schema Helpers (Zod-like interface for procedure system)
-// =============================================================================
-
-interface ZodErrorLike {
-  message: string;
-  errors: Array<{ path: (string | number)[]; message: string }>;
-}
-
-interface ZodLikeSchema<T> {
-  parse(data: unknown): T;
-  safeParse(data: unknown): { success: true; data: T } | { success: false; error: ZodErrorLike };
-  _output: T;
-}
-
-function schema<T>(): ZodLikeSchema<T> {
-  return {
-    parse: (data: unknown) => data as T,
-    safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
-    _output: undefined as unknown as T,
-  };
-}
+import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
 
 // =============================================================================
 // Types
@@ -49,9 +26,9 @@ interface HealthCheck {
 // Schemas
 // =============================================================================
 
-const voidSchema = schema<void>();
-const bridgeInfoSchema = schema<BridgeInfo>();
-const healthCheckSchema = schema<HealthCheck>();
+const voidSchema = outputSchema<void>();
+const bridgeInfoSchema = outputSchema<BridgeInfo>();
+const healthCheckSchema = outputSchema<HealthCheck>();
 
 // =============================================================================
 // Bridge Procedures
