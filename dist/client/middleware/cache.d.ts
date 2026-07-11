@@ -65,6 +65,21 @@ export interface CacheStats {
     hitRate: number;
 }
 /**
+ * Deterministic stringify for cache keys: recursively sorts object keys at every depth, so
+ * payloads that are structurally equal (regardless of key order) map to the same key, and
+ * null / primitive / array payloads are handled without throwing.
+ *
+ * Replaces a prior `JSON.stringify(payload, Object.keys(payload).sort())` which misused the
+ * array-replacer form of JSON.stringify: that filters keys at *every* depth (so `{filter:{a:1}}`
+ * and `{filter:{b:2}}` collided to the same key and returned each other's cached response) and
+ * threw `TypeError` on null/primitive payloads. See documentation/BUGS-2026-07.md (C1).
+ */
+export declare function stableStringify(value: unknown): string;
+/**
+ * Default cache key generator.
+ */
+export declare function defaultKeyGenerator(method: Method, payload: unknown): string;
+/**
  * Create cache middleware with LRU eviction and TTL expiration.
  *
  * Uses the collections framework for automatic memory management:
