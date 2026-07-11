@@ -9,6 +9,14 @@ import { McpServerTransport } from "@mark1russell7/client-mcp";
 import { loadConfig } from "./config.js";
 async function main() {
     const config = loadConfig();
+    // Defense-in-depth for the stdio transport: stdout is reserved for JSON-RPC framing, so any
+    // stray console.log (from a procedure handler or a dependency) would corrupt the protocol.
+    // Redirect console.log to stderr before loading bundles / handling calls. The MCP SDK writes
+    // protocol frames via process.stdout.write directly, so it is unaffected.
+    // See documentation/BUGS-2026-07.md (Bug5).
+    console.log = (...args) => {
+        console.error(...args);
+    };
     if (config.debug) {
         console.error("[mcp-server] Starting with config:", JSON.stringify(config, null, 2));
     }
