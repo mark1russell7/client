@@ -6,6 +6,10 @@
 
 > Comprehensive documentation for the Mark procedure ecosystem - a modular TypeScript framework for building type-safe RPC systems with AI integration.
 
+> **⚠️ Accuracy note (July 2026):** Some examples below are stale — notably the claim that
+> `bundle-dev` bundles "all procedures" including `docker.ps` (it does not include docker;
+> `bundle-dev` = shell, fs, cli, pnpm, lib, git, dag, procedure). See [AUDIT-2026-07.md](./AUDIT-2026-07.md).
+
 ## Quick Navigation
 
 | Document | Description |
@@ -86,7 +90,7 @@ graph LR
 
 | Package | Description |
 |---------|-------------|
-| [@mark1russell7/bundle-dev](https://github.com/mark1russell7/bundle-dev) | Full development bundle with all procedures |
+| [@mark1russell7/bundle-dev](https://github.com/mark1russell7/bundle-dev) | Dev-workflow bundle (shell, fs, cli, pnpm, lib, git, dag, procedure) |
 | [@mark1russell7/bundle-mcp](https://github.com/mark1russell7/bundle-mcp) | Curated bundle for MCP/AI integration |
 
 ### MCP Integration
@@ -210,10 +214,11 @@ Bundles aggregate multiple client packages for easy consumption:
 // Import a bundle to register all its procedures
 import "@mark1russell7/bundle-dev/register.js";
 
-// Now all procedures are available
+// Now bundle-dev's procedures are available
 await client.call(["fs", "read"], { path: "..." });
 await client.call(["git", "status"], { repoPath: "..." });
-await client.call(["docker", "ps"], {});
+await client.call(["pnpm", "install"], { cwd: "..." });
+// Note: docker.*, mongo.*, sqlite.*, s3.* are in bundle-mcp, not bundle-dev
 ```
 
 ### MCP Integration

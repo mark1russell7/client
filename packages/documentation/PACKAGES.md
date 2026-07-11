@@ -2,6 +2,11 @@
 
 > Detailed descriptions and documentation links for all packages in the ecosystem.
 
+> **⚠️ Accuracy note (July 2026):** Procedure counts and the bundle-dev contents below are
+> stale, and 10 manifest packages have no entry here (client-logger, client-collections,
+> client-node, client-vite, client-server-mongo, server-mongo, minimongo, client-playground,
+> scaffold, documentation). See [AUDIT-2026-07.md](./AUDIT-2026-07.md).
+
 ## Table of Contents
 
 - [Core Packages](#core-packages)
@@ -116,7 +121,7 @@ Contains package definitions, project templates, and coordination metadata.
 mark lib new my-package      # Create package
 mark lib scan                # List packages
 mark lib refresh --all       # Rebuild all
-mark procedure new pkg fs.x  # Create procedure
+mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 ```
 
 ---

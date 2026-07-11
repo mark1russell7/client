@@ -2,6 +2,10 @@
 
 > Step-by-step guide for first-time users to install, configure, and use the Mark ecosystem.
 
+> **⚠️ Accuracy note (July 2026):** The `mark procedure new` command form below has been
+> corrected to `procedure new <name> --path <dir>`. Some package counts and Node-version
+> prerequisites elsewhere in this guide are still stale — see [AUDIT-2026-07.md](./AUDIT-2026-07.md).
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -267,8 +271,8 @@ mark lib refresh
 # Refresh all packages
 mark lib refresh --all
 
-# Create new procedure
-mark procedure new my-package fs.custom
+# Create new procedure (name is the procedure path; --path targets the package dir)
+mark procedure new fs.custom --path ~/git/my-package
 ```
 
 ### Common Workflows
@@ -292,7 +296,7 @@ mark lib new my-new-package
 
 ```bash
 # Create fs.custom procedure in my-new-package
-mark procedure new my-new-package fs.custom
+mark procedure new fs.custom --path ~/git/my-new-package
 
 # This creates:
 # ~/git/my-new-package/src/procedures/fs/custom.ts
@@ -435,7 +439,7 @@ After installation:
 │   node ~/git/cli/dist/index.js lib new PACKAGE_NAME                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ CREATE PROCEDURE                                                             │
-│   node ~/git/cli/dist/index.js procedure new PACKAGE fs.myproc             │
+│   node ~/git/cli/dist/index.js procedure new fs.myproc --path DIR          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ BUILD ALL                                                                    │
 │   node ~/git/cli/dist/index.js lib refresh --all                           │

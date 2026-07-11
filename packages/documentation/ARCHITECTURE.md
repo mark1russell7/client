@@ -2,6 +2,12 @@
 
 > Comprehensive architecture documentation for the Mark procedure ecosystem.
 
+> **Accuracy note (July 2026):** This document was corrected against the code during the
+> [July 2026 audit](./AUDIT-2026-07.md). The bundle composition, dependency matrix, and
+> procedure counts below now reflect the actual `register.ts` / `package.json` contents.
+> For known gaps between docs and code across the whole ecosystem, see
+> [AUDIT-2026-07.md](./AUDIT-2026-07.md) and [BUGS-2026-07.md](./BUGS-2026-07.md).
+
 ## Table of Contents
 
 - [System Overview](#system-overview)
@@ -54,12 +60,10 @@ graph TB
     Direct --> ClientFS
     Direct --> ClientGit
 
-    BundleDev --> ClientFS
-    BundleDev --> ClientGit
     BundleDev --> ClientShell
-    BundleDev --> ClientDocker
-    BundleDev --> ClientMongo
+    BundleDev --> ClientFS
     BundleDev --> ClientLib
+    BundleDev --> ClientGit
 
     BundleMCP --> ClientDocker
     BundleMCP --> ClientMongo
@@ -73,7 +77,6 @@ graph TB
     ClientLib --> Client
     ClientMore --> Client
 
-    Client --> Logger
     ClientLib --> Cue
 ```
 
@@ -96,10 +99,10 @@ graph TB
 │  ┌─────────────────────────────────┐  ┌─────────────────────────────────┐  │
 │  │          bundle-dev             │  │          bundle-mcp             │  │
 │  │                                 │  │                                 │  │
-│  │  All procedures (100+)          │  │  Curated for AI (50+)          │  │
-│  │  • fs, git, shell, pnpm        │  │  • lib, cli, procedure, cue    │  │
-│  │  • docker, mongo, sqlite       │  │  • docker, mongo, sqlite       │  │
-│  │  • lib, cli, procedure         │  │  • vitest, test, snapshot      │  │
+│  │  Dev workflow (8 pkgs)          │  │  Curated for AI (11 pkgs)       │  │
+│  │  • shell, fs, cli, pnpm         │  │  • cli, lib, procedure, cue     │  │
+│  │  • lib, git, dag                │  │  • docker, snapshot, mongo      │  │
+│  │  • procedure                    │  │  • sqlite, s3, vitest, test     │  │
 │  └────────────────┬────────────────┘  └────────────────┬────────────────┘  │
 └───────────────────┼────────────────────────────────────┼────────────────────┘
                     │                                    │
@@ -184,7 +187,6 @@ graph LR
         CLI[client-cli]
     end
 
-    Client --> Logger
     Shell --> Client
     FS --> Client
     Git --> Client
@@ -208,7 +210,7 @@ graph LR
 ├────────────────────┬────────────────────────────────────────────────────────┤
 │ Package            │ Depends On                                              │
 ├────────────────────┼────────────────────────────────────────────────────────┤
-│ client             │ logger, ws                                              │
+│ client             │ ws                                                      │
 │ cue                │ (standalone)                                            │
 │ logger             │ (standalone)                                            │
 │ ecosystem          │ (standalone - manifest only)                            │
@@ -230,7 +232,7 @@ graph LR
 │ client-sqlite      │ client, sql.js                                         │
 │ client-s3          │ client, @aws-sdk/client-s3                            │
 ├────────────────────┼────────────────────────────────────────────────────────┤
-│ bundle-dev         │ all client-* packages                                  │
+│ bundle-dev         │ dev-tier client-* pkg                                  │
 │ bundle-mcp         │ curated client-* packages                              │
 ├────────────────────┼────────────────────────────────────────────────────────┤
 │ mcp                │ client, zod                                            │
@@ -571,13 +573,13 @@ graph LR
 │ Ecosystem Management            │ ✓ Included          │ ✓ Included          │
 │ (lib.*, cli.*, procedure.*)     │                     │                     │
 ├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Infrastructure                  │ ✓ Included          │ ✓ Included          │
+│ Infrastructure                  │ ✗ Excluded          │ ✓ Included          │
 │ (docker.*, snapshot.*)          │                     │                     │
 ├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Databases                       │ ✓ Included          │ ✓ Included          │
+│ Databases                       │ ✗ Excluded          │ ✓ Included          │
 │ (mongo.*, db.*, s3.*)           │                     │                     │
 ├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Testing                         │ ✓ Included          │ ✓ Included          │
+│ Testing                         │ ✗ Excluded          │ ✓ Included          │
 │ (vitest.*, test.*)              │                     │                     │
 ├─────────────────────────────────┼─────────────────────┼─────────────────────┤
 │ Total Procedures                │ ~100+               │ ~50+                │

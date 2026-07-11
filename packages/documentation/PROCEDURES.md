@@ -2,6 +2,14 @@
 
 > Complete reference of all available procedures in the Mark ecosystem.
 
+> **⚠️ Accuracy warning (July 2026):** This catalog is substantially out of date. It lists
+> procedures that do **not** exist (e.g. `fs.append`, `fs.list`, `git.merge`, `git.tag`,
+> `pnpm.update`, `docker.push`, `s3.copy`, `dag.build`) and omits ~150 that **do** — the
+> entire `client.*` combinator family (~108 procedures) plus `server.*`, `connection.*`,
+> `log.*`, `node.*`, `vite.*`, and `server.mongo.*`. Treat counts and lists here as unreliable
+> until this file is regenerated from the registry (see the roadmap). Ground truth:
+> [AUDIT-2026-07.md](./AUDIT-2026-07.md) · [audit/08-docs-cross-cutting.md](./audit/08-docs-cross-cutting.md).
+
 ## Table of Contents
 
 - [Overview](#overview)
