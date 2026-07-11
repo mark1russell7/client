@@ -1,48 +1,12 @@
 /**
  * Procedure Registration for MongoDB server management
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { serverMongoStart } from "./procedures/server/start.js";
 import { serverMongoStop } from "./procedures/server/stop.js";
 import { serverMongoStatus } from "./procedures/server/status.js";
 import { serverMongoConnect } from "./procedures/server/connect.js";
 import { ServerMongoStartInputSchema, ServerMongoStopInputSchema, ServerMongoStatusInputSchema, ServerMongoConnectInputSchema, } from "./types.js";
-function zodAdapter(schema) {
-    return {
-        parse: (data) => schema.parse(data),
-        safeParse: (data) => {
-            try {
-                return { success: true, data: schema.parse(data) };
-            }
-            catch (error) {
-                const err = error;
-                return {
-                    success: false,
-                    error: {
-                        message: err.message ?? "Validation failed",
-                        errors: Array.isArray(err.errors)
-                            ? err.errors.map((e) => {
-                                const errObj = e;
-                                return {
-                                    path: (errObj.path ?? []),
-                                    message: errObj.message ?? "Unknown error",
-                                };
-                            })
-                            : [],
-                    },
-                };
-            }
-        },
-        _output: undefined,
-    };
-}
-function outputSchema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
 const serverMongoStartProcedure = createProcedure()
     .path(["server", "mongo", "start"])
     .input(zodAdapter(ServerMongoStartInputSchema))
