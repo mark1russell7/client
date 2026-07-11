@@ -4,7 +4,7 @@
  * Registers fs.* procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
  */
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
 import { exists } from "./procedures/fs/exists.js";
@@ -17,43 +17,6 @@ import { move } from "./procedures/fs/move.js";
 import { glob } from "./procedures/fs/glob.js";
 import { readJson } from "./procedures/fs/json.js";
 import { ReadInputSchema, WriteInputSchema, ExistsInputSchema, MkdirInputSchema, RmInputSchema, ReaddirInputSchema, StatInputSchema, CopyInputSchema, MoveInputSchema, GlobInputSchema, ReadJsonInputSchema, } from "./types.js";
-function zodAdapter(schema) {
-    return {
-        parse: (data) => schema.parse(data),
-        safeParse: (data) => {
-            try {
-                const parsed = schema.parse(data);
-                return { success: true, data: parsed };
-            }
-            catch (error) {
-                const err = error;
-                return {
-                    success: false,
-                    error: {
-                        message: err.message ?? "Validation failed",
-                        errors: Array.isArray(err.errors)
-                            ? err.errors.map((e) => {
-                                const errObj = e;
-                                return {
-                                    path: (errObj.path ?? []),
-                                    message: errObj.message ?? "Unknown error",
-                                };
-                            })
-                            : [],
-                    },
-                };
-            }
-        },
-        _output: undefined,
-    };
-}
-function outputSchema() {
-    return {
-        parse: (data) => data,
-        safeParse: (data) => ({ success: true, data: data }),
-        _output: undefined,
-    };
-}
 // =============================================================================
 // Procedure Definitions
 // =============================================================================

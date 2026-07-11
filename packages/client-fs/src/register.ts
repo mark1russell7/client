@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
 import { exists } from "./procedures/fs/exists.js";
@@ -52,61 +52,6 @@ import {
   type ReadJsonInput,
   type ReadJsonOutput,
 } from "./types.js";
-
-// =============================================================================
-// Minimal Schema Adapter (wraps Zod for client procedure system)
-// =============================================================================
-
-interface ZodErrorLike {
-  message: string;
-  errors: Array<{ path: (string | number)[]; message: string }>;
-}
-
-interface ZodLikeSchema<T> {
-  parse(data: unknown): T;
-  safeParse(
-    data: unknown
-  ): { success: true; data: T } | { success: false; error: ZodErrorLike };
-  _output: T;
-}
-
-function zodAdapter<T>(schema: { parse: (data: unknown) => T }): ZodLikeSchema<T> {
-  return {
-    parse: (data: unknown) => schema.parse(data),
-    safeParse: (data: unknown) => {
-      try {
-        const parsed = schema.parse(data);
-        return { success: true as const, data: parsed };
-      } catch (error) {
-        const err = error as { message?: string; errors?: unknown[] };
-        return {
-          success: false as const,
-          error: {
-            message: err.message ?? "Validation failed",
-            errors: Array.isArray(err.errors)
-              ? err.errors.map((e: unknown) => {
-                  const errObj = e as { path?: unknown[]; message?: string };
-                  return {
-                    path: (errObj.path ?? []) as (string | number)[],
-                    message: errObj.message ?? "Unknown error",
-                  };
-                })
-              : [],
-          },
-        };
-      }
-    },
-    _output: undefined as unknown as T,
-  };
-}
-
-function outputSchema<T>(): ZodLikeSchema<T> {
-  return {
-    parse: (data: unknown) => data as T,
-    safeParse: (data: unknown) => ({ success: true as const, data: data as T }),
-    _output: undefined as unknown as T,
-  };
-}
 
 // =============================================================================
 // Procedure Definitions
