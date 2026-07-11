@@ -216,7 +216,9 @@ export class McpServerTransport implements ServerTransport {
    */
   private log(message: string): void {
     if (this.options.debug) {
-      console.log(`[${this.name}] ${message}`);
+      // MUST be stderr: the stdio MCP transport uses stdout for JSON-RPC framing, so any
+      // stdout write here corrupts the protocol stream. See documentation/BUGS-2026-07.md (M39/Bug4).
+      console.error(`[${this.name}] ${message}`);
     }
   }
 
