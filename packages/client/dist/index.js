@@ -16,6 +16,9 @@ export * from "./collections/index.js";
 export { Client, ClientError } from "./client/index.js";
 export { HttpTransport, LocalTransport, WebSocketTransport, MockTransport, mockBuilder, } from "./client/index.js";
 export { defaultUrlPattern, restfulHttpMethodStrategy, postOnlyStrategy, } from "./client/index.js";
+// WebSocketState is a runtime enum, not just a type — export as a value so consumers can compare
+// against WebSocketState.CONNECTED etc. See documentation/BUGS-2026-07.md (L1).
+export { WebSocketState } from "./client/index.js";
 export { ErrorSeverity, ErrorCategory } from "./client/index.js";
 export { ERROR_REGISTRY, getErrorMetadata, isKnownError, createError, createErrorFromHTTPStatus, createErrorFromException, formatError, } from "./client/index.js";
 // ============================================================================

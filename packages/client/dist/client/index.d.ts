@@ -13,7 +13,8 @@ export type { HttpTransportOptions, UrlStrategy, HttpMethodStrategy } from "../a
 export { LocalTransport } from "../adapters/local/client/index.js";
 export type { LocalTransportOptions, Handler } from "../adapters/local/client/index.js";
 export { WebSocketTransport } from "../adapters/websocket/client/index.js";
-export type { WebSocketTransportOptions, WebSocketState } from "../adapters/websocket/client/index.js";
+export type { WebSocketTransportOptions } from "../adapters/websocket/client/index.js";
+export { WebSocketState } from "../adapters/websocket/client/index.js";
 export { MockTransport, mockBuilder } from "../adapters/mock/client/index.js";
 export type { MockTransportOptions, MockResponse, ResponseMatcher, CallHistoryEntry, } from "../adapters/mock/client//index.js";
 export { createRetryMiddleware } from "./middleware/retry.js";

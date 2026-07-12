@@ -45,12 +45,15 @@ export type {
   LocalTransportOptions,
   Handler,
   WebSocketTransportOptions,
-  WebSocketState,
   MockTransportOptions,
   MockResponse,
   ResponseMatcher,
   CallHistoryEntry,
 } from "./client/index.js";
+
+// WebSocketState is a runtime enum, not just a type — export as a value so consumers can compare
+// against WebSocketState.CONNECTED etc. See documentation/BUGS-2026-07.md (L1).
+export { WebSocketState } from "./client/index.js";
 
 // Error system
 export type { ErrorMetadata, ErrorRegistry, ErrorContext, RichError } from "./client/index.js";
