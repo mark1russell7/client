@@ -143,6 +143,8 @@ export function createRateLimitMiddleware(options = {}) {
                 processingQueue = false;
             }
         }, 100); // Check every 100ms
+        // Don't let the queue-drain timer keep the process alive. See BUGS-2026-07.md (M4).
+        interval.unref?.();
     }
     return (next) => {
         return async function* (context) {
