@@ -163,6 +163,16 @@ export class Client<TContext = {}> {
     (child as any).defaultMetadata = parent.defaultMetadata;
     (child as any).throwOnError = parent.throwOnError;
 
+    // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
+    // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
+    // and exec()/route() would throw "Cannot read properties of undefined (reading 'get')".
+    // Inherit the parent's registry; leave the lazy resolver/executor undefined so the child
+    // builds its own (batchExecutor binds this.executeProcedure, which must be the child's).
+    // See documentation/BUGS-2026-07.md (H1).
+    (child as any).procedureRegistry = parent.procedureRegistry;
+    (child as any).routeResolver = undefined;
+    (child as any).batchExecutor = undefined;
+
     // Set parent and additional context
     (child as any).parent = parent;
     (child as any).clientContext = additionalContext;
