@@ -123,6 +123,15 @@ export class Client {
         child.middleware = parent.middleware;
         child.defaultMetadata = parent.defaultMetadata;
         child.throwOnError = parent.throwOnError;
+        // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
+        // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
+        // and exec()/route() would throw "Cannot read properties of undefined (reading 'get')".
+        // Inherit the parent's registry; leave the lazy resolver/executor undefined so the child
+        // builds its own (batchExecutor binds this.executeProcedure, which must be the child's).
+        // See documentation/BUGS-2026-07.md (H1).
+        child.procedureRegistry = parent.procedureRegistry;
+        child.routeResolver = undefined;
+        child.batchExecutor = undefined;
         // Set parent and additional context
         child.parent = parent;
         child.clientContext = additionalContext;
