@@ -92,6 +92,23 @@ export interface S3ListOutput {
     /** Number of keys returned */
     keyCount: number;
 }
+export declare const S3ListAllInputSchema: z.ZodObject<{
+    bucket: z.ZodString;
+    prefix: z.ZodOptional<z.ZodString>;
+    maxKeys: z.ZodOptional<z.ZodNumber>;
+    delimiter: z.ZodOptional<z.ZodString>;
+}>;
+export type S3ListAllInput = z.infer<typeof S3ListAllInputSchema>;
+export interface S3ListAllOutput {
+    /** All objects across every page (not capped at 1000) */
+    contents: S3ListObject[];
+    /** Deduplicated common prefixes across all pages (when using delimiter) */
+    commonPrefixes: string[];
+    /** Total number of keys returned */
+    keyCount: number;
+    /** Number of underlying ListObjectsV2 requests made */
+    pageCount: number;
+}
 export declare const S3DeleteInputSchema: z.ZodObject<{
     bucket: z.ZodString;
     key: z.ZodString;

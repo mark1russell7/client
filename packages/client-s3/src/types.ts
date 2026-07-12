@@ -155,6 +155,39 @@ export interface S3ListOutput {
 }
 
 // =============================================================================
+// s3.listAll Types
+// =============================================================================
+
+export const S3ListAllInputSchema: z.ZodObject<{
+  bucket: z.ZodString;
+  prefix: z.ZodOptional<z.ZodString>;
+  maxKeys: z.ZodOptional<z.ZodNumber>;
+  delimiter: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** S3 bucket name */
+  bucket: z.string(),
+  /** Filter objects by prefix */
+  prefix: z.string().optional(),
+  /** Page size for each underlying request (default/max 1000); paging is automatic */
+  maxKeys: z.number().optional(),
+  /** Delimiter for hierarchical listing (e.g., "/") */
+  delimiter: z.string().optional(),
+});
+
+export type S3ListAllInput = z.infer<typeof S3ListAllInputSchema>;
+
+export interface S3ListAllOutput {
+  /** All objects across every page (not capped at 1000) */
+  contents: S3ListObject[];
+  /** Deduplicated common prefixes across all pages (when using delimiter) */
+  commonPrefixes: string[];
+  /** Total number of keys returned */
+  keyCount: number;
+  /** Number of underlying ListObjectsV2 requests made */
+  pageCount: number;
+}
+
+// =============================================================================
 // s3.delete Types
 // =============================================================================
 

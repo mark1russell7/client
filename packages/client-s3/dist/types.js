@@ -51,6 +51,19 @@ export const S3ListInputSchema = z.object({
     delimiter: z.string().optional(),
 });
 // =============================================================================
+// s3.listAll Types
+// =============================================================================
+export const S3ListAllInputSchema = z.object({
+    /** S3 bucket name */
+    bucket: z.string(),
+    /** Filter objects by prefix */
+    prefix: z.string().optional(),
+    /** Page size for each underlying request (default/max 1000); paging is automatic */
+    maxKeys: z.number().optional(),
+    /** Delimiter for hierarchical listing (e.g., "/") */
+    delimiter: z.string().optional(),
+});
+// =============================================================================
 // s3.delete Types
 // =============================================================================
 export const S3DeleteInputSchema = z.object({

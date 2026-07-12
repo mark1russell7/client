@@ -5,8 +5,8 @@
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
-import { s3Upload, s3Download, s3List, s3Delete, s3MultipartInit, s3MultipartUpload, s3MultipartComplete, s3MultipartAbort, } from "./procedures/s3/index.js";
-import { S3UploadInputSchema, S3DownloadInputSchema, S3ListInputSchema, S3DeleteInputSchema, S3MultipartInitInputSchema, S3MultipartUploadInputSchema, S3MultipartCompleteInputSchema, S3MultipartAbortInputSchema, } from "./types.js";
+import { s3Upload, s3Download, s3List, s3ListAll, s3Delete, s3MultipartInit, s3MultipartUpload, s3MultipartComplete, s3MultipartAbort, } from "./procedures/s3/index.js";
+import { S3UploadInputSchema, S3DownloadInputSchema, S3ListInputSchema, S3ListAllInputSchema, S3DeleteInputSchema, S3MultipartInitInputSchema, S3MultipartUploadInputSchema, S3MultipartCompleteInputSchema, S3MultipartAbortInputSchema, } from "./types.js";
 // =============================================================================
 // Procedures
 // =============================================================================
@@ -47,6 +47,19 @@ const s3ListProcedure = createProcedure()
 })
     .handler(async (input) => {
     return s3List(input);
+})
+    .build();
+const s3ListAllProcedure = createProcedure()
+    .path(["s3", "listAll"])
+    .input(zodAdapter(S3ListAllInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "List ALL objects in S3 bucket, following continuation tokens (unbounded by 1000)",
+    shorts: { bucket: "b", prefix: "p", maxKeys: "n" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return s3ListAll(input);
 })
     .build();
 const s3DeleteProcedure = createProcedure()
@@ -122,6 +135,7 @@ export function registerS3Procedures() {
         s3UploadProcedure,
         s3DownloadProcedure,
         s3ListProcedure,
+        s3ListAllProcedure,
         s3DeleteProcedure,
         s3MultipartInitProcedure,
         s3MultipartUploadProcedure,

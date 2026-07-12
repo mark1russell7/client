@@ -11,9 +11,9 @@
  * - S3_ENDPOINT (optional, for MinIO/LocalStack)
  */
 // Re-export schemas for external use
-export { S3UploadInputSchema, S3DownloadInputSchema, S3ListInputSchema, S3DeleteInputSchema, S3MultipartInitInputSchema, S3MultipartUploadInputSchema, S3MultipartCompleteInputSchema, S3MultipartAbortInputSchema, } from "./types.js";
+export { S3UploadInputSchema, S3DownloadInputSchema, S3ListInputSchema, S3ListAllInputSchema, S3DeleteInputSchema, S3MultipartInitInputSchema, S3MultipartUploadInputSchema, S3MultipartCompleteInputSchema, S3MultipartAbortInputSchema, } from "./types.js";
 // Re-export S3 client utilities
 export { getS3Config, createS3Client, getS3Client, resetS3Client, } from "./s3-client.js";
 // Re-export procedure implementations for direct use
-export { s3Upload, s3Download, s3List, s3Delete, s3MultipartInit, s3MultipartUpload, s3MultipartComplete, s3MultipartAbort, } from "./procedures/s3/index.js";
+export { s3Upload, s3Download, s3List, s3ListAll, s3Delete, s3MultipartInit, s3MultipartUpload, s3MultipartComplete, s3MultipartAbort, } from "./procedures/s3/index.js";
 //# sourceMappingURL=index.js.map

@@ -10,6 +10,7 @@ import {
   s3Upload,
   s3Download,
   s3List,
+  s3ListAll,
   s3Delete,
   s3MultipartInit,
   s3MultipartUpload,
@@ -20,6 +21,7 @@ import {
   S3UploadInputSchema,
   S3DownloadInputSchema,
   S3ListInputSchema,
+  S3ListAllInputSchema,
   S3DeleteInputSchema,
   S3MultipartInitInputSchema,
   S3MultipartUploadInputSchema,
@@ -28,6 +30,7 @@ import {
   type S3UploadInput,
   type S3DownloadInput,
   type S3ListInput,
+  type S3ListAllInput,
   type S3DeleteInput,
   type S3MultipartInitInput,
   type S3MultipartUploadInput,
@@ -36,6 +39,7 @@ import {
   type S3UploadOutput,
   type S3DownloadOutput,
   type S3ListOutput,
+  type S3ListAllOutput,
   type S3DeleteOutput,
   type S3MultipartInitOutput,
   type S3MultipartUploadOutput,
@@ -86,6 +90,20 @@ const s3ListProcedure = createProcedure()
   })
   .handler(async (input: S3ListInput): Promise<S3ListOutput> => {
     return s3List(input);
+  })
+  .build();
+
+const s3ListAllProcedure = createProcedure()
+  .path(["s3", "listAll"])
+  .input(zodAdapter<S3ListAllInput>(S3ListAllInputSchema))
+  .output(outputSchema<S3ListAllOutput>())
+  .meta({
+    description: "List ALL objects in S3 bucket, following continuation tokens (unbounded by 1000)",
+    shorts: { bucket: "b", prefix: "p", maxKeys: "n" },
+    output: "json",
+  })
+  .handler(async (input: S3ListAllInput): Promise<S3ListAllOutput> => {
+    return s3ListAll(input);
   })
   .build();
 
@@ -168,6 +186,7 @@ export function registerS3Procedures(): void {
     s3UploadProcedure,
     s3DownloadProcedure,
     s3ListProcedure,
+    s3ListAllProcedure,
     s3DeleteProcedure,
     s3MultipartInitProcedure,
     s3MultipartUploadProcedure,

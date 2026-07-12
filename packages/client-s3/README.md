@@ -15,8 +15,8 @@ AWS S3 operations as RPC procedures. Upload, download, list, delete, and perform
 - **Zod validation**: Runtime type safety on all inputs
 - **MinIO/LocalStack support**: Custom S3 endpoints for testing
 
-The package auto-registers 8 procedures:
-- **Standard**: `s3.upload`, `s3.download`, `s3.list`, `s3.delete`
+The package auto-registers 9 procedures:
+- **Standard**: `s3.upload`, `s3.download`, `s3.list`, `s3.listAll`, `s3.delete`
 - **Multipart**: `s3.multipart.init`, `s3.multipart.upload`, `s3.multipart.complete`, `s3.multipart.abort`
 
 ## Architecture
@@ -294,6 +294,51 @@ interface S3ListObject {
   storageClass?: string;             // Storage class (STANDARD, GLACIER, etc.)
 }
 ```
+
+#### `s3.listAll`
+
+List **every** object under a bucket/prefix, following `continuationToken`
+automatically. Use this when a bucket/prefix may contain more than 1000 keys —
+`s3.list` returns at most one page, whereas `s3.listAll` loops until the result
+is no longer truncated and returns the aggregated contents.
+
+```typescript
+const result = await client.call(
+  ["s3", "listAll"],
+  {
+    bucket: "my-bucket",
+    prefix: "snapshots/",
+    maxKeys: 1000,   // Optional: page size per underlying request
+    delimiter: "/"   // Optional: hierarchical listing
+  }
+);
+
+console.log(`Found ${result.keyCount} objects across ${result.pageCount} pages`);
+```
+
+**Input:**
+```typescript
+interface S3ListAllInput {
+  bucket: string;                    // S3 bucket name
+  prefix?: string;                   // Filter by prefix
+  maxKeys?: number;                  // Page size per request (default/max 1000)
+  delimiter?: string;                // Delimiter for hierarchical listing (e.g., "/")
+}
+```
+
+**Output:**
+```typescript
+interface S3ListAllOutput {
+  contents: S3ListObject[];          // All objects (not capped at 1000)
+  commonPrefixes: string[];          // Deduplicated common prefixes across pages
+  keyCount: number;                  // Total number of keys returned
+  pageCount: number;                 // Number of ListObjectsV2 requests made
+}
+```
+
+> Warning: `s3.listAll` buffers the full key set in memory and issues one request
+> per 1000 keys. For very large buckets prefer paging with `s3.list` +
+> `continuationToken`.
 
 #### `s3.delete`
 
