@@ -94,6 +94,11 @@ export async function connect(
   const client = new MongoClient(uri, options.clientOptions);
   await client.connect();
 
+  // Close any previous default connection before replacing it. Without this,
+  // the prior MongoClient (and its connection pool) is orphaned open and leaks
+  // on every call to connect() (e.g. repeated server.mongo.start invocations).
+  const previousConnection = defaultConnection;
+
   let connected = true;
 
   const connection: MongoConnection = {
@@ -122,6 +127,16 @@ export async function connect(
   };
 
   setDefaultConnection(connection);
+
+  if (previousConnection && previousConnection !== connection) {
+    try {
+      await previousConnection.disconnect();
+    } catch {
+      // Best effort: ignore errors closing the stale connection so a failure
+      // to close the old client never breaks establishing the new one.
+    }
+  }
+
   return connection;
 }
 
