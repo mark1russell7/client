@@ -6,16 +6,14 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { execSync } from "node:child_process";
+import { listAllObjects, findSnapshotKey } from "./s3-lookup.js";
 /**
  * Compare current state against a snapshot
  */
 export async function snapshotDiff(input, ctx) {
-    // Download snapshot metadata
-    const listResult = await ctx.client.call(["s3", "list"], {
-        bucket: input.bucket,
-        prefix: `snapshots/`,
-    });
-    const metadataKey = listResult.contents.find((obj) => obj.key.includes(input.id) && obj.key.endsWith(".metadata.json"))?.key;
+    // Download snapshot metadata (paginated listing, exact basename match).
+    const objects = await listAllObjects(ctx, input.bucket, "snapshots/");
+    const metadataKey = findSnapshotKey(objects, input.id, ".metadata.json");
     if (!metadataKey) {
         throw new Error(`Snapshot not found: ${input.id}`);
     }
