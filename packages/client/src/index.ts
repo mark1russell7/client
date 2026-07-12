@@ -294,23 +294,6 @@ export type { ResolvedRoute, RouteResolutionResult, RouteResolutionError } from 
 
 export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor.js";
 export type { ProcedureExecutor, ExecutionContext, BatchExecutionResult } from "./client/batch-executor.js";
-export {
-  getMiddlewareOverrides,
-  getRetryOverride,
-  getTimeoutOverride,
-  getCacheOverride,
-  getOverride,
-  mergeOverride,
-  mergeRetryConfig,
-  mergeTimeoutConfig,
-  mergeCacheConfig,
-  createOverrideGetter,
-  hasOverride,
-  setMiddlewareOverrides,
-  clearMiddlewareOverrides,
-  MIDDLEWARE_OVERRIDES_KEY,
-} from "./client/middleware-override.js";
-export type { OverrideAwareConfig, ExtractMiddlewareConfig, OverrideOf } from "./client/middleware-override.js";
 
 // ============================================================================
 // Events System - Pub/sub messaging and streaming coordination

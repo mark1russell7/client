@@ -29,8 +29,6 @@ export { RouteResolver, createRouteResolver, isValidRoute, getMissingPaths, matc
 export type { ResolvedRoute, RouteResolutionResult, RouteResolutionError } from "./client/route-resolver.js";
 export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor.js";
 export type { ProcedureExecutor, ExecutionContext, BatchExecutionResult } from "./client/batch-executor.js";
-export { getMiddlewareOverrides, getRetryOverride, getTimeoutOverride, getCacheOverride, getOverride, mergeOverride, mergeRetryConfig, mergeTimeoutConfig, mergeCacheConfig, createOverrideGetter, hasOverride, setMiddlewareOverrides, clearMiddlewareOverrides, MIDDLEWARE_OVERRIDES_KEY, } from "./client/middleware-override.js";
-export type { OverrideAwareConfig, ExtractMiddlewareConfig, OverrideOf } from "./client/middleware-override.js";
 export { DefaultEventBus as EventBus, createEventBus, createTypedEventBus } from "./events/index.js";
 export type { EventBus as IEventBus, TypedEventBus, EventHandler, EventBusOptions, ChannelMap, } from "./events/index.js";
 export type { ComponentOutput, FragmentOutput, NullOutput, AnyComponentOutput, Size, ComponentContext, ComponentFactory, StreamingComponentFactory, AnyComponentFactory, ComponentMetadata, ComponentDefinition, AnyComponentDefinition, RegisteredComponent, ComponentBundle, InferComponentInput, IsStreamingComponent, ComponentInput, } from "./components/index.js";
