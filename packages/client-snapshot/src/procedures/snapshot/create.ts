@@ -4,12 +4,10 @@
  * Create an environment snapshot and upload to S3.
  */
 
-import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { join, basename } from "node:path";
-import { tmpdir } from "node:os";
-import { randomUUID } from "node:crypto";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { join, basename, dirname, resolve } from "node:path";
+import { tmpdir, hostname } from "node:os";
+import { randomUUID, createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import * as tar from "tar";
 import type { ProcedureContext } from "@mark1russell7/client";
@@ -60,7 +58,7 @@ export async function snapshotCreate(
 
     // Write metadata to work directory
     const metadataPath = join(workDir, "metadata.json");
-    require("fs").writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
     // Create archive based on preset
     const archivePath = join(workDir, `${id}.tar.gz`);
@@ -68,12 +66,12 @@ export async function snapshotCreate(
 
     // Calculate checksum
     const checksum = calculateChecksum(archivePath);
-    const archiveSize = require("fs").statSync(archivePath).size;
+    const archiveSize = statSync(archivePath).size;
 
     // Update metadata with checksum
     metadata.checksum = checksum;
     metadata.archiveSize = archiveSize;
-    require("fs").writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
     // Upload to S3
     const uploadStart = Date.now();
@@ -230,7 +228,7 @@ async function getEnvironmentInfo(): Promise<SnapshotMetadata["environment"]> {
     nodeVersion: process.version,
     pnpmVersion,
     username: process.env["USER"] || process.env["USERNAME"] || "unknown",
-    hostname: require("os").hostname(),
+    hostname: hostname(),
   };
 }
 
@@ -243,17 +241,22 @@ async function createArchive(
   preset: SnapshotPreset,
   workDir: string
 ): Promise<void> {
-  const files: string[] = [];
+  // Only archive repositories that actually exist on disk.
+  const existingRepos = repoPaths.filter((p) => existsSync(p));
 
-  for (const repoPath of repoPaths) {
-    if (!existsSync(repoPath)) continue;
-
-    // Always include .git directory
-    const gitDir = join(repoPath, ".git");
-    if (existsSync(gitDir)) {
-      files.push(repoPath);
-    }
+  // tar.create accepts a single `cwd`, and each entry is stored relative to it.
+  // To store each repository as a top-level `<basename>/...` entry we must run
+  // with `cwd` set to the directory that contains the repositories (the
+  // ecosystem root), not the fresh temp `workDir` the repos are not inside.
+  const parents = new Set(existingRepos.map((p) => resolve(dirname(p))));
+  if (parents.size > 1) {
+    throw new Error(
+      `snapshot.create requires all repositories to share a parent directory; got multiple roots: ${[
+        ...parents,
+      ].join(", ")}`
+    );
   }
+  const cwd = existingRepos.length > 0 ? resolve(dirname(existingRepos[0]!)) : workDir;
 
   // Create gzip options based on preset
   const gzipOpts = { level: preset === "heavy" ? 6 : 9 };
@@ -274,7 +277,7 @@ async function createArchive(
     {
       gzip: gzipOpts,
       file: archivePath,
-      cwd: workDir,
+      cwd,
       filter: (path) => {
         for (const pattern of excludePatterns) {
           if (path.includes(pattern)) return false;
@@ -282,7 +285,7 @@ async function createArchive(
         return true;
       },
     },
-    repoPaths.map((p) => basename(p))
+    existingRepos.map((p) => basename(p))
   );
 }
 
