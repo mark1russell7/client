@@ -256,6 +256,13 @@ export class ProcedureServer extends Server {
     registerFromRegistry() {
         const procedures = this.procedureRegistry.getAll();
         for (const procedure of procedures) {
+            // Skip handler-less procedures (e.g. synced-from-storage stubs). registerProcedure
+            // throws when a procedure has no handler; this method's contract is to register
+            // ONLY procedures that have handlers, so one stub must not abort server startup.
+            // See BUGS-2026-07 H14/H28.
+            if (!procedure.handler) {
+                continue;
+            }
             this.registerProcedure(procedure);
         }
     }
