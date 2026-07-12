@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Filesystem operations as RPC procedures - fs.read, fs.write, fs.exists, etc.",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

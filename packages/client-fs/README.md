@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
 
 File system operations as RPC procedures. Read, write, copy, move, glob files and directories via `client.call()`.
 
@@ -11,7 +11,7 @@ File system operations as RPC procedures. Read, write, copy, move, glob files an
 `client-fs` provides comprehensive file system access through the client procedure ecosystem with:
 - **File operations**: Read, write, stat, exists, remove
 - **Directory operations**: Create, list, copy, move
-- **Pattern matching**: Glob file search with fast-glob
+- **Pattern matching**: Glob file search via the Node.js `fs.glob` API (`node:fs/promises`, requires Node >= 22)
 - **JSON utilities**: Read and parse JSON files
 - **Zod validation**: Runtime type safety on all inputs
 
@@ -41,7 +41,7 @@ graph TB
     subgraph "Node.js Modules"
         NodeFs["node:fs/promises"]
         NodePath["node:path"]
-        FastGlob["fast-glob"]
+        NodeGlob["node:fs/promises glob<br/>(Node >= 22)"]
     end
 
     subgraph "File System"
@@ -53,11 +53,11 @@ graph TB
 
     FileOps --> NodeFs
     DirOps --> NodeFs
-    PatternOps --> FastGlob
+    PatternOps --> NodeGlob
 
     NodeFs --> NodePath
     NodeFs --> FS
-    FastGlob --> FS
+    NodeGlob --> FS
 
     Types -.validates.-> FileOps
     Types -.validates.-> DirOps
@@ -75,7 +75,7 @@ graph LR
     ClientFs["@mark1russell7/client-fs"]
     Client["@mark1russell7/client"]
     Zod["zod"]
-    NodeModules["node:fs/promises<br/>fast-glob"]
+    NodeModules["node:fs/promises<br/>(glob: Node >= 22)"]
 
     App --> ClientFs
     ClientFs --> Client
@@ -440,7 +440,7 @@ interface MoveOutput {
 
 #### `fs.glob`
 
-Find files matching a glob pattern using fast-glob.
+Find files matching a glob pattern using the Node.js `fs.glob` API (`node:fs/promises`, requires Node >= 22).
 
 ```typescript
 const result = await client.call(
@@ -486,8 +486,9 @@ interface GlobOutput {
 // TypeScript and JavaScript files
 "**/*.{ts,js}"
 
-// Exclude node_modules
-"**/*.ts"  // fast-glob excludes node_modules by default
+// Note: node:fs/promises glob does NOT exclude node_modules by default;
+// pass an `exclude` pattern or scope the pattern (e.g. "src/**/*.ts")
+"src/**/*.ts"
 
 // Include test files
 "**/*.{test,spec}.ts"
@@ -826,7 +827,7 @@ import "@mark1russell7/client-cli/register.js";
 
 - **node:fs/promises** - Node.js file system promises API
 - **node:path** - Node.js path utilities
-- **fast-glob** - Fast glob pattern matching (imported in glob procedure)
+- **node:fs/promises `glob`** - Glob pattern matching (used by the `fs.glob` procedure; requires Node >= 22)
 
 ### Development Dependencies
 
