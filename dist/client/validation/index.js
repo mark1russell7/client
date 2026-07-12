@@ -33,6 +33,4 @@
 export { methodToKey, keyToMethod, ValidationError, } from "./types.js";
 // Middleware
 export { createZodMiddleware, SCHEMA_REGISTRY, } from "./middleware.js";
-// Schemas
-export * from "./schemas/index.js";
 //# sourceMappingURL=index.js.map

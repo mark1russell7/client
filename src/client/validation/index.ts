@@ -54,6 +54,3 @@ export {
   type ZodMiddleware,
   SCHEMA_REGISTRY,
 } from "./middleware.js";
-
-// Schemas
-export * from "./schemas/index.js";
