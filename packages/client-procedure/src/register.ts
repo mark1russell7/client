@@ -5,7 +5,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, PROCEDURE_REGISTRY, zodAdapter, outputSchema } from "@mark1russell7/client";
 import { procedureNew } from "./procedures/procedure/index.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
@@ -32,12 +32,20 @@ const procedureNewProcedure = createProcedure()
   .build();
 
 export function registerProcedureProcedures(): void {
-  registerProcedures([
-    // procedure.new
-    procedureNewProcedure,
-    // procedure.list, procedure.get, procedure.export (from registry.ts)
-    ...procedureRegistryProcedures,
-  ]);
+  // Use override so registration is idempotent and order-independent: the core client also
+  // registers procedure.get/list (operating on runtime procedures), and registerAll() throws on
+  // duplicate paths — so loading client-procedure after core threw mid-bundle. client-procedure
+  // owns the full-registry introspection variants and wins deterministically. Found via the
+  // PROCEDURES.md generator; see documentation/BUGS-2026-07.md.
+  PROCEDURE_REGISTRY.registerAll(
+    [
+      // procedure.new
+      procedureNewProcedure,
+      // procedure.list, procedure.get, procedure.export (from registry.ts)
+      ...procedureRegistryProcedures,
+    ],
+    { override: true }
+  );
 }
 
 // Auto-register
