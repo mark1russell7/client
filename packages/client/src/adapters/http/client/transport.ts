@@ -22,7 +22,7 @@ import {
   type HttpMethodStrategy,
   type HeaderConverter,
   defaultUrlPattern,
-  restfulHttpMethodStrategy,
+  postOnlyStrategy,
   createDefaultHeaderConverter,
   isSuccessStatus,
   createHTTPStatusError,
@@ -68,7 +68,7 @@ export class HttpTransport implements Transport {
     this.baseUrl = options.baseUrl;
     this.urlStrategy = options.urlStrategy || defaultUrlPattern.format;
     this.httpMethodStrategy =
-      options.httpMethodStrategy || restfulHttpMethodStrategy;
+      options.httpMethodStrategy || postOnlyStrategy;
     this.headerConverter =
       options.headerConverter || createDefaultHeaderConverter();
     this.defaultHeaders = options.defaultHeaders || {};

@@ -7,7 +7,7 @@
 import { createServer } from "http";
 import { HTTPMethod } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
-import { defaultServerUrlStrategy } from "./strategies.js";
+import { createPatternServerUrlStrategy } from "./strategies.js";
 /**
  * HTTP server transport adapter for Express.
  *
@@ -33,11 +33,15 @@ export class HttpServerTransport {
     server;
     constructor(server, options = {}) {
         this.server = server;
+        const basePath = options.basePath ?? "/api";
         this.options = {
             port: options.port ?? 3000,
-            host: options.host ?? "0.0.0.0",
-            urlStrategy: options.urlStrategy ?? defaultServerUrlStrategy,
-            basePath: options.basePath ?? "/api",
+            // Loopback by default (see BUGS-2026-07 H19), and route by URL path so the raw server matches
+            // the HTTP client's default URL format instead of inferring the operation from the verb
+            // (which lost the payload for get/list/find/watch). See BUGS-2026-07 (C3, bug 16).
+            host: options.host ?? "127.0.0.1",
+            urlStrategy: options.urlStrategy ?? createPatternServerUrlStrategy(basePath),
+            basePath,
             cors: options.cors ?? false,
             corsOptions: options.corsOptions,
             httpServer: options.httpServer,

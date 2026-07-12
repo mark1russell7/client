@@ -6,6 +6,7 @@
 
 import type { Request } from "express";
 import type { Method } from "../../../client/types.js";
+import { defaultUrlPattern } from "../shared/strategies.js";
 
 /**
  * Default URL strategy: RESTful routes.
@@ -79,3 +80,26 @@ export function rpcServerUrlStrategy(req: Request): Method | null {
 
   return { service, operation };
 }
+
+/**
+ * Pattern URL strategy: parses the HTTP client's default URL format,
+ * `{basePath}/{version?}/{service}/{operation}`, using defaultUrlPattern.parse — the exact inverse
+ * of the client's defaultUrlPattern.format. This makes the raw client and server defaults round-trip
+ * (they were previously mutually incompatible: the client emitted /svc/op while the server parsed
+ * /api/:service/:id? and inferred the operation from the HTTP verb). See BUGS-2026-07.md (C3, bug 16).
+ *
+ * @param basePath - Base path prefix to strip before parsing (default "/api").
+ */
+export function createPatternServerUrlStrategy(basePath = "/api"): (req: Request) => Method | null {
+  return (req: Request): Method | null => {
+    let path = req.path;
+    if (basePath && path.startsWith(basePath)) {
+      path = path.slice(basePath.length);
+    }
+    // defaultUrlPattern.parse ignores the HTTP method for this URL pattern.
+    return defaultUrlPattern.parse(path, req.method.toUpperCase() as never);
+  };
+}
+
+/** Pattern strategy with the standard "/api" base path (the server transport default). */
+export const patternServerUrlStrategy: (req: Request) => Method | null = createPatternServerUrlStrategy();

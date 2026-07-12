@@ -4,7 +4,7 @@
  * Converts universal client protocol to HTTP requests using
  * shared utilities and injectable strategies.
  */
-import { HTTP, HTTPMethod, HTTPStatus, HTTPHeaders, defaultUrlPattern, restfulHttpMethodStrategy, createDefaultHeaderConverter, isSuccessStatus, createHTTPStatusError, createAbortError, createErrorFromException, isValidJSONPayload, } from "../shared/index.js";
+import { HTTP, HTTPMethod, HTTPStatus, HTTPHeaders, defaultUrlPattern, postOnlyStrategy, createDefaultHeaderConverter, isSuccessStatus, createHTTPStatusError, createAbortError, createErrorFromException, isValidJSONPayload, } from "../shared/index.js";
 /**
  * HTTP Client Transport
  *
@@ -40,7 +40,7 @@ export class HttpTransport {
         this.baseUrl = options.baseUrl;
         this.urlStrategy = options.urlStrategy || defaultUrlPattern.format;
         this.httpMethodStrategy =
-            options.httpMethodStrategy || restfulHttpMethodStrategy;
+            options.httpMethodStrategy || postOnlyStrategy;
         this.headerConverter =
             options.headerConverter || createDefaultHeaderConverter();
         this.defaultHeaders = options.defaultHeaders || {};
