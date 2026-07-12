@@ -299,11 +299,14 @@ export class SyncedProcedureRegistry {
      */
     startAutoSync(intervalMs) {
         this.stopAutoSync();
-        this.syncIntervalHandle = setInterval(() => {
+        const handle = setInterval(() => {
             void this.sync("both").catch((err) => {
                 console.error("Auto-sync failed:", err);
             });
         }, intervalMs);
+        // Don't let the auto-sync timer keep the process alive. See BUGS-2026-07.md (M4).
+        handle.unref?.();
+        this.syncIntervalHandle = handle;
     }
     /**
      * Stop auto-sync.

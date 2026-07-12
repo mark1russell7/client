@@ -180,7 +180,7 @@ export function createCacheMiddleware(options: CacheOptions = {}): TypedClientMi
 
   // Emit stats periodically if callback provided
   if (onStats) {
-    setInterval(() => {
+    const statsTimer = setInterval(() => {
       const total = stats.hits + stats.misses;
       const hitRate = total > 0 ? (stats.hits / total) * 100 : 0;
 
@@ -192,7 +192,9 @@ export function createCacheMiddleware(options: CacheOptions = {}): TypedClientMi
         hitRate: Math.round(hitRate * 100) / 100, // Round to 2 decimal places
       });
     }, statsInterval);
-    // Note: Timer is not cleared as middleware lifecycle is tied to client lifecycle
+    // Unref so the stats timer never keeps the process alive on its own (its lifecycle is tied
+    // to the client, not the event loop). See documentation/BUGS-2026-07.md (M4).
+    statsTimer.unref?.();
   }
 
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
