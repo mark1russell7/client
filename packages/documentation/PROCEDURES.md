@@ -2,6 +2,15 @@
 
 > Complete reference of all available procedures in the Mark ecosystem.
 
+> **📝 NOTE — this catalog is slated to be regenerated from the registry, not hand-edited.**
+> The procedure registry is introspectable, so this file should be produced by a doc-gen script
+> rather than maintained by hand (which is how it drifted). Ground-truth sources for regeneration:
+> `PROCEDURE_REGISTRY.list()` in `@mark1russell7/client`, the `ecosystem.procedures` procedure
+> (client-lib), or `mark --help`. Until that generator exists, **do not hand-invent the full
+> list** — add or correct individual entries only against verified registrations. Plan tracked in
+> [BUGS-2026-07.md](./BUGS-2026-07.md) and [audit/08-docs-cross-cutting.md](./audit/08-docs-cross-cutting.md)
+> (roadmap #3).
+
 > **⚠️ Accuracy warning (July 2026):** This catalog is substantially out of date. It lists
 > procedures that do **not** exist (e.g. `fs.append`, `fs.list`, `git.merge`, `git.tag`,
 > `pnpm.update`, `docker.push`, `s3.copy`, `dag.build`) and omits ~150 that **do** — the
