@@ -10,10 +10,19 @@ export interface S3Config {
     region: string;
     /** Optional custom endpoint (for MinIO, LocalStack, etc.) */
     endpoint?: string | undefined;
-    /** Access key ID (from AWS_ACCESS_KEY_ID env var) */
-    accessKeyId: string;
-    /** Secret access key (from AWS_SECRET_ACCESS_KEY env var) */
-    secretAccessKey: string;
+    /**
+     * Access key ID (from AWS_ACCESS_KEY_ID env var).
+     * Optional: when absent, the AWS SDK default credential provider chain
+     * (SSO, IAM roles/IMDS, shared config profiles, etc.) is used instead.
+     */
+    accessKeyId?: string | undefined;
+    /** Secret access key (from AWS_SECRET_ACCESS_KEY env var). Optional; see accessKeyId. */
+    secretAccessKey?: string | undefined;
+    /**
+     * Session token (from AWS_SESSION_TOKEN env var) for STS/SSO temporary
+     * credentials. Present only alongside a temporary access key/secret pair.
+     */
+    sessionToken?: string | undefined;
 }
 export declare const S3UploadInputSchema: z.ZodObject<{
     bucket: z.ZodString;

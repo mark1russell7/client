@@ -113,16 +113,22 @@ npm install @mark1russell7/client-s3
 ### Environment Variables
 
 ```bash
-# Required
+# Static credentials (optional — omit to use an IAM role / SSO / profile)
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_SESSION_TOKEN=your-session-token  # For STS/SSO temporary credentials
 
 # Optional
 AWS_REGION=us-east-1  # Default: us-east-1
 S3_ENDPOINT=http://localhost:9000  # For MinIO/LocalStack
 ```
 
-The package reads credentials from environment variables automatically. Never hardcode credentials in your code.
+The package supplies explicit static credentials **only when both
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set** (adding
+`AWS_SESSION_TOKEN` when present). If they are not set, it falls back to the
+AWS SDK default credential provider chain — SSO, IAM roles/instance profiles
+(IMDS), and shared config profiles all work with no code changes. Never
+hardcode credentials in your code.
 
 ### S3 Client Configuration
 
@@ -815,8 +821,11 @@ npm run clean
 ## Security
 
 - Never hardcode AWS credentials in code
-- Always use environment variables for credentials
-- Use IAM roles when running on AWS infrastructure
+- Prefer IAM roles / instance profiles when running on AWS infrastructure: leave
+  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` unset and the SDK default credential
+  provider chain resolves role credentials automatically
+- Use static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (plus `AWS_SESSION_TOKEN`
+  for temporary SSO/STS credentials) only where an IAM role is not available
 - Restrict S3 bucket policies to minimum required permissions
 - Enable S3 bucket versioning for important data
 - Consider S3 bucket encryption at rest
