@@ -18,6 +18,41 @@ Referenced from commit messages. See [ROADMAP-2026-07.md](./ROADMAP-2026-07.md) 
 
 <!-- newest first; append as work proceeds -->
 
+### Collections consolidation — physical cross-repo merge DEFERRED (best judgment while unattended)
+Asked to "make best judgments" on consolidating the byte-identical `client/src/collections` fork vs
+the standalone `@mark1russell7/client-collections`. After assessing it hands-on I judged the physical
+merge **too risky to do autonomously** and deferred it with the plan below. Reasons:
+- It changes the **core `client`** package; a broken build there cascades to all 48 repos, and no one
+  is available to catch a cascade failure for a few hours.
+- `client-collections` is **not installed** in `client`, declares `@mark1russell7/client` as a
+  **self-referential peer dep**, and has **zero tests** — so a merge needs a network install of a
+  self-peer package into the core plus extensive import repointing, with no safety net on the
+  standalone side.
+- The two copies are currently **byte-identical** (no active divergence bug), and the one critical
+  live bug in the stack (the C1 cache-key generator) was already fixed at the `cache.ts` layer, so the
+  cost of waiting is low.
+- The related live bug #12 (lru⊕ttl orphan-node leak) is **not a clean fix**: the audit suggested
+  swapping to the standalone `LRUCache`/`TTLCache`, but those are separate LRU-only / TTL-only classes
+  and do not compose LRU+TTL the way `cache.ts` needs, so fixing it means touching untested proxy code
+  or re-architecting the composition — also best done with a human present.
+
+**Concrete plan for when it is done (with a test harness first):**
+1. Give `client-collections` a minimal test suite for the load-bearing 15% (`HashMap`, `ArrayList`,
+   `LRUCache`/`TTLCache`, `compose`, effects, storage interface) — property tests for the
+   born-broken structures (see BUGS C8–C12) if any are kept.
+2. Break the dependency cycle: keep `CollectionStorage` + `InMemoryStorage` (client-free) in
+   `client-collections`; **move `ApiStorage`/`HybridStorage`** (the only files importing
+   `@mark1russell7/client`, and only as `import type`) **into `client`** itself — they are RPC
+   concerns, not data structures.
+3. Add `@mark1russell7/client-collections` to `client`'s deps; replace `client/src/collections/*`
+   with a thin re-export of the package (plus the moved `ApiStorage`/`HybridStorage`); repoint the
+   `../../collections/...` imports in `cache.ts` and `procedures/storage/*` / `server/procedure-server.ts`.
+4. Stop re-exporting the full collections API from `client`'s root barrel (the admitted naming-conflict
+   wart in `client/src/index.ts`) — expose it via the `./collections` subpath export instead; check
+   MiniMongo's imports first.
+5. Cut the standalone package down to its load-bearing ~15% (quarantine/delete the never-run modules).
+Reverse: none needed — nothing was changed; this is a deferral with a plan.
+
 ### Node engine policy set to `node >=20` (documented only; 48 package.jsons left to cue)
 Phase 4 reconciliation of the engines drift flagged in the audit (README #18, ONBOARDING #21,
 ecosystem/README #30, audit/08 roadmap #6). The fleet is inconsistent: core `client` + `docker/*`

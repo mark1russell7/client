@@ -34,20 +34,24 @@ commit. Decisions made without a human are in [DECISIONS-2026-07.md](./DECISIONS
   execution, injection-proof); **client-snapshot** resurrected (C6/C7/H25/M23/M24); `client-fs`
   (M18/M19/M20), `client-s3` (M21 + `s3.listAll`), `mcp` (M39) fixed.
 
-**Remaining (deliberately deferred — risky or needs human design; NOT started):**
-- **Collections consolidation** (Phase 2.1) — the audit's own P0 caveat: deleting the embedded copy
-  requires breaking a `client ↔ client-collections` dependency cycle. Needs a human design decision on
-  where `ApiStorage`/`HybridStorage` live before touching it.
-- **DAG de-duplication** (Phase 2.2) — `client-lib`'s vendored copy is non-generic (`NodeResult`);
-  adapting it to `client-dag`'s generic API risks `client-lib`'s dependency-graph logic. The H27 *bug*
-  is fixed in both; only the de-dup remains.
+**Also done in the later continuation:** H4 (`procedure.define` callable), ~2,232 lines dead code
+deleted, **PROCEDURES.md generated from the registry** + `check-build-freshness.mjs`, Client↔transport
+round-trip tests, a `procedure.list` duplicate-registration fix, **DAG de-duplication** (client-lib now
+uses `@mark1russell7/client-dag`; vendored copy deleted; 154 tests pass), and **HTTP C3 + bug 16** fixed
+(client defaults to POST so payloads are never dropped; server default routes by URL path matching the
+client, with round-trip tests; raw HttpServerTransport host now defaults to 127.0.0.1, completing H19).
+
+**Remaining (deferred — risky or needs human design):**
+- **Collections consolidation** (Phase 2.1) — **assessed hands-on and deliberately deferred**; see the
+  detailed decision + concrete plan in [DECISIONS-2026-07.md](./DECISIONS-2026-07.md). Too risky to
+  merge unattended: it touches the core package, needs a network install of a self-peer, zero-test
+  standalone, and would cascade to all 48 repos on failure. Best done with a test harness + human present.
 - **`client-connection` / `scaffold`** retirement (Phase 2.3/2.4) — deleting whole manifest packages is
   aggressive to do unattended; both are dead but harmless.
 - **`@mark1russell7/ecosystem` made real** (Phase 2.6) — multi-package refactor (repoint cli/client-lib/
   cue at the loader).
-- **HTTP round-trip fix C3 + WS transport rewrite H5/H6** (Phase 1.3/1.4) — need a coordinated
-  client+server change and an HTTP/WS round-trip harness to verify; HTTP is not on the live (stdio)
-  critical path, so half-fixing it unattended was judged riskier than deferring.
+- **WS transport rewrite H5/H6** (Phase 1.4) — per-request queue + intentional-close flag; needs a WS
+  round-trip harness. (HTTP C3 is now done.)
 - **`engines >=20` fleet-wide via cue** (Phase 4.3) — `cue-config generate` clobbers custom `exports`
   (H33), so running it across 48 packages needs H33 fixed first.
 - **H15 `sideEffects`** — deferred to a deliberate per-package pass (see DECISIONS).
