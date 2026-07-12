@@ -42,7 +42,10 @@ function newestMtime(dir, keep) {
   return newest;
 }
 
-const isSrc = (n) => n.endsWith(".ts") && !n.endsWith(".d.ts");
+// Test files (*.test.ts / *.spec.ts) are not emitted to dist, so exclude them — otherwise editing
+// a test falsely makes src look "newer than dist".
+const isSrc = (n) =>
+  n.endsWith(".ts") && !n.endsWith(".d.ts") && !n.endsWith(".test.ts") && !n.endsWith(".spec.ts");
 const isDist = (n) => n.endsWith(".js") || n.endsWith(".d.ts");
 
 const stale = [];
