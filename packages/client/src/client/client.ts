@@ -72,6 +72,36 @@ function generateId(): string {
 }
 
 /**
+ * Last path segments of the core control-flow procedures (registered under `["client", ...]`).
+ *
+ * These procedures MUST receive their operand refs RAW so their handlers can execute
+ * them with correct ordering, laziness, short-circuiting, and error scoping. If `exec()`
+ * eagerly hydrated their inputs, the operands would run up-front (voiding conditional/
+ * tryCatch short-circuiting) and an all-refs array would be hijacked into an implicit
+ * chain that clobbers `steps` — the outer handler then throws `steps is not iterable`.
+ * See documentation/BUGS-2026-07.md (C2, H2, H3, M35).
+ */
+const CONTROL_FLOW_PROCEDURES: ReadonlySet<string> = new Set([
+  "chain",
+  "parallel",
+  "conditional",
+  "tryCatch",
+  "and",
+  "or",
+  "map",
+  "reduce",
+]);
+
+/**
+ * Whether a procedure path targets a core control-flow procedure whose operand refs
+ * must not be pre-hydrated by `exec()`.
+ */
+function isControlFlowPath(path: ProcedurePath): boolean {
+  const last = path[path.length - 1];
+  return typeof last === "string" && CONTROL_FLOW_PROCEDURES.has(last);
+}
+
+/**
  * Universal Client for protocol-agnostic RPC.
  *
  * Features:
@@ -390,10 +420,16 @@ export class Client<TContext = {}> {
       return this.execInternal<TOut>(path, inp);
     };
 
-    // Hydrate input (recursively execute any nested procedure refs)
-    const hydratedInput = await hydrateInput(ref.input, executor);
+    // Control-flow procedures (chain/parallel/conditional/tryCatch/and/or/map/reduce)
+    // must receive their operand refs RAW: their handlers execute the refs themselves
+    // with correct ordering/laziness/error-scoping. Eagerly hydrating here would run the
+    // operands up-front and can hijack an all-refs array into an implicit chain that
+    // clobbers `steps`. See documentation/BUGS-2026-07.md (C2, H2, H3, M35).
+    const hydratedInput = isControlFlowPath(ref.path)
+      ? ref.input
+      : await hydrateInput(ref.input, executor);
 
-    // Execute the main procedure with hydrated input
+    // Execute the main procedure with (conditionally) hydrated input
     return this.execInternal<TOutput>(ref.path, hydratedInput);
   }
 
