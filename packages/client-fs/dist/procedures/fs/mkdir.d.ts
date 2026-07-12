@@ -3,7 +3,7 @@
  *
  * Create directory
  */
-import type { MkdirInput, MkdirOutput } from "../../types.js";
+import { type MkdirInput, type MkdirOutput } from "../../types.js";
 /**
  * Create directory
  */
