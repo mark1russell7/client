@@ -271,10 +271,13 @@ describe("parallel procedure", () => {
     });
 
     it("handles mixed hydrated and literal values", async () => {
+      // Already-resolved values (no $proc key) and literals pass through untouched.
+      // A real hydrated task does NOT retain a $proc key - hydration replaces the ref
+      // with its result - so genuine refs are executed (covered by exec-controlflow.test).
       const result = await parallelProcedure.handler(
         {
           tasks: [
-            { $proc: ["git", "status"], resolved: { branch: "main" } },
+            { from: "git.status", resolved: { branch: "main" } },
             "literal-value",
             { computed: true },
           ],
@@ -283,7 +286,7 @@ describe("parallel procedure", () => {
       );
 
       expect(result.results).toHaveLength(3);
-      expect(result.results[0]).toEqual({ $proc: ["git", "status"], resolved: { branch: "main" } });
+      expect(result.results[0]).toEqual({ from: "git.status", resolved: { branch: "main" } });
       expect(result.results[1]).toBe("literal-value");
       expect(result.results[2]).toEqual({ computed: true });
     });

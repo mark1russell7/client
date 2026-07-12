@@ -218,16 +218,64 @@ const parallelProcedure: ParallelProcedure = defineProcedure({
     description: "Execute procedures in parallel",
     tags: ["core", "control-flow"],
   },
-  handler: async (input: ParallelInput): Promise<ParallelOutput> => {
-    const { tasks } = input;
+  handler: async (input: ParallelInput, ctx?: ProcedureContext): Promise<ParallelOutput> => {
+    const { tasks, concurrency, failFast } = input as ParallelInput & {
+      cwd?: string;
+      node?: unknown;
+    };
+    const { cwd, node } = input as { cwd?: string; node?: unknown };
 
-    // Tasks should already be hydrated by exec(), so they're just values
-    // If you want true parallel execution, the caller should use parallel refs
-    // that get hydrated concurrently
+    // Operands arrive raw (exec() does not pre-hydrate control-flow procedures). Execute
+    // task refs concurrently, honoring `concurrency` and `failFast`, and report per-task
+    // errors. Non-ref tasks (already-resolved values) pass through. See BUGS-2026-07 M35.
+    const runTask = async (task: unknown): Promise<unknown> => {
+      if (isAnyProcedureRef(task) && ctx?.client) {
+        const normalized = normalizeRef(task);
+        const taskInput = {
+          ...(typeof normalized.input === "object" && normalized.input !== null ? normalized.input : {}),
+          ...(cwd ? { cwd } : {}),
+          ...(node ? { node } : {}),
+        };
+        return ctx.client.call(normalized.path, taskInput);
+      }
+      return task;
+    };
 
-    // For now, tasks are already resolved (hydration happened)
-    const results = tasks;
+    const results: unknown[] = new Array(tasks.length);
     const errors: Array<{ index: number; error: string }> = [];
+
+    const limit =
+      typeof concurrency === "number" && concurrency > 0
+        ? Math.min(concurrency, tasks.length)
+        : tasks.length;
+
+    let nextIndex = 0;
+    let aborted = false;
+
+    const worker = async (): Promise<void> => {
+      while (!aborted) {
+        const index = nextIndex++;
+        if (index >= tasks.length) {
+          return;
+        }
+        try {
+          results[index] = await runTask(tasks[index]);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (failFast) {
+            aborted = true;
+            throw error;
+          }
+          errors.push({ index, error: message });
+          results[index] = undefined;
+        }
+      }
+    };
+
+    const workerCount = Math.max(1, limit);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+    errors.sort((a, b) => a.index - b.index);
 
     return {
       results,
