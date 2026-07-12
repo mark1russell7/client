@@ -22,10 +22,16 @@ async function executeWithConcurrency<T, R>(
   const executing = new Set<Promise<void>>();
 
   for (const item of items) {
-    const promise = fn(item).then((result) => {
-      results.push(result);
-      executing.delete(promise);
-    });
+    const promise = fn(item)
+      .then((result) => {
+        results.push(result);
+      })
+      .finally(() => {
+        // Rejection-safe cleanup: always remove the settled promise from the
+        // executing set, even if `fn` rejected, so the set never leaks a
+        // settled (possibly rejected) promise into later `race`/`all` waits.
+        executing.delete(promise);
+      });
 
     executing.add(promise);
 
@@ -44,6 +50,13 @@ async function executeWithConcurrency<T, R>(
  * - Levels are processed sequentially (level 0 first, then 1, etc.)
  * - Within each level, nodes are processed in parallel up to concurrency limit
  * - Supports fail-fast or continue-on-error modes
+ *
+ * A processor that throws does NOT reject the whole run: the throw is captured
+ * and recorded as a failed NodeResult, so partial results are always returned.
+ *
+ * `failFast` operates at level granularity. When a node in a level fails, every
+ * node already in flight in that same level still runs to completion, but no
+ * later level is started. (There is no mid-level cancellation.)
  */
 export async function executeDAG<TNode extends DAGNode>(
   dag: DependencyDAG<TNode>,
@@ -68,18 +81,24 @@ export async function executeDAG<TNode extends DAGNode>(
     const levelResults = await executeWithConcurrency(
       level,
       async (node) => {
-        if (shouldStop) {
-          return {
+        onNodeStart?.(node);
+        const nodeStart = Date.now();
+        let result: NodeResult<TNode>;
+        try {
+          result = await processor(node);
+        } catch (error) {
+          // Convert a thrown processor error into a failed NodeResult instead
+          // of rejecting the entire run and discarding partial results.
+          const err =
+            error instanceof Error ? error : new Error(String(error));
+          result = {
             node,
             success: false,
-            error: new Error("Skipped due to earlier failure"),
-            duration: 0,
-            logs: ["Skipped due to earlier failure"],
+            error: err,
+            duration: Date.now() - nodeStart,
+            logs: ["Processor threw: " + err.message],
           };
         }
-
-        onNodeStart?.(node);
-        const result = await processor(node);
         onNodeComplete?.(result);
         return result;
       },

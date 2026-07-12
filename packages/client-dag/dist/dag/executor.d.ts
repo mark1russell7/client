@@ -8,6 +8,13 @@ import type { DependencyDAG, DAGNode, DAGExecutionOptions, NodeResult, DAGResult
  * - Levels are processed sequentially (level 0 first, then 1, etc.)
  * - Within each level, nodes are processed in parallel up to concurrency limit
  * - Supports fail-fast or continue-on-error modes
+ *
+ * A processor that throws does NOT reject the whole run: the throw is captured
+ * and recorded as a failed NodeResult, so partial results are always returned.
+ *
+ * `failFast` operates at level granularity. When a node in a level fails, every
+ * node already in flight in that same level still runs to completion, but no
+ * later level is started. (There is no mid-level cancellation.)
  */
 export declare function executeDAG<TNode extends DAGNode>(dag: DependencyDAG<TNode>, processor: (node: TNode) => Promise<NodeResult<TNode>>, options?: DAGExecutionOptions<TNode>): Promise<DAGResult<TNode>>;
 /**

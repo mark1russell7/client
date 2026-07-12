@@ -105,6 +105,42 @@ describe("executeDAG", () => {
     expect(result.results.size).toBe(3);
   });
 
+  it("captures a thrown processor error as a failed result without losing partial results", async () => {
+    // a and b are independent leaves; only b's processor throws.
+    const nodes = buildNodeMap([createNode("a"), createNode("b")]);
+    const dag = buildLeveledDAG(nodes);
+
+    const processor = vi.fn(async (node: DAGNode) => {
+      if (node.id === "b") {
+        throw new Error("boom");
+      }
+      return createSuccessResult(node);
+    });
+
+    const result = await executeDAG(dag, processor, { failFast: false });
+
+    expect(result.success).toBe(false);
+    expect(result.failedNodes).toEqual(["b"]);
+    // Partial results are preserved: a succeeded, b is a captured failure.
+    expect(result.results.size).toBe(2);
+    expect(result.results.get("a")?.success).toBe(true);
+    const bResult = result.results.get("b");
+    expect(bResult?.success).toBe(false);
+    expect(bResult?.error?.message).toBe("boom");
+  });
+
+  it("captures a non-Error throw from the processor", async () => {
+    const nodes = buildNodeMap([createNode("a")]);
+    const dag = buildLeveledDAG(nodes);
+
+    const result = await executeDAG(dag, async () => {
+      throw "string failure";
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.results.get("a")?.error?.message).toBe("string failure");
+  });
+
   it("calls onNodeStart callback", async () => {
     const nodes = buildNodeMap([createNode("a")]);
     const dag = buildLeveledDAG(nodes);
