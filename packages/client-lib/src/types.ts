@@ -3,6 +3,13 @@
  */
 
 import { z } from "zod";
+import type {
+  DAGNode as DagBaseNode,
+  DependencyDAG as DagDependencyDAG,
+  DAGExecutionOptions as DagExecutionOptions,
+  NodeResult as DagNodeResult,
+  DAGResult as DagResult,
+} from "@mark1russell7/client-dag";
 
 // =============================================================================
 // lib.scan Types
@@ -101,8 +108,12 @@ export interface LibRefreshOutput {
 // DAG Types (ecosystem-specific)
 // =============================================================================
 
-export interface DAGNode {
-  /** Package name (e.g., "@mark1russell7/logger") */
+// DAGNode extends @mark1russell7/client-dag's base node (which supplies `id`, `dependencies`, and
+// `level`, and keys nodes by id), adding the ecosystem-specific fields. The generic DAG algorithms
+// (buildLeveledDAG/executeDAG/...) come from client-dag; only buildDAGNodes is local, and it sets
+// `id` = `name`. This deduplicates a previously vendored copy. See documentation/BUGS-2026-07.md.
+export interface DAGNode extends DagBaseNode {
+  /** Package name (e.g., "@mark1russell7/logger"). Mirrors `id`. */
   name: string;
   /** Path to the repo */
   repoPath: string;
@@ -110,57 +121,14 @@ export interface DAGNode {
   gitRef: string;
   /** Required branch from git ref */
   requiredBranch: string;
-  /** Dependencies (other package names in DAG) */
-  dependencies: string[];
-  /** Topological level (0 = leaves, computed by Kahn's algorithm) */
-  level?: number | undefined;
 }
 
-export interface DependencyDAG {
-  /** All nodes in the DAG */
-  nodes: Map<string, DAGNode>;
-  /** Nodes grouped by level for parallel execution */
-  levels: DAGNode[][];
-  /** Root nodes (no dependents in the DAG) */
-  roots: string[];
-  /** Leaf nodes (no dependencies in the DAG) */
-  leaves: string[];
-}
-
-export interface DAGExecutionOptions {
-  /** Max parallel operations per level */
-  concurrency?: number | undefined;
-  /** Stop on first error vs continue */
-  failFast?: boolean | undefined;
-  /** Callback for progress reporting */
-  onNodeStart?: ((node: DAGNode) => void) | undefined;
-  /** Callback when a node completes */
-  onNodeComplete?: ((result: NodeResult) => void) | undefined;
-}
-
-export interface NodeResult {
-  /** The node that was processed */
-  node: DAGNode;
-  /** Whether processing succeeded */
-  success: boolean;
-  /** Error if failed */
-  error?: Error | undefined;
-  /** Duration in milliseconds */
-  duration: number;
-  /** Logs from processing */
-  logs: string[];
-}
-
-export interface DAGResult {
-  /** Overall success */
-  success: boolean;
-  /** Results for each node */
-  results: Map<string, NodeResult>;
-  /** Names of failed nodes */
-  failedNodes: string[];
-  /** Total duration in milliseconds */
-  totalDuration: number;
-}
+// Aggregate DAG types are client-dag's generics parameterized by the ecosystem node, so they line
+// up structurally with what the re-exported client-dag functions accept and return.
+export type DependencyDAG = DagDependencyDAG<DAGNode>;
+export type DAGExecutionOptions = DagExecutionOptions<DAGNode>;
+export type NodeResult = DagNodeResult<DAGNode>;
+export type DAGResult = DagResult<DAGNode>;
 
 // =============================================================================
 // Git Types

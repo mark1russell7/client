@@ -2,6 +2,7 @@
  * Type definitions for client-lib procedures
  */
 import { z } from "zod";
+import type { DAGNode as DagBaseNode, DependencyDAG as DagDependencyDAG, DAGExecutionOptions as DagExecutionOptions, NodeResult as DagNodeResult, DAGResult as DagResult } from "@mark1russell7/client-dag";
 export declare const LibScanInputSchema: z.ZodObject<{
     rootPath: z.ZodOptional<z.ZodString>;
 }>;
@@ -62,8 +63,8 @@ export interface LibRefreshOutput {
     /** Total duration in milliseconds */
     totalDuration: number;
 }
-export interface DAGNode {
-    /** Package name (e.g., "@mark1russell7/logger") */
+export interface DAGNode extends DagBaseNode {
+    /** Package name (e.g., "@mark1russell7/logger"). Mirrors `id`. */
     name: string;
     /** Path to the repo */
     repoPath: string;
@@ -71,53 +72,11 @@ export interface DAGNode {
     gitRef: string;
     /** Required branch from git ref */
     requiredBranch: string;
-    /** Dependencies (other package names in DAG) */
-    dependencies: string[];
-    /** Topological level (0 = leaves, computed by Kahn's algorithm) */
-    level?: number | undefined;
 }
-export interface DependencyDAG {
-    /** All nodes in the DAG */
-    nodes: Map<string, DAGNode>;
-    /** Nodes grouped by level for parallel execution */
-    levels: DAGNode[][];
-    /** Root nodes (no dependents in the DAG) */
-    roots: string[];
-    /** Leaf nodes (no dependencies in the DAG) */
-    leaves: string[];
-}
-export interface DAGExecutionOptions {
-    /** Max parallel operations per level */
-    concurrency?: number | undefined;
-    /** Stop on first error vs continue */
-    failFast?: boolean | undefined;
-    /** Callback for progress reporting */
-    onNodeStart?: ((node: DAGNode) => void) | undefined;
-    /** Callback when a node completes */
-    onNodeComplete?: ((result: NodeResult) => void) | undefined;
-}
-export interface NodeResult {
-    /** The node that was processed */
-    node: DAGNode;
-    /** Whether processing succeeded */
-    success: boolean;
-    /** Error if failed */
-    error?: Error | undefined;
-    /** Duration in milliseconds */
-    duration: number;
-    /** Logs from processing */
-    logs: string[];
-}
-export interface DAGResult {
-    /** Overall success */
-    success: boolean;
-    /** Results for each node */
-    results: Map<string, NodeResult>;
-    /** Names of failed nodes */
-    failedNodes: string[];
-    /** Total duration in milliseconds */
-    totalDuration: number;
-}
+export type DependencyDAG = DagDependencyDAG<DAGNode>;
+export type DAGExecutionOptions = DagExecutionOptions<DAGNode>;
+export type NodeResult = DagNodeResult<DAGNode>;
+export type DAGResult = DagResult<DAGNode>;
 export interface GitRef {
     /** Full ref string (e.g., "github:mark1russell7/logger#main") */
     raw: string;

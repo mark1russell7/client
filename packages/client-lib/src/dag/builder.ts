@@ -1,16 +1,20 @@
 /**
  * DAG Builder
  *
- * Builds a dependency DAG from package scan results.
+ * Builds the ecosystem-specific dependency DAG from package scan results. This is the only
+ * domain-specific piece; the generic DAG algorithms (buildLeveledDAG, executeDAG, filterDAGFromRoot,
+ * getAncestors, getDescendants, ...) live in @mark1russell7/client-dag. This package previously
+ * vendored a verbatim copy of those — see documentation/BUGS-2026-07.md (DAG de-dup).
  */
 
 import type { DAGNode, PackageInfo } from "../types.js";
 
 /**
- * Build DAG nodes from package info
+ * Build DAG nodes from package info.
  *
- * Creates nodes only for packages that are mark1russell7 dependencies
- * and exist in the scanned packages.
+ * Creates nodes only for packages that are mark1russell7 dependencies and exist in the scanned
+ * packages. `id` mirrors `name` so the nodes satisfy client-dag's DAGNode contract (which keys by
+ * id) while the ecosystem code keeps using the readable `name`.
  */
 export function buildDAGNodes(
   packages: Record<string, PackageInfo>
@@ -18,15 +22,14 @@ export function buildDAGNodes(
   const nodes = new Map<string, DAGNode>();
 
   for (const [name, info] of Object.entries(packages)) {
-    // Only include packages that have mark1russell7 dependencies
-    // or are dependencies of other packages
+    // Only include packages that have mark1russell7 dependencies or are dependencies of others.
     const deps = info.mark1russell7Deps.filter((dep) => packages[dep] !== undefined);
 
-    // Use the current branch from scan results, or fall back to main
     const gitRef = info.gitRemote ?? `github:mark1russell7/${info.name}#${info.currentBranch ?? "main"}`;
     const requiredBranch = info.currentBranch ?? "main";
 
     const node: DAGNode = {
+      id: name,
       name,
       repoPath: info.repoPath,
       gitRef,
@@ -38,99 +41,4 @@ export function buildDAGNodes(
   }
 
   return nodes;
-}
-
-/**
- * Filter DAG to only include nodes reachable from a root
- */
-export function filterDAGFromRoot(
-  nodes: Map<string, DAGNode>,
-  rootName: string
-): Map<string, DAGNode> {
-  const filtered = new Map<string, DAGNode>();
-  const visited = new Set<string>();
-
-  function visit(name: string): void {
-    if (visited.has(name)) return;
-    visited.add(name);
-
-    const node = nodes.get(name);
-    if (!node) return;
-
-    filtered.set(name, node);
-
-    for (const dep of node.dependencies) {
-      visit(dep);
-    }
-  }
-
-  visit(rootName);
-  return filtered;
-}
-
-/**
- * Get all ancestors of a node (nodes that this node depends on, transitively)
- */
-export function getAncestors(
-  nodes: Map<string, DAGNode>,
-  name: string
-): Set<string> {
-  const ancestors = new Set<string>();
-  const visited = new Set<string>();
-
-  function visit(n: string): void {
-    if (visited.has(n)) return;
-    visited.add(n);
-
-    const node = nodes.get(n);
-    if (!node) return;
-
-    for (const dep of node.dependencies) {
-      if (nodes.has(dep)) {
-        ancestors.add(dep);
-        visit(dep);
-      }
-    }
-  }
-
-  visit(name);
-  return ancestors;
-}
-
-/**
- * Get all descendants of a node (nodes that depend on this node, transitively)
- */
-export function getDescendants(
-  nodes: Map<string, DAGNode>,
-  name: string
-): Set<string> {
-  const descendants = new Set<string>();
-  const visited = new Set<string>();
-
-  // Build reverse dependency map
-  const dependents = new Map<string, Set<string>>();
-  for (const [nodeName, node] of nodes) {
-    for (const dep of node.dependencies) {
-      if (!dependents.has(dep)) {
-        dependents.set(dep, new Set());
-      }
-      dependents.get(dep)!.add(nodeName);
-    }
-  }
-
-  function visit(n: string): void {
-    if (visited.has(n)) return;
-    visited.add(n);
-
-    const deps = dependents.get(n);
-    if (!deps) return;
-
-    for (const dep of deps) {
-      descendants.add(dep);
-      visit(dep);
-    }
-  }
-
-  visit(name);
-  return descendants;
 }
