@@ -15,6 +15,7 @@ import {
 } from "./define-procedure.js";
 import type { ProcedureContext } from "./types.js";
 import type { AggregationDefinition } from "./define-procedure.js";
+import { PROCEDURE_REGISTRY } from "./registry.js";
 
 /**
  * Simple inline mock client for tests
@@ -175,6 +176,26 @@ describe("procedure.define meta-procedure", () => {
       const proc = getRuntimeProcedure(["test", "withMeta"]);
       expect(proc?.metadata?.description).toBe("Custom description");
       expect(proc?.metadata?.tags).toEqual(["custom", "test"]);
+    });
+
+    it("registers into PROCEDURE_REGISTRY so exec()/call() can find it (regression: H4)", async () => {
+      await defineProcedureProcedure.handler!(
+        {
+          path: ["test", "h4Callable"],
+          aggregation: { $proc: ["client", "identity"], input: {} },
+        },
+        ctx
+      );
+
+      // The global registry is the store that Client.exec()/call() and transports consult.
+      // Before the fix, runtime procedures were only in a private map and were uncallable.
+      const registered = PROCEDURE_REGISTRY.get(["test", "h4Callable"]);
+      expect(registered).toBeDefined();
+      expect(registered?.handler).toBeDefined();
+
+      // clearRuntimeProcedures() must also unregister from the global registry.
+      clearRuntimeProcedures();
+      expect(PROCEDURE_REGISTRY.get(["test", "h4Callable"])).toBeUndefined();
     });
   });
 
