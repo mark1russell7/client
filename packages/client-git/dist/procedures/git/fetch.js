@@ -3,7 +3,7 @@
  *
  * Fetch from remote without merging
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 /**
  * Fetch from remote
  */
@@ -11,7 +11,7 @@ export async function gitFetch(input) {
     const { branch, all, prune, cwd } = input;
     const remoteName = input.remote ?? "origin";
     const opts = { cwd, encoding: "utf8" };
-    const args = ["git", "fetch"];
+    const args = ["fetch"];
     if (all) {
         args.push("--all");
     }
@@ -23,7 +23,7 @@ export async function gitFetch(input) {
     }
     if (prune)
         args.push("--prune");
-    execSync(args.join(" "), opts);
+    execFileSync("git", args, opts);
     return { remote: remoteName, fetched: true };
 }
 //# sourceMappingURL=fetch.js.map

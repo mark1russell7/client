@@ -4,7 +4,7 @@
  * Show commit log
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { GitLogInput, GitLogOutput, GitLogCommit } from "../../types.js";
 
 /**
@@ -18,10 +18,10 @@ export async function gitLog(input: GitLogInput): Promise<GitLogOutput> {
   const delim = "<<<COMMIT>>>";
   const format = `--format=%H|%h|%an|%ae|%ci|%s${delim}`;
 
-  const args = ["git", "log", `-n${count}`, format];
+  const args = ["log", `-n${count}`, format];
   if (ref) args.push(ref);
 
-  const output = execSync(args.join(" "), opts);
+  const output = execFileSync("git", args, opts);
   const commits: GitLogCommit[] = output
     .split(delim)
     .filter(Boolean)

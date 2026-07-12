@@ -3,7 +3,7 @@
  *
  * Create commit
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 /**
  * Create commit
  */
@@ -12,7 +12,7 @@ export async function gitCommit(input) {
     const opts = { cwd, encoding: "utf8" };
     // Check if there's anything to commit (unless amending)
     if (!amend) {
-        const status = execSync("git status --porcelain", opts).trim();
+        const status = execFileSync("git", ["status", "--porcelain"], opts).trim();
         if (!status && !all) {
             // Nothing staged and not using -a, skip commit
             return { hash: "", message: "", author: "", date: "", skipped: true };
@@ -25,16 +25,16 @@ export async function gitCommit(input) {
             }
         }
     }
-    const args = ["git", "commit"];
+    const args = ["commit"];
     if (all)
         args.push("-a");
     if (amend)
         args.push("--amend");
-    args.push("-m", `"${message.replace(/"/g, '\\"')}"`);
-    execSync(args.join(" "), opts);
+    args.push("-m", message);
+    execFileSync("git", args, opts);
     // Get commit info
     const format = "--format=%H%n%s%n%an%n%ci";
-    const info = execSync(`git log -1 ${format}`, opts).trim();
+    const info = execFileSync("git", ["log", "-1", format], opts).trim();
     const [hash = "", msg = "", author = "", date = ""] = info.split("\n");
     return { hash, message: msg, author, date };
 }

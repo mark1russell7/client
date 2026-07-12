@@ -5,7 +5,7 @@
  * These return true/false based on git repository state.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 export interface GitPredicateInput {
   /** Working directory (default: process.cwd()) */
@@ -25,7 +25,7 @@ export async function gitHasChanges(input: GitPredicateInput): Promise<GitPredic
   const opts = { cwd, encoding: "utf8" as const };
 
   try {
-    const status = execSync("git status --porcelain", opts).trim();
+    const status = execFileSync("git", ["status", "--porcelain"], opts).trim();
     return { value: status.length > 0 };
   } catch {
     return { value: false };
@@ -41,7 +41,7 @@ export async function gitHasStagedChanges(input: GitPredicateInput): Promise<Git
 
   try {
     // git diff --cached shows only staged changes
-    const diff = execSync("git diff --cached --name-only", opts).trim();
+    const diff = execFileSync("git", ["diff", "--cached", "--name-only"], opts).trim();
     return { value: diff.length > 0 };
   } catch {
     return { value: false };
@@ -57,7 +57,7 @@ export async function gitHasUnstagedChanges(input: GitPredicateInput): Promise<G
 
   try {
     // git diff shows only unstaged changes to tracked files
-    const diff = execSync("git diff --name-only", opts).trim();
+    const diff = execFileSync("git", ["diff", "--name-only"], opts).trim();
     return { value: diff.length > 0 };
   } catch {
     return { value: false };
@@ -73,7 +73,7 @@ export async function gitHasUntrackedFiles(input: GitPredicateInput): Promise<Gi
 
   try {
     // List untracked files only
-    const untracked = execSync("git ls-files --others --exclude-standard", opts).trim();
+    const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], opts).trim();
     return { value: untracked.length > 0 };
   } catch {
     return { value: false };
@@ -89,15 +89,15 @@ export async function gitHasLocalCommits(input: GitPredicateInput): Promise<GitP
 
   try {
     // Get the upstream tracking branch
-    const upstream = execSync("git rev-parse --abbrev-ref @{upstream}", opts).trim();
+    const upstream = execFileSync("git", ["rev-parse", "--abbrev-ref", "@{upstream}"], opts).trim();
 
     // Count commits ahead of upstream
-    const count = execSync(`git rev-list --count ${upstream}..HEAD`, opts).trim();
+    const count = execFileSync("git", ["rev-list", "--count", `${upstream}..HEAD`], opts).trim();
     return { value: parseInt(count, 10) > 0 };
   } catch {
     // No upstream or error - check if there are any commits at all
     try {
-      execSync("git rev-parse HEAD", opts);
+      execFileSync("git", ["rev-parse", "HEAD"], opts);
       // HEAD exists but no upstream - treat as having local commits
       return { value: true };
     } catch {

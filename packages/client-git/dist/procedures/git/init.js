@@ -3,7 +3,7 @@
  *
  * Initialize a git repository
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
 /**
  * Initialize a git repository
@@ -16,14 +16,14 @@ export async function gitInit(input, ctx) {
     const existsResult = await ctx.client.call(["fs", "exists"], { path: gitDir });
     const alreadyExists = existsResult.exists;
     if (!alreadyExists) {
-        let cmd = "git init";
+        const args = ["init"];
         if (input.bare) {
-            cmd += " --bare";
+            args.push("--bare");
         }
         if (input.initialBranch) {
-            cmd += ` --initial-branch=${input.initialBranch}`;
+            args.push(`--initial-branch=${input.initialBranch}`);
         }
-        execSync(cmd, opts);
+        execFileSync("git", args, opts);
     }
     return {
         path: cwd,

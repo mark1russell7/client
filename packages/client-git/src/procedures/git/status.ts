@@ -4,7 +4,7 @@
  * Get git status
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { GitStatusInput, GitStatusOutput, GitStatusFile } from "../../types.js";
 
 /**
@@ -15,15 +15,15 @@ export async function gitStatus(input: GitStatusInput): Promise<GitStatusOutput>
   const opts = { cwd, encoding: "utf8" as const };
 
   // Get current branch
-  const branch = execSync("git rev-parse --abbrev-ref HEAD", opts).trim();
+  const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], opts).trim();
 
   // Get ahead/behind count
   let ahead = 0;
   let behind = 0;
   try {
-    const tracking = execSync("git rev-parse --abbrev-ref @{upstream}", opts).trim();
+    const tracking = execFileSync("git", ["rev-parse", "--abbrev-ref", "@{upstream}"], opts).trim();
     if (tracking) {
-      const counts = execSync(`git rev-list --left-right --count ${tracking}...HEAD`, opts).trim();
+      const counts = execFileSync("git", ["rev-list", "--left-right", "--count", `${tracking}...HEAD`], opts).trim();
       const [b, a] = counts.split(/\s+/).map(Number);
       behind = b || 0;
       ahead = a || 0;
@@ -33,7 +33,7 @@ export async function gitStatus(input: GitStatusInput): Promise<GitStatusOutput>
   }
 
   // Get file statuses using porcelain format
-  const statusOutput = execSync("git status --porcelain", opts);
+  const statusOutput = execFileSync("git", ["status", "--porcelain"], opts);
   const files: GitStatusFile[] = [];
 
   for (const line of statusOutput.split("\n").filter(Boolean)) {

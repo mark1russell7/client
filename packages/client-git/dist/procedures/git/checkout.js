@@ -3,21 +3,21 @@
  *
  * Checkout branch or files
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 /**
  * Checkout branch or files
  */
 export async function gitCheckout(input) {
     const { ref, create, paths, cwd } = input;
     const opts = { cwd, encoding: "utf8" };
-    const args = ["git", "checkout"];
+    const args = ["checkout"];
     if (create)
         args.push("-b");
     args.push(ref);
     if (paths && paths.length > 0) {
-        args.push("--", ...paths.map(p => `"${p}"`));
+        args.push("--", ...paths);
     }
-    execSync(args.join(" "), opts);
+    execFileSync("git", args, opts);
     return { ref, created: create };
 }
 //# sourceMappingURL=checkout.js.map

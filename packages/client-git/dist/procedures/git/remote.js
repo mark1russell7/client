@@ -3,7 +3,7 @@
  *
  * Get or set remote URLs
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 /**
  * Get or set remote URL
  */
@@ -13,16 +13,16 @@ export async function gitRemote(input) {
     if (url) {
         // Set the remote URL
         try {
-            execSync(`git remote set-url ${name} ${url}`, opts);
+            execFileSync("git", ["remote", "set-url", name, url], opts);
         }
         catch {
             // Remote might not exist, try adding it
-            execSync(`git remote add ${name} ${url}`, opts);
+            execFileSync("git", ["remote", "add", name, url], opts);
         }
         return { name, url };
     }
     // Get the remote URL
-    const remoteUrl = execSync(`git remote get-url ${name}`, opts).trim();
+    const remoteUrl = execFileSync("git", ["remote", "get-url", name], opts).trim();
     return { name, url: remoteUrl };
 }
 //# sourceMappingURL=remote.js.map

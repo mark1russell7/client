@@ -4,7 +4,7 @@
  * Pull from remote
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { GitPullInput, GitPullOutput } from "../../types.js";
 
 /**
@@ -16,24 +16,24 @@ export async function gitPull(input: GitPullInput): Promise<GitPullOutput> {
   const opts = { cwd, encoding: "utf8" as const };
 
   // Get current branch if not specified
-  const branchName = branch || execSync("git rev-parse --abbrev-ref HEAD", opts).trim();
+  const branchName = branch || execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], opts).trim();
 
   // Get current HEAD before pull
-  const beforeHead = execSync("git rev-parse HEAD", opts).trim();
+  const beforeHead = execFileSync("git", ["rev-parse", "HEAD"], opts).trim();
 
-  const args: string[] = ["git", "pull"];
+  const args: string[] = ["pull"];
   if (rebase) args.push("--rebase");
   args.push(remoteName, branchName);
 
-  execSync(args.join(" "), opts);
+  execFileSync("git", args, opts);
 
   // Get new HEAD after pull
-  const afterHead = execSync("git rev-parse HEAD", opts).trim();
+  const afterHead = execFileSync("git", ["rev-parse", "HEAD"], opts).trim();
 
   // Count new commits
   let commits = 0;
   if (beforeHead !== afterHead) {
-    const count = execSync(`git rev-list --count ${beforeHead}..${afterHead}`, opts).trim();
+    const count = execFileSync("git", ["rev-list", "--count", `${beforeHead}..${afterHead}`], opts).trim();
     commits = parseInt(count, 10) || 0;
   }
 

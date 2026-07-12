@@ -3,7 +3,7 @@
  *
  * Show commit log
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 /**
  * Show commit log
  */
@@ -13,10 +13,10 @@ export async function gitLog(input) {
     // Use a delimiter that won't appear in commit messages
     const delim = "<<<COMMIT>>>";
     const format = `--format=%H|%h|%an|%ae|%ci|%s${delim}`;
-    const args = ["git", "log", `-n${count}`, format];
+    const args = ["log", `-n${count}`, format];
     if (ref)
         args.push(ref);
-    const output = execSync(args.join(" "), opts);
+    const output = execFileSync("git", args, opts);
     const commits = output
         .split(delim)
         .filter(Boolean)

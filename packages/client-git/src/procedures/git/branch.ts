@@ -4,7 +4,7 @@
  * Branch operations
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { GitBranchInput, GitBranchOutput, GitBranchInfo } from "../../types.js";
 
 /**
@@ -15,26 +15,26 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchOutput>
   const opts = { cwd, encoding: "utf8" as const };
 
   // Get current branch
-  const current = execSync("git rev-parse --abbrev-ref HEAD", opts).trim();
+  const current = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], opts).trim();
 
   // Delete branch
   if (del && name) {
-    execSync(`git branch -d "${name}"`, opts);
+    execFileSync("git", ["branch", "-d", name], opts);
     return { deleted: name, current };
   }
 
   // Create branch
   if (name && !list) {
-    execSync(`git branch "${name}"`, opts);
+    execFileSync("git", ["branch", name], opts);
     return { created: name, current };
   }
 
   // List branches
-  const args = ["git", "branch"];
+  const args = ["branch"];
   if (remote) args.push("-a");
   args.push("--format=%(refname:short)|%(HEAD)|%(upstream:short)");
 
-  const output = execSync(args.join(" "), opts);
+  const output = execFileSync("git", args, opts);
   const branches: GitBranchInfo[] = output
     .split("\n")
     .filter(Boolean)

@@ -5,7 +5,7 @@
  * Includes export/import for snapshot storage.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type {
   GitStashListInput,
   GitStashListOutput,
@@ -33,7 +33,7 @@ export async function gitStashList(input: GitStashListInput): Promise<GitStashLi
 
   try {
     // Get stash list with format: stash@{n}: WIP on branch: message
-    const output = execSync("git stash list --format=%H%x00%gd%x00%gs", opts);
+    const output = execFileSync("git", ["stash", "list", "--format=%H%x00%gd%x00%gs"], opts);
     const stashes: GitStashEntry[] = [];
 
     for (const line of output.split("\n").filter(Boolean)) {
@@ -86,12 +86,8 @@ export async function gitStashPush(input: GitStashPushInput): Promise<GitStashPu
     args.push(...input.paths);
   }
 
-  const command = ["git", ...args].map(arg =>
-    arg.includes(" ") ? `"${arg}"` : arg
-  ).join(" ");
-
   try {
-    const output = execSync(command, opts);
+    const output = execFileSync("git", args, opts);
 
     // Check if anything was stashed
     if (output.includes("No local changes to save")) {
@@ -99,7 +95,7 @@ export async function gitStashPush(input: GitStashPushInput): Promise<GitStashPu
     }
 
     // Get the ref of the new stash
-    const refOutput = execSync("git stash list -1 --format=%gd", opts).trim();
+    const refOutput = execFileSync("git", ["stash", "list", "-1", "--format=%gd"], opts).trim();
 
     return {
       stashed: true,
@@ -122,7 +118,7 @@ export async function gitStashPop(input: GitStashPopInput): Promise<GitStashPopO
   const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
 
   try {
-    execSync(`git stash pop ${ref}`, opts);
+    execFileSync("git", ["stash", "pop", ref], opts);
     return { applied: true, ref, dropped: true };
   } catch (error) {
     const err = error as { message?: string };
@@ -144,7 +140,7 @@ export async function gitStashApply(input: GitStashApplyInput): Promise<GitStash
   const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
 
   try {
-    execSync(`git stash apply ${ref}`, opts);
+    execFileSync("git", ["stash", "apply", ref], opts);
     return { applied: true, ref };
   } catch (error) {
     const err = error as { message?: string };
@@ -165,7 +161,7 @@ export async function gitStashDrop(input: GitStashDropInput): Promise<GitStashDr
   const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
 
   try {
-    execSync(`git stash drop ${ref}`, opts);
+    execFileSync("git", ["stash", "drop", ref], opts);
     return { dropped: true, ref };
   } catch {
     return { dropped: false, ref };
@@ -183,10 +179,10 @@ export async function gitStashExport(input: GitStashExportInput): Promise<GitSta
 
   try {
     // Get the stash as a patch
-    const patch = execSync(`git stash show -p ${ref}`, opts);
+    const patch = execFileSync("git", ["stash", "show", "-p", ref], opts);
 
     // Get metadata
-    const metadata = execSync(`git stash list -1 --format=%H%x00%gs ${ref}`, opts).trim();
+    const metadata = execFileSync("git", ["stash", "list", "-1", "--format=%H%x00%gs", ref], opts).trim();
     const metaParts = metadata.split("\0");
     const hash = metaParts[0] || "";
     const message = metaParts[1] || "";
@@ -194,7 +190,7 @@ export async function gitStashExport(input: GitStashExportInput): Promise<GitSta
     // Get untracked files if present (stash^3 contains untracked files if any)
     let untrackedPatch = "";
     try {
-      untrackedPatch = execSync(`git show ${ref}^3 --format= --name-only`, opts);
+      untrackedPatch = execFileSync("git", ["show", `${ref}^3`, "--format=", "--name-only"], opts);
     } catch {
       // No untracked files in this stash
     }
@@ -223,7 +219,7 @@ export async function gitStashImport(input: GitStashImportInput): Promise<GitSta
 
   try {
     // Apply the patch to working directory
-    execSync(`git apply --3way`, { ...opts, input: input.patch });
+    execFileSync("git", ["apply", "--3way"], { ...opts, input: input.patch });
 
     // Stash the changes with the original message
     const message = input.message || "Imported stash";
@@ -233,14 +229,10 @@ export async function gitStashImport(input: GitStashImportInput): Promise<GitSta
       args.push("--include-untracked");
     }
 
-    const command = ["git", ...args].map(arg =>
-      arg.includes(" ") ? `"${arg}"` : arg
-    ).join(" ");
-
-    execSync(command, opts);
+    execFileSync("git", args, opts);
 
     // Get the new stash ref
-    const ref = execSync("git stash list -1 --format=%gd", opts).trim();
+    const ref = execFileSync("git", ["stash", "list", "-1", "--format=%gd"], opts).trim();
 
     return { imported: true, ref: ref || "stash@{0}" };
   } catch (error) {

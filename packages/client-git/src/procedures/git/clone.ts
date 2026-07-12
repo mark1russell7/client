@@ -4,7 +4,7 @@
  * Clone repository
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { join, basename } from "node:path";
 import type { GitCloneInput, GitCloneOutput } from "../../types.js";
 
@@ -19,15 +19,15 @@ export async function gitClone(input: GitCloneInput): Promise<GitCloneOutput> {
   const destDir = dest || basename(url, ".git").replace(/\.git$/, "");
   const fullPath = cwd ? join(cwd, destDir) : destDir;
 
-  const args: string[] = ["git", "clone"];
+  const args: string[] = ["clone"];
   if (branch) args.push("-b", branch);
   if (depth) args.push("--depth", String(depth));
   args.push(url, destDir);
 
-  execSync(args.join(" "), opts);
+  execFileSync("git", args, opts);
 
   // Get the branch that was checked out
-  const clonedBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+  const clonedBranch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
     cwd: fullPath,
     encoding: "utf8",
   }).trim();

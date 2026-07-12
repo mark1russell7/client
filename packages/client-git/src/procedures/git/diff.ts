@@ -4,7 +4,7 @@
  * Show changes
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { GitDiffInput, GitDiffOutput, GitDiffFile } from "../../types.js";
 
 /**
@@ -14,15 +14,15 @@ export async function gitDiff(input: GitDiffInput): Promise<GitDiffOutput> {
   const { staged, ref, paths, stat, cwd } = input;
   const opts = { cwd, encoding: "utf8" as const };
 
-  const args = ["git", "diff"];
+  const args = ["diff"];
   if (staged) args.push("--cached");
   if (ref) args.push(ref);
   args.push("--numstat");
   if (paths && paths.length > 0) {
-    args.push("--", ...paths.map(p => `"${p}"`));
+    args.push("--", ...paths);
   }
 
-  const numstatOutput = execSync(args.join(" "), opts);
+  const numstatOutput = execFileSync("git", args, opts);
   const files: GitDiffFile[] = [];
   let totalAdditions = 0;
   let totalDeletions = 0;
@@ -47,13 +47,13 @@ export async function gitDiff(input: GitDiffInput): Promise<GitDiffOutput> {
 
   // Include full diff if not stat-only
   if (!stat) {
-    const diffArgs = ["git", "diff"];
+    const diffArgs = ["diff"];
     if (staged) diffArgs.push("--cached");
     if (ref) diffArgs.push(ref);
     if (paths && paths.length > 0) {
-      diffArgs.push("--", ...paths.map(p => `"${p}"`));
+      diffArgs.push("--", ...paths);
     }
-    result.diff = execSync(diffArgs.join(" "), opts);
+    result.diff = execFileSync("git", diffArgs, opts);
   }
 
   return result;

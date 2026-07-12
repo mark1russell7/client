@@ -3,7 +3,7 @@
  *
  * Stage files
  */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 /**
  * Stage files
  */
@@ -11,16 +11,16 @@ export async function gitAdd(input) {
     const { paths, all, cwd } = input;
     const opts = { cwd, encoding: "utf8" };
     if (all) {
-        execSync("git add -A", opts);
+        execFileSync("git", ["add", "-A"], opts);
     }
     else if (paths.length > 0) {
-        execSync(`git add -- ${paths.map(p => `"${p}"`).join(" ")}`, opts);
+        execFileSync("git", ["add", "--", ...paths], opts);
     }
     else {
-        execSync("git add .", opts);
+        execFileSync("git", ["add", "."], opts);
     }
     // Get list of staged files
-    const stagedOutput = execSync("git diff --cached --name-only", opts);
+    const stagedOutput = execFileSync("git", ["diff", "--cached", "--name-only"], opts);
     const staged = stagedOutput.split("\n").filter(Boolean);
     return { staged };
 }
