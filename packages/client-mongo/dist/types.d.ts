@@ -1,7 +1,8 @@
 /**
  * TypeScript types for client-mongo procedures
  */
-import type { ObjectId, Document, Filter, UpdateFilter } from "mongodb";
+import { ObjectId } from "mongodb";
+import type { Document, Filter, UpdateFilter } from "mongodb";
 /**
  * Pagination input parameters
  */
@@ -59,6 +60,27 @@ export type DocumentQuery = Filter<Document>;
  * Document update specification
  */
 export type DocumentUpdate = UpdateFilter<Document>;
+/**
+ * How to interpret a string id when building an `_id` filter.
+ *
+ * - `"objectId"` — coerce to an ObjectId (falls back to the raw string when the
+ *   value is not a valid ObjectId).
+ * - `"string"` — match the raw string `_id` only.
+ * - `"auto"` (default) — when the id is a valid ObjectId, match EITHER an
+ *   ObjectId `_id` or the raw string `_id`, so documents stored with a
+ *   string `_id` that happens to be 24-hex (e.g. MongoStorage keys) stay
+ *   reachable. Otherwise match the string.
+ */
+export type IdType = "auto" | "objectId" | "string";
+/**
+ * Build an `_id` filter from a string id.
+ *
+ * MongoDB supports any `_id` type at runtime. Previously any string that parsed
+ * as an ObjectId was silently coerced, making 24-hex *string* `_id`s
+ * unreachable. The default `"auto"` mode now queries both forms via `$or` when
+ * the id is ambiguous, and `idType` provides an explicit escape hatch.
+ */
+export declare function buildIdFilter(id: string, idType?: IdType): Document;
 /**
  * Base metadata for all procedures
  */

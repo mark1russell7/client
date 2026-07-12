@@ -4,10 +4,15 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { ObjectId, type Document } from "mongodb";
+import type { Document } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
-import { requireCollection, type DocumentQuery } from "../types.js";
+import {
+  requireCollection,
+  buildIdFilter,
+  type IdType,
+  type DocumentQuery,
+} from "../types.js";
 
 // Input/Output types
 interface DeleteInput {
@@ -15,6 +20,8 @@ interface DeleteInput {
   filter?: DocumentQuery;
   /** Document ID (alternative to filter for single document) */
   id?: string;
+  /** How to interpret the id (default: "auto" — matches ObjectId or string) */
+  idType?: IdType;
   /** Delete all matching documents */
   multi?: boolean;
 }
@@ -29,24 +36,12 @@ const deleteInputSchema = schema<DeleteInput>();
 const deleteOutputSchema = schema<DeleteOutput>();
 
 /**
- * Parse ID to ObjectId if valid, otherwise return as string.
- * MongoDB supports any _id type at runtime.
- */
-function parseId(id: string): ObjectId | string {
-  try {
-    return new ObjectId(id);
-  } catch {
-    return id;
-  }
-}
-
-/**
  * Build filter from id or filter input.
  * Uses Document type which accepts any _id via index signature.
  */
 function buildFilter(input: DeleteInput): Document {
   if (input.id) {
-    return { _id: parseId(input.id) };
+    return buildIdFilter(input.id, input.idType);
   }
   return input.filter ?? {};
 }

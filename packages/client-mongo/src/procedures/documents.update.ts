@@ -4,11 +4,13 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { ObjectId, type Document } from "mongodb";
+import type { Document } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import {
   requireCollection,
+  buildIdFilter,
+  type IdType,
   type DocumentQuery,
   type DocumentUpdate,
 } from "../types.js";
@@ -19,6 +21,8 @@ interface UpdateInput {
   filter?: DocumentQuery;
   /** Document ID (alternative to filter for single document) */
   id?: string;
+  /** How to interpret the id (default: "auto" — matches ObjectId or string) */
+  idType?: IdType;
   /** Update operations */
   update: DocumentUpdate;
   /** Insert if not found */
@@ -40,24 +44,12 @@ const updateInputSchema = schema<UpdateInput>();
 const updateOutputSchema = schema<UpdateOutput>();
 
 /**
- * Parse ID to ObjectId if valid, otherwise return as string.
- * MongoDB supports any _id type at runtime.
- */
-function parseId(id: string): ObjectId | string {
-  try {
-    return new ObjectId(id);
-  } catch {
-    return id;
-  }
-}
-
-/**
  * Build filter from id or filter input.
  * Uses Document type which accepts any _id via index signature.
  */
 function buildFilter(input: UpdateInput): Document {
   if (input.id) {
-    return { _id: parseId(input.id) };
+    return buildIdFilter(input.id, input.idType);
   }
   return input.filter ?? {};
 }

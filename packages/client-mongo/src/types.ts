@@ -2,7 +2,8 @@
  * TypeScript types for client-mongo procedures
  */
 
-import type { ObjectId, Document, Filter, UpdateFilter } from "mongodb";
+import { ObjectId } from "mongodb";
+import type { Document, Filter, UpdateFilter } from "mongodb";
 
 // =============================================================================
 // Common Types
@@ -77,6 +78,50 @@ export type DocumentQuery = Filter<Document>;
  * Document update specification
  */
 export type DocumentUpdate = UpdateFilter<Document>;
+
+/**
+ * How to interpret a string id when building an `_id` filter.
+ *
+ * - `"objectId"` — coerce to an ObjectId (falls back to the raw string when the
+ *   value is not a valid ObjectId).
+ * - `"string"` — match the raw string `_id` only.
+ * - `"auto"` (default) — when the id is a valid ObjectId, match EITHER an
+ *   ObjectId `_id` or the raw string `_id`, so documents stored with a
+ *   string `_id` that happens to be 24-hex (e.g. MongoStorage keys) stay
+ *   reachable. Otherwise match the string.
+ */
+export type IdType = "auto" | "objectId" | "string";
+
+/**
+ * Build an `_id` filter from a string id.
+ *
+ * MongoDB supports any `_id` type at runtime. Previously any string that parsed
+ * as an ObjectId was silently coerced, making 24-hex *string* `_id`s
+ * unreachable. The default `"auto"` mode now queries both forms via `$or` when
+ * the id is ambiguous, and `idType` provides an explicit escape hatch.
+ */
+export function buildIdFilter(id: string, idType: IdType = "auto"): Document {
+  if (idType === "string") {
+    return { _id: id };
+  }
+
+  let objectId: ObjectId | null = null;
+  try {
+    objectId = new ObjectId(id);
+  } catch {
+    objectId = null;
+  }
+
+  if (idType === "objectId") {
+    return { _id: objectId ?? id };
+  }
+
+  // "auto": match both the ObjectId and the raw string when ambiguous.
+  if (objectId) {
+    return { $or: [{ _id: objectId }, { _id: id }] };
+  }
+  return { _id: id };
+}
 
 // =============================================================================
 // Procedure Metadata Types

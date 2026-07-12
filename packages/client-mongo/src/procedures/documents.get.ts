@@ -4,14 +4,20 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { ObjectId, type Document } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
-import { requireCollection, type MongoDocument } from "../types.js";
+import {
+  requireCollection,
+  buildIdFilter,
+  type IdType,
+  type MongoDocument,
+} from "../types.js";
 
 // Input/Output types
 interface GetInput {
   id: string;
+  /** How to interpret the id (default: "auto" — matches ObjectId or string) */
+  idType?: IdType;
 }
 
 interface GetOutput {
@@ -21,25 +27,6 @@ interface GetOutput {
 // Schemas
 const getInputSchema = schema<GetInput>();
 const getOutputSchema = schema<GetOutput>();
-
-/**
- * Parse ID to ObjectId if valid, otherwise return as string.
- * MongoDB supports any _id type at runtime.
- */
-function parseId(id: string): ObjectId | string {
-  try {
-    return new ObjectId(id);
-  } catch {
-    return id;
-  }
-}
-
-/**
- * Build _id filter using Document's index signature.
- */
-function buildIdFilter(id: string): Document {
-  return { _id: parseId(id) };
-}
 
 export const getProcedure: Procedure<
   GetInput,
@@ -56,7 +43,9 @@ export const getProcedure: Procedure<
     const db = meta.database ? getDb().client.db(meta.database) : getDb();
     const collection = db.collection(meta.collection);
 
-    const document = await collection.findOne(buildIdFilter(input.id));
+    const document = await collection.findOne(
+      buildIdFilter(input.id, input.idType)
+    );
 
     return { document };
   })

@@ -3,32 +3,19 @@
  * Delete documents matching a filter
  */
 import { createProcedure } from "@mark1russell7/client";
-import { ObjectId } from "mongodb";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
-import { requireCollection } from "../types.js";
+import { requireCollection, buildIdFilter, } from "../types.js";
 // Schemas
 const deleteInputSchema = schema();
 const deleteOutputSchema = schema();
-/**
- * Parse ID to ObjectId if valid, otherwise return as string.
- * MongoDB supports any _id type at runtime.
- */
-function parseId(id) {
-    try {
-        return new ObjectId(id);
-    }
-    catch {
-        return id;
-    }
-}
 /**
  * Build filter from id or filter input.
  * Uses Document type which accepts any _id via index signature.
  */
 function buildFilter(input) {
     if (input.id) {
-        return { _id: parseId(input.id) };
+        return buildIdFilter(input.id, input.idType);
     }
     return input.filter ?? {};
 }

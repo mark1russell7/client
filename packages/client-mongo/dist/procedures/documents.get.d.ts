@@ -3,9 +3,11 @@
  * Get a single document by ID
  */
 import { type Procedure } from "@mark1russell7/client";
-import { type MongoDocument } from "../types.js";
+import { type IdType, type MongoDocument } from "../types.js";
 interface GetInput {
     id: string;
+    /** How to interpret the id (default: "auto" — matches ObjectId or string) */
+    idType?: IdType;
 }
 interface GetOutput {
     document: MongoDocument | null;
