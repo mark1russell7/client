@@ -29,6 +29,14 @@
     "./procedures": {
       "types": "./dist/procedures/index.d.ts",
       "import": "./dist/procedures/index.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
     }
   },
   "files": [
