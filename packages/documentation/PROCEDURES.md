@@ -4,10 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 175 across 29 namespaces. Loaded 23 package register(s).
-
-> ⚠️ 1 package(s) failed to load and are not represented below:
-> - client-procedure: Procedure already registered at path: procedure.list
+**Total procedures:** 176 across 29 namespaces. Loaded 24 package register(s).
 
 ## Namespaces
 
@@ -31,7 +28,7 @@
 - [`mongo.*`](#mongo) — 16 procedure(s)
 - [`node.*`](#node) — 4 procedure(s)
 - [`pnpm.*`](#pnpm) — 6 procedure(s)
-- [`procedure.*`](#procedure) — 10 procedure(s)
+- [`procedure.*`](#procedure) — 11 procedure(s)
 - [`s3.*`](#s3) — 9 procedure(s)
 - [`server.*`](#server) — 12 procedure(s)
 - [`shell.*`](#shell) — 3 procedure(s)
@@ -275,8 +272,9 @@
 |-----------|-------------|
 | `procedure.define` | Define a new procedure from an aggregation |
 | `procedure.delete` | Delete a runtime-defined procedure |
-| `procedure.get` | Get a runtime-defined procedure by path |
-| `procedure.list` | List all runtime-defined procedures |
+| `procedure.export` | Export a procedure definition as JSON |
+| `procedure.get` | Get a procedure definition by path |
+| `procedure.list` | List all registered procedures |
 | `procedure.load` | Load procedures from storage into registry |
 | `procedure.new` | Scaffold a new procedure with types and registration boilerplate |
 | `procedure.register` | Register a procedure at runtime |
