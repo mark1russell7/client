@@ -261,13 +261,27 @@ const conditionalProcedure: ConditionalProcedure = defineProcedure({
     tags: ["core", "control-flow"],
   },
   handler: async (input: ConditionalInput, ctx?: ProcedureContext): Promise<unknown> => {
-    const { condition, then: thenValue, else: elseValue, ...parentInput } = input as ConditionalInput & {
+    const { condition: rawCondition, then: thenValue, else: elseValue, ...parentInput } = input as ConditionalInput & {
       cwd?: string;
       node?: unknown;
     };
 
     // Extract context to propagate to branches (e.g., cwd, node)
     const { cwd, node } = parentInput;
+
+    // If the condition is itself a procedure ref, execute it BEFORE evaluating
+    // truthiness. Operand refs arrive raw (exec() does not pre-hydrate control-flow
+    // procedures), so the condition must be run here. See BUGS-2026-07 H2.
+    let condition: unknown = rawCondition;
+    if (isAnyProcedureRef(condition) && ctx?.client) {
+      const conditionRef = normalizeRef(condition);
+      const conditionInput = {
+        ...(typeof conditionRef.input === "object" && conditionRef.input !== null ? conditionRef.input : {}),
+        ...(cwd ? { cwd } : {}),
+        ...(node ? { node } : {}),
+      };
+      condition = await ctx.client.call(conditionRef.path, conditionInput);
+    }
 
     // Determine truthiness - check for .value property (from predicates like git.hasChanges)
     let isTruthy: boolean;
