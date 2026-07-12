@@ -4,7 +4,7 @@
  * Converts procedures from PROCEDURE_REGISTRY to MCP tool definitions.
  */
 import { cachedZodToJsonSchema } from "../schema/zod-to-json-schema.js";
-import { encodePath } from "./path-encoder.js";
+import { encodePath, sanitizePath } from "./path-encoder.js";
 /**
  * Extract metadata from a procedure.
  */
@@ -23,7 +23,12 @@ function extractMetadata(procedure) {
  * @returns MCP tool with procedure metadata
  */
 export function procedureToMcpTool(procedure) {
-    const toolName = encodePath(procedure.path);
+    // Sanitize each path segment (replacing chars outside [A-Za-z0-9_-], e.g. a
+    // literal "." inside a single segment) before dot-joining. This keeps the
+    // dot-joined shape valid segments already have (["shell","run"] -> "shell.run",
+    // which the Claude client aliases to "shell_run"), while ensuring two distinct
+    // paths that would otherwise encode to the same string no longer collide.
+    const toolName = encodePath(sanitizePath(procedure.path));
     const cacheKey = procedure.path.join(".");
     const meta = extractMetadata(procedure);
     const tool = {
@@ -112,6 +117,17 @@ export function proceduresToMcpTools(procedures, filter) {
 export function createToolMap(tools) {
     const map = new Map();
     for (const tool of tools) {
+        const existing = map.get(tool.name);
+        if (existing !== undefined) {
+            // Two distinct procedure paths encoded to the same MCP tool name. The
+            // Map preserves last-wins semantics (for backward compatibility), but
+            // this silently shadowed a tool before — warn on stderr so the collision
+            // is visible. stderr is used because stdout is reserved for the MCP
+            // stdio protocol stream.
+            console.error(`[mcp] Tool-name collision: "${tool.name}" is produced by both ` +
+                `[${existing.procedurePath.join(", ")}] and ` +
+                `[${tool.procedurePath.join(", ")}]; keeping the latter (last-wins).`);
+        }
         map.set(tool.name, tool);
     }
     return map;
@@ -124,7 +140,9 @@ export function createToolMap(tools) {
  * @returns Tool if found, undefined otherwise
  */
 export function findToolByPath(tools, path) {
-    const toolName = encodePath(path);
+    // Must match the sanitization applied in procedureToMcpTool so lookups by
+    // path resolve to the same tool name that was stored.
+    const toolName = encodePath(sanitizePath(path));
     if (tools instanceof Map) {
         return tools.get(toolName);
     }

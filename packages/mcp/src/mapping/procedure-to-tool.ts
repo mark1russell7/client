@@ -7,7 +7,13 @@
 import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
 import type { McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedZodToJsonSchema } from "../schema/zod-to-json-schema.js";
-import { encodePath } from "./path-encoder.js";
+import { encodePath, sanitizePath } from "./path-encoder.js";
+
+// This package's tsconfig only pulls in the `esnext` lib (no DOM/node types),
+// so `console` isn't in the ambient type environment. It always exists at
+// runtime under Node/MCP hosts; declare the minimal surface we use to emit a
+// diagnostic to stderr (stdout is reserved for the MCP stdio protocol stream).
+declare const console: { error: (...args: unknown[]) => void };
 
 /**
  * Metadata extracted from a procedure.
@@ -37,7 +43,12 @@ function extractMetadata(procedure: AnyProcedure): ProcedureMetadata {
  * @returns MCP tool with procedure metadata
  */
 export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
-  const toolName = encodePath(procedure.path);
+  // Sanitize each path segment (replacing chars outside [A-Za-z0-9_-], e.g. a
+  // literal "." inside a single segment) before dot-joining. This keeps the
+  // dot-joined shape valid segments already have (["shell","run"] -> "shell.run",
+  // which the Claude client aliases to "shell_run"), while ensuring two distinct
+  // paths that would otherwise encode to the same string no longer collide.
+  const toolName = encodePath(sanitizePath(procedure.path));
   const cacheKey = procedure.path.join(".");
   const meta = extractMetadata(procedure);
 
@@ -142,6 +153,19 @@ export function proceduresToMcpTools(
 export function createToolMap(tools: McpTool[]): Map<string, McpTool> {
   const map = new Map<string, McpTool>();
   for (const tool of tools) {
+    const existing = map.get(tool.name);
+    if (existing !== undefined) {
+      // Two distinct procedure paths encoded to the same MCP tool name. The
+      // Map preserves last-wins semantics (for backward compatibility), but
+      // this silently shadowed a tool before — warn on stderr so the collision
+      // is visible. stderr is used because stdout is reserved for the MCP
+      // stdio protocol stream.
+      console.error(
+        `[mcp] Tool-name collision: "${tool.name}" is produced by both ` +
+          `[${existing.procedurePath.join(", ")}] and ` +
+          `[${tool.procedurePath.join(", ")}]; keeping the latter (last-wins).`
+      );
+    }
     map.set(tool.name, tool);
   }
   return map;
@@ -158,7 +182,9 @@ export function findToolByPath(
   tools: McpTool[] | Map<string, McpTool>,
   path: ProcedurePath
 ): McpTool | undefined {
-  const toolName = encodePath(path);
+  // Must match the sanitization applied in procedureToMcpTool so lookups by
+  // path resolve to the same tool name that was stored.
+  const toolName = encodePath(sanitizePath(path));
 
   if (tools instanceof Map) {
     return tools.get(toolName);
