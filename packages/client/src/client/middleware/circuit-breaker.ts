@@ -10,7 +10,7 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware, Status } from "../types.js";
 import type { CircuitBreakerContext } from "./contexts.js";
 
 /**
@@ -161,17 +161,15 @@ export function createCircuitBreakerMiddleware(
     // Remove old failures outside window
     failures = failures.filter((f) => now - f.timestamp < failureWindow);
 
-    // Check if threshold exceeded
-    if (failures.length >= failureThreshold) {
-      if (state === "CLOSED") {
-        setState("OPEN");
-        scheduleReset();
-      } else if (state === "HALF_OPEN") {
-        // Failed during testing - reopen circuit
-        setState("OPEN");
-        successes = 0;
-        scheduleReset();
-      }
+    if (state === "HALF_OPEN") {
+      // Any failure while testing reopens the circuit immediately — don't wait for the full
+      // failureThreshold. See documentation/BUGS-2026-07.md (H11).
+      setState("OPEN");
+      successes = 0;
+      scheduleReset();
+    } else if (state === "CLOSED" && failures.length >= failureThreshold) {
+      setState("OPEN");
+      scheduleReset();
     }
   }
 
@@ -208,6 +206,8 @@ export function createCircuitBreakerMiddleware(
         successes = 0;
       }
     }, resetTimeout);
+    // Don't keep the event loop alive just for the reset timer. See BUGS-2026-07.md (M4).
+    resetTimer.unref?.();
   }
 
   /**
@@ -241,17 +241,31 @@ export function createCircuitBreakerMiddleware(
       }
 
       try {
-        // Execute request
-        yield* next(context);
+        // Execute request. Transports report failures as status.type === "error" items in the
+        // response stream WITHOUT throwing (the client throws after middleware), so inspect each
+        // item rather than relying on a thrown error. See documentation/BUGS-2026-07.md (H11).
+        let errorStatus: Extract<Status, { type: "error" }> | undefined;
+        for await (const item of next(context)) {
+          if (item.status.type === "error") {
+            errorStatus = item.status;
+          }
+          yield item;
+        }
 
-        // Record success
-        recordSuccess();
+        if (errorStatus) {
+          const err = new Error(errorStatus.message);
+          (err as Error & { code?: string }).code = errorStatus.code;
+          if (isFailure(err)) {
+            recordFailure(err);
+          }
+        } else {
+          recordSuccess();
+        }
       } catch (error) {
-        // Check if error should count as failure
+        // A thrown error (transport-level, not an error-status item) also counts as a failure.
         if (isFailure(error as Error)) {
           recordFailure(error as Error);
         }
-
         throw error;
       }
     };
