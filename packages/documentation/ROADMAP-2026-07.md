@@ -5,6 +5,55 @@
 > Bug IDs (e.g. `C1`, `H19`) reference the defect register. Effort is rough: **S** ≤ half a day,
 > **M** ≈ 1–3 days, **L** ≈ a week+.
 
+## Progress log — 2026-07-11 (autonomous execution)
+
+Worked top-down through the roadmap. **All 48 repos are clean and pushed to `origin/main`.**
+Every change was verified (`tsc` + tests where a harness exists) before commit; each fix is its own
+commit. Decisions made without a human are in [DECISIONS-2026-07.md](./DECISIONS-2026-07.md).
+
+**Done (landed + pushed):**
+- **Phase 0** — all of it (cache C1, server-mongo dup key H24, MCP stdout M39/Bug5, network defaults
+  H19, `lib new` C5, identity fixes M41), plus the ~5-month stranded zodAdapter/outputSchema refactor
+  landed across ~22 repos.
+- **Phase 1a** — H1 (child-client crash), L1/H16 (WebSocketState value + subpaths), H10 (timeout
+  signal), H11 (circuit breaker), M4 (unref timers), M6/M7 (HTTP body-parse + error-status mapping).
+- **Phase 1b/1c** — **the hydration/control-flow fix landed** (C2/H2/H3/M35): `exec()` no longer
+  pre-executes control-flow operands, so `chain`/`conditional`/`tryCatch`/`parallel` are now correct,
+  with a 7-test regression suite. Plus H13, H14/H28, and **H4** (`procedure.define` now registers in
+  `PROCEDURE_REGISTRY` so it is callable). Dead-code deleted (~2,232 lines: `middleware-override.ts`,
+  `sponge.ts`, `validation/schemas/`).
+- **Phase 2 (partial)** — DAG **H27** fixed in both `client-dag` and the `client-lib` vendored copy.
+- **Phase 3 (partial)** — real Zod input validation for `client-mongo`/`client-sqlite`; `logger`,
+  `client-dag`, and `client` got new regression tests (incl. a Client↔transport round-trip suite);
+  a **build-freshness checker** (`scripts/check-build-freshness.mjs`) — all 48 packages currently fresh.
+- **Phase 4 (partial)** — **PROCEDURES.md is now generated** from the live registry
+  (`scripts/generate-procedures.mjs`, 176 procedures); Node `>=20` engine policy documented;
+  PACKAGES.md filled in the 10 missing packages. Fixed a real duplicate-registration bug
+  (`procedure.list` in both core and `client-procedure`) found via the generator.
+- Also (parallel workflow): **C4** — the `client-git` shell-injection class eliminated (argv
+  execution, injection-proof); **client-snapshot** resurrected (C6/C7/H25/M23/M24); `client-fs`
+  (M18/M19/M20), `client-s3` (M21 + `s3.listAll`), `mcp` (M39) fixed.
+
+**Remaining (deliberately deferred — risky or needs human design; NOT started):**
+- **Collections consolidation** (Phase 2.1) — the audit's own P0 caveat: deleting the embedded copy
+  requires breaking a `client ↔ client-collections` dependency cycle. Needs a human design decision on
+  where `ApiStorage`/`HybridStorage` live before touching it.
+- **DAG de-duplication** (Phase 2.2) — `client-lib`'s vendored copy is non-generic (`NodeResult`);
+  adapting it to `client-dag`'s generic API risks `client-lib`'s dependency-graph logic. The H27 *bug*
+  is fixed in both; only the de-dup remains.
+- **`client-connection` / `scaffold`** retirement (Phase 2.3/2.4) — deleting whole manifest packages is
+  aggressive to do unattended; both are dead but harmless.
+- **`@mark1russell7/ecosystem` made real** (Phase 2.6) — multi-package refactor (repoint cli/client-lib/
+  cue at the loader).
+- **HTTP round-trip fix C3 + WS transport rewrite H5/H6** (Phase 1.3/1.4) — need a coordinated
+  client+server change and an HTTP/WS round-trip harness to verify; HTTP is not on the live (stdio)
+  critical path, so half-fixing it unattended was judged riskier than deferring.
+- **`engines >=20` fleet-wide via cue** (Phase 4.3) — `cue-config generate` clobbers custom `exports`
+  (H33), so running it across 48 packages needs H33 fixed first.
+- **H15 `sideEffects`** — deferred to a deliberate per-package pass (see DECISIONS).
+
+---
+
 ## Guiding principle
 
 The ecosystem's problem is not lack of ambition — it's **too many half-finished things and no feedback loop to catch regressions**. So the roadmap front-loads (a) finishing the one refactor already 80% done, (b) fixing the handful of bugs that silently corrupt data or expose the machine, and (c) establishing the missing feedback loop (tests + CI + doc generation). Only then does it tackle the larger structural consolidation, because consolidation without tests is how the born-broken collections structures happened in the first place.
