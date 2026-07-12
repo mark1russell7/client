@@ -175,6 +175,14 @@ export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "ov
       } finally {
         clearTimeout(timeoutId);
         cleanup();
+        // Restore the caller's original signal; we only swapped in the composed signal for this
+        // attempt. Leaving the (possibly aborted) composed signal in place poisons subsequent
+        // retry attempts with instant aborts. See documentation/BUGS-2026-07.md (H10).
+        if (originalSignal) {
+          context.message.signal = originalSignal;
+        } else {
+          delete context.message.signal;
+        }
       }
     };
   };
@@ -243,6 +251,14 @@ export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttemp
       } finally {
         clearTimeout(timeoutId);
         cleanup();
+        // Restore the caller's original signal; we only swapped in the composed signal for this
+        // attempt. Leaving the (possibly aborted) composed signal in place poisons subsequent
+        // retry attempts with instant aborts. See documentation/BUGS-2026-07.md (H10).
+        if (originalSignal) {
+          context.message.signal = originalSignal;
+        } else {
+          delete context.message.signal;
+        }
       }
     };
   };
