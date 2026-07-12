@@ -16,6 +16,7 @@ import type {
 } from "../procedures/types.js";
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
+import { createCollectionProcedures } from "../procedures/collection/procedures.js";
 import type { CollectionStorage } from "../collections/storage/interface.js";
 
 // =============================================================================
@@ -340,8 +341,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * @param collectionName - Collection name
    */
   registerCollectionProcedures(collectionName: string): void {
-    // Import dynamically to avoid circular dependencies
-    const { createCollectionProcedures } = require("../procedures/collection/procedures");
+    // Uses a top-level import; require() is not available in this ESM package and
+    // previously threw "Cannot find module" on every call. See BUGS-2026-07 H13.
     const procedures = createCollectionProcedures(collectionName);
 
     // Register with the procedure registry first
