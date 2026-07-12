@@ -157,16 +157,20 @@ export class HttpTransport {
      */
     async parseResponseBody(response) {
         const contentType = response.headers.get(HTTPHeaders.CONTENT_TYPE);
+        // A Response body can only be consumed once. The previous code called response.json() and,
+        // on failure, response.text() — which throws "Body is unusable" because json() already read
+        // it, masking the real error. Read as text once, then parse. See BUGS-2026-07.md (M6).
+        const text = await response.text();
         if (contentType?.includes("application/json")) {
             try {
-                return await response.json();
+                return JSON.parse(text);
             }
             catch {
-                // Fallback to text if JSON parsing fails
-                return await response.text();
+                // Not valid JSON despite the content-type — fall back to the raw text.
+                return text;
             }
         }
-        return await response.text();
+        return text;
     }
     /**
      * Close transport (no-op for HTTP)
