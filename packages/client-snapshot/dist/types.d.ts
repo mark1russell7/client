@@ -85,7 +85,7 @@ export interface SnapshotCreateOutput {
 export declare const SnapshotRestoreInputSchema: z.ZodObject<{
     id: z.ZodString;
     bucket: z.ZodString;
-    targetPath: z.ZodOptional<z.ZodString>;
+    targetPath: z.ZodString;
     overwrite: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }>;
 export type SnapshotRestoreInput = z.infer<typeof SnapshotRestoreInputSchema>;

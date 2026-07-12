@@ -29,8 +29,12 @@ export const SnapshotRestoreInputSchema = z.object({
     id: z.string(),
     /** S3 bucket containing snapshot */
     bucket: z.string(),
-    /** Target path for restoration (default: original paths) */
-    targetPath: z.string().optional(),
+    /**
+     * Destination directory the snapshot is extracted into. Required: restore
+     * must never fall back to a temporary scratch directory, because that
+     * scratch directory is deleted on cleanup and would wipe the restored files.
+     */
+    targetPath: z.string(),
     /** Overwrite existing files (default: false) */
     overwrite: z.boolean().optional().default(false),
 });
