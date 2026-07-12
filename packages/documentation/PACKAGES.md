@@ -2,10 +2,13 @@
 
 > Detailed descriptions and documentation links for all packages in the ecosystem.
 
-> **⚠️ Accuracy note (July 2026):** Procedure counts and the bundle-dev contents below are
-> stale, and 10 manifest packages have no entry here (client-logger, client-collections,
-> client-node, client-vite, client-server-mongo, server-mongo, minimongo, client-playground,
-> scaffold, documentation). See [AUDIT-2026-07.md](./AUDIT-2026-07.md).
+> **⚠️ Accuracy note (July 2026):** Per-package **procedure counts** below are stale and have been
+> replaced with a pointer to [BUGS-2026-07.md](./BUGS-2026-07.md) pending regeneration from the
+> registry (do not trust any hard count here). The **bundle-dev contents** description is also
+> stale (see [AUDIT-2026-07.md](./AUDIT-2026-07.md)). The 10 manifest packages that previously had
+> no entry (client-logger, client-collections, client-node, client-vite, client-server-mongo,
+> server-mongo, minimongo, client-playground, scaffold, documentation) are now listed under
+> [Previously Undocumented Packages](#previously-undocumented-packages-july-2026).
 
 ## Table of Contents
 
@@ -152,7 +155,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-fs](https://github.com/mark1russell7/client-fs) |
 | Namespace | `fs.*` |
-| Procedures | 15 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 ---
 
@@ -164,7 +167,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-git](https://github.com/mark1russell7/client-git) |
 | Namespace | `git.*` |
-| Procedures | 14 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 ---
 
@@ -176,7 +179,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-shell](https://github.com/mark1russell7/client-shell) |
 | Namespace | `shell.*` |
-| Procedures | 3 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 **Critical:** Many other client packages depend on this for command execution.
 
@@ -190,7 +193,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-pnpm](https://github.com/mark1russell7/client-pnpm) |
 | Namespace | `pnpm.*` |
-| Procedures | 8 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Depends On | client-shell |
 
 ---
@@ -203,7 +206,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-docker](https://github.com/mark1russell7/client-docker) |
 | Namespace | `docker.*` |
-| Procedures | 12 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Depends On | client-shell |
 
 ---
@@ -216,7 +219,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-mongo](https://github.com/mark1russell7/client-mongo) |
 | Namespace | `mongo.*` |
-| Procedures | 16 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Requires | MongoDB connection (MONGODB_URI) |
 
 ---
@@ -229,7 +232,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-sqlite](https://github.com/mark1russell7/client-sqlite) |
 | Namespace | `db.*`, `logs.*` |
-| Procedures | 4 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | No Native Deps | Uses sql.js WASM |
 
 ---
@@ -242,7 +245,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-s3](https://github.com/mark1russell7/client-s3) |
 | Namespace | `s3.*` |
-| Procedures | 7 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Requires | AWS credentials |
 
 ---
@@ -255,7 +258,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-lib](https://github.com/mark1russell7/client-lib) |
 | Namespace | `lib.*`, `dag.*` |
-| Procedures | 8 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Depends On | client-shell, client-git, client-fs, client-dag, client-pnpm |
 
 ---
@@ -268,7 +271,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-cli](https://github.com/mark1russell7/client-cli) |
 | Namespace | `cli.*` |
-| Procedures | 1 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Depends On | client-shell |
 
 ---
@@ -281,7 +284,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-procedure](https://github.com/mark1russell7/client-procedure) |
 | Namespace | `procedure.*` |
-| Procedures | 9 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 ---
 
@@ -293,7 +296,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-cue](https://github.com/mark1russell7/client-cue) |
 | Namespace | `cue.*` |
-| Procedures | 5 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 ---
 
@@ -305,7 +308,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-dag](https://github.com/mark1russell7/client-dag) |
 | Namespace | `dag.*` |
-| Procedures | 3 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 ---
 
@@ -317,7 +320,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-vitest](https://github.com/mark1russell7/client-vitest) |
 | Namespace | `vitest.*` |
-| Procedures | 2 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Depends On | client-shell |
 
 ---
@@ -330,7 +333,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-test](https://github.com/mark1russell7/client-test) |
 | Namespace | `test.*` |
-| Procedures | 2 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Depends On | client-shell |
 
 ---
@@ -343,7 +346,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/client-snapshot](https://github.com/mark1russell7/client-snapshot) |
 | Namespace | `snapshot.*` |
-| Procedures | 4 |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 
 ---
 
@@ -357,7 +360,7 @@ mark procedure new fs.x --path ~/git/pkg  # New procedure in pkg
 |----------|-------|
 | Repository | [github.com/mark1russell7/bundle-dev](https://github.com/mark1russell7/bundle-dev) |
 | Path | `~/git/bundle-dev` |
-| Procedures | ~100+ |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Use Case | CLI, development |
 
 Includes everything: fs, git, shell, pnpm, docker, mongo, sqlite, lib, etc.
@@ -372,7 +375,7 @@ Includes everything: fs, git, shell, pnpm, docker, mongo, sqlite, lib, etc.
 |----------|-------|
 | Repository | [github.com/mark1russell7/bundle-mcp](https://github.com/mark1russell7/bundle-mcp) |
 | Path | `~/git/bundle-mcp` |
-| Procedures | ~50+ |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — count stale, regenerate from registry_ |
 | Use Case | Claude MCP integration |
 
 **Excludes** low-level tools (fs, git, shell, pnpm) since Claude has shell access.
@@ -586,20 +589,152 @@ server --procedures @mark1russell7/client-mongo/register --port 3000
 
 ---
 
+## Previously Undocumented Packages (July 2026)
+
+These 10 packages are in `ecosystem.manifest.json` but had no entry above. Brief entries are
+provided here; procedure counts are intentionally **not** invented — see
+[BUGS-2026-07.md](./BUGS-2026-07.md) and regenerate from the registry.
+
+### @mark1russell7/client-logger
+
+**Logger bridge** - exposes the logger through client procedures (`log.*`, e.g.
+`log.trace/debug/info/warn/error`, `log.setLevel/getLevel`).
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/client-logger](https://github.com/mark1russell7/client-logger) |
+| Namespace | `log.*` |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — regenerate from registry_ |
+
+---
+
+### @mark1russell7/client-node
+
+**Node.js process management** procedures (`node.run/spawn/kill/status`).
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/client-node](https://github.com/mark1russell7/client-node) |
+| Namespace | `node.*` |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — regenerate from registry_ |
+
+---
+
+### @mark1russell7/client-vite
+
+**Vite dev-server management** procedures (`vite.dev/build/preview/stop`).
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/client-vite](https://github.com/mark1russell7/client-vite) |
+| Namespace | `vite.*` |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — regenerate from registry_ |
+
+---
+
+### @mark1russell7/client-collections
+
+**Collections framework** with storage abstraction (ArrayList, HashMap, LRU, TTL, and more).
+Consumed as a library (declares `@mark1russell7/client` as a peer dependency); large portions are
+flagged as dead code in the audit.
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/client-collections](https://github.com/mark1russell7/client-collections) |
+| Path | `~/git/client-collections` |
+| Main Export | ArrayList, HashMap, LRU/TTL maps, storage abstractions |
+
+---
+
+### @mark1russell7/client-server-mongo
+
+**MongoDB server management** procedures built on client-server peering
+(`server.mongo.start/stop/status/connect`).
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/client-server-mongo](https://github.com/mark1russell7/client-server-mongo) |
+| Namespace | `server.mongo.*` |
+| Procedures | _see [BUGS-2026-07](./BUGS-2026-07.md) — regenerate from registry_ |
+
+---
+
+### @mark1russell7/server-mongo
+
+**Runnable MongoDB server** exposing `mongo.*` procedures over client-server.
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/server-mongo](https://github.com/mark1russell7/server-mongo) |
+| Path | `~/git/server-mongo` |
+| Note | Duplicate `client-mongo` dependency key — see BUGS-2026-07 **H24** |
+
+---
+
+### @mark1russell7/minimongo
+
+**Browser-based MongoDB data explorer / UI app.**
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/MiniMongo](https://github.com/mark1russell7/MiniMongo) |
+| Path | `~/git/MiniMongo` |
+| Note | Manifest key is `@mark1russell7/minimongo` but package.json `name` is unscoped `minimongo` — identity mismatch, see BUGS-2026-07 **M41** |
+
+---
+
+### @mark1russell7/client-playground
+
+**Playground / experimentation** package (no registered procedures at time of audit).
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/client-playground](https://github.com/mark1russell7/client-playground) |
+| Path | `~/git/client-playground` |
+
+---
+
+### @mark1russell7/scaffold
+
+**Schema-driven scaffolding** system using Angular Schematics. Largely dead code per the audit.
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/scaffold](https://github.com/mark1russell7/scaffold) |
+| Path | `~/git/scaffold` |
+
+---
+
+### @mark1russell7/documentation
+
+**This documentation repository** (the file you are reading).
+
+| Property | Value |
+|----------|-------|
+| Repository | [github.com/mark1russell7/documentation](https://github.com/mark1russell7/documentation) |
+| Path | `~/git/documentation` |
+| Note | Manifest key is `@mark1russell7/documentation` but package.json `name` is currently `"unnamed"` — identity mismatch, see BUGS-2026-07 **C5/M41** |
+
+---
+
 ## Package Statistics
+
+> **Note (July 2026):** the manifest lists **48** packages. The category counts below predate the
+> 10 packages added in the section above and are approximate; treat the per-package procedure
+> counts throughout this file as stale — see [BUGS-2026-07.md](./BUGS-2026-07.md).
 
 | Category | Count |
 |----------|-------|
 | Core Packages | 5 |
-| Client Packages | 20 |
+| Client Packages | _regenerate — see BUGS-2026-07_ |
 | Bundles | 2 |
 | MCP Integration | 3 |
-| Server Packages | 3 |
+| Server Packages | _regenerate — see BUGS-2026-07_ |
 | UI/Visualization | 3 |
 | Docker Images | 2 |
 | Testing Utilities | 4 |
-| Other | 5 |
-| **Total** | **47** |
+| Previously Undocumented (above) | 10 |
+| **Total (manifest)** | **48** |
 
 ---
 
