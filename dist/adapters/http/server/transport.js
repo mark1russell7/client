@@ -6,6 +6,7 @@
  */
 import { createServer } from "http";
 import { HTTPMethod } from "../shared/index.js";
+import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import { defaultServerUrlStrategy } from "./strategies.js";
 /**
  * HTTP server transport adapter for Express.
@@ -190,10 +191,11 @@ export class HttpServerTransport {
         // Set status code (convert string to number if needed)
         let httpStatusCode;
         if (typeof status.code === "string") {
-            httpStatusCode = parseInt(status.code, 10);
-            if (isNaN(httpStatusCode)) {
-                httpStatusCode = status.type === "success" ? 200 : 500;
-            }
+            // status.code is a symbolic error code (e.g. "VALIDATION_ERROR", "NOT_FOUND"). Map it to an
+            // HTTP status via the error registry rather than parseInt (which yields NaN -> 500, so every
+            // error became a 500). See documentation/BUGS-2026-07.md (M7).
+            const mapped = ERROR_REGISTRY[status.code]?.httpStatus;
+            httpStatusCode = mapped ?? (status.type === "success" ? 200 : 500);
         }
         else if (typeof status.code === "number") {
             httpStatusCode = status.code;
