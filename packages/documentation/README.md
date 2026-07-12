@@ -101,6 +101,20 @@ graph LR
 | [@mark1russell7/client-mcp](https://github.com/mark1russell7/client-mcp) | MCP server transport |
 | [@mark1russell7/impl-mcp-dev](https://github.com/mark1russell7/impl-mcp-dev) | Ready-to-run MCP server |
 
+## Node.js Engine Policy
+
+The ecosystem targets a **single Node.js baseline: Node.js >= 20** (with **npm >= 10**, and
+**pnpm** as the prescribed package manager where a version is pinned). This is the version the
+core `@mark1russell7/client` runtime already declares in its `engines` field, and every other
+package is expected to inherit it.
+
+A few packages historically drifted to `node >=25` / `npm >=11` (`cue`, `splay`, `client-splay`);
+those are treated as drift to be reconciled **down** to `>=20`, and the ~38 packages that declare
+no `engines` field at all are covered by this baseline. Because `engines` fields are generated
+from cue configuration, aligning all 48 package.jsons is a cue-driven change (tracked in
+[BUGS-2026-07.md](./BUGS-2026-07.md)), not a hand edit. See
+[DECISIONS-2026-07.md](./DECISIONS-2026-07.md) for the rationale.
+
 ## Getting Started
 
 ### Quick Install (New User)

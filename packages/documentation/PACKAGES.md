@@ -17,6 +17,22 @@
 - [UI/Visualization](#uivisualization)
 - [Docker Images](#docker-images)
 - [Testing Utilities](#testing-utilities)
+- [Node.js Engine Policy](#nodejs-engine-policy)
+
+---
+
+## Node.js Engine Policy
+
+The ecosystem targets a **single Node.js baseline: Node.js >= 20** (with **npm >= 10**, and
+**pnpm** as the prescribed package manager). This matches the `engines` field already declared by
+the core `@mark1russell7/client` runtime that every package depends on, as well as `docker/*`,
+`minimongo`, `client-mongo`, `client-server`, and `server-mongo`.
+
+Three packages currently declare a higher floor (`cue`, `splay`, `client-splay` at `node >=25` /
+`npm >=11`) and ~38 declare no `engines` field at all; both are treated as drift to be reconciled
+to `>=20`. Since `engines` values are generated from cue configuration, aligning all 48
+package.jsons is a cue-driven change (tracked in [BUGS-2026-07.md](./BUGS-2026-07.md)) and is
+**not** performed by hand-editing package.json here. Rationale: [DECISIONS-2026-07.md](./DECISIONS-2026-07.md).
 
 ---
 
