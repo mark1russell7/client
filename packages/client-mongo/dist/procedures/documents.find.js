@@ -2,12 +2,48 @@
  * Procedure: mongo.documents.find
  * Find documents with pagination and filtering
  */
-import { createProcedure } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { requireCollection, } from "../types.js";
+/**
+ * Validate find input. Enforces `page`/`limit` as integers >= 1 so a `page: 0`
+ * (which produced a negative `skip`) or a string `limit` (which produced a
+ * `NaN` limit) can no longer reach the driver. Other fields pass through.
+ */
+function parseFindInput(data) {
+    if (typeof data !== "object" || data === null) {
+        throw new Error("mongo.documents.find: input must be an object");
+    }
+    const raw = data;
+    const result = {};
+    if (raw["query"] !== undefined) {
+        result.query = raw["query"];
+    }
+    if (raw["projection"] !== undefined) {
+        result.projection = raw["projection"];
+    }
+    if (raw["sort"] !== undefined) {
+        result.sort = raw["sort"];
+    }
+    if (raw["page"] !== undefined) {
+        const page = raw["page"];
+        if (typeof page !== "number" || !Number.isInteger(page) || page < 1) {
+            throw new Error("mongo.documents.find: page must be an integer >= 1");
+        }
+        result.page = page;
+    }
+    if (raw["limit"] !== undefined) {
+        const limit = raw["limit"];
+        if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) {
+            throw new Error("mongo.documents.find: limit must be an integer >= 1");
+        }
+        result.limit = limit;
+    }
+    return result;
+}
 // Schemas
-const findInputSchema = schema();
+const findInputSchema = zodAdapter({ parse: parseFindInput });
 const findOutputSchema = schema();
 export const findProcedure = createProcedure()
     .path(["mongo", "documents", "find"])

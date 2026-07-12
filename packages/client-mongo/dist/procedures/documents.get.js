@@ -2,12 +2,35 @@
  * Procedure: mongo.documents.get
  * Get a single document by ID
  */
-import { createProcedure } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, } from "@mark1russell7/client";
 import { getDb } from "../connection.js";
 import { schema } from "./schema.js";
 import { requireCollection, buildIdFilter, } from "../types.js";
+/**
+ * Validate get input: `id` must be a non-empty string, and `idType`, when
+ * present, must be one of the supported modes.
+ */
+function parseGetInput(data) {
+    if (typeof data !== "object" || data === null) {
+        throw new Error("mongo.documents.get: input must be an object");
+    }
+    const raw = data;
+    const id = raw["id"];
+    if (typeof id !== "string" || id.length === 0) {
+        throw new Error("mongo.documents.get: id must be a non-empty string");
+    }
+    const result = { id };
+    const idType = raw["idType"];
+    if (idType !== undefined) {
+        if (idType !== "auto" && idType !== "objectId" && idType !== "string") {
+            throw new Error('mongo.documents.get: idType must be "auto", "objectId", or "string"');
+        }
+        result.idType = idType;
+    }
+    return result;
+}
 // Schemas
-const getInputSchema = schema();
+const getInputSchema = zodAdapter({ parse: parseGetInput });
 const getOutputSchema = schema();
 export const getProcedure = createProcedure()
     .path(["mongo", "documents", "get"])

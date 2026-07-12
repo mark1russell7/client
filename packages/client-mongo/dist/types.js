@@ -43,6 +43,9 @@ export function requireCollection(metadata) {
     if (!hasCollection(metadata)) {
         throw new Error("collection is required in metadata");
     }
+    if (metadata.collection.trim().length === 0) {
+        throw new Error("collection must be a non-empty string");
+    }
     return metadata;
 }
 /**
