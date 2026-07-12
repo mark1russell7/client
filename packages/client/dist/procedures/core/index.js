@@ -332,16 +332,32 @@ const tryCatchProcedure = defineProcedure({
         description: "Try/catch wrapper for procedures",
         tags: ["core", "control-flow"],
     },
-    handler: async (input) => {
-        // By the time we get here, if `try` was a procedure ref, it's already been
-        // hydrated. If it threw, we won't even get here. So this is more of a
-        // "catch errors during hydration" pattern - the actual try/catch needs
-        // to happen at the hydration level.
-        //
-        // For now, we just return the try value
+    handler: async (input, ctx) => {
+        const { try: tryValue, catch: catchValue } = input;
+        // Operands arrive raw (exec() does not pre-hydrate control-flow procedures), so the
+        // `try` ref is executed HERE inside a real JS try/catch. If it throws, run the `catch`
+        // ref (or use the catch value). Non-ref `try` values are returned as-is (a resolved
+        // value cannot fail). See BUGS-2026-07 H3.
+        if (isAnyProcedureRef(tryValue) && ctx?.client) {
+            try {
+                const tryRef = normalizeRef(tryValue);
+                const value = await ctx.client.call(tryRef.path, tryRef.input);
+                return { success: true, value };
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                let value = catchValue;
+                if (isAnyProcedureRef(catchValue) && ctx?.client) {
+                    const catchRef = normalizeRef(catchValue);
+                    value = await ctx.client.call(catchRef.path, catchRef.input);
+                }
+                return { success: false, value, error: message };
+            }
+        }
+        // `try` is already a resolved value (not a ref): pass it through as a success.
         return {
             success: true,
-            value: input.try,
+            value: tryValue,
         };
     },
 });
