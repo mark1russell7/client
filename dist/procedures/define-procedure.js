@@ -25,6 +25,7 @@
  * ```
  */
 import { defineProcedure, validateProcedure } from "./define.js";
+import { PROCEDURE_REGISTRY } from "./registry.js";
 import { anySchema } from "./core/schemas.js";
 // =============================================================================
 // Aggregation Handler Factory
@@ -144,6 +145,11 @@ export function getAllRuntimeProcedures() {
  * Useful for testing.
  */
 export function clearRuntimeProcedures() {
+    // Unregister from the global registry too, so test isolation and re-defines stay correct now
+    // that runtime procedures are registered there. See documentation/BUGS-2026-07.md (H4).
+    for (const proc of runtimeProcedures.values()) {
+        PROCEDURE_REGISTRY.unregister(proc.path);
+    }
     runtimeProcedures.clear();
 }
 /**
@@ -187,6 +193,10 @@ export const defineProcedureProcedure = defineProcedure({
         validateProcedure(procedure);
         // Register in runtime storage
         runtimeProcedures.set(pathKey, procedure);
+        // Also register in the global PROCEDURE_REGISTRY so exec()/call()/transports can actually find
+        // and run it. Without this, runtime-defined procedures were uncallable ("No handler
+        // registered"). See documentation/BUGS-2026-07.md (H4).
+        PROCEDURE_REGISTRY.register(procedure, { override: replace ?? false });
         return {
             path,
             replaced: exists,
