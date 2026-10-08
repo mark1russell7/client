@@ -13,6 +13,7 @@ import { z } from "zod";
 import type { ProcedureContext } from "@mark1russell7/client";
 import { libScan } from "../lib/scan.js";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { readFile } from "node:fs/promises";
 
 // =============================================================================
@@ -177,9 +178,10 @@ async function discoverPackageProcedures(
     // Dynamically import the procedures register file
     const proceduresPath = join(packagePath, pkgJson.client.procedures);
 
-    // Import to trigger registration
+    // Import to trigger registration. import() needs a file:// URL: a Windows path such as
+    // C:\... is not a valid module specifier (BUGS-2026-07 M33)
     try {
-      await import(proceduresPath);
+      await import(pathToFileURL(proceduresPath).href);
     } catch (importError) {
       // May already be imported or path issue - continue anyway
     }
