@@ -47,6 +47,8 @@ Effort: step 1 M, step 2 L. Risk: medium. The 379 core tests are the safety net,
 
 ## P2. Explicit tool surfaces (H18 and the bundle imports)
 
+> **Done on 2026-10-08** (`8f8091e`). The owner approved the recommended list: no `shell.*`, add `lib.*`, no `snapshot.*` or `s3.*`. `bundle-mcp` declares `mcpNamespaces`, and the server exposes only those 68 tools. A data-driven procedure calls only exposed procedures, because an allowlist of tools alone does not stop `client.chain` from calling `shell.exec` by path. Every package root registers now (option 1). Option 3 stays a possible later step.
+
 **Problem.** A package registers its procedures as a side effect of being imported, and what a bundle exposes is whatever its imports happen to register.
 
 - `bundle-mcp` exposes `shell.run`, `shell.exec` and `shell.which` to Claude, although its documentation says it should not (H18). They arrive through other packages' imports of `client-shell`.

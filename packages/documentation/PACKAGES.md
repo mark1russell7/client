@@ -4,18 +4,18 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 33. **Procedures:** 162. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 34. **Procedures:** 162. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, referenced with `github:` specifiers.
 
 | Package | Folder | Description | Procedures | Depends on |
 |---|---|---|---|---|
 | `@mark1russell7/bundle-dev` | `packages/bundle-dev` | Dev workflow bundle - aggregates client packages for development | — | `client`, `client-cli`, `client-pnpm`, `client-lib`, `client-git`, `client-dag`, `client-fs`, `client-shell`, `client-procedure` |
-| `@mark1russell7/bundle-mcp` | `packages/bundle-mcp` | Curated MCP bundle - high-level orchestration tools for Claude | — | `client`, `client-cli`, `client-lib`, `client-procedure`, `client-cue`, `client-docker`, `client-snapshot`, `client-mongo`, `client-sqlite`, `client-s3`, `client-vitest`, `client-test` |
+| `@mark1russell7/bundle-mcp` | `packages/bundle-mcp` | Curated MCP bundle - high-level orchestration tools for Claude | — | `client`, `client-cli`, `client-lib`, `client-procedure`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite`, `client-vitest` |
 | `@mark1russell7/repo-cli` | `packages/cli` | — | — | — |
 | `@mark1russell7/client` | `packages/client` | Universal protocol-agnostic RPC client with middleware composition | `client.*` (15), `procedure.*` (9) | `client-collections` |
 | `@mark1russell7/client-cli` | `packages/client-cli` | CLI execution wrapper - exposes cli.exec procedure for running CLI commands | `cli.*` (1) | `client`, `client-shell` |
-| `@mark1russell7/client-collections` | `packages/client-collections` | Map, LRU/TTL cache and collection-storage building blocks of the client ecosystem | — | — |
+| `@mark1russell7/client-collections` | `packages/client-collections` | Collections framework with storage abstraction - ArrayList, HashMap, LRU, TTL, and more | — | — |
 | `@mark1russell7/client-cue` | `packages/client-cue` | CUE configuration procedures for the client ecosystem | `cue.*` (5) | `client`, `cue` *(general)* |
 | `@mark1russell7/client-dag` | `packages/client-dag` | Generic DAG algorithms for dependency management | — | — |
 | `@mark1russell7/client-docker` | `packages/client-docker` | Wraps Docker CLI commands as procedures using client-shell | `docker.*` (10) | `client`, `client-shell` |
@@ -39,10 +39,11 @@ Dependencies marked *(general)* are separate repositories, referenced with `gith
 | `@mark1russell7/client-vite` | `packages/client-vite` | Vite dev server management procedures | `vite.*` (4) | `client`, `client-shell` |
 | `@mark1russell7/client-vitest` | `packages/client-vitest` | — | `vitest.*` (2) | `client` |
 | `@mark1russell7/documentation` | `packages/documentation` | — | — | — |
-| `@mark1russell7/impl-mcp-dev` | `packages/impl-mcp-dev` | Ready-to-use MCP server exposing the procedure ecosystem to Claude | — | `client`, `client-mcp`, `bundle-mcp` |
+| `@mark1russell7/impl-mcp-dev` | `packages/impl-mcp-dev` | Ready-to-use MCP server exposing the procedure ecosystem to Claude | — | `bundle-mcp`, `client`, `client-mcp` |
 | `@mark1russell7/cli` | `packages/mark` | Mark CLI - Development workflow automation | — | `client`, `client-cli`, `client-lib`, `client-logger`, `client-pnpm`, `client-procedure`, `client-server`, `client-shell`, `client-test`, `client-vitest` |
 | `@mark1russell7/mcp` | `packages/mcp` | Core MCP types and utilities for procedure-to-tool mapping | — | — |
 | `@mark1russell7/server` | `packages/server` | General procedure server - run any procedure packages via HTTP/WebSocket | — | `client`, `client-server` |
+| `@mark1russell7/site` | `packages/site` | The website of the client ecosystem: the Composer, the procedure catalog and the architecture map | — | `client` |
 
 Procedures are counted for the package whose `register.js` adds them first, in dependency order.
 A bundle (`bundle-dev`, `bundle-mcp`) adds none of its own.

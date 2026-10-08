@@ -12,12 +12,13 @@
 `@mark1russell7/bundle-mcp` provides a **curated collection of procedures** optimized for AI assistant integration via MCP. Unlike `bundle-dev` which includes all tools, this bundle focuses on **high-level orchestration** tools since Claude already has shell access for low-level operations.
 
 **Key Design Decisions:**
-- **Excludes** low-level tools (`fs.*`, `git.*`, `pnpm.*`) - Claude can use these via shell
-  - ⚠️ **Caveat:** `shell.run`/`shell.exec`/`shell.which` are *not* actually excluded — `client-cli`, `client-docker`, and `client-test` import `client-shell` (to call `shell.run` at runtime), which also registers it as an MCP tool. Excluding it requires a tool denylist (planned). See [../documentation/BUGS-2026-07.md](../documentation/BUGS-2026-07.md) (H18).
-- **Includes** high-level orchestration (`lib.*`, `cli.*`, `procedure.*`)
-- **Includes** infrastructure management (`docker.*`, `snapshot.*`)
-- **Includes** database operations (`mongo.*`, `sqlite.*`, `s3.*`)
-- **Includes** testing utilities (`vitest.*`, `test.*`)
+- `src/register.ts` exports `mcpNamespaces`: the namespaces that the MCP server gives to Claude as tools. Today: `cli`, `client`, `cue`, `db`, `docker`, `lib`, `logs`, `mongo`, `procedure` and `vitest` (68 tools).
+- **Excludes** low-level tools (`fs.*`, `git.*`, `pnpm.*`): Claude has its own shell.
+- `shell.*` is registered, because `docker.*` runs through `shell.exec`, but it is not a tool. A data-driven procedure (`client.chain`, `eval`, a procedure that `procedure.define` made) can call only exposed procedures, so it cannot reach `shell.exec` either.
+- **Not in the bundle:** `snapshot.*` (`restore` overwrites folders), `s3.*` (`delete`) and `test.*` (`vitest.*` runs the tests).
+- `packages/impl-mcp-dev/tools.snapshot.txt` pins the tool list, and a test checks it. See [../documentation/BUGS-2026-07.md](../documentation/BUGS-2026-07.md) (H18).
+
+> The sections below predate the October 2026 changes. Where they list `snapshot`, `s3` or `test`, the list above is correct.
 
 ## Table of Contents
 

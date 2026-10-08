@@ -62,12 +62,12 @@
 | `client.conditional` | Conditional execution (if/then/else) |
 | `client.constant` | Return a constant value |
 | `client.identity` | Return input unchanged |
-| `client.map` | Map over array (items should contain procedure refs) |
+| `client.map` | Map over an array: run fn for each item (the item is { $ref: "item" }) |
 | `client.none` | Returns true if all values are falsy |
 | `client.not` | Logical NOT |
 | `client.or` | Short-circuit OR (returns first truthy or last value) |
 | `client.parallel` | Execute procedures in parallel |
-| `client.reduce` | Reduce array to single value |
+| `client.reduce` | Reduce an array: run fn for each item (acc and item are $refs) |
 | `client.throw` | Throw an error |
 | `client.tryCatch` | Try/catch wrapper for procedures |
 

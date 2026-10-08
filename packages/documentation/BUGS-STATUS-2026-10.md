@@ -8,14 +8,14 @@
 
 | Status | Count | IDs |
 |---|---:|---|
-| Fixed in July | 43 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: see "Open") |
-| Fixed in October | 34 | see the next table |
+| Fixed in July | 43 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: it is fixed in October) |
+| Fixed in October | 35 | see the next table |
 | Fixed earlier, confirmed in October | 6 | H20, H21, M9, L27; H30 and M40 in the `logger` repository |
 | Obsolete (the code was deleted) | 8 | H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
 | Not a bug | 1 | L20: `splay`'s own tests assert that `pathDepth("data.items[0]")` is 2 |
 | Open: latent | 1 | L15 |
 | Open: restored, to rebuild | 11 | C8–C12, L10, L11, L12, L14, L16, L17. The collections modules were deleted on 2026-10-08 and restored the same day. See ARCHITECTURE-PROPOSALS P8. |
-| Open: needs a decision | 9 | H18, H5, H8, H9, M2, L2, L21; M27, M28 (`cue`) |
+| Open: needs a decision | 8 | H5, H8, H9, M2 (streaming: approved, in progress), L2, L21 (`client-logger`: retire, approved); M27, M28 (`cue`) |
 
 ## Fixed in October
 
@@ -48,6 +48,7 @@
 | H15 | real `sideEffects` values | `50ba8b8` |
 | M38 | Docker ports bound to `127.0.0.1` | `220bfa8` (`docker-mongo`), `1247930` (`docker-sqlite`) |
 | M26 | MiniMongo reads the pagination fields the server sends | `1473adb` (`MiniMongo`) |
+| H18 | the MCP server exposes only `bundle-mcp`'s `mcpNamespaces` (`shell.*` out, `lib.*` in, 68 tools). A data-driven procedure (`client.chain`, `eval`, a procedure that `procedure.define` made) calls only exposed procedures, so `client.chain` cannot reach `shell.exec`. Importing any client package registers its procedures | `8f8091e` |
 | L13 | composite map methods go through `lruMap`/`ttlMap`. Partly real: most `HashMap` composites already called `this.set`/`this.delete` on the proxy, but `replace`, `replaceEntry` and `deleteEntry` changed the buckets directly (an LRU `replace` left the recency and the reported eviction value stale) | `9bcce4a` |
 
 ### Found and fixed in October (not in the July register)
@@ -61,6 +62,10 @@
 | `lib.new` ran `npx` in a folder with no `node_modules` (registry download) and interpolated the preset into a shell command | `476a1cc` |
 | The `client-dag` duration tests were flaky on CI (timer granularity) | `2ece668` |
 | The WebSocket client wrote every request and response to stdout | `f7895c0` |
+| The control-flow procedures called each operand with its raw input: a nested ref (`multiply { a: add {...} }`) reached the procedure as an object | `5ea4d5e` |
+| `map` returned its raw items and `reduce` its initial value: neither applied a function. Both take `fn` now | `5ea4d5e` |
+| 85 of the 100 core procedures (math, string, array, object, comparison, type, meta) were not reachable outside the package: `allCoreProcedures` was not exported | `1b158b1` |
+| `client.eval` called handlers from the global registry with its own context, without input validation | `8f8091e` |
 
 ## Open
 
@@ -68,4 +73,4 @@
 
 - L15: `HashMap` has no modification count, so an iterator does not fail fast when the map changes during iteration.
 
-**Needs a decision** (the options are in the architecture proposals): H18 (`bundle-mcp` exposes `shell.*` through other packages' imports; July only corrected the README, and excluding the tools needs an explicit MCP allowlist or denylist), H9 and H5 (streaming handlers and WebSocket streaming), H8 (`out:` configuration), M2 (retry buffers streams), L2 (route-leaf detection), L21 (`client-logger`: retire, or validate the inputs), M27 and M28 (`cue` generator: the per-package `pnpm` field, and a `vitest` feature with no CUE file).
+**Needs a decision** (the options are in the architecture proposals): H9 and H5 (streaming handlers and WebSocket streaming), H8 (`out:` configuration), M2 (retry buffers streams), L2 (route-leaf detection), L21 (`client-logger`: retire, or validate the inputs), M27 and M28 (`cue` generator: the per-package `pnpm` field, and a `vitest` feature with no CUE file).

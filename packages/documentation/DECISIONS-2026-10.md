@@ -13,6 +13,42 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### The MCP tool surface: an explicit list, and a guard for data-driven procedures (H18, P2)
+
+The owner approved the recommended list (2026-10-08): no `shell.*`, add `lib.*`, no `snapshot.*` or `s3.*`. Commit `8f8091e`.
+
+- `bundle-mcp` exports `mcpNamespaces`. `impl-mcp-dev` gives it to `ProcedureServer` as an `expose` rule and to the MCP transport as a tool filter. The server has 68 tools.
+- A tool list alone was not enough. `client.chain` is a tool, and it calls any registered procedure by path. `shell.*` must stay registered, because `docker.*` runs through `shell.exec`. So the server applies the rule to calls from data-driven procedures too: the control-flow procedures, the procedures with the `runs-refs` tag (`dag.traverse`, `core.catch`, `client.eval`) and the procedures that `procedure.define` makes. A procedure of code calls its dependencies freely.
+- The mark of a `procedure.define` procedure is on its handler, not in its metadata: the caller of `procedure.define` gives the metadata, and the registry stores copies of procedures.
+- `snapshot.*`, `s3.*` and `test.*` left the bundle (they were never exposed, because their roots registered nothing).
+- To reverse: remove `mcpNamespaces` from `bundle-mcp`. Then the server exposes everything, as before.
+
+**Still open (for the deep dive):** `procedure.*` is exposed. `procedure.define` with `replace` can replace an exposed procedure with an aggregation. The guard limits what that aggregation calls, but replacing a tool is itself a change Claude can make. `procedure.load`/`sync`/`remote` need a review too.
+
+### Every package root registers its procedures (H18, the open question below)
+
+The nine package roots that did not import `register.js` now do: `client-lib`, `-mcp`, `-node`, `-procedure`, `-s3`, `-snapshot`, `-splay`, `-test` and `-vite`. Their `sideEffects` lists `./dist/index.js` now. The rule is the same for all packages: importing a client package registers its procedures. The bundles can keep their root imports. `mark` is not affected (it loads each `register.js` itself).
+
+### The control-flow operands run their nested refs, and map and reduce take fn
+
+Found while building the site's Composer (commit `5ea4d5e`). These are new defects, not July IDs.
+
+- `chain`, `parallel`, `conditional` and `tryCatch` called each operand with its raw input. Only the top-level `exec()` ran nested refs, so `multiply { a: add {...} }` inside a chain got an object for `a`. Now each operand's `$ref`s resolve, its nested refs run, and then it runs. A control-flow operand keeps its raw input, so it stays lazy.
+- `map` and `reduce` were in the "raw operands" list, but their handlers expected their refs to have run already. `map` returned the raw items and `reduce` returned `initial`. Both now take an optional `fn` ref that reads `{ $ref: "item" }`, `{ $ref: "index" }` and (for `reduce`) `{ $ref: "acc" }`. Without `fn`, the old results stay.
+- **Open (a design question):** hydration turns an array whose elements are all refs into a `chain`. So `sum { values: [ref, ref] }` gets a chain result, not a list. The Composer shows a hint. Removing the implicit chain would change the procedure-as-data format, so it waits for the architecture review.
+
+### A browser entry point, and every core procedure exported
+
+`@mark1russell7/client/browser` exports everything except `HttpServerTransport` and `WebSocketServerTransport` (they use `http`, `express` and `ws`). The root re-exports it plus those two, so nothing changes for Node. `allCoreProcedures` is now exported, but not registered by default, so the MCP tool list did not change. Commit `1b158b1`.
+
+### The site (packages/site)
+
+A Vite and React app, made with the `cue-config` `app` preset, published by `.github/workflows/pages.yml` at <https://mark1russell7.github.io/client/>. Commit `1857144`.
+
+- `lib new` makes procedure libraries, so the site is not made with it. The package files come from `cue-config init --preset app` and `generate`, and the package-owned fields (name, scripts, dependencies) are edited as the generator allows.
+- The data is generated at build time from the workspace (`scripts/gen-data.mjs`) and is not committed. The generated `tsconfig.json` does not include `.json` files, so the generator writes `.js` modules with `.d.ts` declarations.
+- The design tokens are the shared file of the Vex and lag sites.
+
 ### sideEffects describes what each package really does (BUGS-2026-07 H15), and an open question about the bundles
 
 July deferred H15 because `cue-config generate` overwrote `sideEffects` (H33). H33 is fixed, so each package now declares the modules that have effects when they load:
@@ -24,7 +60,7 @@ July deferred H15 because `cue-config generate` overwrote `sideEffects` (H33). H
 
 In Node this changes nothing (Node ignores the field). It matters for bundlers: before, a bundler could drop every registration.
 
-**Open question for the owner (I did not change it):** the bundles import package roots (`import "@mark1russell7/client-s3"`). For the 9 packages in the second group, that import registers nothing.
+**Open question for the owner (answered 2026-10-08: see "Every package root registers its procedures"):** the bundles import package roots (`import "@mark1russell7/client-s3"`). For the 9 packages in the second group, that import registers nothing.
 
 - `bundle-mcp` "includes" `client-lib`, `client-snapshot`, `client-s3` and `client-test`, but the `dev-tools` MCP server has none of their tools. The 65 tools have no `lib.*`, `snapshot.*`, `s3.*` or `test.*`.
 - `bundle-dev` gets no `lib.*` or `procedure.new` from its imports. (The `mark` CLI is not affected: it loads every package's `register.js` itself.)
