@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-collections",
   "version": "0.0.1",
-  "description": "Map, LRU/TTL cache and collection-storage building blocks of the client ecosystem",
+  "description": "Collections framework with storage abstraction - ArrayList, HashMap, LRU, TTL, and more",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

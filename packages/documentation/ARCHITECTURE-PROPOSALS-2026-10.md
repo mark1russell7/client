@@ -129,6 +129,31 @@ The template's rule says all prose follows ASD-STE100, checked by `ste-lint`. At
 - **Collections latent bugs** (L13, L15): implement the composite map methods through the intercepted primitives, and add a modification count to `HashMap`. Effort S each, when a consumer needs them.
 - **Old documents:** `ARCHITECTURE.md` and `ONBOARDING.md` are marked as history. Rewrite them for the monorepo after P1 and P2, because those change what they would describe.
 
+## P8. Rebuild the collections framework
+
+The collections modules (lists, sets, queues, trees, behaviors, async queue and channels, `fx` iterators and collectors, effects, events, policies) are restored. The owner wants them as part of the framework. Eleven known defects are in them:
+
+- C8: `ArrayDeque` loses all elements when it grows.
+- C9: `PriorityQueue` is broken from construction.
+- C10: `LinkedHashMap` corrupts on the first collision or resize.
+- C11: `AsyncQueue` drops elements and leaves takers waiting.
+- C12: the stream collectors always return their seed.
+- L10: the `TreeMap` delete does not rebalance.
+- L11: `synchronized()` runs the operation before it locks, and `readWriteLock` counts readers twice.
+- L12: `safeDeque.poll()` removes two elements.
+- L14: `readonly` does not block `setIfAbsent`.
+- L16: `summarizingNumber` treats a minimum or maximum of 0 as missing.
+- L17: "unbuffered" channels have a capacity of 1.
+
+Proposal:
+
+1. Write a contract test suite for each interface (`List`, `Set`, `Queue`, `Deque`, `Map`, `SortedMap`). Every implementation runs the same suite, with property-based tests against a plain array or `Map` model.
+2. Fix or rewrite each implementation until its suite passes. Rewrite when the fix is larger than the structure (`TreeMap`, `LinkedHashMap`).
+3. Decide the role of the behaviors (`bounded`, `evented`, `safe`, `synchronized`, `readonly`): wrappers of the interfaces, or middleware through `compose`, as the cache uses now.
+4. Then decide where the async parts (`AsyncQueue`, channels) belong. Streaming (P3) can use them for back-pressure.
+
+Effort: L. Status: waiting. The site and streaming are first.
+
 ## Suggested order
 
 1. P2's allowlist and MCP snapshot test (S). It protects the tool surface before anything else changes.

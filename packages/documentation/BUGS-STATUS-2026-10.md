@@ -11,9 +11,10 @@
 | Fixed in July | 43 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: see "Open") |
 | Fixed in October | 34 | see the next table |
 | Fixed earlier, confirmed in October | 6 | H20, H21, M9, L27; H30 and M40 in the `logger` repository |
-| Obsolete (the code was deleted) | 17 | C8–C12, L10, L11, L12, L14, L16, L17 (unused collections), H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
+| Obsolete (the code was deleted) | 8 | H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
 | Not a bug | 1 | L20: `splay`'s own tests assert that `pathDepth("data.items[0]")` is 2 |
 | Open: latent | 1 | L15 |
+| Open: restored, to rebuild | 11 | C8–C12, L10, L11, L12, L14, L16, L17. The collections modules were deleted on 2026-10-08 and restored the same day. See ARCHITECTURE-PROPOSALS P8. |
 | Open: needs a decision | 9 | H18, H5, H8, H9, M2, L2, L21; M27, M28 (`cue`) |
 
 ## Fixed in October

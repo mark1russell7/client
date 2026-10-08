@@ -68,6 +68,8 @@ This includes all five "born-broken" structures of the July register: `ArrayDequ
 
 The package now has 10 tests for what it keeps (`hashMap`, `lruMap`, `ttlMap`, their composition, `InMemoryStorage`). Before this it had none. Reverse with `git revert`, or restore single modules from history.
 
+**Reversed on 2026-10-08.** The owner wants these modules kept: they are part of the intended framework, not dead code. The 25 modules, the full `index.ts` exports and the README are restored from `c24d357^`. The later fixes to `lru`, `ttl` and the composite methods stay. The known defects of the restored modules (C8–C12, L10–L12, L14, L16, L17) are open again. Their rebuild is ARCHITECTURE-PROPOSALS P8.
+
 ### Collections, step 1: one copy, no dependency cycle (plan Phase 5.4, DECISIONS-2026-07 steps 2–4)
 
 The July session deferred this because it touched the core package across repositories, with no safety net. In the monorepo it is one atomic commit, checked by the full test suite and CI. What changed:
