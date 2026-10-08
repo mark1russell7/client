@@ -1,9 +1,0 @@
-{
-  "extends": "@mark1russell7/cue/ts/config/node.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    "resolveJsonModule": true
-  },
-  "include": ["src/**/*"]
-}

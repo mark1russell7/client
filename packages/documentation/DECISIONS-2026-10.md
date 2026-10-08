@@ -13,6 +13,16 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Delete ecosystem (plan Phase 5.1)
+
+The manifest (`ecosystem.manifest.json`) listed one repository per package. The workspace (`pnpm-workspace.yaml`) is that list now. All readers of the manifest in this repository moved to the workspace:
+
+- `mark` discovery;
+- `generate-procedures.mjs`;
+- `lib.scan`, `lib.new` and `lib.audit`.
+
+The `ecosystem` package's own loader API had no consumers (AUDIT §3). Outside this repository, `cue`'s `validate structure` command still looks for `~/git/ecosystem/ecosystem.manifest.json`, and falls back to its defaults when the file is missing. Reverse with `git revert`.
+
 ### Retarget lib.scan, lib.new, lib.audit and lib.rename at the workspace (plan Phases 5.2 and 5.3)
 
 These procedures stay useful in one repository, so they now work on the pnpm workspace instead of `~/git` and the manifest. Their default root is the workspace that contains `client-lib`, and `rootPath` overrides it. A new helper module, `client-lib/src/workspace.ts`, finds the root.

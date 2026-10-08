@@ -10,11 +10,12 @@ All packages are in `packages/`. Each package has the name and the history of it
 | --- | --- |
 | Core | `client`, `client-collections`, `client-dag` |
 | Command wrappers | `client-shell`, `client-cli`, `client-git`, `client-pnpm`, `client-docker`, `client-node`, `client-vite`, `client-vitest`, `client-test`, `client-cue` |
-| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-logger`, `client-splay`, `client-server`, `client-server-mongo`, `client-connection` |
+| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-logger`, `client-splay`, `client-server` |
 | Tools | `mark` (the `mark` CLI, package `@mark1russell7/cli`), `client-lib`, `client-procedure`, `client-playground`, `cli` (the repository tool) |
 | Bundles and servers | `bundle-dev`, `bundle-mcp`, `mcp`, `client-mcp`, `impl-mcp-dev`, `server` |
-| Test support | `test`, `mock-client`, `mock-fs`, `mock-logger` |
-| Other | `documentation`, `ecosystem`, `scaffold` |
+| Other | `documentation` |
+
+Some packages of the old repositories are deleted because nothing used them. Their history is in this repository. The list and the reasons are in `packages/documentation/DECISIONS-2026-10.md`.
 
 ## Build and test
 
