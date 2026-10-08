@@ -13,6 +13,27 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Retire lib.install, lib.pull, lib.refresh and the aggregation layer (plan Phase 5.2)
+
+These procedures exist only because each package was its own git repository:
+
+- `lib.install` cloned every manifest repository into `~/git`.
+- `lib.pull` ran `git pull` in each repository.
+- `lib.refresh` ran `rm -rf node_modules dist`, then install, build, `git add -A`, commit and push, in each package folder.
+
+In the monorepo they are wrong and dangerous:
+
+- `lib.refresh` on a package folder would commit and push the whole repository.
+- `lib.install` would clone 41 archived repositories back into `~/git`.
+
+`git pull`, `pnpm install` and `pnpm build` now do these jobs.
+
+The aggregation layer (`register-aggregations.ts`, `*-aggregation.ts`, `procedures/lib/aggregations/`) was a declarative mirror of the same procedures. The July audit found it unrunnable (H17): it calls procedures that were never registered. Its parity tests ran against a mock executor that returns `{}` for any path, so they could not see that. Its 6 test files (154 tests) tested only that layer and went with it. `client-lib` has no tests until the next change adds workspace-scan tests, so its `test` script uses `--passWithNoTests`.
+
+The idea of "procedure-as-data workflows" is not abandoned. It lives in the core `client` combinators (`client.chain`, `client.conditional` and the others), which are tested.
+
+Kept, and retargeted at the workspace in the next change: `lib.scan`, `lib.new`, `lib.audit`, `lib.rename`, `ecosystem.procedures`, `dag.traverse`, `core.catch`. Reverse with `git revert`. The deleted code is in history.
+
 ### Delete test, mock-client, mock-fs and mock-logger (plan Phase 5.1)
 
 The plan said: delete `mock-client` and `mock-logger`, and delete `test` and `mock-fs` "if nothing imports them". One thing used `test`: the `vitest.config.ts` of `client-dag` imported `sharedConfig`. That config is mostly vitest defaults. The values that matter (`environment: "node"`, 10-second timeouts) are now written directly in `client-dag`'s config. After that, nothing used the four packages:

@@ -45,66 +45,6 @@ export interface LibScanOutput {
 }
 
 // =============================================================================
-// lib.refresh Types
-// =============================================================================
-
-export const LibRefreshInputSchema: z.ZodObject<{
-  path: z.ZodDefault<z.ZodString>;
-  recursive: z.ZodDefault<z.ZodBoolean>;
-  all: z.ZodDefault<z.ZodBoolean>;
-  force: z.ZodDefault<z.ZodBoolean>;
-  skipGit: z.ZodDefault<z.ZodBoolean>;
-  autoConfirm: z.ZodDefault<z.ZodBoolean>;
-  dryRun: z.ZodDefault<z.ZodBoolean>;
-  sessionId: z.ZodOptional<z.ZodString>;
-}> = z.object({
-  /** Path to the library to refresh */
-  path: z.string().default("."),
-  /** Recursively refresh dependencies */
-  recursive: z.boolean().default(false),
-  /** Refresh all packages in the ecosystem */
-  all: z.boolean().default(false),
-  /** Force full cleanup (rm node_modules, dist, lock) before install */
-  force: z.boolean().default(false),
-  /** Skip git commit/push */
-  skipGit: z.boolean().default(false),
-  /** Non-interactive mode (auto-confirm) */
-  autoConfirm: z.boolean().default(false),
-  /** Preview changes without applying */
-  dryRun: z.boolean().default(false),
-  /** Session ID for log grouping */
-  sessionId: z.string().optional(),
-});
-
-export type LibRefreshInput = z.infer<typeof LibRefreshInputSchema>;
-
-export interface RefreshResult {
-  /** Package name */
-  name: string;
-  /** Package path */
-  path: string;
-  /** Whether refresh succeeded */
-  success: boolean;
-  /** Duration in milliseconds */
-  duration: number;
-  /** Error if failed */
-  error?: string | undefined;
-  /** Phase where failure occurred */
-  failedPhase?: "cleanup" | "install" | "build" | "git" | undefined;
-  /** Planned operations (for dry-run mode) */
-  plannedOperations?: string[] | undefined;
-}
-
-export interface LibRefreshOutput {
-  /** Overall success */
-  success: boolean;
-  /** Results for each package refreshed */
-  results: RefreshResult[];
-  /** Total duration in milliseconds */
-  totalDuration: number;
-}
-
-// =============================================================================
 // DAG Types (ecosystem-specific)
 // =============================================================================
 
@@ -212,58 +152,6 @@ export interface LibRenameOutput {
 }
 
 // =============================================================================
-// lib.install Types
-// =============================================================================
-
-export const LibInstallInputSchema: z.ZodObject<{
-  rootPath: z.ZodOptional<z.ZodString>;
-  dryRun: z.ZodDefault<z.ZodBoolean>;
-  continueOnError: z.ZodDefault<z.ZodBoolean>;
-  concurrency: z.ZodDefault<z.ZodNumber>;
-}> = z.object({
-  /** Root path for packages (defaults to ~/git) */
-  rootPath: z.string().optional(),
-  /** Preview changes without installing */
-  dryRun: z.boolean().default(false),
-  /** Continue on error instead of stopping */
-  continueOnError: z.boolean().default(false),
-  /** Max parallel operations */
-  concurrency: z.number().default(4),
-});
-
-export type LibInstallInput = z.infer<typeof LibInstallInputSchema>;
-
-export interface InstallResult {
-  /** Package name */
-  name: string;
-  /** Package path */
-  path: string;
-  /** Whether install succeeded */
-  success: boolean;
-  /** Duration in milliseconds */
-  duration: number;
-  /** Current phase when completed/failed */
-  phase?: "clone" | "install" | "build" | "complete" | undefined;
-  /** Error if failed */
-  error?: string | undefined;
-}
-
-export interface LibInstallOutput {
-  /** Overall success */
-  success: boolean;
-  /** Packages that were cloned */
-  cloned: string[];
-  /** Packages that already existed */
-  skipped: string[];
-  /** Install results for each package */
-  results: InstallResult[];
-  /** Any errors encountered */
-  errors: string[];
-  /** Total duration in milliseconds */
-  totalDuration: number;
-}
-
-// =============================================================================
 // lib.new Types
 // =============================================================================
 
@@ -366,62 +254,6 @@ export interface LibAuditOutput {
     valid: number;
     invalid: number;
   };
-}
-
-// =============================================================================
-// lib.pull Types
-// =============================================================================
-
-export const LibPullInputSchema: z.ZodObject<{
-  rootPath: z.ZodOptional<z.ZodString>;
-  remote: z.ZodDefault<z.ZodString>;
-  rebase: z.ZodDefault<z.ZodBoolean>;
-  dryRun: z.ZodDefault<z.ZodBoolean>;
-  continueOnError: z.ZodDefault<z.ZodBoolean>;
-  concurrency: z.ZodDefault<z.ZodNumber>;
-}> = z.object({
-  /** Root path for packages (defaults to ~/git) */
-  rootPath: z.string().optional(),
-  /** Remote name (default: origin) */
-  remote: z.string().default("origin"),
-  /** Rebase instead of merge (default: false) */
-  rebase: z.boolean().default(false),
-  /** Preview changes without pulling */
-  dryRun: z.boolean().default(false),
-  /** Continue on error instead of stopping */
-  continueOnError: z.boolean().default(false),
-  /** Max parallel operations */
-  concurrency: z.number().default(4),
-});
-
-export type LibPullInput = z.infer<typeof LibPullInputSchema>;
-
-export interface PullResult {
-  /** Package name */
-  name: string;
-  /** Package path */
-  path: string;
-  /** Whether pull succeeded */
-  success: boolean;
-  /** Duration in milliseconds */
-  duration: number;
-  /** Number of commits pulled */
-  commits: number;
-  /** Whether it was a fast-forward */
-  fastForward?: boolean | undefined;
-  /** Error if failed */
-  error?: string | undefined;
-  /** Planned operations (for dry-run mode) */
-  plannedOperations?: string[] | undefined;
-}
-
-export interface LibPullOutput {
-  /** Overall success */
-  success: boolean;
-  /** Pull results for each package */
-  results: PullResult[];
-  /** Total duration in milliseconds */
-  totalDuration: number;
 }
 
 // =============================================================================

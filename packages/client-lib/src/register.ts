@@ -8,12 +8,9 @@
 import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import {
   libScan,
-  libRefresh,
   libRename,
-  libInstall,
   libNew,
   libAudit,
-  libPull,
 } from "./procedures/lib/index.js";
 import {
   ecosystemProcedures,
@@ -25,28 +22,19 @@ import { dagTraverse } from "./procedures/dag/index.js";
 import { coreCatch } from "./procedures/core/index.js";
 import {
   LibScanInputSchema,
-  LibRefreshInputSchema,
   LibRenameInputSchema,
-  LibInstallInputSchema,
   LibNewInputSchema,
   LibAuditInputSchema,
-  LibPullInputSchema,
   DagTraverseInputSchema,
   CoreCatchInputSchema,
   type LibScanInput,
   type LibScanOutput,
-  type LibRefreshInput,
-  type LibRefreshOutput,
   type LibRenameInput,
   type LibRenameOutput,
-  type LibInstallInput,
-  type LibInstallOutput,
   type LibNewInput,
   type LibNewOutput,
   type LibAuditInput,
   type LibAuditOutput,
-  type LibPullInput,
-  type LibPullOutput,
   type DagTraverseInput,
   type DagTraverseOutput,
   type CoreCatchInput,
@@ -73,21 +61,6 @@ const libScanProcedure = createProcedure()
   })
   .build();
 
-const libRefreshProcedure = createProcedure()
-  .path(["lib", "refresh"])
-  .input(zodAdapter<LibRefreshInput>(LibRefreshInputSchema))
-  .output(outputSchema<LibRefreshOutput>())
-  .meta({
-    description: "Refresh a package (install, build, commit, push)",
-    args: ["path"],
-    shorts: { recursive: "r", all: "a", force: "f", dryRun: "n" },
-    output: "json",
-  })
-  .handler(async (input: LibRefreshInput, ctx: ProcedureContext): Promise<LibRefreshOutput> => {
-    return libRefresh(input, ctx);
-  })
-  .build();
-
 const libRenameProcedure = createProcedure()
   .path(["lib", "rename"])
   .input(zodAdapter<LibRenameInput>(LibRenameInputSchema))
@@ -100,21 +73,6 @@ const libRenameProcedure = createProcedure()
   })
   .handler(async (input: LibRenameInput, ctx: ProcedureContext): Promise<LibRenameOutput> => {
     return libRename(input, ctx);
-  })
-  .build();
-
-const libInstallProcedure = createProcedure()
-  .path(["lib", "install"])
-  .input(zodAdapter<LibInstallInput>(LibInstallInputSchema))
-  .output(outputSchema<LibInstallOutput>())
-  .meta({
-    description: "Install the entire ecosystem from manifest",
-    args: [],
-    shorts: { dryRun: "n" },
-    output: "json",
-  })
-  .handler(async (input: LibInstallInput, ctx: ProcedureContext): Promise<LibInstallOutput> => {
-    return libInstall(input, ctx);
   })
   .build();
 
@@ -145,21 +103,6 @@ const libAuditProcedure = createProcedure()
   })
   .handler(async (input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput> => {
     return libAudit(input, ctx);
-  })
-  .build();
-
-const libPullProcedure = createProcedure()
-  .path(["lib", "pull"])
-  .input(zodAdapter<LibPullInput>(LibPullInputSchema))
-  .output(outputSchema<LibPullOutput>())
-  .meta({
-    description: "Pull from remote for all packages",
-    args: [],
-    shorts: { dryRun: "n" },
-    output: "json",
-  })
-  .handler(async (input: LibPullInput, ctx: ProcedureContext): Promise<LibPullOutput> => {
-    return libPull(input, ctx);
   })
   .build();
 
@@ -228,12 +171,9 @@ export function registerLibProcedures(): void {
   registerProcedures([
     // lib.* procedures (canonical home)
     libScanProcedure,
-    libRefreshProcedure,
     libRenameProcedure,
-    libInstallProcedure,
     libNewProcedure,
     libAuditProcedure,
-    libPullProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
     // dag.* procedures (canonical home)
@@ -242,15 +182,6 @@ export function registerLibProcedures(): void {
     coreCatchProcedure,
   ]);
 }
-
-// Re-export aggregation registration for convenience
-export {
-  registerAggregationProcedures,
-  getAllAggregations,
-  getAggregation,
-  listAggregationPaths,
-  aggregationRegistry,
-} from "./register-aggregations.js";
 
 // Auto-register
 registerLibProcedures();

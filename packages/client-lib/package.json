@@ -19,7 +19,7 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "sideEffects": false,
   "devDependencies": {
@@ -28,7 +28,7 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   },
-  "description": "Library management procedures - scan, refresh, install, pull, etc.",
+  "description": "Workspace management procedures - scan, new, audit, rename",
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-dag": "workspace:*",
