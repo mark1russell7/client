@@ -25,6 +25,9 @@ export const VitestRunOutputSchema: z.ZodObject<{
   failed: z.ZodNumber;
   skipped: z.ZodNumber;
   duration: z.ZodNumber;
+  exitCode: z.ZodNumber;
+  stdout: z.ZodString;
+  stderr: z.ZodString;
   coverage: z.ZodOptional<z.ZodObject<{
     lines: z.ZodNumber;
     branches: z.ZodNumber;
@@ -37,6 +40,11 @@ export const VitestRunOutputSchema: z.ZodObject<{
   failed: z.number(),
   skipped: z.number(),
   duration: z.number(),
+  /** The exit code of vitest (-1 when a signal ended it) */
+  exitCode: z.number(),
+  /** The last 64 KiB of the output */
+  stdout: z.string(),
+  stderr: z.string(),
   coverage: z.object({
     lines: z.number(),
     branches: z.number(),
@@ -45,6 +53,20 @@ export const VitestRunOutputSchema: z.ZodObject<{
   }).optional(),
 });
 export type VitestRunOutput = z.infer<typeof VitestRunOutputSchema>;
+
+export const VitestCoverageInputSchema: z.ZodObject<{
+  cwd: z.ZodOptional<z.ZodString>;
+  include: z.ZodOptional<z.ZodArray<z.ZodString>>;
+  exclude: z.ZodOptional<z.ZodArray<z.ZodString>>;
+  threshold: z.ZodOptional<z.ZodNumber>;
+}> = z.object({
+  cwd: z.string().optional(),
+  include: z.array(z.string()).optional(),
+  exclude: z.array(z.string()).optional(),
+  /** The minimum line coverage in percent. Below it, the result has `success: false`. */
+  threshold: z.number().optional(),
+});
+export type VitestCoverageInput = z.infer<typeof VitestCoverageInputSchema>;
 
 export const VitestWatchInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;

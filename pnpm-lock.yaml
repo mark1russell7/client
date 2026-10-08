@@ -480,22 +480,6 @@ importers:
         specifier: ^4.0.16
         version: 4.1.11(@types/node@22.20.5)(vite@7.3.7(@types/node@22.20.5)(tsx@4.23.15))
 
-  packages/client-logger:
-    dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
-      '@mark1russell7/logger':
-        specifier: github:mark1russell7/logger#main
-        version: https://codeload.github.com/mark1russell7/logger/tar.gz/abe7a7a83f791175d83611ca76a2e47e98aa0ae9
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   packages/client-mcp:
     dependencies:
       '@mark1russell7/mcp':
@@ -773,28 +757,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/client-test:
-    dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mark1russell7/client-shell':
-        specifier: workspace:*
-        version: link:../client-shell
-      zod:
-        specifier: ^3.24.0
-        version: 3.25.76
-    devDependencies:
-      '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   packages/client-vite:
     dependencies:
       '@mark1russell7/client':
@@ -890,9 +852,6 @@ importers:
       '@mark1russell7/client-lib':
         specifier: workspace:*
         version: link:../client-lib
-      '@mark1russell7/client-logger':
-        specifier: workspace:*
-        version: link:../client-logger
       '@mark1russell7/client-pnpm':
         specifier: workspace:*
         version: link:../client-pnpm
@@ -905,9 +864,6 @@ importers:
       '@mark1russell7/client-shell':
         specifier: workspace:*
         version: link:../client-shell
-      '@mark1russell7/client-test':
-        specifier: workspace:*
-        version: link:../client-test
       '@mark1russell7/client-vitest':
         specifier: workspace:*
         version: link:../client-vitest
@@ -1568,10 +1524,6 @@ packages:
     resolution: {gitHosted: true, integrity: sha512-o16hNSI584J8f67ANGdN5ekzxDrqamaZpjNneWNQXZTeWeWrXpsF/K7D1/l7xTKTPAM/hD+jpUmx1IIt4AMZnA==, tarball: https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/352adc980a976f129f66c0d9b88a714fccf888d6}
     version: 0.1.0
     engines: {node: '>=20'}
-
-  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/abe7a7a83f791175d83611ca76a2e47e98aa0ae9':
-    resolution: {gitHosted: true, integrity: sha512-u3/1RxYHNJKGDiub+SQC42frZ9Uc5v7MGJbxMgq3us0937I44F8xT7Cp64NJJuZLYK6VT9FN0ppkzwDp5ffoyg==, tarball: https://codeload.github.com/mark1russell7/logger/tar.gz/abe7a7a83f791175d83611ca76a2e47e98aa0ae9}
-    version: 1.0.0
 
   '@mark1russell7/splay@https://codeload.github.com/mark1russell7/splay/tar.gz/175fc95686d10965742e422317cb9f5612d81229':
     resolution: {gitHosted: true, integrity: sha512-CshDUwmpeNZKnul6kLkSrDsPNeoaUcR2BNhihUOxmj8AdFjk1NZuGkbU/C4He4ngOBWFsO4R1QcWX6GxcmHYoA==, tarball: https://codeload.github.com/mark1russell7/splay/tar.gz/175fc95686d10965742e422317cb9f5612d81229}
@@ -3735,8 +3687,6 @@ snapshots:
   '@mark1russell7/docker-sqlite@https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/352adc980a976f129f66c0d9b88a714fccf888d6':
     dependencies:
       sql.js: 1.14.2
-
-  '@mark1russell7/logger@https://codeload.github.com/mark1russell7/logger/tar.gz/abe7a7a83f791175d83611ca76a2e47e98aa0ae9': {}
 
   '@mark1russell7/splay@https://codeload.github.com/mark1russell7/splay/tar.gz/175fc95686d10965742e422317cb9f5612d81229': {}
 

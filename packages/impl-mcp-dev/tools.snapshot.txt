@@ -64,5 +64,6 @@ procedure.register
 procedure.remote
 procedure.store
 procedure.sync
+vitest.coverage
 vitest.run
 vitest.watch

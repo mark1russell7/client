@@ -9,8 +9,8 @@ All packages are in `packages/`. Each package has the name and the history of it
 | Group | Packages |
 | --- | --- |
 | Core | `client`, `client-collections`, `client-dag` |
-| Command wrappers | `client-shell`, `client-cli`, `client-git`, `client-pnpm`, `client-docker`, `client-node`, `client-vite`, `client-vitest`, `client-test`, `client-cue` |
-| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-logger`, `client-splay`, `client-server` |
+| Command wrappers | `client-shell`, `client-cli`, `client-git`, `client-pnpm`, `client-docker`, `client-node`, `client-vite`, `client-vitest`, `client-cue` |
+| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-splay`, `client-server` |
 | Tools | `mark` (the `mark` CLI, package `@mark1russell7/cli`), `client-lib`, `client-procedure`, `client-playground`, `cli` (the repository tool) |
 | Bundles and servers | `bundle-dev`, `bundle-mcp`, `mcp`, `client-mcp`, `impl-mcp-dev`, `server` |
 | Other | `documentation` |

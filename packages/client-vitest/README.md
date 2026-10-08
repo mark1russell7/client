@@ -7,6 +7,8 @@
 
 > Vitest-specific test procedures. Run and watch tests with full coverage reporting.
 
+> **October 2026:** `client-test` is merged into this package. `vitest.run` also returns `exitCode`, `stdout` and `stderr` (the last 64 KiB) and, with `coverage`, the coverage percentages. The new `vitest.coverage` runs with coverage and takes a `threshold` (minimum line coverage). The sections below predate the merge.
+
 ## Table of Contents
 
 - [Overview](#overview)
