@@ -69,27 +69,33 @@ export function zodToJsonSchema(
   return { type: "object", additionalProperties: true };
 }
 
-// Schema cache for performance
-const schemaCache = new Map<string, JsonSchema>();
+// Schema cache for performance, keyed by the schema object: a procedure that is registered
+// again with a different schema gets the new JSON Schema (BUGS-2026-07 L30: the cache was keyed
+// by the procedure path and returned the old schema)
+const schemaCache = new Map<object, JsonSchema>();
 
 /**
  * Convert a schema to JSON Schema with caching.
  *
  * @param schema - Schema to convert (Zod or ZodLike)
- * @param cacheKey - Unique key for caching (typically procedure path)
+ * @param _cacheKey - Not used any more (kept for compatibility): the schema object is the key
  * @returns Cached or freshly converted JSON Schema
  */
 export function cachedZodToJsonSchema(
   schema: SchemaLike | unknown,
-  cacheKey: string
+  _cacheKey?: string
 ): JsonSchema {
-  const cached = schemaCache.get(cacheKey);
+  if (!schema || typeof schema !== "object") {
+    return zodToJsonSchema(schema);
+  }
+
+  const cached = schemaCache.get(schema);
   if (cached) {
     return cached;
   }
 
   const jsonSchema = zodToJsonSchema(schema);
-  schemaCache.set(cacheKey, jsonSchema);
+  schemaCache.set(schema, jsonSchema);
   return jsonSchema;
 }
 
