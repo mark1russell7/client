@@ -35,6 +35,8 @@ Write all prose of this repository in the style of ASD-STE100 Simplified Technic
 
 ## New procedures and packages
 
+- To make a package, start `node packages/mark/dist/cli.js lib new <name>`. Then start `pnpm install` and `pnpm build`.
+- The command makes `packages/<name>` with the `cue-config` files, `src/register.ts` and the `client.procedures` field.
 - To make a procedure, start `node packages/mark/dist/cli.js procedure new <name> --path packages/<package>`.
-- At this time, do not use `pnpm package add`. It makes packages without a `dist/` build, and the other packages cannot use them.
-- Ask the user before you make a new package.
+- Do not use `pnpm package add`. It makes packages without a `dist/` build, and the other packages cannot use them.
+- To examine all packages, start `node packages/mark/dist/cli.js lib audit`.
