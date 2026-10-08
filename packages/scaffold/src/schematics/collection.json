@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/@angular-devkit/schematics/collection-schema.json",
+  "schematics": {
+    "lib-new": {
+      "description": "Create a new package with schema-driven structure",
+      "factory": "./lib-new/index#libNew",
+      "schema": "./lib-new/schema.json"
+    },
+    "lib-refresh": {
+      "description": "Refresh a package (install, build, commit)",
+      "factory": "./lib-refresh/index#libRefresh",
+      "schema": "./lib-refresh/schema.json"
+    }
+  }
+}

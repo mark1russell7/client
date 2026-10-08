@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/scaffold",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schematics",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build:schematics && npm run copy:schematics",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('schematics',{recursive:true,force:true});require('fs').rmSync('.tsbuildinfo',{force:true})\"",
+    "build:schematics": "tsc -p src/schematics/tsconfig.json",
+    "copy:schematics": "node -e \"const fs=require('fs');fs.copyFileSync('src/schematics/collection.json','schematics/schematics/collection.json');fs.copyFileSync('src/schematics/lib-new/schema.json','schematics/schematics/lib-new/schema.json');fs.copyFileSync('src/schematics/lib-refresh/schema.json','schematics/schematics/lib-refresh/schema.json')\""
+  },
+  "sideEffects": false,
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@types/node": "^22.0.0"
+  },
+  "description": "Schema-driven scaffolding system with Angular Schematics",
+  "schematics": "./schematics/schematics/collection.json",
+  "dependencies": {
+    "@angular-devkit/schematics": "^19.0.0",
+    "ts-morph": "^24.0.0"
+  }
+}
