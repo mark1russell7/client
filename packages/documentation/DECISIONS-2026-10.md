@@ -13,6 +13,16 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Delete test, mock-client, mock-fs and mock-logger (plan Phase 5.1)
+
+The plan said: delete `mock-client` and `mock-logger`, and delete `test` and `mock-fs` "if nothing imports them". One thing used `test`: the `vitest.config.ts` of `client-dag` imported `sharedConfig`. That config is mostly vitest defaults. The values that matter (`environment: "node"`, 10-second timeouts) are now written directly in `client-dag`'s config. After that, nothing used the four packages:
+
+- `client`, `client-dag` and `mark` listed `test` or `mock-client` as devDependencies but never imported them.
+- `test` re-exported the three mocks, and nothing imported `test` except that config.
+- The July audit graded them F (`mock-client`: `createMockClient()` throws), D- (`mock-logger`), C- (`mock-fs`: it mocks an interface that `client-fs` cannot accept) and "not procedures, name collides with client-test" (`test`).
+
+The removal also cleared the only `pnpm peers check` problem (`mock-client` wanted vitest 3). The general repositories `logger` and `splay` still list `github:mark1russell7/test#main` as an unused devDependency. The archived repository stays installable, so they are not affected. Reverse with `git revert`.
+
 ### Delete scaffold, client-connection and client-server-mongo (plan Phase 5.1)
 
 The July audit marked all three as dead, and the migration plan scheduled their deletion. Nothing in the workspace depends on any of them.
