@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
+import { createProcedure, PROCEDURE_REGISTRY, outputSchema } from "@mark1russell7/client";
 
 // =============================================================================
 // Types
@@ -71,7 +71,8 @@ const healthProcedure = createProcedure()
  * Register all client-splay procedures.
  */
 export function registerBridge(): void {
-  registerProcedures([infoProcedure, healthProcedure]);
+  // override: calling the exported function again (after the auto-register) must not throw
+  PROCEDURE_REGISTRY.registerAll([infoProcedure, healthProcedure], { override: true });
 }
 
 // Auto-register when this module is loaded

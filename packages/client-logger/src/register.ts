@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
+import { createProcedure, PROCEDURE_REGISTRY, outputSchema } from "@mark1russell7/client";
 import {
   createLogger,
   LogLevel,
@@ -164,15 +164,19 @@ const getLevelProcedure = createProcedure()
 // =============================================================================
 
 export function registerLogProcedures(): void {
-  registerProcedures([
-    debugProcedure,
-    infoProcedure,
-    warnProcedure,
-    errorProcedure,
-    traceProcedure,
-    setLevelProcedure,
-    getLevelProcedure,
-  ]);
+  // override: calling the exported function again (after the auto-register) must not throw
+  PROCEDURE_REGISTRY.registerAll(
+    [
+      debugProcedure,
+      infoProcedure,
+      warnProcedure,
+      errorProcedure,
+      traceProcedure,
+      setLevelProcedure,
+      getLevelProcedure,
+    ],
+    { override: true }
+  );
 }
 
 // Auto-register when this module is loaded
