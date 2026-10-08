@@ -11,11 +11,11 @@
 | Fixed in July | 43 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: it is fixed in October) |
 | Fixed in October | 35 | see the next table |
 | Fixed earlier, confirmed in October | 6 | H20, H21, M9, L27; H30 and M40 in the `logger` repository |
-| Obsolete (the code was deleted) | 8 | H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
+| Obsolete (the code was deleted) | 9 | L21 (`client-logger`, retired), H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
 | Not a bug | 1 | L20: `splay`'s own tests assert that `pathDepth("data.items[0]")` is 2 |
 | Open: latent | 1 | L15 |
 | Open: restored, to rebuild | 11 | C8–C12, L10, L11, L12, L14, L16, L17. The collections modules were deleted on 2026-10-08 and restored the same day. See ARCHITECTURE-PROPOSALS P8. |
-| Open: needs a decision | 8 | H5, H8, H9, M2 (streaming: approved, in progress), L2, L21 (`client-logger`: retire, approved); M27, M28 (`cue`) |
+| Open: needs a decision | 7 | H5, H8, H9, M2 (streaming: approved, in progress), L2; M27, M28 (`cue`) |
 
 ## Fixed in October
 
@@ -73,4 +73,4 @@
 
 - L15: `HashMap` has no modification count, so an iterator does not fail fast when the map changes during iteration.
 
-**Needs a decision** (the options are in the architecture proposals): H9 and H5 (streaming handlers and WebSocket streaming), H8 (`out:` configuration), M2 (retry buffers streams), L2 (route-leaf detection), L21 (`client-logger`: retire, or validate the inputs), M27 and M28 (`cue` generator: the per-package `pnpm` field, and a `vitest` feature with no CUE file).
+**Needs a decision** (the options are in the architecture proposals): H9 and H5 (streaming handlers and WebSocket streaming), H8 (`out:` configuration), M2 (retry buffers streams), L2 (route-leaf detection), M27 and M28 (`cue` generator: the per-package `pnpm` field, and a `vitest` feature with no CUE file).

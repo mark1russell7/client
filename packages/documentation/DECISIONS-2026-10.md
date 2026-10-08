@@ -13,6 +13,14 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Merge client-test into client-vitest, retire client-logger (P4)
+
+Approved by the owner on 2026-10-08. Commit `8356474`.
+
+- `vitest.run` returns its old counts plus `exitCode`, `stdout` and `stderr` (the last 64 KiB of each), and the coverage percentages when `coverage` is set. `vitest.coverage` replaces `test.coverage`: it runs with coverage and takes a `threshold`. `test.run` has no replacement name: `vitest.run` does what it did.
+- `client-logger` and its `log.*` procedures are gone. For persistent logs, use `logs.store` and `logs.query` (`client-sqlite`). The general `logger` package is not affected.
+- To reverse: restore the packages from history (`git checkout 8356474^ -- packages/client-test packages/client-logger`) and their `mark` dependencies.
+
 ### The MCP tool surface: an explicit list, and a guard for data-driven procedures (H18, P2)
 
 The owner approved the recommended list (2026-10-08): no `shell.*`, add `lib.*`, no `snapshot.*` or `s3.*`. Commit `8f8091e`.

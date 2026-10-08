@@ -90,6 +90,8 @@ Effort: S for the allowlist and snapshot test, M for option 3.
 
 ## P4. Package granularity
 
+> **Partly done on 2026-10-08** (`8356474`). The owner approved the two main steps: `client-test` is merged into `client-vitest` (`vitest.coverage` is new), and `client-logger` is retired in favor of `logs.*`. The other items of this section are still proposals.
+
 The move made package boundaries cheap to change. Some of today's boundaries do not earn their keep:
 
 | Package | Observation | Proposal |

@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 34. **Procedures:** 162. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 32. **Procedures:** 154. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, referenced with `github:` specifiers.
 
@@ -22,7 +22,6 @@ Dependencies marked *(general)* are separate repositories, referenced with `gith
 | `@mark1russell7/client-fs` | `packages/client-fs` | Filesystem operations as RPC procedures - fs.read, fs.write, fs.exists, etc. | `fs.*` (11) | `client` |
 | `@mark1russell7/client-git` | `packages/client-git` | Git operations as RPC procedures - git.add, git.commit, git.push, etc. | `git.*` (26) | `client` |
 | `@mark1russell7/client-lib` | `packages/client-lib` | Workspace management procedures - scan, new, audit, rename | `lib.*` (4), `ecosystem.*` (1), `dag.*` (1), `core.*` (1) | `client`, `client-dag`, `client-fs`, `client-git`, `client-pnpm`, `client-shell` |
-| `@mark1russell7/client-logger` | `packages/client-logger` | Bridge between client procedures and logger - logging via client.call | `log.*` (7) | `cue` *(general)*, `logger` *(general)*, `client` |
 | `@mark1russell7/client-mcp` | `packages/client-mcp` | MCP server transport for procedure system | `mcp.*` (2) | `mcp` |
 | `@mark1russell7/client-mongo` | `packages/client-mongo` | MongoDB client wrapper with client procedures - local or RPC access | `mongo.*` (16) | `client`, `client-collections` |
 | `@mark1russell7/client-node` | `packages/client-node` | Node.js process management procedures | `node.*` (4) | `client`, `client-shell` |
@@ -35,12 +34,11 @@ Dependencies marked *(general)* are separate repositories, referenced with `gith
 | `@mark1russell7/client-snapshot` | `packages/client-snapshot` | Environment snapshot/restore procedures for testing and recovery | `snapshot.*` (5) | `client`, `client-s3`, `client-git`, `client-pnpm`, `client-fs` |
 | `@mark1russell7/client-splay` | `packages/client-splay` | Bridge between splay and client - component rendering via procedures | `splay.*` (2) | `client`, `splay` *(general)* |
 | `@mark1russell7/client-sqlite` | `packages/client-sqlite` | SQLite procedures for client - database operations via client.call | `db.*` (2), `logs.*` (2) | `client`, `docker-sqlite` *(general)* |
-| `@mark1russell7/client-test` | `packages/client-test` | Test execution procedures for the ecosystem | `test.*` (2) | `client`, `client-shell` |
 | `@mark1russell7/client-vite` | `packages/client-vite` | Vite dev server management procedures | `vite.*` (4) | `client`, `client-shell` |
-| `@mark1russell7/client-vitest` | `packages/client-vitest` | — | `vitest.*` (2) | `client` |
+| `@mark1russell7/client-vitest` | `packages/client-vitest` | — | `vitest.*` (3) | `client` |
 | `@mark1russell7/documentation` | `packages/documentation` | — | — | — |
 | `@mark1russell7/impl-mcp-dev` | `packages/impl-mcp-dev` | Ready-to-use MCP server exposing the procedure ecosystem to Claude | — | `bundle-mcp`, `client`, `client-mcp` |
-| `@mark1russell7/cli` | `packages/mark` | Mark CLI - Development workflow automation | — | `client`, `client-cli`, `client-lib`, `client-logger`, `client-pnpm`, `client-procedure`, `client-server`, `client-shell`, `client-test`, `client-vitest` |
+| `@mark1russell7/cli` | `packages/mark` | Mark CLI - Development workflow automation | — | `client`, `client-cli`, `client-lib`, `client-pnpm`, `client-procedure`, `client-server`, `client-shell`, `client-vitest` |
 | `@mark1russell7/mcp` | `packages/mcp` | Core MCP types and utilities for procedure-to-tool mapping | — | — |
 | `@mark1russell7/server` | `packages/server` | General procedure server - run any procedure packages via HTTP/WebSocket | — | `client`, `client-server` |
 | `@mark1russell7/site` | `packages/site` | The website of the client ecosystem: the Composer, the procedure catalog and the architecture map | — | `client` |

@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 162 across 28 namespaces. Loaded 22 package register(s).
+**Total procedures:** 154 across 26 namespaces. Loaded 20 package register(s).
 
 ## Namespaces
 
@@ -20,7 +20,6 @@
 - [`fs.*`](#fs) — 11 procedure(s)
 - [`git.*`](#git) — 26 procedure(s)
 - [`lib.*`](#lib) — 4 procedure(s)
-- [`log.*`](#log) — 7 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`manifest.*`](#manifest) — 1 procedure(s)
 - [`mcp.*`](#mcp) — 2 procedure(s)
@@ -33,9 +32,8 @@
 - [`shell.*`](#shell) — 3 procedure(s)
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
-- [`test.*`](#test) — 2 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
-- [`vitest.*`](#vitest) — 2 procedure(s)
+- [`vitest.*`](#vitest) — 3 procedure(s)
 
 ---
 
@@ -177,18 +175,6 @@
 | `lib.rename` | Rename a package across the ecosystem |
 | `lib.scan` | Scan for packages in the git directory |
 
-## log
-
-| Procedure | Description |
-|-----------|-------------|
-| `log.debug` | Log at DEBUG level |
-| `log.error` | Log at ERROR level |
-| `log.getLevel` | Get the current log level |
-| `log.info` | Log at INFO level |
-| `log.setLevel` | Set the log level |
-| `log.trace` | Log at TRACE level |
-| `log.warn` | Log at WARN level |
-
 ## logs
 
 | Procedure | Description |
@@ -318,13 +304,6 @@
 | `splay.bridge.health` | Health check for client-splay bridge |
 | `splay.bridge.info` | Get client-splay bridge information |
 
-## test
-
-| Procedure | Description |
-|-----------|-------------|
-| `test.coverage` | Run tests with coverage reporting |
-| `test.run` | Run tests for a package |
-
 ## vite
 
 | Procedure | Description |
@@ -338,6 +317,7 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `vitest.coverage` | Run vitest once with coverage, and check a minimum line coverage (no shell) |
 | `vitest.run` | Run vitest tests once (no shell; uses the project's own vitest) |
 | `vitest.watch` | Start vitest in watch mode (no shell; uses the project's own vitest) |
 
