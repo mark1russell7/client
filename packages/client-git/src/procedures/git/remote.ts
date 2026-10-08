@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import type { GitRemoteInput, GitRemoteOutput } from "../../types.js";
 
 /**
@@ -17,15 +18,15 @@ export async function gitRemote(input: GitRemoteInput): Promise<GitRemoteOutput>
   if (url) {
     // Set the remote URL
     try {
-      execFileSync("git", ["remote", "set-url", name, url], opts);
+      execFileSync("git", ["remote", "set-url", gitArg("name", name), gitArg("url", url)], opts);
     } catch {
       // Remote might not exist, try adding it
-      execFileSync("git", ["remote", "add", name, url], opts);
+      execFileSync("git", ["remote", "add", gitArg("name", name), gitArg("url", url)], opts);
     }
     return { name, url };
   }
 
   // Get the remote URL
-  const remoteUrl = execFileSync("git", ["remote", "get-url", name], opts).trim();
+  const remoteUrl = execFileSync("git", ["remote", "get-url", gitArg("name", name)], opts).trim();
   return { name, url: remoteUrl };
 }

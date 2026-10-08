@@ -6,6 +6,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { GIT_MAX_BUFFER, gitArg } from "./args.js";
 import type {
   GitStashListInput,
   GitStashListOutput,
@@ -118,7 +119,7 @@ export async function gitStashPop(input: GitStashPopInput): Promise<GitStashPopO
   const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
 
   try {
-    execFileSync("git", ["stash", "pop", ref], opts);
+    execFileSync("git", ["stash", "pop", gitArg("ref", ref)], opts);
     return { applied: true, ref, dropped: true };
   } catch (error) {
     const err = error as { message?: string };
@@ -140,7 +141,7 @@ export async function gitStashApply(input: GitStashApplyInput): Promise<GitStash
   const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
 
   try {
-    execFileSync("git", ["stash", "apply", ref], opts);
+    execFileSync("git", ["stash", "apply", gitArg("ref", ref)], opts);
     return { applied: true, ref };
   } catch (error) {
     const err = error as { message?: string };
@@ -161,7 +162,7 @@ export async function gitStashDrop(input: GitStashDropInput): Promise<GitStashDr
   const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
 
   try {
-    execFileSync("git", ["stash", "drop", ref], opts);
+    execFileSync("git", ["stash", "drop", gitArg("ref", ref)], opts);
     return { dropped: true, ref };
   } catch {
     return { dropped: false, ref };
@@ -179,7 +180,7 @@ export async function gitStashExport(input: GitStashExportInput): Promise<GitSta
 
   try {
     // Get the stash as a patch
-    const patch = execFileSync("git", ["stash", "show", "-p", ref], opts);
+    const patch = execFileSync("git", ["stash", "show", "-p", gitArg("ref", ref)], { ...opts, maxBuffer: GIT_MAX_BUFFER });
 
     // Get metadata
     const metadata = execFileSync("git", ["stash", "list", "-1", "--format=%H%x00%gs", ref], opts).trim();

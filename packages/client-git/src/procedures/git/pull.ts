@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import type { GitPullInput, GitPullOutput } from "../../types.js";
 
 /**
@@ -23,7 +24,7 @@ export async function gitPull(input: GitPullInput): Promise<GitPullOutput> {
 
   const args: string[] = ["pull"];
   if (rebase) args.push("--rebase");
-  args.push(remoteName, branchName);
+  args.push(gitArg("remote", remoteName), gitArg("branch", branchName));
 
   execFileSync("git", args, opts);
 

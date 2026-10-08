@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import type { GitFetchInput, GitFetchOutput } from "../../types.js";
 
 /**
@@ -19,9 +20,9 @@ export async function gitFetch(input: GitFetchInput): Promise<GitFetchOutput> {
   if (all) {
     args.push("--all");
   } else {
-    args.push(remoteName);
+    args.push(gitArg("remote", remoteName));
     if (branch) {
-      args.push(branch);
+      args.push(gitArg("branch", branch));
     }
   }
   if (prune) args.push("--prune");

@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import type { GitPushInput, GitPushOutput } from "../../types.js";
 
 /**
@@ -32,7 +33,7 @@ export async function gitPush(input: GitPushInput): Promise<GitPushOutput> {
   const args: string[] = ["push"];
   if (setUpstream) args.push("-u");
   if (force) args.push("--force");
-  args.push(remoteName, branchName);
+  args.push(gitArg("remote", remoteName), gitArg("branch", branchName));
 
   execFileSync("git", args, opts);
 

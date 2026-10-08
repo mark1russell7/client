@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import type { GitLogInput, GitLogOutput, GitLogCommit } from "../../types.js";
 
 /**
@@ -19,14 +20,17 @@ export async function gitLog(input: GitLogInput): Promise<GitLogOutput> {
   const format = `--format=%H|%h|%an|%ae|%ci|%s${delim}`;
 
   const args = ["log", `-n${count}`, format];
-  if (ref) args.push(ref);
+  if (ref) args.push(gitArg("ref", ref));
 
   const output = execFileSync("git", args, opts);
+  // Each record ends with the delimiter and a newline, so the last chunk is only whitespace:
+  // trim before filtering, or it becomes an empty commit
   const commits: GitLogCommit[] = output
     .split(delim)
+    .map(line => line.trim())
     .filter(Boolean)
     .map(line => {
-      const parts = line.trim().split("|");
+      const parts = line.split("|");
       return {
         hash: parts[0] ?? "",
         shortHash: parts[1] ?? "",

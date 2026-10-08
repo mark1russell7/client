@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { GIT_MAX_BUFFER, gitArg } from "./args.js";
 import type { GitDiffInput, GitDiffOutput, GitDiffFile } from "../../types.js";
 
 /**
@@ -12,11 +13,11 @@ import type { GitDiffInput, GitDiffOutput, GitDiffFile } from "../../types.js";
  */
 export async function gitDiff(input: GitDiffInput): Promise<GitDiffOutput> {
   const { staged, ref, paths, stat, cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
+  const opts = { cwd, encoding: "utf8" as const, maxBuffer: GIT_MAX_BUFFER };
 
   const args = ["diff"];
   if (staged) args.push("--cached");
-  if (ref) args.push(ref);
+  if (ref) args.push(gitArg("ref", ref));
   args.push("--numstat");
   if (paths && paths.length > 0) {
     args.push("--", ...paths);
@@ -49,7 +50,7 @@ export async function gitDiff(input: GitDiffInput): Promise<GitDiffOutput> {
   if (!stat) {
     const diffArgs = ["diff"];
     if (staged) diffArgs.push("--cached");
-    if (ref) diffArgs.push(ref);
+    if (ref) diffArgs.push(gitArg("ref", ref));
     if (paths && paths.length > 0) {
       diffArgs.push("--", ...paths);
     }

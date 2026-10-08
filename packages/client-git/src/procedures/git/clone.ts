@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import { join, basename } from "node:path";
 import type { GitCloneInput, GitCloneOutput } from "../../types.js";
 
@@ -22,7 +23,7 @@ export async function gitClone(input: GitCloneInput): Promise<GitCloneOutput> {
   const args: string[] = ["clone"];
   if (branch) args.push("-b", branch);
   if (depth) args.push("--depth", String(depth));
-  args.push(url, destDir);
+  args.push("--", gitArg("url", url), gitArg("dest", destDir));
 
   execFileSync("git", args, opts);
 

@@ -5,6 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { gitArg } from "./args.js";
 import type { GitBranchInput, GitBranchOutput, GitBranchInfo } from "../../types.js";
 
 /**
@@ -19,20 +20,21 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchOutput>
 
   // Delete branch
   if (del && name) {
-    execFileSync("git", ["branch", "-d", name], opts);
+    execFileSync("git", ["branch", "-d", gitArg("name", name)], opts);
     return { deleted: name, current };
   }
 
   // Create branch
   if (name && !list) {
-    execFileSync("git", ["branch", name], opts);
+    execFileSync("git", ["branch", gitArg("name", name)], opts);
     return { created: name, current };
   }
 
   // List branches
   const args = ["branch"];
   if (remote) args.push("-a");
-  args.push("--format=%(refname:short)|%(HEAD)|%(upstream:short)");
+  // The full ref name tells local from remote branches: a local "feature/x" also contains "/"
+  args.push("--format=%(refname)|%(refname:short)|%(HEAD)|%(upstream:short)");
 
   const output = execFileSync("git", args, opts);
   const branches: GitBranchInfo[] = output
@@ -40,14 +42,14 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchOutput>
     .filter(Boolean)
     .map(line => {
       const parts = line.split("|");
-      const branchName = parts[0] ?? "";
-      const head = parts[1] ?? "";
-      const trackingVal = parts[2];
-      const isRemote = branchName.startsWith("remotes/") || branchName.includes("/");
+      const fullName = parts[0] ?? "";
+      const branchName = parts[1] ?? "";
+      const head = parts[2] ?? "";
+      const trackingVal = parts[3];
       const result: GitBranchInfo = {
         name: branchName.replace(/^remotes\//, ""),
         current: head === "*",
-        remote: isRemote,
+        remote: fullName.startsWith("refs/remotes/"),
       };
       if (trackingVal) {
         result.tracking = trackingVal;
