@@ -1,8 +1,0 @@
-/**
- * client-server-mongo - MongoDB server management procedures
- */
-export * from "./types.js";
-export * from "./procedures/server/index.js";
-export { mongoServerManager } from "./server-manager.js";
-export { registerServerMongoProcedures } from "./register.js";
-//# sourceMappingURL=index.d.ts.map
