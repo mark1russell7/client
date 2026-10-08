@@ -1098,28 +1098,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/server-mongo:
-    dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mark1russell7/client-mongo':
-        specifier: workspace:*
-        version: link:../client-mongo
-      '@mark1russell7/client-server-mongo':
-        specifier: workspace:*
-        version: link:../client-server-mongo
-    devDependencies:
-      '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   packages/test:
     dependencies:
       '@mark1russell7/mock-client':
