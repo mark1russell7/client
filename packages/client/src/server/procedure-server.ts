@@ -17,6 +17,7 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
+import { isDataDriven } from "../procedures/ref.js";
 import type { CollectionStorage } from "@mark1russell7/client-collections";
 
 // =============================================================================
@@ -45,6 +46,15 @@ export interface ProcedureServerOptions extends ServerOptions {
 
   /** Collections to configure with storage backends */
   collections?: Record<string, CollectionStorage<unknown>>;
+
+  /**
+   * The procedures that the callers of this server can reach. `registerFromRegistry()` registers
+   * only these procedures. A data-driven procedure (control flow, `eval`, a procedure that
+   * `procedure.define` made) can call only these procedures too, because its caller chooses
+   * what it calls. A procedure of code calls any procedure: `docker.run` uses `shell.exec`.
+   * Without this rule, the server exposes every procedure.
+   */
+  expose?: ((path: ProcedurePath) => boolean) | undefined;
 }
 
 // =============================================================================
@@ -82,11 +92,13 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly procedureRegistry: ProcedureRegistry;
   private readonly storages = new Map<string, CollectionStorage<unknown>>();
   private readonly registeredProcedures = new Set<string>();
+  private readonly expose: ((path: ProcedurePath) => boolean) | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
 
     this.procedureRegistry = options.registry ?? PROCEDURE_REGISTRY;
+    this.expose = options.expose;
 
     // Configure collections
     if (options.collections) {
@@ -210,46 +222,51 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         };
       }
 
-      // Create the call function for inter-procedure communication
-      const callProcedure = async <TInput, TOutput>(
-        targetPath: ProcedurePath,
-        input: TInput
-      ): Promise<TOutput> => {
-        const targetProc = self.procedureRegistry.get(targetPath);
-        if (!targetProc) {
-          throw new Error(`Procedure not found: ${pathToKey(targetPath)}`);
-        }
-        if (!targetProc.handler) {
-          throw new Error(`Procedure has no handler: ${pathToKey(targetPath)}`);
-        }
+      // The call function of a procedure's context. A data-driven caller can call only the
+      // exposed procedures (BUGS-2026-07 H18: client.chain reached shell.run).
+      const callerFor = (caller: AnyProcedure) =>
+        async <TInput, TOutput>(targetPath: ProcedurePath, input: TInput): Promise<TOutput> => {
+          const targetProc = self.procedureRegistry.get(targetPath);
+          if (!targetProc) {
+            throw new Error(`Procedure not found: ${pathToKey(targetPath)}`);
+          }
+          if (self.expose && isDataDriven(caller) && !self.expose(targetPath)) {
+            throw new Error(
+              `Procedure not exposed: ${pathToKey(targetPath)}. ${pathToKey(caller.path)} runs procedure refs ` +
+                `from its input, so it can call only the procedures that this server exposes.`
+            );
+          }
+          if (!targetProc.handler) {
+            throw new Error(`Procedure has no handler: ${pathToKey(targetPath)}`);
+          }
 
-        // Validate input
-        const inputResult = targetProc.input.safeParse(input);
-        if (!inputResult.success) {
-          throw new Error(`Input validation failed: ${inputResult.error.message}`);
-        }
+          // Validate input
+          const inputResult = targetProc.input.safeParse(input);
+          if (!inputResult.success) {
+            throw new Error(`Input validation failed: ${inputResult.error.message}`);
+          }
 
-        // Create nested context (inherits metadata, signal)
-        const nestedContext: ProcedureContext = {
-          metadata: request.metadata,
-          repository: self,
-          path: targetPath,
-          client: { call: callProcedure },
+          // Create nested context (inherits metadata, signal)
+          const nestedContext: ProcedureContext = {
+            metadata: request.metadata,
+            repository: self,
+            path: targetPath,
+            client: { call: callerFor(targetProc) },
+          };
+          if (request.signal) {
+            nestedContext.signal = request.signal;
+          }
+
+          // Execute and return
+          return await targetProc.handler(inputResult.data, nestedContext) as TOutput;
         };
-        if (request.signal) {
-          nestedContext.signal = request.signal;
-        }
-
-        // Execute and return
-        return await targetProc.handler(inputResult.data, nestedContext) as TOutput;
-      };
 
       // Create procedure context
       const context: ProcedureContext = {
         metadata: request.metadata,
         repository: self,
         path: procedure.path,
-        client: { call: callProcedure },
+        client: { call: callerFor(procedure) },
       };
 
       // Only set signal if provided (exactOptionalPropertyTypes)
@@ -335,6 +352,10 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       // ONLY procedures that have handlers, so one stub must not abort server startup.
       // See BUGS-2026-07 H14/H28.
       if (!procedure.handler) {
+        continue;
+      }
+      // A procedure outside the expose rule gets no handler: callers cannot reach it
+      if (this.expose && !this.expose(procedure.path)) {
         continue;
       }
       this.registerProcedure(procedure);

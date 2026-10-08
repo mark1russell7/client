@@ -97,4 +97,6 @@ export interface McpToolFilter {
   excludeInternal?: boolean;
   /** Only include procedures under this path prefix */
   pathPrefix?: ProcedurePath;
+  /** Only include the procedures for which this function gives true */
+  include?: (path: ProcedurePath) => boolean;
 }

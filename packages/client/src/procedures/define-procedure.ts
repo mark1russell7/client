@@ -35,6 +35,7 @@ import type {
   AnyProcedure,
 } from "./types.js";
 import { anySchema } from "./core/schemas.js";
+import { markDataDriven } from "./ref.js";
 
 // =============================================================================
 // Types
@@ -300,6 +301,9 @@ export const defineProcedureProcedure: Procedure<
       },
       handler,
     });
+
+    // Its behavior comes from data: a server with an expose rule lets it call only exposed procedures
+    markDataDriven(procedure);
 
     // Validate the procedure
     validateProcedure(procedure);

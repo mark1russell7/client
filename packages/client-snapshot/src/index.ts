@@ -10,6 +10,9 @@
  * - heavy: + pnpm store (~10GB+)
  */
 
+// Importing the package registers its procedures, as in the other client packages (BUGS-2026-07 H18)
+import "./register.js";
+
 // Re-export types
 export type {
   SnapshotPreset,

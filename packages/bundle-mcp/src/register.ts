@@ -1,13 +1,18 @@
 /**
- * bundle-mcp - Curated MCP bundle for Claude
+ * bundle-mcp - the tools that Claude gets from the dev-tools MCP server
  *
- * High-level orchestration tools. Excludes fs.*, git.*, and pnpm.* (Claude has these via its
- * own shell).
+ * Importing a client package registers its procedures. The MCP server exposes only the
+ * namespaces in `mcpNamespaces`. Claude has fs.*, git.* and pnpm.* through its own shell, so
+ * they are not here.
  *
- * NOTE: shell.run/exec/which ARE currently exposed transitively — client-cli, client-docker,
- * and client-test each import client-shell to call shell.run at runtime, which also registers
- * it as an MCP tool. Truly excluding shell needs a register-but-don't-expose mechanism (an MCP
- * tool denylist). See documentation/BUGS-2026-07.md (H18).
+ * shell.* is registered, because docker.* runs its commands through shell.exec. But it is not a
+ * tool, and a data-driven procedure (client.chain, eval, a procedure that procedure.define made)
+ * cannot call it: the server lets such a procedure call only the exposed procedures.
+ * snapshot.*, s3.* and test.* are not in the bundle: snapshot.restore and s3.delete change data,
+ * and vitest.* runs the tests. See documentation/BUGS-2026-07.md (H18) and
+ * ARCHITECTURE-PROPOSALS-2026-10.md (P2).
+ *
+ * tools.snapshot.txt in impl-mcp-dev pins the result: a test compares the server's tools with it.
  */
 
 // Core orchestration
@@ -18,13 +23,24 @@ import "@mark1russell7/client-cue";
 
 // Infrastructure
 import "@mark1russell7/client-docker";
-import "@mark1russell7/client-snapshot";
 
 // Databases
 import "@mark1russell7/client-mongo";
 import "@mark1russell7/client-sqlite";
-import "@mark1russell7/client-s3";
 
 // Testing
 import "@mark1russell7/client-vitest";
-import "@mark1russell7/client-test";
+
+/** The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools. */
+export const mcpNamespaces: readonly string[] = [
+  "cli",
+  "client",
+  "cue",
+  "db",
+  "docker",
+  "lib",
+  "logs",
+  "mongo",
+  "procedure",
+  "vitest",
+];

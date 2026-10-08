@@ -25,6 +25,7 @@
     "test": "vitest run"
   },
   "sideEffects": [
+    "./dist/index.js",
     "./dist/register.js"
   ],
   "client": {

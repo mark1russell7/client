@@ -8,7 +8,7 @@
 
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-import { parseProcedureJson, stringifyProcedureJson, isAnyProcedureRef } from "../ref.js";
+import { parseProcedureJson, stringifyProcedureJson, isAnyProcedureRef, RUNS_REFS_TAG } from "../ref.js";
 import { PROCEDURE_REGISTRY } from "../registry.js";
 
 // =============================================================================
@@ -148,22 +148,17 @@ const evalProcedure: EvalProcedure = defineProcedure({
   output: anySchema as any,
   metadata: {
     description: "Evaluate a procedure reference (for dynamic composition)",
-    tags: ["core", "meta"],
+    tags: ["core", "meta", RUNS_REFS_TAG],
   },
   handler: async (input: EvalInput, ctx): Promise<unknown> => {
-    // If procedure is a string array (path), look up in registry
+    // The call goes through ctx.client, so it gets input validation, its own context and the
+    // expose rule of a server. Before, eval called the handler from the global registry directly,
+    // with the context of eval.
     if (Array.isArray(input.procedure) && input.procedure.every((p) => typeof p === "string")) {
-      const proc = PROCEDURE_REGISTRY.get(input.procedure as string[]);
-      if (proc && proc.handler) {
-        return proc.handler(input.input, ctx);
-      }
-      throw new Error(`Procedure not found: ${(input.procedure as string[]).join(".")}`);
+      return ctx.client.call(input.procedure as string[], input.input);
     }
 
-    // If procedure is a procedure ref, the hydration should have already executed it
-    // This procedure is mainly for programmatic execution
     if (isAnyProcedureRef(input.procedure)) {
-      // Get the path and input from the ref
       const procRef = input.procedure as { path?: string[]; $proc?: string[]; input?: Record<string, unknown> };
       const refPath = procRef.path ?? procRef.$proc;
       const refInput = procRef.input ?? {};
@@ -172,13 +167,9 @@ const evalProcedure: EvalProcedure = defineProcedure({
         throw new Error("Invalid procedure reference: missing path");
       }
 
-      const proc = PROCEDURE_REGISTRY.get(refPath);
-      if (proc && proc.handler) {
-        // Merge input from ref with provided input
-        const finalInput = { ...refInput, ...(input.input as Record<string, unknown> ?? {}) };
-        return proc.handler(finalInput, ctx);
-      }
-      throw new Error(`Procedure not found: ${refPath.join(".")}`);
+      // Merge input from ref with provided input
+      const finalInput = { ...refInput, ...(input.input as Record<string, unknown> ?? {}) };
+      return ctx.client.call(refPath, finalInput);
     }
 
     throw new Error("Invalid procedure reference");

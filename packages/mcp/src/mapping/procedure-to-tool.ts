@@ -102,6 +102,11 @@ function matchesFilter(procedure: AnyProcedure, filter?: McpToolFilter): boolean
     return false;
   }
 
+  // Check the include function
+  if (filter.include && !filter.include(procedure.path)) {
+    return false;
+  }
+
   // Check path prefix
   if (filter.pathPrefix) {
     const matches = filter.pathPrefix.every(

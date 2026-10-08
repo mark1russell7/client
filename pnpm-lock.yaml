@@ -239,18 +239,9 @@ importers:
       '@mark1russell7/client-procedure':
         specifier: workspace:*
         version: link:../client-procedure
-      '@mark1russell7/client-s3':
-        specifier: workspace:*
-        version: link:../client-s3
-      '@mark1russell7/client-snapshot':
-        specifier: workspace:*
-        version: link:../client-snapshot
       '@mark1russell7/client-sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
-      '@mark1russell7/client-test':
-        specifier: workspace:*
-        version: link:../client-test
       '@mark1russell7/client-vitest':
         specifier: workspace:*
         version: link:../client-vitest

@@ -34,12 +34,9 @@
     "@mark1russell7/client-procedure": "workspace:*",
     "@mark1russell7/client-cue": "workspace:*",
     "@mark1russell7/client-docker": "workspace:*",
-    "@mark1russell7/client-snapshot": "workspace:*",
     "@mark1russell7/client-mongo": "workspace:*",
     "@mark1russell7/client-sqlite": "workspace:*",
-    "@mark1russell7/client-s3": "workspace:*",
-    "@mark1russell7/client-vitest": "workspace:*",
-    "@mark1russell7/client-test": "workspace:*"
+    "@mark1russell7/client-vitest": "workspace:*"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",

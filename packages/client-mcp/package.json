@@ -26,6 +26,7 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": [
+    "./dist/index.js",
     "./dist/register.js",
     "./src/register.ts"
   ],

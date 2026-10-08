@@ -78,6 +78,10 @@ export {
   normalizeRef,
   // Hydration
   hydrateInput,
+  isControlFlowPath,
+  isDataDriven,
+  markDataDriven,
+  RUNS_REFS_TAG,
   executeRef,
   // Templates
   extractTemplate,

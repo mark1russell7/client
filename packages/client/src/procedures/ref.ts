@@ -800,6 +800,42 @@ export function isControlFlowPath(path: ProcedurePath): boolean {
   return typeof last === "string" && CONTROL_FLOW_PROCEDURES.has(last);
 }
 
+/**
+ * The tag of a procedure that runs procedure refs from its input (for example `dag.traverse`).
+ * A server with an `expose` rule lets such a procedure call only the exposed procedures.
+ */
+export const RUNS_REFS_TAG = "runs-refs";
+
+const DATA_DRIVEN_HANDLERS = new WeakSet<object>();
+
+/**
+ * This function marks a procedure whose behavior comes from data, for example a procedure
+ * that `procedure.define` made from an aggregation. The mark is on the handler function: the
+ * registry stores a copy of each procedure, but the copy has the same handler. The mark is not
+ * in the metadata, because the caller of `procedure.define` gives the metadata.
+ */
+export function markDataDriven<T extends { handler?: unknown }>(procedure: T): T {
+  if (typeof procedure.handler === "function") DATA_DRIVEN_HANDLERS.add(procedure.handler);
+  return procedure;
+}
+
+/**
+ * A data-driven procedure runs procedure refs that come from its input or from data: the
+ * control-flow procedures, the procedures with the `runs-refs` tag and the procedures that
+ * `procedure.define` made. The caller of such a procedure chooses what it calls.
+ */
+export function isDataDriven(procedure: {
+  path: ProcedurePath;
+  metadata?: { tags?: string[] | undefined } | undefined;
+  handler?: unknown;
+}): boolean {
+  return (
+    isControlFlowPath(procedure.path) ||
+    (procedure.metadata?.tags?.includes(RUNS_REFS_TAG) ?? false) ||
+    (typeof procedure.handler === "function" && DATA_DRIVEN_HANDLERS.has(procedure.handler))
+  );
+}
+
 // =============================================================================
 // Deferred Ref Execution
 // =============================================================================

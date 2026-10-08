@@ -5,7 +5,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, outputSchema, RUNS_REFS_TAG } from "@mark1russell7/client";
 import {
   libScan,
   libRename,
@@ -135,6 +135,8 @@ const dagTraverseProcedure = createProcedure()
   .output(outputSchema<DagTraverseOutput>())
   .meta({
     description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
+    // It runs the procedure refs of its input: a server with an expose rule limits what they call
+    tags: [RUNS_REFS_TAG],
     args: [],
     shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
     output: "streaming",
@@ -154,6 +156,8 @@ const coreCatchProcedure = createProcedure()
   .output(outputSchema<CoreCatchOutput>())
   .meta({
     description: "Execute a procedure with error handling",
+    // It runs the procedure refs of its input: a server with an expose rule limits what they call
+    tags: [RUNS_REFS_TAG],
     args: [],
     shorts: {},
     output: "json",
