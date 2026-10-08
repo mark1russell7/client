@@ -197,7 +197,8 @@ describe("executeDAG", () => {
       return createSuccessResult(node);
     });
 
-    expect(result.totalDuration).toBeGreaterThanOrEqual(50);
+    // Same tolerance as "tracks duration": Date.now() granularity and early timers.
+    expect(result.totalDuration).toBeGreaterThanOrEqual(45);
   });
 });
 
@@ -278,6 +279,8 @@ describe("createProcessor", () => {
 
     const result = await processor(node);
 
-    expect(result.duration).toBeGreaterThanOrEqual(50);
+    // Date.now() has millisecond granularity and timers can fire slightly early,
+    // so a 50ms sleep can measure as 49ms. Allow a small tolerance.
+    expect(result.duration).toBeGreaterThanOrEqual(45);
   });
 });
