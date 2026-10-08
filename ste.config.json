@@ -3,7 +3,6 @@
   "include": [
     "README.md",
     "CLAUDE.md",
-    "packages/cli/README.md",
     "packages/cli/src/**/*.{ts,tsx}",
     "packages/cli/*.config.{ts,mts}"
   ],
