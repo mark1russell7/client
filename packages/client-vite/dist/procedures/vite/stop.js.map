@@ -1,0 +1,1 @@
+{"version":3,"file":"stop.js","sourceRoot":"","sources":["../../../src/procedures/vite/stop.ts"],"names":[],"mappings":"AAAA;;GAEG;AAGH,OAAO,EAAE,aAAa,EAAE,MAAM,yBAAyB,CAAC;AAExD,MAAM,CAAC,KAAK,UAAU,QAAQ,CAAC,KAAoB;IACjD,MAAM,EAAE,QAAQ,EAAE,GAAG,KAAK,CAAC;IAC3B,MAAM,OAAO,GAAG,aAAa,CAAC,IAAI,CAAC,QAAQ,CAAC,CAAC;IAC7C,OAAO,EAAE,OAAO,EAAE,CAAC;AACrB,CAAC"}
