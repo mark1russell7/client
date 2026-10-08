@@ -100,6 +100,9 @@ export type {
 export {
   coreProcedures,
   coreModule,
+  // Every core procedure (math, comparison, string, type, object, array, meta too). Not registered by default.
+  allCoreProcedures,
+  allCoreModules,
   chainProcedure,
   parallelProcedure,
   conditionalProcedure,
