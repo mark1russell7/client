@@ -1,0 +1,32 @@
+# Dependencies (will be installed in container)
+node_modules/
+
+# Build output (will be built in container)
+dist/
+
+# Development files
+.tsbuildinfo
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Tests
+e2e/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Documentation
+*.md
+!README.md
+
+# Docker files (not needed inside container)
+Dockerfile
+docker-compose.yml
+.dockerignore
