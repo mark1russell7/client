@@ -7,19 +7,18 @@
 import { z } from "zod";
 import { defineProcedure, ProcedureServer, PROCEDURE_REGISTRY, type AnyProcedure } from "@mark1russell7/client";
 import { McpServerTransport } from "../../transport/mcp-transport.js";
-import type { McpServerTransportOptions, SseTransportOptions } from "../../types.js";
+import type { McpServerTransportOptions } from "../../types.js";
 
 const McpServeInputSchema = z.object({
-  /** Transport type (default: "stdio") */
-  transport: z.enum(["stdio", "sse"]).default("stdio"),
+  /**
+   * Transport type (default: "stdio"). Only stdio is implemented: the SSE transport needs an
+   * HTTP server integration, and accepting "sse" here only led to an error (BUGS-2026-07 L28).
+   */
+  transport: z.enum(["stdio"]).default("stdio"),
   /** Server name for MCP (default: "procedure-server") */
   name: z.string().optional(),
   /** Server version for MCP (default: "1.0.0") */
   version: z.string().optional(),
-  /** Port for SSE transport (default: 3002) */
-  port: z.number().optional(),
-  /** Path for SSE endpoint (default: "/mcp/sse") */
-  path: z.string().optional(),
   /** Whether to auto-register all procedures (default: true) */
   autoRegister: z.boolean().default(true),
   /** Enable debug logging */
@@ -70,14 +69,6 @@ export const mcpServeProcedure: AnyProcedure = defineProcedure({
       },
       debug: input.debug,
     };
-
-    // Add SSE options if using SSE transport
-    if (input.transport === "sse") {
-      const sseOpts: SseTransportOptions = {};
-      if (input.port !== undefined) sseOpts.port = input.port;
-      if (input.path !== undefined) sseOpts.path = input.path;
-      options.sseOptions = sseOpts;
-    }
 
     // Create MCP transport
     const mcpTransport = new McpServerTransport(server, options);

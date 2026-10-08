@@ -58,8 +58,8 @@ export class McpServerTransport implements ServerTransport {
     McpServerTransportOptions;
   private running = false;
   private tools: Map<string, McpTool> = new Map();
-  private registerListener?: (procedure: unknown) => void;
-  private unregisterListener?: (procedure: unknown) => void;
+  private registerListener: ((procedure: unknown) => void) | undefined;
+  private unregisterListener: ((procedure: unknown) => void) | undefined;
 
   constructor(server: Server, options: McpServerTransportOptions = {}) {
     this.server = server;
@@ -83,8 +83,8 @@ export class McpServerTransport implements ServerTransport {
     // Setup request handlers
     this.setupHandlers();
 
-    // Setup registry listeners for dynamic updates
-    this.setupRegistryListeners();
+    // The registry listeners are attached in start() and removed in stop(): attaching them here
+    // leaked them for a transport that never started or failed to start (BUGS-2026-07 L28)
   }
 
   /**
@@ -197,6 +197,20 @@ export class McpServerTransport implements ServerTransport {
   }
 
   /**
+   * Remove the registry event listeners, if attached.
+   */
+  private removeRegistryListeners(): void {
+    if (this.registerListener) {
+      this.registry.off("register", this.registerListener);
+      this.registerListener = undefined;
+    }
+    if (this.unregisterListener) {
+      this.registry.off("unregister", this.unregisterListener);
+      this.unregisterListener = undefined;
+    }
+  }
+
+  /**
    * Refresh the tool list from the registry.
    */
   private refreshTools(): void {
@@ -231,23 +245,29 @@ export class McpServerTransport implements ServerTransport {
       return;
     }
 
-    // Refresh tools before starting
+    // Refresh tools before starting, and keep them current while running
     this.refreshTools();
+    this.setupRegistryListeners();
 
-    // Create appropriate transport
-    let transport;
-    if (this.options.transport === "stdio") {
-      transport = createStdioTransport();
-      this.log("Using stdio transport");
-    } else if (this.options.transport === "sse") {
-      transport = createSseTransport(this.options.sseOptions);
-      this.log(`Using SSE transport on ${this.options.sseOptions?.path ?? "/mcp/sse"}`);
-    } else {
-      throw new Error(`Unknown MCP transport: ${this.options.transport}`);
+    try {
+      // Create appropriate transport
+      let transport;
+      if (this.options.transport === "stdio") {
+        transport = createStdioTransport();
+        this.log("Using stdio transport");
+      } else if (this.options.transport === "sse") {
+        transport = createSseTransport(this.options.sseOptions);
+        this.log(`Using SSE transport on ${this.options.sseOptions?.path ?? "/mcp/sse"}`);
+      } else {
+        throw new Error(`Unknown MCP transport: ${this.options.transport}`);
+      }
+
+      // Connect MCP server to transport
+      await this.mcpServer.connect(transport);
+    } catch (error) {
+      this.removeRegistryListeners();
+      throw error;
     }
-
-    // Connect MCP server to transport
-    await this.mcpServer.connect(transport);
 
     this.running = true;
     this.log(`MCP server started (${this.options.transport}), ${this.tools.size} tools available`);
@@ -262,12 +282,7 @@ export class McpServerTransport implements ServerTransport {
     }
 
     // Cleanup registry listeners
-    if (this.registerListener) {
-      this.registry.off("register", this.registerListener);
-    }
-    if (this.unregisterListener) {
-      this.registry.off("unregister", this.unregisterListener);
-    }
+    this.removeRegistryListeners();
 
     await this.mcpServer.close();
     this.running = false;
