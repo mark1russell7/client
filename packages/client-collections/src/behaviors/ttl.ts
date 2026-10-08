@@ -18,6 +18,16 @@ import type { MapLike } from "../interfaces/map.js";
 import type { Collection } from "../interfaces/collection.js";
 
 /**
+ * Start the background expiration checker without keeping a Node.js process alive.
+ * (In a browser, setInterval returns a number and there is nothing to unref.)
+ */
+function startExpirationTimer(check: () => void, interval: number): ReturnType<typeof setInterval> {
+  const timer = setInterval(check, interval);
+  (timer as unknown as { unref?: () => void }).unref?.();
+  return timer;
+}
+
+/**
  * Options for TTL behavior.
  */
 export interface TTLOptions {
@@ -94,7 +104,7 @@ export function ttlMap<K, V>(
     };
 
     // Start background expiration checker
-    intervalId = setInterval(checkExpired, checkInterval);
+    intervalId = startExpirationTimer(checkExpired, checkInterval);
 
     const dispose = (): void => {
       if (intervalId) {
@@ -219,7 +229,7 @@ export function ttlCollection<T>(
       }
     };
 
-    intervalId = setInterval(checkExpired, checkInterval);
+    intervalId = startExpirationTimer(checkExpired, checkInterval);
 
     const dispose = (): void => {
       if (intervalId) {
@@ -393,7 +403,7 @@ export class TTLCache<K, V> {
   }
 
   private startExpirationCheck(): void {
-    this.intervalId = setInterval(() => this.cleanup(), this.checkInterval);
+    this.intervalId = startExpirationTimer(() => this.cleanup(), this.checkInterval);
   }
 
   /**

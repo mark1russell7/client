@@ -127,19 +127,35 @@ export function lruMap<K, V>(
       nodeMap.delete(node.key);
     };
 
+    // A layer below this one (for example ttlMap, in compose(lruMap, ttlMap)) can remove an
+    // entry without this layer seeing it. Its node is then stale: the list must not keep it
+    // (it holds the value, and it would grow without bound) and evicting it is not an eviction.
+    const dropStaleNodes = (): void => {
+      for (const node of [...nodeMap.values()]) {
+        if (!next.has(node.key)) {
+          removeNode(node);
+        }
+      }
+    };
+
     const evictLRU = (): void => {
-      if (!tail) return;
+      while (tail) {
+        const candidate = tail;
+        removeNode(candidate);
+        if (!next.has(candidate.key)) {
+          // Already removed below: skip it and evict the next least recently used entry
+          continue;
+        }
+        next.delete(candidate.key);
 
-      const evicted = tail;
-      removeNode(evicted);
-      next.delete(evicted.key);
-
-      if (onEvict) {
-        onEvict({
-          key: evicted.key,
-          value: evicted.value,
-          timestamp: evicted.lastAccessed,
-        });
+        if (onEvict) {
+          onEvict({
+            key: candidate.key,
+            value: candidate.value,
+            timestamp: candidate.lastAccessed,
+          });
+        }
+        return;
       }
     };
 
@@ -156,7 +172,17 @@ export function lruMap<K, V>(
           switch (prop) {
             case "get":
               return function (key: K): V {
-                const result = (value as Function).call(target, key);
+                let result: V;
+                try {
+                  result = (value as Function).call(target, key);
+                } catch (error) {
+                  // The entry is gone below (for example expired): forget its node
+                  const stale = nodeMap.get(key);
+                  if (stale) {
+                    removeNode(stale);
+                  }
+                  throw error;
+                }
                 // Update access time
                 const node = nodeMap.get(key);
                 if (node) {
@@ -168,11 +194,14 @@ export function lruMap<K, V>(
             case "has":
               return function (key: K): boolean {
                 const result = (value as Function).call(target, key);
-                // Update access time
-                if (result) {
-                  const node = nodeMap.get(key);
-                  if (node) {
+                const node = nodeMap.get(key);
+                if (node) {
+                  if (result) {
+                    // Update access time
                     moveToHead(node);
+                  } else {
+                    // The entry is gone below (for example expired): forget its node
+                    removeNode(node);
                   }
                 }
                 return result;
@@ -192,7 +221,16 @@ export function lruMap<K, V>(
                   }
                   return oldValue;
                 } else {
-                  // Add new
+                  // Add new. A stale node for this key (its entry was removed below) must not
+                  // stay in the list: evicting it later would delete the new node's map entry.
+                  const stale = nodeMap.get(key);
+                  if (stale) {
+                    removeNode(stale);
+                  }
+                  // Keep the node list bounded: when it reaches capacity, drop stale nodes first
+                  if (nodeMap.size >= capacity) {
+                    dropStaleNodes();
+                  }
                   if (target.size >= capacity) {
                     evictLRU();
                   }
