@@ -1,0 +1,16 @@
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.log
+node_modules/
+npm-debug.log*
+package-lock.json.bak
+*.tsbuildinfo
+cue.mod/pkg/
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local

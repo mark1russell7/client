@@ -1,0 +1,1 @@
+{"version":3,"file":"multipart-abort.d.ts","sourceRoot":"","sources":["../../../src/procedures/s3/multipart-abort.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAIH,OAAO,KAAK,EAAE,qBAAqB,EAAE,sBAAsB,EAAE,MAAM,gBAAgB,CAAC;AAEpF;;;;;;;;;;;;GAYG;AACH,wBAAsB,gBAAgB,CACpC,KAAK,EAAE,qBAAqB,GAC3B,OAAO,CAAC,sBAAsB,CAAC,CAcjC"}
