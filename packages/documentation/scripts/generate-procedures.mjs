@@ -1,33 +1,33 @@
 // Generate PROCEDURES.md from the live procedure registry.
 //
 // The registry (PROCEDURE_REGISTRY) is a globalThis Symbol.for singleton, so every package's
-// client copy registers into the same registry. We import each manifest package's built
+// client copy registers into the same registry. We import each workspace package's built
 // dist/register.js (which auto-registers its procedures), then introspect the registry and
 // emit a grouped markdown catalog. This replaces the hand-maintained PROCEDURES.md that drifted.
 //
-// Usage:  node documentation/scripts/generate-procedures.mjs
-// Requires each package to be built (dist/ present). Packages that fail to load are reported
+// Usage:  node packages/documentation/scripts/generate-procedures.mjs   (from the repo root)
+// Requires each package to be built (`pnpm build`). Packages that fail to load are reported
 // and skipped, not fatal.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { writeFileSync, existsSync, readdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const DOCS = join(HERE, "..");                 // documentation/
-const ROOT = join(DOCS, "..");                 // ~/git
-const MANIFEST = join(ROOT, "ecosystem", "ecosystem.manifest.json");
+const DOCS = join(HERE, "..");                 // packages/documentation/
+const ROOT = join(DOCS, "..");                 // packages/
 
-const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
-const packages = Object.values(manifest.packages).map((p) => p.path);
+const packages = readdirSync(ROOT, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 
 const loaded = [];
 const failed = [];
 
-// Aggregator bundles re-import the same client-* members, so loading them after the members
-// only produces "already registered" noise (and their node_modules client copy may be stale).
-// Their procedures are already covered by loading the members individually below.
+// Aggregator bundles re-import the same client-* members, so loading them only produces
+// "already registered" noise. Their procedures are already covered by loading the members
+// individually below.
 const SKIP = new Set(["bundle-dev", "bundle-mcp"]);
 
 // Import every package's register.js (side-effect: registers procedures into the shared registry).
@@ -59,9 +59,9 @@ const esc = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ").tri
 
 let out = "";
 out += "# Mark Ecosystem Procedure Catalog\n\n";
-out += "> **Generated file — do not hand-edit.** Produced by `documentation/scripts/generate-procedures.mjs`\n";
+out += "> **Generated file — do not hand-edit.** Produced by `packages/documentation/scripts/generate-procedures.mjs`\n";
 out += "> from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's\n";
-out += "> `register.js`). Regenerate with `node documentation/scripts/generate-procedures.mjs`.\n\n";
+out += "> `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.\n\n";
 out += `**Total procedures:** ${all.length} across ${groups.size} namespaces. `;
 out += `Loaded ${loaded.length} package register(s).\n\n`;
 if (failed.length) {

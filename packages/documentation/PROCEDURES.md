@@ -1,8 +1,8 @@
 # Mark Ecosystem Procedure Catalog
 
-> **Generated file — do not hand-edit.** Produced by `documentation/scripts/generate-procedures.mjs`
+> **Generated file — do not hand-edit.** Produced by `packages/documentation/scripts/generate-procedures.mjs`
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
-> `register.js`). Regenerate with `node documentation/scripts/generate-procedures.mjs`.
+> `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
 **Total procedures:** 176 across 29 namespaces. Loaded 24 package register(s).
 
