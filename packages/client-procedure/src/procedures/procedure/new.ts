@@ -149,11 +149,24 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
       `Would append types to: ${typesFile}`,
       `Note: You'll need to manually add registration to register.ts`,
     ];
+    // Await the existence checks before filtering: filtering on the promises themselves
+    // reported nothing as created and everything as modified (BUGS-2026-07 M37)
+    const [procedureExists, indexExists, typesExists] = await Promise.all([
+      pathExists(procedureFile, ctx),
+      pathExists(namespaceIndex, ctx),
+      pathExists(typesFile, ctx),
+    ]);
     return {
       success: true,
       procedurePath: segments,
-      created: [procedureFile, namespaceIndex].filter((f) => !pathExists(f, ctx)),
-      modified: [typesFile, namespaceIndex].filter(async (f) => await pathExists(f, ctx)),
+      created: [
+        ...(procedureExists ? [] : [procedureFile]),
+        ...(indexExists ? [] : [namespaceIndex]),
+      ],
+      modified: [
+        ...(typesExists ? [typesFile] : []),
+        ...(indexExists ? [namespaceIndex] : []),
+      ],
       operations: dryRunOps,
       errors: [],
     };
