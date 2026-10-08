@@ -6,6 +6,10 @@
  * This allows calling any mark CLI command programmatically.
  */
 
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { CliRunInput, CliRunOutput } from "../../types.js";
 import { readLockfile, isServerAlive } from "../../lockfile.js";
@@ -17,31 +21,32 @@ async function tryServerExecution(
   input: CliRunInput,
   startTime: number
 ): Promise<CliRunOutput | null> {
+  const [service, ...rest] = input.path;
+  if (!service) return null;
+
+  let endpoint: string;
   try {
     const lockfile = await readLockfile();
     if (!lockfile) return null;
-
     if (!(await isServerAlive(lockfile))) return null;
+    endpoint = lockfile.endpoint;
+  } catch {
+    // No usable server - fall through to shell execution
+    return null;
+  }
 
+  // The server is up. From here on, report its errors instead of falling back to shell
+  // execution: a procedure that failed on the server may already have had side effects,
+  // and running it again locally would repeat them.
+  try {
     // Dynamic import to avoid bundling HTTP client unnecessarily
     const { Client, HttpTransport } = await import("@mark1russell7/client");
 
-    const transport = new HttpTransport({
-      baseUrl: lockfile.endpoint,
-    });
+    const transport = new HttpTransport({ baseUrl: endpoint });
     const client = new Client({ transport });
 
-    // Build procedure input from CLI input
-    const procedureInput = buildProcedureInput(input);
-
-    // Convert path to method
-    const [service, ...rest] = input.path;
-    if (!service) return null;
-
     const method = { service, operation: rest.join(".") };
-
-    // Execute remotely
-    const result = await client.call(method, procedureInput);
+    const result = await client.call(method, buildProcedureInput(input));
 
     return {
       exitCode: 0,
@@ -50,10 +55,27 @@ async function tryServerExecution(
       success: true,
       duration: Date.now() - startTime,
     };
-  } catch {
-    // Server connection failed - fall through to shell execution
-    return null;
+  } catch (error) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: error instanceof Error ? error.message : String(error),
+      success: false,
+      duration: Date.now() - startTime,
+    };
   }
+}
+
+/**
+ * The positional field names of a procedure (its meta.args), as mark's CLI parser reads them.
+ * A procedure that is not in the local registry keeps the old behavior: the first positional is "name".
+ */
+function positionalFields(path: string[]): string[] {
+  const args = (PROCEDURE_REGISTRY.get(path)?.metadata as { args?: unknown } | undefined)?.args;
+  if (Array.isArray(args) && args.every((a) => typeof a === "string")) {
+    return args as string[];
+  }
+  return ["name"];
 }
 
 /**
@@ -62,13 +84,17 @@ async function tryServerExecution(
 function buildProcedureInput(input: CliRunInput): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
-  // Add positional args as numbered keys or as specific fields based on procedure
-  if (input.positional && input.positional.length > 0) {
-    // For most procedures, first positional is "name"
-    result["name"] = input.positional[0];
-    if (input.positional.length > 1) {
-      result["_positional"] = input.positional;
+  // Map positional args to the procedure's positional fields
+  const positional = input.positional ?? [];
+  const fields = positionalFields(input.path);
+  positional.forEach((value, i) => {
+    const field = fields[i];
+    if (field !== undefined) {
+      result[field] = value;
     }
+  });
+  if (positional.length > fields.length) {
+    result["_positional"] = positional;
   }
 
   // Add named args
@@ -77,6 +103,28 @@ function buildProcedureInput(input: CliRunInput): Record<string, unknown> {
   }
 
   return result;
+}
+
+/**
+ * Find the mark CLI of the workspace that contains this package (packages/mark/dist/cli.js)
+ */
+function resolveMarkCli(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (;;) {
+    if (existsSync(join(dir, "pnpm-workspace.yaml"))) {
+      const cli = join(dir, "packages", "mark", "dist", "cli.js");
+      if (existsSync(cli)) {
+        return cli;
+      }
+      break;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  throw new Error("Could not find the mark CLI (packages/mark/dist/cli.js in the workspace). Run pnpm build.");
 }
 
 /**
@@ -115,8 +163,8 @@ async function shellExecution(
     cwd?: string | undefined;
     timeout?: number | undefined;
   } = {
-    command: "node",
-    args: ["cli/dist/index.js", ...args],
+    command: process.execPath,
+    args: [resolveMarkCli(), ...args],
   };
 
   if (input.cwd !== undefined) shellInput.cwd = input.cwd;
