@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "@mark1russell7/client-shell": {
+      "proceduresPath": "./dist/register.js",
+      "registeredAt": "2025-12-21T06:35:47.018Z",
+      "version": "0.0.0"
+    }
+  }
+}
