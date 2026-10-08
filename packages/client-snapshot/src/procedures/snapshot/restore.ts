@@ -4,7 +4,7 @@
  * Restore an environment snapshot from S3.
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -60,16 +60,16 @@ export async function snapshotRestore(
     const archiveKey = metadataKey.replace(".metadata.json", ".tar.gz");
     const archivePath = join(workDir, `${input.id}.tar.gz`);
 
-    const archiveResult = await ctx.client.call<
-      { bucket: string; key: string },
-      { body: string }
+    // Stream the archive to disk: an archive can be large, and loading it into memory as
+    // base64 was a third larger again (BUGS-2026-07 M22)
+    await ctx.client.call<
+      { bucket: string; key: string; destPath: string },
+      { path?: string }
     >(["s3", "download"], {
       bucket: input.bucket,
       key: archiveKey,
+      destPath: archivePath,
     });
-
-    // Write archive (base64 decoded)
-    writeFileSync(archivePath, Buffer.from(archiveResult.body, "base64"));
 
     // Verify the downloaded archive against the checksum recorded at snapshot
     // creation time. Do this before extracting so a corrupted or tampered

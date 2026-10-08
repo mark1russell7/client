@@ -22,17 +22,19 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
     "@aws-sdk/client-s3": "^3.705.0",
+    "@mark1russell7/client": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   },
   "keywords": [
     "s3",

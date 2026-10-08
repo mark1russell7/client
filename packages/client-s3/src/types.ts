@@ -77,6 +77,8 @@ export const S3DownloadInputSchema: z.ZodObject<{
   key: z.ZodString;
   encoding: z.ZodOptional<z.ZodString>;
   versionId: z.ZodOptional<z.ZodString>;
+  destPath: z.ZodOptional<z.ZodString>;
+  maxBytes: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** S3 bucket name */
   bucket: z.string(),
@@ -86,13 +88,19 @@ export const S3DownloadInputSchema: z.ZodObject<{
   encoding: z.string().optional(),
   /** Specific version to download */
   versionId: z.string().optional(),
+  /** Write the object to this file instead of returning it (streams to disk: no size limit, no base64) */
+  destPath: z.string().optional(),
+  /** Largest object to load into memory when destPath is not set (default: 64 MiB) */
+  maxBytes: z.number().int().positive().optional(),
 });
 
 export type S3DownloadInput = z.infer<typeof S3DownloadInputSchema>;
 
 export interface S3DownloadOutput {
-  /** Object content (string if encoding specified, base64 otherwise) */
+  /** Object content (string if encoding specified, base64 otherwise); empty when destPath was given */
   body: string;
+  /** The file the object was written to, when destPath was given */
+  path?: string | undefined;
   /** Content length in bytes */
   contentLength: number;
   /** Content type */
