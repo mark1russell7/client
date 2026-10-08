@@ -1,35 +1,24 @@
 /**
- * Ecosystem-based Procedure Discovery
+ * Workspace-based Procedure Discovery
  *
- * Dynamically discovers and loads procedures from the ecosystem manifest.
- * This enables the CLI to automatically find all available procedures
- * without hardcoding imports.
+ * Dynamically discovers and loads procedures from the packages of the
+ * monorepo this CLI lives in. This enables the CLI to automatically find
+ * all available procedures without hardcoding imports.
  *
  * Discovery flow:
- * 1. Read ecosystem.manifest.json from ~/git/ecosystem/
- * 2. For each package, read its package.json
+ * 1. Walk up from this module to the folder that holds pnpm-workspace.yaml
+ * 2. For each packages/* folder, read its package.json
  * 3. If it has client.procedures, dynamically import it
  * 4. Procedures auto-register via PROCEDURE_REGISTRY
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
+import { fileURLToPath } from "node:url";
 
 // =============================================================================
 // Types
 // =============================================================================
-
-interface EcosystemManifest {
-  version: string;
-  root: string;
-  packages: Record<string, PackageEntry>;
-}
-
-interface PackageEntry {
-  repo: string;
-  path: string;
-}
 
 interface PackageJson {
   name: string;
@@ -49,16 +38,6 @@ interface DiscoveredPackage {
 // =============================================================================
 
 /**
- * Expand ~ to home directory
- */
-function expandPath(p: string): string {
-  if (p.startsWith("~/")) {
-    return path.join(os.homedir(), p.slice(2));
-  }
-  return p;
-}
-
-/**
  * Read and parse JSON file
  */
 function readJson<T>(filePath: string): T | null {
@@ -71,34 +50,46 @@ function readJson<T>(filePath: string): T | null {
 }
 
 /**
- * Discover packages with procedures from ecosystem manifest
+ * Find the workspace root: the nearest folder above this module that holds pnpm-workspace.yaml
+ */
+function findWorkspaceRoot(): string | null {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (;;) {
+    if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return null;
+    }
+    dir = parent;
+  }
+}
+
+/**
+ * Discover workspace packages that declare client.procedures
  */
 export function discoverFromEcosystem(): DiscoveredPackage[] {
   const discovered: DiscoveredPackage[] = [];
 
-  // Find ecosystem manifest
-  const manifestPath = path.join(os.homedir(), "git", "ecosystem", "ecosystem.manifest.json");
-  const manifest = readJson<EcosystemManifest>(manifestPath);
-
-  if (!manifest) {
-    // Manifest not found, return empty
+  const root = findWorkspaceRoot();
+  if (!root) {
+    // Not running from inside the monorepo, nothing to discover
     return discovered;
   }
 
-  const rootDir = expandPath(manifest.root);
-
-  // Check each package for client.procedures
-  const packageNames = Object.keys(manifest.packages);
-  for (let i = 0; i < packageNames.length; i++) {
-    const packageName = packageNames[i]!;
-    const entry = manifest.packages[packageName]!;
-    const packageDir = path.join(rootDir, entry.path);
-    const packageJsonPath = path.join(packageDir, "package.json");
-    const packageJson = readJson<PackageJson>(packageJsonPath);
+  const packagesDir = path.join(root, "packages");
+  const entries = fs.readdirSync(packagesDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const packageDir = path.join(packagesDir, entry.name);
+    const packageJson = readJson<PackageJson>(path.join(packageDir, "package.json"));
 
     if (packageJson?.client?.procedures) {
       discovered.push({
-        name: packageName,
+        name: packageJson.name,
         path: packageDir,
         proceduresPath: packageJson.client.procedures,
       });
