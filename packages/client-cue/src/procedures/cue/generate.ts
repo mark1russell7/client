@@ -33,6 +33,14 @@ interface PackageJson {
 }
 
 /**
+ * Keys that describe a package's own entry points. The package owns them: a generated value
+ * is only a default for a package that has none. (BUGS-2026-07 H33: generate replaced a
+ * multi-entry "exports" with the generated "." entry, and dropped bin and sideEffects.)
+ * Policy keys, for example "engines", still come from the generator.
+ */
+const PACKAGE_OWNED_KEYS: ReadonlySet<string> = new Set(["exports", "main", "types", "bin", "sideEffects"]);
+
+/**
  * Generate package.json via CUE evaluation
  */
 async function generatePackageJson(
@@ -60,7 +68,7 @@ async function generatePackageJson(
   });
 
   if (result.status !== 0) {
-    return null;
+    throw new Error(`cue eval failed for package.json: ${(result.stderr || result.stdout || "").trim()}`);
   }
 
   const generated = JSON.parse(result.stdout) as PackageJson;
@@ -79,6 +87,8 @@ async function generatePackageJson(
         if (!merged.includes(item)) merged.push(item);
       }
       pkg[key] = merged;
+    } else if (PACKAGE_OWNED_KEYS.has(key)) {
+      if (pkg[key] === undefined) pkg[key] = value;
     } else {
       pkg[key] = value;
     }
@@ -117,7 +127,7 @@ async function generateGitignore(
   });
 
   if (result.status !== 0) {
-    return null;
+    throw new Error(`cue eval failed for .gitignore: ${(result.stderr || result.stdout || "").trim()}`);
   }
 
   const patterns = JSON.parse(result.stdout) as string[];
@@ -192,35 +202,46 @@ export async function cueGenerate(
   // Load existing package.json
   const existingPkg = await readJson<PackageJson>(resolve(projectPath, "package.json"), ctx);
 
-  // Generate package.json
-  const packageJson = await generatePackageJson(resolvedFeatures, existingPkg, ctx);
-  if (packageJson) {
-    await writeJson(resolve(projectPath, "package.json"), packageJson, ctx);
-    generated.push("package.json");
-  }
+  // A failed cue eval is an error of the whole call, not a silently skipped file
+  // (BUGS-2026-07 M36: the procedure reported success with nothing generated).
+  try {
+    // Generate package.json
+    const packageJson = await generatePackageJson(resolvedFeatures, existingPkg, ctx);
+    if (packageJson) {
+      await writeJson(resolve(projectPath, "package.json"), packageJson, ctx);
+      generated.push("package.json");
+    }
 
-  // Generate tsconfig.json if ts feature is present
-  if (resolvedFeatures.includes("ts")) {
-    const tsconfigName = determineTsconfig(resolvedFeatures);
-    const tsconfig = {
-      $schema: "https://json.schemastore.org/tsconfig",
-      extends: `@mark1russell7/cue/ts/config/${tsconfigName}.json`,
+    // Generate tsconfig.json if ts feature is present
+    if (resolvedFeatures.includes("ts")) {
+      const tsconfigName = determineTsconfig(resolvedFeatures);
+      const tsconfig = {
+        $schema: "https://json.schemastore.org/tsconfig",
+        extends: `@mark1russell7/cue/ts/config/${tsconfigName}.json`,
+      };
+      await writeJson(resolve(projectPath, "tsconfig.json"), tsconfig, ctx);
+      generated.push("tsconfig.json");
+    }
+
+    // Generate .gitignore
+    const gitignoreContent = await generateGitignore(resolvedFeatures, ctx);
+    if (gitignoreContent) {
+      await writeFile(resolve(projectPath, ".gitignore"), gitignoreContent, ctx);
+      generated.push(".gitignore");
+    }
+
+    // Setup cue.mod if cue feature is present
+    if (resolvedFeatures.includes("cue")) {
+      await setupCueMod(projectPath, ctx);
+      generated.push("cue.mod/");
+    }
+  } catch (error) {
+    return {
+      success: false,
+      resolvedFeatures,
+      generated,
+      error: error instanceof Error ? error.message : String(error),
     };
-    await writeJson(resolve(projectPath, "tsconfig.json"), tsconfig, ctx);
-    generated.push("tsconfig.json");
-  }
-
-  // Generate .gitignore
-  const gitignoreContent = await generateGitignore(resolvedFeatures, ctx);
-  if (gitignoreContent) {
-    await writeFile(resolve(projectPath, ".gitignore"), gitignoreContent, ctx);
-    generated.push(".gitignore");
-  }
-
-  // Setup cue.mod if cue feature is present
-  if (resolvedFeatures.includes("cue")) {
-    await setupCueMod(projectPath, ctx);
-    generated.push("cue.mod/");
   }
 
   return {

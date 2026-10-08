@@ -26,10 +26,10 @@
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3"
   },

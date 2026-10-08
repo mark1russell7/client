@@ -5,14 +5,17 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { FeaturesManifest, DependenciesJson } from "./types.js";
 
 // Constants
-const __dirname: string = dirname(fileURLToPath(import.meta.url));
-export const packageRoot: string = resolve(__dirname, "..", "node_modules", "@mark1russell7", "cue");
+// The root of the installed @mark1russell7/cue package (its CUE files and features.json).
+// Resolve it like an import, so it works wherever the package manager put it
+// (BUGS-2026-07 H32: a hard-coded node_modules path only worked for a dev install).
+const require = createRequire(import.meta.url);
+export const packageRoot: string = dirname(require.resolve("@mark1russell7/cue/features.json"));
 
 // Tsconfig priority: later features override earlier (most specific wins)
 export const TSCONFIG_PRIORITY: readonly string[] = ["ts", "node", "node-cjs", "vite", "react"] as const;

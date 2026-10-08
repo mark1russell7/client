@@ -357,13 +357,13 @@ importers:
       '@mark1russell7/client':
         specifier: workspace:*
         version: link:../client
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#main
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab
       zod:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
-      '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue#main
-        version: https://codeload.github.com/mark1russell7/cue/tar.gz/fb96d136d5c451b7ee4f16e50b756b855e7320ab
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
