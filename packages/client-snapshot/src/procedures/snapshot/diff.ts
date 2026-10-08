@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type {
   SnapshotDiffInput,
@@ -96,10 +96,16 @@ export async function snapshotDiff(
           snapshot: snapshotRepo.commit,
         };
 
-        // Count files changed since snapshot commit
+        // Count files changed since snapshot commit.
+        // The commit comes from snapshot metadata downloaded from S3: accept only a hex
+        // object name, and pass it as an argument (no shell), so it cannot inject a command.
         try {
-          const diffStat = execSync(
-            `git diff --stat ${snapshotRepo.commit}..HEAD`,
+          if (!/^[0-9a-f]{7,64}$/i.test(snapshotRepo.commit)) {
+            throw new Error(`Not a commit hash: ${snapshotRepo.commit}`);
+          }
+          const diffStat = execFileSync(
+            "git",
+            ["diff", "--stat", `${snapshotRepo.commit}..HEAD`],
             { cwd: repoPath, encoding: "utf8" }
           );
           // Count lines that represent files (contain |)
