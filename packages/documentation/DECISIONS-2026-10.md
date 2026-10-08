@@ -13,6 +13,27 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Collections, step 2: keep only what the ecosystem uses (plan Phase 5.4, DECISIONS-2026-07 step 5)
+
+July listed "Collections: shrink-and-keep, or delete outright?" as an open decision. Both options start by removing the parts nobody uses, and only that part is done here. The used part stays as the package, and its tests now exist.
+
+How I found the used part:
+
+- A script (`~/git/_migration/scripts/collections-usage.mjs`) listed every import of a collection symbol outside the collections code. The only users are `client`'s cache middleware (`compose`, `lruMap`, `ttlMap`, `hashMap`, `MapLike`), `client`'s storage code (`CollectionStorage`, `InMemoryStorage`) and `client-mongo` (`CollectionStorage`, `StorageMetadata`).
+- The transitive closure of those symbols is 12 modules (approximately 3,300 lines, without the storage files that moved to `client`).
+
+The other 26 modules (approximately 10,400 lines, no consumer anywhere) are deleted:
+
+- lists, sets, queues and trees;
+- the bounded, evented, readonly, safe and synchronized behaviors;
+- the async queue and channels;
+- `fx` iterators and collectors;
+- effects, events and policies.
+
+This includes all five "born-broken" structures of the July register: `ArrayDeque` (C8), `PriorityQueue` (C9), `LinkedHashMap` (C10), `AsyncQueue` (C11) and the collectors (C12). They are obsolete, not fixed.
+
+The package now has 10 tests for what it keeps (`hashMap`, `lruMap`, `ttlMap`, their composition, `InMemoryStorage`). Before this it had none. Reverse with `git revert`, or restore single modules from history.
+
 ### Collections, step 1: one copy, no dependency cycle (plan Phase 5.4, DECISIONS-2026-07 steps 2–4)
 
 The July session deferred this because it touched the core package across repositories, with no safety net. In the monorepo it is one atomic commit, checked by the full test suite and CI. What changed:

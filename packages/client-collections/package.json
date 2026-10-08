@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-collections",
   "version": "0.0.1",
-  "description": "Collections framework with storage abstraction - ArrayList, HashMap, LRU, TTL, and more",
+  "description": "Map, LRU/TTL cache and collection-storage building blocks of the client ecosystem",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,12 +19,14 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "sideEffects": false,
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   }
 }
