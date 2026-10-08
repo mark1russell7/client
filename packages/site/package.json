@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The website of the client ecosystem: the Composer, the procedure catalog and the architecture map",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/react": "^19.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vite": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@mark1russell7/mcp": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react-dom": "^19.0.0",
+    "vitest": "^4.1.11"
+  },
+  "scripts": {
+    "build": "node scripts/gen-data.mjs && vite build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "dev": "node scripts/gen-data.mjs && vite",
+    "preview": "vite preview",
+    "gen": "node scripts/gen-data.mjs",
+    "test": "vitest run"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-mono": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@mark1russell7/client": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}
