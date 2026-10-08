@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client",
+  "version": "1.0.0",
+  "description": "Universal protocol-agnostic RPC client with middleware composition",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "client": "./dist/procedures/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "import": "./dist/events/index.js"
+    },
+    "./procedures": {
+      "types": "./dist/procedures/index.d.ts",
+      "import": "./dist/procedures/index.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "watch": "tsc -b --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "npm run build",
+    "postinstall": "node -e \"const p='./dist/procedures/cli/index.js';require('fs').existsSync(p)&&require('child_process').execSync('node '+p+' announce',{stdio:'inherit',windowsHide:true})\""
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/mock-client": "github:mark1russell7/mock-client#main",
+    "@mark1russell7/test": "github:mark1russell7/test#main",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.16"
+  },
+  "peerDependencies": {
+    "express": "^4.0.0 || ^5.0.0",
+    "zod": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "rpc",
+    "client",
+    "universal",
+    "transport",
+    "middleware",
+    "http",
+    "websocket",
+    "typescript",
+    "collections"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "esbuild"
+    ]
+  }
+}

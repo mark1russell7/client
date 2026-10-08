@@ -1,0 +1,495 @@
+/**
+ * Core Language Procedures
+ *
+ * Foundational procedures for composing and controlling procedure execution.
+ * These procedures enable declarative pipelines and control flow.
+ *
+ * Core procedures:
+ * - `chain` - Execute procedures sequentially, passing results through
+ * - `parallel` - Execute procedures concurrently
+ * - `conditional` - Conditional execution (if/then/else)
+ * - `and` - Short-circuit AND (returns first falsy or last result)
+ * - `or` - Short-circuit OR (returns first truthy result)
+ * - `map` - Map over array with a procedure
+ * - `reduce` - Reduce array with a procedure
+ * - `identity` - Return input unchanged
+ * - `constant` - Return a constant value
+ *
+ * @example
+ * ```typescript
+ * import { proc } from "@mark1russell7/client";
+ *
+ * // Sequential execution
+ * const pipeline = proc(["client", "chain"]).input({
+ *   steps: [
+ *     proc(["git", "add"]).input({ all: true }).ref,
+ *     proc(["git", "commit"]).input({ message: "auto" }).ref,
+ *     proc(["git", "push"]).input({}).ref,
+ *   ],
+ * });
+ *
+ * // Parallel execution
+ * const parallel = proc(["client", "parallel"]).input({
+ *   tasks: [
+ *     proc(["lib", "build"]).input({ path: "pkg1" }).ref,
+ *     proc(["lib", "build"]).input({ path: "pkg2" }).ref,
+ *   ],
+ * });
+ *
+ * // Conditional
+ * const conditional = proc(["client", "conditional"]).input({
+ *   condition: proc(["git", "hasChanges"]).input({}).ref,
+ *   then: proc(["git", "commit"]).input({ message: "auto" }).ref,
+ *   else: proc(["client", "identity"]).input({ message: "no changes" }).ref,
+ * });
+ * ```
+ */
+import { defineProcedure, namespace } from "../define.js";
+import { anySchema } from "./schemas.js";
+// Re-export for convenience
+export { anySchema } from "./schemas.js";
+import { isAnyProcedureRef, normalizeRef, createRefScope, isOutputRef, resolveOutputRef, } from "../ref.js";
+/**
+ * Resolve any $ref values in an object using the given scope.
+ */
+function resolveRefs(value, scope) {
+    if (value === null || value === undefined) {
+        return value;
+    }
+    if (typeof value !== "object") {
+        return value;
+    }
+    // Handle $ref
+    if (isOutputRef(value)) {
+        return resolveOutputRef(value.$ref, scope);
+    }
+    // Handle arrays
+    if (Array.isArray(value)) {
+        return value.map((item) => resolveRefs(item, scope));
+    }
+    // Handle plain objects (but not procedure refs - those should be executed)
+    if (!isAnyProcedureRef(value)) {
+        const obj = value;
+        const result = {};
+        for (const [key, val] of Object.entries(obj)) {
+            result[key] = resolveRefs(val, scope);
+        }
+        return result;
+    }
+    return value;
+}
+const chainProcedure = defineProcedure({
+    path: ["chain"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Execute procedures sequentially",
+        tags: ["core", "control-flow"],
+    },
+    handler: async (input, ctx) => {
+        const { steps, ...parentInput } = input;
+        const results = [];
+        const scope = createRefScope();
+        // Extract context to propagate to steps (e.g., cwd, node)
+        const { cwd, node } = parentInput;
+        for (const step of steps) {
+            let result;
+            if (isAnyProcedureRef(step)) {
+                // This is a procedure reference - execute it
+                const normalized = normalizeRef(step);
+                const stepName = step.$name;
+                // Resolve any $refs in the step's input
+                const resolvedInput = resolveRefs(normalized.input, scope);
+                // Merge parent context (cwd, node) with step input
+                const stepInput = {
+                    ...(typeof resolvedInput === "object" && resolvedInput !== null ? resolvedInput : {}),
+                    ...(cwd ? { cwd } : {}),
+                    ...(node ? { node } : {}),
+                };
+                // Execute the procedure
+                if (ctx?.client) {
+                    result = await ctx.client.call(normalized.path, stepInput);
+                }
+                else {
+                    // No client context - just use the resolved input as result
+                    result = resolvedInput;
+                }
+                // Store named output
+                if (stepName) {
+                    scope.outputs.set(stepName, result);
+                }
+            }
+            else if (isOutputRef(step)) {
+                // This is an output reference - resolve it
+                result = resolveOutputRef(step.$ref, scope);
+            }
+            else {
+                // Raw value - resolve any nested $refs and use directly
+                result = resolveRefs(step, scope);
+            }
+            // Update $last
+            scope.last = result;
+            results.push(result);
+        }
+        return {
+            results,
+            final: results[results.length - 1],
+        };
+    },
+});
+const parallelProcedure = defineProcedure({
+    path: ["parallel"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Execute procedures in parallel",
+        tags: ["core", "control-flow"],
+    },
+    handler: async (input, ctx) => {
+        const { tasks, concurrency, failFast } = input;
+        const { cwd, node } = input;
+        // Operands arrive raw (exec() does not pre-hydrate control-flow procedures). Execute
+        // task refs concurrently, honoring `concurrency` and `failFast`, and report per-task
+        // errors. Non-ref tasks (already-resolved values) pass through. See BUGS-2026-07 M35.
+        const runTask = async (task) => {
+            if (isAnyProcedureRef(task) && ctx?.client) {
+                const normalized = normalizeRef(task);
+                const taskInput = {
+                    ...(typeof normalized.input === "object" && normalized.input !== null ? normalized.input : {}),
+                    ...(cwd ? { cwd } : {}),
+                    ...(node ? { node } : {}),
+                };
+                return ctx.client.call(normalized.path, taskInput);
+            }
+            return task;
+        };
+        const results = new Array(tasks.length);
+        const errors = [];
+        const limit = typeof concurrency === "number" && concurrency > 0
+            ? Math.min(concurrency, tasks.length)
+            : tasks.length;
+        let nextIndex = 0;
+        let aborted = false;
+        const worker = async () => {
+            while (!aborted) {
+                const index = nextIndex++;
+                if (index >= tasks.length) {
+                    return;
+                }
+                try {
+                    results[index] = await runTask(tasks[index]);
+                }
+                catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    if (failFast) {
+                        aborted = true;
+                        throw error;
+                    }
+                    errors.push({ index, error: message });
+                    results[index] = undefined;
+                }
+            }
+        };
+        const workerCount = Math.max(1, limit);
+        await Promise.all(Array.from({ length: workerCount }, () => worker()));
+        errors.sort((a, b) => a.index - b.index);
+        return {
+            results,
+            allSucceeded: errors.length === 0,
+            errors,
+        };
+    },
+});
+const conditionalProcedure = defineProcedure({
+    path: ["conditional"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Conditional execution (if/then/else)",
+        tags: ["core", "control-flow"],
+    },
+    handler: async (input, ctx) => {
+        const { condition: rawCondition, then: thenValue, else: elseValue, ...parentInput } = input;
+        // Extract context to propagate to branches (e.g., cwd, node)
+        const { cwd, node } = parentInput;
+        // If the condition is itself a procedure ref, execute it BEFORE evaluating
+        // truthiness. Operand refs arrive raw (exec() does not pre-hydrate control-flow
+        // procedures), so the condition must be run here. See BUGS-2026-07 H2.
+        let condition = rawCondition;
+        if (isAnyProcedureRef(condition) && ctx?.client) {
+            const conditionRef = normalizeRef(condition);
+            const conditionInput = {
+                ...(typeof conditionRef.input === "object" && conditionRef.input !== null ? conditionRef.input : {}),
+                ...(cwd ? { cwd } : {}),
+                ...(node ? { node } : {}),
+            };
+            condition = await ctx.client.call(conditionRef.path, conditionInput);
+        }
+        // Determine truthiness - check for .value property (from predicates like git.hasChanges)
+        let isTruthy;
+        if (condition && typeof condition === "object" && "value" in condition) {
+            isTruthy = Boolean(condition.value);
+        }
+        else {
+            isTruthy = Boolean(condition);
+        }
+        // Select the branch to execute/return
+        const selectedBranch = isTruthy ? thenValue : elseValue;
+        // If the branch is a procedure ref, execute it
+        if (selectedBranch && isAnyProcedureRef(selectedBranch) && ctx?.client) {
+            const normalized = normalizeRef(selectedBranch);
+            // Merge parent context (cwd, node) with branch input
+            const branchInput = {
+                ...(typeof normalized.input === "object" && normalized.input !== null ? normalized.input : {}),
+                ...(cwd ? { cwd } : {}),
+                ...(node ? { node } : {}),
+            };
+            return ctx.client.call(normalized.path, branchInput);
+        }
+        return selectedBranch;
+    },
+});
+// =============================================================================
+// Logic Operators (unified with group theory)
+// =============================================================================
+import { andHandler, orHandler, notHandler, allHandler, anyHandler as anyLogicHandler, noneHandler, andMetadata, orMetadata, notMetadata, allMetadata, anyMetadata, noneMetadata, } from "./logic.js";
+const andProcedure = defineProcedure({
+    path: ["and"],
+    input: anySchema,
+    output: anySchema,
+    metadata: andMetadata,
+    handler: andHandler,
+});
+const orProcedure = defineProcedure({
+    path: ["or"],
+    input: anySchema,
+    output: anySchema,
+    metadata: orMetadata,
+    handler: orHandler,
+});
+const notProcedure = defineProcedure({
+    path: ["not"],
+    input: anySchema,
+    output: anySchema,
+    metadata: notMetadata,
+    handler: notHandler,
+});
+const allProcedure = defineProcedure({
+    path: ["all"],
+    input: anySchema,
+    output: anySchema,
+    metadata: allMetadata,
+    handler: allHandler,
+});
+const anyProcedure = defineProcedure({
+    path: ["any"],
+    input: anySchema,
+    output: anySchema,
+    metadata: anyMetadata,
+    handler: anyLogicHandler,
+});
+const noneProcedure = defineProcedure({
+    path: ["none"],
+    input: anySchema,
+    output: anySchema,
+    metadata: noneMetadata,
+    handler: noneHandler,
+});
+const mapProcedure = defineProcedure({
+    path: ["map"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Map over array (items should contain procedure refs)",
+        tags: ["core", "collection"],
+    },
+    handler: async (input) => {
+        // Items are already hydrated (procedure refs executed)
+        return {
+            results: input.items,
+        };
+    },
+});
+const reduceProcedure = defineProcedure({
+    path: ["reduce"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Reduce array to single value",
+        tags: ["core", "collection"],
+    },
+    handler: async (input) => {
+        // For reduce with procedure refs, the caller needs to compose
+        // the reduction manually. This just returns the accumulated value.
+        return input.accumulated ?? input.initial;
+    },
+});
+const identityProcedure = defineProcedure({
+    path: ["identity"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Return input unchanged",
+        tags: ["core", "utility"],
+    },
+    handler: async (input) => {
+        return input.value;
+    },
+});
+const constantProcedure = defineProcedure({
+    path: ["constant"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Return a constant value",
+        tags: ["core", "utility"],
+    },
+    handler: async (input) => {
+        return input.value;
+    },
+});
+const throwProcedure = defineProcedure({
+    path: ["throw"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Throw an error",
+        tags: ["core", "control-flow"],
+    },
+    handler: async (input) => {
+        const error = new Error(input.message);
+        if (input.code) {
+            error.code = input.code;
+        }
+        throw error;
+    },
+});
+const tryCatchProcedure = defineProcedure({
+    path: ["tryCatch"],
+    input: anySchema,
+    output: anySchema,
+    metadata: {
+        description: "Try/catch wrapper for procedures",
+        tags: ["core", "control-flow"],
+    },
+    handler: async (input, ctx) => {
+        const { try: tryValue, catch: catchValue } = input;
+        // Operands arrive raw (exec() does not pre-hydrate control-flow procedures), so the
+        // `try` ref is executed HERE inside a real JS try/catch. If it throws, run the `catch`
+        // ref (or use the catch value). Non-ref `try` values are returned as-is (a resolved
+        // value cannot fail). See BUGS-2026-07 H3.
+        if (isAnyProcedureRef(tryValue) && ctx?.client) {
+            try {
+                const tryRef = normalizeRef(tryValue);
+                const value = await ctx.client.call(tryRef.path, tryRef.input);
+                return { success: true, value };
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                let value = catchValue;
+                if (isAnyProcedureRef(catchValue) && ctx?.client) {
+                    const catchRef = normalizeRef(catchValue);
+                    value = await ctx.client.call(catchRef.path, catchRef.input);
+                }
+                return { success: false, value, error: message };
+            }
+        }
+        // `try` is already a resolved value (not a ref): pass it through as a success.
+        return {
+            success: true,
+            value: tryValue,
+        };
+    },
+});
+// =============================================================================
+// Export Core Procedures
+// =============================================================================
+/**
+ * All core language procedures namespaced under "client".
+ */
+export const coreProcedures = namespace(["client"], [
+    chainProcedure,
+    parallelProcedure,
+    conditionalProcedure,
+    // Logic operators (unified with group theory)
+    andProcedure,
+    orProcedure,
+    notProcedure,
+    allProcedure,
+    anyProcedure,
+    noneProcedure,
+    // Collection operators
+    mapProcedure,
+    reduceProcedure,
+    // Utility operators
+    identityProcedure,
+    constantProcedure,
+    throwProcedure,
+    tryCatchProcedure,
+]);
+/**
+ * Core procedures module for registration.
+ */
+export const coreModule = {
+    name: "client-core",
+    procedures: coreProcedures,
+};
+// Re-export individual procedures for direct access
+export { chainProcedure, parallelProcedure, conditionalProcedure, 
+// Logic operators
+andProcedure, orProcedure, notProcedure, allProcedure, anyProcedure, noneProcedure, 
+// Collection operators
+mapProcedure, reduceProcedure, 
+// Utility operators
+identityProcedure, constantProcedure, throwProcedure, tryCatchProcedure, };
+// Re-export schemas, result types, and logic utilities
+export * from "./schemas.js";
+export * from "./results.js";
+export * from "./logic.js";
+// =============================================================================
+// Import additional procedure modules
+// =============================================================================
+export * from "./math.js";
+export * from "./comparison.js";
+export * from "./string.js";
+export * from "./type.js";
+export * from "./object.js";
+export * from "./array.js";
+export * from "./meta.js";
+// =============================================================================
+// Combined exports for all core procedures
+// =============================================================================
+import { mathProcedures, mathModule } from "./math.js";
+import { comparisonProcedures, comparisonModule } from "./comparison.js";
+import { stringProcedures, stringModule } from "./string.js";
+import { typeProcedures, typeModule } from "./type.js";
+import { objectProcedures, objectModule } from "./object.js";
+import { arrayProcedures, arrayModule } from "./array.js";
+import { metaProcedures, metaModule } from "./meta.js";
+/**
+ * All core procedures combined (control flow + math + comparison + string + type + object + array + meta).
+ */
+export const allCoreProcedures = [
+    ...coreProcedures,
+    ...mathProcedures,
+    ...comparisonProcedures,
+    ...stringProcedures,
+    ...typeProcedures,
+    ...objectProcedures,
+    ...arrayProcedures,
+    ...metaProcedures,
+];
+/**
+ * All core modules combined.
+ */
+export const allCoreModules = [
+    coreModule,
+    mathModule,
+    comparisonModule,
+    stringModule,
+    typeModule,
+    objectModule,
+    arrayModule,
+    metaModule,
+];
+//# sourceMappingURL=index.js.map
