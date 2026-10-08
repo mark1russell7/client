@@ -17,7 +17,7 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import type { CollectionStorage } from "../collections/storage/interface.js";
+import type { CollectionStorage } from "@mark1russell7/client-collections";
 
 // =============================================================================
 // Types

@@ -37,6 +37,10 @@
     "./server": {
       "types": "./dist/server/index.d.ts",
       "import": "./dist/server/index.js"
+    },
+    "./collections": {
+      "types": "./dist/collections.d.ts",
+      "import": "./dist/collections.js"
     }
   },
   "files": [
@@ -53,6 +57,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mark1russell7/client-collections": "workspace:*",
     "ws": "^8.18.3"
   },
   "devDependencies": {

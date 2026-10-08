@@ -6,7 +6,7 @@
  */
 
 import type { ZodLike, ZodErrorLike } from "../client/validation/types.js";
-import type { CollectionStorage } from "../collections/storage/interface.js";
+import type { CollectionStorage } from "@mark1russell7/client-collections";
 import type { EventBus } from "../events/types.js";
 
 // =============================================================================

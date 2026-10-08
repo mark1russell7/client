@@ -13,6 +13,19 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Collections, step 1: one copy, no dependency cycle (plan Phase 5.4, DECISIONS-2026-07 steps 2–4)
+
+The July session deferred this because it touched the core package across repositories, with no safety net. In the monorepo it is one atomic commit, checked by the full test suite and CI. What changed:
+
+- `client/src/collections/` (the embedded copy) is deleted. `client` now depends on `@mark1russell7/client-collections`. The cache middleware imports `compose`, `lruMap`, `ttlMap` and `hashMap` from the package. `client`'s 369 tests, which include the cache tests, pass unchanged.
+- `ApiStorage` and `HybridStorage` moved into `client/src/procedures/storage/`, next to the storage factory that uses them, with `git mv` so their history follows. They need a `Client`, so in the package they made a cycle: `client-collections` had `client` as a peer and dev dependency. That dependency is gone. July's plan, step 2.
+- `client`'s root barrel no longer re-exports the approximately 200 collection symbols. Its own comment admitted a name conflict with the client middleware. A new subpath export, `@mark1russell7/client/collections`, re-exports the package plus `ApiStorage` and `HybridStorage`.
+  - Before this change, nothing in the ecosystem imported collection symbols through the `client` root. I checked every import of `@mark1russell7/client` and `@mark1russell7/client-collections`. The only users are `client-mongo` (`CollectionStorage`, `StorageMetadata`, from the package) and `client` itself.
+  - MiniMongo installs the archived `client-legacy`, so it is not affected.
+- Verified: the procedure catalog lost exactly the procedures of the packages deleted earlier (176 → 162), and the MCP tool list is unchanged (65).
+
+Step 2 (delete the modules nothing uses) is a separate commit. Reverse with `git revert`.
+
 ### Delete ecosystem (plan Phase 5.1)
 
 The manifest (`ecosystem.manifest.json`) listed one repository per package. The workspace (`pnpm-workspace.yaml`) is that list now. All readers of the manifest in this repository moved to the workspace:

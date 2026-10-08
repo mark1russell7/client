@@ -7,8 +7,8 @@
 
 import type { ClientRunner, ClientContext, ResponseItem, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
-import { compose, lruMap, ttlMap, hashMap } from "../../collections/index.js";
-import type { MapLike } from "../../collections/interfaces/map.js";
+import { compose, lruMap, ttlMap, hashMap } from "@mark1russell7/client-collections";
+import type { MapLike } from "@mark1russell7/client-collections";
 
 /**
  * Cache middleware options.

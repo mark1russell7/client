@@ -3,15 +3,14 @@
  *
  * Abstract storage layer enabling collections to be backed by:
  * - In-memory (fast, volatile)
- * - Remote API (persistent, shared)
- * - Hybrid (local cache + remote sync)
+ *
+ * The backends that need an RPC Client (ApiStorage: remote API, HybridStorage: local
+ * cache + remote sync) live in @mark1russell7/client and are exported from
+ * "@mark1russell7/client/collections". Keeping them there means this package
+ * does not depend on the client package.
  */
 
 export type { CollectionStorage, StorageMetadata } from "./interface.js";
 export { normalizeStorageResult } from "./interface.js";
 
 export { InMemoryStorage } from "./memory.js";
-export { ApiStorage } from "./api.js";
-export type { ApiStorageOptions } from "./api.js";
-export { HybridStorage } from "./hybrid.js";
-export type { HybridStorageOptions, ConflictResolution, WriteStrategy } from "./hybrid.js";

@@ -1,19 +1,18 @@
 /**
  * Universal Client Library
  *
- * Protocol-agnostic RPC client with middleware composition,
- * transport adapters, and a rich collections framework.
+ * Protocol-agnostic RPC client with middleware composition
+ * and transport adapters.
+ *
+ * Collections (maps, caches, collection storage) are in @mark1russell7/client-collections.
+ * The "@mark1russell7/client/collections" entry point re-exports them together with the
+ * storage backends that need a Client (ApiStorage, HybridStorage).
  */
 
 // ============================================================================
-// Collections Framework - Rich data structures with behaviors
-// ============================================================================
-export * from "./collections/index.js";
-
-// ============================================================================
 // Universal Client (protocol-agnostic RPC)
-// Core client and transports - middleware has naming conflicts with collections
-// Import client middleware explicitly: import { createRetryMiddleware } from "client/client"
+// Core client and transports
+// Import client middleware explicitly: import { createRetryMiddleware } from "@mark1russell7/client/client"
 // ============================================================================
 export { Client, ClientError } from "./client/index.js";
 export {

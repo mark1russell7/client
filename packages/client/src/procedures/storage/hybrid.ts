@@ -12,8 +12,8 @@
  * - Offline operation queue
  */
 
-import type { CollectionStorage, StorageMetadata } from "./interface.js";
-import { InMemoryStorage } from "./memory.js";
+import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
+import { InMemoryStorage } from "@mark1russell7/client-collections";
 import type { ApiStorage } from "./api.js";
 
 /**

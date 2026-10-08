@@ -7,7 +7,7 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageMetadata } from "./interface.js";
+import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
 import type { Client } from "../../client/client.js";
 import type { Method } from "../../client/types.js";
 

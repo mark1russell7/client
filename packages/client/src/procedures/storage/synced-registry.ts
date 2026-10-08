@@ -5,7 +5,7 @@
  * Enables procedure persistence and sync across backends.
  */
 
-import type { CollectionStorage } from "../../collections/storage/interface.js";
+import type { CollectionStorage } from "@mark1russell7/client-collections";
 import { ProcedureRegistry } from "../registry.js";
 import type { AnyProcedure, ProcedurePath, RegistrationOptions } from "../types.js";
 import { pathToKey } from "../types.js";

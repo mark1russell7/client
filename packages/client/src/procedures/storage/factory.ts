@@ -5,11 +5,11 @@
  */
 
 import type { Client } from "../../client/client.js";
-import type { CollectionStorage } from "../../collections/storage/interface.js";
-import { InMemoryStorage } from "../../collections/storage/memory.js";
-import { ApiStorage } from "../../collections/storage/api.js";
-import { HybridStorage } from "../../collections/storage/hybrid.js";
-import type { HybridStorageOptions } from "../../collections/storage/hybrid.js";
+import type { CollectionStorage } from "@mark1russell7/client-collections";
+import { InMemoryStorage } from "@mark1russell7/client-collections";
+import { ApiStorage } from "./api.js";
+import { HybridStorage } from "./hybrid.js";
+import type { HybridStorageOptions } from "./hybrid.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../registry.js";
 import type { SerializedProcedure, SyncedRegistryOptions, HandlerLoader } from "./types.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";

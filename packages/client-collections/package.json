@@ -22,18 +22,9 @@
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": false,
-  "peerDependencies": {
-    "@mark1russell7/client": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "@mark1russell7/client": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "typescript": "^5.9.3",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@mark1russell7/client": "workspace:*"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main"
   }
 }
