@@ -21,219 +21,64 @@
  * ```
  */
 
-import type {
-  PaginationOutput,
-  DocumentQuery,
-  DocumentUpdate,
-  SortSpec,
-  MongoDocument,
-  CollectionStats,
-  CollectionOptions,
-  DatabaseInfo,
-  IndexSpec,
-  IndexOptions,
-  IndexInfo,
-  AggregationStage,
-  AggregationOptions,
-} from "./types.js";
+import type { CollectionStats, DatabaseInfo } from "./types.js";
 
 // =============================================================================
-// Database Procedures
+// Input and output types
 // =============================================================================
+// These are the types the handlers use: each procedure file exports them, so this
+// interface cannot drift from the handlers. (BUGS-2026-07 M17: the copies kept here before
+// had drifted from what the handlers accept and return.)
 
-export interface PingInput {
-  /** Optional timeout in milliseconds */
-  timeout?: number;
-}
+import type { PingInput, PingOutput } from "./procedures/database.ping.js";
+import type { InfoInput } from "./procedures/database.info.js";
+import type { ListInput as ListCollectionsInput, ListOutput as ListCollectionsOutput } from "./procedures/collections.list.js";
+import type { CreateInput as CreateCollectionInput, CreateOutput as CreateCollectionOutput } from "./procedures/collections.create.js";
+import type { DropInput as DropCollectionInput, DropOutput as DropCollectionOutput } from "./procedures/collections.drop.js";
+import type { StatsInput } from "./procedures/collections.stats.js";
+import type { FindInput, FindOutput } from "./procedures/documents.find.js";
+import type { GetInput, GetOutput } from "./procedures/documents.get.js";
+import type { InsertInput, InsertOutput } from "./procedures/documents.insert.js";
+import type { UpdateInput, UpdateOutput } from "./procedures/documents.update.js";
+import type { DeleteInput, DeleteOutput } from "./procedures/documents.delete.js";
+import type { CountInput, CountOutput } from "./procedures/documents.count.js";
+import type { AggregateInput, AggregateOutput } from "./procedures/documents.aggregate.js";
+import type { ListIndexesInput, ListIndexesOutput } from "./procedures/indexes.list.js";
+import type { CreateIndexInput, CreateIndexOutput } from "./procedures/indexes.create.js";
+import type { DropIndexInput, DropIndexOutput } from "./procedures/indexes.drop.js";
 
-export interface PingOutput {
-  /** Response time in milliseconds */
-  latencyMs: number;
-  /** Server status */
-  ok: boolean;
-}
-
-export interface InfoInput {
-  /** Include detailed stats */
-  includeStats?: boolean;
-}
-
-// =============================================================================
-// Collection Procedures
-// =============================================================================
-
-export interface ListCollectionsInput {
-  /** Filter by name pattern */
-  filter?: string;
-}
-
-export interface ListCollectionsOutput {
-  /** Collection names */
-  collections: string[];
-}
-
-export interface CreateCollectionInput {
-  /** Collection name */
-  name: string;
-  /** Collection options */
-  options?: CollectionOptions;
-}
-
-export interface CreateCollectionOutput {
-  /** Whether creation was successful */
-  created: boolean;
-  /** Collection name */
-  name: string;
-}
-
-export interface DropCollectionInput {
-  /** Collection name */
-  name: string;
-}
-
-export interface DropCollectionOutput {
-  /** Whether drop was successful */
-  dropped: boolean;
-}
-
-export interface StatsInput {
-  // Empty - collection from metadata
-}
-
-// =============================================================================
-// Document Procedures
-// =============================================================================
-
-export interface FindInput {
-  /** Query filter */
-  query?: DocumentQuery;
-  /** Field projection */
-  projection?: Record<string, 0 | 1>;
-  /** Sort specification */
-  sort?: SortSpec;
-  /** Page number (1-indexed) */
-  page?: number;
-  /** Items per page (max 100) */
-  limit?: number;
-}
-
-export interface FindOutput {
-  /** Found documents */
-  documents: MongoDocument[];
-  /** Pagination info */
-  pagination: PaginationOutput;
-}
-
-export interface GetInput {
-  /** Document ID */
-  id: string;
-}
-
-export interface GetOutput {
-  /** Found document or null */
-  document: MongoDocument | null;
-}
-
-export interface InsertInput {
-  /** Document or documents to insert */
-  documents: MongoDocument | MongoDocument[];
-}
-
-export interface InsertOutput {
-  /** Number of documents inserted */
-  insertedCount: number;
-  /** Inserted document IDs */
-  insertedIds: string[];
-}
-
-export interface UpdateInput {
-  /** Query filter */
-  query: DocumentQuery;
-  /** Update specification */
-  update: DocumentUpdate;
-  /** Update all matching documents */
-  multi?: boolean;
-  /** Insert if not found */
-  upsert?: boolean;
-}
-
-export interface UpdateOutput {
-  /** Number of documents matched */
-  matchedCount: number;
-  /** Number of documents modified */
-  modifiedCount: number;
-  /** Upserted document ID (if any) */
-  upsertedId?: string;
-}
-
-export interface DeleteInput {
-  /** Query filter */
-  query: DocumentQuery;
-  /** Delete all matching documents */
-  multi?: boolean;
-}
-
-export interface DeleteOutput {
-  /** Number of documents deleted */
-  deletedCount: number;
-}
-
-export interface CountInput {
-  /** Query filter */
-  query?: DocumentQuery;
-}
-
-export interface CountOutput {
-  /** Document count */
-  count: number;
-}
-
-export interface AggregateInput {
-  /** Aggregation pipeline stages */
-  pipeline: AggregationStage[];
-  /** Aggregation options */
-  options?: AggregationOptions;
-}
-
-export interface AggregateOutput {
-  /** Aggregation results */
-  results: MongoDocument[];
-}
-
-// =============================================================================
-// Index Procedures
-// =============================================================================
-
-export interface ListIndexesInput {
-  // Empty - collection from metadata
-}
-
-export interface ListIndexesOutput {
-  /** Index information */
-  indexes: IndexInfo[];
-}
-
-export interface CreateIndexInput {
-  /** Index key specification */
-  keys: IndexSpec;
-  /** Index options */
-  options?: IndexOptions;
-}
-
-export interface CreateIndexOutput {
-  /** Index name */
-  name: string;
-}
-
-export interface DropIndexInput {
-  /** Index name to drop */
-  name: string;
-}
-
-export interface DropIndexOutput {
-  /** Whether drop was successful */
-  dropped: boolean;
-}
+export type {
+  PingInput,
+  PingOutput,
+  InfoInput,
+  ListCollectionsInput,
+  ListCollectionsOutput,
+  CreateCollectionInput,
+  CreateCollectionOutput,
+  DropCollectionInput,
+  DropCollectionOutput,
+  StatsInput,
+  FindInput,
+  FindOutput,
+  GetInput,
+  GetOutput,
+  InsertInput,
+  InsertOutput,
+  UpdateInput,
+  UpdateOutput,
+  DeleteInput,
+  DeleteOutput,
+  CountInput,
+  CountOutput,
+  AggregateInput,
+  AggregateOutput,
+  ListIndexesInput,
+  ListIndexesOutput,
+  CreateIndexInput,
+  CreateIndexOutput,
+  DropIndexInput,
+  DropIndexOutput,
+};
 
 // =============================================================================
 // Combined Procedures Interface
