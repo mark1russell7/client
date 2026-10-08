@@ -1,0 +1,46 @@
+/**
+ * git.commit procedure
+ *
+ * Create commit
+ */
+
+import { execFileSync } from "node:child_process";
+import type { GitCommitInput, GitCommitOutput } from "../../types.js";
+
+/**
+ * Create commit
+ */
+export async function gitCommit(input: GitCommitInput): Promise<GitCommitOutput> {
+  const { message, all, amend, cwd } = input;
+  const opts = { cwd, encoding: "utf8" as const };
+
+  // Check if there's anything to commit (unless amending)
+  if (!amend) {
+    const status = execFileSync("git", ["status", "--porcelain"], opts).trim();
+    if (!status && !all) {
+      // Nothing staged and not using -a, skip commit
+      return { hash: "", message: "", author: "", date: "", skipped: true };
+    }
+    // If using -a, check if there are any modified files
+    if (all) {
+      const hasChanges = status.length > 0;
+      if (!hasChanges) {
+        return { hash: "", message: "", author: "", date: "", skipped: true };
+      }
+    }
+  }
+
+  const args: string[] = ["commit"];
+  if (all) args.push("-a");
+  if (amend) args.push("--amend");
+  args.push("-m", message);
+
+  execFileSync("git", args, opts);
+
+  // Get commit info
+  const format = "--format=%H%n%s%n%an%n%ci";
+  const info = execFileSync("git", ["log", "-1", format], opts).trim();
+  const [hash = "", msg = "", author = "", date = ""] = info.split("\n");
+
+  return { hash, message: msg, author, date };
+}

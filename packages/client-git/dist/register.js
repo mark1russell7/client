@@ -1,0 +1,434 @@
+/**
+ * Procedure Registration for git operations
+ *
+ * Registers git.* procedures with the client system.
+ * This file is referenced by package.json's client.procedures field.
+ */
+import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { gitStatus } from "./procedures/git/status.js";
+import { gitAdd } from "./procedures/git/add.js";
+import { gitCommit } from "./procedures/git/commit.js";
+import { gitPush } from "./procedures/git/push.js";
+import { gitPull } from "./procedures/git/pull.js";
+import { gitClone } from "./procedures/git/clone.js";
+import { gitCheckout } from "./procedures/git/checkout.js";
+import { gitBranch } from "./procedures/git/branch.js";
+import { gitLog } from "./procedures/git/log.js";
+import { gitDiff } from "./procedures/git/diff.js";
+import { gitInit } from "./procedures/git/init.js";
+import { gitRemote } from "./procedures/git/remote.js";
+import { gitFetch } from "./procedures/git/fetch.js";
+import { gitHasChanges, gitHasStagedChanges, gitHasUnstagedChanges, gitHasUntrackedFiles, gitHasLocalCommits, gitIsClean, } from "./procedures/git/predicates.js";
+import { gitStashList, gitStashPush, gitStashPop, gitStashApply, gitStashDrop, gitStashExport, gitStashImport, } from "./procedures/git/stash.js";
+import { GitStatusInputSchema, GitAddInputSchema, GitCommitInputSchema, GitPushInputSchema, GitPullInputSchema, GitCloneInputSchema, GitCheckoutInputSchema, GitBranchInputSchema, GitLogInputSchema, GitDiffInputSchema, GitInitInputSchema, GitRemoteInputSchema, GitFetchInputSchema, GitPredicateInputSchema, GitStashListInputSchema, GitStashPushInputSchema, GitStashPopInputSchema, GitStashApplyInputSchema, GitStashDropInputSchema, GitStashExportInputSchema, GitStashImportInputSchema, } from "./types.js";
+// =============================================================================
+// Procedure Definitions
+// =============================================================================
+const gitStatusProcedure = createProcedure()
+    .path(["git", "status"])
+    .input(zodAdapter(GitStatusInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Get git status",
+    args: [],
+    shorts: { cwd: "C", short: "s" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStatus(input);
+})
+    .build();
+const gitAddProcedure = createProcedure()
+    .path(["git", "add"])
+    .input(zodAdapter(GitAddInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Stage files",
+    args: ["paths"],
+    shorts: { all: "A", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitAdd(input);
+})
+    .build();
+const gitCommitProcedure = createProcedure()
+    .path(["git", "commit"])
+    .input(zodAdapter(GitCommitInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Create commit",
+    args: ["message"],
+    shorts: { all: "a", amend: "A", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitCommit(input);
+})
+    .build();
+const gitPushProcedure = createProcedure()
+    .path(["git", "push"])
+    .input(zodAdapter(GitPushInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Push to remote",
+    args: [],
+    shorts: { remote: "r", branch: "b", force: "f", setUpstream: "u", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitPush(input);
+})
+    .build();
+const gitPullProcedure = createProcedure()
+    .path(["git", "pull"])
+    .input(zodAdapter(GitPullInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Pull from remote",
+    args: [],
+    shorts: { remote: "r", branch: "b", rebase: "R", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitPull(input);
+})
+    .build();
+const gitCloneProcedure = createProcedure()
+    .path(["git", "clone"])
+    .input(zodAdapter(GitCloneInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Clone repository",
+    args: ["url"],
+    shorts: { dest: "d", branch: "b", depth: "D", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitClone(input);
+})
+    .build();
+const gitCheckoutProcedure = createProcedure()
+    .path(["git", "checkout"])
+    .input(zodAdapter(GitCheckoutInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Checkout branch or files",
+    args: ["ref"],
+    shorts: { create: "b", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitCheckout(input);
+})
+    .build();
+const gitBranchProcedure = createProcedure()
+    .path(["git", "branch"])
+    .input(zodAdapter(GitBranchInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Branch operations",
+    args: ["name"],
+    shorts: { delete: "d", list: "l", remote: "r", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitBranch(input);
+})
+    .build();
+const gitLogProcedure = createProcedure()
+    .path(["git", "log"])
+    .input(zodAdapter(GitLogInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Show commit log",
+    args: [],
+    shorts: { count: "n", oneline: "o", ref: "r", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitLog(input);
+})
+    .build();
+const gitDiffProcedure = createProcedure()
+    .path(["git", "diff"])
+    .input(zodAdapter(GitDiffInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Show changes",
+    args: [],
+    shorts: { staged: "s", ref: "r", stat: "S", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitDiff(input);
+})
+    .build();
+const gitInitProcedure = createProcedure()
+    .path(["git", "init"])
+    .input(zodAdapter(GitInitInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Initialize a git repository",
+    args: [],
+    shorts: { cwd: "C", bare: "b", initialBranch: "B" },
+    output: "json",
+})
+    .handler(async (input, ctx) => {
+    return gitInit(input, ctx);
+})
+    .build();
+const gitRemoteProcedure = createProcedure()
+    .path(["git", "remote"])
+    .input(zodAdapter(GitRemoteInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Get or set remote URLs",
+    args: [],
+    shorts: { name: "n", url: "u", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitRemote(input);
+})
+    .build();
+const gitFetchProcedure = createProcedure()
+    .path(["git", "fetch"])
+    .input(zodAdapter(GitFetchInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Fetch from remote",
+    args: [],
+    shorts: { remote: "r", branch: "b", all: "a", prune: "p", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitFetch(input);
+})
+    .build();
+// =============================================================================
+// Predicate Procedures (boolean checks for conditionals)
+// =============================================================================
+const gitHasChangesProcedure = createProcedure()
+    .path(["git", "hasChanges"])
+    .input(zodAdapter(GitPredicateInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Check if there are any changes (unstaged, staged, or untracked)",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitHasChanges(input);
+})
+    .build();
+const gitHasStagedChangesProcedure = createProcedure()
+    .path(["git", "hasStagedChanges"])
+    .input(zodAdapter(GitPredicateInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Check if there are any staged changes ready to commit",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitHasStagedChanges(input);
+})
+    .build();
+const gitHasUnstagedChangesProcedure = createProcedure()
+    .path(["git", "hasUnstagedChanges"])
+    .input(zodAdapter(GitPredicateInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Check if there are any unstaged changes",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitHasUnstagedChanges(input);
+})
+    .build();
+const gitHasUntrackedFilesProcedure = createProcedure()
+    .path(["git", "hasUntrackedFiles"])
+    .input(zodAdapter(GitPredicateInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Check if there are any untracked files",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitHasUntrackedFiles(input);
+})
+    .build();
+const gitHasLocalCommitsProcedure = createProcedure()
+    .path(["git", "hasLocalCommits"])
+    .input(zodAdapter(GitPredicateInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Check if there are local commits that haven't been pushed",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitHasLocalCommits(input);
+})
+    .build();
+const gitIsCleanProcedure = createProcedure()
+    .path(["git", "isClean"])
+    .input(zodAdapter(GitPredicateInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Check if the working directory is clean",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitIsClean(input);
+})
+    .build();
+// =============================================================================
+// Stash Procedures
+// =============================================================================
+const gitStashListProcedure = createProcedure()
+    .path(["git", "stash", "list"])
+    .input(zodAdapter(GitStashListInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "List all stashes",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashList(input);
+})
+    .build();
+const gitStashPushProcedure = createProcedure()
+    .path(["git", "stash", "push"])
+    .input(zodAdapter(GitStashPushInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Push changes to stash",
+    args: ["message"],
+    shorts: { message: "m", includeUntracked: "u", keepIndex: "k", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashPush(input);
+})
+    .build();
+const gitStashPopProcedure = createProcedure()
+    .path(["git", "stash", "pop"])
+    .input(zodAdapter(GitStashPopInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Pop stash (apply and remove)",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashPop(input);
+})
+    .build();
+const gitStashApplyProcedure = createProcedure()
+    .path(["git", "stash", "apply"])
+    .input(zodAdapter(GitStashApplyInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Apply stash without removing",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashApply(input);
+})
+    .build();
+const gitStashDropProcedure = createProcedure()
+    .path(["git", "stash", "drop"])
+    .input(zodAdapter(GitStashDropInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Drop a stash",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashDrop(input);
+})
+    .build();
+const gitStashExportProcedure = createProcedure()
+    .path(["git", "stash", "export"])
+    .input(zodAdapter(GitStashExportInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Export stash as patch for snapshot storage",
+    args: [],
+    shorts: { index: "n", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashExport(input);
+})
+    .build();
+const gitStashImportProcedure = createProcedure()
+    .path(["git", "stash", "import"])
+    .input(zodAdapter(GitStashImportInputSchema))
+    .output(outputSchema())
+    .meta({
+    description: "Import stash from patch",
+    args: ["patch"],
+    shorts: { message: "m", includeUntracked: "u", cwd: "C" },
+    output: "json",
+})
+    .handler(async (input) => {
+    return gitStashImport(input);
+})
+    .build();
+// =============================================================================
+// Registration
+// =============================================================================
+export function registerGitProcedures() {
+    registerProcedures([
+        gitStatusProcedure,
+        gitAddProcedure,
+        gitCommitProcedure,
+        gitPushProcedure,
+        gitPullProcedure,
+        gitCloneProcedure,
+        gitCheckoutProcedure,
+        gitBranchProcedure,
+        gitLogProcedure,
+        gitDiffProcedure,
+        gitInitProcedure,
+        gitRemoteProcedure,
+        gitFetchProcedure,
+        // Predicate procedures
+        gitHasChangesProcedure,
+        gitHasStagedChangesProcedure,
+        gitHasUnstagedChangesProcedure,
+        gitHasUntrackedFilesProcedure,
+        gitHasLocalCommitsProcedure,
+        gitIsCleanProcedure,
+        // Stash procedures
+        gitStashListProcedure,
+        gitStashPushProcedure,
+        gitStashPopProcedure,
+        gitStashApplyProcedure,
+        gitStashDropProcedure,
+        gitStashExportProcedure,
+        gitStashImportProcedure,
+    ]);
+}
+// Auto-register when this module is loaded
+registerGitProcedures();
+//# sourceMappingURL=register.js.map
