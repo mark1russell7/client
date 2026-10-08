@@ -150,23 +150,6 @@ export interface RateLimitContext {
 }
 
 // =============================================================================
-// Batching Middleware Context
-// =============================================================================
-
-/**
- * Context provided by batching middleware.
- * Tracks batching state.
- */
-export interface BatchingContext {
-  batching: {
-    /** Batch key this request belongs to */
-    batchKey: string;
-    /** Current batch size */
-    batchSize: number;
-  };
-}
-
-// =============================================================================
 // Pagination Middleware Context
 // =============================================================================
 
@@ -230,7 +213,6 @@ export type AnyMiddlewareContext =
   | TracingContext
   | CircuitBreakerContext
   | RateLimitContext
-  | BatchingContext
   | PaginationContext;
 
 /**
@@ -245,7 +227,6 @@ export type FullContext = BaseClientContext &
   TracingContext &
   CircuitBreakerContext &
   RateLimitContext &
-  BatchingContext &
   PaginationContext;
 
 // =============================================================================

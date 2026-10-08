@@ -63,8 +63,6 @@ export type { CircuitBreakerOptions, CircuitBreakerStats, CircuitState } from ".
 
 export { createRateLimitMiddleware, createPerServiceRateLimiter, RateLimitError } from "./middleware/rate-limit.js";
 export type { RateLimitOptions, RateLimitStats } from "./middleware/rate-limit.js";
-export { createBatchingMiddleware, createAdaptiveBatchingMiddleware } from "./middleware/batching.js";
-export type { BatchingOptions, BatchingStats } from "./middleware/batching.js";
 
 export {
   createAuthMiddleware,

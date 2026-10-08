@@ -120,8 +120,6 @@ export {
   pathToKey,
   keyToPath,
   createCollectionProcedures,
-  genericCollectionProcedures,
-  collectionModule,
   // Manual registration helpers
   registerModule,
   registerProcedures,

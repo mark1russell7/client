@@ -43,11 +43,7 @@ export {
 export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 
 // Collection procedures
-export {
-  createCollectionProcedures,
-  genericCollectionProcedures,
-  collectionModule,
-} from "./collection/index.js";
+export { createCollectionProcedures } from "./collection/index.js";
 
 // Manual registration helpers
 export {

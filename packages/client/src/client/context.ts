@@ -29,7 +29,6 @@ import type {
   TracingContext,
   CircuitBreakerContext,
   RateLimitContext,
-  BatchingContext,
   PaginationContext,
 } from "./middleware/contexts.js";
 
@@ -49,7 +48,6 @@ export type MiddlewareContextFields = Partial<
     TracingContext &
     CircuitBreakerContext &
     RateLimitContext &
-    BatchingContext &
     PaginationContext
 >;
 

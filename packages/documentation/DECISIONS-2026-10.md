@@ -13,6 +13,19 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Delete the batching middlewares and the wildcard collection procedures (BUGS-2026-07 M3, M8)
+
+July's roadmap (Phase 1.6) says for dead core subsystems: "wire it end-to-end with a test, or delete it. Deletion is a legitimate and often better answer." Both of these are exported from `client`, broken, and unused anywhere in the ecosystem, so I deleted them.
+
+- `createBatchingMiddleware` and `createAdaptiveBatchingMiddleware` (M3) made a new queue for each request, so they never batched anything and only added their wait time to every call. The base `processBatch` sent the requests one at a time anyway: there is no batch wire format to batch into. Their `BatchingContext` type went too.
+- The generic `collections.*.get/set/delete` procedures (M8) were registered at literal `"*"` paths, but the registry, `LocalTransport` and the server match paths exactly, so nothing could ever call them. `createCollectionProcedures()`, the working per-collection factory, stays.
+
+Reverse with `git revert`. A real batching feature needs a batch request format on the transports first.
+
+### MCP tools now have real input schemas (side effect of a zodAdapter fix)
+
+`zodAdapter()` now keeps the wrapped Zod schema's `_def` and `shape` visible (commit `f2d870c`), to fix `mark`'s help and flag parsing. The MCP layer recognizes Zod schemas by `_def`, so the `dev-tools` tools exposed to Claude Code now carry their real JSON Schemas instead of `{type: "object", additionalProperties: true}`. The tool names are unchanged (65). This is intended: Claude gets the parameter names, types and required fields. If a tool's generated schema ever causes trouble, the converter falls back to the permissive schema on a conversion error.
+
 ### Collections, step 2: keep only what the ecosystem uses (plan Phase 5.4, DECISIONS-2026-07 step 5)
 
 July listed "Collections: shrink-and-keep, or delete outright?" as an open decision. Both options start by removing the parts nobody uses, and only that part is done here. The used part stays as the package, and its tests now exist.

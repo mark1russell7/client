@@ -6,7 +6,7 @@
  */
 
 import { defineProcedure } from "../define.js";
-import type { ProcedureContext, AnyProcedure, Procedure } from "../types.js";
+import type { ProcedureContext, AnyProcedure } from "../types.js";
 import {
   getInputSchema,
   getOutputSchema,
@@ -243,90 +243,3 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
     }),
   ];
 }
-
-// =============================================================================
-// Generic Collection Procedures (for dynamic collections)
-// =============================================================================
-
-/**
- * Generic get procedure that works with any collection.
- * Uses the collection name from the path.
- */
-export const genericGetProcedure : Procedure<
-  { id: string }, unknown
-> = defineProcedure({
-  path: ["collections", "*", "get"],
-  input: getInputSchema,
-  output: getOutputSchema,
-  metadata: {
-    description: "Get item from collection by ID",
-    tags: ["collections", "read", "generic"],
-  },
-  handler: async (input: GetInput, ctx: ProcedureContext) => {
-    const storage = getStorage(ctx);
-    return storage.get(input.id);
-  },
-});
-
-/**
- * Generic set procedure that works with any collection.
- */
-export const genericSetProcedure : Procedure<
-  { id: string; value: unknown }, void
-> = defineProcedure({
-  path: ["collections", "*", "set"],
-  input: setInputSchema,
-  output: setOutputSchema,
-  metadata: {
-    description: "Set item in collection",
-    tags: ["collections", "write", "generic"],
-  },
-  handler: async (input: SetInput, ctx: ProcedureContext) => {
-    const storage = getStorage(ctx);
-    await storage.set(input.id, input.value);
-  },
-});
-
-/**
- * Generic delete procedure that works with any collection.
- */
-export const genericDeleteProcedure : Procedure<
-  { id: string }, boolean
-> = defineProcedure({
-  path: ["collections", "*", "delete"],
-  input: deleteInputSchema,
-  output: deleteOutputSchema,
-  metadata: {
-    description: "Delete item from collection",
-    tags: ["collections", "write", "generic"],
-  },
-  handler: async (input: DeleteInput, ctx: ProcedureContext) => {
-    const storage = getStorage(ctx);
-    return storage.delete(input.id);
-  },
-});
-
-// =============================================================================
-// Collection Module Registration
-// =============================================================================
-
-/**
- * All generic collection procedures.
- * Register these for dynamic collection support.
- */
-export const genericCollectionProcedures: AnyProcedure[] = [
-  genericGetProcedure,
-  genericSetProcedure,
-  genericDeleteProcedure,
-];
-
-/**
- * Module export for procedure registration.
- */
-export const collectionModule : {
-  name: string;
-  procedures: AnyProcedure[];
-} = {
-  name: "collections",
-  procedures: genericCollectionProcedures,
-} as const;

@@ -45,11 +45,4 @@ export type {
 } from "./schemas.js";
 
 // Procedures
-export {
-  createCollectionProcedures,
-  genericGetProcedure,
-  genericSetProcedure,
-  genericDeleteProcedure,
-  genericCollectionProcedures,
-  collectionModule,
-} from "./procedures.js";
+export { createCollectionProcedures } from "./procedures.js";
