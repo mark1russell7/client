@@ -59,10 +59,13 @@ export { anySchema } from "./schemas.js";
 import type { ProcedureContext } from "../types.js";
 import {
   isAnyProcedureRef,
+  isControlFlowPath,
   normalizeRef,
+  hydrateInput,
   createRefScope,
   isOutputRef,
   resolveOutputRef,
+  type AnyProcedureRef,
   type RefScope,
   type ProcedureRefJson,
 } from "../ref.js";
@@ -120,6 +123,49 @@ function resolveRefs(value: unknown, scope: RefScope): unknown {
   return value;
 }
 
+/**
+ * This function runs the nested refs of an operand value (as `exec()` does for its input) and
+ * resolves its `$ref` values in `scope`.
+ */
+async function hydrateOperand(value: unknown, ctx: ProcedureContext, scope?: RefScope): Promise<unknown> {
+  const resolved = scope ? resolveRefs(value, scope) : value;
+  return hydrateInput(resolved, (path, input) => ctx.client.call(path, input), scope ? { scope } : {});
+}
+
+/**
+ * This function runs an operand ref of a control-flow procedure.
+ *
+ * It resolves the `$ref` values of the ref's input in `scope`, runs the nested refs of the
+ * input and adds `extra` (the parent context, for example `cwd`). Then it calls the procedure.
+ * The input of a control-flow procedure stays raw: that procedure runs its own operands.
+ * Before this function, the operands were called with their raw input, so a nested ref (for
+ * example `multiply { a: add {...} }`) reached the procedure as an object.
+ */
+async function callOperand(
+  ref: AnyProcedureRef,
+  ctx: ProcedureContext,
+  options: { scope?: RefScope | undefined; extra?: Record<string, unknown> | undefined } = {},
+): Promise<unknown> {
+  const normalized = normalizeRef(ref);
+  let input: unknown = options.scope ? resolveRefs(normalized.input, options.scope) : normalized.input;
+  if (!isControlFlowPath(normalized.path)) {
+    input = await hydrateOperand(input, ctx, options.scope);
+  }
+  const extra = options.extra ?? {};
+  if (Object.keys(extra).length > 0) {
+    input = { ...(typeof input === "object" && input !== null && !Array.isArray(input) ? input : {}), ...extra };
+  }
+  return ctx.client.call(normalized.path, input);
+}
+
+/** The parent context that the control-flow procedures give to their operands. */
+function parentContext(input: { cwd?: string | undefined; node?: unknown }): Record<string, unknown> {
+  return {
+    ...(input.cwd ? { cwd: input.cwd } : {}),
+    ...(input.node ? { node: input.node } : {}),
+  };
+}
+
 const chainProcedure: ChainProcedure = defineProcedure({
   path: ["chain"],
   input: anySchema as any,
@@ -141,25 +187,14 @@ const chainProcedure: ChainProcedure = defineProcedure({
 
       if (isAnyProcedureRef(step)) {
         // This is a procedure reference - execute it
-        const normalized = normalizeRef(step);
         const stepName = (step as ProcedureRefJson).$name;
 
-        // Resolve any $refs in the step's input
-        const resolvedInput = resolveRefs(normalized.input, scope);
-
-        // Merge parent context (cwd, node) with step input
-        const stepInput = {
-          ...(typeof resolvedInput === "object" && resolvedInput !== null ? resolvedInput : {}),
-          ...(cwd ? { cwd } : {}),
-          ...(node ? { node } : {}),
-        };
-
-        // Execute the procedure
         if (ctx?.client) {
-          result = await ctx.client.call(normalized.path, stepInput);
+          // Resolve the $refs of the step's input, run its nested refs, add the parent context (cwd, node)
+          result = await callOperand(step, ctx, { scope, extra: parentContext({ cwd, node }) });
         } else {
           // No client context - just use the resolved input as result
-          result = resolvedInput;
+          result = resolveRefs(normalizeRef(step).input, scope);
         }
 
         // Store named output
@@ -230,13 +265,7 @@ const parallelProcedure: ParallelProcedure = defineProcedure({
     // errors. Non-ref tasks (already-resolved values) pass through. See BUGS-2026-07 M35.
     const runTask = async (task: unknown): Promise<unknown> => {
       if (isAnyProcedureRef(task) && ctx?.client) {
-        const normalized = normalizeRef(task);
-        const taskInput = {
-          ...(typeof normalized.input === "object" && normalized.input !== null ? normalized.input : {}),
-          ...(cwd ? { cwd } : {}),
-          ...(node ? { node } : {}),
-        };
-        return ctx.client.call(normalized.path, taskInput);
+        return callOperand(task, ctx, { extra: parentContext({ cwd, node }) });
       }
       return task;
     };
@@ -322,13 +351,7 @@ const conditionalProcedure: ConditionalProcedure = defineProcedure({
     // procedures), so the condition must be run here. See BUGS-2026-07 H2.
     let condition: unknown = rawCondition;
     if (isAnyProcedureRef(condition) && ctx?.client) {
-      const conditionRef = normalizeRef(condition);
-      const conditionInput = {
-        ...(typeof conditionRef.input === "object" && conditionRef.input !== null ? conditionRef.input : {}),
-        ...(cwd ? { cwd } : {}),
-        ...(node ? { node } : {}),
-      };
-      condition = await ctx.client.call(conditionRef.path, conditionInput);
+      condition = await callOperand(condition, ctx, { extra: parentContext({ cwd, node }) });
     }
 
     // Determine truthiness - check for .value property (from predicates like git.hasChanges)
@@ -344,14 +367,8 @@ const conditionalProcedure: ConditionalProcedure = defineProcedure({
 
     // If the branch is a procedure ref, execute it
     if (selectedBranch && isAnyProcedureRef(selectedBranch) && ctx?.client) {
-      const normalized = normalizeRef(selectedBranch);
       // Merge parent context (cwd, node) with branch input
-      const branchInput = {
-        ...(typeof normalized.input === "object" && normalized.input !== null ? normalized.input : {}),
-        ...(cwd ? { cwd } : {}),
-        ...(node ? { node } : {}),
-      };
-      return ctx.client.call(normalized.path, branchInput);
+      return callOperand(selectedBranch, ctx, { extra: parentContext({ cwd, node }) });
     }
 
     return selectedBranch;
@@ -465,8 +482,16 @@ const noneProcedure: NoneProcedure = defineProcedure({
 // =============================================================================
 
 interface MapInput {
-  /** Array to map over */
+  /** The array to map over. An element (or the whole value) can be a procedure ref: it runs first. */
   items: unknown[];
+  /**
+   * The procedure ref to run for each item. Its input reads the item as `{ $ref: "item" }`
+   * (or the name in `as`) and the position as `{ $ref: "index" }`. Without `fn`, the result
+   * is the items, with their refs run.
+   */
+  fn?: unknown;
+  /** The `$ref` name of the item in `fn`. The default is "item". */
+  as?: string;
   /** Results from mapping (items should be procedure refs that get hydrated) */
   results?: unknown[];
 }
@@ -478,19 +503,49 @@ interface MapOutput {
 
 type MapProcedure = Procedure<MapInput, MapOutput, { description: string; tags: string[] }>;
 
+/**
+ * This function runs the refs of an `items` operand. It runs each element separately, so an
+ * array whose elements are all refs stays an array (hydration makes such an array a chain).
+ */
+async function hydrateItems(items: unknown, ctx: ProcedureContext | undefined): Promise<unknown[]> {
+  if (!ctx?.client) return Array.isArray(items) ? items : [];
+  const value = Array.isArray(items)
+    ? await Promise.all(items.map((item) => hydrateOperand(item, ctx)))
+    : await hydrateOperand(items, ctx);
+  if (!Array.isArray(value)) {
+    throw new Error(`items must be an array, got ${value === null ? "null" : typeof value}`);
+  }
+  return value;
+}
+
+/** A scope with the given `$ref` names, for one call of `fn`. */
+function scopeWith(values: Record<string, unknown>): RefScope {
+  const scope = createRefScope();
+  for (const [name, value] of Object.entries(values)) scope.outputs.set(name, value);
+  return scope;
+}
+
 const mapProcedure: MapProcedure = defineProcedure({
   path: ["map"],
   input: anySchema as any,
   output: anySchema as any,
   metadata: {
-    description: "Map over array (items should contain procedure refs)",
+    description: "Map over an array: run fn for each item (the item is { $ref: \"item\" })",
     tags: ["core", "collection"],
   },
-  handler: async (input: MapInput): Promise<MapOutput> => {
-    // Items are already hydrated (procedure refs executed)
-    return {
-      results: input.items,
-    };
+  handler: async (input: MapInput, ctx?: ProcedureContext): Promise<MapOutput> => {
+    // map is a control-flow procedure: its operands arrive raw, and it runs them here.
+    // Before, the handler only returned the raw items, so their refs never ran and no
+    // function was applied.
+    const items = await hydrateItems(input.items, ctx);
+    if (!isAnyProcedureRef(input.fn) || !ctx?.client) {
+      return { results: items };
+    }
+    const results: unknown[] = [];
+    for (const [index, item] of items.entries()) {
+      results.push(await callOperand(input.fn, ctx, { scope: scopeWith({ [input.as ?? "item"]: item, index }) }));
+    }
+    return { results };
   },
 });
 
@@ -499,10 +554,16 @@ const mapProcedure: MapProcedure = defineProcedure({
 // =============================================================================
 
 interface ReduceInput {
-  /** Array to reduce */
+  /** The array to reduce. An element (or the whole value) can be a procedure ref: it runs first. */
   items: unknown[];
   /** Initial accumulator value */
   initial: unknown;
+  /**
+   * The procedure ref to run for each item. Its input reads the accumulator as `{ $ref: "acc" }`,
+   * the item as `{ $ref: "item" }` and the position as `{ $ref: "index" }`. Its result is the
+   * next accumulator.
+   */
+  fn?: unknown;
   /** Reducer results (computed externally via procedure refs) */
   accumulated?: unknown;
 }
@@ -514,13 +575,20 @@ const reduceProcedure: ReduceProcedure = defineProcedure({
   input: anySchema as any,
   output: anySchema as any,
   metadata: {
-    description: "Reduce array to single value",
+    description: "Reduce an array: run fn for each item (acc and item are $refs)",
     tags: ["core", "collection"],
   },
-  handler: async (input: ReduceInput): Promise<unknown> => {
-    // For reduce with procedure refs, the caller needs to compose
-    // the reduction manually. This just returns the accumulated value.
-    return input.accumulated ?? input.initial;
+  handler: async (input: ReduceInput, ctx?: ProcedureContext): Promise<unknown> => {
+    if (!isAnyProcedureRef(input.fn) || !ctx?.client) {
+      // Without fn, the result is the accumulated value
+      return input.accumulated ?? input.initial;
+    }
+    const items = await hydrateItems(input.items, ctx);
+    let acc = await hydrateOperand(input.initial, ctx);
+    for (const [index, item] of items.entries()) {
+      acc = await callOperand(input.fn, ctx, { scope: scopeWith({ acc, item, index }) });
+    }
+    return acc;
   },
 });
 
@@ -641,15 +709,13 @@ const tryCatchProcedure: TryCatchProcedure = defineProcedure({
     // value cannot fail). See BUGS-2026-07 H3.
     if (isAnyProcedureRef(tryValue) && ctx?.client) {
       try {
-        const tryRef = normalizeRef(tryValue);
-        const value = await ctx.client.call(tryRef.path, tryRef.input);
+        const value = await callOperand(tryValue, ctx);
         return { success: true, value };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         let value: unknown = catchValue;
         if (isAnyProcedureRef(catchValue) && ctx?.client) {
-          const catchRef = normalizeRef(catchValue);
-          value = await ctx.client.call(catchRef.path, catchRef.input);
+          value = await callOperand(catchValue, ctx);
         }
         return { success: false, value, error: message };
       }

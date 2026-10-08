@@ -58,6 +58,7 @@ import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import type { ProcedurePath, ProcedureContext } from "../procedures/types.js";
 import {
   isAnyProcedureRef,
+  isControlFlowPath,
   normalizeRef,
   hydrateInput,
   type ProcedureRef,
@@ -69,36 +70,6 @@ import {
  */
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
-
-/**
- * Last path segments of the core control-flow procedures (registered under `["client", ...]`).
- *
- * These procedures MUST receive their operand refs RAW so their handlers can execute
- * them with correct ordering, laziness, short-circuiting, and error scoping. If `exec()`
- * eagerly hydrated their inputs, the operands would run up-front (voiding conditional/
- * tryCatch short-circuiting) and an all-refs array would be hijacked into an implicit
- * chain that clobbers `steps` — the outer handler then throws `steps is not iterable`.
- * See documentation/BUGS-2026-07.md (C2, H2, H3, M35).
- */
-const CONTROL_FLOW_PROCEDURES: ReadonlySet<string> = new Set([
-  "chain",
-  "parallel",
-  "conditional",
-  "tryCatch",
-  "and",
-  "or",
-  "map",
-  "reduce",
-]);
-
-/**
- * Whether a procedure path targets a core control-flow procedure whose operand refs
- * must not be pre-hydrated by `exec()`.
- */
-function isControlFlowPath(path: ProcedurePath): boolean {
-  const last = path[path.length - 1];
-  return typeof last === "string" && CONTROL_FLOW_PROCEDURES.has(last);
 }
 
 /**
