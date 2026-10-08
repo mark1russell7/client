@@ -55,17 +55,11 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client": "workspace:*",
     "zod": "^3.24.0",
     "zod-to-json-schema": "^3.24.5"
   },
   "optionalDependencies": {
     "express": "^5.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client"
-    ]
   }
 }

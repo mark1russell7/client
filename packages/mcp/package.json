@@ -26,11 +26,11 @@
     "zod-to-json-schema": "^3.24.5"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "*"
+    "@mark1russell7/client": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@mark1russell7/client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "workspace:*"
   }
 }

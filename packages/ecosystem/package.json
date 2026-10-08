@@ -39,8 +39,5 @@
     "registry"
   ],
   "license": "MIT",
-  "sideEffects": false,
-  "pnpm": {
-    "onlyBuiltDependencies": ["@mark1russell7/cue"]
-  }
+  "sideEffects": false
 }

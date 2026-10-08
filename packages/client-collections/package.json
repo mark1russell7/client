@@ -24,7 +24,7 @@
   },
   "sideEffects": false,
   "peerDependencies": {
-    "@mark1russell7/client": "*"
+    "@mark1russell7/client": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@mark1russell7/client": {
@@ -35,12 +35,6 @@
     "typescript": "^5.9.3",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@mark1russell7/client": "github:mark1russell7/client#main"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client"
-    ]
+    "@mark1russell7/client": "workspace:*"
   }
 }

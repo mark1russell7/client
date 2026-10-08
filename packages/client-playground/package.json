@@ -22,7 +22,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@mark1russell7/client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

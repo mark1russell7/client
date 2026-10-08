@@ -59,8 +59,8 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@mark1russell7/mock-client": "github:mark1russell7/mock-client#main",
-    "@mark1russell7/test": "github:mark1russell7/test#main",
+    "@mark1russell7/mock-client": "workspace:*",
+    "@mark1russell7/test": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
@@ -94,11 +94,5 @@
     "collections"
   ],
   "license": "MIT",
-  "sideEffects": false,
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "esbuild"
-    ]
-  }
+  "sideEffects": false
 }

@@ -16,7 +16,10 @@
       "import": "./dist/register.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -26,9 +29,9 @@
   "sideEffects": false,
   "dependencies": {
     "zod": "^3.24.0",
-    "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-server": "github:mark1russell7/client-server#main",
-    "@mark1russell7/client-mongo": "github:mark1russell7/client-mongo#main"
+    "@mark1russell7/client": "workspace:*",
+    "@mark1russell7/client-server": "workspace:*",
+    "@mark1russell7/client-mongo": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
@@ -37,13 +40,5 @@
   },
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client",
-      "@mark1russell7/client-server",
-      "@mark1russell7/client-mongo"
-    ]
   }
 }

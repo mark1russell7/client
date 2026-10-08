@@ -26,7 +26,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client": "workspace:*",
     "@mark1russell7/docker-sqlite": "github:mark1russell7/docker-sqlite#main"
   },
   "devDependencies": {
@@ -42,12 +42,5 @@
     "database"
   ],
   "license": "MIT",
-  "sideEffects": false,
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client",
-      "@mark1russell7/docker-sqlite"
-    ]
-  }
+  "sideEffects": false
 }

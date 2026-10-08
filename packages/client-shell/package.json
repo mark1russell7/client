@@ -30,15 +30,9 @@
   "description": "Generic shell command execution procedures",
   "dependencies": {
     "zod": "^3.24.0",
-    "@mark1russell7/client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "workspace:*"
   },
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client"
-    ]
   }
 }

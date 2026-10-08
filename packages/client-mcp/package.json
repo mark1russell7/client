@@ -31,16 +31,16 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@mark1russell7/mcp": "github:mark1russell7/mcp#main"
+    "@mark1russell7/mcp": "workspace:*"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "*"
+    "@mark1russell7/client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client": "workspace:*",
     "zod": "^3.24.0"
   }
 }

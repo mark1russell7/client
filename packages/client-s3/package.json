@@ -26,7 +26,7 @@
     "postinstall": "client announce"
   },
   "dependencies": {
-    "@mark1russell7/client": "github:mark1russell7/client#main",
+    "@mark1russell7/client": "workspace:*",
     "@aws-sdk/client-s3": "^3.705.0",
     "zod": "^3.24.0"
   },
@@ -45,11 +45,5 @@
   "sideEffects": false,
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client"
-    ]
   }
 }

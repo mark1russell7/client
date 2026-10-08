@@ -25,7 +25,7 @@
   "dependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@mark1russell7/logger": "github:mark1russell7/logger#main",
-    "@mark1russell7/client": "github:mark1russell7/client#main"
+    "@mark1russell7/client": "workspace:*"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -42,12 +42,5 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "typescript": "^5.9.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client",
-      "@mark1russell7/logger"
-    ]
   }
 }

@@ -26,11 +26,11 @@
     "postinstall": "client announce"
   },
   "dependencies": {
-    "@mark1russell7/client": "github:mark1russell7/client#main",
-    "@mark1russell7/client-s3": "github:mark1russell7/client-s3#main",
-    "@mark1russell7/client-git": "github:mark1russell7/client-git#main",
-    "@mark1russell7/client-pnpm": "github:mark1russell7/client-pnpm#main",
-    "@mark1russell7/client-fs": "github:mark1russell7/client-fs#main",
+    "@mark1russell7/client": "workspace:*",
+    "@mark1russell7/client-s3": "workspace:*",
+    "@mark1russell7/client-git": "workspace:*",
+    "@mark1russell7/client-pnpm": "workspace:*",
+    "@mark1russell7/client-fs": "workspace:*",
     "zod": "^3.24.0",
     "tar": "^7.5.0"
   },
@@ -50,15 +50,5 @@
   "sideEffects": false,
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@mark1russell7/cue",
-      "@mark1russell7/client",
-      "@mark1russell7/client-s3",
-      "@mark1russell7/client-git",
-      "@mark1russell7/client-pnpm",
-      "@mark1russell7/client-fs"
-    ]
   }
 }
