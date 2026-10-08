@@ -1,0 +1,115 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@mark1russell7/client':
+        specifier: github:mark1russell7/client#main
+        version: https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68(zod@3.25.76)
+      '@mark1russell7/client-shell':
+        specifier: github:mark1russell7/client-shell#main
+        version: https://codeload.github.com/mark1russell7/client-shell/tar.gz/97d434bf14d3dc9ff07044d413a62d14a0b058d5
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#main
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+packages:
+
+  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/97d434bf14d3dc9ff07044d413a62d14a0b058d5':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client-shell/tar.gz/97d434bf14d3dc9ff07044d413a62d14a0b058d5}
+    version: 0.0.0
+
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68}
+    version: 1.0.0
+    engines: {node: '>=20'}
+    hasBin: true
+    peerDependencies:
+      express: ^4.0.0 || ^5.0.0
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      express:
+        optional: true
+      zod:
+        optional: true
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca':
+    resolution: {tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca}
+    version: 1.0.0
+    engines: {node: '>=25.0.0', npm: '>=11.0.0'}
+    hasBin: true
+
+  '@types/node@22.19.3':
+    resolution: {integrity: sha512-1N9SBnWYOJTrNZCdh/yJE+t910Y128BoyY+zBLWhL3r0TYzlTmFdXrPwHL9DyFZmlEXNQQolTZh3KHV31QDhyA==}
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+  ws@8.18.3:
+    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+snapshots:
+
+  '@mark1russell7/client-shell@https://codeload.github.com/mark1russell7/client-shell/tar.gz/97d434bf14d3dc9ff07044d413a62d14a0b058d5':
+    dependencies:
+      '@mark1russell7/client': https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - express
+      - utf-8-validate
+
+  '@mark1russell7/client@https://codeload.github.com/mark1russell7/client/tar.gz/1d1ecf065148434f9386048f77177930dd372f68(zod@3.25.76)':
+    dependencies:
+      ws: 8.18.3
+    optionalDependencies:
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/c5fc7aa096c00461fde1db42a88d6df2e7db2dca': {}
+
+  '@types/node@22.19.3':
+    dependencies:
+      undici-types: 6.21.0
+
+  typescript@5.9.3: {}
+
+  undici-types@6.21.0: {}
+
+  ws@8.18.3: {}
+
+  zod@3.25.76: {}

@@ -1,0 +1,1 @@
+{"version":3,"file":"coverage.d.ts","sourceRoot":"","sources":["../../../src/procedures/test/coverage.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,uBAAuB,CAAC;AAC9D,OAAO,KAAK,EAAE,iBAAiB,EAAE,kBAAkB,EAAE,MAAM,gBAAgB,CAAC;AAE5E,wBAAsB,YAAY,CAChC,KAAK,EAAE,iBAAiB,EACxB,GAAG,EAAE,gBAAgB,GACpB,OAAO,CAAC,kBAAkB,CAAC,CA4C7B"}
