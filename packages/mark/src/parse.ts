@@ -374,7 +374,7 @@ export function generateHelp(
   lines.push("");
   lines.push("Global Options:");
   lines.push("  -h, --help       Show this help message");
-  lines.push("  -f, --format     Output format: text|json|table|streaming");
+  lines.push("  -f, --format     Output format: text|json|table|streaming (a command's own -f wins)");
   lines.push("  -V, --verbose    Show verbose output");
 
   return lines.join("\n");

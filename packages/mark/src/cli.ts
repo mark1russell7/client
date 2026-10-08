@@ -16,7 +16,7 @@ import type {
   AnyProcedure,
   ProcedureRegistry,
 } from "@mark1russell7/client";
-import { parseFromSchema, generateHelp, type CLIMeta } from "./parse.js";
+import { parseFromSchema, generateHelp, extractSchemaFields, type CLIMeta } from "./parse.js";
 import { formatOutput, type Print } from "./format.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
 import { startServerMode, extractPort, extractHost } from "./server-mode.js";
@@ -132,6 +132,9 @@ function parseArgs(
     }
   }
 
+  // Flags that never take a value: a boolean flag must not consume the next argument
+  const booleanFlags = booleanFlagNames(findProcedure(procedures, path));
+
   // Remaining non-option args are positional arguments
   while (i < argv.length) {
     const arg = argv[i];
@@ -150,7 +153,7 @@ function parseArgs(
         const key = arg.slice(2);
         const next = argv[i + 1];
         // Take the next value if it exists and doesn't look like another flag
-        if (next !== undefined && !next.startsWith("-")) {
+        if (!booleanFlags.has(key) && next !== undefined && !next.startsWith("-")) {
           options[key] = next;
           i++;
         } else {
@@ -160,7 +163,7 @@ function parseArgs(
     } else if (arg.startsWith("-") && arg.length === 2) {
       const key = arg.slice(1);
       const next = argv[i + 1];
-      if (next !== undefined && !next.startsWith("-")) {
+      if (!booleanFlags.has(key) && next !== undefined && !next.startsWith("-")) {
         options[key] = next;
         i++;
       } else {
@@ -173,6 +176,45 @@ function parseArgs(
   }
 
   return { path, args, options };
+}
+
+/**
+ * The CLI flag names that never take a value: the global boolean flags, and each boolean
+ * field of the procedure's input schema (camelCase, kebab-case and its short letter).
+ */
+function booleanFlagNames(proc: AnyProcedure | undefined): Set<string> {
+  const names = new Set<string>(["help", "h", "verbose", "V", "local"]);
+  if (!proc) {
+    return names;
+  }
+  const shorts = ((proc.metadata ?? {}) as CLIMeta).shorts ?? {};
+  for (const field of extractSchemaFields(proc.input)) {
+    if (field.type !== "boolean") {
+      continue;
+    }
+    names.add(field.name);
+    names.add(field.name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase());
+    const short = shorts[field.name];
+    if (short) {
+      names.add(short);
+    }
+  }
+  return names;
+}
+
+/**
+ * The output format override: --format, or -f unless the procedure defines its own -f
+ * (for example --force or --file). Removes the format flags from the options.
+ */
+function takeFormatOverride(options: Record<string, unknown>, proc: AnyProcedure | undefined): string | undefined {
+  const shorts = ((proc?.metadata ?? {}) as CLIMeta).shorts ?? {};
+  const procedureOwnsF = Object.values(shorts).includes("f");
+  const format = options["format"] ?? (procedureOwnsF ? undefined : options["f"]);
+  delete options["format"];
+  if (!procedureOwnsF) {
+    delete options["f"];
+  }
+  return format === undefined ? undefined : String(format);
 }
 
 /**
@@ -313,17 +355,30 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
   // Parse arguments (needs procedures for path detection)
   const { path, args, options } = parseArgs(argv, procedures);
 
+  // Output format: --format, or -f when the procedure has no -f of its own
+  const formatOverride = takeFormatOverride(options, findProcedure(procedures, path));
+  const validFormats = ["text", "json", "table", "streaming"];
+  if (formatOverride && !validFormats.includes(formatOverride)) {
+    print.error(`Invalid format: ${formatOverride}. Valid formats: ${validFormats.join(", ")}`);
+    process.exitCode = 1;
+    return;
+  }
+
   // Try client mode: connect to running server if available (unless --local)
   if (!argv.includes("--local") && path.length > 0 && !options["help"] && !options["h"]) {
     const clientResult = await tryClientMode(path, args, options, procedures);
     if (clientResult !== null) {
       if (clientResult.success) {
         const meta = (findProcedure(procedures, path)?.metadata ?? {}) as CLIMeta;
-        const formatOverride = options["format"] as string | undefined;
         const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
         formatOutput(print as unknown as Print, clientResult.result, outputFormat);
         return;
       }
+      // The server ran (or started to run) the command and it failed. Running it again
+      // locally could repeat its side effects, so report the error instead.
+      print.error(clientResult.error ?? "The command failed on the CLI server.");
+      process.exitCode = 1;
+      return;
     }
   }
 
@@ -370,18 +425,8 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
     return;
   }
 
-  // Execute the procedure
+  // Execute the procedure (the format flags were taken out of the options above)
   const meta = (proc.metadata ?? {}) as CLIMeta;
-
-  const formatOverride = options["format"] as string | undefined;
-  const validFormats = ["text", "json", "table", "streaming"];
-  if (formatOverride && !validFormats.includes(formatOverride)) {
-    print.error(`Invalid format: ${formatOverride}. Valid formats: ${validFormats.join(", ")}`);
-    process.exitCode = 1;
-    return;
-  }
-  delete options["format"];
-  delete options["f"];
 
   const parameters = { array: args, options };
 

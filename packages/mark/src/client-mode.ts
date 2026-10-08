@@ -36,6 +36,9 @@ export async function tryClientMode(
     return null; // Server not running, fall back to local
   }
 
+  let client: InstanceType<typeof import("@mark1russell7/client").Client>;
+  let method: { service: string; operation: string };
+  let input: Record<string, unknown>;
   try {
     // Dynamic import client
     const clientModule = await import("@mark1russell7/client");
@@ -45,7 +48,7 @@ export async function tryClientMode(
     const transport = new HttpTransport({
       baseUrl: lockfile.endpoint,
     });
-    const client = new Client({ transport });
+    client = new Client({ transport });
 
     // Find matching procedure to get input schema
     const proc = findProcedure(procedures, path);
@@ -56,7 +59,7 @@ export async function tryClientMode(
     // Parse input from CLI args
     const meta = (proc.metadata ?? {}) as CLIMeta;
     const parameters = { array: args, options };
-    let input = parseFromSchema(parameters, meta);
+    input = parseFromSchema(parameters, meta);
 
     // Validate input if schema exists
     if (proc.input) {
@@ -65,18 +68,25 @@ export async function tryClientMode(
 
     // Convert path to method
     const [service, ...rest] = path;
-    const method = { service: service!, operation: rest.join(".") };
+    method = { service: service!, operation: rest.join(".") };
+  } catch {
+    // Nothing was sent to the server yet - fall back to local execution
+    return null;
+  }
 
-    // Execute remotely
+  // Execute remotely. From here on, do not fall back to local execution: the server may
+  // have run (part of) the command, and running it again would repeat its side effects.
+  try {
     const result = await client.call(method, input);
-
     return {
       success: true,
       result,
     };
   } catch (error) {
-    // Connection failed or other error - fall back to local
-    return null;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
