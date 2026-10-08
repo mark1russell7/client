@@ -301,24 +301,27 @@ export function createDualRegistry(
 export async function* mergeStreams(
   ...streams: AsyncIterable<ComponentOutput>[]
 ): AsyncIterable<ComponentOutput> {
-  // Create async iterators for all streams
-  const iterators = streams.map((s) => s[Symbol.asyncIterator]());
-  const active = new Set(iterators);
+  type Pulled = { iter: AsyncIterator<ComponentOutput>; result: IteratorResult<ComponentOutput> };
+  const pull = (iter: AsyncIterator<ComponentOutput>): Promise<Pulled> =>
+    iter.next().then((result) => ({ iter, result }));
 
-  // Keep polling until all streams are done
-  while (active.size > 0) {
-    const promises = Array.from(active).map(async (iter) => {
-      const result = await iter.next();
-      return { iter, result };
-    });
+  // One pending next() per stream. A result that loses the race stays pending and is
+  // yielded later (BUGS-2026-07: each round called next() on every stream and kept only
+  // the winner's result, so the other streams' items were lost).
+  const pending = new Map<AsyncIterator<ComponentOutput>, Promise<Pulled>>();
+  for (const stream of streams) {
+    const iter = stream[Symbol.asyncIterator]();
+    pending.set(iter, pull(iter));
+  }
 
-    const { iter, result } = await Promise.race(promises);
-
+  while (pending.size > 0) {
+    const { iter, result } = await Promise.race(pending.values());
     if (result.done) {
-      active.delete(iter);
-    } else {
-      yield result.value;
+      pending.delete(iter);
+      continue;
     }
+    pending.set(iter, pull(iter));
+    yield result.value;
   }
 }
 
@@ -361,40 +364,50 @@ export async function* debounceStream(
   let timer: TimerId | null = null;
 
   const outputs: ComponentOutput[] = [];
-  let resolve: (() => void) | null = null;
+  // An object, so the state written inside the processor is not narrowed away below
+  const state: { done: boolean; failed: boolean; error: unknown } = { done: false, failed: false, error: undefined };
+  let wake: (() => void) | null = null;
+  const notify = (): void => {
+    const resolve = wake;
+    wake = null;
+    resolve?.();
+  };
 
   // Process the stream
   const processor = (async () => {
-    for await (const output of stream) {
-      latest = output;
+    try {
+      for await (const output of stream) {
+        latest = output;
 
+        if (timer) {
+          clearTimer(timer);
+        }
+
+        timer = setTimer(() => {
+          timer = null;
+          if (latest) {
+            outputs.push(latest);
+            latest = null;
+            notify();
+          }
+        }, waitMs);
+      }
+    } catch (error) {
+      state.failed = true;
+      state.error = error;
+    } finally {
+      // The stream ended: emit the pending output at once and wake the consumer
+      // (BUGS-2026-07 H29: the consumer waited for a wake-up that never came)
       if (timer) {
         clearTimer(timer);
+        timer = null;
       }
-
-      timer = setTimer(() => {
-        if (latest) {
-          outputs.push(latest);
-          latest = null;
-          if (resolve) {
-            resolve();
-            resolve = null;
-          }
-        }
-      }, waitMs);
-    }
-
-    // Final emit
-    if (timer) {
-      clearTimer(timer);
-    }
-    if (latest) {
-      outputs.push(latest);
-      // Use type assertion - resolve is set by the while loop below
-      const currentResolve = resolve as (() => void) | null;
-      if (currentResolve) {
-        currentResolve();
+      if (latest) {
+        outputs.push(latest);
+        latest = null;
       }
+      state.done = true;
+      notify();
     }
   })();
 
@@ -402,20 +415,18 @@ export async function* debounceStream(
   while (true) {
     if (outputs.length > 0) {
       yield outputs.shift()!;
-    } else {
-      await new Promise<void>((r) => {
-        resolve = r;
-      });
-
-      // Check if processor is done
-      const isDone = await Promise.race([
-        processor.then(() => true),
-        Promise.resolve(false),
-      ]);
-
-      if (isDone && outputs.length === 0) {
-        break;
-      }
+      continue;
     }
+    if (state.done) {
+      break;
+    }
+    await new Promise<void>((r) => {
+      wake = r;
+    });
+  }
+
+  await processor;
+  if (state.failed) {
+    throw state.error;
   }
 }
