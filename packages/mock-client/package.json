@@ -18,9 +18,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": false,
   "devDependencies": {
