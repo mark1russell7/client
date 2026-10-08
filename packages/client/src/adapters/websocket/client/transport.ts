@@ -51,6 +51,7 @@ export class WebSocketTransport implements Transport {
       backoffMultiplier: number;
     };
     connectionTimeout: number;
+    requestTimeout: number;
     heartbeat: {
       enabled: boolean;
       interval: number;
@@ -64,6 +65,8 @@ export class WebSocketTransport implements Transport {
     onEvent: EventHandler | undefined;
   };
   private pendingRequests: Map<string, PendingRequest<any>> = new Map();
+  /** Set by close(): the connection is being closed on purpose, so it must not reconnect */
+  private closing = false;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined = undefined;
   private heartbeatTimer: ReturnType<typeof setTimeout> | undefined = undefined;
@@ -80,6 +83,7 @@ export class WebSocketTransport implements Transport {
         backoffMultiplier: options.reconnect?.backoffMultiplier ?? 1.5,
       },
       connectionTimeout: options.connectionTimeout ?? 10000,
+      requestTimeout: options.requestTimeout ?? 30000,
       heartbeat: {
         enabled: options.heartbeat?.enabled ?? true,
         interval: options.heartbeat?.interval ?? 30000,
@@ -101,6 +105,9 @@ export class WebSocketTransport implements Transport {
    * Connect to WebSocket server.
    */
   private connect(): void {
+    if (this.closing) {
+      return;
+    }
     if (this.state === WebSocketState.CONNECTING || this.state === WebSocketState.CONNECTED) {
       return;
     }
@@ -114,7 +121,7 @@ export class WebSocketTransport implements Transport {
       this.ws.onopen = () => {
         this.state = WebSocketState.CONNECTED;
         this.reconnectAttempts = 0;
-        console.log(`[${this.name}] Connected to ${this.options.url}`);
+        console.error(`[${this.name}] Connected to ${this.options.url}`);
 
         if (this.options.onConnect) {
           this.options.onConnect();
@@ -162,7 +169,7 @@ export class WebSocketTransport implements Transport {
     this.state = WebSocketState.DISCONNECTED;
     this.stopHeartbeat();
 
-    console.log(`[${this.name}] Disconnected${reason ? `: ${reason}` : ""}`);
+    console.error(`[${this.name}] Disconnected${reason ? `: ${reason}` : ""}`);
 
     if (this.options.onDisconnect) {
       this.options.onDisconnect(reason);
@@ -176,6 +183,11 @@ export class WebSocketTransport implements Transport {
       }
     }
     this.pendingRequests.clear();
+
+    // An intentional close() must not reconnect (BUGS-2026-07 H6)
+    if (this.closing) {
+      return;
+    }
 
     // Attempt reconnection
     const reconnect = this.options.reconnect;
@@ -201,7 +213,7 @@ export class WebSocketTransport implements Transport {
       reconnect.maxDelay
     );
 
-    console.log(`[${this.name}] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.error(`[${this.name}] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     if (this.options.onReconnecting) {
       this.options.onReconnecting(this.reconnectAttempts);
@@ -254,7 +266,6 @@ export class WebSocketTransport implements Transport {
    * Handle incoming message.
    */
   private handleMessage(message: WebSocketMessage): void {
-    console.log(`[${this.name}] Received message:`, JSON.stringify(message, null, 2));
 
     // Handle pong (heartbeat response)
     if (message.type === "pong") {
@@ -327,7 +338,6 @@ export class WebSocketTransport implements Transport {
         retryable: message.status.retryable || false,
       };
     } else if (message.status && message.status.type === "success") {
-      console.log(`[${this.name}] Success response`);
       status = {
         type: "success",
         code: Number(message.status.code),
@@ -347,7 +357,6 @@ export class WebSocketTransport implements Transport {
         retryable: message.error?.retryable || false,
       };
     } else {
-      console.log(`[${this.name}] Default success response`);
       status = {
         type: "success",
         code: 200,
@@ -361,7 +370,6 @@ export class WebSocketTransport implements Transport {
       metadata: message.metadata || {},
     };
 
-    console.log(`[${this.name}] Created ResponseItem:`, JSON.stringify(responseItem, null, 2));
 
     // Resolve with async iterable
     pending.resolve(this.createAsyncIterable([responseItem]));
@@ -380,7 +388,6 @@ export class WebSocketTransport implements Transport {
    * Send RPC request over WebSocket.
    */
   async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
-    console.log(`[${this.name}] Sending request:`, JSON.stringify(message, null, 2));
 
     // Wait for connection
     await this.waitForConnection();
@@ -394,7 +401,6 @@ export class WebSocketTransport implements Transport {
       metadata: message.metadata,
     };
 
-    console.log(`[${this.name}] WebSocket message:`, JSON.stringify(wsMessage, null, 2));
 
     // Send message
     return yield* await new Promise<AsyncIterable<ResponseItem<TRes>>>((resolve, reject) => {
@@ -403,7 +409,7 @@ export class WebSocketTransport implements Transport {
         this.pendingRequests.delete(message.id);
         console.error(`[${this.name}] Request timeout for ${message.id}`);
         reject(new Error("Request timeout"));
-      }, this.options.connectionTimeout);
+      }, this.options.requestTimeout);
 
       this.pendingRequests.set(message.id, {
         resolve: resolve as (items: AsyncIterable<ResponseItem<any>>) => void,
@@ -414,7 +420,6 @@ export class WebSocketTransport implements Transport {
       // Send request
       try {
         this.ws!.send(JSON.stringify(wsMessage));
-        console.log(`[${this.name}] Request sent successfully`);
       } catch (error) {
         this.pendingRequests.delete(message.id);
         clearTimeout(timeout);
@@ -506,6 +511,7 @@ export class WebSocketTransport implements Transport {
    * Close WebSocket connection.
    */
   async close(): Promise<void> {
+    this.closing = true;
     this.state = WebSocketState.DISCONNECTING;
     this.stopHeartbeat();
 

@@ -50,10 +50,17 @@ export interface WebSocketTransportOptions {
   };
 
   /**
-   * Connection timeout (ms).
+   * Connection timeout (ms): how long to wait for the WebSocket to open.
    * @default 10000
    */
   connectionTimeout?: number;
+
+  /**
+   * Request timeout (ms): how long to wait for the response to one request.
+   * (Before, requests used connectionTimeout, so every call was capped at 10s.)
+   * @default 30000
+   */
+  requestTimeout?: number;
 
   /**
    * Heartbeat options for keeping connection alive.

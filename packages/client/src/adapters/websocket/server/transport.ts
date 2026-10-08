@@ -43,6 +43,8 @@ import type {
  */
 interface PendingRequest {
   id: string;
+  /** The connection the request was sent to: only it may answer, and its close ends the request */
+  connectionId: string;
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   timeout: NodeJS.Timeout;
@@ -186,6 +188,7 @@ export class WebSocketServerTransport implements ServerTransport {
     // Handle close
     ws.on("close", () => {
       this.connections.delete(ws);
+      this.rejectPendingFor(connectionId, "Connection closed");
       const conn = this.trackedConnections.get(connectionId);
       if (conn) {
         this.trackedConnections.delete(connectionId);
@@ -204,8 +207,23 @@ export class WebSocketServerTransport implements ServerTransport {
     ws.on("error", (error: Error) => {
       console.error("[WebSocket] Connection error:", error);
       this.connections.delete(ws);
+      this.rejectPendingFor(connectionId, "Connection error");
       this.trackedConnections.delete(connectionId);
     });
+  }
+
+  /**
+   * Reject the server-to-client requests that wait for a connection that went away,
+   * instead of letting them wait for their timeout (BUGS-2026-07 L29).
+   */
+  private rejectPendingFor(connectionId: string, reason: string): void {
+    for (const [requestId, pending] of this.pendingRequests) {
+      if (pending.connectionId === connectionId) {
+        clearTimeout(pending.timeout);
+        this.pendingRequests.delete(requestId);
+        pending.reject(new Error(`${reason}: ${connectionId}`));
+      }
+    }
   }
 
   /**
@@ -245,7 +263,8 @@ export class WebSocketServerTransport implements ServerTransport {
     // Handle server-response (response to server-initiated request)
     if (message.type === "server-response") {
       const pending = this.pendingRequests.get(message.id);
-      if (pending) {
+      // Only the connection the request was sent to may answer it
+      if (pending && pending.connectionId === connectionId) {
         clearTimeout(pending.timeout);
         this.pendingRequests.delete(message.id);
         if (message.error) {
@@ -417,6 +436,7 @@ export class WebSocketServerTransport implements ServerTransport {
 
       this.pendingRequests.set(requestId, {
         id: requestId,
+        connectionId,
         resolve,
         reject,
         timeout: timeoutHandle,
