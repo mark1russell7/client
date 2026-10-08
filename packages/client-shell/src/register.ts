@@ -6,16 +6,20 @@ import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
+import { shellStream } from "./procedures/shell/stream.js";
 import {
   ShellRunInputSchema,
   ShellExecInputSchema,
   ShellWhichInputSchema,
+  ShellStreamInputSchema,
   type ShellRunInput,
   type ShellRunOutput,
   type ShellExecInput,
   type ShellExecOutput,
   type ShellWhichInput,
   type ShellWhichOutput,
+  type ShellStreamInput,
+  type ShellStreamItem,
 } from "./types.js";
 
 // Procedure definitions
@@ -64,11 +68,26 @@ const shellWhichProcedure = createProcedure()
   })
   .build();
 
+const shellStreamProcedure = createProcedure()
+  .path(["shell", "stream"])
+  .input(zodAdapter<ShellStreamInput>(ShellStreamInputSchema))
+  .output(outputSchema<ShellStreamItem>())
+  .meta({
+    description: "Run a command and stream each output line as it arrives",
+    args: ["command"],
+    shorts: { cwd: "C", timeout: "t" },
+    output: "json",
+    streaming: true,
+  })
+  .handler(shellStream)
+  .build();
+
 export function registerShellProcedures(): void {
   registerProcedures([
     shellRunProcedure,
     shellExecProcedure,
     shellWhichProcedure,
+    shellStreamProcedure,
   ]);
 }
 

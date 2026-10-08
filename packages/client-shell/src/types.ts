@@ -107,3 +107,28 @@ export interface ShellWhichOutput {
   /** Whether command was found */
   found: boolean;
 }
+
+// =============================================================================
+// shell.stream Types - Run a command and stream each output line as it arrives
+// =============================================================================
+
+export const ShellStreamInputSchema: z.ZodObject<{
+  command: z.ZodString;
+  args: z.ZodDefault<z.ZodArray<z.ZodString>>;
+  cwd: z.ZodOptional<z.ZodString>;
+  env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+  timeout: z.ZodOptional<z.ZodNumber>;
+}> = z.object({
+  command: z.string(),
+  args: z.array(z.string()).default([]),
+  cwd: z.string().optional(),
+  env: z.record(z.string()).optional(),
+  timeout: z.number().optional(),
+});
+
+export type ShellStreamInput = z.infer<typeof ShellStreamInputSchema>;
+
+/** One item of shell.stream: an output line, or the exit of the command (the last item). */
+export type ShellStreamItem =
+  | { type: "stdout" | "stderr"; line: string }
+  | { type: "exit"; exitCode: number; duration: number; signal?: string };
