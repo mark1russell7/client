@@ -6,24 +6,26 @@
 
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { TestCoverageInput, TestCoverageOutput } from "../../types.js";
+import { assertNotOption, resolveVitestCli } from "../../vitest-cli.js";
 
 export async function testCoverage(
   input: TestCoverageInput,
   ctx: ProcedureContext
 ): Promise<TestCoverageOutput> {
   const startTime = Date.now();
+  const cwd = input.cwd ?? process.cwd();
 
-  // Build vitest command with coverage
-  const args = ["vitest", "run", "--coverage"];
+  // Build the vitest arguments (no shell: nothing here is parsed by a shell)
+  const args = [resolveVitestCli(cwd), "run", "--coverage"];
 
   if (input.pattern) {
-    args.push(input.pattern);
+    args.push(assertNotOption("pattern", input.pattern));
   }
 
-  // Execute via shell.exec
-  const result = await ctx.client.call(["shell", "exec"], {
-    command: args.join(" "),
-    cwd: input.cwd,
+  const result = await ctx.client.call(["shell", "run"], {
+    command: process.execPath,
+    args,
+    cwd,
   });
 
   const shellResult = result as {
