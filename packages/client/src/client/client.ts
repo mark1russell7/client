@@ -337,13 +337,19 @@ export class Client<TContext = {}> {
     const stream = this.stream(method, payload, options);
     const iterator = stream[Symbol.asyncIterator]();
 
-    const { value, done } = await iterator.next();
+    try {
+      const { value, done } = await iterator.next();
 
-    if (done || !value) {
-      throw new Error("No response received from stream");
+      if (done || !value) {
+        throw new Error("No response received from stream");
+      }
+
+      return value as TRes;
+    } finally {
+      // call() uses only the first item: close the stream so the transport can release it
+      // (BUGS-2026-07 M1: the generator was left open)
+      await iterator.return?.();
     }
-
-    return value as TRes;
   }
 
   // ===========================================================================

@@ -267,30 +267,62 @@ export class BatchExecutor {
     context: ExecutionContext,
     config?: BatchConfig
   ): StreamingCallResponse<TRoute> {
+    type StreamItem = { path: ProcedurePath; result: ProcedureCallResult; duration: number };
     const results: Array<[ProcedurePath, ProcedureCallResult]> = [];
     const stream = this.executeStream(resolved, context, config);
 
-    // Create async iterator that also collects results
-    const wrappedStream = async function* () {
-      for await (const item of stream) {
-        results.push([item.path, item.result]);
-        yield item;
-      }
+    // One pump consumes the stream. The results iterator reads the items from a buffer, so
+    // every item reaches both the iterator and the final response. (BUGS-2026-07 H12: the
+    // iterator and the completion promise each iterated the same generator, so they split
+    // the items between them.)
+    const buffered: StreamItem[] = [];
+    let finished = false;
+    let failure: { error: unknown } | undefined;
+    let wake: (() => void) | undefined;
+    const notify = (): void => {
+      const resolve = wake;
+      wake = undefined;
+      resolve?.();
     };
 
-    // Create completion promise
     const complete = (async () => {
-      // Consume the stream to populate results
-      const iterator = wrappedStream();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const _ of iterator) {
-        // Just consume
+      try {
+        for await (const item of stream) {
+          results.push([item.path, item.result]);
+          buffered.push(item);
+          notify();
+        }
+      } catch (error) {
+        failure = { error };
+        throw error;
+      } finally {
+        finished = true;
+        notify();
       }
       return buildResponse<TRoute>(results);
     })();
+    // A caller that only uses the iterator still sees the failure there
+    complete.catch(() => {});
+
+    const iterate = async function* (): AsyncGenerator<StreamItem> {
+      let index = 0;
+      for (;;) {
+        if (index < buffered.length) {
+          yield buffered[index++]!;
+          continue;
+        }
+        if (finished) {
+          if (failure) throw failure.error;
+          return;
+        }
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+        });
+      }
+    };
 
     return {
-      results: wrappedStream(),
+      results: iterate(),
       complete,
     };
   }
