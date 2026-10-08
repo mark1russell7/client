@@ -57,9 +57,13 @@ export function typedAnySchema<T>(): ZodLike<T> {
  * Wraps a Zod schema (or any object with a `parse` method) for use with
  * the client procedure system. Adds `safeParse` with error mapping and
  * the `_output` phantom field for type inference.
+ *
+ * The wrapped schema's `_def` and `shape` stay visible on the adapter, so tools that read
+ * a schema's fields (the mark CLI's help and its flag parser) still see them.
  */
 export function zodAdapter<T>(schema: { parse: (data: unknown) => T }): ZodLikeSchema<T> {
-  return {
+  const inner = schema as { _def?: unknown; shape?: unknown };
+  const adapter: ZodLikeSchema<T> = {
     parse: (data: unknown) => schema.parse(data),
     safeParse: (data: unknown) => {
       try {
@@ -86,6 +90,11 @@ export function zodAdapter<T>(schema: { parse: (data: unknown) => T }): ZodLikeS
     },
     _output: undefined as unknown as T,
   };
+  // Copy only what exists: tools test `"_def" in schema` to recognize a Zod schema
+  const visible: { _def?: unknown; shape?: unknown } = {};
+  if (inner._def !== undefined) visible._def = inner._def;
+  if (inner.shape !== undefined) visible.shape = inner.shape;
+  return Object.assign(adapter, visible);
 }
 
 // =============================================================================
