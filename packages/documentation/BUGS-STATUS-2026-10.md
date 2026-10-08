@@ -47,7 +47,7 @@
 | H15 | real `sideEffects` values | `50ba8b8` |
 | M38 | Docker ports bound to `127.0.0.1` | `220bfa8` (`docker-mongo`), `1247930` (`docker-sqlite`) |
 | M26 | MiniMongo reads the pagination fields the server sends | `1473adb` (`MiniMongo`) |
-| L13 | composite map methods go through `lruMap`/`ttlMap`. Partly real: most `HashMap` composites already called `this.set`/`this.delete` on the proxy, but `replace`, `replaceEntry` and `deleteEntry` changed the buckets directly (an LRU `replace` left the recency and the reported eviction value stale) | see the commit after `83a8349` |
+| L13 | composite map methods go through `lruMap`/`ttlMap`. Partly real: most `HashMap` composites already called `this.set`/`this.delete` on the proxy, but `replace`, `replaceEntry` and `deleteEntry` changed the buckets directly (an LRU `replace` left the recency and the reported eviction value stale) | `9bcce4a` |
 
 ### Found and fixed in October (not in the July register)
 

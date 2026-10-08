@@ -23,17 +23,19 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "sideEffects": false,
   "dependencies": {
+    "@mark1russell7/bundle-mcp": "workspace:*",
     "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-mcp": "workspace:*",
-    "@mark1russell7/bundle-mcp": "workspace:*"
+    "@mark1russell7/client-mcp": "workspace:*"
   },
   "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "vitest": "^4.1.11"
   }
 }
