@@ -48,46 +48,22 @@ ehthumbs.db
 secrets.*
 credentials.*
 
-# Logs
+# Logs. Do not ignore a "logs/" folder: client-sqlite has logs.* procedures.
 *.log
-logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.Python
-build/
-develop-eggs/
+# Build output. Each package builds dist/ with `tsc -b`, so dist/ is never committed.
+# Do not add Python-style "lib/", "build/" or "env/" rules: they match procedure source folders.
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg
-.venv/
-venv/
-env/
-ENV/
-.tox/
+*.tsbuildinfo
 .coverage
-.coverage.*
-.cache
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-htmlcov/
-.ipynb_checkpoints/
+coverage/
+
+# The registry file that `client announce` writes at the workspace root
+.client-registry.json
 
 # Node / JS
 node_modules/

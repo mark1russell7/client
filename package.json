@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "client-monorepo",
+  "name": "mark1russell7-monorepo",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.10.1",
@@ -10,6 +10,7 @@
   "scripts": {
     "package": "tsx packages/cli/src/index.ts package",
     "template": "tsx packages/cli/src/index.ts repo",
+    "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
     "lint:ste": "ste-lint"
