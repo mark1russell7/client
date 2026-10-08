@@ -291,12 +291,17 @@ function createStandardHandler<TData>(
 
     // Handle generator (shouldn't happen for standard, but just in case)
     if (isAsyncGenerator(result)) {
-      // Take only the first yield
-      const { value, done } = await result.next();
-      if (done || value === undefined) {
-        throw new Error("Component factory yielded no output");
+      // Take only the first yield, then end the generator so its finally blocks run
+      // (BUGS-2026-07 L3: it was left suspended)
+      try {
+        const { value, done } = await result.next();
+        if (done || value === undefined) {
+          throw new Error("Component factory yielded no output");
+        }
+        return value;
+      } finally {
+        await result.return?.(undefined);
       }
-      return value;
     }
 
     return result as ComponentOutput;
@@ -364,8 +369,12 @@ function createRenderFunction(
       };
     }
 
-    // Find the component procedure
-    const procedure = PROCEDURE_REGISTRY.get(["components", type]);
+    // Find the component procedure: in the namespace of the component that renders, then
+    // the global one (BUGS-2026-07 L3: namespaced components were never found)
+    const namespace = ctx.path?.length === 3 ? ctx.path[1] : undefined;
+    const procedure =
+      (namespace !== undefined ? PROCEDURE_REGISTRY.get(["components", namespace, type]) : undefined) ??
+      PROCEDURE_REGISTRY.get(["components", type]);
     if (!procedure || !procedure.handler) {
       return {
         type: "unknown",
@@ -383,13 +392,17 @@ function createRenderFunction(
 
     const result = await procedure.handler(input, ctx);
 
-    // Handle generator result
+    // Handle generator result: take the first output, then end the generator
     if (isAsyncGenerator(result)) {
-      const { value, done } = await result.next();
-      if (done || value === undefined) {
-        throw new Error("Child component yielded no output");
+      try {
+        const { value, done } = await result.next();
+        if (done || value === undefined) {
+          throw new Error("Child component yielded no output");
+        }
+        return value as ComponentOutput;
+      } finally {
+        await result.return?.(undefined);
       }
-      return value as ComponentOutput;
     }
 
     return result as ComponentOutput;
