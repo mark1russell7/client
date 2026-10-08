@@ -1,10 +1,10 @@
 import { defineConfig } from "vitest/config";
-import { sharedConfig } from "@mark1russell7/test";
 
 export default defineConfig({
-  ...sharedConfig,
   test: {
-    ...sharedConfig.test,
     include: ["src/**/*.test.ts"],
+    environment: "node",
+    testTimeout: 10000,
+    hookTimeout: 10000,
   },
 });

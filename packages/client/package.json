@@ -57,8 +57,6 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@mark1russell7/mock-client": "workspace:*",
-    "@mark1russell7/test": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",

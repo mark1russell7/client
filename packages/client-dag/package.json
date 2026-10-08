@@ -25,10 +25,9 @@
   },
   "sideEffects": false,
   "devDependencies": {
-    "typescript": "^5.9.3",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "vitest": "^3.0.0",
-    "@mark1russell7/test": "workspace:*"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   },
   "description": "Generic DAG algorithms for dependency management"
 }
