@@ -16,6 +16,7 @@
 
 import type { Middleware } from "../core/middleware.js";
 import type { MapLike } from "../interfaces/map.js";
+import { compositeMapMethod } from "./composite.js";
 
 /**
  * Options for LRU behavior.
@@ -164,6 +165,13 @@ export function lruMap<K, V>(
         // Add isFull property
         if (prop === "isFull") {
           return target.size >= capacity;
+        }
+
+        // Composite methods (setIfAbsent, compute, merge, putAll and others) go through this
+        // proxy's own primitives, so they keep this behavior's rules (BUGS-2026-07 L13)
+        const composite = compositeMapMethod(receiver as MapLike<K, V>, prop);
+        if (composite) {
+          return composite;
         }
 
         const value = Reflect.get(target, prop, receiver);

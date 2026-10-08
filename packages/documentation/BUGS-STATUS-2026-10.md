@@ -9,11 +9,11 @@
 | Status | Count | IDs |
 |---|---:|---|
 | Fixed in July | 43 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: see "Open") |
-| Fixed in October | 33 | see the next table |
+| Fixed in October | 34 | see the next table |
 | Fixed earlier, confirmed in October | 6 | H20, H21, M9, L27; H30 and M40 in the `logger` repository |
 | Obsolete (the code was deleted) | 17 | C8–C12, L10, L11, L12, L14, L16, L17 (unused collections), H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
 | Not a bug | 1 | L20: `splay`'s own tests assert that `pathDepth("data.items[0]")` is 2 |
-| Open: latent | 2 | L13, L15 |
+| Open: latent | 1 | L15 |
 | Open: needs a decision | 9 | H18, H5, H8, H9, M2, L2, L21; M27, M28 (`cue`) |
 
 ## Fixed in October
@@ -47,6 +47,7 @@
 | H15 | real `sideEffects` values | `50ba8b8` |
 | M38 | Docker ports bound to `127.0.0.1` | `220bfa8` (`docker-mongo`), `1247930` (`docker-sqlite`) |
 | M26 | MiniMongo reads the pagination fields the server sends | `1473adb` (`MiniMongo`) |
+| L13 | composite map methods go through `lruMap`/`ttlMap`. Partly real: most `HashMap` composites already called `this.set`/`this.delete` on the proxy, but `replace`, `replaceEntry` and `deleteEntry` changed the buckets directly (an LRU `replace` left the recency and the reported eviction value stale) | see the commit after `83a8349` |
 
 ### Found and fixed in October (not in the July register)
 
@@ -64,7 +65,6 @@
 
 **Latent** (the only consumer is not affected):
 
-- L13: `lruMap`/`ttlMap` intercept only `get`, `has`, `set`, `delete` and `clear`. The composite methods (`setIfAbsent`, `compute`, `merge`, `putAll`, and others) bypass capacity and expiry. The cache middleware uses only `has`, `get`, `set` and `size`. Fix: implement the composite methods with the intercepted primitives.
 - L15: `HashMap` has no modification count, so an iterator does not fail fast when the map changes during iteration.
 
 **Needs a decision** (the options are in the architecture proposals): H18 (`bundle-mcp` exposes `shell.*` through other packages' imports; July only corrected the README, and excluding the tools needs an explicit MCP allowlist or denylist), H9 and H5 (streaming handlers and WebSocket streaming), H8 (`out:` configuration), M2 (retry buffers streams), L2 (route-leaf detection), L21 (`client-logger`: retire, or validate the inputs), M27 and M28 (`cue` generator: the per-package `pnpm` field, and a `vitest` feature with no CUE file).

@@ -15,6 +15,7 @@
 
 import type { Middleware } from "../core/middleware.js";
 import type { MapLike } from "../interfaces/map.js";
+import { compositeMapMethod } from "./composite.js";
 import type { Collection } from "../interfaces/collection.js";
 
 /**
@@ -118,6 +119,13 @@ export function ttlMap<K, V>(
         // Add dispose method
         if (prop === "dispose") {
           return dispose;
+        }
+
+        // Composite methods (setIfAbsent, compute, merge, putAll and others) go through this
+        // proxy's own primitives, so they keep the expiry rules (BUGS-2026-07 L13)
+        const composite = compositeMapMethod(receiver as MapLike<K, V>, prop);
+        if (composite) {
+          return composite;
         }
 
         const value = Reflect.get(target, prop, receiver);
