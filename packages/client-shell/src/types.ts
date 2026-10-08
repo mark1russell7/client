@@ -43,6 +43,8 @@ export interface ShellRunOutput {
   success: boolean;
   /** Duration in milliseconds */
   duration: number;
+  /** The signal that ended the process, if it was killed (for example by the timeout) */
+  signal?: string;
 }
 
 // =============================================================================
