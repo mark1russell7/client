@@ -8,15 +8,6 @@
 import { print } from "./print.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
 import { writeLockfile, removeLockfileForPort, getLockfilePath } from "./lockfile.js";
-import type {
-  LocalTransport,
-  Method,
-  Message,
-  ProcedureContext,
-  ProcedurePath,
-  AnyProcedure,
-  ProcedureRegistry,
-} from "@mark1russell7/client";
 
 export interface ServerModeOptions {
   port: number;
@@ -29,73 +20,6 @@ interface ServerCreateResult {
   serverId: string;
   endpoints: Array<{ type: string; address: string }>;
   procedureCount: number;
-}
-
-/**
- * Convert procedure path to transport method
- */
-function pathToMethod(path: string[]): Method {
-  const [service, ...rest] = path;
-  return { service: service!, operation: rest.join(".") };
-}
-
-/**
- * Register procedure handlers on the transport
- */
-function syncRegistryToTransport(
-  transport: LocalTransport,
-  registry: ProcedureRegistry
-): void {
-  async function execProcedure<TOutput>(
-    path: ProcedurePath,
-    input: unknown
-  ): Promise<TOutput> {
-    const proc = registry.get(path);
-    if (!proc || !proc.handler) {
-      throw new Error(`Procedure not found: ${path.join(".")}`);
-    }
-    const ctx = createContext(path);
-    return proc.handler(input, ctx) as Promise<TOutput>;
-  }
-
-  function createContext(path: ProcedurePath): ProcedureContext {
-    return {
-      metadata: {},
-      path,
-      client: {
-        call: <TInput, TOutput>(p: ProcedurePath, i: TInput) =>
-          execProcedure<TOutput>(p, i),
-      },
-    };
-  }
-
-  for (const procedure of registry.getAll()) {
-    if (procedure.handler) {
-      const method = pathToMethod(procedure.path);
-      transport.register(method, async (payload: unknown, message: Message<unknown>) => {
-        const context: ProcedureContext = {
-          ...createContext(procedure.path),
-          metadata: message.metadata ?? {},
-          ...(message.signal ? { signal: message.signal } : {}),
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  }
-
-  registry.on("register", (procedure: AnyProcedure) => {
-    if (procedure.handler) {
-      const method = pathToMethod(procedure.path);
-      transport.register(method, async (payload: unknown, message: Message<unknown>) => {
-        const context: ProcedureContext = {
-          ...createContext(procedure.path),
-          metadata: message.metadata ?? {},
-          ...(message.signal ? { signal: message.signal } : {}),
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  });
 }
 
 /**
@@ -157,8 +81,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   // since client-server is in the ecosystem. No need to call registerServerProcedures().
 
   // Create local transport and sync registry
-  const transport = new LocalTransport();
-  syncRegistryToTransport(transport, PROCEDURE_REGISTRY);
+  // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1)
+  const transport = new LocalTransport({ registry: PROCEDURE_REGISTRY });
   const client = new Client({ transport });
 
   // Build transport config

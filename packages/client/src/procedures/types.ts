@@ -156,12 +156,22 @@ export interface ProcedureContext {
  */
 export interface ProcedureClient {
   /**
-   * Call a procedure by path.
+   * Call a procedure by path. For a streaming procedure, the result is the last item.
    */
   call<TInput = unknown, TOutput = unknown>(
     path: ProcedurePath,
     input: TInput
   ): Promise<TOutput>;
+
+  /**
+   * Call a procedure by path and read each output: each item of a streaming procedure, or the
+   * one value of another procedure. The procedure starts when the caller reads the first item.
+   * An older client has no `stream`.
+   */
+  stream?<TInput = unknown, TOutput = unknown>(
+    path: ProcedurePath,
+    input: TInput
+  ): AsyncIterable<TOutput>;
 }
 
 // =============================================================================

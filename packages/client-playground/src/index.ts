@@ -190,32 +190,10 @@ export async function run<T = unknown>(
     "@mark1russell7/client"
   );
 
-  // Create client with local transport
-  const transport = new LocalTransport();
-
-  // Sync registry to transport
-  for (const procedure of PROCEDURE_REGISTRY.getAll()) {
-    if (procedure.handler) {
-      const [service, ...rest] = procedure.path;
-      const method = { service: service!, operation: rest.join(".") };
-      transport.register(method, async (payload: unknown) => {
-        const context = {
-          metadata: {},
-          path: procedure.path,
-          client: {
-            call: async <TIn, TOut>(p: ProcedurePath, i: TIn): Promise<TOut> => {
-              const proc = PROCEDURE_REGISTRY.get(p);
-              if (!proc?.handler) {
-                throw new Error(`Procedure not found: ${p.join(".")}`);
-              }
-              return proc.handler(i, context) as Promise<TOut>;
-            },
-          },
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  }
+  // The transport runs each procedure of the registry through invokeProcedure()
+  // (ARCHITECTURE-PROPOSALS P1). Before, this file had its own copy of the bridge, without
+  // input validation.
+  const transport = new LocalTransport({ registry: PROCEDURE_REGISTRY });
 
   const client = new Client({ transport });
 

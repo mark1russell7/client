@@ -8,6 +8,7 @@
 import type { AnyProcedure, ProcedurePath } from "../procedures/types.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { Route, RouteNode } from "./call-types.js";
+import type { OutputConfig } from "./consumption.js";
 import { flattenRoute } from "./call-types.js";
 
 // =============================================================================
@@ -24,6 +25,9 @@ export interface ResolvedRoute {
   procedure: AnyProcedure;
   /** Input payload for the procedure handler (validated, with schema defaults) */
   input: unknown;
+
+  /** How the caller reads the output: sponge (the default), stream or handlers (the `out` of the leaf) */
+  outputConfig: OutputConfig;
 }
 
 /**
@@ -101,7 +105,7 @@ export class RouteResolver {
     const errors: RouteResolutionError[] = [];
 
     for (const entry of flattened) {
-      const { path, input } = entry;
+      const { path, input, outputConfig } = entry;
       const procedure = this.registry.get(path);
 
       if (!procedure) {
@@ -139,6 +143,7 @@ export class RouteResolver {
         path,
         procedure,
         input: handlerInput,
+        outputConfig,
       });
     }
 

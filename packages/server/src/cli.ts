@@ -9,86 +9,8 @@
  *   server --procedures @mark1russell7/client-mongo/register --port 3000
  */
 
-import type {
-  LocalTransport,
-  Method,
-  Message,
-  ProcedureContext,
-  ProcedurePath,
-  AnyProcedure,
-  ProcedureRegistry,
-} from "@mark1russell7/client";
 import { parseConfig } from "./config.js";
 import type { ServerCreateResult } from "./types.js";
-
-/**
- * Convert procedure path to transport method
- */
-function pathToMethod(path: string[]): Method {
-  const [service, ...rest] = path;
-  return { service: service!, operation: rest.join(".") };
-}
-
-/**
- * Register procedure handlers on the transport
- */
-function syncRegistryToTransport(
-  transport: LocalTransport,
-  registry: ProcedureRegistry
-): void {
-  // Helper to execute a procedure by path (for ctx.client.call)
-  async function execProcedure<TOutput>(
-    path: ProcedurePath,
-    input: unknown
-  ): Promise<TOutput> {
-    const proc = registry.get(path);
-    if (!proc || !proc.handler) {
-      throw new Error(`Procedure not found: ${path.join(".")}`);
-    }
-    const ctx = createContext(path);
-    return proc.handler(input, ctx) as Promise<TOutput>;
-  }
-
-  // Helper to create ProcedureContext with client.call support
-  function createContext(path: ProcedurePath): ProcedureContext {
-    return {
-      metadata: {},
-      path,
-      client: {
-        call: <TInput, TOutput>(p: ProcedurePath, i: TInput) =>
-          execProcedure<TOutput>(p, i),
-      },
-    };
-  }
-
-  for (const procedure of registry.getAll()) {
-    if (procedure.handler) {
-      const method = pathToMethod(procedure.path);
-      transport.register(method, async (payload: unknown, message: Message<unknown>) => {
-        const context: ProcedureContext = {
-          ...createContext(procedure.path),
-          metadata: message.metadata ?? {},
-          ...(message.signal ? { signal: message.signal } : {}),
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  }
-
-  registry.on("register", (procedure: AnyProcedure) => {
-    if (procedure.handler) {
-      const method = pathToMethod(procedure.path);
-      transport.register(method, async (payload: unknown, message: Message<unknown>) => {
-        const context: ProcedureContext = {
-          ...createContext(procedure.path),
-          metadata: message.metadata ?? {},
-          ...(message.signal ? { signal: message.signal } : {}),
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  });
-}
 
 /**
  * Main entry point
@@ -126,8 +48,8 @@ async function main(): Promise<void> {
   }
 
   // Create local transport and sync registry
-  const transport = new LocalTransport();
-  syncRegistryToTransport(transport, PROCEDURE_REGISTRY);
+  // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1)
+  const transport = new LocalTransport({ registry: PROCEDURE_REGISTRY });
   const client = new Client({ transport });
 
   // Get procedure count before starting

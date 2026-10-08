@@ -45,6 +45,13 @@ export interface ServerResponse<TRes = unknown> {
   /** Response payload (only present on success) */
   payload?: TRes;
 
+  /**
+   * The items of a stream response. When this field is set, the response is a stream: the
+   * transport sends each item, then the end of the stream. An error from the iterator ends
+   * the stream with an error. A transport that cannot stream sends the last item.
+   */
+  stream?: AsyncIterable<TRes>;
+
   /** Response metadata */
   metadata: Metadata;
 }

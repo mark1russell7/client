@@ -6,18 +6,17 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { Method, ServerRequest } from "./types.js";
+import type { Method, ServerRequest, ServerResponse } from "./types.js";
 import type {
   AnyProcedure,
   ProcedurePath,
-  ProcedureContext,
   RepositoryProvider,
   ProcedureModule,
 } from "../procedures/types.js";
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import { isDataDriven } from "../procedures/ref.js";
+import { InvocationError, invokeProcedure } from "../procedures/invoke.js";
 import type { CollectionStorage } from "@mark1russell7/client-collections";
 
 // =============================================================================
@@ -55,6 +54,23 @@ export interface ProcedureServerOptions extends ServerOptions {
    * Without this rule, the server exposes every procedure.
    */
   expose?: ((path: ProcedurePath) => boolean) | undefined;
+}
+
+/**
+ * The error response of a failed invocation. An invocation error keeps its code
+ * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler is HANDLER_ERROR.
+ */
+export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
+  return {
+    id,
+    status: {
+      type: "error",
+      code: error instanceof InvocationError ? error.code : "HANDLER_ERROR",
+      message: error instanceof Error ? error.message : String(error),
+      retryable: false,
+    },
+    metadata: {},
+  };
 }
 
 // =============================================================================
@@ -201,118 +217,25 @@ export class ProcedureServer extends Server implements RepositoryProvider {
 
     // Convert path to method
     const method = this.pathToMethod(procedure.path);
-
-    // Create server handler that wraps the procedure handler
-    const handler = procedure.handler;
     const self = this;
 
-    this.register(method, async (request : ServerRequest<unknown>) => {
-      // Validate input
-      const inputResult = procedure.input.safeParse(request.payload);
-      if (!inputResult.success) {
-        return {
-          id: request.id,
-          status: {
-            type: "error" as const,
-            code: "VALIDATION_ERROR",
-            message: inputResult.error.message,
-            retryable: false,
-          },
-          metadata: {},
-        };
-      }
-
-      // The call function of a procedure's context. A data-driven caller can call only the
-      // exposed procedures (BUGS-2026-07 H18: client.chain reached shell.run).
-      const callerFor = (caller: AnyProcedure) =>
-        async <TInput, TOutput>(targetPath: ProcedurePath, input: TInput): Promise<TOutput> => {
-          const targetProc = self.procedureRegistry.get(targetPath);
-          if (!targetProc) {
-            throw new Error(`Procedure not found: ${pathToKey(targetPath)}`);
-          }
-          if (self.expose && isDataDriven(caller) && !self.expose(targetPath)) {
-            throw new Error(
-              `Procedure not exposed: ${pathToKey(targetPath)}. ${pathToKey(caller.path)} runs procedure refs ` +
-                `from its input, so it can call only the procedures that this server exposes.`
-            );
-          }
-          if (!targetProc.handler) {
-            throw new Error(`Procedure has no handler: ${pathToKey(targetPath)}`);
-          }
-
-          // Validate input
-          const inputResult = targetProc.input.safeParse(input);
-          if (!inputResult.success) {
-            throw new Error(`Input validation failed: ${inputResult.error.message}`);
-          }
-
-          // Create nested context (inherits metadata, signal)
-          const nestedContext: ProcedureContext = {
-            metadata: request.metadata,
-            repository: self,
-            path: targetPath,
-            client: { call: callerFor(targetProc) },
-          };
-          if (request.signal) {
-            nestedContext.signal = request.signal;
-          }
-
-          // Execute and return
-          return await targetProc.handler(inputResult.data, nestedContext) as TOutput;
-        };
-
-      // Create procedure context
-      const context: ProcedureContext = {
-        metadata: request.metadata,
-        repository: self,
-        path: procedure.path,
-        client: { call: callerFor(procedure) },
-      };
-
-      // Only set signal if provided (exactOptionalPropertyTypes)
-      if (request.signal) {
-        context.signal = request.signal;
-      }
-
+    this.register(method, async (request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> => {
       try {
-        // Execute handler
-        const output = await handler(inputResult.data, context);
-
-        // Validate output
-        const outputResult = procedure.output.safeParse(output);
-        if (!outputResult.success) {
-          return {
-            id: request.id,
-            status: {
-              type: "error" as const,
-              code: "OUTPUT_VALIDATION_ERROR",
-              message: outputResult.error.message,
-              retryable: false,
-            },
-            metadata: {},
-          };
+        // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
+        // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
+        const output = await invokeProcedure(procedure, request.payload, {
+          registry: self.procedureRegistry,
+          metadata: request.metadata,
+          signal: request.signal,
+          repository: self,
+          expose: self.expose,
+        });
+        if (output.kind === "stream") {
+          return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };
         }
-
-        return {
-          id: request.id,
-          status: {
-            type: "success" as const,
-            code: 200,
-          },
-          payload: outputResult.data,
-          metadata: {},
-        };
+        return { id: request.id, status: { type: "success", code: 200 }, payload: output.value, metadata: {} };
       } catch (error) {
-        return {
-          id: request.id,
-          status: {
-            type: "error" as const,
-            code: "HANDLER_ERROR",
-            message: error instanceof Error ? error.message : String(error),
-            retryable: false,
-          },
-          metadata: {},
-        };
+        return errorResponse(request.id, error);
       }
     });
 

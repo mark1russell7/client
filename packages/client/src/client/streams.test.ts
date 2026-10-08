@@ -37,26 +37,43 @@ describe("routeStream (regression: BUGS-2026-07 H12)", () => {
   });
 });
 
-describe("call() closes the response stream (regression: BUGS-2026-07 M1)", () => {
-  it("returns the first item and ends the transport's generator", async () => {
-    let closed = false;
-    const transport: Transport = {
+describe("call() reads the response stream (regression: BUGS-2026-07 M1)", () => {
+  function twoItems(onClose: () => void): Transport {
+    return {
       name: "test",
       async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
         try {
           yield { id: message.id, status: { type: "success" }, payload: "first" as TRes, metadata: {} } as ResponseItem<TRes>;
           yield { id: message.id, status: { type: "success" }, payload: "second" as TRes, metadata: {} } as ResponseItem<TRes>;
         } finally {
-          closed = true;
+          onClose();
         }
       },
       close: async () => {},
     } as Transport;
-    const client = new Client({ transport });
+  }
+
+  it("returns the last item (the sponge mode of a stream) and ends the transport's generator", async () => {
+    let closed = false;
+    const client = new Client({ transport: twoItems(() => (closed = true)) });
 
     const result = await client.call({ service: "test", operation: "x" }, {});
 
-    expect(result).toBe("first");
+    expect(result).toBe("second");
     expect(closed).toBe(true);
+  });
+
+  it("returns a falsy value (before, 0, false and \"\" threw \"No response received\")", async () => {
+    for (const value of [0, false, "", null]) {
+      const transport = {
+        name: "test",
+        async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
+          yield { id: message.id, status: { type: "success" }, payload: value as TRes, metadata: {} } as ResponseItem<TRes>;
+        },
+        close: async () => {},
+      } as Transport;
+      const client = new Client({ transport });
+      expect(await client.call({ service: "test", operation: "x" }, {})).toBe(value);
+    }
   });
 });

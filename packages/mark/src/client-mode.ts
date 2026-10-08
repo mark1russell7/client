@@ -13,6 +13,8 @@ interface ClientModeResult {
   success: boolean;
   result?: unknown;
   error?: string;
+  /** The onItem callback printed each item already */
+  printed?: boolean;
 }
 
 /**
@@ -23,7 +25,8 @@ export async function tryClientMode(
   path: string[],
   args: string[],
   options: Record<string, unknown>,
-  procedures: AnyProcedure[]
+  procedures: AnyProcedure[],
+  onItem?: (item: unknown) => void
 ): Promise<ClientModeResult | null> {
   // Check for running server
   const lockfile = await readLockfile();
@@ -77,10 +80,20 @@ export async function tryClientMode(
   // Execute remotely. From here on, do not fall back to local execution: the server may
   // have run (part of) the command, and running it again would repeat its side effects.
   try {
-    const result = await client.call(method, input);
+    // Each item of the response as it arrives (a streaming procedure gives many). The result
+    // is the last item.
+    let last: { value: unknown } | undefined;
+    for await (const item of client.stream(method, input)) {
+      last = { value: item };
+      onItem?.(item);
+    }
+    if (!last) {
+      throw new Error("No response received from the CLI server");
+    }
     return {
       success: true,
-      result,
+      result: last.value,
+      printed: onItem !== undefined,
     };
   } catch (error) {
     return {

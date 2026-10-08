@@ -7,15 +7,7 @@
  */
 
 import { print } from "./print.js";
-import type {
-  LocalTransport,
-  Method,
-  Message,
-  ProcedureContext,
-  ProcedurePath,
-  AnyProcedure,
-  ProcedureRegistry,
-} from "@mark1russell7/client";
+import type { Method, AnyProcedure } from "@mark1russell7/client";
 import { parseFromSchema, generateHelp, extractSchemaFields, type CLIMeta } from "./parse.js";
 import { formatOutput, type Print } from "./format.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
@@ -31,63 +23,6 @@ const VERSION = "1.0.0";
 function pathToMethod(path: string[]): Method {
   const [service, ...rest] = path;
   return { service: service!, operation: rest.join(".") };
-}
-
-/**
- * Register procedure handlers on the transport
- */
-function syncRegistryToTransport(
-  transport: LocalTransport,
-  registry: ProcedureRegistry
-): void {
-  // Helper to execute a procedure by path (for ctx.client.call)
-  async function execProcedure<TOutput>(path: ProcedurePath, input: unknown): Promise<TOutput> {
-    const proc = registry.get(path);
-    if (!proc || !proc.handler) {
-      throw new Error(`Procedure not found: ${path.join(".")}`);
-    }
-    const ctx = createContext(path);
-    return proc.handler(input, ctx) as Promise<TOutput>;
-  }
-
-  // Helper to create ProcedureContext with client.call support
-  function createContext(path: ProcedurePath): ProcedureContext {
-    return {
-      metadata: {},
-      path,
-      client: {
-        call: <TInput, TOutput>(p: ProcedurePath, i: TInput) => execProcedure<TOutput>(p, i),
-      },
-    };
-  }
-
-  for (const procedure of registry.getAll()) {
-    if (procedure.handler) {
-      const method = pathToMethod(procedure.path);
-      transport.register(method, async (payload: unknown, message: Message<unknown>) => {
-        const context: ProcedureContext = {
-          ...createContext(procedure.path),
-          metadata: message.metadata ?? {},
-          ...(message.signal ? { signal: message.signal } : {}),
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  }
-
-  registry.on("register", (procedure: AnyProcedure) => {
-    if (procedure.handler) {
-      const method = pathToMethod(procedure.path);
-      transport.register(method, async (payload: unknown, message: Message<unknown>) => {
-        const context: ProcedureContext = {
-          ...createContext(procedure.path),
-          metadata: message.metadata ?? {},
-          ...(message.signal ? { signal: message.signal } : {}),
-        };
-        return procedure.handler!(payload, context);
-      });
-    }
-  });
 }
 
 /**
@@ -336,8 +271,8 @@ export async function initCli(verbose = false): Promise<CliContext> {
 
   await loadEcosystemProcedures(verbose);
 
-  const transport = new LocalTransport();
-  syncRegistryToTransport(transport, PROCEDURE_REGISTRY);
+  // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1)
+  const transport = new LocalTransport({ registry: PROCEDURE_REGISTRY });
   const client = new Client({ transport });
 
   const procedures = PROCEDURE_REGISTRY.getAll();
@@ -366,12 +301,17 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
 
   // Try client mode: connect to running server if available (unless --local)
   if (!argv.includes("--local") && path.length > 0 && !options["help"] && !options["h"]) {
-    const clientResult = await tryClientMode(path, args, options, procedures);
+    const meta = (findProcedure(procedures, path)?.metadata ?? {}) as CLIMeta;
+    const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
+    // Each item prints when it arrives from the server
+    const clientResult = await tryClientMode(path, args, options, procedures, (item) =>
+      formatOutput(print as unknown as Print, item, outputFormat)
+    );
     if (clientResult !== null) {
       if (clientResult.success) {
-        const meta = (findProcedure(procedures, path)?.metadata ?? {}) as CLIMeta;
-        const outputFormat = (formatOverride ?? meta.output ?? "text") as "text" | "json" | "table" | "streaming";
-        formatOutput(print as unknown as Print, clientResult.result, outputFormat);
+        if (!clientResult.printed) {
+          formatOutput(print as unknown as Print, clientResult.result, outputFormat);
+        }
         return;
       }
       // The server ran (or started to run) the command and it failed. Running it again
@@ -445,13 +385,19 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
     }
 
     const method = pathToMethod(path);
-    const result = await client.call(method, validated);
+
+    // A streaming procedure gives many items: print each one when it arrives. A
+    // request/response procedure gives one item, so its output does not change.
+    let items = 0;
+    for await (const item of client.stream(method, validated)) {
+      if (spinner && items === 0) spinner.stop();
+      items++;
+      formatOutput(print as unknown as Print, item, outputFormat);
+    }
 
     if (spinner) {
       spinner.succeed(`${path.join(" ")} complete`);
     }
-
-    formatOutput(print as unknown as Print, result, outputFormat);
   } catch (error) {
     print.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

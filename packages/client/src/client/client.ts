@@ -55,7 +55,15 @@ import { RouteResolver, type ResolvedRoute } from "./route-resolver.js";
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
-import type { ProcedurePath, ProcedureContext } from "../procedures/types.js";
+import type { AnyProcedure, ProcedureClient, ProcedurePath } from "../procedures/types.js";
+import {
+  InvocationError,
+  invokeProcedure,
+  outputItems,
+  outputValue,
+  type InvokeOptions,
+} from "../procedures/invoke.js";
+import { isHandlerConfig, isStreamConfig, type HandlerCallback, type OutputConfig } from "./consumption.js";
 import {
   isAnyProcedureRef,
   isControlFlowPath,
@@ -274,8 +282,8 @@ export class Client<TContext = {}> {
   /**
    * Make a single RPC call (request/response).
    *
-   * This is a convenience method that takes the first item from the stream.
-   * For streaming responses, use `stream()` instead.
+   * The result is the last item of the response stream: the one item of a request/response
+   * call, or the final item of a streaming procedure. To read each item, use `stream()`.
    *
    * @param method - Method to invoke
    * @param payload - Request payload
@@ -305,22 +313,17 @@ export class Client<TContext = {}> {
     payload: TReq,
     options?: CallOptions<TContext> | Metadata,
   ): Promise<TRes> {
-    const stream = this.stream(method, payload, options);
-    const iterator = stream[Symbol.asyncIterator]();
-
-    try {
-      const { value, done } = await iterator.next();
-
-      if (done || !value) {
-        throw new Error("No response received from stream");
-      }
-
-      return value as TRes;
-    } finally {
-      // call() uses only the first item: close the stream so the transport can release it
-      // (BUGS-2026-07 M1: the generator was left open)
-      await iterator.return?.();
+    // The result of a stream is its last item (the "sponge" mode of procedures/types.ts). Every
+    // request/response transport yields one item, so its result does not change. (Before, the
+    // result was the first item, and a falsy first item - 0, false, "" - threw "No response".)
+    let last: { value: TRes } | undefined;
+    for await (const item of this.stream<TReq, TRes>(method, payload, options)) {
+      last = { value: item };
     }
+    if (!last) {
+      throw new Error("No response received from stream");
+    }
+    return last.value;
   }
 
   // ===========================================================================
@@ -376,6 +379,40 @@ export class Client<TContext = {}> {
     refOrPath: AnyProcedureRef | ProcedurePath,
     input?: unknown
   ): Promise<TOutput> {
+    const { path, input: hydratedInput } = await this.prepareRef(refOrPath, input);
+    return this.execInternal<TOutput>(path, hydratedInput);
+  }
+
+  /**
+   * Execute a procedure reference and read each output: each item of a streaming procedure, or
+   * the one value of another procedure. The input refs run as in `exec()`. Nothing runs until
+   * the caller reads the first item.
+   *
+   * @example
+   * ```typescript
+   * for await (const line of client.execStream(["logs", "tail"], { file: "app.log" })) {
+   *   console.log(line);
+   * }
+   * ```
+   */
+  execStream<TOutput = unknown>(
+    refOrPath: AnyProcedureRef | ProcedurePath,
+    input?: unknown
+  ): AsyncIterable<TOutput> {
+    const self = this;
+    return (async function* () {
+      const { path, input: hydratedInput } = await self.prepareRef(refOrPath, input);
+      yield* self.execStreamInternal<TOutput>(path, hydratedInput);
+    })();
+  }
+
+  /**
+   * The path and the input of a reference, with the refs of the input run (hydrated).
+   */
+  private async prepareRef(
+    refOrPath: AnyProcedureRef | ProcedurePath,
+    input: unknown
+  ): Promise<{ path: ProcedurePath; input: unknown }> {
     // Normalize to ProcedureRef
     let ref: ProcedureRef;
 
@@ -406,56 +443,67 @@ export class Client<TContext = {}> {
       ? ref.input
       : await hydrateInput(ref.input, executor);
 
-    // Execute the main procedure with (conditionally) hydrated input
-    return this.execInternal<TOutput>(ref.path, hydratedInput);
+    return { path: ref.path, input: hydratedInput };
   }
 
   /**
-   * Internal procedure execution (no hydration).
+   * The options of a local invocation. The nested calls of the procedure go through this
+   * client, so a path without a local handler goes to the transport.
+   */
+  private invokeOptions(metadata: Record<string, unknown> = {}, signal?: AbortSignal): InvokeOptions {
+    const self = this;
+    const client: ProcedureClient = {
+      call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input),
+      stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input),
+    };
+    return { registry: this.procedureRegistry, metadata, signal, client };
+  }
+
+  /**
+   * The input for a procedure without a local handler: validated with the local schema when
+   * the registry has the procedure, then sent to the transport.
+   */
+  private remoteInput(procedure: AnyProcedure | undefined, path: ProcedurePath, input: unknown): unknown {
+    if (!procedure) return input;
+    const result = procedure.input.safeParse(input);
+    if (!result.success) {
+      throw new InvocationError(
+        "VALIDATION_ERROR",
+        `Input validation failed for ${path.join(".")}: ${result.error.message}`,
+        path
+      );
+    }
+    return result.data;
+  }
+
+  /**
+   * Internal procedure execution (no hydration of the top-level input).
    */
   private async execInternal<TOutput>(
     path: ProcedurePath,
     input: unknown
   ): Promise<TOutput> {
     const procedure = this.procedureRegistry.get(path);
-
-    if (!procedure) {
-      // Try via transport (remote procedure)
-      const method = this.pathToMethod(path);
-      return this.call(method, input) as Promise<TOutput>;
+    if (procedure?.handler) {
+      return outputValue(await invokeProcedure<TOutput>(procedure, input, this.invokeOptions()), path);
     }
+    // No local handler: the transport runs it (a remote procedure)
+    return this.call(this.pathToMethod(path), this.remoteInput(procedure, path, input)) as Promise<TOutput>;
+  }
 
-    // Validate input
-    const inputResult = procedure.input.safeParse(input);
-    if (!inputResult.success) {
-      throw new Error(`Input validation failed for ${path.join(".")}: ${inputResult.error.message}`);
-    }
-
-    // Execute handler if present
-    if (procedure.handler) {
-      const self = this;
-      const ctx: ProcedureContext = {
-        metadata: {},
-        path,
-        client: {
-          call: <TInput, TOutput>(p: ProcedurePath, i: TInput) => self.execInternal<TOutput>(p, i),
-        },
-      };
-
-      const output = await procedure.handler(inputResult.data, ctx);
-
-      // Validate output
-      const outputResult = procedure.output.safeParse(output);
-      if (!outputResult.success) {
-        throw new Error(`Output validation failed for ${path.join(".")}: ${outputResult.error.message}`);
+  /**
+   * Internal streaming execution (no hydration of the top-level input).
+   */
+  private execStreamInternal<TOutput>(path: ProcedurePath, input: unknown): AsyncIterable<TOutput> {
+    const self = this;
+    return (async function* () {
+      const procedure = self.procedureRegistry.get(path);
+      if (procedure?.handler) {
+        yield* outputItems(await invokeProcedure<TOutput>(procedure, input, self.invokeOptions()));
+        return;
       }
-
-      return outputResult.data as TOutput;
-    }
-
-    // No local handler, try transport
-    const method = this.pathToMethod(path);
-    return this.call(method, inputResult.data) as Promise<TOutput>;
+      yield* self.stream<unknown, TOutput>(self.pathToMethod(path), self.remoteInput(procedure, path, input));
+    })();
   }
 
   /**
@@ -898,77 +946,107 @@ export class Client<TContext = {}> {
   /**
    * Execute a single procedure call.
    * Used by BatchExecutor.
+   *
+   * The `out` config of the route leaf chooses the result (BUGS-2026-07 H8):
+   * - sponge (the default): the value, or the last item of a stream (or `accumulate` of all items);
+   * - stream: `data` is an AsyncIterable of the items. The procedure starts when the reader reads;
+   * - handlers: `progress` gets each item but the last, `complete` gets the last, `error` gets the error.
    */
   private async executeProcedure(
     resolved: ResolvedRoute,
     context: ExecutionContext
   ): Promise<ProcedureCallResult> {
-    const { path, procedure, input } = resolved;
+    const { path, outputConfig } = resolved;
 
     try {
-      // If procedure has a handler (server-side), execute directly
-      if (procedure.handler) {
-        const self = this;
-        const procedureContext: ProcedureContext = {
-          metadata: context.metadata,
-          path,
-          client: {
-            call: <TInput, TOutput>(p: ProcedurePath, i: TInput) => self.execInternal<TOutput>(p, i),
-          },
-        };
-
-        // Only set signal if provided (exactOptionalPropertyTypes)
-        if (context.signal) {
-          procedureContext.signal = context.signal;
-        }
-
-        const output = await procedure.handler(input, procedureContext);
-
-        // Validate output if schema exists
-        const outputResult = procedure.output.safeParse(output);
-        if (!outputResult.success) {
-          return {
-            success: false,
-            error: {
-              code: "OUTPUT_VALIDATION_ERROR",
-              message: outputResult.error.message,
-              retryable: false,
-              path,
-            },
-          };
-        }
-
-        return {
-          success: true,
-          data: outputResult.data,
-        };
+      const items = this.routeItems(resolved, context);
+      if (isStreamConfig(outputConfig)) {
+        return { success: true, data: items };
       }
-
-      // Otherwise, route through transport (client-side)
-      const method: Method = this.pathToMethod(path);
-      const callOptions: any = {
-        context: context.metadata,
-      };
-      if (context.signal) {
-        callOptions.signal = context.signal;
+      if (isHandlerConfig(outputConfig)) {
+        return { success: true, data: await this.consumeWithHandlers(items, outputConfig, path) };
       }
-      const response = await this.call(method, input, callOptions);
-
-      return {
-        success: true,
-        data: response,
-      };
+      return { success: true, data: await this.sponge(items, outputConfig, path) };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: error instanceof ClientError ? error.code : "EXECUTION_ERROR",
+          code: error instanceof ClientError || error instanceof InvocationError ? error.code : "EXECUTION_ERROR",
           message: error instanceof Error ? error.message : String(error),
           retryable: error instanceof ClientError ? error.retryable : false,
           path,
         },
       };
     }
+  }
+
+  /**
+   * The output items of a resolved route: from the local handler, or from the transport.
+   */
+  private routeItems(resolved: ResolvedRoute, context: ExecutionContext): AsyncGenerator<unknown, void, undefined> {
+    const self = this;
+    const { path, procedure, input } = resolved;
+    return (async function* () {
+      if (procedure.handler) {
+        // The resolver validated the input already
+        const options = { ...self.invokeOptions(context.metadata, context.signal), inputValidated: true };
+        yield* outputItems(await invokeProcedure(procedure, input, options));
+        return;
+      }
+      const callOptions: CallOptions<TContext> = { context: context.metadata as ClientContextInput<TContext> };
+      if (context.signal) {
+        callOptions.signal = context.signal;
+      }
+      yield* self.stream(self.pathToMethod(path), input, callOptions);
+    })();
+  }
+
+  /** The sponge mode: the last item, or `accumulate` of all items. */
+  private async sponge(items: AsyncIterable<unknown>, config: OutputConfig, path: ProcedurePath): Promise<unknown> {
+    const accumulate = "type" in config && config.type === "sponge" ? config.accumulate : undefined;
+    const all: unknown[] = [];
+    let last: { value: unknown } | undefined;
+    for await (const item of items) {
+      last = { value: item };
+      if (accumulate) all.push(item);
+    }
+    if (!last) {
+      throw new InvocationError("NO_OUTPUT", `Procedure gave no output: ${path.join(".")}`, path);
+    }
+    return accumulate ? accumulate(all.slice(0, -1), last.value) : last.value;
+  }
+
+  /** The handlers mode: `progress` for each item but the last, then `complete`, or `error`. */
+  private async consumeWithHandlers(
+    items: AsyncIterable<unknown>,
+    config: { progress?: HandlerCallback; complete?: HandlerCallback; error?: HandlerCallback<Error> },
+    path: ProcedurePath
+  ): Promise<unknown> {
+    let previous: { value: unknown } | undefined;
+    try {
+      for await (const item of items) {
+        if (previous) await this.deliver(config.progress, previous.value);
+        previous = { value: item };
+      }
+    } catch (error) {
+      await this.deliver(config.error, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+    if (!previous) {
+      throw new InvocationError("NO_OUTPUT", `Procedure gave no output: ${path.join(".")}`, path);
+    }
+    await this.deliver(config.complete, previous.value);
+    return previous.value;
+  }
+
+  /** A handler callback gets the data: a function, or a procedure path (the data is its input). */
+  private async deliver<T>(callback: HandlerCallback<T> | undefined, data: T): Promise<void> {
+    if (callback === undefined) return;
+    if (Array.isArray(callback)) {
+      await this.execInternal(callback, data);
+      return;
+    }
+    await callback(data);
   }
 
   /**
