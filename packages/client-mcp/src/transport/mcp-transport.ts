@@ -9,6 +9,7 @@ import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ServerTransport, Server, ProcedureRegistry } from "@mark1russell7/client";
 import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
@@ -25,6 +26,13 @@ import { createSseTransport } from "./sse.js";
 /**
  * Generate a unique request ID.
  */
+/** The most text blocks of a stream result: the last items of a long stream. */
+const MAX_STREAM_BLOCKS = 100;
+
+function toText(value: unknown): string {
+  return typeof value === "string" ? value : (JSON.stringify(value, null, 2) ?? String(value));
+}
+
 function generateRequestId(): string {
   return `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -103,7 +111,7 @@ export class McpServerTransport implements ServerTransport {
     });
 
     // CallToolRequestSchema -> Execute procedure
-    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const { name, arguments: args } = request.params;
 
       this.log(`CallToolRequest: ${name}`);
@@ -135,6 +143,8 @@ export class McpServerTransport implements ServerTransport {
           transport: "mcp" as const,
           mcpRequestId: generateRequestId(),
         },
+        // A cancelled tool call (notifications/cancelled) aborts the procedure
+        signal: extra.signal,
       };
 
       try {
@@ -144,14 +154,12 @@ export class McpServerTransport implements ServerTransport {
         this.log(`Tool ${name} completed: ${response.status.type}`);
 
         // Convert to MCP result
+        if (response.status.type === "success" && response.stream) {
+          return await this.streamResult(response.stream, extra);
+        }
         if (response.status.type === "success") {
-          const text =
-            typeof response.payload === "string"
-              ? response.payload
-              : JSON.stringify(response.payload, null, 2);
-
           return {
-            content: [{ type: "text" as const, text }],
+            content: [{ type: "text" as const, text: toText(response.payload) }],
           };
         } else {
           return {
@@ -179,6 +187,48 @@ export class McpServerTransport implements ServerTransport {
   /**
    * Setup registry event listeners for dynamic tool updates.
    */
+  /**
+   * The result of a streaming procedure. An MCP tool result is one message, so the transport
+   * reads the whole stream. Each item becomes a text block (the last MAX_STREAM_BLOCKS items),
+   * and a progress notification when the caller sent a progress token, so a client can show
+   * the items while the stream runs.
+   */
+  private async streamResult(
+    stream: AsyncIterable<unknown>,
+    extra: {
+      _meta?: { progressToken?: string | number | undefined } | undefined;
+      sendNotification: (notification: ServerNotification) => Promise<void>;
+    }
+  ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+    const progressToken = extra._meta?.progressToken;
+    const blocks: Array<{ type: "text"; text: string }> = [];
+    let count = 0;
+    try {
+      for await (const item of stream) {
+        count++;
+        const text = toText(item);
+        blocks.push({ type: "text", text });
+        if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
+        if (progressToken !== undefined) {
+          await extra
+            .sendNotification({
+              method: "notifications/progress",
+              params: { progressToken, progress: count, message: text.slice(0, 1000) },
+            })
+            .catch(() => undefined);
+        }
+      }
+    } catch (error) {
+      blocks.push({ type: "text", text: error instanceof Error ? error.message : String(error) });
+      return { content: blocks, isError: true };
+    }
+    if (count > MAX_STREAM_BLOCKS) {
+      blocks.unshift({ type: "text", text: `(${count} items: the first ${count - MAX_STREAM_BLOCKS} are not shown)` });
+    }
+    if (count === 0) blocks.push({ type: "text", text: "(no items)" });
+    return { content: blocks };
+  }
+
   private setupRegistryListeners(): void {
     // Create listener functions that we can later remove
     this.registerListener = () => {
