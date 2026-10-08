@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client-logger",
+  "version": "1.0.0",
+  "description": "Bridge between client procedures and logger - logging via client.call",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "postinstall": "client announce"
+  },
+  "keywords": [
+    "logger",
+    "client",
+    "procedures",
+    "rpc"
+  ],
+  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/logger": "github:mark1russell7/logger#main",
+    "@mark1russell7/client": "github:mark1russell7/client#main"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@mark1russell7/cue",
+      "@mark1russell7/client",
+      "@mark1russell7/logger"
+    ]
+  }
+}
