@@ -1,0 +1,1 @@
+{"version":3,"file":"watch.d.ts","sourceRoot":"","sources":["../../../src/procedures/vitest/watch.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,gBAAgB,EAAE,iBAAiB,EAAE,MAAM,gBAAgB,CAAC;AAE1E,wBAAsB,WAAW,CAC/B,KAAK,EAAE,gBAAgB,EACvB,IAAI,EAAE;IAAE,QAAQ,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,CAAA;CAAE,GAC1C,OAAO,CAAC,iBAAiB,CAAC,CAsB5B"}
