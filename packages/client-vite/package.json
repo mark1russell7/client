@@ -23,8 +23,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo",
-    "postinstall": "client announce"
+    "clean": "rm -rf dist .tsbuildinfo"
   },
   "sideEffects": false,
   "dependencies": {

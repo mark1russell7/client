@@ -19,9 +19,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo",
-    "prepare": "npm run build",
-    "postinstall": "client announce"
+    "clean": "rm -rf dist .tsbuildinfo"
   },
   "client": {
     "procedures": "./dist/register.js"

@@ -23,12 +23,11 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run",
+    "test": "vitest run --exclude '**/*.integration.test.ts'",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run __tests__/docker.integration.test.ts",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "postinstall": "client announce"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

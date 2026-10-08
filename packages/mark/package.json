@@ -23,10 +23,8 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "prepare": "npm run build",
     "test:e2e": "vitest run e2e/",
-    "test:e2e:watch": "vitest e2e/",
-    "postinstall": "client announce"
+    "test:e2e:watch": "vitest e2e/"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

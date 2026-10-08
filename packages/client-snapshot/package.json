@@ -22,8 +22,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo",
-    "postinstall": "client announce"
+    "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

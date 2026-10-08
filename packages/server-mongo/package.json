@@ -25,8 +25,7 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "start": "node dist/server.js",
-    "postinstall": "client announce"
+    "start": "node dist/server.js"
   },
   "sideEffects": false,
   "dependencies": {
