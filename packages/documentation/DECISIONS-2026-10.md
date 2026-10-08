@@ -13,6 +13,19 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Streaming end to end, and one invocation path (P1, P3)
+
+The owner approved both on 2026-10-08. The judgment calls:
+
+- **`call()` gives the last item.** `procedures/types.ts` documented "stream, sponge: the last value" twice, and `call()` took the first item. The documented contract wins. For every request/response transport (one item) nothing changes. For a stream that does not end, use `stream()`.
+- **An empty stream is an error** (`NO_OUTPUT`) in the sponge mode, as an empty response was before.
+- **HTTP streams only for a client that asks.** A client that sends `Accept: application/x-ndjson` gets NDJSON. Other clients get the last item as JSON, so curl, MiniMongo and older clients see no change. `HttpTransport` asks.
+- **The WebSocket request timeout ends at the first frame.** A stream can stay open longer: an overall deadline is the timeout middleware's job (it aborts the signal, and the transport sends `cancel`).
+- **MCP results are one message.** A streaming tool reads the whole stream: one text block per item (the last 100), plus a progress notification per item when Claude Code sends a progress token.
+- **Retry stops at the first item.** After an item reached the reader, a retry would repeat items, so an error passes through.
+- **`route()` streams are lazy.** With `out: { type: "stream" }`, the procedure starts when the reader reads the first item, so the batch's durations do not include it.
+- To reverse a part: each step is its own commit (see P3 in the proposals).
+
 ### Merge client-test into client-vitest, retire client-logger (P4)
 
 Approved by the owner on 2026-10-08. Commit `8356474`.

@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 32. **Procedures:** 154. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 32. **Procedures:** 155. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, referenced with `github:` specifiers.
 
@@ -30,7 +30,7 @@ Dependencies marked *(general)* are separate repositories, referenced with `gith
 | `@mark1russell7/client-procedure` | `packages/client-procedure` | Procedure scaffolding procedures - procedure.new | `procedure.*` (2) | `client` |
 | `@mark1russell7/client-s3` | `packages/client-s3` | AWS S3 procedures for client ecosystem - upload, download, list, delete, multipart | `s3.*` (9) | `client` |
 | `@mark1russell7/client-server` | `packages/client-server` | Transport-agnostic peer for bidirectional RPC - exposes procedures and generates manifests | `server.*` (8), `manifest.*` (1), `_discovery.*` (1) | `client` |
-| `@mark1russell7/client-shell` | `packages/client-shell` | Generic shell command execution procedures | `shell.*` (3) | `client` |
+| `@mark1russell7/client-shell` | `packages/client-shell` | Generic shell command execution procedures | `shell.*` (4) | `client` |
 | `@mark1russell7/client-snapshot` | `packages/client-snapshot` | Environment snapshot/restore procedures for testing and recovery | `snapshot.*` (5) | `client`, `client-s3`, `client-git`, `client-pnpm`, `client-fs` |
 | `@mark1russell7/client-splay` | `packages/client-splay` | Bridge between splay and client - component rendering via procedures | `splay.*` (2) | `client`, `splay` *(general)* |
 | `@mark1russell7/client-sqlite` | `packages/client-sqlite` | SQLite procedures for client - database operations via client.call | `db.*` (2), `logs.*` (2) | `client`, `docker-sqlite` *(general)* |

@@ -15,6 +15,8 @@
 
 ## P1. One way to call a procedure (the core problem)
 
+> **Done on 2026-10-08** (`e6dfd67`). `invokeProcedure()` in `procedures/invoke.ts` is the one path: `exec()`, `route()`, `LocalTransport({ registry })` and `ProcedureServer` use it, and the four bridge copies are gone. The CLI (local and through a running CLI server), the MCP server, HTTP and WebSocket all reach a procedure through it. Middleware still applies only to calls through a transport: that is by design (in-process calls have no network to retry).
+
 **Problem.** The registry holds procedures. Turning a registry procedure into a call happens in five places, each with its own rules:
 
 | Path | Validates input | Context (metadata, signal) | Middleware (retry, cache, timeout) |
@@ -71,6 +73,8 @@ Effort: step 1 M, step 2 L. Risk: medium. The 379 core tests are the safety net,
 Effort: S for the allowlist and snapshot test, M for option 3.
 
 ## P3. Streaming: implement it or remove it (H9, H5, H8, M2)
+
+> **Implemented on 2026-10-08** (the owner chose option 1). Commits `e6dfd67` (invocation, `exec`/`execStream`, `route` `out` configs, local transport), `b6a5527` (WebSocket frames and `cancel`, HTTP NDJSON), `49b8f88` (retry), `0ccc5f3` (MCP), `0384b14` (`shell.stream`, the first streaming procedure). End-to-end tests run over real servers.
 
 **Problem.** The types promise streaming, but the runtime does not deliver it:
 

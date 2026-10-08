@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 154 across 26 namespaces. Loaded 20 package register(s).
+**Total procedures:** 155 across 26 namespaces. Loaded 20 package register(s).
 
 ## Namespaces
 
@@ -29,7 +29,7 @@
 - [`procedure.*`](#procedure) — 11 procedure(s)
 - [`s3.*`](#s3) — 9 procedure(s)
 - [`server.*`](#server) — 8 procedure(s)
-- [`shell.*`](#shell) — 3 procedure(s)
+- [`shell.*`](#shell) — 4 procedure(s)
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
@@ -285,6 +285,7 @@
 |-----------|-------------|
 | `shell.exec` | Execute command string via shell |
 | `shell.run` | Run a command with arguments |
+| `shell.stream` | Run a command and stream each output line as it arrives |
 | `shell.which` | Find the path to a command |
 
 ## snapshot
