@@ -1,0 +1,1 @@
+{"version":3,"file":"catch.d.ts","sourceRoot":"","sources":["../../../src/procedures/core/catch.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;;;;;;;;;;;;GAyBG;AAEH,OAAO,KAAK,EAAE,gBAAgB,EAAiB,MAAM,uBAAuB,CAAC;AAQ7E,OAAO,KAAK,EAAE,cAAc,EAAE,eAAe,EAAE,MAAM,gBAAgB,CAAC;AAEtE;;GAEG;AACH,wBAAsB,SAAS,CAC7B,KAAK,EAAE,cAAc,EACrB,GAAG,EAAE,gBAAgB,GACpB,OAAO,CAAC,eAAe,CAAC,CA0F1B"}
