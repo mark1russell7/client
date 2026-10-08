@@ -7,7 +7,7 @@
 
 import type { AnyProcedure, ProcedurePath } from "../procedures/types.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
-import type { Route, RouteLeaf, RouteNode } from "./call-types.js";
+import type { Route, RouteNode } from "./call-types.js";
 import { flattenRoute } from "./call-types.js";
 
 // =============================================================================
@@ -22,8 +22,8 @@ export interface ResolvedRoute {
   path: ProcedurePath;
   /** The procedure definition */
   procedure: AnyProcedure;
-  /** Input payload for the procedure */
-  input: RouteLeaf;
+  /** Input payload for the procedure handler (validated, with schema defaults) */
+  input: unknown;
 }
 
 /**
@@ -113,7 +113,10 @@ export class RouteResolver {
         continue;
       }
 
-      // Validate input if schema validation is enabled
+      // Validate input if schema validation is enabled. The handler gets the validated data
+      // (with schema defaults), as in exec() and on the server - not the raw leaf, which for
+      // an { in, out } leaf is the whole wrapper (BUGS-2026-07 H31).
+      let handlerInput: unknown = input;
       if (options.validateInput !== false) {
         const validationResult = procedure.input.safeParse(input);
 
@@ -129,12 +132,13 @@ export class RouteResolver {
           }
           continue;
         }
+        handlerInput = validationResult.data;
       }
 
       resolved.push({
         path,
         procedure,
-        input: entry.leaf,
+        input: handlerInput,
       });
     }
 
