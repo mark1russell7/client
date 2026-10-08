@@ -4,14 +4,13 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 176 across 29 namespaces. Loaded 24 package register(s).
+**Total procedures:** 162 across 28 namespaces. Loaded 22 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
 - [`client.*`](#client) — 15 procedure(s)
-- [`connection.*`](#connection) — 7 procedure(s)
 - [`core.*`](#core) — 1 procedure(s)
 - [`cue.*`](#cue) — 5 procedure(s)
 - [`dag.*`](#dag) — 1 procedure(s)
@@ -20,7 +19,7 @@
 - [`ecosystem.*`](#ecosystem) — 1 procedure(s)
 - [`fs.*`](#fs) — 11 procedure(s)
 - [`git.*`](#git) — 26 procedure(s)
-- [`lib.*`](#lib) — 7 procedure(s)
+- [`lib.*`](#lib) — 4 procedure(s)
 - [`log.*`](#log) — 7 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`manifest.*`](#manifest) — 1 procedure(s)
@@ -30,7 +29,7 @@
 - [`pnpm.*`](#pnpm) — 6 procedure(s)
 - [`procedure.*`](#procedure) — 11 procedure(s)
 - [`s3.*`](#s3) — 9 procedure(s)
-- [`server.*`](#server) — 12 procedure(s)
+- [`server.*`](#server) — 8 procedure(s)
 - [`shell.*`](#shell) — 3 procedure(s)
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
@@ -71,18 +70,6 @@
 | `client.reduce` | Reduce array to single value |
 | `client.throw` | Throw an error |
 | `client.tryCatch` | Try/catch wrapper for procedures |
-
-## connection
-
-| Procedure | Description |
-|-----------|-------------|
-| `connection.broadcast` | Call procedure on all connected clients |
-| `connection.call` | Call procedure on specific client |
-| `connection.get` | Get specific connection info |
-| `connection.list` | List all connected clients |
-| `connection.publish` | Publish data to topic subscribers |
-| `connection.subscribe` | Subscribe to a topic |
-| `connection.unsubscribe` | Unsubscribe from a topic |
 
 ## core
 
@@ -186,10 +173,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `lib.audit` | Audit ecosystem packages for issues |
-| `lib.install` | Install the entire ecosystem from manifest |
 | `lib.new` | Create a new package in the ecosystem |
-| `lib.pull` | Pull from remote for all packages |
-| `lib.refresh` | Refresh a package (install, build, commit, push) |
 | `lib.rename` | Rename a package across the ecosystem |
 | `lib.scan` | Scan for packages in the git directory |
 
@@ -305,10 +289,6 @@
 | `server.connections` | List outbound connections to remote peers |
 | `server.create` | Create a transport-agnostic peer that exposes procedures |
 | `server.disconnect` | Disconnect from a remote peer |
-| `server.mongo.connect` | Connect to MongoDB database |
-| `server.mongo.start` | Start MongoDB peer server |
-| `server.mongo.status` | Get MongoDB server status |
-| `server.mongo.stop` | Stop MongoDB peer server |
 | `server.start` | Start CLI server as background daemon |
 | `server.status` | Get CLI server status |
 | `server.stop` | Stop running CLI server |
@@ -358,6 +338,6 @@
 
 | Procedure | Description |
 |-----------|-------------|
-| `vitest.run` | Run vitest tests |
-| `vitest.watch` | Start vitest in watch mode |
+| `vitest.run` | Run vitest tests once (no shell; uses the project's own vitest) |
+| `vitest.watch` | Start vitest in watch mode (no shell; uses the project's own vitest) |
 

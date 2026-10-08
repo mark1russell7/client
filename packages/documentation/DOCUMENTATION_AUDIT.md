@@ -1,5 +1,11 @@
 # Documentation Audit Report
 
+> **Written before the monorepo move (October 2026). Read it as history.**
+> The client packages now live in one repository: `~/git/client`, one folder per package in `packages/`.
+> `lib.install`, `lib.pull`, `lib.refresh`, the ecosystem manifest and several dead packages were removed.
+> For the current state, see the repository [README](../../README.md), [PACKAGES.md](./PACKAGES.md) and
+> [PROCEDURES.md](./PROCEDURES.md) (both generated), and [DECISIONS-2026-10.md](./DECISIONS-2026-10.md).
+
 > Honest assessment of the current state of documentation across the Mark ecosystem.
 
 **Audit Date:** 2026-01-19

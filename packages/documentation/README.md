@@ -1,5 +1,11 @@
 # Mark Ecosystem Documentation
 
+> **Written before the monorepo move (October 2026). Read it as history.**
+> The client packages now live in one repository: `~/git/client`, one folder per package in `packages/`.
+> `lib.install`, `lib.pull`, `lib.refresh`, the ecosystem manifest and several dead packages were removed.
+> For the current state, see the repository [README](../../README.md), [PACKAGES.md](./PACKAGES.md) and
+> [PROCEDURES.md](./PROCEDURES.md) (both generated), and [DECISIONS-2026-10.md](./DECISIONS-2026-10.md).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
