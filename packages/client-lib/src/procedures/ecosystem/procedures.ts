@@ -24,7 +24,7 @@ export const EcosystemProceduresInputSchema: z.ZodObject<{
   namespace: z.ZodOptional<z.ZodString>;
   includeMetadata: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
-  /** Root path to scan (defaults to ~/git) */
+  /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
   rootPath: z.string().optional(),
   /** Filter by namespace prefix */
   namespace: z.string().optional(),

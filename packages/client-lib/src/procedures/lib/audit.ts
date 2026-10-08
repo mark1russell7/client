@@ -1,14 +1,11 @@
 /**
  * lib.audit procedure
  *
- * Validates all registered packages against the ecosystem's projectTemplate.
- * Reads the template from ecosystem.manifest.json (single source of truth).
+ * Validates the workspace packages against the package template, and checks for
+ * pnpm settings that do not work in a workspace.
  */
 
-import { join } from "node:path";
-import { homedir } from "node:os";
-
-
+import { basename, join } from "node:path";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type {
   LibAuditInput,
@@ -16,6 +13,8 @@ import type {
   PackageAuditResult,
   PnpmIssue,
 } from "../../types.js";
+import { libScan } from "./scan.js";
+import { resolveWorkspaceRoot } from "../../workspace.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
 interface FsReadJsonOutput { path: string; data: unknown; }
@@ -23,27 +22,19 @@ interface FsWriteOutput { path: string; bytesWritten: number; }
 interface FsMkdirOutput { path: string; created: boolean; }
 
 /**
- * Ecosystem manifest structure
+ * The files and folders every client package has. dist/ is not in the list:
+ * it is build output and does not exist before `pnpm build`.
  */
-interface EcosystemManifest {
-  version: string;
-  root: string;
-  packages: Record<string, { repo: string; path: string }>;
-  projectTemplate: {
-    files: string[];
-    dirs: string[];
-  };
-}
+export const PACKAGE_TEMPLATE: { files: string[]; dirs: string[] } = {
+  files: ["package.json", "tsconfig.json", "dependencies.json", ".gitignore"],
+  dirs: ["src"],
+};
 
 /**
- * Resolve ~ to home directory
+ * Folders under packages/ that are not client packages.
+ * packages/cli holds the repository tool from the template, which does not use cue-config.
  */
-function resolveRoot(root: string): string {
-  if (root.startsWith("~/")) {
-    return join(homedir(), root.slice(2));
-  }
-  return root;
-}
+const NOT_CLIENT_PACKAGES = new Set(["cli"]);
 
 /**
  * Check if path exists
@@ -67,86 +58,65 @@ interface PackageJson {
   name?: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
-  pnpm?: {
-    onlyBuiltDependencies?: string[];
-  };
+  peerDependencies?: Record<string, string>;
+  pnpm?: unknown;
 }
 
 /**
- * Check for pnpm configuration issues
+ * Check for pnpm configuration that does not work in a workspace
  */
-async function checkPnpmIssues(pkgPath: string, ctx: ProcedureContext): Promise<PnpmIssue[]> {
+async function checkPnpmIssues(
+  pkgPath: string,
+  workspacePackages: Set<string>,
+  ctx: ProcedureContext
+): Promise<PnpmIssue[]> {
   const issues: PnpmIssue[] = [];
 
-  // Check for npm lockfile (should use pnpm)
-  const npmLockPath = join(pkgPath, "package-lock.json");
-  if (await pathExists(npmLockPath, ctx)) {
+  if (await pathExists(join(pkgPath, "package-lock.json"), ctx)) {
     issues.push({
       type: "npm-lockfile",
-      message: "Found package-lock.json - should use pnpm-lock.yaml instead",
+      message: "Found package-lock.json - the workspace uses the root pnpm-lock.yaml",
     });
   }
-
-  // Read package.json to check for GitHub deps
-  const pkgJsonPath = join(pkgPath, "package.json");
-  if (!(await pathExists(pkgJsonPath, ctx))) {
-    return issues;
+  if (await pathExists(join(pkgPath, "pnpm-lock.yaml"), ctx)) {
+    issues.push({
+      type: "package-lockfile",
+      message: "Found a per-package pnpm-lock.yaml - the workspace uses the root pnpm-lock.yaml",
+    });
   }
 
   let pkgJson: PackageJson;
   try {
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
       ["fs", "read.json"],
-      { path: pkgJsonPath }
+      { path: join(pkgPath, "package.json") }
     );
     pkgJson = result.data as PackageJson;
   } catch {
     return issues;
   }
 
-  // Find GitHub dependencies that need build scripts
-  const allDeps = {
-    ...pkgJson.dependencies,
-    ...pkgJson.devDependencies,
-  };
-
-  const githubDeps: string[] = [];
-  for (const [name, version] of Object.entries(allDeps)) {
-    if (version.includes("github:") || version.includes("git+") || version.includes("git://")) {
-      githubDeps.push(name);
-    }
+  if (pkgJson.pnpm !== undefined) {
+    issues.push({
+      type: "ignored-pnpm-field",
+      message: 'The "pnpm" field of a workspace package is ignored - use the root pnpm-workspace.yaml',
+    });
   }
 
-  if (githubDeps.length === 0) {
-    return issues;
-  }
-
-  // Check if pnpm.onlyBuiltDependencies includes these packages
-  const allowedBuilt = pkgJson.pnpm?.onlyBuiltDependencies ?? [];
-
-  for (const dep of githubDeps) {
-    if (!allowedBuilt.includes(dep)) {
-      issues.push({
-        type: "missing-onlyBuiltDependencies",
-        message: `GitHub dependency "${dep}" needs pnpm.onlyBuiltDependencies entry`,
-        package: dep,
-      });
+  // A dependency on another workspace package must use the workspace link, not a git reference
+  for (const deps of [pkgJson.dependencies, pkgJson.devDependencies, pkgJson.peerDependencies]) {
+    for (const [name, spec] of Object.entries(deps ?? {})) {
+      if (workspacePackages.has(name) && !spec.startsWith("workspace:")) {
+        issues.push({
+          type: "not-workspace-link",
+          message: `"${name}" is a workspace package but the dependency is "${spec}" - use "workspace:*"`,
+          package: name,
+        });
+      }
     }
   }
 
   return issues;
-}
-
-/**
- * Load ecosystem manifest
- */
-async function loadManifest(rootPath: string, ctx: ProcedureContext): Promise<EcosystemManifest> {
-  const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
-  const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-    ["fs", "read.json"],
-    { path: manifestPath }
-  );
-  return result.data as EcosystemManifest;
 }
 
 /**
@@ -156,6 +126,7 @@ async function auditPackage(
   pkgPath: string,
   pkgName: string,
   template: { files: string[]; dirs: string[] },
+  workspacePackages: Set<string>,
   fix: boolean,
   ctx: ProcedureContext
 ): Promise<PackageAuditResult> {
@@ -220,7 +191,7 @@ async function auditPackage(
   }
 
   // Check pnpm configuration
-  const pnpmIssues = await checkPnpmIssues(pkgPath, ctx);
+  const pnpmIssues = await checkPnpmIssues(pkgPath, workspacePackages, ctx);
 
   // Remove fixed items from missing lists
   const stillMissingFiles = missingFiles.filter((f) => !fixedFiles.includes(f));
@@ -242,48 +213,33 @@ async function auditPackage(
 }
 
 /**
- * Audit all packages in the ecosystem against projectTemplate
+ * Audit all client packages of the workspace against the package template
  */
 export async function libAudit(input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput> {
-  const defaultRoot = join(homedir(), "git");
-  const rootPath = input.rootPath ?? defaultRoot;
+  const template = PACKAGE_TEMPLATE;
+  const empty: LibAuditOutput = {
+    success: false,
+    template,
+    results: [],
+    summary: { total: 0, valid: 0, invalid: 0 },
+  };
 
-  // Load manifest
-  let manifest: EcosystemManifest;
+  let rootPath: string;
   try {
-    manifest = await loadManifest(rootPath, ctx);
-  } catch (error) {
-    return {
-      success: false,
-      template: { files: [], dirs: [] },
-      results: [],
-      summary: { total: 0, valid: 0, invalid: 0 },
-    };
+    rootPath = resolveWorkspaceRoot(input.rootPath);
+  } catch {
+    return empty;
   }
 
-  const resolvedRoot = resolveRoot(manifest.root);
-  const template = manifest.projectTemplate;
+  const scan = await libScan({ rootPath }, ctx);
+  const workspacePackages = new Set(Object.keys(scan.packages));
   const results: PackageAuditResult[] = [];
 
-  // Audit each registered package
-  for (const [pkgName, entry] of Object.entries(manifest.packages)) {
-    const pkgPath = join(resolvedRoot, entry.path);
-
-    // Skip if package directory doesn't exist
-    if (!(await pathExists(pkgPath, ctx))) {
-      results.push({
-        name: pkgName,
-        path: pkgPath,
-        valid: false,
-        missingFiles: ["(package not cloned)"],
-        missingDirs: [],
-        pnpmIssues: [],
-      });
+  for (const info of Object.values(scan.packages)) {
+    if (NOT_CLIENT_PACKAGES.has(basename(info.repoPath))) {
       continue;
     }
-
-    const result = await auditPackage(pkgPath, pkgName, template, input.fix, ctx);
-    results.push(result);
+    results.push(await auditPackage(info.repoPath, info.name, template, workspacePackages, input.fix, ctx));
   }
 
   const validCount = results.filter((r) => r.valid).length;

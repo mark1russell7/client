@@ -13,15 +13,17 @@
  * await client.call(["lib", "rename"], {
  *   oldName: "client",
  *   newName: "@mark1russell7/client",
- *   rootPath: "~/git",
  *   dryRun: true, // Preview changes without applying
  * });
  * ```
+ *
+ * The search root is `rootPath`, or else the workspace that contains client-lib.
  */
 
 import { Project, SyntaxKind } from "ts-morph";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibRenameInput, LibRenameOutput, RenameChange } from "../../types.js";
+import { resolveWorkspaceRoot } from "../../workspace.js";
 
 interface FsGlobOutput { pattern: string; files: string[]; count: number; }
 interface FsExistsOutput { exists: boolean; path: string; }
@@ -254,13 +256,23 @@ function updateTypeScriptImports(
  * Execute the lib.rename procedure
  */
 export async function libRename(input: LibRenameInput, ctx: ProcedureContext): Promise<LibRenameOutput> {
-  const { oldName, newName, rootPath = process.env["HOME"] + "/git", dryRun = false } = input;
+  const { oldName, newName, dryRun = false } = input;
 
   const changes: RenameChange[] = [];
   const errors: string[] = [];
 
-  // Resolve path
-  const resolvedRoot = rootPath.replace(/^~/, process.env["HOME"] ?? "");
+  // Resolve path: the given root, else the workspace that contains client-lib
+  let resolvedRoot: string;
+  try {
+    resolvedRoot = resolveWorkspaceRoot(input.rootPath);
+  } catch (error) {
+    return {
+      success: false,
+      changes: [],
+      errors: [error instanceof Error ? error.message : String(error)],
+      summary: { packageNames: 0, dependencies: 0, imports: 0, total: 0 },
+    };
+  }
 
   const existsResult = await ctx.client.call<{ path: string }, FsExistsOutput>(
     ["fs", "exists"],

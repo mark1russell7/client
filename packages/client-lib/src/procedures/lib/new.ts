@@ -1,86 +1,93 @@
 /**
  * lib.new procedure
  *
- * Creates a new package with standard ecosystem structure.
- * Reads projectTemplate from ecosystem.manifest.json (single source of truth).
- * Uses fs.* and git.* procedures via ctx.client.call() for all operations.
+ * Creates a new client package in the workspace, at packages/<name>, with the
+ * structure the other client packages have: cue-config files, src/index.ts,
+ * src/register.ts, the "./register" export and the "client.procedures" field.
+ * Uses fs.* and shell.* procedures via ctx.client.call() for all operations.
  *
- * @deprecated This imperative implementation is deprecated.
- * Use the aggregation version via `registerAggregationProcedures()` instead:
- * - Import: `import { registerAggregationProcedures } from "@mark1russell7/client-lib"`
- * - Register: `await registerAggregationProcedures(client)`
- * - Call: `await client.call(["agg", "lib", "new"], input)`
- *
- * The aggregation version (libNewAggregation) provides:
- * - Declarative JSON-serializable definition
- * - Runtime introspection
- * - Consistent error handling via the aggregation executor
- *
- * This imperative version will be removed in v2.0.
+ * After it, run `pnpm install` and `pnpm build` in the workspace root.
  */
 
 import { join } from "node:path";
-import { homedir } from "node:os";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibNewInput, LibNewOutput } from "../../types.js";
+import { packagesDir, resolveWorkspaceRoot } from "../../workspace.js";
 
-/**
- * Ecosystem manifest structure
- */
-interface EcosystemManifest {
-  version: string;
-  root: string;
-  packages: Record<string, { repo: string; path: string }>;
-  projectTemplate: {
-    files: string[];
-    dirs: string[];
-  };
+interface ShellRunOutput {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  success: boolean;
 }
 
-/**
- * Resolve ~ to home directory
- */
-function resolveRoot(root: string): string {
-  if (root.startsWith("~/")) {
-    return join(homedir(), root.slice(2));
-  }
-  return root;
-}
+const INDEX_TS = `// Entry point
+export {};
+`;
 
-/**
- * Create a new package with standard ecosystem structure
+function registerTs(name: string): string {
+  return `/**
+ * Procedure registration for ${name}
  *
- * @deprecated Use libNewAggregation via registerAggregationProcedures() instead.
- * This imperative version will be removed in v2.0.
+ * Add each procedure of this package to the registerProcedures() array.
+ * Scaffold a procedure with: mark procedure new <name> --path packages/${name}
+ */
+
+import { registerProcedures } from "@mark1russell7/client";
+
+export function register(): void {
+  registerProcedures([]);
+}
+
+// Auto-register
+register();
+`;
+}
+
+/**
+ * Run the workspace's cue-config CLI (not npx: a new package has no node_modules,
+ * and npx would download an unrelated package from the registry).
+ */
+async function runCueConfig(
+  cueCli: string,
+  args: string[],
+  cwd: string,
+  ctx: ProcedureContext
+): Promise<void> {
+  const result = await ctx.client.call<
+    { command: string; args: string[]; cwd: string },
+    ShellRunOutput
+  >(["shell", "run"], { command: process.execPath, args: [cueCli, ...args], cwd });
+  if (!result.success) {
+    throw new Error(`cue-config ${args.join(" ")} failed (exit ${result.exitCode}): ${result.stderr || result.stdout}`);
+  }
+}
+
+/**
+ * Create a new client package in the workspace
  */
 export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise<LibNewOutput> {
   const operations: string[] = [];
   const created: string[] = [];
   const errors: string[] = [];
-
-  const rootPath = resolveRoot(input.rootPath ?? "~/git");
-  const packagePath = join(rootPath, input.name);
   const packageName = `@mark1russell7/${input.name}`;
 
-  // Load manifest to get projectTemplate (single source of truth)
-  let manifest: EcosystemManifest | null = null;
-  const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
+  let rootPath: string;
   try {
-    const result = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
-      ["fs", "read.json"],
-      { path: manifestPath }
-    );
-    manifest = result.data as EcosystemManifest;
-  } catch {
-    // Manifest doesn't exist, will use defaults
+    rootPath = resolveWorkspaceRoot(input.rootPath);
+  } catch (error) {
+    return {
+      success: false,
+      packageName,
+      packagePath: "",
+      created: [],
+      operations: [],
+      errors: [error instanceof Error ? error.message : String(error)],
+    };
   }
-  const template = manifest?.projectTemplate ?? {
-    files: ["package.json", "tsconfig.json", "dependencies.json", ".gitignore"],
-    dirs: ["src", "dist"],
-  };
 
-  // Filter out 'dist' from required dirs (created on build)
-  const requiredDirs = template.dirs.filter((d) => d !== "dist");
+  const packagePath = join(packagesDir(rootPath), input.name);
+  const cueCli = join(rootPath, "node_modules", "@mark1russell7", "cue", "dist", "cli.js");
 
   // Check if package already exists
   const existsResult = await ctx.client.call<{ path: string }, { exists: boolean; path: string }>(
@@ -98,194 +105,96 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     };
   }
 
+  const files = [
+    join(packagePath, "src", "index.ts"),
+    join(packagePath, "src", "register.ts"),
+    join(packagePath, "dependencies.json"),
+    join(packagePath, "package.json"),
+    join(packagePath, "tsconfig.json"),
+    join(packagePath, ".gitignore"),
+  ];
+
   if (input.dryRun) {
-    const dryRunCreated = [
-      `${packagePath}/`,
-      ...requiredDirs.map((d) => `${packagePath}/${d}/`),
-      `${packagePath}/src/index.ts`,
-      ...template.files.map((f) => `${packagePath}/${f}`),
-    ];
     return {
       success: true,
       packageName,
       packagePath,
-      created: dryRunCreated,
+      created: [`${packagePath}/`, `${join(packagePath, "src")}/`, ...files],
       operations: [
-        `Using projectTemplate from ${manifest ? "ecosystem.manifest.json" : "defaults"}`,
-        "Would create directory structure",
+        "Would create packages/" + input.name + " with src/index.ts and src/register.ts",
         `Would run cue-config init --preset ${input.preset}`,
         "Would run cue-config generate",
-        ...(input.skipGit ? [] : ["Would run git init", "Would create GitHub repo", "Would push to origin"]),
-        ...(input.skipManifest ? [] : ["Would add to ecosystem manifest"]),
+        `Would set the package name to ${packageName}, the exports, client.procedures and the client dependency`,
+        "Then run pnpm install and pnpm build in the workspace root",
       ],
       errors: [],
     };
   }
 
   try {
-    // Step 1: Create directory structure from template
-    operations.push(`Using projectTemplate from ${manifest ? "ecosystem.manifest.json" : "defaults"}`);
+    // Step 1: Create the folders and the source files
     operations.push("Creating directory structure");
     await ctx.client.call<{ path: string; recursive?: boolean }, { path: string; created: boolean }>(
       ["fs", "mkdir"],
-      { path: packagePath, recursive: true }
+      { path: join(packagePath, "src"), recursive: true }
     );
-    created.push(`${packagePath}/`);
+    created.push(`${packagePath}/`, `${join(packagePath, "src")}/`);
 
-    // Create required directories from template
-    for (const dir of requiredDirs) {
-      const dirPath = join(packagePath, dir);
-      await ctx.client.call<{ path: string; recursive?: boolean }, { path: string; created: boolean }>(
-        ["fs", "mkdir"],
-        { path: dirPath, recursive: true }
-      );
-      created.push(`${dirPath}/`);
-    }
-
-    // Create entry point in src if src exists
-    if (requiredDirs.includes("src")) {
-      const indexPath = join(packagePath, "src", "index.ts");
+    for (const [file, content] of [
+      [join(packagePath, "src", "index.ts"), INDEX_TS],
+      [join(packagePath, "src", "register.ts"), registerTs(input.name)],
+    ] as const) {
       await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
         ["fs", "write"],
-        { path: indexPath, content: "// Entry point\nexport {};\n" }
+        { path: file, content }
       );
-      created.push(indexPath);
+      created.push(file);
     }
 
-    // Step 2: Run cue-config init
+    // Step 2: cue-config init and generate (dependencies.json, package.json, tsconfig.json, .gitignore)
     operations.push(`Running cue-config init --preset ${input.preset}`);
-    await ctx.client.call<
-      { command: string; cwd?: string },
-      { exitCode: number; stdout: string; stderr: string }
-    >(["shell", "exec"], {
-      command: `npx cue-config init --preset ${input.preset} --force`,
-      cwd: packagePath,
-    });
+    await runCueConfig(cueCli, ["init", "--preset", input.preset, "--force"], packagePath, ctx);
     created.push(join(packagePath, "dependencies.json"));
 
-    // Step 3: Run cue-config generate
     operations.push("Running cue-config generate");
-    await ctx.client.call<
-      { command: string; cwd?: string },
-      { exitCode: number; stdout: string; stderr: string }
-    >(["shell", "exec"], {
-      command: "npx cue-config generate",
-      cwd: packagePath,
-    });
-    created.push(join(packagePath, "package.json"));
-    created.push(join(packagePath, "tsconfig.json"));
-    created.push(join(packagePath, ".gitignore"));
+    await runCueConfig(cueCli, ["generate"], packagePath, ctx);
+    created.push(join(packagePath, "package.json"), join(packagePath, "tsconfig.json"), join(packagePath, ".gitignore"));
 
-    // Step 3.5: cue-config generate writes package.json with the CUE default name ("unnamed").
-    // Patch in the real package name before git init/commit so the package is valid on disk.
-    // See documentation/BUGS-2026-07.md (C5).
-    operations.push("Setting package name");
+    // Step 3: cue-config writes the CUE default name ("unnamed") and no client fields.
+    // Set what a client package needs (see documentation/BUGS-2026-07.md, C5).
+    operations.push("Setting the package fields");
     const pkgJsonPath = join(packagePath, "package.json");
-    try {
-      const pkgReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
-        ["fs", "read.json"],
-        { path: pkgJsonPath }
-      );
-      const pkgJson = (pkgReadResult.data ?? {}) as Record<string, unknown>;
-      if (pkgJson["name"] !== packageName) {
-        pkgJson["name"] = packageName;
-        await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
-          ["fs", "write"],
-          { path: pkgJsonPath, content: JSON.stringify(pkgJson, null, 2) + "\n" }
-        );
-        operations.push(`Set package name to ${packageName}`);
-      }
-    } catch (nameError) {
-      errors.push(
-        `Failed to set package name: ${nameError instanceof Error ? nameError.message : String(nameError)}`
-      );
-    }
-
-    // Step 4: Git operations
-    if (!input.skipGit) {
-      operations.push("Initializing git repository");
-      await ctx.client.call<{ cwd?: string }, { path: string; created: boolean }>(
-        ["git", "init"],
-        { cwd: packagePath }
-      );
-
-      await ctx.client.call<{ paths?: string[]; all?: boolean; cwd?: string }, { staged: string[] }>(
-        ["git", "add"],
-        { all: true, cwd: packagePath }
-      );
-
-      await ctx.client.call<{ message: string; cwd?: string }, { hash: string; message: string; author: string; date: string }>(
-        ["git", "commit"],
-        { message: "Initial commit", cwd: packagePath }
-      );
-
-      operations.push("Creating GitHub repository");
-      try {
-        await ctx.client.call<
-          { command: string; cwd?: string },
-          { exitCode: number; stdout: string; stderr: string }
-        >(["shell", "exec"], {
-          command: `gh repo create mark1russell7/${input.name} --private --source . --push`,
-          cwd: packagePath,
-        });
-        operations.push("Pushed to GitHub");
-      } catch (ghError) {
-        // GitHub repo might already exist or gh not available
-        errors.push(`GitHub repo creation may have failed: ${ghError}`);
-      }
-    }
-
-    // Step 5: Add to ecosystem manifest
-    if (!input.skipManifest) {
-      operations.push("Adding to ecosystem manifest");
-      const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
-
-      const manifestExistsResult = await ctx.client.call<{ path: string }, { exists: boolean }>(
-        ["fs", "exists"],
-        { path: manifestPath }
-      );
-
-      if (manifestExistsResult.exists) {
-        const manifestReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
-          ["fs", "read.json"],
-          { path: manifestPath }
-        );
-        const manifest = manifestReadResult.data as EcosystemManifest;
-
-        if (!manifest.packages[packageName]) {
-          manifest.packages[packageName] = {
-            repo: `github:mark1russell7/${input.name}#main`,
-            path: input.name,
-          };
-          await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
-            ["fs", "write"],
-            { path: manifestPath, content: JSON.stringify(manifest, null, 2) + "\n" }
-          );
-          operations.push(`Added ${packageName} to ecosystem manifest`);
-        } else {
-          operations.push(`${packageName} already in ecosystem manifest`);
-        }
-      } else {
-        errors.push("Ecosystem manifest not found, skipping");
-      }
-    }
-
-    return {
-      success: errors.length === 0,
-      packageName,
-      packagePath,
-      created,
-      operations,
-      errors,
+    const pkgReadResult = await ctx.client.call<{ path: string }, { path: string; data: unknown }>(
+      ["fs", "read.json"],
+      { path: pkgJsonPath }
+    );
+    const pkgJson = (pkgReadResult.data ?? {}) as Record<string, unknown>;
+    pkgJson["name"] = packageName;
+    pkgJson["exports"] = {
+      ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+      "./register": { types: "./dist/register.d.ts", import: "./dist/register.js" },
     };
+    pkgJson["client"] = { procedures: "./dist/register.js" };
+    pkgJson["dependencies"] = {
+      ...((pkgJson["dependencies"] as Record<string, string> | undefined) ?? {}),
+      "@mark1russell7/client": "workspace:*",
+      zod: "^3.24.0",
+    };
+    await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
+      ["fs", "write"],
+      { path: pkgJsonPath, content: JSON.stringify(pkgJson, null, 2) + "\n" }
+    );
+    operations.push(`Created ${packageName}. Next: run pnpm install and pnpm build in ${rootPath}`);
   } catch (error) {
-    return {
-      success: false,
-      packageName,
-      packagePath,
-      created,
-      operations,
-      errors: [...errors, error instanceof Error ? error.message : String(error)],
-    };
+    errors.push(error instanceof Error ? error.message : String(error));
   }
+
+  return {
+    success: errors.length === 0,
+    packageName,
+    packagePath,
+    created,
+    operations,
+    errors,
+  };
 }

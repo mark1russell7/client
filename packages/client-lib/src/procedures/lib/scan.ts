@@ -1,54 +1,50 @@
 /**
  * lib.scan procedure
  *
- * Scans ecosystem packages using ecosystem.manifest.json as the source of truth.
- * Only processes packages listed in the manifest - does NOT scan arbitrary directories.
+ * Scans the packages of the workspace (`<root>/packages/*`). The root is the pnpm
+ * workspace that contains client-lib, unless the input gives `rootPath`.
+ * All packages share one git repository, so the branch and the remote are read once.
  */
 
 import { join } from "node:path";
-import { homedir } from "node:os";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibScanInput, LibScanOutput, PackageInfo } from "../../types.js";
-import { isMark1Russell7Ref } from "../../git/index.js";
+import { extractEcosystemDeps, packagesDir, resolveWorkspaceRoot } from "../../workspace.js";
 
-interface FsExistsOutput { exists: boolean; path: string; }
-interface FsReadJsonOutput { path: string; data: unknown; }
-interface GitStatusOutput { branch: string; }
-interface GitRemoteOutput { name: string; url: string; }
+interface FsReadJsonOutput {
+  path: string;
+  data: unknown;
+}
 
-interface EcosystemManifest {
-  version: string;
-  root: string;
-  packages: Record<string, { repo: string; path: string }>;
+interface FsReaddirOutput {
+  path: string;
+  entries: Array<{ name: string; path: string; type: string }>;
+}
+
+interface GitStatusOutput {
+  branch: string;
+}
+
+interface GitRemoteOutput {
+  name: string;
+  url: string;
 }
 
 interface PackageJson {
   name?: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
-}
-
-const DEFAULT_ROOT = join(homedir(), "git");
-
-/**
- * Resolve ~ to home directory
- */
-function resolveRoot(root: string): string {
-  if (root.startsWith("~/")) {
-    return join(homedir(), root.slice(2));
-  }
-  return root;
+  peerDependencies?: Record<string, string>;
 }
 
 /**
- * Read and parse package.json
+ * Read and parse package.json from a directory using fs.read.json
  */
 async function readPackageJson(dirPath: string, ctx: ProcedureContext): Promise<PackageJson | null> {
   try {
-    const pkgPath = join(dirPath, "package.json");
     const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
       ["fs", "read.json"],
-      { path: pkgPath }
+      { path: join(dirPath, "package.json") }
     );
     return result.data as PackageJson;
   } catch {
@@ -57,153 +53,90 @@ async function readPackageJson(dirPath: string, ctx: ProcedureContext): Promise<
 }
 
 /**
- * Extract mark1russell7 dependencies from a package.json
+ * Read the branch and the origin remote of the repository that holds the workspace
  */
-function extractMark1Russell7Deps(pkg: PackageJson): string[] {
-  const deps: string[] = [];
-  const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-
-  for (const [name, version] of Object.entries(allDeps)) {
-    if (isMark1Russell7Ref(version)) {
-      deps.push(name);
-    }
-  }
-
-  return deps;
-}
-
-/**
- * Load the ecosystem manifest
- */
-async function loadManifest(rootPath: string, ctx: ProcedureContext): Promise<EcosystemManifest | null> {
-  try {
-    const manifestPath = join(rootPath, "ecosystem", "ecosystem.manifest.json");
-    const result = await ctx.client.call<{ path: string }, FsReadJsonOutput>(
-      ["fs", "read.json"],
-      { path: manifestPath }
-    );
-    return result.data as EcosystemManifest;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Scan a single package from the manifest
- */
-async function scanPackage(
-  packageName: string,
-  manifestEntry: { repo: string; path: string },
+async function readRepositoryInfo(
   rootPath: string,
   ctx: ProcedureContext
-): Promise<{ info: PackageInfo | null; warning: { path: string; issue: string } | null }> {
-  const pkgPath = join(rootPath, manifestEntry.path);
-
-  // Check if the package exists on disk
+): Promise<{ branch?: string; remote?: string; warning?: string }> {
   try {
-    const existsResult = await ctx.client.call<{ path: string }, FsExistsOutput>(
-      ["fs", "exists"],
-      { path: pkgPath }
-    );
-    if (!existsResult.exists) {
-      return {
-        info: null,
-        warning: { path: pkgPath, issue: `Package directory does not exist` },
-      };
-    }
-  } catch (error) {
-    return {
-      info: null,
-      warning: { path: pkgPath, issue: `Failed to check existence: ${error instanceof Error ? error.message : String(error)}` },
-    };
-  }
-
-  // Read package.json
-  const pkg = await readPackageJson(pkgPath, ctx);
-  if (!pkg) {
-    return {
-      info: null,
-      warning: { path: pkgPath, issue: `Failed to read package.json` },
-    };
-  }
-
-  const actualName = pkg.name ?? packageName;
-  const mark1russell7Deps = extractMark1Russell7Deps(pkg);
-
-  // Get git status
-  try {
-    const statusResult = await ctx.client.call<{ cwd?: string }, GitStatusOutput>(
-      ["git", "status"],
-      { cwd: pkgPath }
-    );
-    const currentBranch = statusResult.branch;
-
-    let gitRemote: string | undefined;
+    const status = await ctx.client.call<{ cwd?: string }, GitStatusOutput>(["git", "status"], { cwd: rootPath });
+    let remote: string | undefined;
     try {
-      const remoteResult = await ctx.client.call<{ cwd?: string; name?: string }, GitRemoteOutput>(
+      const result = await ctx.client.call<{ cwd?: string; name?: string }, GitRemoteOutput>(
         ["git", "remote"],
-        { cwd: pkgPath, name: "origin" }
+        { cwd: rootPath, name: "origin" }
       );
-      gitRemote = remoteResult.url;
+      remote = result.url;
     } catch {
-      // No remote configured
+      // No remote configured - that's fine
     }
-
-    const pkgInfo: PackageInfo = {
-      name: actualName,
-      repoPath: pkgPath,
-      currentBranch,
-      mark1russell7Deps,
-    };
-    if (gitRemote !== undefined) {
-      pkgInfo.gitRemote = gitRemote;
-    }
-
-    return { info: pkgInfo, warning: null };
+    return remote === undefined ? { branch: status.branch } : { branch: status.branch, remote };
   } catch (error) {
-    // Git not initialized - this is a warning but still return the package info
-    return {
-      info: {
-        name: actualName,
-        repoPath: pkgPath,
-        mark1russell7Deps,
-      },
-      warning: { path: pkgPath, issue: `Git not initialized: ${error instanceof Error ? error.message : String(error)}` },
-    };
+    return { warning: `Git not initialized: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
 
 /**
- * Scan for packages using the ecosystem manifest as the source of truth
+ * Scan the workspace packages
  */
 export async function libScan(input: LibScanInput, ctx: ProcedureContext): Promise<LibScanOutput> {
-  const rootPath = input.rootPath ?? DEFAULT_ROOT;
   const packages: Record<string, PackageInfo> = {};
   const warnings: Array<{ path: string; issue: string }> = [];
 
-  // Load the manifest
-  const manifest = await loadManifest(rootPath, ctx);
-  if (!manifest) {
+  let rootPath: string;
+  try {
+    rootPath = resolveWorkspaceRoot(input.rootPath);
+  } catch (error) {
     warnings.push({
-      path: join(rootPath, "ecosystem", "ecosystem.manifest.json"),
-      issue: "Failed to load ecosystem manifest - no packages to scan",
+      path: input.rootPath ?? process.cwd(),
+      issue: error instanceof Error ? error.message : String(error),
     });
     return { packages, warnings };
   }
 
-  // Resolve the manifest root (might be ~/git)
-  const manifestRoot = resolveRoot(manifest.root);
+  const dir = packagesDir(rootPath);
+  let entries: FsReaddirOutput["entries"];
+  try {
+    const result = await ctx.client.call<{ path: string }, FsReaddirOutput>(["fs", "readdir"], { path: dir });
+    entries = result.entries.filter((entry) => entry.type === "directory");
+  } catch (error) {
+    warnings.push({
+      path: dir,
+      issue: `Failed to list workspace packages: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    return { packages, warnings };
+  }
 
-  // Scan each package listed in the manifest
-  for (const [packageName, entry] of Object.entries(manifest.packages)) {
-    const result = await scanPackage(packageName, entry, manifestRoot, ctx);
+  const repository = await readRepositoryInfo(rootPath, ctx);
+  if (repository.warning) {
+    warnings.push({ path: rootPath, issue: repository.warning });
+  }
 
-    if (result.info) {
-      packages[result.info.name] = result.info;
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const pkgPath = join(dir, entry.name);
+    const pkg = await readPackageJson(pkgPath, ctx);
+    if (!pkg) {
+      warnings.push({ path: pkgPath, issue: "Failed to read package.json" });
+      continue;
     }
-    if (result.warning) {
-      warnings.push(result.warning);
+    if (!pkg.name) {
+      warnings.push({ path: pkgPath, issue: "package.json has no name" });
+      continue;
     }
+
+    const info: PackageInfo = {
+      name: pkg.name,
+      repoPath: pkgPath,
+      mark1russell7Deps: extractEcosystemDeps(pkg),
+    };
+    if (repository.branch !== undefined) {
+      info.currentBranch = repository.branch;
+    }
+    if (repository.remote !== undefined) {
+      info.gitRemote = repository.remote;
+    }
+    packages[pkg.name] = info;
   }
 
   return { packages, warnings };

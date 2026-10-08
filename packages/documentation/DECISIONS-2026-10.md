@@ -13,6 +13,22 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Retarget lib.scan, lib.new, lib.audit and lib.rename at the workspace (plan Phases 5.2 and 5.3)
+
+These procedures stay useful in one repository, so they now work on the pnpm workspace instead of `~/git` and the manifest. Their default root is the workspace that contains `client-lib`, and `rootPath` overrides it. A new helper module, `client-lib/src/workspace.ts`, finds the root.
+
+- `lib.scan` lists `packages/*`. It reads the branch and the remote once, because all packages share one repository. Its dependency edges include `workspace:*` links, so `dag.traverse` and `ecosystem.procedures` keep working.
+- `lib.new` creates `packages/<name>`. It no longer runs `git init` or `gh repo create --private --push`, and no longer edits the manifest. It now also writes `src/register.ts`, the `./register` export, `client.procedures` and the `workspace:*` dependency on `client`. This fixes the second half of C5: generated packages lacked `register.ts` and `client.procedures`.
+  - It runs `cue-config` from the workspace's own `node_modules` through `shell.run` with an argument list. Before, it ran `npx` through `shell.exec` with the preset interpolated into a command string. A new folder has no `node_modules`, so `npx` could download an unrelated `cue-config` from the registry, and the interpolation was the injection pattern of the July audit.
+  - The `--preset` value is now validated (lowercase letters, digits and hyphens).
+  - Verified for real: a scaffolded package installs, builds, and its `register.js` loads.
+- `lib.audit` uses a built-in template instead of the manifest. `dist/` is no longer required, because it does not exist before a build. It skips `packages/cli` (the template's repository tool).
+  - Its pnpm checks now look for problems that are real in a workspace: per-package lockfiles, per-package `pnpm` fields (pnpm ignores them), and `github:` references to packages of the workspace (they must be `workspace:*`).
+  - The old `onlyBuiltDependencies` check is gone. All 33 client packages pass.
+- `lib.rename` defaulted to `process.env.HOME + "/git"`. On Windows without `HOME` that was `"undefined/git"`.
+- The `skipGit` and `skipManifest` inputs of `lib.new` are gone. Zod strips unknown keys, so old callers do not fail.
+- New tests: 17, against temporary workspaces, with a fake client that serves `fs.*` from disk.
+
 ### Retire lib.install, lib.pull, lib.refresh and the aggregation layer (plan Phase 5.2)
 
 These procedures exist only because each package was its own git repository:

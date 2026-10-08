@@ -18,7 +18,7 @@ import type {
 export const LibScanInputSchema: z.ZodObject<{
   rootPath: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  /** Root path to scan for packages (defaults to ~/git) */
+  /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
   rootPath: z.string().optional(),
 });
 
@@ -27,13 +27,13 @@ export type LibScanInput = z.infer<typeof LibScanInputSchema>;
 export interface PackageInfo {
   /** Package name from package.json */
   name: string;
-  /** Absolute path to the repo */
+  /** Absolute path to the package folder */
   repoPath: string;
-  /** Git remote URL if available */
+  /** Git remote URL of the workspace repository, if available */
   gitRemote?: string | undefined;
-  /** Current branch */
+  /** Current branch of the workspace repository */
   currentBranch?: string | undefined;
-  /** mark1russell7 dependencies (package names) */
+  /** @mark1russell7 dependencies (package names): workspace links and github: references */
   mark1russell7Deps: string[];
 }
 
@@ -112,7 +112,7 @@ export const LibRenameInputSchema: z.ZodObject<{
   oldName: z.string(),
   /** New package name to rename to */
   newName: z.string(),
-  /** Root path to scan (defaults to ~/git) */
+  /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
   rootPath: z.string().optional(),
   /** Preview changes without applying (default: false) */
   dryRun: z.boolean().default(false),
@@ -159,20 +159,14 @@ export const LibNewInputSchema: z.ZodObject<{
   name: z.ZodString;
   preset: z.ZodDefault<z.ZodString>;
   rootPath: z.ZodOptional<z.ZodString>;
-  skipGit: z.ZodDefault<z.ZodBoolean>;
-  skipManifest: z.ZodDefault<z.ZodBoolean>;
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
   /** Package name (without @mark1russell7/ prefix) */
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens"),
   /** Feature preset to use */
-  preset: z.string().default("lib"),
-  /** Root path for packages (defaults to ~/git) */
+  preset: z.string().regex(/^[a-z][a-z0-9-]*$/, "Preset must be lowercase alphanumeric with hyphens").default("lib"),
+  /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
   rootPath: z.string().optional(),
-  /** Skip git init and GitHub repo creation */
-  skipGit: z.boolean().default(false),
-  /** Skip adding to ecosystem manifest */
-  skipManifest: z.boolean().default(false),
   /** Preview changes without creating */
   dryRun: z.boolean().default(false),
 });
@@ -202,7 +196,7 @@ export const LibAuditInputSchema: z.ZodObject<{
   rootPath: z.ZodOptional<z.ZodString>;
   fix: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
-  /** Root path for packages (defaults to ~/git) */
+  /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
   rootPath: z.string().optional(),
   /** Attempt to fix issues (create missing files/dirs) */
   fix: z.boolean().default(false),
@@ -212,10 +206,10 @@ export type LibAuditInput = z.infer<typeof LibAuditInputSchema>;
 
 export interface PnpmIssue {
   /** Type of pnpm issue */
-  type: "missing-onlyBuiltDependencies" | "npm-lockfile" | "missing-pnpm-config";
+  type: "npm-lockfile" | "package-lockfile" | "ignored-pnpm-field" | "not-workspace-link";
   /** Description of the issue */
   message: string;
-  /** Package that needs to be added to onlyBuiltDependencies */
+  /** The dependency the issue is about, if any */
   package?: string | undefined;
 }
 
