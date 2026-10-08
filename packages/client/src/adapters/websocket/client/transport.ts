@@ -12,10 +12,56 @@ import { WebSocketState } from "./types.js";
 /**
  * Pending request waiting for response.
  */
-interface PendingRequest<TRes> {
-  resolve: (items: AsyncIterable<ResponseItem<TRes>>) => void;
-  reject: (error: Error) => void;
-  timeout?: ReturnType<typeof setTimeout>;
+/**
+ * A queue with one writer (the message handler) and one reader (`for await`).
+ */
+class ItemQueue<T> {
+  private items: T[] = [];
+  private ended = false;
+  private failure: { error: Error } | undefined;
+  private wake: (() => void) | undefined;
+
+  push(item: T): void {
+    this.items.push(item);
+    this.notify();
+  }
+
+  end(): void {
+    this.ended = true;
+    this.notify();
+  }
+
+  fail(error: Error): void {
+    this.failure = { error };
+    this.notify();
+  }
+
+  private notify(): void {
+    const wake = this.wake;
+    this.wake = undefined;
+    wake?.();
+  }
+
+  async *[Symbol.asyncIterator](): AsyncGenerator<T, void, undefined> {
+    for (;;) {
+      if (this.items.length > 0) {
+        yield this.items.shift()!;
+        continue;
+      }
+      if (this.failure) throw this.failure.error;
+      if (this.ended) return;
+      await new Promise<void>((resolve) => {
+        this.wake = resolve;
+      });
+    }
+  }
+}
+
+interface PendingRequest {
+  /** The response items of the request, in order */
+  queue: ItemQueue<ResponseItem<unknown>>;
+  /** The request timeout: it runs until the first frame arrives */
+  timeout?: ReturnType<typeof setTimeout> | undefined;
 }
 
 /**
@@ -36,6 +82,15 @@ interface PendingRequest<TRes> {
  * const client = new Client({ transport });
  * ```
  */
+function abortedItem<TRes>(id: string): ResponseItem<TRes> {
+  return {
+    id,
+    status: { type: "error", code: "ABORTED", message: "Request was aborted", retryable: false },
+    payload: null as TRes,
+    metadata: {},
+  };
+}
+
 export class WebSocketTransport implements Transport {
   readonly name = "websocket";
 
@@ -64,7 +119,7 @@ export class WebSocketTransport implements Transport {
     onServerRequest: ServerRequestHandler | undefined;
     onEvent: EventHandler | undefined;
   };
-  private pendingRequests: Map<string, PendingRequest<any>> = new Map();
+  private pendingRequests: Map<string, PendingRequest> = new Map();
   /** Set by close(): the connection is being closed on purpose, so it must not reconnect */
   private closing = false;
   private reconnectAttempts = 0;
@@ -175,9 +230,9 @@ export class WebSocketTransport implements Transport {
       this.options.onDisconnect(reason);
     }
 
-    // Reject all pending requests
+    // Fail all pending requests (a stream ends with the error too)
     for (const pending of this.pendingRequests.values()) {
-      pending.reject(new Error("WebSocket connection closed"));
+      pending.queue.fail(new Error("WebSocket connection closed"));
       if (pending.timeout) {
         clearTimeout(pending.timeout);
       }
@@ -311,15 +366,31 @@ export class WebSocketTransport implements Transport {
       return;
     }
 
-    // Clear timeout
+    // The first frame arrived: the request timeout ends. A stream can stay open longer.
     if (pending.timeout) {
       clearTimeout(pending.timeout);
+      pending.timeout = undefined;
     }
 
-    // Remove from pending if not streaming
-    if (!message.stream || message.stream.done) {
-      this.pendingRequests.delete(message.id);
+    // A stream frame: one item, or the end of the stream (BUGS-2026-07 H5: before, the
+    // transport resolved on the first frame and dropped the others)
+    if (message.type === "stream") {
+      if (message.stream?.done) {
+        this.pendingRequests.delete(message.id);
+        pending.queue.end();
+        return;
+      }
+      pending.queue.push({
+        id: message.id,
+        status: { type: "success", code: 200 },
+        payload: message.payload,
+        metadata: message.metadata || {},
+      });
+      return;
     }
+
+    // A response or an error: one item, then the end
+    this.pendingRequests.delete(message.id);
 
     // Convert to ResponseItem
     let status: ResponseItem<any>["status"];
@@ -371,23 +442,23 @@ export class WebSocketTransport implements Transport {
     };
 
 
-    // Resolve with async iterable
-    pending.resolve(this.createAsyncIterable([responseItem]));
+    pending.queue.push(responseItem);
+    pending.queue.end();
   }
 
   /**
-   * Create async iterable from array.
-   */
-  private async *createAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-      yield item;
-    }
-  }
-
-  /**
-   * Send RPC request over WebSocket.
+   * Send a request and yield its response items as they arrive: one item for a request/response
+   * call, each item of a stream. When the reader stops early or the message's signal aborts, the
+   * transport sends a "cancel" message, and the server stops the stream.
+   *
+   * @param message - Message to send
+   * @returns Async iterable of response items
    */
   async *send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
+    if (message.signal?.aborted) {
+      yield abortedItem<TRes>(message.id);
+      return;
+    }
 
     // Wait for connection
     await this.waitForConnection();
@@ -401,32 +472,54 @@ export class WebSocketTransport implements Transport {
       metadata: message.metadata,
     };
 
+    const queue = new ItemQueue<ResponseItem<unknown>>();
+    const pending: PendingRequest = { queue };
+    pending.timeout = setTimeout(() => {
+      if (this.pendingRequests.get(message.id) !== pending) return;
+      this.pendingRequests.delete(message.id);
+      this.sendCancel(message.id);
+      console.error(`[${this.name}] Request timeout for ${message.id}`);
+      queue.fail(new Error("Request timeout"));
+    }, this.options.requestTimeout);
+    this.pendingRequests.set(message.id, pending);
 
-    // Send message
-    return yield* await new Promise<AsyncIterable<ResponseItem<TRes>>>((resolve, reject) => {
-      // Store pending request
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(message.id);
-        console.error(`[${this.name}] Request timeout for ${message.id}`);
-        reject(new Error("Request timeout"));
-      }, this.options.requestTimeout);
+    const onAbort = (): void => {
+      if (this.pendingRequests.get(message.id) !== pending) return;
+      this.pendingRequests.delete(message.id);
+      if (pending.timeout) clearTimeout(pending.timeout);
+      this.sendCancel(message.id);
+      queue.push(abortedItem(message.id));
+      queue.end();
+    };
+    message.signal?.addEventListener("abort", onAbort, { once: true });
 
-      this.pendingRequests.set(message.id, {
-        resolve: resolve as (items: AsyncIterable<ResponseItem<any>>) => void,
-        reject,
-        timeout,
-      });
-
-      // Send request
+    try {
       try {
         this.ws!.send(JSON.stringify(wsMessage));
       } catch (error) {
-        this.pendingRequests.delete(message.id);
-        clearTimeout(timeout);
         console.error(`[${this.name}] Send error:`, error);
-        reject(error);
+        throw error;
       }
-    });
+      for await (const item of queue) {
+        yield item as ResponseItem<TRes>;
+      }
+    } finally {
+      message.signal?.removeEventListener("abort", onAbort);
+      if (pending.timeout) clearTimeout(pending.timeout);
+      if (this.pendingRequests.get(message.id) === pending) {
+        // The reader stopped before the end: the server stops the stream
+        this.pendingRequests.delete(message.id);
+        this.sendCancel(message.id);
+      }
+    }
+  }
+
+  /** This function tells the server to stop a request (a stream that nobody reads). */
+  private sendCancel(id: string): void {
+    if (this.ws && this.state === WebSocketState.CONNECTED) {
+      const cancel: WebSocketMessage = { id, type: "cancel" };
+      this.ws.send(JSON.stringify(cancel));
+    }
   }
 
   /**

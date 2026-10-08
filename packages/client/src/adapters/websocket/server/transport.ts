@@ -68,6 +68,10 @@ export class WebSocketServerTransport implements ServerTransport {
   private pendingRequests = new Map<string, PendingRequest>();
   private connectionCounter = 0;
 
+  // The requests in progress, by "connectionId:requestId": a cancel message or a closed
+  // connection aborts their signal, so a stream stops and its handler gets return()
+  private inflight = new Map<string, AbortController>();
+
   // Connection lifecycle event handlers
   private connectHandlers: ConnectionEventHandler[] = [];
   private disconnectHandlers: ConnectionEventHandler[] = [];
@@ -189,6 +193,7 @@ export class WebSocketServerTransport implements ServerTransport {
     ws.on("close", () => {
       this.connections.delete(ws);
       this.rejectPendingFor(connectionId, "Connection closed");
+      this.abortInflightFor(connectionId);
       const conn = this.trackedConnections.get(connectionId);
       if (conn) {
         this.trackedConnections.delete(connectionId);
@@ -208,6 +213,7 @@ export class WebSocketServerTransport implements ServerTransport {
       console.error("[WebSocket] Connection error:", error);
       this.connections.delete(ws);
       this.rejectPendingFor(connectionId, "Connection error");
+      this.abortInflightFor(connectionId);
       this.trackedConnections.delete(connectionId);
     });
   }
@@ -216,6 +222,16 @@ export class WebSocketServerTransport implements ServerTransport {
    * Reject the server-to-client requests that wait for a connection that went away,
    * instead of letting them wait for their timeout (BUGS-2026-07 L29).
    */
+  private abortInflightFor(connectionId: string): void {
+    const prefix = `${connectionId}:`;
+    for (const [key, controller] of this.inflight) {
+      if (key.startsWith(prefix)) {
+        this.inflight.delete(key);
+        controller.abort();
+      }
+    }
+  }
+
   private rejectPendingFor(connectionId: string, reason: string): void {
     for (const [requestId, pending] of this.pendingRequests) {
       if (pending.connectionId === connectionId) {
@@ -276,11 +292,23 @@ export class WebSocketServerTransport implements ServerTransport {
       return;
     }
 
+    // Handle cancel: the client stopped reading a response (for example, it left a stream early)
+    if (message.type === "cancel") {
+      const key = `${connectionId}:${message.id}`;
+      this.inflight.get(key)?.abort();
+      this.inflight.delete(key);
+      return;
+    }
+
     // Validate request message
     if (!message.id || message.type !== "request" || !message.method) {
       this.sendError(ws, message.id || "unknown", "Invalid message format");
       return;
     }
+
+    const key = `${connectionId}:${message.id}`;
+    const controller = new AbortController();
+    this.inflight.set(key, controller);
 
     // Convert to ServerRequest
     const serverRequest: ServerRequest = {
@@ -294,14 +322,18 @@ export class WebSocketServerTransport implements ServerTransport {
         remoteAddress: req.socket.remoteAddress,
         headers: req.headers,
       },
+      signal: controller.signal,
     };
 
     try {
       // Process through universal server
       const serverResponse = await this.server.handle(serverRequest);
 
-      // Send response
-      this.sendResponse(ws, serverResponse);
+      if (serverResponse.stream) {
+        await this.sendStream(ws, serverResponse.id, serverResponse.stream, controller.signal);
+      } else {
+        this.sendResponse(ws, serverResponse);
+      }
     } catch (error) {
       console.error("[WebSocket] Request handling error:", error);
       this.sendError(
@@ -309,12 +341,43 @@ export class WebSocketServerTransport implements ServerTransport {
         message.id,
         error instanceof Error ? error.message : "Internal server error"
       );
+    } finally {
+      this.inflight.delete(key);
     }
   }
 
   /**
-   * Send response to client.
+   * Send a stream response (BUGS-2026-07 H5): one "stream" frame for each item, then a frame
+   * with `stream.done`. An error of the stream ends it with an "error" frame. When the signal
+   * aborts (a cancel message, a closed connection), the loop stops, and the stream's handler
+   * gets return().
    */
+  private async sendStream(ws: WebSocket, id: string, stream: AsyncIterable<unknown>, signal: AbortSignal): Promise<void> {
+    try {
+      for await (const item of stream) {
+        if (signal.aborted || ws.readyState !== WebSocket.OPEN) return;
+        this.send(ws, { id, type: "stream", payload: item, stream: { done: false } });
+      }
+      this.send(ws, { id, type: "stream", stream: { done: true } });
+    } catch (error) {
+      if (signal.aborted) return;
+      const code = (error as { code?: unknown }).code;
+      const status = {
+        type: "error" as const,
+        code: typeof code === "string" ? code : "HANDLER_ERROR",
+        message: error instanceof Error ? error.message : String(error),
+        retryable: false,
+      };
+      this.send(ws, {
+        id,
+        type: "error",
+        status,
+        error: { code: status.code, message: status.message, retryable: false },
+        stream: { done: true },
+      });
+    }
+  }
+
   private sendResponse(ws: WebSocket, response: ServerResponse): void {
     const message: WebSocketMessage = {
       id: response.id,

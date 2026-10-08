@@ -137,7 +137,7 @@ export interface WebSocketMessage<T = unknown> {
   id: string;
 
   /** Message type */
-  type: "request" | "response" | "error" | "stream" | "ping" | "pong" | "server-request" | "server-response" | "event";
+  type: "request" | "response" | "error" | "stream" | "cancel" | "ping" | "pong" | "server-request" | "server-response" | "event";
 
   /** RPC method (for requests) */
   method?: {
