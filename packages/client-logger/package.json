@@ -37,7 +37,10 @@
     "dist",
     "src"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "typescript": "^5.9.3"

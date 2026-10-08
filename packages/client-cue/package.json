@@ -40,5 +40,8 @@
     "client"
   ],
   "license": "MIT",
-  "sideEffects": false
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ]
 }

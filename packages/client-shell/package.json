@@ -21,7 +21,10 @@
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",

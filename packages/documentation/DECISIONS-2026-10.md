@@ -13,6 +13,27 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### sideEffects describes what each package really does (BUGS-2026-07 H15), and an open question about the bundles
+
+July deferred H15 because `cue-config generate` overwrote `sideEffects` (H33). H33 is fixed, so each package now declares the modules that have effects when they load:
+
+- `["./dist/index.js", "./dist/register.js"]`: packages whose index re-exports `register.js`. Importing the root registers the procedures, so a bundler must keep both. These are `bundle-dev`, `client-cli`, `-cue`, `-docker`, `-fs`, `-git`, `-logger`, `-mongo`, `-pnpm`, `-server`, `-shell`, `-sqlite` and `-vitest`.
+- `["./dist/register.js"]`: packages whose index does not reach `register.js`. These are `bundle-mcp`, `client-lib`, `-node`, `-procedure`, `-s3`, `-snapshot`, `-splay`, `-test` and `-vite`.
+- `client`: `["./dist/index.js", "./dist/procedures/index.js"]`, because the core `client.*`/storage/meta procedures register in `procedures/index.ts`.
+- Packages that register nothing keep `false`.
+
+In Node this changes nothing (Node ignores the field). It matters for bundlers: before, a bundler could drop every registration.
+
+**Open question for the owner (I did not change it):** the bundles import package roots (`import "@mark1russell7/client-s3"`). For the 9 packages in the second group, that import registers nothing.
+
+- `bundle-mcp` "includes" `client-lib`, `client-snapshot`, `client-s3` and `client-test`, but the `dev-tools` MCP server has none of their tools. The 65 tools have no `lib.*`, `snapshot.*`, `s3.*` or `test.*`.
+- `bundle-dev` gets no `lib.*` or `procedure.new` from its imports. (The `mark` CLI is not affected: it loads every package's `register.js` itself.)
+
+Making the imports register would add `s3.delete`, `snapshot.restore` (which overwrites folders), `lib.rename` and others to the tools Claude can call on this machine. That is a decision about the tool surface, so it is listed in the proposals instead of done here. The two options:
+
+1. Make each root import register (the convention the bundles assume), and keep the MCP surface deliberate by having `bundle-mcp` list what it exposes.
+2. Remove the imports that do nothing from the bundles.
+
 ### Delete the batching middlewares and the wildcard collection procedures (BUGS-2026-07 M3, M8)
 
 July's roadmap (Phase 1.6) says for dead core subsystems: "wire it end-to-end with a test, or delete it. Deletion is a legitimate and often better answer." Both of these are exported from `client`, broken, and unused anywhere in the ecosystem, so I deleted them.

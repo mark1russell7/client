@@ -25,7 +25,9 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/register.js"
+  ],
   "dependencies": {
     "zod": "^3.24.0",
     "@mark1russell7/client": "workspace:*",

@@ -41,7 +41,10 @@
     "wrapper"
   ],
   "license": "MIT",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
   "client": {
     "procedures": "./dist/register.js"
   }

@@ -95,5 +95,8 @@
     "collections"
   ],
   "license": "MIT",
-  "sideEffects": false
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/procedures/index.js"
+  ]
 }

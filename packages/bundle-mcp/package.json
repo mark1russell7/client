@@ -24,7 +24,9 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/register.js"
+  ],
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-cli": "workspace:*",

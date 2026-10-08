@@ -24,7 +24,9 @@
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/register.js"
+  ],
   "client": {
     "procedures": "./dist/register.js"
   },

@@ -33,7 +33,10 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
   "client": {
     "procedures": "./dist/register.js"
   },
