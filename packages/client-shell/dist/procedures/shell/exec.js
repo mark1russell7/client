@@ -1,0 +1,42 @@
+/**
+ * shell.exec procedure
+ *
+ * Execute a command string via shell.
+ */
+import { exec as execCb } from "node:child_process";
+import { promisify } from "node:util";
+const execAsync = promisify(execCb);
+export async function shellExec(input) {
+    const startTime = Date.now();
+    try {
+        // Convert shell option: true = undefined (use default), string = use that shell
+        const shellOpt = typeof input.shell === "string" ? input.shell : undefined;
+        const { stdout, stderr } = await execAsync(input.command, {
+            cwd: input.cwd,
+            env: input.env ? { ...process.env, ...input.env } : process.env,
+            timeout: input.timeout,
+            shell: shellOpt,
+            maxBuffer: input.maxBuffer,
+            windowsHide: true,
+        });
+        return {
+            exitCode: 0,
+            stdout,
+            stderr,
+            success: true,
+            duration: Date.now() - startTime,
+        };
+    }
+    catch (error) {
+        const err = error;
+        return {
+            exitCode: err.code ?? 1,
+            stdout: err.stdout ?? "",
+            stderr: err.stderr ?? err.message,
+            success: false,
+            duration: Date.now() - startTime,
+            signal: err.signal,
+        };
+    }
+}
+//# sourceMappingURL=exec.js.map
