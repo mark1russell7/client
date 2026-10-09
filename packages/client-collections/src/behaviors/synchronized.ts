@@ -29,6 +29,11 @@ import type { Middleware } from "../core/middleware.js";
  * Ensures that only one operation executes at a time, even if
  * multiple async operations are initiated concurrently.
  */
+/** True for an `async` function or method. */
+function isAsyncFunction(value: unknown): boolean {
+  return typeof value === "function" && (value as { [Symbol.toStringTag]?: string })[Symbol.toStringTag] === "AsyncFunction";
+}
+
 class Mutex {
   private queue: Promise<void> = Promise.resolve();
 
@@ -49,29 +54,7 @@ class Mutex {
    * Synchronous version that executes immediately.
    * Still queues to prevent interleaving with async operations.
    */
-  lockSync<T>(fn: () => T): T {
-    let result: T;
-    let error: any;
-    let hasError = false;
 
-    // Execute synchronously but update queue
-    try {
-      result = fn();
-    } catch (e) {
-      error = e;
-      hasError = true;
-    }
-
-    // Update the queue to reflect this operation completed
-    const completed = Promise.resolve();
-    this.queue = this.queue.then(() => completed);
-
-    if (hasError) {
-      throw error;
-    }
-
-    return result!;
-  }
 }
 
 /**
@@ -105,18 +88,21 @@ export function synchronized<C extends object>(): Middleware<C> {
           return value;
         }
 
-        // Check if the method is async by checking if it returns a Promise
-        return function (this: any, ...args: any[]) {
-          // Try to execute synchronously first
+        // An async method runs inside the lock: it starts after the earlier async calls end.
+        // (Before, every method ran first and took the lock after, so nothing was excluded:
+        // BUGS-2026-07 L11.) A plain method runs at once: JavaScript does not interrupt it.
+        // When a plain method returns a promise anyway, the lock waits for that promise.
+        if (isAsyncFunction(value)) {
+          return function (this: unknown, ...args: unknown[]) {
+            return mutex.lock(() => (value as Function).apply(target, args));
+          };
+        }
+        return function (this: unknown, ...args: unknown[]) {
           const result = (value as Function).apply(target, args);
-
-          // If result is a Promise, wrap with async lock
           if (result instanceof Promise) {
             return mutex.lock(() => result);
           }
-
-          // Otherwise, use sync lock
-          return mutex.lockSync(() => result);
+          return result;
         };
       },
     }) as C;
@@ -226,9 +212,14 @@ export function readWriteLock<C extends object>(): Middleware<C> {
     let waitingReaders: (() => void)[] = [];
     let waitingWriters: (() => void)[] = [];
 
+    // Hand-off rule: the releaser counts the waiters it wakes (readers += n, or writer = true),
+    // so a woken waiter does not count itself again. (Before, releaseWrite set readers = n and
+    // each woken reader added 1, so the count never came back to 0 and writers waited forever:
+    // BUGS-2026-07 L11.)
     const acquireRead = async (): Promise<void> => {
       if (writer || waitingWriters.length > 0) {
         await new Promise<void>((resolve) => waitingReaders.push(resolve));
+        return;
       }
       readers++;
     };
@@ -245,6 +236,7 @@ export function readWriteLock<C extends object>(): Middleware<C> {
     const acquireWrite = async (): Promise<void> => {
       if (writer || readers > 0) {
         await new Promise<void>((resolve) => waitingWriters.push(resolve));
+        return;
       }
       writer = true;
     };
@@ -257,7 +249,7 @@ export function readWriteLock<C extends object>(): Middleware<C> {
         next();
       } else if (waitingReaders.length > 0) {
         const allReaders = waitingReaders.splice(0);
-        readers = allReaders.length;
+        readers += allReaders.length;
         allReaders.forEach((resolve) => resolve());
       }
     };

@@ -187,15 +187,18 @@ export class LinkedList<T> implements List<T>, Deque<T> {
   }
 
   // ========================================================================
-  // Stack operations (LIFO)
+  // Stack operations (LIFO at the end, as on a JavaScript array)
   // ========================================================================
 
+  // push and pop work at the end, and shift/unshift at the front, in every collection of this
+  // package. Before, they worked at the front here (the Java Deque rule), so a LinkedList used
+  // as a List reversed the pushed elements (ARCHITECTURE-PROPOSALS P8).
   push(element: T): void {
-    this.addFirst(element);
+    this.addLast(element);
   }
 
   pop(): T {
-    return this.removeFirst();
+    return this.removeLast();
   }
 
   // ========================================================================

@@ -48,6 +48,11 @@ interface Resolver<T> {
   timeoutId?: ReturnType<typeof setTimeout>;
 }
 
+/** A waiting put: it keeps its element until the queue takes it. */
+interface Putter<T> extends Resolver<void> {
+  element: T;
+}
+
 /**
  * AsyncQueue<T> - Thread-safe async queue with backpressure.
  *
@@ -66,7 +71,7 @@ interface Resolver<T> {
  */
 export class AsyncQueue<T> implements IAsyncQueue<T> {
   private buffer: T[] = [];
-  private putters: Resolver<void>[] = [];
+  private putters: Putter<T>[] = [];
   private takers: Resolver<T>[] = [];
   private _isClosed = false;
   private readonly capacity: number;
@@ -109,7 +114,8 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
 
   /**
    * Adds an element to the queue.
-   * If the queue is full, waits until space is available.
+   * If the queue is full, waits until space is available. With a capacity of 0, it waits until
+   * a taker takes the element (a rendezvous).
    *
    * @throws Error if queue is closed
    * @throws Error if timeout expires
@@ -118,25 +124,14 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
     if (this._isClosed) {
       throw new Error("Queue is closed");
     }
-
-    // If there are waiting takers, give to them directly
-    if (this.takers.length > 0) {
-      const taker = this.takers.shift()!;
-      this.clearTimeout(taker);
-      taker.resolve(element);
+    if (this.tryPutNow(element)) {
       return;
     }
 
-    // If queue has space, add immediately
-    if (this.buffer.length < this.capacity) {
-      this.buffer.push(element);
-      return;
-    }
-
-    // Queue is full, wait for space
+    // Queue is full: wait with the element. (Before, a waiting putter kept only its resolve
+    // function, so its element was dropped when space came: BUGS-2026-07 C11.)
     return new Promise<void>((resolve, reject) => {
-      const putter: Resolver<void> = { resolve, reject };
-
+      const putter: Putter<T> = { element, resolve, reject };
       const timeoutMs = timeout ?? this.defaultTimeout;
       if (timeoutMs !== undefined) {
         putter.timeoutId = setTimeout(() => {
@@ -147,23 +142,7 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
           reject(new Error(`Put timeout after ${timeoutMs}ms`));
         }, timeoutMs);
       }
-
       this.putters.push(putter);
-
-      // Immediately try to resolve if a taker arrives
-      if (this.takers.length > 0) {
-        const taker = this.takers.shift()!;
-        this.clearTimeout(taker);
-        this.clearTimeout(putter);
-        this.putters.pop(); // Remove putter
-        taker.resolve(element);
-        resolve();
-      } else if (this.buffer.length < this.capacity) {
-        this.clearTimeout(putter);
-        this.putters.pop();
-        this.buffer.push(element);
-        resolve();
-      }
     });
   }
 
@@ -175,11 +154,9 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
    * @throws Error if timeout expires
    */
   async take(timeout?: number): Promise<T> {
-    // If buffer has elements, return immediately
-    if (this.buffer.length > 0) {
-      const element = this.buffer.shift()!;
-      this.fulfillPutter();
-      return element;
+    const next = this.takeNow();
+    if (next.found) {
+      return next.element;
     }
 
     // If closed and empty, throw
@@ -190,7 +167,6 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
     // Wait for an element
     return new Promise<T>((resolve, reject) => {
       const taker: Resolver<T> = { resolve, reject };
-
       const timeoutMs = timeout ?? this.defaultTimeout;
       if (timeoutMs !== undefined) {
         taker.timeoutId = setTimeout(() => {
@@ -201,25 +177,7 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
           reject(new Error(`Take timeout after ${timeoutMs}ms`));
         }, timeoutMs);
       }
-
       this.takers.push(taker);
-
-      // Check if putter can immediately fulfill
-      if (this.putters.length > 0 || this.buffer.length > 0) {
-        const t = this.takers.pop()!;
-        this.clearTimeout(t);
-
-        if (this.buffer.length > 0) {
-          const element = this.buffer.shift()!;
-          this.fulfillPutter();
-          resolve(element);
-        } else if (this.putters.length > 0) {
-          // Direct handoff from putter
-          const putter = this.putters.shift()!;
-          this.clearTimeout(putter);
-          putter.resolve();
-        }
-      }
     });
   }
 
@@ -229,23 +187,13 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
 
   /**
    * Attempts to add an element without waiting.
-   * Returns false if queue is full.
+   * Returns false if queue is full (with a capacity of 0: if no taker waits).
    */
   tryPut(element: T): boolean {
-    if (this._isClosed || this.buffer.length >= this.capacity) {
+    if (this._isClosed) {
       return false;
     }
-
-    // If there are waiting takers, give to them directly
-    if (this.takers.length > 0) {
-      const taker = this.takers.shift()!;
-      this.clearTimeout(taker);
-      taker.resolve(element);
-      return true;
-    }
-
-    this.buffer.push(element);
-    return true;
+    return this.tryPutNow(element);
   }
 
   /**
@@ -253,13 +201,45 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
    * Returns undefined if queue is empty.
    */
   tryTake(): T | undefined {
-    if (this.buffer.length === 0) {
-      return undefined;
-    }
+    const next = this.takeNow();
+    return next.found ? next.element : undefined;
+  }
 
-    const element = this.buffer.shift()!;
-    this.fulfillPutter();
-    return element;
+  /** Gives the element to a waiting taker, or puts it in the buffer when there is space. */
+  private tryPutNow(element: T): boolean {
+    // A waiting taker gets the element directly (the buffer is empty when a taker waits)
+    const taker = this.takers.shift();
+    if (taker) {
+      this.clearTimeout(taker);
+      taker.resolve(element);
+      return true;
+    }
+    if (this.buffer.length < this.capacity) {
+      this.buffer.push(element);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Takes the next element: from the buffer (then a waiting putter moves its element into the
+   * buffer), or directly from a waiting putter (a capacity of 0). (Before, the direct path
+   * released the putter but never gave its element to the taker, so the taker waited forever:
+   * BUGS-2026-07 C11.)
+   */
+  private takeNow(): { found: true; element: T } | { found: false } {
+    if (this.buffer.length > 0) {
+      const element = this.buffer.shift()!;
+      this.admitPutter();
+      return { found: true, element };
+    }
+    const putter = this.putters.shift();
+    if (putter) {
+      this.clearTimeout(putter);
+      putter.resolve();
+      return { found: true, element: putter.element };
+    }
+    return { found: false };
   }
 
   // ========================================================================
@@ -274,12 +254,15 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
     if (this.buffer.length > 0) {
       return this.buffer[0]!;
     }
+    if (this.putters.length > 0) {
+      return this.putters[0]!.element;
+    }
 
     if (this._isClosed) {
       throw new Error("Queue is closed and empty");
     }
 
-    // Wait for an element, then peek
+    // Wait for an element, then put it back at the front
     const element = await this.take();
     this.buffer.unshift(element);
     return element;
@@ -290,7 +273,7 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
    * Returns undefined if queue is empty.
    */
   tryPeek(): T | undefined {
-    return this.buffer[0];
+    return this.buffer.length > 0 ? this.buffer[0] : this.putters[0]?.element;
   }
 
   // ========================================================================
@@ -326,14 +309,15 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
    * Returns immediately with current elements.
    */
   drain(): T[] {
+    // The buffer, then the elements of the waiting putters, in order. (Before, the waiting
+    // putters were released but their elements were dropped.)
     const elements = this.buffer.slice();
     this.buffer = [];
-
-    // Fulfill all waiting putters
-    while (this.putters.length > 0) {
-      this.fulfillPutter();
+    for (const putter of this.putters.splice(0)) {
+      this.clearTimeout(putter);
+      putter.resolve();
+      elements.push(putter.element);
     }
-
     return elements;
   }
 
@@ -347,18 +331,21 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
    */
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
     while (true) {
-      if (this.buffer.length > 0) {
-        yield this.buffer.shift()!;
-        this.fulfillPutter();
+      const next = this.takeNow();
+      if (next.found) {
+        yield next.element;
       } else if (this._isClosed) {
         break;
       } else {
+        let element: T;
         try {
-          yield await this.take();
-        } catch (e) {
-          // Queue was closed
-          break;
+          element = await this.take();
+        } catch (error) {
+          // The queue was closed while the iterator waited
+          if (this._isClosed) break;
+          throw error;
         }
+        yield element;
       }
     }
   }
@@ -367,10 +354,12 @@ export class AsyncQueue<T> implements IAsyncQueue<T> {
   // Private helpers
   // ========================================================================
 
-  private fulfillPutter(): void {
+  /** When the buffer has space, the first waiting putter moves its element into it. */
+  private admitPutter(): void {
     if (this.putters.length > 0 && this.buffer.length < this.capacity) {
       const putter = this.putters.shift()!;
       this.clearTimeout(putter);
+      this.buffer.push(putter.element);
       putter.resolve();
     }
   }

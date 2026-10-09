@@ -158,11 +158,12 @@ export interface Deque<T> extends Queue<T> {
    */
   peekLastOrUndefined(): T | undefined;
 
-  // Stack operations (LIFO)
+  // Stack operations (LIFO). As on a JavaScript array and on every List of this package,
+  // push and pop work at the end. (Java's Deque uses the front.) The top of the stack is peekLast().
 
   /**
    * Pushes element onto the stack represented by this deque.
-   * Equivalent to addFirst().
+   * Equivalent to addLast().
    *
    * @param element The element to push
    */
@@ -170,7 +171,7 @@ export interface Deque<T> extends Queue<T> {
 
   /**
    * Pops an element from the stack represented by this deque.
-   * Equivalent to removeFirst().
+   * Equivalent to removeLast().
    *
    * @returns The popped element
    * @throws Error if deque is empty

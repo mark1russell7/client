@@ -71,6 +71,10 @@ const MUTATING_METHODS = new Set([
 
   // Map mutations
   "set",
+  "setIfAbsent",
+  "forcePut",
+  "pollFirstEntry",
+  "pollLastEntry",
   "delete",
   "deleteEntry",
   "replace",
@@ -80,6 +84,20 @@ const MUTATING_METHODS = new Set([
   "compute",
   "merge",
   "putAll",
+]);
+
+/** Methods that return a view of the collection: the view is readonly too. */
+const VIEW_METHODS = new Set([
+  "subList",
+  "subMap",
+  "subSet",
+  "headMap",
+  "tailMap",
+  "headSet",
+  "tailSet",
+  "descendingMap",
+  "descendingSet",
+  "inverse",
 ]);
 
 /**
@@ -102,8 +120,10 @@ function createReadonly<C extends object>(
           }
         }
 
-        // For functions that return sublists/submaps, wrap them too
-        if (typeof value === "function" && (prop === "subList" || prop === "subMap")) {
+        // A view (a sublist, a submap, a head or tail set, a descending map) is readonly too.
+        // Before, only subList and subMap were wrapped, and setIfAbsent, pollFirstEntry and
+        // pollLastEntry were not blocked (BUGS-2026-07 L14).
+        if (typeof value === "function" && typeof prop === "string" && VIEW_METHODS.has(prop)) {
           return function (this: any, ...args: any[]) {
             const result = value.apply(target, args);
             // Recursively apply readonly to the result

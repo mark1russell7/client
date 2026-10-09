@@ -171,15 +171,18 @@ export class ArrayDeque<T> implements Deque<T> {
   }
 
   // ========================================================================
-  // Stack operations (LIFO - use first end)
+  // Stack operations (LIFO at the end, as on a JavaScript array)
   // ========================================================================
 
+  // push and pop work at the end, and shift/unshift at the front, in every collection of this
+  // package. Before, they worked at the front here (the Java Deque rule), so a LinkedList used
+  // as a List reversed the pushed elements (ARCHITECTURE-PROPOSALS P8).
   push(element: T): void {
-    this.addFirst(element);
+    this.addLast(element);
   }
 
   pop(): T {
-    return this.removeFirst();
+    return this.removeLast();
   }
 
   // ========================================================================
@@ -251,49 +254,42 @@ export class ArrayDeque<T> implements Deque<T> {
   }
 
   remove(element: T): boolean {
-    // Linear search and remove first occurrence
-    let index = this._head;
-    let found = false;
-
-    for (let i = 0; i < this.size; i++) {
-      if (this._eq(this._elements[index]!, element)) {
-        found = true;
-        break;
+    // Linear search for the first occurrence
+    const mask = this._elements.length - 1;
+    const size = this.size;
+    for (let offset = 0; offset < size; offset++) {
+      if (this._eq(this._elements[(this._head + offset) & mask]!, element)) {
+        this.removeAtOffset(offset);
+        return true;
       }
-      index = (index + 1) & (this._elements.length - 1);
     }
+    return false;
+  }
 
-    if (!found) return false;
-
-    // Remove at index by shifting elements
-    const isCloserToHead =
-      (index - this._head) &
-      (this._elements.length - 1 < this._tail - index ? 1 : 0) &
-      (this._elements.length - 1);
-
-    if (isCloserToHead) {
-      // Shift elements from head to index forward
-      while (index !== this._head) {
-        const prevIndex = (index - 1) & (this._elements.length - 1);
-        this._elements[index] = this._elements[prevIndex];
-        index = prevIndex;
+  /**
+   * Removes the element at a position from the head. The shorter side moves one place.
+   * (Before, a bitwise expression chose the side, and it was not a valid test.)
+   */
+  private removeAtOffset(offset: number): void {
+    const mask = this._elements.length - 1;
+    const size = this.size;
+    if (offset < size / 2) {
+      // Move the elements before it one place toward the tail
+      for (let i = offset; i > 0; i--) {
+        this._elements[(this._head + i) & mask] = this._elements[(this._head + i - 1) & mask];
       }
       this._elements[this._head] = undefined;
-      this._head = (this._head + 1) & (this._elements.length - 1);
+      this._head = (this._head + 1) & mask;
     } else {
-      // Shift elements from index to tail backward
-      while (index !== this._tail) {
-        const nextIndex = (index + 1) & (this._elements.length - 1);
-        if (nextIndex === this._tail) break;
-        this._elements[index] = this._elements[nextIndex];
-        index = nextIndex;
+      // Move the elements after it one place toward the head
+      for (let i = offset; i < size - 1; i++) {
+        this._elements[(this._head + i) & mask] = this._elements[(this._head + i + 1) & mask];
       }
-      this._tail = (this._tail - 1) & (this._elements.length - 1);
+      this._tail = (this._tail - 1) & mask;
       this._elements[this._tail] = undefined;
     }
-
-    return true;
   }
+
 
   removeAll(other: Iterable<T>): boolean {
     const toRemove = new Set<T>();
@@ -392,7 +388,6 @@ export class ArrayDeque<T> implements Deque<T> {
     }
 
     const newElements = new Array(newCapacity);
-    const size = this.size;
 
     // Copy elements from head to end of old array
     const rightSize = oldCapacity - this._head;
@@ -406,9 +401,11 @@ export class ArrayDeque<T> implements Deque<T> {
       newElements[rightSize + i] = this._elements[i];
     }
 
+    // grow() runs when the array is full: head === tail and every slot holds an element. Then
+    // `size` computes 0, so the old `this._tail = size` lost every element (BUGS-2026-07 C8).
     this._elements = newElements;
     this._head = 0;
-    this._tail = size;
+    this._tail = oldCapacity;
   }
 
   /**

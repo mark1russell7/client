@@ -30,14 +30,20 @@ import type { Eq, Hash } from "../core/traits.js";
 import { defaultEq, defaultHash } from "../utils/defaults.js";
 
 /**
- * Node in the doubly-linked list.
+ * An entry. It is in two lists: the chain of its hash bucket (`next`) and the order list
+ * (`before`, `after`). Before, one `next` field served both lists, so the first collision or
+ * resize corrupted the map (BUGS-2026-07 C10).
  */
 interface LinkedNode<K, V> {
   key: K;
   value: V;
   hash: number;
-  prev: LinkedNode<K, V> | null;
+  /** The next entry of the same hash bucket */
   next: LinkedNode<K, V> | null;
+  /** The entry before this one in the iteration order */
+  before: LinkedNode<K, V> | null;
+  /** The entry after this one in the iteration order */
+  after: LinkedNode<K, V> | null;
 }
 
 /**
@@ -111,7 +117,7 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
       accessOrder = false,
     } = options;
 
-    this._buckets = new Array(initialCapacity).fill(null);
+    this._buckets = new Array(Math.max(1, initialCapacity)).fill(null);
     this._loadFactor = loadFactor;
     this._eq = eq;
     this._hash = hash;
@@ -165,7 +171,7 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
       if (this._valueEq(node.value, value)) {
         return true;
       }
-      node = node.next;
+      node = node.after;
     }
     return false;
   }
@@ -226,8 +232,9 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
       key,
       value,
       hash: hashCode,
-      prev: null,
       next: this._buckets[index] ?? null,
+      before: null,
+      after: null,
     };
 
     this._buckets[index] = newNode;
@@ -411,7 +418,7 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
     let node = this._head;
     while (node !== null) {
       yield node.key;
-      node = node.next;
+      node = node.after;
     }
   }
 
@@ -419,7 +426,7 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
     let node = this._head;
     while (node !== null) {
       yield node.value;
-      node = node.next;
+      node = node.after;
     }
   }
 
@@ -427,7 +434,7 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
     let node = this._head;
     while (node !== null) {
       yield { key: node.key, value: node.value };
-      node = node.next;
+      node = node.after;
     }
   }
 
@@ -488,73 +495,34 @@ export class LinkedHashMap<K, V> implements MapLike<K, V> {
   }
 
   private addToEnd(node: LinkedNode<K, V>): void {
-    if (this._tail === null) {
-      // First node
-      this._head = node;
-      this._tail = node;
-      node.prev = null;
-      node.next = null;
-    } else {
-      // Append to end
-      this._tail.next = node;
-      node.prev = this._tail;
-      node.next = null;
-      this._tail = node;
-    }
+    node.before = this._tail;
+    node.after = null;
+    if (this._tail === null) this._head = node;
+    else this._tail.after = node;
+    this._tail = node;
   }
 
   private removeFromList(node: LinkedNode<K, V>): void {
-    if (node.prev !== null) {
-      node.prev.next = node.next;
-    } else {
-      this._head = node.next;
-    }
-
-    if (node.next !== null) {
-      node.next.prev = node.prev;
-    } else {
-      this._tail = node.prev;
-    }
+    if (node.before !== null) node.before.after = node.after;
+    else this._head = node.after;
+    if (node.after !== null) node.after.before = node.before;
+    else this._tail = node.before;
+    node.before = node.after = null;
   }
 
   private moveToEnd(node: LinkedNode<K, V>): void {
     if (node === this._tail) return; // Already at end
-
-    // Remove from current position
-    if (node.prev !== null) {
-      node.prev.next = node.next;
-    } else {
-      this._head = node.next;
-    }
-
-    if (node.next !== null) {
-      node.next.prev = node.prev;
-    }
-
-    // Add to end
-    if (this._tail !== null) {
-      this._tail.next = node;
-    }
-    node.prev = this._tail;
-    node.next = null;
-    this._tail = node;
-
-    if (this._head === null) {
-      this._head = node;
-    }
+    this.removeFromList(node);
+    this.addToEnd(node);
   }
 
   private resize(): void {
-    const oldBuckets = this._buckets;
-    this._buckets = new Array(oldBuckets.length * 2).fill(null);
-
-    // Rehash all entries
-    let node = this._head;
-    while (node !== null) {
+    this._buckets = new Array(this._buckets.length * 2).fill(null);
+    // Rebuild the bucket chains (`next`) from the order list (`after`)
+    for (let node = this._head; node !== null; node = node.after) {
       const index = this.getBucketIndex(node.hash);
       node.next = this._buckets[index] ?? null;
       this._buckets[index] = node;
-      node = node.next;
     }
   }
 

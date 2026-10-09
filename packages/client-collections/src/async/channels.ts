@@ -33,7 +33,9 @@ export class Channel<T> {
   private _isClosed = false;
 
   constructor(bufferSize: number = 0) {
-    this.queue = asyncQueue<T>({ capacity: bufferSize || 1 });
+    // A buffer size of 0 is an unbuffered channel: send waits for a receiver (a rendezvous).
+    // (Before, `bufferSize || 1` gave it a buffer of 1: BUGS-2026-07 L17.)
+    this.queue = asyncQueue<T>({ capacity: bufferSize });
   }
 
   /**

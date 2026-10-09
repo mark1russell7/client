@@ -261,7 +261,10 @@ export function safeDeque<T>(): Middleware<
       },
 
       poll(): Option<T> {
-        return next.pollFirst() !== undefined ? Some(next.pollFirst()!) : None;
+        // One poll: before, the test and the result each called pollFirst(), so poll() removed
+        // two elements and returned the second (BUGS-2026-07 L12)
+        if (next.isEmpty) return None;
+        return Some(next.pollFirst() as T);
       },
 
       dequeue(): Option<T> {

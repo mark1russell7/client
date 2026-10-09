@@ -48,6 +48,23 @@ interface TreeNode<K, V> {
   parent: TreeNode<K, V> | null;
 }
 
+// Null-safe helpers of the red-black algorithms: a null leaf is black
+function colorOf<K, V>(node: TreeNode<K, V> | null): Color {
+  return node === null ? Color.BLACK : node.color;
+}
+function parentOf<K, V>(node: TreeNode<K, V> | null): TreeNode<K, V> | null {
+  return node === null ? null : node.parent;
+}
+function leftOf<K, V>(node: TreeNode<K, V> | null): TreeNode<K, V> | null {
+  return node === null ? null : node.left;
+}
+function rightOf<K, V>(node: TreeNode<K, V> | null): TreeNode<K, V> | null {
+  return node === null ? null : node.right;
+}
+function setColor<K, V>(node: TreeNode<K, V> | null, color: Color): void {
+  if (node !== null) node.color = color;
+}
+
 /**
  * Options for creating a TreeMap.
  */
@@ -657,8 +674,9 @@ export class TreeMap<K, V> implements NavigableMap<K, V> {
   // Private helpers - Red-black tree balancing
   // ========================================================================
 
-  private rotateLeft(node: TreeNode<K, V>): void {
-    const right = node.right!;
+  private rotateLeft(node: TreeNode<K, V> | null): void {
+    if (node === null || node.right === null) return;
+    const right = node.right;
     node.right = right.left;
 
     if (right.left !== null) {
@@ -679,8 +697,9 @@ export class TreeMap<K, V> implements NavigableMap<K, V> {
     node.parent = right;
   }
 
-  private rotateRight(node: TreeNode<K, V>): void {
-    const left = node.left!;
+  private rotateRight(node: TreeNode<K, V> | null): void {
+    if (node === null || node.left === null) return;
+    const left = node.left;
     node.left = left.right;
 
     if (left.right !== null) {
@@ -749,127 +768,99 @@ export class TreeMap<K, V> implements NavigableMap<K, V> {
     this._root!.color = Color.BLACK;
   }
 
-  private deleteNode(node: TreeNode<K, V>): void {
-    let replacement: TreeNode<K, V> | null;
-    let deletedColor: Color;
+  /**
+   * Deletes a node (the CLRS algorithm, as in java.util.TreeMap). A null leaf counts as black.
+   *
+   * Before (BUGS-2026-07 L10): the deletion of a black leaf skipped the fix-up, so the black
+   * heights drifted and the tree became unbalanced, and the fix-up treated a null leaf as
+   * "not black", so it chose the wrong case and rotated at null (a TypeError).
+   */
+  private deleteNode(target: TreeNode<K, V>): void {
+    let node = target;
+    // A node with two children takes the key and value of its successor, then the successor goes
+    if (node.left !== null && node.right !== null) {
+      const successor = this.getFirstNode(node.right);
+      node.key = successor.key;
+      node.value = successor.value;
+      node = successor;
+    }
 
-    // Find replacement node
-    if (node.left === null || node.right === null) {
-      replacement = node;
+    const replacement = node.left ?? node.right;
+    if (replacement !== null) {
+      replacement.parent = node.parent;
+      if (node.parent === null) this._root = replacement;
+      else if (node === node.parent.left) node.parent.left = replacement;
+      else node.parent.right = replacement;
+      node.left = node.right = node.parent = null;
+      if (node.color === Color.BLACK) this.fixAfterDeletion(replacement);
+    } else if (node.parent === null) {
+      // The only node
+      this._root = null;
     } else {
-      // Node has two children, find successor
-      replacement = this.getFirstNode(node.right);
-    }
-
-    // Get the child of replacement (at most one child)
-    const child = replacement.left !== null ? replacement.left : replacement.right;
-
-    if (child !== null) {
-      child.parent = replacement.parent;
-    }
-
-    if (replacement.parent === null) {
-      this._root = child;
-    } else if (replacement === replacement.parent.left) {
-      replacement.parent.left = child;
-    } else {
-      replacement.parent.right = child;
-    }
-
-    deletedColor = replacement.color;
-
-    // If we replaced with successor, copy its data to node
-    if (replacement !== node) {
-      node.key = replacement.key;
-      node.value = replacement.value;
-    }
-
-    // Fix red-black properties if we deleted a black node
-    if (deletedColor === Color.BLACK && child !== null) {
-      this.fixAfterDeletion(child);
+      // A leaf: it is its own phantom replacement during the fix-up, then it goes
+      if (node.color === Color.BLACK) this.fixAfterDeletion(node);
+      if (node.parent !== null) {
+        if (node === node.parent.left) node.parent.left = null;
+        else if (node === node.parent.right) node.parent.right = null;
+        node.parent = null;
+      }
     }
   }
 
-  private fixAfterDeletion(node: TreeNode<K, V>): void {
-    while (node !== this._root && node.color === Color.BLACK) {
-      if (node === node.parent?.left) {
-        let sibling = node.parent.right;
-
-        if (sibling?.color === Color.RED) {
-          // Case 1: Sibling is red
-          sibling.color = Color.BLACK;
-          node.parent.color = Color.RED;
-          this.rotateLeft(node.parent);
-          sibling = node.parent.right;
+  private fixAfterDeletion(start: TreeNode<K, V>): void {
+    let x: TreeNode<K, V> | null = start;
+    while (x !== this._root && colorOf(x) === Color.BLACK) {
+      if (x === leftOf(parentOf(x))) {
+        let sibling = rightOf(parentOf(x));
+        if (colorOf(sibling) === Color.RED) {
+          setColor(sibling, Color.BLACK);
+          setColor(parentOf(x), Color.RED);
+          this.rotateLeft(parentOf(x));
+          sibling = rightOf(parentOf(x));
         }
-
-        if (
-          sibling?.left?.color === Color.BLACK &&
-          sibling?.right?.color === Color.BLACK
-        ) {
-          // Case 2: Sibling's children are black
-          if (sibling) sibling.color = Color.RED;
-          node = node.parent;
+        if (colorOf(leftOf(sibling)) === Color.BLACK && colorOf(rightOf(sibling)) === Color.BLACK) {
+          setColor(sibling, Color.RED);
+          x = parentOf(x);
         } else {
-          if (sibling?.right?.color === Color.BLACK) {
-            // Case 3: Sibling's right child is black
-            if (sibling.left) sibling.left.color = Color.BLACK;
-            sibling.color = Color.RED;
+          if (colorOf(rightOf(sibling)) === Color.BLACK) {
+            setColor(leftOf(sibling), Color.BLACK);
+            setColor(sibling, Color.RED);
             this.rotateRight(sibling);
-            sibling = node.parent?.right ?? null;
+            sibling = rightOf(parentOf(x));
           }
-          // Case 4: Sibling's right child is red
-          if (sibling) {
-            sibling.color = node.parent?.color ?? Color.BLACK;
-            if (sibling.right) sibling.right.color = Color.BLACK;
-          }
-          if (node.parent) {
-            node.parent.color = Color.BLACK;
-            this.rotateLeft(node.parent);
-          }
-          node = this._root!;
+          setColor(sibling, colorOf(parentOf(x)));
+          setColor(parentOf(x), Color.BLACK);
+          setColor(rightOf(sibling), Color.BLACK);
+          this.rotateLeft(parentOf(x));
+          x = this._root;
         }
       } else {
-        let sibling = node.parent?.left ?? null;
-
-        if (sibling?.color === Color.RED) {
-          // Case 1: Sibling is red
-          sibling.color = Color.BLACK;
-          node.parent!.color = Color.RED;
-          this.rotateRight(node.parent!);
-          sibling = node.parent?.left ?? null;
+        let sibling = leftOf(parentOf(x));
+        if (colorOf(sibling) === Color.RED) {
+          setColor(sibling, Color.BLACK);
+          setColor(parentOf(x), Color.RED);
+          this.rotateRight(parentOf(x));
+          sibling = leftOf(parentOf(x));
         }
-
-        if (
-          sibling?.right?.color === Color.BLACK &&
-          sibling?.left?.color === Color.BLACK
-        ) {
-          // Case 2: Sibling's children are black
-          if (sibling) sibling.color = Color.RED;
-          node = node.parent!;
+        if (colorOf(rightOf(sibling)) === Color.BLACK && colorOf(leftOf(sibling)) === Color.BLACK) {
+          setColor(sibling, Color.RED);
+          x = parentOf(x);
         } else {
-          if (sibling?.left?.color === Color.BLACK) {
-            // Case 3: Sibling's left child is black
-            if (sibling.right) sibling.right.color = Color.BLACK;
-            sibling.color = Color.RED;
+          if (colorOf(leftOf(sibling)) === Color.BLACK) {
+            setColor(rightOf(sibling), Color.BLACK);
+            setColor(sibling, Color.RED);
             this.rotateLeft(sibling);
-            sibling = node.parent?.left ?? null;
+            sibling = leftOf(parentOf(x));
           }
-          // Case 4: Sibling's left child is red
-          if (sibling) {
-            sibling.color = node.parent?.color ?? Color.BLACK;
-            if (sibling.left) sibling.left.color = Color.BLACK;
-          }
-          if (node.parent) {
-            node.parent.color = Color.BLACK;
-            this.rotateRight(node.parent);
-          }
-          node = this._root!;
+          setColor(sibling, colorOf(parentOf(x)));
+          setColor(parentOf(x), Color.BLACK);
+          setColor(leftOf(sibling), Color.BLACK);
+          this.rotateRight(parentOf(x));
+          x = this._root;
         }
       }
     }
-
-    if (node) node.color = Color.BLACK;
+    setColor(x, Color.BLACK);
   }
 
   // ========================================================================

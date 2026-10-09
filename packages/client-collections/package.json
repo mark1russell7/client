@@ -26,6 +26,7 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
+    "fast-check": "^4.10.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
   }

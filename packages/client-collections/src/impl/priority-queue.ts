@@ -60,12 +60,14 @@ export class PriorityQueue<T> implements IPriorityQueue<T> {
 
   constructor(options: PriorityQueueOptions<T> = {}) {
     const {
-      initialCapacity = 11,
       compare = defaultCompare,
       eq = defaultEq,
     } = options;
 
-    this._heap = new Array(initialCapacity);
+    // The heap starts empty: a JavaScript array grows by itself, so initialCapacity is only a
+    // hint. (Before, `new Array(initialCapacity)` made 11 holes: an empty queue had size 11,
+    // and the heap compared holes. BUGS-2026-07 C9.)
+    this._heap = [];
     this._compare = compare;
     this._eq = eq;
   }

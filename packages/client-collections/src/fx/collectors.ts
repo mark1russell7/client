@@ -32,9 +32,12 @@ export interface Collector<T, A, R> {
   supplier: () => A;
 
   /**
-   * Incorporates an element into the accumulator.
+   * Incorporates an element into the accumulator and returns the next accumulator. A mutable
+   * accumulator (a list, a map) returns itself. An immutable one (a count, a sum) returns the
+   * new value. (Before, the result was ignored, so every immutable collector - counting,
+   * summing, minBy, maxBy, reducing, first, last - returned its seed: BUGS-2026-07 C12.)
    */
-  accumulator: (acc: A, element: T) => void;
+  accumulator: (acc: A, element: T) => A;
 
   /**
    * Combines two accumulators (for parallel streams).
@@ -58,9 +61,9 @@ export function collect<T, A, R>(
   iterable: Iterable<T>,
   collector: Collector<T, A, R>
 ): R {
-  const acc = collector.supplier();
+  let acc = collector.supplier();
   for (const element of iterable) {
-    collector.accumulator(acc, element);
+    acc = collector.accumulator(acc, element);
   }
   return collector.finisher(acc);
 }
@@ -75,7 +78,7 @@ export function collect<T, A, R>(
 export function toList<T>(): Collector<T, ArrayList<T>, ArrayList<T>> {
   return {
     supplier: () => arrayList<T>(),
-    accumulator: (list, element) => list.add(element),
+    accumulator: (list, element) => (list.add(element), list),
     finisher: (list) => list,
   };
 }
@@ -86,7 +89,7 @@ export function toList<T>(): Collector<T, ArrayList<T>, ArrayList<T>> {
 export function toSet<T>(): Collector<T, HashSet<T>, HashSet<T>> {
   return {
     supplier: () => hashSet<T>(),
-    accumulator: (set, element) => set.add(element),
+    accumulator: (set, element) => (set.add(element), set),
     finisher: (set) => set,
   };
 }
@@ -97,7 +100,7 @@ export function toSet<T>(): Collector<T, HashSet<T>, HashSet<T>> {
 export function toArray<T>(): Collector<T, T[], T[]> {
   return {
     supplier: () => [],
-    accumulator: (arr, element) => arr.push(element),
+    accumulator: (arr, element) => (arr.push(element), arr),
     finisher: (arr) => arr,
   };
 }
@@ -113,6 +116,7 @@ export function toMap<T, K, V>(
     supplier: () => hashMap<K, V>(),
     accumulator: (map, element) => {
       map.set(keyExtractor(element), valueExtractor(element));
+      return map;
     },
     finisher: (map) => map,
   };
@@ -138,6 +142,7 @@ export function groupingBy<T, K>(
       const key = classifier(element);
       const list = map.computeIfAbsent(key, () => arrayList<T>());
       list.add(element);
+      return map;
     },
     finisher: (map) => map,
   };
@@ -161,8 +166,9 @@ export function groupingByWith<T, K, A, D>(
     supplier: () => hashMap<K, A>(),
     accumulator: (map, element) => {
       const key = classifier(element);
-      const acc = map.computeIfAbsent(key, () => downstream.supplier());
-      downstream.accumulator(acc, element);
+      const acc = map.has(key) ? map.get(key) : downstream.supplier();
+      map.set(key, downstream.accumulator(acc, element));
+      return map;
     },
     finisher: (map) => {
       const result = hashMap<K, D>();
@@ -229,6 +235,7 @@ export function averagingNumber<T>(
     accumulator: (acc, element) => {
       acc.sum += mapper(element);
       acc.count++;
+      return acc;
     },
     finisher: (acc) => (acc.count === 0 ? 0 : acc.sum / acc.count),
   };
@@ -294,7 +301,7 @@ export function joining<T>(
 ): Collector<T, string[], string> {
   return {
     supplier: () => [],
-    accumulator: (parts, element) => parts.push(String(element)),
+    accumulator: (parts, element) => (parts.push(String(element)), parts),
     finisher: (parts) => prefix + parts.join(delimiter) + suffix,
   };
 }
@@ -333,9 +340,7 @@ export function filtering<T, A, R>(
   return {
     supplier: downstream.supplier,
     accumulator: (acc, element) => {
-      if (predicate(element)) {
-        downstream.accumulator(acc, element);
-      }
+      return predicate(element) ? downstream.accumulator(acc, element) : acc;
     },
     finisher: downstream.finisher,
   };
@@ -352,8 +357,9 @@ export function flatMapping<T, U, A, R>(
     supplier: downstream.supplier,
     accumulator: (acc, element) => {
       for (const mapped of mapper(element)) {
-        downstream.accumulator(acc, mapped);
+        acc = downstream.accumulator(acc, mapped);
       }
+      return acc;
     },
     finisher: downstream.finisher,
   };
@@ -416,10 +422,10 @@ export function teeing<T, A1, A2, R1, R2, R>(
 ): Collector<T, [A1, A2], R> {
   return {
     supplier: () => [collector1.supplier(), collector2.supplier()] as [A1, A2],
-    accumulator: ([acc1, acc2], element) => {
-      collector1.accumulator(acc1, element);
-      collector2.accumulator(acc2, element);
-    },
+    accumulator: ([acc1, acc2], element) => [
+      collector1.accumulator(acc1, element),
+      collector2.accumulator(acc2, element),
+    ],
     finisher: ([acc1, acc2]) => {
       return combiner(collector1.finisher(acc1), collector2.finisher(acc2));
     },
@@ -475,10 +481,13 @@ export function summarizingNumber<T>(
     }),
     accumulator: (stats, element) => {
       const value = mapper(element);
-      stats.count = (stats.count || 0) + 1;
-      stats.sum = (stats.sum || 0) + value;
-      stats.min = Math.min(stats.min || Infinity, value);
-      stats.max = Math.max(stats.max || -Infinity, value);
+      // The supplier sets every field. (Before, `stats.min || Infinity` treated a minimum of 0
+      // as missing: BUGS-2026-07 L16.)
+      stats.count = stats.count! + 1;
+      stats.sum = stats.sum! + value;
+      stats.min = Math.min(stats.min!, value);
+      stats.max = Math.max(stats.max!, value);
+      return stats;
     },
     finisher: (stats) => ({
       count: stats.count!,
