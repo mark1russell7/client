@@ -1,0 +1,38 @@
+# Deep dive: data and library packages (2026-10-08)
+
+> The report of the deep-dive agent for `client-mongo`, `client-sqlite`, `client-s3`, `client-snapshot`, `client-splay`, `client-lib`, `client-dag` and `client/src/procedures/storage` (condensed). Findings marked "repro" ran against `dist/` with throwaway data and fakes. The status of each finding is in [STATUS.md](./STATUS.md).
+
+| ID | Severity | Where | Defect | Fix |
+|---|---|---|---|---|
+| DATA-1 | critical | `client-snapshot/.../restore.ts` | `workDir = join(tmpdir(), "restore-" + id)` with an unvalidated `id`; the `finally` deletes it recursively, also when S3 fails. `id: "x/../../<dir>"` deletes `<dir>` (repro). Concurrent restores of one id delete each other's archive. | Validate `id` (`^[\w.-]+$`), use `mkdtemp`; the same for `name` in `create.ts`. |
+| DATA-2 | high | `restore.ts`, `create.ts` | The `overwrite: false` guard checks `join(target, repo.name)` (the package name), but the archive stores `basename(path)`: an existing working copy is overwritten (repro). | Record the archive entry name in the metadata and check it. |
+| DATA-3 | high | `create.ts` | Exclusion is `path.includes(pattern)`: the `light` preset drops `src/distance.ts`; `*.log` is a literal (repro). | Compare path segments; a real glob matcher. |
+| DATA-4 | high | `client-mongo` `documents.delete`/`update` | Without `id` and `filter`, the filter is `{}`; `find`/`count` take `query`, `update`/`delete` take `filter`: `delete {query, multi: true}` empties the collection. | Require exactly one non-empty `id` or `filter`; reject unknown keys; `confirm` for an empty filter with `multi`. |
+| DATA-5 | high | `client-mongo/connection.ts`, MCP transport | Nothing calls `connect()`, and `collection` comes only from metadata, which MCP cannot set: every `mongo.*` tool fails (repro). | Connect lazily from `MONGODB_URI`; `collection`/`database` as input fields. |
+| DATA-6 | high | `mongo-storage.ts` | `MongoStorage` caches a `Collection`; `connect()` closes the previous client, so the cache fails after a reconnect (repro). | Get the collection on each operation. |
+| DATA-7 | high | `client-lib/.../rename.ts`, `client-fs/.../glob.ts` | `fs.glob` returns `matches`, `lib.rename` reads `files`; the `ignore` option is stripped; paths are relative to `cwd` but read from `process.cwd()`. `lib.rename` always throws (repro); it is an MCP tool. | Use `matches` with absolute paths, support `ignore`, add a test. |
+| DATA-8 | high | `synced-registry.ts` | A write-through `register()` stores no `handlerRef`; with `conflictResolution: "remote"`, the next pull replaces the procedure with a stub (repro). Write-back `unregister()` never deletes from storage. | Never replace a handler with a stub; queue deletes; compare timestamps. |
+| DATA-9 | medium-high | `storage/api.ts`, `hybrid.ts` | `ApiStorage` expects a `{data}` envelope and calls `users.get` (the procedures are `collections.users.get`); `HybridStorage` indexes by `item.id` (procedure records have none), never falls back to remote on `get`, keeps remotely deleted items, does not `unref` its timer, and overlapping syncs can restore stale values. `ApiStorage.close()` closes the caller's `Client`. | Align with the collection procedures; tests. |
+| DATA-10 | medium | `storage/procedures.ts` | `procedure.store`/`load`/`sync`/`remote` report success and do nothing; `procedure.register` adds handler-less stubs. All MCP tools. | Throw `NOT_IMPLEMENTED` or remove them from the MCP surface. |
+| DATA-11 | medium (security) | `serialization.ts`, `factory.ts` | M11 is still open: `createDynamicHandlerLoader` imports any module named in storage (also `data:` URLs) and is the default loader. The commit cited for M11 fixed M14. | An allowlist and no default loader; correct the status record. |
+| DATA-12 | medium | `client-splay/src/streaming.ts` | `mergeStreams` leaks one reaction per item on an idle source (81 MiB at 200k items); never calls `return()` on its sources; `debounceStream` keeps draining after the reader stops; `throttleStream` holds the latest value until the source ends (repro). | A shared wake-up; `return()` in `finally`; a trailing-edge timer. |
+| DATA-13 | medium | `docker-sqlite` (general repo) `connect.ts`, `query.ts` | Every read rewrites the database file (EPERM on read-only files; a read overwrites another process's rows); `db.execute` with several statements runs the first only and reports success; `db.query` creates missing files; the queue key is case-sensitive on Windows (repro). | Save only after writes; reject multiple statements; no create on query; a normalized key. |
+| DATA-14 | medium | `client-s3/.../download.ts` | `createWriteStream(destPath)` truncates the file first: a failed transfer destroys the previous file (repro); `maxBytes` is checked only against `Content-Length`. | Write `destPath.part`, rename on success; count bytes. |
+| DATA-15 | medium | `client-mongo` `types.ts`, `documents.update.ts` | An upsert by a 24-hex id in `"auto"` mode filters with `$or`, so each call inserts a new document. | Use the exact `_id` form for upserts. |
+| DATA-16 | medium | `client-snapshot/.../list.ts` | One page, cut before the sort: the oldest snapshots, not the newest (repro); a `name` with `/` gives ids that restore/diff/delete never find. | List all pages; sort by timestamp; then cut. |
+| DATA-17 | medium | `client-lib/.../dag/traverse.ts` | Default concurrency 4 in one repository: concurrent `git add` fail on `index.lock` (32 of 40 in the repro). | Concurrency 1 for git visits or when the nodes share a repository. |
+| DATA-18 | medium (security) | `client-lib/workspace.ts`, `lib/new.ts` | `rootPath` is not checked: `lib.new` (an MCP tool) runs `node <rootPath>/node_modules/@mark1russell7/cue/dist/cli.js`, a script from any folder. | Require `pnpm-workspace.yaml` and an allowlisted root, or drop `rootPath` from the MCP schema. |
+| DATA-19 | medium | `client-snapshot` `create.ts`, `restore.ts` | Whole archives in memory (>2 GiB fails; peak about 2.3× the archive). | Stream the hash; upload parts from file offsets. |
+| DATA-20 | medium | `server/src/config.ts`, HTTP server transport | H19 half fixed: the `server` CLI binds `0.0.0.0` with CORS `*` and allows the `collection`/`database` headers: any web page can run `db.*` on any `dbPath`. | See the security fixes. |
+| DATA-21 | low | `client-dag` `traversal.ts`, `executor.ts` | A duplicate dependency counts twice in the in-degree ("Circular dependency"); a throwing `onNodeStart`/`onNodeComplete` rejects the run. | Deduplicate; isolate listener errors. |
+| DATA-22 | low | `client-lib/.../core/catch.ts` | Hydration runs outside the `try`: a throwing `$immediate` ref escapes `core.catch`. | Hydrate inside the `try`. |
+
+Minor: `multipartUpload` hides the original error when the abort fails; `s3.multipart.complete` does not sort the parts; `restore` with `overwrite: true` merges and leaves stale files.
+
+## Architecture observations
+
+- client-snapshot, client-sqlite and client-mongo have no tests; most findings would fall to one happy-path test against fakes.
+- `ctx.client.call` response shapes are declared, not checked (DATA-7, DATA-9).
+- The persistence layer (`storage/*`, synced registry, the dynamic loader) is exported and partly exposed, but nothing uses it and it does not work end to end: rebuild it with tests, or remove it.
+- Path-valued inputs (`id`, `name`, `rootPath`, `dbPath`, `destPath`) are never checked against a root: one `resolveInside(root, p)` helper.
+- The Mongo collection/database scope comes from metadata: move it into the validated input.

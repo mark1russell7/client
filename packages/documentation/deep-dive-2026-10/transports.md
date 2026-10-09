@@ -1,0 +1,33 @@
+# Deep dive: transports, server and middleware (2026-10-08)
+
+> The report of the deep-dive agent for `packages/client` `adapters/**`, `server/**`, `client/middleware/**`, `client/validation/**` and `client/errors/**` (condensed). 15 of 16 findings were reproduced against `dist/` (Node 25, Express 5.2.1, ws 8.22.0). The status of each finding is in [STATUS.md](./STATUS.md).
+
+| ID | Severity | Where | Defect | Fix |
+|---|---|---|---|---|
+| TRN-1 | critical | `mark`, `server`, `client-server` peer, HTTP/WebSocket server transports | The network entry points serve every procedure to the LAN and to any web page: `0.0.0.0`, CORS `*` (a cross-origin POST ran the handler), the WebSocket server checks no `Origin` (cross-site WebSocket hijacking ran a procedure), and the pattern URL strategy ignores the verb (a cross-site `GET` runs procedures with all-optional input). | Loopback by default; CORS off or an origin allowlist; check `Origin` in `verifyClient`; refuse `GET`; check `Host`; a token for `--server`. |
+| TRN-2 | high | `client-cli/.../run.ts` | `cli.run` gets around the MCP expose rule (code trace). | Remove `cli` from `mcpNamespaces`, or tag it and check `path`. |
+| TRN-3 | high | HTTP server (`res.write` ignored), WebSocket server (`bufferedAmount` ignored), WebSocket client (`ItemQueue` unbounded) | No backpressure: the server runs a stream to completion whatever the reader does (4000 × 64 KiB items, RSS +406 MiB over HTTP, +359 MiB over WebSocket). | HTTP: wait for `drain`; WebSocket server: a high-water mark; client: a bounded queue and credit frames. |
+| TRN-4 | high | `circuit-breaker.ts`, `client.ts` | The breaker records a failure after its loop; with `throwOnError: true`, `Client.stream` throws on the error item and `return()` skips the record: all 10 failing calls reach the transport. `HALF_OPEN` allows unlimited traffic; `getCircuitBreakerStats` returns `null`. | Record when the error item is seen, or in a `finally`. |
+| TRN-5 | high | `cache.ts` | The cache key ignores metadata: with `withContext({auth})`, Bob gets Alice's response; pagination in metadata returns page 1 forever (`paginateAll` loops). It caches mutations, collects whole streams and returns shared objects. | Metadata in the key; opt-in methods; never cache streams. |
+| TRN-6 | medium-high | WebSocket client heartbeat | On a heartbeat timeout the client calls `ws.close()` (a handshake): on a dead peer `onclose` never fires: no failure of pending requests, no reconnect, state stays `CONNECTED`, open streams hang. | Terminate the socket and call `handleClose` directly. |
+| TRN-7 | medium | `http/shared/errors.ts`, WebSocket client, `timeout.ts`, `procedure-server.ts`, `server.ts` | Aborts map to non-retryable `HTTP_ERROR`; the timeout middleware's catch never runs (transports yield error items); `perAttempt` + retry never retries; `HttpTransport.timeout` covers whole NDJSON streams; server errors lose `retryable`; an unknown procedure is HTTP 500 with `code: "404"`. | `ABORTED`/`TIMEOUT` (retryable); inspect items; keep codes; map 404. |
+| TRN-8 | medium | `retry.ts` | Every thrown error is retried (validation, circuit breaker, rate limit, the WebSocket "Request timeout" — a long non-idempotent call runs twice); the backoff ignores the abort signal. | Retry thrown errors only when network-class or `shouldRetry` says so; abortable backoff; a new id per attempt. |
+| TRN-9 | medium | WebSocket server `inflight`, `retry.ts` | A reused request id overwrites the `inflight` controller: a stream cannot be cancelled, attempts mix output, the handler leaks after close. | Delete only this request's entry; reject duplicate ids; a fresh id per attempt. |
+| TRN-10 | medium | HTTP client, WebSocket server, HTTP server | Primitive payloads arrive as `{}` (`5`, `"hello"`, `true`, `null` over HTTP; `0`, `false`, `""` over WebSocket); a `void` result is `""` over HTTP. | Always send a JSON body (`express.json({ strict: false })`); `?? {}` only for `undefined`. |
+| TRN-11 | medium | `http/shared/headers.ts` | Over HTTP only string metadata gets through (pagination is lost); a non-Latin-1 value or a non-token key fails the call; over WebSocket the internal `__schema`/`__validation` keys are sent. | One JSON header for custom metadata; strip `__*` keys. |
+| TRN-12 | medium | `rate-limit.ts` | The `unref()`'d drain interval lets the process exit with queued requests (2 of 5 calls ran, exit 13); queued requests ignore `signal`; new arrivals take tokens first. | Keep a ref'd timer while the queue is not empty. |
+| TRN-13 | medium | `procedure-server.ts`, `server.ts` | `ProcedureServer` copies the registry at startup (later registrations 404; overrides and unregistrations are not seen); method matching is exact on one split (`docker compose up` from `cli.run` fails). | Look up the live registry per request; normalize methods to paths. |
+| TRN-14 | medium | WebSocket client `waitForConnection` | Each failed call during an outage leaves a 100 ms poller running until reconnect. | Stop polling on timeout, or wait on a state event. |
+| TRN-15 | low-medium | `http/server/transport.ts` | `stop()` hangs while an NDJSON stream is open (the handler is never aborted); it also closes a caller-supplied `httpServer`. | Abort the open requests, then `closeAllConnections()`. |
+| TRN-16 | low | WebSocket server | A connection that ended with an error gets no `onDisconnect`. | Leave cleanup to the `close` handler. |
+
+Lower severity: `corsOptions.origin: string[]` sends several `Access-Control-Allow-Origin` headers and no `Vary: Origin`; the `CacheContext`/`CircuitBreakerContext`/`RateLimitContext`/`PaginationContext` types are never set or read; doc examples omit `express.json()` and recommend a strategy that does not match the client; flattened `req.query` overwrites `metadata.headers/query/params`.
+
+## Architecture observations
+
+1. Security defaults are decided in four places, two still open. One `secureDefaults()` and a token for `--server`; code procedures that dispatch by path need the data-driven mark.
+2. Transports yield error items while middleware and `Client` throw: each middleware relies on the other style (TRN-4, 7, 8). Choose one.
+3. A request id is both the wire correlation key and the call identity; retries reuse it (TRN-8, 9). Transports should own wire ids.
+4. Streaming needs flow control (TRN-3). A generator waiting on a promise that never settles cannot be interrupted by `return()`: stream handlers must observe `ctx.signal`.
+5. `ProcedureServer` should use the live registry and normalize the method split (TRN-13).
+6. Middleware tests drive generators directly; tests through `Client` with `throwOnError` on and off would have caught TRN-4, 5, 12.
