@@ -729,6 +729,9 @@ importers:
       '@mark1russell7/client-s3':
         specifier: workspace:*
         version: link:../client-s3
+      '@mark1russell7/client-shell':
+        specifier: workspace:*
+        version: link:../client-shell
       tar:
         specifier: ^7.5.0
         version: 7.5.22
