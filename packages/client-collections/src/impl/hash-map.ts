@@ -85,6 +85,12 @@ export class HashMap<K, V> implements MapLike<K, V> {
   private readonly _keyHash: Hash<K>;
   private readonly _valueEq: Eq<V>;
   private _threshold: number;
+  /**
+   * The count of structural changes (a key added or removed, a clear, a resize). An iterator
+   * records it at its start and throws when it changes. Before, a resize during iteration made
+   * the iterator skip or repeat entries (BUGS-2026-07 L15).
+   */
+  private _modCount = 0;
 
   constructor(options: HashMapOptions<K, V> = {}) {
     const {
@@ -213,6 +219,7 @@ export class HashMap<K, V> implements MapLike<K, V> {
     };
     this._buckets[index] = newNode;
     this._size++;
+    this._modCount++;
 
     // Check if resize is needed
     if (this._size > this._threshold) {
@@ -248,6 +255,7 @@ export class HashMap<K, V> implements MapLike<K, V> {
           prev.next = node.next;
         }
         this._size--;
+        this._modCount++;
         return node.value;
       }
       prev = node;
@@ -276,6 +284,7 @@ export class HashMap<K, V> implements MapLike<K, V> {
           prev.next = node.next;
         }
         this._size--;
+        this._modCount++;
         return true;
       }
       prev = node;
@@ -409,6 +418,7 @@ export class HashMap<K, V> implements MapLike<K, V> {
   clear(): void {
     this._buckets.fill(null);
     this._size = 0;
+    this._modCount++;
   }
 
   // ========================================================================
@@ -416,30 +426,36 @@ export class HashMap<K, V> implements MapLike<K, V> {
   // ========================================================================
 
   *keys(): IterableIterator<K> {
+    const expected = this._modCount;
     for (const bucket of this._buckets) {
       let node = bucket;
       while (node !== null) {
         yield node.key;
+        this.checkUnchanged(expected);
         node = node.next;
       }
     }
   }
 
   *values(): IterableIterator<V> {
+    const expected = this._modCount;
     for (const bucket of this._buckets) {
       let node = bucket;
       while (node !== null) {
         yield node.value;
+        this.checkUnchanged(expected);
         node = node.next;
       }
     }
   }
 
   *entries(): IterableIterator<Entry<K, V>> {
+    const expected = this._modCount;
     for (const bucket of this._buckets) {
       let node = bucket;
       while (node !== null) {
         yield { key: node.key, value: node.value };
+        this.checkUnchanged(expected);
         node = node.next;
       }
     }
@@ -463,6 +479,13 @@ export class HashMap<K, V> implements MapLike<K, V> {
   // Internal helpers
   // ========================================================================
 
+  /** This method throws when the map changed structurally after an iterator started. */
+  private checkUnchanged(expected: number): void {
+    if (this._modCount !== expected) {
+      throw new Error("HashMap changed during iteration");
+    }
+  }
+
   /**
    * Returns the bucket index for a given hash.
    */
@@ -485,6 +508,7 @@ export class HashMap<K, V> implements MapLike<K, V> {
 
     this._buckets = new Array(newCapacity).fill(null);
     this._threshold = Math.floor(newCapacity * this._loadFactor);
+    this._modCount++;
 
     // Rehash all entries
     for (const bucket of oldBuckets) {

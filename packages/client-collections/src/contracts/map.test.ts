@@ -193,3 +193,38 @@ describe("TreeMap keeps the red-black invariants (L10)", () => {
     expect([...map.descendingKeys()]).toEqual([30, 20]);
   });
 });
+
+// =============================================================================
+// HashMap: iteration fails fast (L15)
+// =============================================================================
+
+describe("HashMap iteration fails fast when the map changes (L15)", () => {
+  it("throws when a key is added during iteration, also when the add resizes the table", () => {
+    const map = hashMap<number, string>({ initialCapacity: 4 });
+    for (let k = 0; k < 3; k++) map.set(k, "v");
+    expect(() => {
+      for (const entry of map.entries()) map.set(entry.key + 100, "w");
+    }).toThrow("changed during iteration");
+  });
+
+  it("throws when a key is deleted during iteration", () => {
+    const map = hashMap<number, string>();
+    for (let k = 0; k < 10; k++) map.set(k, "v");
+    expect(() => {
+      for (const key of map.keys()) map.delete(key);
+    }).toThrow("changed during iteration");
+  });
+
+  it("allows a new value for an existing key during iteration", () => {
+    const map = hashMap<number, string>();
+    for (let k = 0; k < 10; k++) map.set(k, "v");
+    for (const entry of map.entries()) map.set(entry.key, "w");
+    expect([...map.values()].every((v) => v === "w")).toBe(true);
+  });
+
+  it("yields each entry once when nothing changes", () => {
+    const map = hashMap<number, string>({ initialCapacity: 4 });
+    for (let k = 0; k < 100; k++) map.set(k, "v");
+    expect([...map.keys()].sort((a, b) => a - b)).toEqual([...Array(100).keys()]);
+  });
+});
