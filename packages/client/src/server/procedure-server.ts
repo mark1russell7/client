@@ -51,10 +51,17 @@ export interface ProcedureServerOptions extends ServerOptions {
    * The procedures that the callers of this server can reach. `registerFromRegistry()` registers
    * only these procedures. A data-driven procedure (control flow, `eval`, a procedure that
    * `procedure.define` made) can call only these procedures too, because its caller chooses
-   * what it calls. A procedure of code calls any procedure: `docker.run` uses `shell.exec`.
-   * Without this rule, the server exposes every procedure.
+   * what it calls. A procedure of code calls the procedures of its `metadata.calls`
+   * (`docker.run` declares `shell.run`) and the exposed ones. Without this rule, the server
+   * exposes every procedure. See `procedures/policy.ts` (deep dive MCP-3).
    */
   expose?: ((path: ProcedurePath) => boolean) | undefined;
+
+  /**
+   * True: a procedure of code without `metadata.calls` can call only the exposed procedures.
+   * A server for an outside caller (the MCP server of the dev tools) sets it.
+   */
+  strictCalls?: boolean | undefined;
 }
 
 /**
@@ -121,12 +128,14 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    */
   private servesRegistry = false;
   private readonly expose: ((path: ProcedurePath) => boolean) | undefined;
+  private readonly strictCalls: boolean;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
 
     this.procedureRegistry = options.registry ?? PROCEDURE_REGISTRY;
     this.expose = options.expose;
+    this.strictCalls = options.strictCalls ?? false;
 
     // Configure collections
     if (options.collections) {
@@ -292,6 +301,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         signal: request.signal,
         repository: this,
         expose: this.expose,
+        strictCalls: this.strictCalls,
       });
       if (output.kind === "stream") {
         return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };

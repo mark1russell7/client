@@ -21,7 +21,7 @@ import type {
 import { pathToKey } from "./types.js";
 import type { ProcedureRegistry } from "./registry.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
-import { isDataDriven } from "./ref.js";
+import { nestedCallRefusal } from "./policy.js";
 import type { EventBus } from "../events/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
@@ -34,6 +34,7 @@ export type InvocationErrorCode =
   | "NOT_FOUND"
   | "NO_HANDLER"
   | "NOT_EXPOSED"
+  | "NOT_DECLARED"
   | "VALIDATION_ERROR"
   | "OUTPUT_VALIDATION_ERROR"
   | "NO_OUTPUT"
@@ -81,9 +82,13 @@ export interface InvokeOptions {
   client?: ProcedureClient | undefined;
   /**
    * The expose rule of a server. A data-driven procedure (control flow, `runs-refs`, a procedure
-   * that `procedure.define` made) can call only the paths for which it gives true.
+   * that `procedure.define` made) can call only the paths for which it gives true. A code
+   * procedure with `metadata.calls` can call what it declares and the exposed paths. See
+   * `policy.ts` (deep dive MCP-3).
    */
   expose?: ((path: ProcedurePath) => boolean) | undefined;
+  /** True: a code procedure without `metadata.calls` can call only the exposed paths. */
+  strictCalls?: boolean | undefined;
 }
 
 // =============================================================================
@@ -279,16 +284,11 @@ export function createProcedureContext(procedure: AnyProcedure, options: InvokeO
 /** The client of a procedure's context: it runs the nested calls from the registry. */
 function registryClient(caller: AnyProcedure, options: InvokeOptions): ProcedureClient {
   const start = <TOutput>(path: ProcedurePath, input: unknown): Promise<ProcedureOutput<TOutput>> => {
-    // BUGS-2026-07 H18: a data-driven caller reaches only the exposed procedures
-    if (options.expose && isDataDriven(caller) && !options.expose(path)) {
-      return Promise.reject(
-        new InvocationError(
-          "NOT_EXPOSED",
-          `Procedure not exposed: ${pathToKey(path)}. ${pathToKey(caller.path)} runs procedure refs ` +
-            `from its input, so it can call only the procedures that this server exposes.`,
-          path,
-        ),
-      );
+    // The call policy of the host, with the immediate caller (BUGS-2026-07 H18, deep dive MCP-3).
+    // It runs before the lookup, so a refused path tells nothing about the procedure.
+    const refusal = nestedCallRefusal(caller, path, options);
+    if (refusal) {
+      return Promise.reject(new InvocationError(refusal.code, refusal.message, path));
     }
     return invokePath<TOutput>(path, input, options);
   };
