@@ -42,6 +42,7 @@ export type {
   DockerComposeDownInput,
   DockerCommandOutput,
 } from "./types.js";
+export type { DockerLogItem } from "./procedures/docker/logs.js";
 
 export {
   DockerRunInputSchema,

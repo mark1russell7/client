@@ -21,6 +21,7 @@ import {
   dockerComposeUp,
   dockerComposeDown,
 } from "./procedures/docker/index.js";
+import type { DockerLogItem } from "./procedures/docker/index.js";
 import {
   DockerRunInputSchema,
   DockerBuildInputSchema,
@@ -156,16 +157,19 @@ const dockerPsProcedure = createProcedure()
 const dockerLogsProcedure = createProcedure()
   .path(["docker", "logs"])
   .input(zodAdapter<DockerLogsInput>(DockerLogsInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  // One value, or with follow one item for each log line (a stream)
+  .output(outputSchema<DockerCommandOutput | DockerLogItem>())
   .meta({
     description: "Get container logs",
     args: ["container"],
     shorts: { follow: "f", tail: "n", timestamps: "t" },
     output: "json",
   })
-  .handler(async (input: DockerLogsInput, ctx: ProcedureContext): Promise<DockerCommandOutput> => {
-    return dockerLogs(input, ctx);
-  })
+  // With follow, the promise gives a stream: invokeProcedure reads a returned async iterable as a
+  // stream, and the handler types of the core do not describe that case
+  .handler((input: DockerLogsInput, ctx: ProcedureContext) =>
+    dockerLogs(input, ctx) as unknown as Promise<DockerCommandOutput | DockerLogItem>
+  )
   .build();
 
 const dockerComposeUpProcedure = createProcedure()
