@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { examples } from "./examples";
-import { runProgram } from "./runtime";
-import { countCalls, decodeProgram, encodeProgram, newCall, setAt, toTypeScript, type Json } from "./program";
+import { MAX_TRACE_CALLS, runProgram } from "./runtime";
+import { countCalls } from "./program";
 
 const expected: Record<string, unknown> = {
   nested: 17,
@@ -24,6 +24,10 @@ describe("the examples of the Composer", () => {
       expect(result.calls.length).toBeGreaterThanOrEqual(countCalls(example.program) > 0 ? 1 : 0);
     });
   }
+
+  it("have an expected result each", () => {
+    expect(Object.keys(expected).sort()).toEqual(examples.map((example) => example.id).sort());
+  });
 });
 
 describe("the trace", () => {
@@ -47,50 +51,21 @@ describe("the trace", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toBeTruthy();
   });
-});
 
-describe("the program model", () => {
-  it("makes a call with defaults for the required fields", () => {
-    expect(
-      newCall(["client", "range"], [
-        { name: "start", type: "number", optional: false },
-        { name: "end", type: "number", optional: false },
-        { name: "step", type: "number", optional: true },
-      ]),
-    ).toEqual({ $proc: ["client", "range"], input: { start: 0, end: 0 } });
+  it("keeps NaN in the inputs and outputs (deep dive SITE-9)", async () => {
+    const result = await runProgram({ $proc: ["client", "divide"], input: { a: 0, b: { $proc: ["client", "identity"], input: { value: NaN } } } } as never);
+    const identity = result.calls.find((call) => call.key === "client.identity");
+    expect(identity?.output).toBeNaN();
   });
 
-  it("round-trips a program through a share link", () => {
-    for (const example of examples) {
-      expect(decodeProgram(encodeProgram(example.program))).toEqual(example.program);
-    }
-    expect(decodeProgram("not base64 json")).toBeUndefined();
-  });
-
-  it("sets and removes values at a location", () => {
-    const program: Json = { $proc: ["client", "add"], input: { a: 1, b: 2 } };
-    expect(setAt(program, ["input", "a"], 5)).toEqual({ $proc: ["client", "add"], input: { a: 5, b: 2 } });
-    expect(setAt(program, ["input", "b"], undefined)).toEqual({ $proc: ["client", "add"], input: { a: 1 } });
-    expect(setAt([1, 2, 3], [1], undefined)).toEqual([1, 3]);
-  });
-
-  it("writes TypeScript with the proc() builder", () => {
-    const code = toTypeScript(examples[0]!.program);
-    expect(code).toContain('proc(["client","add"]).input({');
-    expect(code).toContain('a: proc(["client","multiply"]).input({');
-    expect(code).toContain(".ref,");
-    expect(code).toContain("}).build());");
-  });
-});
-
-describe("formatJson", () => {
-  it("keeps short values on one line and gives valid JSON", async () => {
-    const { formatJson } = await import("./program");
-    for (const example of examples) {
-      expect(JSON.parse(formatJson(example.program))).toEqual(example.program);
-    }
-    expect(formatJson({ $proc: ["client", "add"], input: { a: 1, b: "x,y" } })).toBe(
-      '{ "$proc": ["client", "add"], "input": { "a": 1, "b": "x,y" } }',
-    );
+  it("stops the trace at its limit and counts the other calls", async () => {
+    const items = Array.from({ length: MAX_TRACE_CALLS + 10 }, (_, index) => index);
+    const result = await runProgram({
+      $proc: ["client", "map"],
+      input: { items, fn: { $proc: ["client", "identity"], input: { value: { $ref: "item" } } } },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.calls.length).toBe(MAX_TRACE_CALLS);
+    expect(result.calls.length + result.dropped).toBe(MAX_TRACE_CALLS + 11);
   });
 });

@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { build, failedPackages } from "./data";
 import { href, useRoute } from "./lib/router";
 import { Home } from "./pages/Home";
 import { Composer } from "./pages/Composer";
@@ -38,10 +40,47 @@ function ThemeToggle(): ReactElement {
     }
   }, [theme]);
   const next: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+  const label = theme === "system" ? "Auto" : theme === "light" ? "Light" : "Dark";
   return (
-    <button type="button" className="ghost theme-toggle" onClick={() => setTheme(next[theme])} title="Change the theme">
-      {theme === "system" ? "◐ Auto" : theme === "light" ? "○ Light" : "● Dark"}
+    <button
+      type="button"
+      className="ghost theme-toggle"
+      onClick={() => setTheme(next[theme])}
+      aria-label={`Theme: ${label}. Change the theme`}
+      title="Change the theme"
+    >
+      <span aria-hidden="true">{theme === "system" ? "◐" : theme === "light" ? "○" : "●"}</span>
+      <span className="theme-label"> {label}</span>
     </button>
+  );
+}
+
+function Footer(): ReactElement {
+  const date = build.date ? new Date(build.date) : null;
+  return (
+    <footer className="site-footer">
+      <p className="small muted">
+        {build.commit ? (
+          <>
+            Built from{" "}
+            <a href={`https://github.com/mark1russell7/client/commit/${build.commit}`}>
+              <code>{build.commit.slice(0, 7)}</code>
+            </a>
+          </>
+        ) : (
+          "A local build"
+        )}
+        {/* The date of the commit in its own time zone */}
+        {date && !Number.isNaN(date.getTime()) && build.date ? ` on ${build.date.slice(0, 10)}` : ""}.{" "}
+        <a href="https://github.com/mark1russell7/client">Source on GitHub</a>.
+      </p>
+      {failedPackages.length > 0 ? (
+        <p className="small error-text" role="note">
+          ⚠ {failedPackages.length} {failedPackages.length === 1 ? "package" : "packages"} did not load when the catalog was made, so
+          their procedures are not on this site: {failedPackages.map((failure) => `${failure.package} (${failure.error})`).join("; ")}
+        </p>
+      ) : null}
+    </footer>
   );
 }
 
@@ -72,6 +111,12 @@ export function App(): ReactElement {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main" onClick={(event) => {
+        event.preventDefault();
+        document.getElementById("main")?.focus();
+      }}>
+        Skip to the content
+      </a>
       <header className="site-header">
         <a className="brand" href={href("")}>
           <span className="brand-mark" aria-hidden="true">
@@ -87,13 +132,16 @@ export function App(): ReactElement {
           ))}
         </nav>
         <div className="header-end">
-          <a className="ghost" href="https://github.com/mark1russell7/client">
+          <a className="ghost github-link" href="https://github.com/mark1russell7/client">
             GitHub
           </a>
           <ThemeToggle />
         </div>
       </header>
-      <main className={route.page === "composer" || route.page === "architecture" ? "main wide" : "main"}>{page}</main>
+      <main id="main" tabIndex={-1} className={route.page === "composer" || route.page === "architecture" ? "main wide" : "main"}>
+        <ErrorBoundary resetKey={`${route.page}/${route.rest}?${route.query.toString()}`}>{page}</ErrorBoundary>
+      </main>
+      <Footer />
     </div>
   );
 }

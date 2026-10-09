@@ -1,14 +1,25 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { mcpTools, packages, procedures } from "../data";
 import { examples } from "../lib/examples";
+import { formatValue } from "../lib/display";
 import { formatJson } from "../lib/program";
 import { href } from "../lib/router";
 import { runProgram, type RunResult } from "../lib/runtime";
 
+// The examples come from the data, so they stay true (deep dive SITE-13: the page said that MCP
+// gives git.status, but git.* is not a tool)
+const cliExample =
+  procedures.find((procedure) => procedure.key === "git.status" && procedure.cli) ?? procedures.find((procedure) => procedure.cli);
+const mcpExample = ["docker.ps", "cue.validate"].find((key) => mcpTools.includes(key)) ?? mcpTools[0] ?? "";
+
 const HOSTS: Array<{ name: string; how: string; detail: string }> = [
   { name: "In process", how: "client.exec(ref)", detail: "A program calls the registry directly." },
-  { name: "CLI", how: "mark git status", detail: "Each procedure is a command. Its schema gives the flags." },
-  { name: "MCP", how: "git.status (tool)", detail: "Claude Code gets the procedures as tools." },
+  {
+    name: "CLI",
+    how: cliExample ? ["mark", ...cliExample.path].join(" ") : "mark",
+    detail: "Each procedure is a command. Its schema gives the flags.",
+  },
+  { name: "MCP", how: `${mcpExample} (tool)`, detail: `Claude Code gets ${mcpTools.length} procedures as tools.` },
   { name: "HTTP", how: "POST /api/git/status", detail: "A server exposes the registry over HTTP." },
   { name: "WebSocket", how: "{ type: \"request\" }", detail: "Calls in both directions on one connection." },
   { name: "Browser", how: "this site", detail: "The Composer runs the real client in your browser." },
@@ -24,11 +35,15 @@ function LiveExample(): ReactElement {
     <div className="two-col">
       <div>
         <div className="muted small">A program is JSON</div>
-        <pre className="code">{formatJson(example.program)}</pre>
+        <pre className="code" tabIndex={0} aria-label="The program as JSON">
+          {formatJson(example.program)}
+        </pre>
       </div>
       <div>
         <div className="muted small">The client runs it (here, in your browser)</div>
-        <pre className="code">{result ? formatJson(result.ok ? result.value : result.error) : "running…"}</pre>
+        <pre className="code" tabIndex={0} aria-label="The result">
+          {result ? (result.ok ? formatValue(result.value) : result.error) : "running…"}
+        </pre>
         <p className="small" style={{ marginTop: "var(--space-3)" }}>
           {result ? `${result.calls.length} calls in ${result.duration.toFixed(2)} ms. ` : ""}
           <a href={href("composer", undefined, { example: example.id })}>Open it in the Composer →</a>
@@ -39,7 +54,7 @@ function LiveExample(): ReactElement {
 }
 
 export function Home(): ReactElement {
-  const registered = procedures.filter((procedure) => procedure.registered).length;
+  const cli = procedures.filter((procedure) => procedure.cli).length;
   return (
     <>
       <section className="hero">
@@ -67,8 +82,8 @@ export function Home(): ReactElement {
           <span className="muted">packages</span>
         </div>
         <div className="stat">
-          <strong>{registered}</strong>
-          <span className="muted">registered procedures</span>
+          <strong>{cli}</strong>
+          <span className="muted">CLI commands</span>
         </div>
         <div className="stat">
           <strong>{procedures.filter((procedure) => procedure.browser).length}</strong>

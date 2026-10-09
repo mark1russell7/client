@@ -22,6 +22,8 @@
     --color-accent: #2346c4;
     --color-accent-strong: #172f8f;
     --color-accent-wash: #e7ecfd;
+    /* Text on an accent background: 4.5:1 or more against --color-accent in each theme */
+    --color-on-accent: #ffffff;
     --color-mark: #c2301f;
     --color-mark-wash: #fbe9e6;
 
@@ -92,6 +94,7 @@
     --color-accent: #93abff;
     --color-accent-strong: #bccbff;
     --color-accent-wash: #1f2a4f;
+    --color-on-accent: #0e1220;
     --color-mark: #ff7b6b;
     --color-mark-wash: #3a1f22;
 
@@ -129,6 +132,7 @@
         --color-accent: #93abff;
         --color-accent-strong: #bccbff;
         --color-accent-wash: #1f2a4f;
+        --color-on-accent: #0e1220;
         --color-mark: #ff7b6b;
         --color-mark-wash: #3a1f22;
 

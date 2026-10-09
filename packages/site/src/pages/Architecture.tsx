@@ -162,8 +162,9 @@ export function Architecture({ route }: { route: Route }): ReactElement {
       <h1>Architecture</h1>
       <p>
         The {packages.length} packages of the workspace and their dependencies, generated from each{" "}
-        <code>package.json</code>. A column is a level: a package uses only packages to its left. Point at a package to
-        see its dependencies. Click it for the details.
+        <code>package.json</code>. A column is a level: a package uses only packages to its left. Point at a package, or
+        move the focus to it with Tab, to see its dependencies. Click it or press Enter for the details. The list under
+        the map gives the same data as text.
       </p>
       <div className="legend">
         <span style={{ ["--swatch" as string]: "var(--series-1)" }}>Core</span>
@@ -175,7 +176,7 @@ export function Architecture({ route }: { route: Route }): ReactElement {
       </div>
       <div className="arch">
         <div className="arch-canvas">
-          <svg width={width} height={height} role="img" aria-label="Dependency map of the packages">
+          <svg width={width} height={height} role="group" aria-label="Dependency map of the packages">
             {Array.from({ length: levels }, (_, level) => (
               <text key={level} className="arch-level-label" x={MARGIN + level * COLUMN} y={MARGIN}>
                 Level {level}
@@ -200,7 +201,14 @@ export function Architecture({ route }: { route: Route }): ReactElement {
               if (related && !related.has(pkg.dir)) className += " dim";
               if (focus === pkg.dir) className += " focus";
               return (
-                <a key={pkg.dir} href={href("architecture", pkg.dir)} aria-label={pkg.dir}>
+                <a
+                  key={pkg.dir}
+                  className="arch-link"
+                  href={href("architecture", pkg.dir)}
+                  aria-label={`${pkg.dir}: ${KIND_LABEL[kindOf(pkg)]}, level ${pkg.level}, ${pkg.procedures} procedures`}
+                  onFocus={() => setHover(pkg.dir)}
+                  onBlur={() => setHover(null)}
+                >
                   <g
                     className={className}
                     transform={`translate(${x} ${y})`}
@@ -244,6 +252,27 @@ export function Architecture({ route }: { route: Route }): ReactElement {
           </aside>
         )}
       </div>
+      <details className="arch-list">
+        <summary>The packages as a list, by level</summary>
+        {Array.from({ length: levels }, (_, level) => (
+          <section key={level} aria-label={`Level ${level}`}>
+            <h3 className="small">Level {level}</h3>
+            <ul className="small">
+              {packages
+                .filter((pkg) => pkg.level === level)
+                .map((pkg) => (
+                  <li key={pkg.dir}>
+                    <a href={href("architecture", pkg.dir)}>{pkg.dir}</a>{" "}
+                    <span className="muted">
+                      {KIND_LABEL[kindOf(pkg)]}
+                      {pkg.deps.length > 0 ? `, uses ${pkg.deps.join(", ")}` : ""}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ))}
+      </details>
     </>
   );
 }
