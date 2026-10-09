@@ -178,6 +178,7 @@ export {
   ProcedureStorageAdapter,
   // Synced Registry
   SyncedProcedureRegistry,
+  getProcedureStore,
   // Factory
   createSyncedRegistry,
   createMemorySyncedRegistry,
@@ -192,6 +193,7 @@ export {
   procedureRemoteProcedure,
   procedureStorageModule,
   procedureStorageProcedures,
+  ProcedureStoreError,
 } from "./storage/index.js";
 
 // =============================================================================

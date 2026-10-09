@@ -13,6 +13,7 @@ import type { HybridStorageOptions } from "./hybrid.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../registry.js";
 import type { SerializedProcedure, SyncedRegistryOptions, HandlerLoader } from "./types.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";
+import { getSerializedKey } from "./serialization.js";
 
 // =============================================================================
 // Factory Configuration
@@ -36,8 +37,15 @@ export interface CreateSyncedRegistryConfig {
   client?: Client | undefined;
 
   /**
-   * Service name for API storage.
+   * The collection of the core collection procedures on the server: the calls go to
+   * `collections.<collection>.<operation>`.
    * @default "procedures"
+   */
+  collection?: string | undefined;
+
+  /**
+   * The service of the calls, for a server with other paths. The default is
+   * `collections.<collection>`.
    */
   service?: string | undefined;
 
@@ -102,7 +110,8 @@ export function createSyncedRegistry(config: CreateSyncedRegistryConfig): Synced
   const {
     type,
     client,
-    service = "procedures",
+    collection = "procedures",
+    service,
     hybridOptions,
     registryOptions = {},
     baseRegistry = PROCEDURE_REGISTRY,
@@ -126,36 +135,28 @@ export function createSyncedRegistry(config: CreateSyncedRegistryConfig): Synced
 
     case "api":
       storage = new ApiStorage<SerializedProcedure>(client!, {
-        service,
-        operations: {
-          get: "get",
-          getAll: "getAll",
-          find: "find",
-          has: "has",
-          size: "size",
-          set: "set",
-          delete: "delete",
-          clear: "clear",
-          setBatch: "setBatch",
-          deleteBatch: "deleteBatch",
-          getBatch: "getBatch",
-        },
+        collection,
+        ...(service !== undefined && { service }),
       });
       break;
 
-    case "hybrid":
+    case "hybrid": {
       const remoteStorage = new ApiStorage<SerializedProcedure>(client!, {
-        service,
+        collection,
+        ...(service !== undefined && { service }),
       });
       storage = new HybridStorage<SerializedProcedure>(
         remoteStorage,
         {
           writeStrategy: hybridOptions?.writeStrategy ?? "write-through",
           conflictResolution: hybridOptions?.conflictResolution ?? "local",
+          // A procedure record has no id: its key is its path (deep dive DATA-9)
+          keyOf: getSerializedKey,
           ...hybridOptions,
         }
       );
       break;
+    }
 
     default:
       throw new Error(`Unknown storage type: ${type}`);
@@ -192,19 +193,19 @@ export function createMemorySyncedRegistry(
  * Create an API-backed synced registry.
  *
  * @param client - Universal client instance
- * @param service - Service name for storage operations
+ * @param collection - The collection of the core collection procedures on the server
  * @param baseRegistry - Base registry to wrap
  * @returns SyncedProcedureRegistry with API storage
  */
 export function createApiSyncedRegistry(
   client: Client,
-  service = "procedures",
+  collection = "procedures",
   baseRegistry: ProcedureRegistry = PROCEDURE_REGISTRY
 ): SyncedProcedureRegistry {
   return createSyncedRegistry({
     type: "api",
     client,
-    service,
+    collection,
     baseRegistry,
   });
 }
@@ -213,21 +214,21 @@ export function createApiSyncedRegistry(
  * Create a hybrid synced registry (offline-first).
  *
  * @param client - Universal client instance
- * @param service - Service name for storage operations
+ * @param collection - The collection of the core collection procedures on the server
  * @param options - Hybrid storage options
  * @param baseRegistry - Base registry to wrap
  * @returns SyncedProcedureRegistry with hybrid storage
  */
 export function createHybridSyncedRegistry(
   client: Client,
-  service = "procedures",
+  collection = "procedures",
   options?: Partial<HybridStorageOptions>,
   baseRegistry: ProcedureRegistry = PROCEDURE_REGISTRY
 ): SyncedProcedureRegistry {
   return createSyncedRegistry({
     type: "hybrid",
     client,
-    service,
+    collection,
     hybridOptions: options,
     baseRegistry,
   });

@@ -186,6 +186,8 @@ export {
   createDynamicHandlerLoader,
   ProcedureStorageAdapter,
   SyncedProcedureRegistry,
+  getProcedureStore,
+  ProcedureStoreError,
   createSyncedRegistry,
   createMemorySyncedRegistry,
   createApiSyncedRegistry,

@@ -7,14 +7,20 @@
  * - procedure.load - Load procedures from storage
  * - procedure.sync - Sync registry with storage
  * - procedure.remote - Configure remote connection
+ *
+ * The procedures work on the store of the caller's registry: the `SyncedProcedureRegistry`
+ * that wraps it (`createSyncedRegistry()`). When the registry has no store, they fail with
+ * the code `NOT_CONFIGURED`. (Before, they reported success and did nothing: deep dive
+ * CORE-16, DATA-10.)
  */
 
 import { defineProcedure } from "../define.js";
 import type { AnyProcedure, ProcedureContext, ProcedurePath } from "../types.js";
-import { PROCEDURE_REGISTRY } from "../registry.js";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "../registry.js";
 import { pathToKey, keyToPath } from "../types.js";
 import type { SyncDirection, HandlerReference, SerializedProcedure } from "./types.js";
-import { deserializeProcedureSync, serializeProcedure } from "./serialization.js";
+import { deserializeProcedure, deserializeProcedureSync } from "./serialization.js";
+import { getProcedureStore, type SyncedProcedureRegistry } from "./synced-registry.js";
 
 // =============================================================================
 // Any Schema Helper
@@ -29,6 +35,43 @@ const anySchema: {
   safeParse: (data: unknown) => ({ success: true as const, data }),
   _output: undefined as unknown,
 };
+
+// =============================================================================
+// The store of the caller
+// =============================================================================
+
+/** An error of a storage procedure that cannot do its work. */
+export class ProcedureStoreError extends Error {
+  override readonly name = "ProcedureStoreError";
+  readonly code: "NOT_CONFIGURED" | "NOT_IMPLEMENTED" | "NO_HANDLER";
+
+  constructor(code: "NOT_CONFIGURED" | "NOT_IMPLEMENTED" | "NO_HANDLER", message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+/** The registry of the caller: the context's registry when it has one, else the global one. */
+function callerRegistry(ctx: ProcedureContext | undefined): ProcedureRegistry {
+  return (ctx as (ProcedureContext & { registry?: ProcedureRegistry }) | undefined)?.registry ?? PROCEDURE_REGISTRY;
+}
+
+/** The store of the caller's registry, or a NOT_CONFIGURED error. */
+function requireStore(ctx: ProcedureContext | undefined, what: string): SyncedProcedureRegistry {
+  const store = getProcedureStore(callerRegistry(ctx));
+  if (!store) {
+    throw new ProcedureStoreError(
+      "NOT_CONFIGURED",
+      `${what} needs a procedure store, and this registry has none. ` +
+        "Wrap the registry with createSyncedRegistry() or new SyncedProcedureRegistry()."
+    );
+  }
+  return store;
+}
+
+function toPath(path: ProcedurePath | string): ProcedurePath {
+  return typeof path === "string" ? keyToPath(path) : path;
+}
 
 // =============================================================================
 // procedure.register - Register procedure at runtime
@@ -51,6 +94,8 @@ interface RegisterOutput {
   success: boolean;
   message: string;
   path: ProcedurePath;
+  /** False for a declaration: the procedure has no handler, and a Client sends its calls to the transport */
+  hasHandler: boolean;
 }
 
 export const procedureRegisterProcedure: AnyProcedure = defineProcedure({
@@ -61,10 +106,9 @@ export const procedureRegisterProcedure: AnyProcedure = defineProcedure({
     description: "Register a procedure at runtime",
     tags: ["procedure", "registry", "storage"],
   },
-  handler: async (input: RegisterInput, _ctx: ProcedureContext): Promise<RegisterOutput> => {
+  handler: async (input: RegisterInput, ctx: ProcedureContext): Promise<RegisterOutput> => {
     const { path, metadata = {}, streaming, handlerRef, persist = false } = input;
-
-    // Create serialized procedure and deserialize to stub
+    const key = pathToKey(path);
     const serialized: SerializedProcedure = {
       path,
       metadata,
@@ -73,27 +117,46 @@ export const procedureRegisterProcedure: AnyProcedure = defineProcedure({
       storedAt: Date.now(),
     };
 
-    const procedure = deserializeProcedureSync(serialized);
+    if (persist) {
+      // A stored procedure needs a handler: never store a stub (deep dive CORE-16)
+      const store = requireStore(ctx, "procedure.register with persist");
+      const loader = store.getHandlerLoader();
+      const procedure = handlerRef && loader ? await deserializeProcedure(serialized, { handlerLoader: loader }) : undefined;
+      if (!procedure?.handler) {
+        throw new ProcedureStoreError(
+          "NO_HANDLER",
+          `procedure.register with persist needs a handler for ${key}: give a handlerRef ` +
+            "that the handler loader of the store allows."
+        );
+      }
+      store.register(procedure, { override: false, handlerRef });
+      await store.flushWrites();
+      return { success: true, message: `Registered and stored ${key}`, path, hasHandler: true };
+    }
 
-    // Register in global registry
+    // No persist: load the handler when the store's loader allows it, else declare a stub
+    const loader = getProcedureStore(callerRegistry(ctx))?.getHandlerLoader();
+    const procedure =
+      handlerRef && loader ? await deserializeProcedure(serialized, { handlerLoader: loader }) : deserializeProcedureSync(serialized);
     try {
-      PROCEDURE_REGISTRY.register(procedure, { override: false });
+      callerRegistry(ctx).register(procedure, { override: false });
     } catch (error) {
       return {
         success: false,
         message: error instanceof Error ? error.message : "Registration failed",
         path,
+        hasHandler: false,
       };
     }
 
-    // Note: persist flag would be handled by SyncedProcedureRegistry
-    // For now, just acknowledge the registration
+    const hasHandler = typeof procedure.handler === "function";
     return {
       success: true,
-      message: persist
-        ? `Registered ${pathToKey(path)} (persistence requested)`
-        : `Registered ${pathToKey(path)}`,
+      message: hasHandler
+        ? `Registered ${key}`
+        : `Registered ${key} with no handler: a Client sends the calls of this path to its transport`,
       path,
+      hasHandler,
     };
   },
 });
@@ -113,6 +176,8 @@ interface StoreOutput {
   stored: boolean;
   path: ProcedurePath;
   message?: string;
+  /** When the storage got the record */
+  storedAt?: number;
 }
 
 export const procedureStoreProcedure: AnyProcedure = defineProcedure({
@@ -123,30 +188,21 @@ export const procedureStoreProcedure: AnyProcedure = defineProcedure({
     description: "Persist a procedure definition to storage",
     tags: ["procedure", "registry", "storage"],
   },
-  handler: async (input: StoreInput, _ctx: ProcedureContext): Promise<StoreOutput> => {
-    const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
+  handler: async (input: StoreInput, ctx: ProcedureContext): Promise<StoreOutput> => {
+    const path = toPath(input.path);
+    const store = requireStore(ctx, "procedure.store");
 
-    // Get procedure from registry
-    const procedure = PROCEDURE_REGISTRY.get(path);
-    if (!procedure) {
+    const record = await store.storeProcedure(path, { handlerRef: input.handlerRef });
+    if (!record) {
       return {
         stored: false,
         path,
         message: `Procedure not found: ${pathToKey(path)}`,
       };
     }
-
-    // Serialize for acknowledgment (actual storage handled by synced registry)
-    serializeProcedure(procedure, {
-      handlerRef: input.handlerRef,
-    });
-
-    // For now, just acknowledge - actual storage handled by synced registry
-    return {
-      stored: true,
-      path,
-      message: `Serialized ${pathToKey(path)} for storage`,
-    };
+    const output: StoreOutput = { stored: true, path, message: `Stored ${pathToKey(path)}` };
+    if (record.storedAt !== undefined) output.storedAt = record.storedAt;
+    return output;
   },
 });
 
@@ -164,8 +220,11 @@ interface LoadInput {
 }
 
 interface LoadOutput {
+  /** The number of procedures that the load added to the registry or changed */
   loaded: number;
+  /** The paths of the stored records that matched */
   paths: ProcedurePath[];
+  conflicts: Array<{ path: ProcedurePath; resolution: string }>;
   message: string;
 }
 
@@ -177,40 +236,35 @@ export const procedureLoadProcedure: AnyProcedure = defineProcedure({
     description: "Load procedures from storage into registry",
     tags: ["procedure", "registry", "storage"],
   },
-  handler: async (input: LoadInput, _ctx: ProcedureContext): Promise<LoadOutput> => {
-    // This would typically interact with SyncedProcedureRegistry.syncFromStorage()
-    // For now, return placeholder indicating the operation would be performed
-
+  handler: async (input: LoadInput, ctx: ProcedureContext): Promise<LoadOutput> => {
+    let matches: (record: SerializedProcedure) => boolean;
+    let what: string;
     if (input.all) {
-      return {
-        loaded: 0,
-        paths: [],
-        message: "Load all requested - requires SyncedProcedureRegistry",
+      matches = () => true;
+      what = "all procedures";
+    } else if (input.path) {
+      const key = pathToKey(toPath(input.path));
+      matches = (record) => pathToKey(record.path) === key;
+      what = key;
+    } else if (input.prefix) {
+      const prefix = pathToKey(toPath(input.prefix));
+      matches = (record) => {
+        const key = pathToKey(record.path);
+        return key === prefix || key.startsWith(`${prefix}.`);
       };
+      what = `${prefix}.*`;
+    } else {
+      throw new Error("procedure.load needs `path`, `prefix` or `all: true`");
     }
 
-    if (input.path) {
-      const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
-      return {
-        loaded: 0,
-        paths: [path],
-        message: `Load ${pathToKey(path)} requested - requires SyncedProcedureRegistry`,
-      };
-    }
-
-    if (input.prefix) {
-      const prefix = typeof input.prefix === "string" ? keyToPath(input.prefix) : input.prefix;
-      return {
-        loaded: 0,
-        paths: [],
-        message: `Load prefix ${pathToKey(prefix)} requested - requires SyncedProcedureRegistry`,
-      };
-    }
-
+    const store = requireStore(ctx, "procedure.load");
+    const paths = (await store.getAdapter().getAllRaw()).filter(matches).map((record) => record.path);
+    const result = await store.syncFromStorage(matches);
     return {
-      loaded: 0,
-      paths: [],
-      message: "No load criteria specified",
+      loaded: result.pulled,
+      paths,
+      conflicts: result.conflicts.map(({ path, resolution }) => ({ path, resolution })),
+      message: `Loaded ${result.pulled} of ${paths.length} stored procedure(s) for ${what}`,
     };
   },
 });
@@ -242,17 +296,15 @@ export const procedureSyncProcedure: AnyProcedure = defineProcedure({
     description: "Synchronize procedure registry with storage",
     tags: ["procedure", "registry", "storage"],
   },
-  handler: async (input: SyncInput, _ctx: ProcedureContext): Promise<SyncOutput> => {
+  handler: async (input: SyncInput, ctx: ProcedureContext): Promise<SyncOutput> => {
     const direction = input.direction ?? "both";
-
-    // This would typically call SyncedProcedureRegistry.sync()
-    // For now, return placeholder
-
+    const store = requireStore(ctx, "procedure.sync");
+    const result = await store.sync(direction);
     return {
-      pushed: 0,
-      pulled: 0,
-      conflicts: [],
-      message: `Sync ${direction} requested - requires SyncedProcedureRegistry`,
+      pushed: result.pushed,
+      pulled: result.pulled,
+      conflicts: result.conflicts.map(({ path, resolution }) => ({ path, resolution })),
+      message: `Sync ${direction}: pushed ${result.pushed}, pulled ${result.pulled}`,
     };
   },
 });
@@ -277,6 +329,7 @@ interface RemoteOutput {
   connected: boolean;
   endpoint?: string;
   lastSync?: number;
+  pendingChanges?: number;
   message: string;
 }
 
@@ -288,43 +341,40 @@ export const procedureRemoteProcedure: AnyProcedure = defineProcedure({
     description: "Configure remote procedure registry connection",
     tags: ["procedure", "registry", "storage"],
   },
-  handler: async (input: RemoteInput, _ctx: ProcedureContext): Promise<RemoteOutput> => {
-    const { action, endpoint, options: _options } = input;
-
-    // This would typically interact with SyncedProcedureRegistry
-    // For now, return placeholder responses
-
-    switch (action) {
-      case "connect":
-        if (!endpoint) {
-          return {
-            connected: false,
-            message: "Endpoint required for connect",
-          };
+  handler: async (input: RemoteInput, ctx: ProcedureContext): Promise<RemoteOutput> => {
+    switch (input.action) {
+      case "status": {
+        const store = getProcedureStore(callerRegistry(ctx));
+        if (!store) {
+          return { connected: false, message: "This registry has no procedure store" };
         }
-        return {
-          connected: false,
-          endpoint,
-          message: `Connect to ${endpoint} requested - requires SyncedProcedureRegistry`,
+        const status = store.getStatus();
+        const output: RemoteOutput = {
+          connected: status.connected,
+          pendingChanges: status.pendingChanges,
+          message: status.connected ? `Connected to ${status.endpoint}` : "The store is not connected to an endpoint",
         };
+        if (status.endpoint !== undefined) output.endpoint = status.endpoint;
+        if (status.lastSync !== undefined) output.lastSync = status.lastSync;
+        return output;
+      }
 
-      case "disconnect":
-        return {
-          connected: false,
-          message: "Disconnect requested - requires SyncedProcedureRegistry",
-        };
+      case "connect":
+        // The storage of a store is fixed when it is made: no call changes it at run time
+        throw new ProcedureStoreError(
+          "NOT_IMPLEMENTED",
+          "procedure.remote connect cannot change the storage of a registry at run time. " +
+            'Make the registry with createSyncedRegistry({ type: "api", client }) for the endpoint.'
+        );
 
-      case "status":
-        return {
-          connected: false,
-          message: "Not connected - requires SyncedProcedureRegistry",
-        };
+      case "disconnect": {
+        const store = requireStore(ctx, "procedure.remote disconnect");
+        store.disconnect();
+        return { connected: false, message: "Stopped the auto-sync, and cleared the endpoint" };
+      }
 
       default:
-        return {
-          connected: false,
-          message: `Unknown action: ${action}`,
-        };
+        throw new Error(`Unknown action: ${String((input as { action?: unknown }).action)}`);
     }
   },
 });

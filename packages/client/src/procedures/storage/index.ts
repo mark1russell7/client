@@ -38,7 +38,7 @@ export { ProcedureStorageAdapter } from "./adapter.js";
 export type { ProcedureStorageAdapterOptions } from "./adapter.js";
 
 // Synced Registry
-export { SyncedProcedureRegistry } from "./synced-registry.js";
+export { SyncedProcedureRegistry, getProcedureStore } from "./synced-registry.js";
 export type { SyncedRegistrationOptions } from "./synced-registry.js";
 
 // Factory
@@ -60,4 +60,5 @@ export {
   procedureRemoteProcedure,
   procedureStorageModule,
   procedureStorageProcedures,
+  ProcedureStoreError,
 } from "./procedures.js";
