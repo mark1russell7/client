@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "dependencies": {

@@ -11,8 +11,10 @@ import { join } from "node:path";
 
 export function readCoreFields(packagesDir) {
   const coreDir = join(packagesDir, "client", "src", "procedures", "core");
-  const require = createRequire(join(packagesDir, "client", "package.json"));
-  const ts = require("typescript");
+  // The compiler API of TypeScript 5. The packages build with TypeScript 7, which has no
+  // createProgram in JavaScript: the site keeps TypeScript 5 as "typescript-api" for this script.
+  const require = createRequire(import.meta.url);
+  const ts = require("typescript-api");
 
   const files = readdirSync(coreDir)
     .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))

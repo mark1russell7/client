@@ -26,7 +26,7 @@
   "sideEffects": false,
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.0"
   },
   "description": "Generic DAG algorithms for dependency management"

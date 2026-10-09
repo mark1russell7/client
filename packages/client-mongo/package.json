@@ -6,7 +6,7 @@
   "license": "MIT",
   "author": "Mark Russell <marktheprogrammer17@gmail.com>",
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^4.1.11"

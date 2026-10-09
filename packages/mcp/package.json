@@ -29,7 +29,7 @@
     "@mark1russell7/client": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@mark1russell7/client": "workspace:*"
   }
