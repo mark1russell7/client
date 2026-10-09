@@ -15,4 +15,6 @@
  */
 
 export * from "./procedures/git.js";
+export { GitError, type GitContext } from "./procedures/git/run.js";
+export { parseNumstat } from "./procedures/git/diff.js";
 export * from "./register.js";

@@ -426,6 +426,9 @@ importers:
       '@mark1russell7/client':
         specifier: workspace:*
         version: link:../client
+      '@mark1russell7/client-shell':
+        specifier: workspace:*
+        version: link:../client-shell
       zod:
         specifier: ^3.24.0
         version: 3.25.76

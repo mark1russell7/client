@@ -5,7 +5,7 @@
  * These return true/false based on git repository state.
  */
 
-import { execFileSync } from "node:child_process";
+import { git, GitError, type GitContext } from "./run.js";
 
 export interface GitPredicateInput {
   /** Working directory (default: process.cwd()) */
@@ -18,98 +18,73 @@ export interface GitPredicateOutput {
 }
 
 /**
+ * The output of a git command, or null when git fails (for example outside a repository).
+ * An aborted signal still throws.
+ */
+async function gitOrNull(args: string[], cwd: string | undefined, ctx: GitContext): Promise<string | null> {
+  try {
+    return (await git(args, { cwd, signal: ctx.signal })).trim();
+  } catch (error) {
+    if (error instanceof GitError) return null;
+    throw error;
+  }
+}
+
+/**
  * Check if there are any changes (unstaged, staged, or untracked)
  */
-export async function gitHasChanges(input: GitPredicateInput): Promise<GitPredicateOutput> {
-  const { cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
-
-  try {
-    const status = execFileSync("git", ["status", "--porcelain"], opts).trim();
-    return { value: status.length > 0 };
-  } catch {
-    return { value: false };
-  }
+export async function gitHasChanges(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
+  const status = await gitOrNull(["status", "--porcelain"], input.cwd, ctx);
+  return { value: status !== null && status.length > 0 };
 }
 
 /**
  * Check if there are any staged changes ready to commit
  */
-export async function gitHasStagedChanges(input: GitPredicateInput): Promise<GitPredicateOutput> {
-  const { cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
-
-  try {
-    // git diff --cached shows only staged changes
-    const diff = execFileSync("git", ["diff", "--cached", "--name-only"], opts).trim();
-    return { value: diff.length > 0 };
-  } catch {
-    return { value: false };
-  }
+export async function gitHasStagedChanges(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
+  // git diff --cached shows only staged changes
+  const diff = await gitOrNull(["diff", "--cached", "--name-only"], input.cwd, ctx);
+  return { value: diff !== null && diff.length > 0 };
 }
 
 /**
  * Check if there are any unstaged changes (modified or deleted files)
  */
-export async function gitHasUnstagedChanges(input: GitPredicateInput): Promise<GitPredicateOutput> {
-  const { cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
-
-  try {
-    // git diff shows only unstaged changes to tracked files
-    const diff = execFileSync("git", ["diff", "--name-only"], opts).trim();
-    return { value: diff.length > 0 };
-  } catch {
-    return { value: false };
-  }
+export async function gitHasUnstagedChanges(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
+  // git diff shows only unstaged changes to tracked files
+  const diff = await gitOrNull(["diff", "--name-only"], input.cwd, ctx);
+  return { value: diff !== null && diff.length > 0 };
 }
 
 /**
  * Check if there are any untracked files
  */
-export async function gitHasUntrackedFiles(input: GitPredicateInput): Promise<GitPredicateOutput> {
-  const { cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
-
-  try {
-    // List untracked files only
-    const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], opts).trim();
-    return { value: untracked.length > 0 };
-  } catch {
-    return { value: false };
-  }
+export async function gitHasUntrackedFiles(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
+  // List untracked files only
+  const untracked = await gitOrNull(["ls-files", "--others", "--exclude-standard"], input.cwd, ctx);
+  return { value: untracked !== null && untracked.length > 0 };
 }
 
 /**
  * Check if there are local commits that haven't been pushed
  */
-export async function gitHasLocalCommits(input: GitPredicateInput): Promise<GitPredicateOutput> {
-  const { cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
-
-  try {
-    // Get the upstream tracking branch
-    const upstream = execFileSync("git", ["rev-parse", "--abbrev-ref", "@{upstream}"], opts).trim();
-
+export async function gitHasLocalCommits(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
+  // Get the upstream tracking branch
+  const upstream = await gitOrNull(["rev-parse", "--abbrev-ref", "@{upstream}"], input.cwd, ctx);
+  if (upstream !== null) {
     // Count commits ahead of upstream
-    const count = execFileSync("git", ["rev-list", "--count", `${upstream}..HEAD`], opts).trim();
-    return { value: parseInt(count, 10) > 0 };
-  } catch {
-    // No upstream or error - check if there are any commits at all
-    try {
-      execFileSync("git", ["rev-parse", "HEAD"], opts);
-      // HEAD exists but no upstream - treat as having local commits
-      return { value: true };
-    } catch {
-      return { value: false };
-    }
+    const count = await gitOrNull(["rev-list", "--count", `${upstream}..HEAD`], input.cwd, ctx);
+    if (count !== null) return { value: parseInt(count, 10) > 0 };
   }
+  // No upstream or error - HEAD exists but no upstream: treat as having local commits
+  const head = await gitOrNull(["rev-parse", "HEAD"], input.cwd, ctx);
+  return { value: head !== null };
 }
 
 /**
  * Check if the working directory is clean (no changes at all)
  */
-export async function gitIsClean(input: GitPredicateInput): Promise<GitPredicateOutput> {
-  const result = await gitHasChanges(input);
+export async function gitIsClean(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
+  const result = await gitHasChanges(input, ctx);
   return { value: !result.value };
 }

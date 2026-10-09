@@ -4,9 +4,9 @@
  * Initialize a git repository
  */
 
-import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import type { ProcedureContext } from "@mark1russell7/client";
+import { git } from "./run.js";
 import type { GitInitInput, GitInitOutput } from "../../types.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
@@ -16,7 +16,6 @@ interface FsExistsOutput { exists: boolean; path: string; }
  */
 export async function gitInit(input: GitInitInput, ctx: ProcedureContext): Promise<GitInitOutput> {
   const cwd = input.cwd ? resolve(input.cwd) : process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
 
   // Check if already a git repo
   const gitDir = join(cwd, ".git");
@@ -34,7 +33,7 @@ export async function gitInit(input: GitInitInput, ctx: ProcedureContext): Promi
     if (input.initialBranch) {
       args.push(`--initial-branch=${input.initialBranch}`);
     }
-    execFileSync("git", args, opts);
+    await git(args, { cwd, signal: ctx.signal });
   }
 
   return {

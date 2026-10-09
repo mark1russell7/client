@@ -4,29 +4,30 @@
  * Push to remote
  */
 
-import { execFileSync } from "node:child_process";
 import { gitArg } from "./args.js";
+import { git, GitError, type GitContext } from "./run.js";
 import type { GitPushInput, GitPushOutput } from "../../types.js";
 
 /**
  * Push to remote
  */
-export async function gitPush(input: GitPushInput): Promise<GitPushOutput> {
+export async function gitPush(input: GitPushInput, ctx: GitContext = {}): Promise<GitPushOutput> {
   const { branch, force, setUpstream, cwd } = input;
   const remoteName = input.remote ?? "origin";
-  const opts = { cwd, encoding: "utf8" as const };
+  const run = { cwd, signal: ctx.signal };
 
   // Get current branch if not specified
-  const branchName = branch || execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], opts).trim();
+  const branchName = branch || (await git(["rev-parse", "--abbrev-ref", "HEAD"], run)).trim();
 
   // Count commits to push
   let commits = 0;
   try {
-    const count = execFileSync("git", ["rev-list", "--count", `${remoteName}/${branchName}..HEAD`], opts).trim();
+    const count = (await git(["rev-list", "--count", `${remoteName}/${branchName}..HEAD`], run)).trim();
     commits = parseInt(count, 10) || 0;
-  } catch {
+  } catch (error) {
     // Remote branch may not exist yet
-    const count = execFileSync("git", ["rev-list", "--count", "HEAD"], opts).trim();
+    if (!(error instanceof GitError)) throw error;
+    const count = (await git(["rev-list", "--count", "HEAD"], run)).trim();
     commits = parseInt(count, 10) || 0;
   }
 
@@ -35,7 +36,7 @@ export async function gitPush(input: GitPushInput): Promise<GitPushOutput> {
   if (force) args.push("--force");
   args.push(gitArg("remote", remoteName), gitArg("branch", branchName));
 
-  execFileSync("git", args, opts);
+  await git(args, run);
 
   return { remote: remoteName, branch: branchName, commits };
 }
