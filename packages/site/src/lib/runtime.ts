@@ -1,9 +1,10 @@
 /**
- * The runtime of the Composer: it runs a program in the browser with the real client.
+ * The runtime of the Composer: it runs a program with the real client.
  *
  * The program goes to `client.exec()` of `@mark1russell7/client`, the same function that
  * the `mark` CLI and the servers use. A traced registry wraps each core procedure, so each
- * call records its input, its output, its time and its parent call.
+ * call records its input, its output, its time and its parent call. The Composer starts this
+ * runtime in a Web Worker (`run-worker.ts`), so a long program cannot stop the page.
  */
 
 import {
@@ -16,7 +17,11 @@ import {
   type ProcedureContext,
   type ProcedurePath,
 } from "@mark1russell7/client/browser";
+import { snapshot } from "./display";
 import type { Json } from "./program";
+
+/** The calls that a run records. After this number, the run counts the calls but does not keep them. */
+export const MAX_TRACE_CALLS = 5000;
 
 /** One procedure call of a run. */
 export interface TraceCall {
@@ -37,8 +42,12 @@ export interface RunResult {
   value?: unknown;
   error?: string;
   calls: TraceCall[];
+  /** The calls that ran after the trace was full. */
+  dropped: number;
   /** Milliseconds. */
   duration: number;
+  /** The Composer stopped the run (the Stop button or the time limit). */
+  stopped?: boolean;
 }
 
 // Meta procedures (client.eval, client.lookup) find procedures in the global registry
@@ -46,25 +55,18 @@ for (const procedure of allCoreProcedures) {
   if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);
 }
 
-/** A copy that the trace can keep: later changes to the value do not change it. */
-function snapshot(value: unknown): unknown {
-  try {
-    return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
-  } catch {
-    return String(value);
-  }
-}
-
 /**
- * This function runs a program and gives its result and its trace.
+ * This function runs a program and gives its result and its trace. `onCall` gets the number
+ * of calls after each call starts.
  *
  * The parent of a call: a procedure calls another one through `ctx.client.call()`, and the
  * client starts the handler of the other procedure before its first `await`. Thus a variable
  * that holds the current caller during that synchronous part identifies the parent, also for
  * the concurrent calls of `client.parallel`.
  */
-export async function runProgram(program: Json, onCall?: (calls: TraceCall[]) => void): Promise<RunResult> {
+export async function runProgram(program: Json, onCall?: (count: number) => void): Promise<RunResult> {
   const calls: TraceCall[] = [];
+  let dropped = 0;
   const started = performance.now();
   const now = (): number => Math.round((performance.now() - started) * 100) / 100;
   let nextId = 0;
@@ -77,19 +79,19 @@ export async function runProgram(program: Json, onCall?: (calls: TraceCall[]) =>
 
   function traced(procedure: AnyProcedure): AnyProcedure {
     const handler = procedure.handler;
+    const key = procedure.path.join(".");
     return {
       ...procedure,
       handler: async (input: unknown, ctx: ProcedureContext): Promise<unknown> => {
-        const call: TraceCall = {
-          id: ++nextId,
-          parent: caller,
-          key: procedure.path.join("."),
-          input: snapshot(input),
-          start: now(),
-        };
-        calls.push(call);
-        onCall?.(calls);
-        const id = call.id;
+        const id = ++nextId;
+        let call: TraceCall | undefined;
+        if (calls.length < MAX_TRACE_CALLS) {
+          call = { id, parent: caller, key, input: snapshot(input), start: now() };
+          calls.push(call);
+        } else {
+          dropped++;
+        }
+        onCall?.(calls.length + dropped);
         const tracedContext: ProcedureContext = {
           ...ctx,
           client: {
@@ -106,14 +108,13 @@ export async function runProgram(program: Json, onCall?: (calls: TraceCall[]) =>
         };
         try {
           const output: unknown = await handler?.(input, tracedContext);
-          call.output = snapshot(output);
+          if (call) call.output = snapshot(output);
           return output;
         } catch (error) {
-          call.error = error instanceof Error ? error.message : String(error);
+          if (call) call.error = error instanceof Error ? error.message : String(error);
           throw error;
         } finally {
-          call.end = now();
-          onCall?.(calls);
+          if (call) call.end = now();
         }
       },
     };
@@ -122,8 +123,8 @@ export async function runProgram(program: Json, onCall?: (calls: TraceCall[]) =>
   const client = new Client(new LocalTransport()).useRegistry(registry);
   try {
     const value = await client.exec(program as never);
-    return { ok: true, value, calls, duration: now() };
+    return { ok: true, value, calls, dropped, duration: now() };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error), calls, duration: now() };
+    return { ok: false, error: error instanceof Error ? error.message : String(error), calls, dropped, duration: now() };
   }
 }

@@ -1,7 +1,7 @@
-import { useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { packages, procedureByKey, procedures, type JsonSchema, type ProcedureInfo } from "../data";
 import { encodeProgram, newCall } from "../lib/program";
-import { href, type Route } from "../lib/router";
+import { href, writeHash, type Route } from "../lib/router";
 
 function typeText(schema: JsonSchema | undefined): string {
   if (!schema) return "";
@@ -16,6 +16,7 @@ function Badges({ procedure }: { procedure: ProcedureInfo }): ReactElement {
   return (
     <span className="badges">
       {procedure.mcp ? <span className="pill accent" title="Claude Code gets it as a tool">MCP</span> : null}
+      {procedure.cli ? <span className="pill" title="The mark CLI has it as a command">CLI</span> : null}
       {procedure.browser ? <span className="pill good" title="Runs in the Composer">browser</span> : null}
       {!procedure.registered ? <span className="pill warn" title="Defined, but not in the default registry">not registered</span> : null}
     </span>
@@ -25,6 +26,7 @@ function Badges({ procedure }: { procedure: ProcedureInfo }): ReactElement {
 function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: ProcedureInfo["fields"] }): ReactElement {
   if (fields && fields.length > 0) {
     return (
+      <div className="table-wrap">
       <table className="schema">
         <thead>
           <tr>
@@ -47,6 +49,7 @@ function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: Procedure
           ))}
         </tbody>
       </table>
+      </div>
     );
   }
   const properties = Object.entries(schema.properties ?? {});
@@ -55,6 +58,7 @@ function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: Procedure
   }
   const required = new Set(schema.required ?? []);
   return (
+    <div className="table-wrap">
     <table className="schema">
       <thead>
         <tr>
@@ -81,6 +85,7 @@ function SchemaTable({ schema, fields }: { schema: JsonSchema; fields: Procedure
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -113,14 +118,16 @@ function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
         <dd>
           <code>{JSON.stringify(procedure.path)}</code>
         </dd>
-        {procedure.registered ? (
-          <>
-            <dt>CLI</dt>
-            <dd>
-              <code>{cliCommand(procedure)}</code>
-            </dd>
-          </>
-        ) : null}
+        <dt>CLI</dt>
+        <dd>
+          {procedure.cli ? (
+            <code>{cliCommand(procedure)}</code>
+          ) : (
+            <span className="muted">
+              Not a <code>mark</code> command: {procedure.registered ? "its package does not declare client.procedures" : "it is not in the default registry"}.
+            </span>
+          )}
+        </dd>
         {procedure.mcp ? (
           <>
             <dt>MCP tool</dt>
@@ -153,18 +160,62 @@ function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
       <SchemaTable schema={procedure.output} fields={null} />
       <details style={{ marginTop: "var(--space-4)" }}>
         <summary className="small">JSON Schemas</summary>
-        <pre className="code">{JSON.stringify({ input: procedure.input, output: procedure.output }, null, 2)}</pre>
+        <pre className="code" tabIndex={0} aria-label="The JSON Schemas">
+          {JSON.stringify({ input: procedure.input, output: procedure.output }, null, 2)}
+        </pre>
       </details>
     </article>
   );
 }
 
+interface Filters {
+  query: string;
+  pkg: string;
+  onlyMcp: boolean;
+  onlyCli: boolean;
+  onlyBrowser: boolean;
+  showUnregistered: boolean;
+}
+
+function filtersOf(route: Route): Filters {
+  const q = route.query;
+  return {
+    query: q.get("q") ?? "",
+    pkg: q.get("package") ?? "",
+    onlyMcp: q.get("mcp") === "1",
+    onlyCli: q.get("cli") === "1",
+    onlyBrowser: q.get("browser") === "1",
+    showUnregistered: q.get("unregistered") !== "0",
+  };
+}
+
+/** The filters as a query, so a link keeps them (site improvement idea 8). */
+function queryOf(filters: Filters): Record<string, string> {
+  return {
+    q: filters.query,
+    package: filters.pkg,
+    mcp: filters.onlyMcp ? "1" : "",
+    cli: filters.onlyCli ? "1" : "",
+    browser: filters.onlyBrowser ? "1" : "",
+    unregistered: filters.showUnregistered ? "" : "0",
+  };
+}
+
 export function Catalog({ route }: { route: Route }): ReactElement {
-  const [query, setQuery] = useState(route.query.get("q") ?? "");
-  const [pkg, setPkg] = useState(route.query.get("package") ?? "");
-  const [onlyMcp, setOnlyMcp] = useState(false);
-  const [onlyBrowser, setOnlyBrowser] = useState(false);
-  const [showUnregistered, setShowUnregistered] = useState(true);
+  const [filters, setFilters] = useState<Filters>(() => filtersOf(route));
+  const { query, pkg, onlyMcp, onlyCli, onlyBrowser, showUnregistered } = filters;
+  const update = (change: Partial<Filters>): void => setFilters((previous) => ({ ...previous, ...change }));
+
+  // A link or the Back button changes the filters
+  useEffect(() => {
+    if (!route.rest) setFilters(filtersOf(route));
+  }, [route]);
+
+  // The filters change the URL without a new history entry
+  useEffect(() => {
+    if (route.rest) return;
+    writeHash(href("catalog", undefined, queryOf(filters)), "replace");
+  }, [filters, route.rest]);
 
   const groups = useMemo(() => {
     const text = query.trim().toLowerCase();
@@ -172,14 +223,17 @@ export function Catalog({ route }: { route: Route }): ReactElement {
     for (const procedure of procedures) {
       if (pkg && procedure.package !== pkg) continue;
       if (onlyMcp && !procedure.mcp) continue;
+      if (onlyCli && !procedure.cli) continue;
       if (onlyBrowser && !procedure.browser) continue;
       if (!showUnregistered && !procedure.registered) continue;
       if (text && !procedure.key.toLowerCase().includes(text) && !procedure.description.toLowerCase().includes(text)) continue;
       const namespace = procedure.path[0] ?? "";
-      map.set(namespace, [...(map.get(namespace) ?? []), procedure]);
+      const list = map.get(namespace);
+      if (list) list.push(procedure);
+      else map.set(namespace, [procedure]);
     }
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [query, pkg, onlyMcp, onlyBrowser, showUnregistered]);
+  }, [query, pkg, onlyMcp, onlyCli, onlyBrowser, showUnregistered]);
 
   const selected = route.rest ? procedureByKey(route.rest) : undefined;
   if (selected) return <Detail procedure={selected} />;
@@ -196,8 +250,14 @@ export function Catalog({ route }: { route: Route }): ReactElement {
       </p>
       <div className="catalog">
         <aside className="panel filters" aria-label="Filters">
-          <input type="search" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
-          <select value={pkg} onChange={(event) => setPkg(event.target.value)} aria-label="Package">
+          <input
+            type="search"
+            placeholder="Search"
+            aria-label="Search the procedures"
+            value={query}
+            onChange={(event) => update({ query: event.target.value })}
+          />
+          <select value={pkg} onChange={(event) => update({ pkg: event.target.value })} aria-label="Package">
             <option value="">All packages</option>
             {owners.map((owner) => (
               <option key={owner} value={owner}>
@@ -206,21 +266,27 @@ export function Catalog({ route }: { route: Route }): ReactElement {
             ))}
           </select>
           <label>
-            <input type="checkbox" checked={onlyMcp} onChange={(event) => setOnlyMcp(event.target.checked)} /> Only MCP tools
+            <input type="checkbox" checked={onlyMcp} onChange={(event) => update({ onlyMcp: event.target.checked })} /> Only MCP tools
           </label>
           <label>
-            <input type="checkbox" checked={onlyBrowser} onChange={(event) => setOnlyBrowser(event.target.checked)} /> Only
+            <input type="checkbox" checked={onlyCli} onChange={(event) => update({ onlyCli: event.target.checked })} /> Only CLI
+            commands
+          </label>
+          <label>
+            <input type="checkbox" checked={onlyBrowser} onChange={(event) => update({ onlyBrowser: event.target.checked })} /> Only
             browser procedures
           </label>
           <label>
             <input
               type="checkbox"
               checked={showUnregistered}
-              onChange={(event) => setShowUnregistered(event.target.checked)}
+              onChange={(event) => update({ showUnregistered: event.target.checked })}
             />{" "}
             Show the procedures that are not registered
           </label>
-          <p className="muted small">{count} procedures</p>
+          <p className="muted small" aria-live="polite">
+            {count} procedures
+          </p>
         </aside>
         <div className="proc-list">
           {groups.map(([namespace, list]) => (

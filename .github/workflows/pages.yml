@@ -1,29 +1,41 @@
 # Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/client/.
 # The Pages source of the repository is "GitHub Actions" (Settings > Pages).
+#
+# The workflow starts when CI passes on main, so a commit that fails CI never reaches the
+# site (deep dive SITE-10). It builds the commit that CI tested, runs the browser smoke test
+# against the built site, then deploys. Only the deploy job can write to Pages: the build job
+# runs install scripts, so it gets read access only.
 name: Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# One deployment at a time. A newer push cancels a deployment that waits.
+# One deployment at a time. A deployment that started finishes: a newer run waits for it.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
+          # The commit that CI tested. A manual run builds the selected branch.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@v6
@@ -32,9 +44,15 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # The data of the site comes from the dist/ of every package, so build them all first
+      # The data of the site comes from the dist/ of every package. The site depends on each
+      # package that registers procedures, so `pnpm build` builds the site last.
       - run: pnpm build
-      - run: pnpm --filter @mark1russell7/site build
+        env:
+          SITE_BASE: /${{ github.event.repository.name }}/
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @mark1russell7/site exec playwright install --with-deps chromium
+      - name: Browser smoke test of the built site
+        run: pnpm --filter @mark1russell7/site test:e2e
         env:
           SITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v5
@@ -45,6 +63,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

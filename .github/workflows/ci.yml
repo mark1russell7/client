@@ -7,26 +7,79 @@ on:
 permissions:
   contents: read
 
+# A newer push to a branch cancels its older run. Each commit of main keeps its run, so each
+# commit of main gets a result, and the Pages workflow can start after it (deep dive SITE-10).
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   ci:
+    name: CI (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        # The lowest Node version that the root package.json allows, the active LTS and the current one
+        node: [22, 24, 26]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Each package builds dist/ with `tsc -b`. Dependents read the types from dist/.
+      - run: pnpm build
+      - run: pnpm typecheck
+      # The presets of cue exclude the test files from `pnpm typecheck`
+      - name: Type-check the test files
+        run: node .github/scripts/typecheck-tests.mjs
+      - run: pnpm test
+      # The writing rules (ASD-STE100) of the README files and the doc comments
+      - run: pnpm lint:ste
+      # Each package against the template of `lib new`. The step reads the JSON result, because
+      # `mark` exits with 0 also for `success: false` (deep dive CLI-8).
+      - name: Audit the packages
+        run: |
+          node packages/mark/dist/cli.js lib audit > "$RUNNER_TEMP/audit.json"
+          node -e '
+            const result = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            console.log(JSON.stringify(result.summary));
+            if (!result.success) {
+              for (const pkg of result.results ?? []) if (!pkg.valid) console.log(JSON.stringify(pkg));
+              process.exit(1);
+            }
+          ' "$RUNNER_TEMP/audit.json"
+
+  site:
+    name: Site (browser smoke test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Each package builds dist/ with `tsc -b`. Dependents read the types from dist/.
       - run: pnpm build
-      - run: pnpm typecheck
-      - run: pnpm test
-      # The writing rules (ASD-STE100) of the README files and the doc comments
-      - run: pnpm lint:ste
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @mark1russell7/site exec playwright install --with-deps chromium
+      # The examples run, share links round-trip, no page scrolls sideways at 375 px, axe-core,
+      # the keyboard, and the code of the TypeScript tab runs with Node
+      - run: pnpm --filter @mark1russell7/site test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: packages/site/node_modules/.cache/playwright/results
+          retention-days: 7

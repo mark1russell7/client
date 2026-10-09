@@ -22,8 +22,10 @@ export interface ProcedureInfo {
   tags: string[];
   input: JsonSchema;
   output: JsonSchema;
-  /** The procedure is in the registry by default (the CLI and the servers can call it). */
+  /** The procedure is in the registry by default (the servers can call it). */
   registered: boolean;
+  /** The `mark` CLI has the procedure as a command: its package declares `client.procedures`. */
+  cli: boolean;
   /** The procedure runs in the browser: the Composer can use it. */
   browser: boolean;
   /** The dev-tools MCP server gives the procedure to Claude as a tool. */
@@ -60,9 +62,32 @@ export interface JsonSchema {
   [key: string]: unknown;
 }
 
-export const procedures: ProcedureInfo[] = (catalogJson as unknown as { procedures: ProcedureInfo[] }).procedures;
+/** A package that did not load when `gen-data` made the catalog. */
+export interface LoadFailure {
+  package: string;
+  error: string;
+}
+
+/** The commit and the time of the build that made the data. */
+export interface BuildInfo {
+  commit: string | null;
+  date: string | null;
+}
+
+interface Catalog {
+  procedures: ProcedureInfo[];
+  mcpTools: string[];
+  failed: LoadFailure[];
+  build: BuildInfo;
+}
+
+const catalog = catalogJson as unknown as Catalog;
+
+export const procedures: ProcedureInfo[] = catalog.procedures;
 export const packages: PackageInfo[] = packagesJson as unknown as PackageInfo[];
-export const mcpTools: string[] = (catalogJson as unknown as { mcpTools: string[] }).mcpTools;
+export const mcpTools: string[] = catalog.mcpTools;
+export const failedPackages: LoadFailure[] = catalog.failed ?? [];
+export const build: BuildInfo = catalog.build ?? { commit: null, date: null };
 
 const byKey = new Map(procedures.map((procedure) => [procedure.key, procedure]));
 

@@ -13,7 +13,12 @@ All packages are in `packages/`. Each package has the name and the history of it
 | Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-splay`, `client-server` |
 | Tools | `mark` (the `mark` CLI, package `@mark1russell7/cli`), `client-lib`, `client-procedure`, `client-playground`, `cli` (the repository tool) |
 | Bundles and servers | `bundle-dev`, `bundle-mcp`, `mcp`, `client-mcp`, `impl-mcp-dev`, `server` |
+| Website | `site` |
 | Other | `documentation` |
+
+## Website
+
+The folder `packages/site` holds the website: <https://mark1russell7.github.io/client/>. The Composer runs programs in the browser with the real client. The site also shows each procedure and the package graph. The Pages workflow publishes the site after CI passes on `main`.
 
 Some packages of the old repositories are deleted because nothing used them. Their history is in this repository. The list and the reasons are in `packages/documentation/DECISIONS-2026-10.md`.
 

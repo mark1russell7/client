@@ -1,4 +1,5 @@
 /// <reference types="node" />
+/// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
 import type { UserConfig } from "vite";
 
@@ -6,6 +7,10 @@ import type { UserConfig } from "vite";
 const config: UserConfig = {
   base: process.env["SITE_BASE"] ?? "/client/",
   plugins: [react()],
+  // The unit tests. Playwright runs the browser tests in e2e/ (`pnpm test:e2e`).
+  test: {
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
 };
 
 export default config;
