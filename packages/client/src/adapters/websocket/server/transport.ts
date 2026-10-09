@@ -15,6 +15,7 @@ import type {
   TrackedConnection,
   ConnectionEventHandler,
 } from "./types.js";
+import { withoutInternalKeys } from "../../metadata.js";
 
 /**
  * WebSocket server transport adapter.
@@ -41,6 +42,54 @@ import type {
  * httpServer.listen(3000);
  * ```
  */
+/**
+ * The credit of one stream: the number of items the client can take now. The client sends
+ * more credit as its reader takes items (deep dive TRN-3).
+ */
+class StreamCredit {
+  private wake: (() => void) | undefined;
+
+  constructor(private credit: number) {}
+
+  grant(n: number): void {
+    this.credit += n;
+    const wake = this.wake;
+    this.wake = undefined;
+    wake?.();
+  }
+
+  /** Take one item of credit. Returns false when the signal aborted the wait. */
+  async take(signal: AbortSignal): Promise<boolean> {
+    while (this.credit <= 0) {
+      if (signal.aborted) return false;
+      await new Promise<void>((resolve) => {
+        const onAbort = (): void => resolve();
+        signal.addEventListener("abort", onAbort, { once: true });
+        this.wake = () => {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        };
+      });
+    }
+    if (signal.aborted) return false;
+    this.credit--;
+    return true;
+  }
+}
+
+/** The error of a failed stream or handler: its code (a string) and its retryable flag. */
+function errorStatus(error: unknown): { type: "error"; code: string; message: string; retryable: boolean } {
+  const code = (error as { code?: unknown } | undefined)?.code;
+  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
+  return {
+    type: "error",
+    code: typeof code === "string" ? code : "HANDLER_ERROR",
+    message: error instanceof Error ? error.message : String(error),
+    // Before, every stream error lost its retryable flag (deep dive TRN-7)
+    retryable: typeof retryable === "boolean" ? retryable : false,
+  };
+}
+
 interface PendingRequest {
   id: string;
   /** The connection the request was sent to: only it may answer, and its close ends the request */
@@ -72,6 +121,9 @@ export class WebSocketServerTransport implements ServerTransport {
   // connection aborts their signal, so a stream stops and its handler gets return()
   private inflight = new Map<string, AbortController>();
 
+  // The flow control of the streams in progress, by the same key
+  private credits = new Map<string, StreamCredit>();
+
   // Connection lifecycle event handlers
   private connectHandlers: ConnectionEventHandler[] = [];
   private disconnectHandlers: ConnectionEventHandler[] = [];
@@ -86,6 +138,7 @@ export class WebSocketServerTransport implements ServerTransport {
       perMessageDeflate: options.perMessageDeflate ?? false,
       maxPayload: options.maxPayload ?? 1024 * 1024, // 1MB default
       clientTracking: options.clientTracking ?? true,
+      highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
   }
 
@@ -120,6 +173,13 @@ export class WebSocketServerTransport implements ServerTransport {
 
   async stop(): Promise<void> {
     if (this.wss) {
+      // Stop the requests in progress, so their handlers end (deep dive TRN-15)
+      for (const controller of this.inflight.values()) controller.abort();
+      this.inflight.clear();
+      for (const connectionId of this.trackedConnections.keys()) {
+        this.rejectPendingFor(connectionId, "Server stopped");
+      }
+
       // Close all connections
       for (const ws of this.connections) {
         ws.close();
@@ -208,13 +268,11 @@ export class WebSocketServerTransport implements ServerTransport {
       }
     });
 
-    // Handle errors
+    // Handle errors. The socket emits "close" after "error": the close handler does the
+    // cleanup and the disconnect event (deep dive TRN-16: before, this handler removed the
+    // connection first, so the close handler found nothing and sent no disconnect event).
     ws.on("error", (error: Error) => {
       console.error("[WebSocket] Connection error:", error);
-      this.connections.delete(ws);
-      this.rejectPendingFor(connectionId, "Connection error");
-      this.abortInflightFor(connectionId);
-      this.trackedConnections.delete(connectionId);
     });
   }
 
@@ -300,6 +358,14 @@ export class WebSocketServerTransport implements ServerTransport {
       return;
     }
 
+    // Handle credit: the client's reader took items of a stream, so the stream can send more
+    if (message.type === "credit") {
+      if (typeof message.credit === "number" && message.credit > 0) {
+        this.credits.get(`${connectionId}:${message.id}`)?.grant(message.credit);
+      }
+      return;
+    }
+
     // Validate request message
     if (!message.id || message.type !== "request" || !message.method) {
       this.sendError(ws, message.id || "unknown", "Invalid message format");
@@ -307,16 +373,24 @@ export class WebSocketServerTransport implements ServerTransport {
     }
 
     const key = `${connectionId}:${message.id}`;
+    // A request id names one request of the connection while it runs. A second request with
+    // the id would take the first one's controller: its stream could not be cancelled, and the
+    // two outputs would mix (deep dive TRN-9).
+    if (this.inflight.has(key)) {
+      this.sendError(ws, message.id, "A request with this id is still running", "DUPLICATE_REQUEST");
+      return;
+    }
     const controller = new AbortController();
     this.inflight.set(key, controller);
 
-    // Convert to ServerRequest
+    // Convert to ServerRequest. Only an absent payload becomes {}: before, 0, false and ""
+    // became {} too (deep dive TRN-10).
     const serverRequest: ServerRequest = {
       id: message.id,
       method: message.method,
-      payload: message.payload || {},
+      payload: message.payload === undefined ? {} : message.payload,
       metadata: {
-        ...message.metadata,
+        ...withoutInternalKeys(message.metadata),
         // Add connection info
         connectionId,
         remoteAddress: req.socket.remoteAddress,
@@ -330,7 +404,10 @@ export class WebSocketServerTransport implements ServerTransport {
       const serverResponse = await this.server.handle(serverRequest);
 
       if (serverResponse.stream) {
-        await this.sendStream(ws, serverResponse.id, serverResponse.stream, controller.signal);
+        const credit =
+          typeof message.credit === "number" && message.credit > 0 ? new StreamCredit(message.credit) : undefined;
+        if (credit) this.credits.set(key, credit);
+        await this.sendStream(ws, serverResponse.id, serverResponse.stream, controller.signal, credit);
       } else {
         this.sendResponse(ws, serverResponse);
       }
@@ -342,7 +419,9 @@ export class WebSocketServerTransport implements ServerTransport {
         error instanceof Error ? error.message : "Internal server error"
       );
     } finally {
-      this.inflight.delete(key);
+      // Delete only this request's entries (deep dive TRN-9)
+      if (this.inflight.get(key) === controller) this.inflight.delete(key);
+      this.credits.delete(key);
     }
   }
 
@@ -351,31 +430,71 @@ export class WebSocketServerTransport implements ServerTransport {
    * with `stream.done`. An error of the stream ends it with an "error" frame. When the signal
    * aborts (a cancel message, a closed connection), the loop stops, and the stream's handler
    * gets return().
+   *
+   * Flow control (deep dive TRN-3): the stream takes its next item only when the client has
+   * credit for it (when the request carried credit), and waits while the connection's send
+   * buffer holds more than `highWaterMark` bytes.
    */
-  private async sendStream(ws: WebSocket, id: string, stream: AsyncIterable<unknown>, signal: AbortSignal): Promise<void> {
+  private async sendStream(
+    ws: WebSocket,
+    id: string,
+    stream: AsyncIterable<unknown>,
+    signal: AbortSignal,
+    credit: StreamCredit | undefined
+  ): Promise<void> {
+    const iterator = stream[Symbol.asyncIterator]();
+    let done = false;
     try {
-      for await (const item of stream) {
+      for (;;) {
+        if (credit && !(await credit.take(signal))) return;
         if (signal.aborted || ws.readyState !== WebSocket.OPEN) return;
-        this.send(ws, { id, type: "stream", payload: item, stream: { done: false } });
+        const result = await iterator.next();
+        if (result.done) {
+          done = true;
+          break;
+        }
+        if (signal.aborted || ws.readyState !== WebSocket.OPEN) return;
+        await this.sendWithBackpressure(ws, { id, type: "stream", payload: result.value, stream: { done: false } }, signal);
       }
       this.send(ws, { id, type: "stream", stream: { done: true } });
     } catch (error) {
+      done = true;
       if (signal.aborted) return;
-      const code = (error as { code?: unknown }).code;
-      const status = {
-        type: "error" as const,
-        code: typeof code === "string" ? code : "HANDLER_ERROR",
-        message: error instanceof Error ? error.message : String(error),
-        retryable: false,
-      };
+      const status = errorStatus(error);
       this.send(ws, {
         id,
         type: "error",
         status,
-        error: { code: status.code, message: status.message, retryable: false },
+        error: { code: status.code, message: status.message, retryable: status.retryable },
         stream: { done: true },
       });
+    } finally {
+      // The loop stopped before the end: the handler gets return()
+      if (!done) await iterator.return?.();
     }
+  }
+
+  /**
+   * Send a frame. When the connection's send buffer is past the high-water mark, wait until
+   * the socket has written this frame, or the signal aborts.
+   */
+  private sendWithBackpressure(ws: WebSocket, message: WebSocketMessage, signal: AbortSignal): Promise<void> {
+    if (ws.readyState !== WebSocket.OPEN) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      let waiting = false;
+      const onAbort = (): void => resolve();
+      ws.send(JSON.stringify(message), () => {
+        if (!waiting) return;
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      });
+      if (ws.bufferedAmount > this.options.highWaterMark && !signal.aborted) {
+        waiting = true;
+        signal.addEventListener("abort", onAbort, { once: true });
+      } else {
+        resolve();
+      }
+    });
   }
 
   private sendResponse(ws: WebSocket, response: ServerResponse): void {
@@ -401,18 +520,18 @@ export class WebSocketServerTransport implements ServerTransport {
   /**
    * Send error to client.
    */
-  private sendError(ws: WebSocket, id: string, message: string): void {
+  private sendError(ws: WebSocket, id: string, message: string, code = "INTERNAL_ERROR"): void {
     const errorMessage: WebSocketMessage = {
       id,
       type: "error",
       status: {
         type: "error",
-        code: "INTERNAL_ERROR",
+        code,
         message,
         retryable: false,
       },
       error: {
-        code: "INTERNAL_ERROR",
+        code,
         message,
         retryable: false,
       },

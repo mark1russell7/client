@@ -42,6 +42,9 @@ export const HTTPHeaders = {
   // Timeout headers
   TIMEOUT: "X-Timeout",
 
+  // The custom metadata of a request, as URI-encoded JSON (deep dive TRN-11)
+  METADATA: "X-Metadata",
+
   // Server timing
   SERVER_TIMING: "Server-Timing",
 } as const;
@@ -96,6 +99,16 @@ export interface HeaderConverter {
  * - Custom fields: Pass through as-is
  */
 export class DefaultHeaderConverter implements HeaderConverter {
+  /**
+   * Custom fields: a string value with a header-safe key and a Latin-1 value also goes as its
+   * own header (for servers that read headers). Every custom field, of any JSON type, goes in
+   * the `X-Metadata` header. Before, only string values got through, and a non-Latin-1 value
+   * or a key with a space failed the call (deep dive TRN-11). Keys that start with "__" are
+   * internal to the process and never go.
+   *
+   * @throws an error with code METADATA_TOO_LARGE when `X-Metadata` is longer than
+   *   METADATA_HEADER_LIMIT characters
+   */
   metadataToHeaders(metadata: Metadata): HTTPHeadersMap {
     const headers: HTTPHeadersMap = {};
 
@@ -123,17 +136,27 @@ export class DefaultHeaderConverter implements HeaderConverter {
       headers[HTTPHeaders.TIMEOUT] = String(metadata.timeout.overall);
     }
 
-    // Custom fields (string values only)
+    const custom: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(metadata)) {
-      // Skip known structured fields
-      if (["tracing", "auth", "timeout", "retry"].includes(key)) {
+      // Skip known structured fields and the internal keys
+      if (STRUCTURED_FIELDS.has(key) || key.startsWith("__") || value === undefined) {
         continue;
       }
-
-      // Pass through string values
-      if (typeof value === "string") {
+      custom[key] = value;
+      if (typeof value === "string" && HEADER_TOKEN.test(key) && LATIN1.test(value)) {
         headers[key] = value;
       }
+    }
+
+    if (Object.keys(custom).length > 0) {
+      const encoded = encodeURIComponent(JSON.stringify(custom));
+      if (encoded.length > METADATA_HEADER_LIMIT) {
+        throw Object.assign(
+          new Error(`The request metadata is too large for a header (${encoded.length} > ${METADATA_HEADER_LIMIT} characters)`),
+          { code: "METADATA_TOO_LARGE" },
+        );
+      }
+      headers[HTTPHeaders.METADATA] = encoded;
     }
 
     return headers;
@@ -185,6 +208,33 @@ export class DefaultHeaderConverter implements HeaderConverter {
     }
 
     return metadata;
+  }
+}
+
+/** The metadata fields that have their own headers, and the middleware state: not custom fields. */
+const STRUCTURED_FIELDS = new Set(["tracing", "auth", "timeout", "retry"]);
+
+/** A header name: the "token" characters of RFC 9110. */
+const HEADER_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+
+/** A header value that fetch accepts: Latin-1, with no control characters but tab. */
+const LATIN1 = /^[\t\x20-\x7e\x80-\xff]*$/;
+
+/** The longest `X-Metadata` value, in characters. */
+export const METADATA_HEADER_LIMIT = 8192;
+
+/**
+ * This function reads the `X-Metadata` header: the custom metadata as an object, or undefined
+ * when the value is not URI-encoded JSON of an object.
+ */
+export function decodeMetadataHeader(value: string | undefined | null): Record<string, unknown> | undefined {
+  if (!value || value.length > METADATA_HEADER_LIMIT) return undefined;
+  try {
+    const decoded = JSON.parse(decodeURIComponent(value)) as unknown;
+    if (decoded === null || typeof decoded !== "object" || Array.isArray(decoded)) return undefined;
+    return decoded as Record<string, unknown>;
+  } catch {
+    return undefined;
   }
 }
 

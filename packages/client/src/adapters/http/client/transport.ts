@@ -31,7 +31,6 @@ import {
   createHTTPStatusError,
   createAbortError,
   createErrorFromException,
-  isValidJSONPayload,
 } from "../shared/index.js";
 
 /**
@@ -79,9 +78,10 @@ export class HttpTransport implements Transport {
   }
 
   /**
-   * Send HTTP request and yield single response.
+   * Send HTTP request and yield its response: one item, or the items of an NDJSON stream.
    *
-   * HTTP is request/response, so this yields exactly one item.
+   * The `timeout` option covers the time to the first item. Before, it covered a whole NDJSON
+   * stream, so a long stream always failed (deep dive TRN-7).
    */
   async *send<TReq, TRes>(
     message: Message<TReq>
@@ -92,19 +92,30 @@ export class HttpTransport implements Transport {
     // Convert Method → HTTP method
     const httpMethod = this.httpMethodStrategy(message.method);
 
-    // Convert Metadata → Headers (using injected converter)
-    const metadataHeaders = this.headerConverter.metadataToHeaders(message.metadata);
-
     // One controller for the request: the message's signal, the timeout and an early stop of
     // the reader all abort it
     const controller = new AbortController();
     const onAbort = (): void => controller.abort();
     if (message.signal?.aborted) controller.abort();
     message.signal?.addEventListener("abort", onAbort, { once: true });
-    const timeoutId = this.timeout ? setTimeout(() => controller.abort(), this.timeout) : undefined;
+    let timedOut = false;
+    let timeoutId = this.timeout
+      ? setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, this.timeout)
+      : undefined;
+    const firstItem = (): void => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = undefined;
+    };
     let finished = false;
 
     try {
+      // Convert Metadata → Headers (using injected converter). It can throw, for metadata
+      // that is too large for a header.
+      const metadataHeaders = this.headerConverter.metadataToHeaders(message.metadata);
+
       // Build fetch options
       const fetchOptions: RequestInit = {
         method: httpMethod,
@@ -118,8 +129,9 @@ export class HttpTransport implements Transport {
         signal: controller.signal,
       };
 
-      // Only add body for non-GET requests
-      if (httpMethod !== HTTPMethod.GET && isValidJSONPayload(message.payload)) {
+      // Only add body for non-GET requests. Every JSON value goes: before, a number, a string,
+      // a boolean or null was not sent, and the server got {} (deep dive TRN-10).
+      if (httpMethod !== HTTPMethod.GET && message.payload !== undefined) {
         fetchOptions.body = JSON.stringify(message.payload);
       }
 
@@ -128,12 +140,13 @@ export class HttpTransport implements Transport {
       const metadata = this.headerConverter.headersToMetadata(response.headers);
 
       if (response.headers.get(HTTPHeaders.CONTENT_TYPE)?.includes(NDJSON) && response.body) {
-        yield* this.readNdjson<TRes>(message.id, response.body, metadata, () => (finished = true));
+        yield* this.readNdjson<TRes>(message.id, response.body, metadata, () => (finished = true), firstItem);
         return;
       }
 
       // Parse response body
       const responseBody = await this.parseResponseBody(response);
+      firstItem();
 
       // Convert HTTP status → Universal Status (using shared utilities). An error body of the
       // server transport ({ error, code, retryable }) gives the real code and message: before,
@@ -151,9 +164,15 @@ export class HttpTransport implements Transport {
     } catch (error) {
       finished = true;
       // Handle fetch errors using shared error utilities
-      const errorDetails = error instanceof Error
-        ? this.categorizeError(error)
-        : createErrorFromException(new Error("Unknown error"));
+      const code = (error as { code?: unknown } | undefined)?.code;
+      const errorDetails = timedOut
+        ? // The transport's own timeout: the server can have the request, so no retry
+          { code: "TIMEOUT", message: `Request timed out after ${this.timeout}ms`, retryable: false }
+        : code === "METADATA_TOO_LARGE" && error instanceof Error
+          ? { code, message: error.message, retryable: false }
+          : error instanceof Error
+            ? this.categorizeError(error)
+            : createErrorFromException(new Error("Unknown error"));
 
       yield {
         id: message.id,
@@ -183,7 +202,8 @@ export class HttpTransport implements Transport {
     id: string,
     body: ReadableStream<Uint8Array>,
     metadata: ResponseItem<TRes>["metadata"],
-    onEnd: () => void
+    onEnd: () => void,
+    onFirstItem: () => void
   ): AsyncGenerator<ResponseItem<TRes>, void, undefined> {
     const reader = body.getReader();
     const decoder = new TextDecoder();
@@ -203,6 +223,7 @@ export class HttpTransport implements Transport {
             payload?: unknown;
             error?: { code?: string; message?: string; retryable?: boolean };
           };
+          onFirstItem();
           if (frame.type === "item") {
             yield { id, status: { type: "success", code: 200 }, payload: frame.payload as TRes, metadata };
           } else if (frame.type === "done") {
@@ -289,6 +310,12 @@ export class HttpTransport implements Transport {
     // on failure, response.text() — which throws "Body is unusable" because json() already read
     // it, masking the real error. Read as text once, then parse. See BUGS-2026-07.md (M6).
     const text = await response.text();
+
+    // No body (204, a procedure that returned nothing): no result. Before, the result was ""
+    // (deep dive TRN-10).
+    if (text === "") {
+      return undefined;
+    }
 
     if (contentType?.includes("application/json")) {
       try {

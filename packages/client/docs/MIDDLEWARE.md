@@ -140,7 +140,7 @@ import { bundle } from "client/middleware";
 const standardStack = bundle(
   createTimeoutMiddleware({ overall: 5000 }),
   createRetryMiddleware({ maxRetries: 3 }),
-  createCacheMiddleware({ ttl: 60000 })
+  createCacheMiddleware({ methods: ["users.get"], ttl: 60000 })
 );
 
 // Use like any middleware

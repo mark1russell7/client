@@ -97,23 +97,26 @@ postOnlyStrategy(method)
 ### Server
 
 ```typescript
-import { HttpServerTransport } from "client/adapters/http/server";
+import express from "express";
+import { HttpServerTransport } from "@mark1russell7/client";
 
-const transport = new HttpServerTransport({
+const app = express();
+// A body parser is optional: without one, the transport reads the JSON body itself.
+// With one, use strict: false, so that a number, a string or null can be a payload.
+app.use(express.json({ strict: false }));
+
+const transport = new HttpServerTransport(server, {
+  app,                 // required
   port: 3000,
-  host: "0.0.0.0",
+  host: "127.0.0.1",   // the default: loopback only
 
-  // URL strategy for parsing requests
-  urlStrategy: defaultServerUrlStrategy,  // or rpcServerUrlStrategy
+  // The default URL strategy parses the HTTP client's format, /api/{service}/{operation}:
+  // leave it out unless the client uses another format
+  // urlStrategy: rpcServerUrlStrategy,
 
-  // CORS settings
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  },
-
-  // Express app (optional, creates one if not provided)
-  app: expressApp,
+  // CORS is off by default. origin is "*", one origin or a list.
+  cors: true,
+  corsOptions: { origin: ["https://app.example"] },
 });
 
 server.addTransport(transport);
@@ -122,15 +125,21 @@ server.addTransport(transport);
 ### Server URL Strategies
 
 ```typescript
-// Default: Extract from URL path
-defaultServerUrlStrategy(req)
-// GET /users/get → { service: "users", operation: "get" }
-// POST /v2/users/create → { service: "users", operation: "create", version: "v2" }
+// Default (createPatternServerUrlStrategy): the inverse of the HTTP client's URL format
+// POST /api/users/get → { service: "users", operation: "get" }
+// POST /api/v2/users/create → { service: "users", operation: "create", version: "v2" }
+// POST /api/docker.compose/up → { service: "docker.compose", operation: "up" }
 
-// RPC style: From header or body
+// RESTful: the operation comes from the HTTP verb
+defaultServerUrlStrategy(req)
+// GET /api/users → { service: "users", operation: "list" }
+
+// RPC style
 rpcServerUrlStrategy(req)
-// X-RPC-Method: users.get → { service: "users", operation: "get" }
+// POST /rpc/users/get → { service: "users", operation: "get" }
 ```
+
+A procedure path maps to a method with `pathToMethod`: the last segment is the operation.
 
 ---
 

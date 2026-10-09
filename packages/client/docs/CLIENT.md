@@ -53,7 +53,7 @@ Add middleware to the client. Returns a new client type with accumulated context
 const client = new Client(transport)
   .use(createTimeoutMiddleware({ overall: 5000 }))   // Client<TimeoutContext>
   .use(createRetryMiddleware())                       // Client<TimeoutContext & RetryContext>
-  .use(createCacheMiddleware());                      // Client<... & CacheContext>
+  .use(createCacheMiddleware({ methods: ["users.get"] })); // Client<... & CacheContext>
 ```
 
 #### `call<TReq, TRes>(method, payload, metadata?): Promise<TRes>`
@@ -174,9 +174,11 @@ LRU + TTL caching using the collections framework.
 
 ```typescript
 client.use(createCacheMiddleware({
+  methods: ["users.get", "users.list"], // required: only these calls are cached
   capacity: 100,           // max entries, default: 100
   ttl: 60000,              // time-to-live in ms, default: 60000
-  keyGenerator: (method, payload) => `${method.service}.${method.operation}:${JSON.stringify(payload)}`,
+  // The default key holds the method, the payload and the metadata (auth, pagination)
+  keyGenerator: (method, payload, metadata) => `${method.service}.${method.operation}:${JSON.stringify([payload, metadata.auth])}`,
   shouldCache: (item) => item.status.type === "success",
   onStats: (stats) => console.log(`Hit rate: ${stats.hitRate}%`),
   statsInterval: 60000,    // how often to emit stats

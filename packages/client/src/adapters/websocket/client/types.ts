@@ -63,6 +63,13 @@ export interface WebSocketTransportOptions {
   requestTimeout?: number;
 
   /**
+   * The number of stream items that the transport holds for a reader that has not taken them.
+   * The server sends no more items until the reader takes some (deep dive TRN-3).
+   * @default 64
+   */
+  streamWindow?: number;
+
+  /**
    * Heartbeat options for keeping connection alive.
    */
   heartbeat?: {
@@ -137,7 +144,7 @@ export interface WebSocketMessage<T = unknown> {
   id: string;
 
   /** Message type */
-  type: "request" | "response" | "error" | "stream" | "cancel" | "ping" | "pong" | "server-request" | "server-response" | "event";
+  type: "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
 
   /** RPC method (for requests) */
   method?: {
@@ -175,6 +182,13 @@ export interface WebSocketMessage<T = unknown> {
     message?: string;
     retryable?: boolean;
   };
+
+  /**
+   * Flow control of a stream (deep dive TRN-3). In a request: the number of stream items that
+   * the client can take before it sends more credit. In a "credit" message: the number of more
+   * items. A request without credit gets its stream with no limit (the old protocol).
+   */
+  credit?: number;
 
   /** Stream indicator (for streaming responses) */
   stream?: {

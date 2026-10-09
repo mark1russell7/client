@@ -13,7 +13,7 @@
  * // Type accumulates as middleware is added
  * const client = new Client(transport)
  *   .use(createRetryMiddleware())     // Client<BaseContext & RetryContext>
- *   .use(createCacheMiddleware())     // Client<... & CacheContext>
+ *   .use(createCacheMiddleware({ methods: ["users.get"] }))     // Client<... & CacheContext>
  *   .use(createAuthMiddleware(...))   // Client<... & AuthContext>
  *
  * // Middleware requiring context validates at compile time
@@ -99,7 +99,7 @@ function generateId(): string {
  * // HTTP client with type-accumulating middleware
  * const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) })
  *   .use(createRetryMiddleware())    // Client<{} & RetryContext>
- *   .use(createCacheMiddleware())    // Client<{} & RetryContext & CacheContext>
+ *   .use(createCacheMiddleware({ methods: ["users.get"] }))    // Client<{} & RetryContext & CacheContext>
  *   .use(createAuthMiddleware({      // Client<... & AuthContext>
  *     token: "abc123"
  *   }));
@@ -262,7 +262,7 @@ export class Client<TContext = {}> {
    * const client = new Client(transport)
    *   .use(createTimeoutMiddleware({ overall: 5000 }))  // Client<TimeoutContext>
    *   .use(createRetryMiddleware())                     // Client<TimeoutContext & RetryContext>
-   *   .use(createCacheMiddleware());                    // Client<... & CacheContext>
+   *   .use(createCacheMiddleware({ methods: ["users.get"] }));                    // Client<... & CacheContext>
    *
    * // Middleware ordering (onion model)
    * client

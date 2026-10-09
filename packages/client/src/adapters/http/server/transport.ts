@@ -11,13 +11,57 @@ import type { Server as HttpServer } from "http";
 import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
 import type { Metadata } from "../../../client/types.js";
 import type { Server } from "../../../server/index.js";
-import { HTTPMethod } from "../shared/index.js";
+import { HTTPMethod, decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
+
+/** The metadata keys that the transport sets: a query parameter or a header cannot replace them. */
+const RESERVED_METADATA = new Set(["headers", "query", "params"]);
+
+/** The error of a request body that the transport cannot read. */
+class BodyError extends Error {
+  constructor(
+    message: string,
+    readonly httpStatus: number
+  ) {
+    super(message);
+  }
+}
+
+/** The code and message of a thrown error, with its retryable flag (deep dive TRN-7). */
+function errorOf(error: unknown): { code: string; message: string; retryable: boolean } {
+  const code = (error as { code?: unknown } | undefined)?.code;
+  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
+  return {
+    code: typeof code === "string" ? code : "HANDLER_ERROR",
+    message: error instanceof Error ? error.message : String(error),
+    retryable: typeof retryable === "boolean" ? retryable : false,
+  };
+}
+
+/**
+ * Write one chunk. When the response's buffer is full, wait for "drain", or for the end of the
+ * request (deep dive TRN-3: before, the server ignored the result of write() and ran a stream
+ * to its end whatever the reader did).
+ */
+function write(res: Response, chunk: string, signal: AbortSignal): Promise<void> {
+  if (res.write(chunk) || signal.aborted) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const done = (): void => {
+      res.off("drain", done);
+      res.off("close", done);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    res.on("drain", done);
+    res.on("close", done);
+    signal.addEventListener("abort", done, { once: true });
+  });
+}
 
 /**
  * The HTTP status of the error codes of a procedure invocation (they are not in the error
@@ -42,10 +86,12 @@ const INVOCATION_HTTP_STATUS: Record<string, number> = {
  * @example
  * ```typescript
  * const server = new Server();
+ * const app = express();
+ * app.use(express.json({ strict: false })); // optional: the transport can read the body itself
  * const httpTransport = new HttpServerTransport(server, {
  *   app,
  *   port: 3000,
- *   urlStrategy: defaultServerUrlStrategy
+ *   // The default URL strategy parses the HTTP client's format: /api/{service}/{operation}
  * });
  *
  * await httpTransport.start();
@@ -57,12 +103,16 @@ export class HttpServerTransport implements ServerTransport {
   private app: Express;
   private httpServer: HttpServer | null = null;
   private options: Required<
-    Omit<HttpServerTransportOptions, "app" | "corsOptions" | "httpServer">
+    Omit<HttpServerTransportOptions, "app" | "corsOptions" | "httpServer" | "bodyLimit">
   > & {
     corsOptions: HttpServerTransportOptions["corsOptions"] | undefined;
     httpServer: HttpServer | undefined;
   };
   private server: Server;
+  /** The controllers of the requests in progress: stop() aborts them (deep dive TRN-15) */
+  private openRequests = new Set<AbortController>();
+  private stopped = false;
+  private readonly bodyLimit: number;
 
   constructor(server: Server, options: HttpServerTransportOptions = {}) {
     this.server = server;
@@ -79,6 +129,7 @@ export class HttpServerTransport implements ServerTransport {
       corsOptions: options.corsOptions,
       httpServer: options.httpServer,
     };
+    this.bodyLimit = options.bodyLimit ?? 1024 * 1024;
 
     // Use provided app or create new one
     if (options.app) {
@@ -113,8 +164,19 @@ export class HttpServerTransport implements ServerTransport {
         credentials: true,
       };
 
+      // One allowed origin goes back: the request's origin when it is in the list (a header
+      // with several origins is invalid), with Vary: Origin so that caches keep them apart
+      const origins = corsOptions.origin ?? "*";
+      const allowOrigin = (requestOrigin: string | undefined): string | undefined => {
+        if (origins === "*") return "*";
+        const list = Array.isArray(origins) ? origins : [origins];
+        return requestOrigin !== undefined && list.includes(requestOrigin) ? requestOrigin : undefined;
+      };
+
       this.app.use((req, res, next) => {
-        res.header("Access-Control-Allow-Origin", corsOptions.origin as string);
+        const allowed = allowOrigin(req.headers.origin);
+        if (origins !== "*") res.vary("Origin");
+        if (allowed !== undefined) res.header("Access-Control-Allow-Origin", allowed);
         res.header(
           "Access-Control-Allow-Methods",
           corsOptions.methods?.join(", ")
@@ -150,9 +212,27 @@ export class HttpServerTransport implements ServerTransport {
    * Converts to unified RPC format, processes, and sends response.
    */
   private async handleHttpRequest(req: Request, res: Response): Promise<void> {
+    if (this.stopped) {
+      res.status(503).json({ error: "Server stopped", code: "SERVER_STOPPED", retryable: true });
+      return;
+    }
+    // A closed connection or stop() aborts the request: a stream stops, and its handler gets return()
+    const controller = new AbortController();
+    this.openRequests.add(controller);
+    res.on("close", () => {
+      this.openRequests.delete(controller);
+      if (!res.writableFinished) controller.abort();
+    });
     try {
       // Convert HTTP request to ServerRequest
-      const serverRequest = this.httpToServerRequest(req);
+      let serverRequest: ServerRequest | null;
+      try {
+        serverRequest = this.httpToServerRequest(req, await this.readBody(req));
+      } catch (error) {
+        const status = error instanceof BodyError ? error.httpStatus : 400;
+        res.status(status).json({ error: (error as Error).message, code: "INVALID_REQUEST", retryable: false });
+        return;
+      }
 
       if (!serverRequest) {
         res.status(400).json({
@@ -161,11 +241,6 @@ export class HttpServerTransport implements ServerTransport {
         return;
       }
 
-      // A closed connection aborts the request: a stream stops, and its handler gets return()
-      const controller = new AbortController();
-      res.on("close", () => {
-        if (!res.writableFinished) controller.abort();
-      });
       serverRequest.signal = controller.signal;
 
       // Process request through universal server
@@ -179,9 +254,39 @@ export class HttpServerTransport implements ServerTransport {
       // Convert ServerResponse to HTTP response
       this.serverResponseToHttp(serverResponse, res);
     } catch (error) {
-      res.status(500).json({
-        error: (error as Error).message || "Internal server error",
-      });
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: (error as Error).message || "Internal server error",
+        });
+      }
+    } finally {
+      this.openRequests.delete(controller);
+    }
+  }
+
+  /**
+   * The request body. A body parser of the app (`express.json({ strict: false })`) gives
+   * `req.body`. Without one, the transport reads the JSON body itself: before, every payload
+   * was {} when the app had no parser, and a parser with `strict: true` rejected a number or
+   * a string (deep dive TRN-10).
+   */
+  private async readBody(req: Request): Promise<unknown> {
+    if (req.body !== undefined) return req.body;
+    if (req.method === "GET" || req.method === "HEAD" || req.readableEnded) return undefined;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req as AsyncIterable<Buffer | string>) {
+      const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+      size += buffer.length;
+      if (size > this.bodyLimit) throw new BodyError(`The request body is larger than ${this.bodyLimit} bytes`, 413);
+      chunks.push(buffer);
+    }
+    const text = Buffer.concat(chunks).toString("utf8");
+    if (text.trim() === "") return undefined;
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw new BodyError("The request body is not valid JSON", 400);
     }
   }
 
@@ -204,14 +309,6 @@ export class HttpServerTransport implements ServerTransport {
     signal: AbortSignal
   ): Promise<void> {
     const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
-    const errorOf = (error: unknown): { code: string; message: string; retryable: boolean } => {
-      const code = (error as { code?: unknown }).code;
-      return {
-        code: typeof code === "string" ? code : "HANDLER_ERROR",
-        message: error instanceof Error ? error.message : String(error),
-        retryable: false,
-      };
-    };
 
     if (!ndjson) {
       let last: { value: unknown } | undefined;
@@ -240,19 +337,33 @@ export class HttpServerTransport implements ServerTransport {
     res.setHeader("Content-Type", NDJSON);
     res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
+    // stop() aborted the request while the reader still listens: end the stream with an error
+    const endAborted = (): void => {
+      if (!res.writableEnded && !res.destroyed) {
+        res.end(JSON.stringify({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } }) + "\n");
+      }
+    };
     try {
       for await (const item of stream) {
-        if (signal.aborted) return;
-        res.write(JSON.stringify({ type: "item", payload: item }) + "\n");
+        if (signal.aborted) break;
+        await write(res, JSON.stringify({ type: "item", payload: item }) + "\n", signal);
+        if (signal.aborted) break;
+      }
+      if (signal.aborted) {
+        endAborted();
+        return;
       }
       res.end(JSON.stringify({ type: "done" }) + "\n");
     } catch (error) {
-      if (signal.aborted) return;
+      if (signal.aborted) {
+        endAborted();
+        return;
+      }
       res.end(JSON.stringify({ type: "error", error: errorOf(error) }) + "\n");
     }
   }
 
-  private httpToServerRequest(req: Request): ServerRequest | null {
+  private httpToServerRequest(req: Request, body: unknown): ServerRequest | null {
     // Parse method from URL using strategy
     const method = this.options.urlStrategy(req);
     if (!method) {
@@ -264,13 +375,16 @@ export class HttpServerTransport implements ServerTransport {
       (req.headers["x-request-id"] as string) ??
       `req-${Date.now()}-${Math.random()}`;
 
-    // Build metadata from headers and query params
+    // Build metadata from headers and query params. The flattened query parameters cannot
+    // replace headers, query or params (before, "?headers=x" replaced metadata.headers).
     const metadata: Metadata = {
       headers: req.headers as Record<string, string>,
       query: req.query,
       params: req.params,
-      ...req.query, // Flatten query params into metadata
     };
+    for (const [key, value] of Object.entries(req.query)) {
+      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) metadata[key] = value;
+    }
 
     // Extract custom headers to root-level metadata
     // This mirrors the client's metadataToHeaders() behavior
@@ -293,6 +407,7 @@ export class HttpServerTransport implements ServerTransport {
       "x-timeout",
       "x-api-key",
       "authorization",
+      "x-metadata",
     ]);
 
     // Known custom header mappings (lowercase → camelCase)
@@ -304,17 +419,33 @@ export class HttpServerTransport implements ServerTransport {
       if (!standardHeaders.has(key.toLowerCase()) && typeof value === "string") {
         // Use mapped name if available, otherwise use original key
         const normalizedKey = headerMappings[key.toLowerCase()] || key;
-        metadata[normalizedKey] = value;
+        if (!RESERVED_METADATA.has(normalizedKey) && !normalizedKey.startsWith("__")) {
+          metadata[normalizedKey] = value;
+        }
+      }
+    }
+
+    // The custom metadata of the HTTP client: any JSON value, any key (deep dive TRN-11)
+    const encoded = req.headers["x-metadata"];
+    if (typeof encoded === "string") {
+      if (encoded.length > METADATA_HEADER_LIMIT) {
+        throw new BodyError(`The X-Metadata header is longer than ${METADATA_HEADER_LIMIT} characters`, 431);
+      }
+      const custom = decodeMetadataHeader(encoded);
+      if (!custom) throw new BodyError("The X-Metadata header is not URI-encoded JSON of an object", 400);
+      for (const [key, value] of Object.entries(custom)) {
+        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) metadata[key] = value;
       }
     }
 
     // Payload from body (for POST/PUT) or params (for GET)
-    let payload: unknown = req.body;
+    let payload: unknown = body;
     if (req.method === "GET" && req.params["id"]) {
       payload = { id: req.params["id"] };
     }
 
-    // Default to empty object if payload is undefined (common for GET requests)
+    // Default to empty object only if there is no payload (common for GET requests): 0, false,
+    // "" and null stay (deep dive TRN-10)
     if (payload === undefined) {
       payload = {};
     }
@@ -361,8 +492,13 @@ export class HttpServerTransport implements ServerTransport {
       }
     }
 
-    // Send response
+    // Send response. A procedure that gave no result answers 204 with no body: before, the
+    // body was empty with a JSON content type, and the client got "" (deep dive TRN-10).
     if (status.type === "success") {
+      if (payload === undefined) {
+        res.status(204).end();
+        return;
+      }
       res.json(payload);
     } else {
       res.json({
@@ -374,6 +510,7 @@ export class HttpServerTransport implements ServerTransport {
   }
 
   async start(): Promise<void> {
+    this.stopped = false;
     // If an HTTP server was provided, use it (don't create or listen)
     if (this.options.httpServer) {
       this.httpServer = this.options.httpServer;
@@ -401,22 +538,36 @@ export class HttpServerTransport implements ServerTransport {
     });
   }
 
+  /**
+   * Stop the transport. The requests in progress are aborted: an open stream ends, and its
+   * handler gets return(). A server that the caller gave in `httpServer` stays open: the
+   * caller owns it. Before, stop() waited for open streams forever and closed the caller's
+   * server (deep dive TRN-15).
+   */
   async stop(): Promise<void> {
-    if (this.httpServer) {
-      return new Promise((resolve, reject) => {
-        this.httpServer!.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            console.log(`[${this.name}] Server stopped`);
-            resolve();
-          }
-        });
-      });
+    this.stopped = true;
+    for (const controller of this.openRequests) controller.abort();
+    this.openRequests.clear();
+
+    if (this.options.httpServer || !this.httpServer) {
+      return;
     }
+    const server = this.httpServer;
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) {
+          reject(err);
+        } else {
+          console.log(`[${this.name}] Server stopped`);
+          resolve();
+        }
+      });
+      // Idle keep-alive connections and finished streams do not keep close() waiting
+      server.closeAllConnections();
+    });
   }
 
   isRunning(): boolean {
-    return this.httpServer !== null && this.httpServer.listening;
+    return !this.stopped && this.httpServer !== null && this.httpServer.listening;
   }
 }

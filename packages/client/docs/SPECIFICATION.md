@@ -308,7 +308,7 @@ for await (const event of client.stream<{ topic: string }, Event>(
 const client = new Client({ transport })
   .use(createTimeoutMiddleware({ overall: 5000 }))
   .use(createRetryMiddleware({ maxRetries: 3 }))
-  .use(createCacheMiddleware({ ttl: 60000 }))
+  .use(createCacheMiddleware({ methods: ["users.get"], ttl: 60000 }))
   .use(createAuthMiddleware({ token: "abc123" }));
 ```
 

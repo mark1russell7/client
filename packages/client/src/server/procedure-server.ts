@@ -62,13 +62,16 @@ export interface ProcedureServerOptions extends ServerOptions {
  * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler is HANDLER_ERROR.
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
+  // An error that says it is retryable stays retryable: before, every error lost the flag
+  // (deep dive TRN-7)
+  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
   return {
     id,
     status: {
       type: "error",
       code: error instanceof InvocationError ? error.code : "HANDLER_ERROR",
       message: error instanceof Error ? error.message : String(error),
-      retryable: false,
+      retryable: typeof retryable === "boolean" ? retryable : false,
     },
     metadata: {},
   };
