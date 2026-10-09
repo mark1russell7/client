@@ -40,6 +40,7 @@ export type {
   ProcedureChannels,
   DefaultChannels,
   EventBusOptions,
+  EventWaitOptions,
 } from "./types.js";
 
 // Implementation
@@ -51,6 +52,7 @@ export {
   createTypedEventBus,
   getGlobalEventBus,
   resetGlobalEventBus,
+  withEventBusSignal,
 } from "./bus.js";
 
 // Utilities

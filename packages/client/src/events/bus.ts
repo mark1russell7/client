@@ -11,7 +11,15 @@ import type {
   EventHandler,
   Unsubscribe,
   EventBusOptions,
+  EventWaitOptions,
 } from "./types.js";
+
+/** The error of a wait that its signal ended. */
+function abortedError(channel: string): Error {
+  const error = new Error(`The wait on channel "${channel}" was aborted`);
+  error.name = "AbortError";
+  return error;
+}
 
 // =============================================================================
 // Event Bus Implementation
@@ -24,6 +32,8 @@ import type {
 export class DefaultEventBus implements EventBus {
   private readonly subscribers = new Map<string, Set<EventHandler<unknown>>>();
   private readonly buffer = new Map<string, unknown[]>();
+  /** For each channel, a function per open stream that ends it (for `clear()`). */
+  private readonly streamEnders = new Map<string, Set<() => void>>();
   private readonly options: Required<EventBusOptions>;
 
   constructor(options: EventBusOptions = {}) {
@@ -105,68 +115,121 @@ export class DefaultEventBus implements EventBus {
       }
     }
 
-    // Return unsubscribe function
+    // The unsubscribe function works once, and removes only the set it added to. (Before, a
+    // repeated call of an old unsubscribe removed the set of a newer subscriber: deep dive CORE-15.)
+    let subscribed = true;
     return () => {
+      if (!subscribed) return;
+      subscribed = false;
       if (this.options.debug) {
         console.log(`[EventBus] unsubscribe "${channel}"`);
       }
-      channelSubs?.delete(handler as EventHandler<unknown>);
+      channelSubs.delete(handler as EventHandler<unknown>);
 
       // Clean up empty channel sets
-      if (channelSubs && channelSubs.size === 0) {
+      if (channelSubs.size === 0 && this.subscribers.get(channel) === channelSubs) {
         this.subscribers.delete(channel);
       }
     };
   }
 
   /**
-   * Subscribe to a single event on a channel.
+   * Subscribe to a single event on a channel. On a buffered channel, the first buffered event
+   * resolves the promise. When the signal aborts first, the promise rejects with an `AbortError`.
    */
-  once<T>(channel: string): Promise<T> {
-    return new Promise((resolve) => {
-      const unsubscribe = this.on<T>(channel, (data) => {
-        unsubscribe();
+  once<T>(channel: string, options: EventWaitOptions = {}): Promise<T> {
+    const { signal } = options;
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(abortedError(channel));
+        return;
+      }
+      let settled = false;
+      let unsubscribe: Unsubscribe | undefined;
+      const onAbort = (): void => {
+        if (settled) return;
+        settled = true;
+        unsubscribe?.();
+        reject(abortedError(channel));
+      };
+      // on() can replay a buffered event before it returns: the handler must not need
+      // `unsubscribe` yet (before, it threw a ReferenceError, and the promise never settled)
+      unsubscribe = this.on<T>(channel, (data) => {
+        if (settled) return;
+        settled = true;
+        unsubscribe?.();
+        signal?.removeEventListener("abort", onAbort);
         resolve(data);
       });
+      if (settled) {
+        unsubscribe();
+        return;
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
     });
   }
 
   /**
-   * Create an async iterable for a channel.
+   * Create an async iterable for a channel. The stream ends when the reader stops, when the
+   * signal of the options aborts, or when `clear()` removes the channel.
    */
-  stream<T>(channel: string): AsyncIterable<T> {
+  stream<T>(channel: string, options: EventWaitOptions = {}): AsyncIterable<T> {
     const self = this;
+    const { signal } = options;
 
     return {
       [Symbol.asyncIterator](): AsyncIterator<T> {
         const queue: T[] = [];
         let resolve: ((value: IteratorResult<T>) => void) | null = null;
-        let done = false;
+        let done = signal?.aborted ?? false;
 
         // Subscribe to channel
-        const unsubscribe = self.on<T>(channel, (data) => {
-          if (done) return;
+        const unsubscribe = done
+          ? () => {}
+          : self.on<T>(channel, (data) => {
+              if (done) return;
 
-          if (resolve) {
-            // Someone is waiting, resolve immediately
-            const r = resolve;
-            resolve = null;
-            r({ value: data, done: false });
-          } else {
-            // Queue for later
-            queue.push(data);
+              if (resolve) {
+                // Someone is waiting, resolve immediately
+                const r = resolve;
+                resolve = null;
+                r({ value: data, done: false });
+              } else {
+                // Queue for later
+                queue.push(data);
+              }
+            });
+
+        // End the stream: no more events, and a waiting reader gets `done`
+        const end = (): void => {
+          if (done) return;
+          done = true;
+          unsubscribe();
+          signal?.removeEventListener("abort", end);
+          self.streamEnders.get(channel)?.delete(end);
+          const r = resolve;
+          resolve = null;
+          r?.({ value: undefined, done: true });
+        };
+        if (!done) {
+          signal?.addEventListener("abort", end, { once: true });
+          let enders = self.streamEnders.get(channel);
+          if (!enders) {
+            enders = new Set();
+            self.streamEnders.set(channel, enders);
           }
-        });
+          enders.add(end);
+        }
 
         return {
           async next(): Promise<IteratorResult<T>> {
-            if (done) {
-              return { value: undefined, done: true };
-            }
-
             // If we have queued items, return one
             if (queue.length > 0) {
               return { value: queue.shift()!, done: false };
+            }
+
+            if (done) {
+              return { value: undefined, done: true };
             }
 
             // Wait for next event
@@ -176,16 +239,14 @@ export class DefaultEventBus implements EventBus {
           },
 
           async return(): Promise<IteratorResult<T>> {
-            done = true;
-            unsubscribe();
-            resolve?.({ value: undefined, done: true });
+            queue.length = 0;
+            end();
             return { value: undefined, done: true };
           },
 
           async throw(error?: Error): Promise<IteratorResult<T>> {
-            done = true;
-            unsubscribe();
-            resolve?.({ value: undefined, done: true });
+            queue.length = 0;
+            end();
             throw error;
           },
         };
@@ -223,6 +284,9 @@ export class DefaultEventBus implements EventBus {
     }
     this.subscribers.delete(channel);
     this.buffer.delete(channel);
+    // The streams of the channel end: before, their readers waited forever (deep dive CORE-15)
+    for (const end of [...(this.streamEnders.get(channel) ?? [])]) end();
+    this.streamEnders.delete(channel);
   }
 
   /**
@@ -234,6 +298,10 @@ export class DefaultEventBus implements EventBus {
     }
     this.subscribers.clear();
     this.buffer.clear();
+    for (const enders of [...this.streamEnders.values()]) {
+      for (const end of [...enders]) end();
+    }
+    this.streamEnders.clear();
   }
 }
 
@@ -317,6 +385,30 @@ export function resetGlobalEventBus(): void {
   globalBus = undefined;
 }
 
+/**
+ * A view of a bus whose `stream()` and `once()` use a signal when the caller gives none. The
+ * context of a procedure gets this view: when the invocation aborts, the handler's waits on
+ * the bus end, and the handler can finish (deep dive CORE-15).
+ *
+ * @param bus - The event bus
+ * @param signal - The signal of the invocation
+ * @returns An EventBus that shares the subscribers of `bus`
+ */
+export function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus {
+  const waitOptions = (options?: EventWaitOptions): EventWaitOptions => ({ signal: options?.signal ?? signal });
+  return {
+    emit: (channel, data) => bus.emit(channel, data),
+    on: (channel, handler) => bus.on(channel, handler),
+    once: (channel, options) => bus.once(channel, waitOptions(options)),
+    stream: (channel, options) => bus.stream(channel, waitOptions(options)),
+    subscriberCount: (channel) => bus.subscriberCount(channel),
+    hasSubscribers: (channel) => bus.hasSubscribers(channel),
+    channels: () => bus.channels(),
+    clear: (channel) => bus.clear(channel),
+    clearAll: () => bus.clearAll(),
+  };
+}
+
 // =============================================================================
 // Utilities
 // =============================================================================
@@ -347,12 +439,12 @@ export function createChannelPrefix(bus: EventBus, prefix: string) {
       return bus.on(prefixed(channel), handler);
     },
 
-    once<T>(channel: string): Promise<T> {
-      return bus.once(prefixed(channel));
+    once<T>(channel: string, options?: EventWaitOptions): Promise<T> {
+      return bus.once(prefixed(channel), options);
     },
 
-    stream<T>(channel: string): AsyncIterable<T> {
-      return bus.stream(prefixed(channel));
+    stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T> {
+      return bus.stream(prefixed(channel), options);
     },
   };
 }

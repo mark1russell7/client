@@ -91,18 +91,20 @@ export interface EventBus {
    * Returns a promise that resolves with the first event.
    *
    * @param channel - Channel to wait for
+   * @param options - A signal: when it aborts first, the promise rejects with an `AbortError`
    * @returns Promise resolving to the event data
    */
-  once<T>(channel: string): Promise<T>;
+  once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
 
   /**
    * Create an async iterable for a channel.
-   * Yields events as they arrive until unsubscribed.
+   * Yields events as they arrive until the reader stops, the signal aborts, or `clear()`.
    *
    * @param channel - Channel to stream
+   * @param options - A signal: when it aborts, the stream ends
    * @returns AsyncIterable of event data
    */
-  stream<T>(channel: string): AsyncIterable<T>;
+  stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
 
   /**
    * Get the number of subscribers on a channel.
@@ -177,8 +179,8 @@ export interface TypedEventBus<TChannels extends ChannelMap> {
     channel: K,
     handler: EventHandler<TChannels[K]>
   ): Unsubscribe;
-  once<K extends keyof TChannels & string>(channel: K): Promise<TChannels[K]>;
-  stream<K extends keyof TChannels & string>(channel: K): AsyncIterable<TChannels[K]>;
+  once<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): Promise<TChannels[K]>;
+  stream<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): AsyncIterable<TChannels[K]>;
   subscriberCount(channel: string): number;
   hasSubscribers(channel: string): boolean;
   channels(): string[];
@@ -227,6 +229,14 @@ export interface DefaultChannels extends SystemChannels, ProcedureChannels {
 // =============================================================================
 // Event Bus Options
 // =============================================================================
+
+/**
+ * Options for a wait on a channel: `once()` and `stream()`.
+ */
+export interface EventWaitOptions {
+  /** When this signal aborts, the wait ends */
+  signal?: AbortSignal | undefined;
+}
 
 /**
  * Options for creating an event bus.

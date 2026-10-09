@@ -54,6 +54,7 @@ import { buildResponse, toMiddlewareContext } from "./call-types.js";
 import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from "./route-resolver.js";
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
+import type { EventBus } from "../events/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import type { AnyProcedure, ProcedureClient, ProcedurePath } from "../procedures/types.js";
 import {
@@ -129,6 +130,8 @@ export class Client<TContext = {}> {
   private readonly middleware: ClientMiddleware[] = [];
   private readonly defaultMetadata: Metadata;
   private readonly throwOnError: boolean;
+  /** The bus of the local procedures. Undefined: the global bus. */
+  private bus: EventBus | undefined;
 
   /**
    * Context values set via withContext().
@@ -156,6 +159,7 @@ export class Client<TContext = {}> {
       this.transport = opts.transport;
       this.defaultMetadata = opts.defaultMetadata || {};
       this.throwOnError = opts.throwOnError !== false;
+      this.bus = opts.bus;
     }
 
     // Initialize empty context (child clients override this)
@@ -177,6 +181,7 @@ export class Client<TContext = {}> {
     (child as any).middleware = parent.middleware;
     (child as any).defaultMetadata = parent.defaultMetadata;
     (child as any).throwOnError = parent.throwOnError;
+    (child as any).bus = parent.bus;
 
     // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
     // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
@@ -465,7 +470,7 @@ export class Client<TContext = {}> {
       call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, caller),
       stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, caller),
     };
-    return { registry: this.procedureRegistry, metadata, signal, client };
+    return { registry: this.procedureRegistry, metadata, signal, client, bus: this.bus };
   }
 
   /** The call options of a remote call for a caller: its metadata as context, and its signal. */
@@ -768,6 +773,17 @@ export class Client<TContext = {}> {
   useRegistry(registry: ProcedureRegistry): this {
     this.procedureRegistry = registry;
     this.routeResolver = undefined; // Reset resolver
+    return this;
+  }
+
+  /**
+   * Set the event bus of the local procedures of this client (`ctx.bus`).
+   *
+   * @param bus - Event bus for the procedures
+   * @returns this (for chaining)
+   */
+  useBus(bus: EventBus): this {
+    this.bus = bus;
     return this;
   }
 

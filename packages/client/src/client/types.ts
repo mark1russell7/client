@@ -5,6 +5,7 @@
  * These types work across HTTP, gRPC, WebSocket, and local transports.
  */
 
+import type { EventBus } from "../events/types.js";
 import type { ErrorMetadata } from "./errors/index.js";
 
 /**
@@ -344,4 +345,10 @@ export interface ClientOptions {
 
   /** Whether to throw on error responses (default: true) */
   throwOnError?: boolean;
+
+  /**
+   * The event bus of the local procedures (`ctx.bus`). The default is the global bus of
+   * `getGlobalEventBus()`.
+   */
+  bus?: EventBus;
 }
