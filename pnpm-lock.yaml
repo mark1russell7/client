@@ -351,6 +351,9 @@ importers:
       '@mark1russell7/client-fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@mark1russell7/client-shell':
+        specifier: workspace:*
+        version: link:../client-shell
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
@@ -364,6 +367,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.5)(vite@7.3.7(@types/node@22.20.5)(tsx@4.23.15))
 
   packages/client-dag:
     devDependencies:

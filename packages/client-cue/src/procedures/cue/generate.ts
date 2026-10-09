@@ -3,10 +3,9 @@
  *
  * Generate config files (package.json, tsconfig.json, .gitignore).
  * Uses ctx.client.call() for file system operations (dogfooding).
- * Uses spawnSync for CUE CLI tool (external binary).
+ * Runs the cue program through runCommand of client-shell (async, no shell).
  */
 
-import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { CueGenerateInput, CueGenerateOutput } from "../../types.js";
@@ -15,6 +14,7 @@ import {
   loadDependencies,
   resolveFeatures,
   checkCue,
+  runCue,
   determineTsconfig,
   featureToFieldName,
   packageRoot,
@@ -61,13 +61,9 @@ async function generatePackageJson(
   }
 
   // Run cue eval
-  const result = spawnSync("cue", ["eval", ...files, "-e", "output", "--out", "json"], {
-    cwd: configDir,
-    encoding: "utf-8",
-    stdio: ["inherit", "pipe", "pipe"],
-  });
+  const result = await runCue(["eval", ...files, "-e", "output", "--out", "json"], { cwd: configDir, signal: ctx.signal });
 
-  if (result.status !== 0) {
+  if (!result.success) {
     throw new Error(`cue eval failed for package.json: ${(result.stderr || result.stdout || "").trim()}`);
   }
 
@@ -120,13 +116,9 @@ async function generateGitignore(
     }
   }
 
-  const result = spawnSync("cue", ["eval", ...files, "-e", "patterns", "--out", "json"], {
-    cwd: configDir,
-    encoding: "utf-8",
-    stdio: ["inherit", "pipe", "pipe"],
-  });
+  const result = await runCue(["eval", ...files, "-e", "patterns", "--out", "json"], { cwd: configDir, signal: ctx.signal });
 
-  if (result.status !== 0) {
+  if (!result.success) {
     throw new Error(`cue eval failed for .gitignore: ${(result.stderr || result.stdout || "").trim()}`);
   }
 
@@ -165,7 +157,7 @@ export async function cueGenerate(
   const generated: string[] = [];
 
   // Check CUE is installed
-  if (!checkCue()) {
+  if (!(await checkCue(ctx.signal))) {
     return {
       success: false,
       resolvedFeatures: [],
