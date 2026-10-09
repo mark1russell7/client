@@ -4,9 +4,11 @@
  *
  * - A list of only calls runs as an implicit chain where the core hydrates a value with a
  *   fresh context: in the input of a call that runs directly (the root call, an operand of a
- *   control-flow procedure), and in the items of `map` and `reduce`. In the input of a nested
- *   call, the same list stays a list of results.
- * - The input of a control-flow procedure stays raw. The procedure runs its operands itself.
+ *   control-flow procedure), in an operand that is not a call (a branch of `conditional`, a
+ *   step of `chain`, a task of `parallel`), and in the items of `map` and `reduce`. In the input
+ *   of a nested call, the same list stays a list of results.
+ * - The input of a control-flow procedure stays raw. The procedure runs its operands itself:
+ *   an operand that is a call runs, and another operand is hydrated as a program.
  * - A `$ref` reads a name that a scope gives: the `$name` of an earlier step of a chain and
  *   `$last`, the item and the index of `map`, and `acc`, `item` and `index` of `reduce`. The
  *   names of an outer scope are visible in a nested scope.
@@ -89,10 +91,13 @@ function walkValue(w: Walker, value: Json | undefined, location: Location, fresh
   for (const [key, item] of Object.entries(value)) walkValue(w, item, [...location, key], fresh, scope);
 }
 
-/** An operand of a control-flow procedure: a call runs directly, another value stays raw. */
+/**
+ * An operand of a control-flow procedure: a call runs directly, and the core hydrates another
+ * value as a program, so a list of calls in it is a chain.
+ */
 function walkOperand(w: Walker, value: Json | undefined, location: Location, scope: string[]): void {
   if (isProcRef(value)) walkCall(w, value, location, true, scope);
-  else walkRaw(w, value, location, scope);
+  else walkValue(w, value, location, true, scope);
 }
 
 /** A raw value: nothing runs, but the `$ref` values in it can be resolved. */
@@ -123,7 +128,7 @@ function walkCall(w: Walker, ref: ProcRef, location: Location, direct: boolean, 
   }
   const at = (key: string): Location => [...inputLocation, key];
   const handled = new Set<string>();
-  /** One operand: `condition`, `then`, `try`. A list there is raw data. */
+  /** One operand: `condition`, `then`, `try`. A list of calls there is a chain. */
   const operand = (key: string): void => {
     handled.add(key);
     walkOperand(w, input[key], at(key), scope);
@@ -149,7 +154,7 @@ function walkCall(w: Walker, ref: ProcRef, location: Location, direct: boolean, 
             walkCall(w, step, stepLocation, true, stepScope);
             if (step.$name) names = [...names, step.$name];
           } else {
-            walkRaw(w, step, stepLocation, stepScope);
+            walkValue(w, step, stepLocation, true, stepScope);
           }
         });
       } else {

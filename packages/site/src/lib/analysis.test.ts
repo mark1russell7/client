@@ -69,11 +69,20 @@ const cases: ChainCase[] = [
     chain: true,
   },
   {
-    name: "a list in a branch of conditional (raw data)",
+    // The core hydrates a branch as a program (one interpreter, deep dive CORE-4/CORE-13).
+    // Before, conditional gave a branch that was not one call back raw, with nothing run.
+    name: "a list in a branch of conditional",
     program: call("conditional", { condition: true, then: [add(1, 1)] }),
     list: ["input", "then"],
     read: (value) => value,
-    chain: false,
+    chain: true,
+  },
+  {
+    name: "a list in the try operand of tryCatch",
+    program: call("tryCatch", { try: [add(1, 1), add(2, 2)], catch: 0 }),
+    list: ["input", "try"],
+    read: (value) => (value as { value: unknown }).value,
+    chain: true,
   },
 ];
 
