@@ -33,8 +33,8 @@ const shellRunProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
   })
-  .handler(async (input: ShellRunInput): Promise<ShellRunOutput> => {
-    return shellRun(input);
+  .handler(async (input: ShellRunInput, ctx): Promise<ShellRunOutput> => {
+    return shellRun(input, ctx);
   })
   .build();
 
@@ -48,8 +48,8 @@ const shellExecProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
   })
-  .handler(async (input: ShellExecInput): Promise<ShellExecOutput> => {
-    return shellExec(input);
+  .handler(async (input: ShellExecInput, ctx): Promise<ShellExecOutput> => {
+    return shellExec(input, ctx);
   })
   .build();
 
@@ -63,8 +63,8 @@ const shellWhichProcedure = createProcedure()
     shorts: {},
     output: "json",
   })
-  .handler(async (input: ShellWhichInput): Promise<ShellWhichOutput> => {
-    return shellWhich(input);
+  .handler(async (input: ShellWhichInput, ctx): Promise<ShellWhichOutput> => {
+    return shellWhich(input, ctx);
   })
   .build();
 

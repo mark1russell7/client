@@ -7,6 +7,10 @@
  * - shell.run - Run command with args
  * - shell.exec - Execute command string via shell
  * - shell.which - Find command path
+ * - shell.stream - Run command with args and stream each output line
+ *
+ * The command helpers (`runCommand`, `streamCommand`, `processes`) are also available without
+ * the registration of the procedures, from `@mark1russell7/client-shell/command`.
  *
  * @example
  * ```typescript
@@ -28,16 +32,22 @@ export type {
   ShellExecOutput,
   ShellWhichInput,
   ShellWhichOutput,
+  ShellStreamInput,
+  ShellStreamItem,
 } from "./types.js";
 
 export {
   ShellRunInputSchema,
   ShellExecInputSchema,
   ShellWhichInputSchema,
+  ShellStreamInputSchema,
 } from "./types.js";
 
 // Procedures
-export { shellRun, shellExec, shellWhich } from "./procedures/shell/index.js";
+export { shellRun, shellExec, shellWhich, shellStream } from "./procedures/shell/index.js";
+
+// Command helpers
+export * from "./command/index.js";
 
 // Registration
 export { registerShellProcedures } from "./register.js";
