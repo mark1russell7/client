@@ -23,7 +23,8 @@
     "build": "tsc -b",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "sideEffects": false,
   "dependencies": {
@@ -31,8 +32,9 @@
     "@mark1russell7/client-server": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   }
 }
