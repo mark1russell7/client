@@ -91,7 +91,10 @@ console.log("Output:", result.stdout);
 | `args` | `string[]` | No | Command line arguments |
 | `cwd` | `string` | No | Working directory |
 | `env` | `Record<string, string>` | No | Environment variables |
-| `timeout` | `number` | No | Timeout in milliseconds |
+| `timeout` | `number` | No | Timeout in milliseconds. At the timeout, the script and its child processes are killed, and the call throws. |
+| `maxOutputBytes` | `number` | No | The most bytes kept of each output stream (default: 64 MiB) |
+
+The script runs with the Node.js of the host (`process.execPath`). The signal of the call also kills the script and its child processes.
 
 **Output Schema:**
 
@@ -100,10 +103,11 @@ console.log("Output:", result.stdout);
 | `stdout` | `string` | Standard output |
 | `stderr` | `string` | Standard error |
 | `exitCode` | `number` | Process exit code |
+| `truncated` | `boolean` | Present when an output stream was longer than `maxOutputBytes` |
 
 ### node.spawn
 
-Start a long-running Node.js process in detached mode.
+Start a long-running Node.js process. The process is a record of the process registry of `client-shell`: `node.status` shows it, `node.kill` ends it, and it ends with the host.
 
 ```typescript
 const result = await client.exec<{
@@ -114,8 +118,7 @@ const result = await client.exec<{
   args: ["--port", "3000"],
   cwd: "/path/to/project",
   env: { NODE_ENV: "production" },
-  readyPattern: "Server listening on", // Wait for this output
-  readyTimeout: 30000 // Timeout waiting for ready
+  ready: { pattern: "Server listening on", timeout: 30000 } // Wait for this output
 });
 
 console.log("Process ID:", result.processId);
@@ -130,8 +133,7 @@ console.log("PID:", result.pid);
 | `args` | `string[]` | No | Command line arguments |
 | `cwd` | `string` | No | Working directory |
 | `env` | `Record<string, string>` | No | Environment variables |
-| `readyPattern` | `string` | No | Pattern to detect when process is ready |
-| `readyTimeout` | `number` | No | Timeout waiting for ready pattern |
+| `ready` | `{ pattern: string; timeout?: number }` | No | Wait until the output matches `pattern` (a regular expression). When the process does not get ready, the procedure stops it and throws. |
 
 **Output Schema:**
 
@@ -142,7 +144,7 @@ console.log("PID:", result.pid);
 
 ### node.kill
 
-Kill a spawned process by its process ID.
+Kill a spawned process by its process ID, with the processes that it started, and wait for its end.
 
 ```typescript
 const result = await client.exec<{
@@ -195,6 +197,7 @@ for (const proc of result.processes) {
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `processId` | `string` | No | Specific process ID to query |
+| `output` | `boolean` | No | Also give the end of the output of each process (the last 64 KiB) |
 
 **Output Schema:**
 

@@ -105,12 +105,15 @@ Get current repository status including branch, tracking info, and file changes.
 interface GitStatusInput {
   /** Working directory (default: process.cwd()) */
   cwd?: string;
-  /** Show short format (default: false) */
+  /** Also give `lines` in the format of `git status --short` (default: false) */
   short?: boolean;
 }
 
 interface GitStatusFile {
+  /** The path (for a rename or a copy, the new path). Paths are exact: no quotes. */
   path: string;
+  /** For a rename or a copy, the old path */
+  from?: string;
   status: "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "ignored";
   staged: boolean;
 }
@@ -121,6 +124,8 @@ interface GitStatusOutput {
   behind: number;
   files: GitStatusFile[];
   clean: boolean;
+  /** With `short: true`: one line per file, for example "R  old.ts -> new.ts" */
+  lines?: string[];
 }
 ```
 
@@ -142,7 +147,7 @@ Show commit history.
 interface GitLogInput {
   /** Number of commits to show (default: 10) */
   count?: number;
-  /** One line per commit (default: false) */
+  /** Also give `lines`: one line per commit, the short hash and the subject (default: false) */
   oneline?: boolean;
   /** Branch/tag/commit to start from (default: HEAD) */
   ref?: string;
@@ -161,6 +166,8 @@ interface GitLogCommit {
 
 interface GitLogOutput {
   commits: GitLogCommit[];
+  /** With `oneline: true` */
+  lines?: string[];
 }
 ```
 
@@ -193,7 +200,10 @@ interface GitDiffInput {
 }
 
 interface GitDiffFile {
+  /** The path (for a rename, the new path) */
   path: string;
+  /** For a rename, the old path */
+  from?: string;
   additions: number;
   deletions: number;
 }
