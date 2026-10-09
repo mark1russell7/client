@@ -25,6 +25,8 @@ export type {
 
 // Procedures
 export { mcpServeProcedure } from "./procedures/mcp/serve.js";
+export { exposeRule, mergeSurfaces, importBundles } from "./surface.js";
+export type { ToolSurface, BundleSurfaceModule } from "./surface.js";
 export { mcpListToolsProcedure } from "./procedures/mcp/list-tools.js";
 
 // Re-export core MCP types for convenience

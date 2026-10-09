@@ -42,6 +42,7 @@ const cueInitProcedure = createProcedure()
   .output(outputSchema<CueInitOutput>())
   .meta({
     description: "Initialize dependencies.json with a preset",
+    calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
     args: [],
     shorts: { preset: "p", force: "f", cwd: "C" },
     output: "json",
@@ -57,6 +58,7 @@ const cueAddProcedure = createProcedure()
   .output(outputSchema<CueAddOutput>())
   .meta({
     description: "Add a feature to dependencies.json",
+    calls: ["fs.exists", "fs.read", "fs.write"],
     args: ["feature"],
     shorts: { cwd: "C" },
     output: "json",
@@ -72,6 +74,7 @@ const cueRemoveProcedure = createProcedure()
   .output(outputSchema<CueRemoveOutput>())
   .meta({
     description: "Remove a feature from dependencies.json",
+    calls: ["fs.exists", "fs.read", "fs.write"],
     args: ["feature"],
     shorts: { cwd: "C" },
     output: "json",
@@ -87,6 +90,7 @@ const cueGenerateProcedure = createProcedure()
   .output(outputSchema<CueGenerateOutput>())
   .meta({
     description: "Generate config files from dependencies.json",
+    calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
     args: [],
     shorts: { cwd: "C" },
     output: "json",
@@ -102,6 +106,7 @@ const cueValidateProcedure = createProcedure()
   .output(outputSchema<CueValidateOutput>())
   .meta({
     description: "Validate dependencies.json",
+    calls: ["fs.exists", "fs.read"],
     args: [],
     shorts: { cwd: "C" },
     output: "json",

@@ -292,8 +292,8 @@ export type {
   InvocationNext,
   Interceptor,
 } from "./procedures/invoke.js";
-export { callMatches, validateCalls, declaredCalls, nestedCallRefusal, hasCallPolicy } from "./procedures/policy.js";
-export type { CallPolicy, CallRefusal } from "./procedures/policy.js";
+export { callMatches, validateCalls, declaredCalls, nestedCallRefusal, hasCallPolicy, hiddenReach } from "./procedures/policy.js";
+export type { CallPolicy, CallRefusal, HiddenCall } from "./procedures/policy.js";
 export { timeoutInterceptor, tracingInterceptor, metricsInterceptor } from "./procedures/interceptors.js";
 export type {
   TimeoutInterceptorOptions,

@@ -91,6 +91,44 @@ export function declaredCalls(procedure: Pick<AnyProcedure, "path" | "metadata">
   return validateCalls((procedure.metadata as { calls?: unknown } | undefined)?.calls, procedure.path);
 }
 
+/** One edge of the reach of the exposed procedures: a declared call to a procedure that is not exposed. */
+export interface HiddenCall {
+  readonly from: string;
+  readonly to: string;
+}
+
+/**
+ * The procedures that are not exposed, but that the exposed procedures can reach through their
+ * `metadata.calls`, also through more than one step. A data-driven procedure reaches only
+ * exposed procedures, and under `strictCalls` a procedure without `calls` does too, so neither
+ * adds an edge. The edges are sorted. A test of the MCP server pins them.
+ */
+export function hiddenReach(
+  procedures: readonly AnyProcedure[],
+  expose: (path: ProcedurePath) => boolean,
+): HiddenCall[] {
+  const byKey = new Map(procedures.filter((procedure) => procedure.handler).map((procedure) => [pathToKey(procedure.path), procedure]));
+  const edges = new Map<string, HiddenCall>();
+  const visited = new Set<string>();
+  const visit = (procedure: AnyProcedure): void => {
+    const from = pathToKey(procedure.path);
+    if (visited.has(from)) return;
+    visited.add(from);
+    if (isDataDriven(procedure)) return;
+    for (const entry of declaredCalls(procedure) ?? []) {
+      for (const [key, callee] of byKey) {
+        if (!callMatches(entry, key) || expose(callee.path)) continue;
+        edges.set(`${from} -> ${key}`, { from, to: key });
+        visit(callee);
+      }
+    }
+  };
+  for (const procedure of byKey.values()) {
+    if (expose(procedure.path)) visit(procedure);
+  }
+  return [...edges.keys()].sort().map((key) => edges.get(key)!);
+}
+
 /**
  * The refusal of a nested call from `caller` to `path` under `policy`, or undefined when the
  * call is allowed.

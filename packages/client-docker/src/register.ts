@@ -56,6 +56,7 @@ const dockerRunProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Run a Docker container",
+    calls: ["shell.run"],
     args: ["image"],
     shorts: { name: "n", detach: "d" },
     output: "json",
@@ -71,6 +72,7 @@ const dockerBuildProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Build a Docker image",
+    calls: ["shell.run"],
     args: ["context"],
     shorts: { tag: "t", dockerfile: "f" },
     output: "json",
@@ -86,6 +88,7 @@ const dockerPullProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Pull a Docker image",
+    calls: ["shell.run"],
     args: ["image"],
     output: "json",
   })
@@ -100,6 +103,7 @@ const dockerExecProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Execute command in a running container",
+    calls: ["shell.run"],
     args: ["container", "command"],
     shorts: { interactive: "i", tty: "t", workdir: "w" },
     output: "json",
@@ -115,6 +119,7 @@ const dockerStopProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Stop running container(s)",
+    calls: ["shell.run"],
     args: ["containers"],
     shorts: { time: "t" },
     output: "json",
@@ -130,6 +135,7 @@ const dockerRmProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Remove container(s)",
+    calls: ["shell.run"],
     args: ["containers"],
     shorts: { force: "f", volumes: "v" },
     output: "json",
@@ -145,6 +151,7 @@ const dockerPsProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "List containers",
+    calls: ["shell.run"],
     shorts: { all: "a", filter: "f", format: "F" },
     output: "json",
   })
@@ -159,6 +166,7 @@ const dockerLogsProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Get container logs",
+    calls: ["shell.run"],
     args: ["container"],
     shorts: { follow: "f", tail: "n", timestamps: "t" },
     output: "json",
@@ -174,6 +182,7 @@ const dockerComposeUpProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Start services with docker compose",
+    calls: ["shell.run"],
     shorts: { file: "f", detach: "d", build: "b" },
     output: "json",
   })
@@ -188,6 +197,7 @@ const dockerComposeDownProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput>())
   .meta({
     description: "Stop services with docker compose",
+    calls: ["shell.run"],
     shorts: { file: "f", volumes: "v" },
     output: "json",
   })

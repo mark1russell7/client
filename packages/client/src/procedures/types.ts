@@ -59,6 +59,14 @@ export interface ProcedureMetadata {
   /** Deprecation message with migration guidance */
   deprecationMessage?: string;
 
+  /**
+   * The procedures that this procedure calls through `ctx.client`: keys (`"shell.run"`) or
+   * namespaces (`"fs.*"`). A host with a call policy lets the procedure call only these and the
+   * exposed procedures (see `policy.ts`, deep dive MCP-3). `"*"` alone is not allowed: a
+   * procedure whose callees come from its input has the `runs-refs` tag.
+   */
+  calls?: readonly string[];
+
   /** Custom metadata fields */
   [key: string]: unknown;
 }

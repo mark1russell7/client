@@ -12,7 +12,7 @@ import { ProcedureRegistry, RegistryError } from "./registry.js";
 import { defineProcedure } from "./define.js";
 import { outputSchema } from "./core/schemas.js";
 import { invokePath, outputValue, InvocationError, type InvokeOptions } from "./invoke.js";
-import { callMatches, validateCalls, nestedCallRefusal } from "./policy.js";
+import { callMatches, validateCalls, nestedCallRefusal, hiddenReach } from "./policy.js";
 import { RUNS_REFS_TAG } from "./ref.js";
 import type { AnyProcedure, ProcedureContext, ProcedurePath } from "./types.js";
 
@@ -126,6 +126,26 @@ describe("the calls declaration", () => {
     expect(() =>
       registry.register(defineProcedure({ path: ["x", "y"], input: any, output: any, metadata: { calls: ["*"] }, handler: () => 1 }) as AnyProcedure),
     ).toThrow(RegistryError);
+  });
+
+  it("gives the reach of the exposed procedures through their declarations, also through more than one step", () => {
+    const registry = setup();
+    registry.register(
+      defineProcedure({ path: ["secret", "chained"], input: any, output: any, metadata: { calls: ["deep.*"] }, handler: () => 1 }) as AnyProcedure,
+    );
+    registry.register(defineProcedure({ path: ["deep", "end"], input: any, output: any, handler: () => 1 }) as AnyProcedure);
+    registry.register(
+      defineProcedure({ path: ["tool", "chain"], input: any, output: any, metadata: { calls: ["secret.chained"] }, handler: () => 1 }) as AnyProcedure,
+    );
+    expect(hiddenReach(registry.getAll(), exposeTools)).toEqual([
+      { from: "secret.chained", to: "deep.end" },
+      { from: "tool.chain", to: "secret.chained" },
+      { from: "tool.declared", to: "secret.run" },
+      { from: "tool.namespace", to: "secret.chained" },
+      { from: "tool.namespace", to: "secret.other" },
+      { from: "tool.namespace", to: "secret.run" },
+      { from: "tool.wrongTarget", to: "secret.run" },
+    ]);
   });
 
   it("gives the reason of a refusal, or nothing", () => {
