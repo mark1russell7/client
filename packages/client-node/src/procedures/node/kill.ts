@@ -1,32 +1,26 @@
 /**
  * node.kill procedure
  *
- * Kills a spawned Node.js process.
+ * Kills a spawned Node.js process and the processes that it started.
  */
 
 import type { NodeKillInput, NodeKillOutput } from "../../types.js";
 import { processManager } from "../../process-manager.js";
 
 /**
- * Kill a spawned process by ID
+ * Kill a spawned process by ID, and wait for its end
  */
 export async function nodeKill(input: NodeKillInput): Promise<NodeKillOutput> {
   const { processId, signal = "SIGTERM" } = input;
 
-  const managed = processManager.get(processId);
-  if (!managed) {
+  if (!processManager.get(processId)) {
     return {
       success: false,
     };
   }
 
-  const success = processManager.kill(processId, signal as NodeJS.Signals);
-
-  // Wait a bit for the process to exit
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  const status = processManager.getStatus(processId);
-  const processInfo = status[0];
+  const success = await processManager.kill(processId, signal as NodeJS.Signals);
+  const processInfo = processManager.getStatus(processId)[0];
 
   const result: NodeKillOutput = { success };
   if (processInfo?.exitCode !== undefined) {

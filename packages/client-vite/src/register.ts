@@ -45,7 +45,7 @@ const viteBuildProcedure = createProcedure()
     shorts: { outDir: "o", mode: "m" },
     output: "json",
   })
-  .handler(async (input: ViteBuildInput): Promise<ViteBuildOutput> => viteBuild(input))
+  .handler(async (input: ViteBuildInput, ctx): Promise<ViteBuildOutput> => viteBuild(input, ctx))
   .build();
 
 const vitePreviewProcedure = createProcedure()

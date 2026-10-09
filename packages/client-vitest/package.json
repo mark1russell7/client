@@ -26,15 +26,16 @@
     "./dist/register.js"
   ],
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "vitest": "^3.0.0",
+    "@mark1russell7/client": "workspace:*",
+    "@mark1russell7/client-shell": "workspace:*",
     "@vitest/coverage-v8": "^3.0.0",
-    "zod": "^3.24.0",
-    "@mark1russell7/client": "workspace:*"
+    "vitest": "^3.0.0",
+    "zod": "^3.24.0"
   },
   "client": {
     "procedures": "./dist/register.js"

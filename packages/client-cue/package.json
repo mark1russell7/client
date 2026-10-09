@@ -19,7 +19,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "client": {
     "procedures": "./dist/register.js"
@@ -27,12 +28,14 @@
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-fs": "workspace:*",
+    "@mark1russell7/client-shell": "workspace:*",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   },
   "keywords": [
     "cue",

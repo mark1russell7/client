@@ -1,149 +1,89 @@
 /**
  * Process Manager - Manages spawned Node.js processes
+ *
+ * The manager is a view of the process registry of client-shell, for the group "node"
+ * (deep dive WRP-4, WRP-10):
+ * - `kill` ends the whole process tree, not only the direct child;
+ * - the registry reads the output of each process, so a full pipe does not stop it;
+ * - the processes end when the host ends (before, they were detached and kept running);
+ * - the registry removes old exit records, and `cleanup` removes the rest.
  */
 
-import { ChildProcess } from "child_process";
+import { processes, type ManagedProcessInfo } from "@mark1russell7/client-shell/command";
 import type { ProcessInfo } from "./types.js";
 
-interface ManagedProcess {
-  process: ChildProcess;
-  script: string;
-  startedAt: Date;
-  exitCode?: number;
-  exitedAt?: Date;
-  error?: Error;
+/** The group of the node processes in the process registry. */
+export const NODE_GROUP = "node";
+
+function toProcessInfo(info: ManagedProcessInfo): ProcessInfo {
+  const result: ProcessInfo = {
+    processId: info.id,
+    pid: info.pid,
+    script: info.label ?? info.args[0] ?? "",
+    status: info.status,
+    startedAt: info.startedAt,
+  };
+  if (info.exitCode !== undefined) result.exitCode = info.exitCode;
+  if (info.exitedAt !== undefined) result.exitedAt = info.exitedAt;
+  return result;
 }
 
 class ProcessManager {
-  private processes = new Map<string, ManagedProcess>();
-  private counter = 0;
-
   /**
-   * Register a spawned process for management
+   * Start a Node.js script and record it
    */
-  register(process: ChildProcess, script: string): string {
-    const processId = `proc-${Date.now()}-${++this.counter}`;
-
-    const managed: ManagedProcess = {
-      process,
-      script,
-      startedAt: new Date(),
-    };
-
-    this.processes.set(processId, managed);
-
-    // Track process exit
-    process.on("exit", (code) => {
-      if (code !== null) {
-        managed.exitCode = code;
-      }
-      managed.exitedAt = new Date();
+  start(
+    script: string,
+    options: { args?: string[] | undefined; cwd?: string | undefined; env?: Record<string, string> | undefined }
+  ): ProcessInfo {
+    const info = processes.start(process.execPath, {
+      args: [script, ...(options.args ?? [])],
+      cwd: options.cwd,
+      env: options.env,
+      group: NODE_GROUP,
+      label: script,
     });
-
-    process.on("error", (error) => {
-      managed.error = error;
-      managed.exitedAt = new Date();
-    });
-
-    return processId;
+    return toProcessInfo(info);
   }
 
   /**
    * Get a managed process by ID
    */
-  get(processId: string): ManagedProcess | undefined {
-    return this.processes.get(processId);
+  get(processId: string): ProcessInfo | undefined {
+    const info = processes.get(processId);
+    return info && info.group === NODE_GROUP ? toProcessInfo(info) : undefined;
   }
 
   /**
-   * Kill a process by ID
+   * Kill a process (and the processes that it started) by ID, and wait for its end
    */
-  kill(processId: string, signal: NodeJS.Signals = "SIGTERM"): boolean {
-    const managed = this.processes.get(processId);
-    if (!managed) return false;
-
-    const killed = managed.process.kill(signal);
-    return killed;
+  async kill(processId: string, signal: NodeJS.Signals = "SIGTERM"): Promise<boolean> {
+    if (!this.get(processId)) return false;
+    return (await processes.stop(processId, signal)).stopped;
   }
 
   /**
-   * Wait for a ready pattern in stdout
+   * Wait for a ready pattern in the output
    */
-  async waitForReady(
-    processId: string,
-    pattern: string,
-    timeout: number = 30000
-  ): Promise<void> {
-    const managed = this.processes.get(processId);
-    if (!managed) {
-      throw new Error(`Process ${processId} not found`);
-    }
+  async waitForReady(processId: string, pattern: string, timeout: number = 30000): Promise<void> {
+    await processes.waitFor(processId, new RegExp(pattern), timeout);
+  }
 
-    const regex = new RegExp(pattern);
-
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error(`Timeout waiting for ready pattern: ${pattern}`));
-      }, timeout);
-
-      const onData = (data: Buffer) => {
-        if (regex.test(data.toString())) {
-          clearTimeout(timeoutId);
-          managed.process.stdout?.off("data", onData);
-          resolve();
-        }
-      };
-
-      managed.process.stdout?.on("data", onData);
-
-      managed.process.on("exit", (code) => {
-        clearTimeout(timeoutId);
-        reject(new Error(`Process exited with code ${code} before ready`));
-      });
-
-      managed.process.on("error", (error) => {
-        clearTimeout(timeoutId);
-        reject(error);
-      });
-    });
+  /**
+   * The end of the output of a process (the last 64 KiB)
+   */
+  output(processId: string): string {
+    return this.get(processId) ? processes.output(processId) : "";
   }
 
   /**
    * Get status of all or specific processes
    */
   getStatus(processId?: string): ProcessInfo[] {
-    const result: ProcessInfo[] = [];
-
-    for (const [id, managed] of this.processes) {
-      if (processId && id !== processId) continue;
-
-      const status = this.getProcessStatus(managed);
-
-      const info: ProcessInfo = {
-        processId: id,
-        pid: managed.process.pid ?? 0,
-        script: managed.script,
-        status,
-        startedAt: managed.startedAt.toISOString(),
-      };
-      if (managed.exitCode !== undefined) {
-        info.exitCode = managed.exitCode;
-      }
-      if (managed.exitedAt) {
-        info.exitedAt = managed.exitedAt.toISOString();
-      }
-      result.push(info);
-    }
-
-    return result;
-  }
-
-  private getProcessStatus(
-    managed: ManagedProcess
-  ): "running" | "exited" | "error" {
-    if (managed.error) return "error";
-    if (managed.exitedAt) return "exited";
-    return "running";
+    return processes
+      .list({ group: NODE_GROUP })
+      .filter((info) => processId === undefined || info.id === processId)
+      .map(toProcessInfo);
   }
 
   /**
@@ -151,11 +91,8 @@ class ProcessManager {
    */
   cleanup(): number {
     let cleaned = 0;
-    for (const [id, managed] of this.processes) {
-      if (managed.exitedAt) {
-        this.processes.delete(id);
-        cleaned++;
-      }
+    for (const info of processes.list({ group: NODE_GROUP })) {
+      if (info.exitedAt && processes.forget(info.id)) cleaned++;
     }
     return cleaned;
   }

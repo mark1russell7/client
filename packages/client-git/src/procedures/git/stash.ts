@@ -5,8 +5,8 @@
  * Includes export/import for snapshot storage.
  */
 
-import { execFileSync } from "node:child_process";
-import { GIT_MAX_BUFFER, gitArg } from "./args.js";
+import { gitArg } from "./args.js";
+import { git, GitError, type GitContext } from "./run.js";
 import type {
   GitStashListInput,
   GitStashListOutput,
@@ -26,47 +26,67 @@ import type {
 } from "../../types.js";
 
 /**
+ * True when git stopped on a merge conflict. Git writes "CONFLICT (content): ..." to stdout,
+ * so the message alone (which has stderr) does not show it. (Before, the procedures examined
+ * only the message, and never reported a conflict.)
+ */
+function isConflict(error: unknown): boolean {
+  return error instanceof GitError && /conflict/i.test(`${error.stdout}\n${error.stderr}`);
+}
+
+/** The message of a git failure. An abort is not a git failure: it throws again. */
+function failure(error: unknown): string {
+  if (!(error instanceof GitError)) throw error;
+  return error.message;
+}
+
+function stashRef(index: number | undefined): string {
+  return index !== undefined ? `stash@{${index}}` : "stash@{0}";
+}
+
+/**
  * List all stashes
  */
-export async function gitStashList(input: GitStashListInput): Promise<GitStashListOutput> {
+export async function gitStashList(input: GitStashListInput, ctx: GitContext = {}): Promise<GitStashListOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
 
+  let output: string;
   try {
     // Get stash list with format: stash@{n}: WIP on branch: message
-    const output = execFileSync("git", ["stash", "list", "--format=%H%x00%gd%x00%gs"], opts);
-    const stashes: GitStashEntry[] = [];
-
-    for (const line of output.split("\n").filter(Boolean)) {
-      const parts = line.split("\0");
-      const hash = parts[0] || "";
-      const ref = parts[1] || "";
-      const message = parts[2] || "";
-      // Extract index from stash@{n}
-      const indexMatch = ref.match(/stash@\{(\d+)\}/);
-      const index = indexMatch && indexMatch[1] ? parseInt(indexMatch[1], 10) : 0;
-
-      stashes.push({
-        index,
-        ref,
-        hash,
-        message,
-      });
-    }
-
-    return { stashes, count: stashes.length };
-  } catch {
+    output = await git(["stash", "list", "--format=%H%x00%gd%x00%gs"], { cwd, signal: ctx.signal });
+  } catch (error) {
     // No stashes or not a git repo
+    failure(error);
     return { stashes: [], count: 0 };
   }
+
+  const stashes: GitStashEntry[] = [];
+  for (const line of output.split("\n").filter(Boolean)) {
+    const parts = line.split("\0");
+    const hash = parts[0] || "";
+    const ref = parts[1] || "";
+    const message = parts[2] || "";
+    // Extract index from stash@{n}
+    const indexMatch = ref.match(/stash@\{(\d+)\}/);
+    const index = indexMatch && indexMatch[1] ? parseInt(indexMatch[1], 10) : 0;
+
+    stashes.push({
+      index,
+      ref,
+      hash,
+      message,
+    });
+  }
+
+  return { stashes, count: stashes.length };
 }
 
 /**
  * Push changes to stash
  */
-export async function gitStashPush(input: GitStashPushInput): Promise<GitStashPushOutput> {
+export async function gitStashPush(input: GitStashPushInput, ctx: GitContext = {}): Promise<GitStashPushOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
+  const run = { cwd, signal: ctx.signal };
 
   const args: string[] = ["stash", "push"];
 
@@ -88,7 +108,7 @@ export async function gitStashPush(input: GitStashPushInput): Promise<GitStashPu
   }
 
   try {
-    const output = execFileSync("git", args, opts);
+    const output = await git(args, run);
 
     // Check if anything was stashed
     if (output.includes("No local changes to save")) {
@@ -96,7 +116,7 @@ export async function gitStashPush(input: GitStashPushInput): Promise<GitStashPu
     }
 
     // Get the ref of the new stash
-    const refOutput = execFileSync("git", ["stash", "list", "-1", "--format=%gd"], opts).trim();
+    const refOutput = (await git(["stash", "list", "-1", "--format=%gd"], run)).trim();
 
     return {
       stashed: true,
@@ -104,29 +124,26 @@ export async function gitStashPush(input: GitStashPushInput): Promise<GitStashPu
       message: input.message || "WIP",
     };
   } catch (error) {
-    const err = error as { message?: string };
-    return { stashed: false, message: err.message || "Failed to stash" };
+    return { stashed: false, message: failure(error) || "Failed to stash" };
   }
 }
 
 /**
  * Pop stash (apply and remove)
  */
-export async function gitStashPop(input: GitStashPopInput): Promise<GitStashPopOutput> {
+export async function gitStashPop(input: GitStashPopInput, ctx: GitContext = {}): Promise<GitStashPopOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
-
-  const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
+  const ref = stashRef(input.index);
 
   try {
-    execFileSync("git", ["stash", "pop", gitArg("ref", ref)], opts);
+    await git(["stash", "pop", gitArg("ref", ref)], { cwd, signal: ctx.signal });
     return { applied: true, ref, dropped: true };
   } catch (error) {
-    const err = error as { message?: string };
     // Check if it's a conflict
-    if (err.message?.includes("conflict")) {
+    if (isConflict(error)) {
       return { applied: false, ref, dropped: false, conflict: true };
     }
+    failure(error);
     return { applied: false, ref, dropped: false };
   }
 }
@@ -134,20 +151,18 @@ export async function gitStashPop(input: GitStashPopInput): Promise<GitStashPopO
 /**
  * Apply stash without removing
  */
-export async function gitStashApply(input: GitStashApplyInput): Promise<GitStashApplyOutput> {
+export async function gitStashApply(input: GitStashApplyInput, ctx: GitContext = {}): Promise<GitStashApplyOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
-
-  const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
+  const ref = stashRef(input.index);
 
   try {
-    execFileSync("git", ["stash", "apply", gitArg("ref", ref)], opts);
+    await git(["stash", "apply", gitArg("ref", ref)], { cwd, signal: ctx.signal });
     return { applied: true, ref };
   } catch (error) {
-    const err = error as { message?: string };
-    if (err.message?.includes("conflict")) {
+    if (isConflict(error)) {
       return { applied: false, ref, conflict: true };
     }
+    failure(error);
     return { applied: false, ref };
   }
 }
@@ -155,16 +170,15 @@ export async function gitStashApply(input: GitStashApplyInput): Promise<GitStash
 /**
  * Drop a stash
  */
-export async function gitStashDrop(input: GitStashDropInput): Promise<GitStashDropOutput> {
+export async function gitStashDrop(input: GitStashDropInput, ctx: GitContext = {}): Promise<GitStashDropOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
-
-  const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
+  const ref = stashRef(input.index);
 
   try {
-    execFileSync("git", ["stash", "drop", gitArg("ref", ref)], opts);
+    await git(["stash", "drop", gitArg("ref", ref)], { cwd, signal: ctx.signal });
     return { dropped: true, ref };
-  } catch {
+  } catch (error) {
+    failure(error);
     return { dropped: false, ref };
   }
 }
@@ -172,18 +186,17 @@ export async function gitStashDrop(input: GitStashDropInput): Promise<GitStashDr
 /**
  * Export a stash as a patch (for snapshot storage)
  */
-export async function gitStashExport(input: GitStashExportInput): Promise<GitStashExportOutput> {
+export async function gitStashExport(input: GitStashExportInput, ctx: GitContext = {}): Promise<GitStashExportOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const, maxBuffer: 50 * 1024 * 1024 };
-
-  const ref = input.index !== undefined ? `stash@{${input.index}}` : "stash@{0}";
+  const run = { cwd, signal: ctx.signal };
+  const ref = stashRef(input.index);
 
   try {
     // Get the stash as a patch
-    const patch = execFileSync("git", ["stash", "show", "-p", gitArg("ref", ref)], { ...opts, maxBuffer: GIT_MAX_BUFFER });
+    const patch = await git(["stash", "show", "-p", gitArg("ref", ref)], run);
 
     // Get metadata
-    const metadata = execFileSync("git", ["stash", "list", "-1", "--format=%H%x00%gs", ref], opts).trim();
+    const metadata = (await git(["stash", "list", "-1", "--format=%H%x00%gs", ref], run)).trim();
     const metaParts = metadata.split("\0");
     const hash = metaParts[0] || "";
     const message = metaParts[1] || "";
@@ -191,9 +204,10 @@ export async function gitStashExport(input: GitStashExportInput): Promise<GitSta
     // Get untracked files if present (stash^3 contains untracked files if any)
     let untrackedPatch = "";
     try {
-      untrackedPatch = execFileSync("git", ["show", `${ref}^3`, "--format=", "--name-only"], opts);
-    } catch {
+      untrackedPatch = await git(["show", `${ref}^3`, "--format=", "--name-only"], run);
+    } catch (error) {
       // No untracked files in this stash
+      failure(error);
     }
 
     return {
@@ -205,8 +219,7 @@ export async function gitStashExport(input: GitStashExportInput): Promise<GitSta
       untrackedPatch: untrackedPatch || undefined,
     };
   } catch (error) {
-    const err = error as { message?: string };
-    throw new Error(`Failed to export stash ${ref}: ${err.message}`);
+    throw new Error(`Failed to export stash ${ref}: ${failure(error)}`);
   }
 }
 
@@ -214,13 +227,13 @@ export async function gitStashExport(input: GitStashExportInput): Promise<GitSta
  * Import a stash from a patch (for snapshot restore)
  * Note: This creates a new stash, it doesn't recreate the exact stash state
  */
-export async function gitStashImport(input: GitStashImportInput): Promise<GitStashImportOutput> {
+export async function gitStashImport(input: GitStashImportInput, ctx: GitContext = {}): Promise<GitStashImportOutput> {
   const cwd = input.cwd || process.cwd();
-  const opts = { cwd, encoding: "utf8" as const };
+  const run = { cwd, signal: ctx.signal };
 
   try {
     // Apply the patch to working directory
-    execFileSync("git", ["apply", "--3way"], { ...opts, input: input.patch });
+    await git(["apply", "--3way"], { ...run, input: input.patch });
 
     // Stash the changes with the original message
     const message = input.message || "Imported stash";
@@ -230,14 +243,13 @@ export async function gitStashImport(input: GitStashImportInput): Promise<GitSta
       args.push("--include-untracked");
     }
 
-    execFileSync("git", args, opts);
+    await git(args, run);
 
     // Get the new stash ref
-    const ref = execFileSync("git", ["stash", "list", "-1", "--format=%gd"], opts).trim();
+    const ref = (await git(["stash", "list", "-1", "--format=%gd"], run)).trim();
 
     return { imported: true, ref: ref || "stash@{0}" };
   } catch (error) {
-    const err = error as { message?: string };
-    return { imported: false, error: err.message || "Failed to import stash" };
+    return { imported: false, error: failure(error) || "Failed to import stash" };
   }
 }

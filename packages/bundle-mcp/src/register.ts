@@ -49,13 +49,16 @@ export const mcpNamespaces: readonly string[] = [
 
 /**
  * Procedures of the exposed namespaces that are not tools all the same:
- * - `vitest.watch` starts a process that no tool can stop (deep dive WRP-4);
+ * - `vitest.watch` starts a long-running process. `vitest.stop` and `vitest.list` manage these
+ *   processes. A tool call does not leave a process running, so the three stay out (deep dive WRP-4);
  * - `procedure.store`, `load`, `sync`, `remote` and `register` work only on a registry that has a
  *   procedure store, and the MCP server has none: they fail with NOT_CONFIGURED (deep dive
  *   CORE-16, DATA-10). `procedure.register` with no store declares a procedure with no handler.
  */
 export const mcpExclude: readonly string[] = [
   "vitest.watch",
+  "vitest.stop",
+  "vitest.list",
   "procedure.store",
   "procedure.load",
   "procedure.sync",

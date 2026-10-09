@@ -1,6 +1,17 @@
-import { spawn } from "node:child_process";
+/**
+ * vitest.watch procedure
+ *
+ * Start vitest in watch mode, as a process of the process registry of client-shell. vitest.list
+ * shows it and vitest.stop ends it, and it ends with the host (deep dive WRP-4). Before, the
+ * process started detached and the procedure forgot it: nothing could stop it.
+ */
+
+import { processes } from "@mark1russell7/client-shell/command";
 import type { VitestWatchInput, VitestWatchOutput } from "../../types.js";
 import { resolveVitestCli } from "../../vitest-cli.js";
+
+/** The group of the vitest processes in the process registry. */
+export const VITEST_GROUP = "vitest";
 
 export async function vitestWatch(
   input: VitestWatchInput,
@@ -17,17 +28,19 @@ export async function vitestWatch(
   }
 
   // No shell: test patterns cannot inject commands
-  const proc = spawn(process.execPath, args, {
+  const started = processes.start(process.execPath, {
+    args,
     cwd,
-    shell: false,
-    detached: true,
-    stdio: "ignore",
+    group: VITEST_GROUP,
+    label: `vitest watch ${cwd}`,
   });
-
-  proc.unref();
+  if (started.status === "error") {
+    throw new Error(`vitest did not start: ${started.error ?? "unknown error"}`);
+  }
 
   return {
-    pid: proc.pid ?? 0,
+    id: started.id,
+    pid: started.pid,
     status: "started",
   };
 }

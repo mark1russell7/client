@@ -5,7 +5,6 @@
  * Uses ctx.client.call() for file system operations (dogfooding).
  */
 
-import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type { CueValidateInput, CueValidateOutput } from "../../types.js";
@@ -13,6 +12,7 @@ import {
   loadFeatures,
   loadDependencies,
   checkCue,
+  runCue,
   packageRoot,
   fileExists,
 } from "../../shared.js";
@@ -67,16 +67,13 @@ export async function cueValidate(
   }
 
   // If CUE is available, validate against schema
-  if (checkCue()) {
+  if (await checkCue(ctx.signal)) {
     const schemaPath = resolve(packageRoot, "dependencies/schema.cue");
     if (await fileExists(schemaPath, ctx)) {
       const depsPath = resolve(projectPath, "dependencies.json");
-      const result = spawnSync("cue", ["vet", "-d", "#Dependencies", schemaPath, depsPath], {
-        encoding: "utf-8",
-        stdio: ["inherit", "pipe", "pipe"],
-      });
+      const result = await runCue(["vet", "-d", "#Dependencies", schemaPath, depsPath], { signal: ctx.signal });
 
-      if (result.status !== 0) {
+      if (!result.success) {
         errors.push(`CUE schema validation failed: ${result.stderr || result.stdout}`);
         return {
           success: true,

@@ -14,6 +14,7 @@ export const NodeRunInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
   env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
   timeout: z.ZodOptional<z.ZodNumber>;
+  maxOutputBytes: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Script path to run */
   script: z.string(),
@@ -23,8 +24,10 @@ export const NodeRunInputSchema: z.ZodObject<{
   cwd: z.string().optional(),
   /** Environment variables */
   env: z.record(z.string()).optional(),
-  /** Timeout in milliseconds */
+  /** Timeout in milliseconds. At the timeout, the script and its child processes are killed. */
   timeout: z.number().optional(),
+  /** The most bytes kept of each output stream (default: 64 MiB). The procedure keeps the first bytes. */
+  maxOutputBytes: z.number().int().positive().optional(),
 });
 
 export type NodeRunInput = z.infer<typeof NodeRunInputSchema>;
@@ -36,6 +39,8 @@ export interface NodeRunOutput {
   stdout: string;
   /** Standard error */
   stderr: string;
+  /** True when an output stream was longer than `maxOutputBytes` */
+  truncated?: boolean;
 }
 
 // ============================================================================
@@ -107,9 +112,12 @@ export interface NodeKillOutput {
 
 export const NodeStatusInputSchema: z.ZodObject<{
   processId: z.ZodOptional<z.ZodString>;
+  output: z.ZodOptional<z.ZodBoolean>;
 }> = z.object({
   /** Optional process ID to filter by */
   processId: z.string().optional(),
+  /** Also give the end of the output of each process (the last 64 KiB) */
+  output: z.boolean().optional(),
 });
 
 export type NodeStatusInput = z.infer<typeof NodeStatusInputSchema>;
@@ -129,6 +137,8 @@ export interface ProcessInfo {
   startedAt: string;
   /** Exit time if exited */
   exitedAt?: string | undefined;
+  /** With `output: true`, the end of the output */
+  output?: string | undefined;
 }
 
 export interface NodeStatusOutput {

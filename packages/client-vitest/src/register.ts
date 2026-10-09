@@ -1,13 +1,19 @@
 import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
 import {
   VitestCoverageInputSchema,
+  VitestListInputSchema,
   VitestRunInputSchema,
+  VitestStopInputSchema,
   VitestWatchInputSchema,
+  type VitestListOutput,
   type VitestRunOutput,
+  type VitestStopOutput,
   type VitestWatchOutput,
 } from "./types.js";
 import { vitestCoverage, vitestRun } from "./procedures/vitest/run.js";
 import { vitestWatch } from "./procedures/vitest/watch.js";
+import { vitestStop } from "./procedures/vitest/stop.js";
+import { vitestList } from "./procedures/vitest/list.js";
 
 const vitestRunProcedure = createProcedure()
   .path(["vitest", "run"])
@@ -49,6 +55,38 @@ const vitestWatchProcedure = createProcedure()
   .handler(vitestWatch)
   .build();
 
-registerProcedures([vitestRunProcedure, vitestCoverageProcedure, vitestWatchProcedure]);
+const vitestStopProcedure = createProcedure()
+  .path(["vitest", "stop"])
+  .input(zodAdapter(VitestStopInputSchema))
+  .output(outputSchema<VitestStopOutput>())
+  .meta({
+    description: "Stop a vitest watch process (all of them without an id)",
+    args: ["id"],
+    shorts: {},
+    output: "json",
+  })
+  .handler(vitestStop)
+  .build();
+
+const vitestListProcedure = createProcedure()
+  .path(["vitest", "list"])
+  .input(zodAdapter(VitestListInputSchema))
+  .output(outputSchema<VitestListOutput>())
+  .meta({
+    description: "List the vitest watch processes of this host",
+    args: [],
+    shorts: {},
+    output: "json",
+  })
+  .handler(vitestList)
+  .build();
+
+registerProcedures([
+  vitestRunProcedure,
+  vitestCoverageProcedure,
+  vitestWatchProcedure,
+  vitestStopProcedure,
+  vitestListProcedure,
+]);
 
 

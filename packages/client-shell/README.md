@@ -31,8 +31,35 @@
 - **shell.run** - Spawn processes with arguments (no shell interpretation, safer)
 - **shell.exec** - Execute command strings via shell (supports pipes, redirects)
 - **shell.which** - Find command paths cross-platform
+- **shell.stream** - Run a command with arguments, and give each output line while it runs
 
 This package is the **foundation** for all CLI wrapper packages.
+
+### Command helpers
+
+The wrapper packages start their programs with the helpers of `@mark1russell7/client-shell/command`. This entry point registers no procedures.
+
+| Helper | What it does |
+|---|---|
+| `runCommand(command, options)` | It runs a program to its end and gives `exitCode`, `stdout`, `stderr` and `duration`. It does not throw. |
+| `streamCommand(command, options)` | It gives each output line while the program runs, then an `exit` item. |
+| `processes` | It records a long-running program: `start`, `list`, `waitFor`, `output`, `stop`. |
+| `killTree(child)` | It kills a child process and all the processes that it started. |
+
+The rules of the helpers:
+
+- A helper passes the arguments as a list. No shell reads them.
+- The `timeout` and the `signal` kill the whole process tree. Windows uses `taskkill /T /F`. The other systems use a process group.
+- Each output stream has a limit (`maxOutputBytes`, 64 MiB by default). The helper keeps the first bytes, or the last bytes with `keep: "tail"`.
+- A program without an `input` gets an empty stdin.
+- When the reader of `streamCommand` is slow, the helper stops reading the pipes, so the program waits.
+- When the host ends, the helpers kill each child that still runs.
+
+```typescript
+import { runCommand } from "@mark1russell7/client-shell/command";
+
+const result = await runCommand("git", { args: ["status", "--porcelain"], cwd, signal: ctx.signal });
+```
 
 ---
 

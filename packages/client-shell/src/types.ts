@@ -66,13 +66,13 @@ export const ShellExecInputSchema: z.ZodObject<{
   cwd: z.string().optional(),
   /** Environment variables */
   env: z.record(z.string()).optional(),
-  /** Timeout in milliseconds */
+  /** Timeout in milliseconds. At the timeout, the shell and the programs that it started are killed. */
   timeout: z.number().optional(),
-  /** Shell to use (default: system shell) */
+  /** Shell to use: a path, or `true` for the system shell (`cmd.exe` or `/bin/sh`). `false` is the same as `true`. */
   shell: z.union([z.boolean(), z.string()]).default(true),
-  /** Max buffer size for stdout/stderr */
+  /** The most bytes kept of each output stream (default: 64 MiB). The procedure drops the rest. */
   maxBuffer: z.number().optional(),
-  /** Input to pipe to stdin */
+  /** Text to write to stdin. Without it, stdin is empty. */
   stdin: z.string().optional(),
 });
 

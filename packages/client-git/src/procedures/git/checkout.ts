@@ -4,16 +4,15 @@
  * Checkout branch or files
  */
 
-import { execFileSync } from "node:child_process";
 import { gitArg } from "./args.js";
+import { git, type GitContext } from "./run.js";
 import type { GitCheckoutInput, GitCheckoutOutput } from "../../types.js";
 
 /**
  * Checkout branch or files
  */
-export async function gitCheckout(input: GitCheckoutInput): Promise<GitCheckoutOutput> {
+export async function gitCheckout(input: GitCheckoutInput, ctx: GitContext = {}): Promise<GitCheckoutOutput> {
   const { ref, create, paths, cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
 
   const args: string[] = ["checkout"];
   if (create) args.push("-b");
@@ -22,7 +21,7 @@ export async function gitCheckout(input: GitCheckoutInput): Promise<GitCheckoutO
     args.push("--", ...paths);
   }
 
-  execFileSync("git", args, opts);
+  await git(args, { cwd, signal: ctx.signal });
 
   return { ref, created: create };
 }

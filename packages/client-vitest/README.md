@@ -174,7 +174,12 @@ if (coverage.coverage) {
 | Path | Description |
 |------|-------------|
 | `vitest.run` | Run tests once |
+| `vitest.coverage` | Run tests once with coverage, and check a minimum line coverage |
 | `vitest.watch` | Start watch mode |
+| `vitest.stop` | Stop a watch process (all of them without an id) |
+| `vitest.list` | List the watch processes of this host |
+
+`vitest.watch`, `vitest.stop` and `vitest.list` are not MCP tools. A watch process is a record of the process registry of `client-shell`, and it ends with the host.
 
 ---
 
@@ -252,6 +257,7 @@ interface VitestWatchInput {
 }
 
 interface VitestWatchOutput {
+  id: string;            // The id for vitest.stop
   pid: number;           // Process ID
   status: "started" | "stopped";
 }
@@ -260,13 +266,15 @@ interface VitestWatchOutput {
 **Example:**
 ```typescript
 // Start watch mode
-const { pid } = await client.call(["vitest", "watch"], {
+const { id } = await client.call(["vitest", "watch"], {
   include: ["src/**/*.test.ts"],
 });
 
-console.log(`Vitest watching (PID: ${pid})`);
+// The end of the output of each watch process
+const { processes } = await client.call(["vitest", "list"], { output: true });
 
-// Later: stop watch mode by killing PID
+// Stop the watch process and the processes that it started
+await client.call(["vitest", "stop"], { id });
 ```
 
 ---

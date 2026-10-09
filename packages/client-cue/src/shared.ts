@@ -2,12 +2,16 @@
  * Shared utilities for cue procedures
  *
  * Uses ctx.client.call() for file system operations (dogfooding).
+ *
+ * A file operation that fails is an error of the call. Only a missing file is a normal result.
+ * (Before, each helper turned every error into "missing": with no fs.* procedures in the host,
+ * cue.validate answered "No dependencies.json found", deep dive WRP-3.)
  */
 
-import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import type { ProcedureContext } from "@mark1russell7/client";
+import { runCommand, type CommandResult } from "@mark1russell7/client-shell/command";
 import type { FeaturesManifest, DependenciesJson } from "./types.js";
 
 // Constants
@@ -49,27 +53,21 @@ interface FsMkdirOutput {
 // =============================================================================
 
 export async function fileExists(path: string, ctx: ProcedureContext): Promise<boolean> {
-  try {
-    const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
-      ["fs", "exists"],
-      { path }
-    );
-    return result.exists;
-  } catch {
-    return false;
-  }
+  const result = await ctx.client.call<{ path: string }, FsExistsOutput>(
+    ["fs", "exists"],
+    { path }
+  );
+  return result.exists;
 }
 
+/** The content of a file, or null when the file does not exist. Other failures throw. */
 export async function readFile(path: string, ctx: ProcedureContext): Promise<string | null> {
-  try {
-    const result = await ctx.client.call<{ path: string; encoding?: string }, FsReadOutput>(
-      ["fs", "read"],
-      { path, encoding: "utf-8" }
-    );
-    return result.content;
-  } catch {
-    return null;
-  }
+  if (!(await fileExists(path, ctx))) return null;
+  const result = await ctx.client.call<{ path: string; encoding?: string }, FsReadOutput>(
+    ["fs", "read"],
+    { path, encoding: "utf-8" }
+  );
+  return result.content;
 }
 
 export async function writeFile(path: string, content: string, ctx: ProcedureContext): Promise<boolean> {
@@ -100,13 +98,14 @@ export async function mkdir(path: string, ctx: ProcedureContext): Promise<boolea
 // JSON Helpers
 // =============================================================================
 
+/** The JSON content of a file, or null when the file does not exist. Text that is not JSON throws. */
 export async function readJson<T>(path: string, ctx: ProcedureContext): Promise<T | null> {
   const content = await readFile(path, ctx);
-  if (!content) return null;
+  if (content === null) return null;
   try {
     return JSON.parse(content) as T;
-  } catch {
-    return null;
+  } catch (error) {
+    throw new Error(`${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -190,13 +189,20 @@ export function featureToFieldName(feature: string): string {
 // CUE Evaluation
 // =============================================================================
 
-export function checkCue(): boolean {
-  try {
-    const result = spawnSync("cue", ["version"], { stdio: "ignore" });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
+/**
+ * This function runs the cue program with an argument list and no shell, through `runCommand`
+ * of client-shell: async, and the signal of the call kills it (roadmap 2.2).
+ */
+export function runCue(
+  args: string[],
+  options: { cwd?: string | undefined; signal?: AbortSignal | undefined } = {}
+): Promise<CommandResult> {
+  return runCommand("cue", { args, cwd: options.cwd, signal: options.signal, timeout: 120_000 });
+}
+
+/** True when the cue program is installed. */
+export async function checkCue(signal?: AbortSignal): Promise<boolean> {
+  return (await runCue(["version"], { signal })).success;
 }
 
 export function determineTsconfig(resolvedFeatures: string[]): string {

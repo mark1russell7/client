@@ -4,17 +4,16 @@
  * Fetch from remote without merging
  */
 
-import { execFileSync } from "node:child_process";
 import { gitArg } from "./args.js";
+import { git, type GitContext } from "./run.js";
 import type { GitFetchInput, GitFetchOutput } from "../../types.js";
 
 /**
  * Fetch from remote
  */
-export async function gitFetch(input: GitFetchInput): Promise<GitFetchOutput> {
+export async function gitFetch(input: GitFetchInput, ctx: GitContext = {}): Promise<GitFetchOutput> {
   const { branch, all, prune, cwd } = input;
   const remoteName = input.remote ?? "origin";
-  const opts = { cwd, encoding: "utf8" as const };
 
   const args: string[] = ["fetch"];
   if (all) {
@@ -27,7 +26,7 @@ export async function gitFetch(input: GitFetchInput): Promise<GitFetchOutput> {
   }
   if (prune) args.push("--prune");
 
-  execFileSync("git", args, opts);
+  await git(args, { cwd, signal: ctx.signal });
 
   return { remote: remoteName, fetched: true };
 }

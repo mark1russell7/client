@@ -21,7 +21,10 @@ export const GitStatusInputSchema: z.ZodObject<{
 export type GitStatusInput = z.infer<typeof GitStatusInputSchema>;
 
 export interface GitStatusFile {
+  /** The path of the file (for a rename or a copy, the new path) */
   path: string;
+  /** For a rename or a copy, the old path */
+  from?: string;
   status: "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "ignored";
   staged: boolean;
 }
@@ -32,6 +35,8 @@ export interface GitStatusOutput {
   behind: number;
   files: GitStatusFile[];
   clean: boolean;
+  /** With `short: true`, one line per file in the format of `git status --short` */
+  lines?: string[];
 }
 
 // =============================================================================
@@ -277,6 +282,8 @@ export interface GitLogCommit {
 
 export interface GitLogOutput {
   commits: GitLogCommit[];
+  /** With `oneline: true`, one line per commit: the short hash and the subject */
+  lines?: string[];
 }
 
 // =============================================================================
@@ -305,8 +312,13 @@ export const GitDiffInputSchema: z.ZodObject<{
 export type GitDiffInput = z.infer<typeof GitDiffInputSchema>;
 
 export interface GitDiffFile {
+  /** The path of the file (for a rename, the new path) */
   path: string;
+  /** For a rename, the old path */
+  from?: string;
+  /** Added lines (0 for a binary file) */
   additions: number;
+  /** Deleted lines (0 for a binary file) */
   deletions: number;
 }
 

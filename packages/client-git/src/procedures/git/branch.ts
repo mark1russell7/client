@@ -4,29 +4,29 @@
  * Branch operations
  */
 
-import { execFileSync } from "node:child_process";
 import { gitArg } from "./args.js";
+import { git, type GitContext } from "./run.js";
 import type { GitBranchInput, GitBranchOutput, GitBranchInfo } from "../../types.js";
 
 /**
  * Branch operations
  */
-export async function gitBranch(input: GitBranchInput): Promise<GitBranchOutput> {
+export async function gitBranch(input: GitBranchInput, ctx: GitContext = {}): Promise<GitBranchOutput> {
   const { name, delete: del, list, remote, cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
+  const run = { cwd, signal: ctx.signal };
 
   // Get current branch
-  const current = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], opts).trim();
+  const current = (await git(["rev-parse", "--abbrev-ref", "HEAD"], run)).trim();
 
   // Delete branch
   if (del && name) {
-    execFileSync("git", ["branch", "-d", gitArg("name", name)], opts);
+    await git(["branch", "-d", gitArg("name", name)], run);
     return { deleted: name, current };
   }
 
   // Create branch
   if (name && !list) {
-    execFileSync("git", ["branch", gitArg("name", name)], opts);
+    await git(["branch", gitArg("name", name)], run);
     return { created: name, current };
   }
 
@@ -36,7 +36,7 @@ export async function gitBranch(input: GitBranchInput): Promise<GitBranchOutput>
   // The full ref name tells local from remote branches: a local "feature/x" also contains "/"
   args.push("--format=%(refname)|%(refname:short)|%(HEAD)|%(upstream:short)");
 
-  const output = execFileSync("git", args, opts);
+  const output = await git(args, run);
   const branches: GitBranchInfo[] = output
     .split("\n")
     .filter(Boolean)

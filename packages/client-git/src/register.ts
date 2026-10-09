@@ -116,8 +116,8 @@ const gitStatusProcedure = createProcedure()
     shorts: { cwd: "C", short: "s" },
     output: "json",
   })
-  .handler(async (input: GitStatusInput): Promise<GitStatusOutput> => {
-    return gitStatus(input);
+  .handler(async (input: GitStatusInput, ctx): Promise<GitStatusOutput> => {
+    return gitStatus(input, ctx);
   })
   .build();
 
@@ -131,8 +131,8 @@ const gitAddProcedure = createProcedure()
     shorts: { all: "A", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitAddInput): Promise<GitAddOutput> => {
-    return gitAdd(input);
+  .handler(async (input: GitAddInput, ctx): Promise<GitAddOutput> => {
+    return gitAdd(input, ctx);
   })
   .build();
 
@@ -146,8 +146,8 @@ const gitCommitProcedure = createProcedure()
     shorts: { all: "a", amend: "A", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitCommitInput): Promise<GitCommitOutput> => {
-    return gitCommit(input);
+  .handler(async (input: GitCommitInput, ctx): Promise<GitCommitOutput> => {
+    return gitCommit(input, ctx);
   })
   .build();
 
@@ -161,8 +161,8 @@ const gitPushProcedure = createProcedure()
     shorts: { remote: "r", branch: "b", force: "f", setUpstream: "u", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPushInput): Promise<GitPushOutput> => {
-    return gitPush(input);
+  .handler(async (input: GitPushInput, ctx): Promise<GitPushOutput> => {
+    return gitPush(input, ctx);
   })
   .build();
 
@@ -176,8 +176,8 @@ const gitPullProcedure = createProcedure()
     shorts: { remote: "r", branch: "b", rebase: "R", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPullInput): Promise<GitPullOutput> => {
-    return gitPull(input);
+  .handler(async (input: GitPullInput, ctx): Promise<GitPullOutput> => {
+    return gitPull(input, ctx);
   })
   .build();
 
@@ -191,8 +191,8 @@ const gitCloneProcedure = createProcedure()
     shorts: { dest: "d", branch: "b", depth: "D", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitCloneInput): Promise<GitCloneOutput> => {
-    return gitClone(input);
+  .handler(async (input: GitCloneInput, ctx): Promise<GitCloneOutput> => {
+    return gitClone(input, ctx);
   })
   .build();
 
@@ -206,8 +206,8 @@ const gitCheckoutProcedure = createProcedure()
     shorts: { create: "b", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitCheckoutInput): Promise<GitCheckoutOutput> => {
-    return gitCheckout(input);
+  .handler(async (input: GitCheckoutInput, ctx): Promise<GitCheckoutOutput> => {
+    return gitCheckout(input, ctx);
   })
   .build();
 
@@ -221,8 +221,8 @@ const gitBranchProcedure = createProcedure()
     shorts: { delete: "d", list: "l", remote: "r", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitBranchInput): Promise<GitBranchOutput> => {
-    return gitBranch(input);
+  .handler(async (input: GitBranchInput, ctx): Promise<GitBranchOutput> => {
+    return gitBranch(input, ctx);
   })
   .build();
 
@@ -236,8 +236,8 @@ const gitLogProcedure = createProcedure()
     shorts: { count: "n", oneline: "o", ref: "r", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitLogInput): Promise<GitLogOutput> => {
-    return gitLog(input);
+  .handler(async (input: GitLogInput, ctx): Promise<GitLogOutput> => {
+    return gitLog(input, ctx);
   })
   .build();
 
@@ -251,8 +251,8 @@ const gitDiffProcedure = createProcedure()
     shorts: { staged: "s", ref: "r", stat: "S", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitDiffInput): Promise<GitDiffOutput> => {
-    return gitDiff(input);
+  .handler(async (input: GitDiffInput, ctx): Promise<GitDiffOutput> => {
+    return gitDiff(input, ctx);
   })
   .build();
 
@@ -282,8 +282,8 @@ const gitRemoteProcedure = createProcedure()
     shorts: { name: "n", url: "u", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitRemoteInput): Promise<GitRemoteOutput> => {
-    return gitRemote(input);
+  .handler(async (input: GitRemoteInput, ctx): Promise<GitRemoteOutput> => {
+    return gitRemote(input, ctx);
   })
   .build();
 
@@ -297,8 +297,8 @@ const gitFetchProcedure = createProcedure()
     shorts: { remote: "r", branch: "b", all: "a", prune: "p", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitFetchInput): Promise<GitFetchOutput> => {
-    return gitFetch(input);
+  .handler(async (input: GitFetchInput, ctx): Promise<GitFetchOutput> => {
+    return gitFetch(input, ctx);
   })
   .build();
 
@@ -316,8 +316,8 @@ const gitHasChangesProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
-    return gitHasChanges(input);
+  .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
+    return gitHasChanges(input, ctx);
   })
   .build();
 
@@ -331,8 +331,8 @@ const gitHasStagedChangesProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
-    return gitHasStagedChanges(input);
+  .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
+    return gitHasStagedChanges(input, ctx);
   })
   .build();
 
@@ -346,8 +346,8 @@ const gitHasUnstagedChangesProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
-    return gitHasUnstagedChanges(input);
+  .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
+    return gitHasUnstagedChanges(input, ctx);
   })
   .build();
 
@@ -361,8 +361,8 @@ const gitHasUntrackedFilesProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
-    return gitHasUntrackedFiles(input);
+  .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
+    return gitHasUntrackedFiles(input, ctx);
   })
   .build();
 
@@ -376,8 +376,8 @@ const gitHasLocalCommitsProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
-    return gitHasLocalCommits(input);
+  .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
+    return gitHasLocalCommits(input, ctx);
   })
   .build();
 
@@ -391,8 +391,8 @@ const gitIsCleanProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitPredicateInput): Promise<GitPredicateOutput> => {
-    return gitIsClean(input);
+  .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
+    return gitIsClean(input, ctx);
   })
   .build();
 
@@ -410,8 +410,8 @@ const gitStashListProcedure = createProcedure()
     shorts: { cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashListInput): Promise<GitStashListOutput> => {
-    return gitStashList(input);
+  .handler(async (input: GitStashListInput, ctx): Promise<GitStashListOutput> => {
+    return gitStashList(input, ctx);
   })
   .build();
 
@@ -425,8 +425,8 @@ const gitStashPushProcedure = createProcedure()
     shorts: { message: "m", includeUntracked: "u", keepIndex: "k", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashPushInput): Promise<GitStashPushOutput> => {
-    return gitStashPush(input);
+  .handler(async (input: GitStashPushInput, ctx): Promise<GitStashPushOutput> => {
+    return gitStashPush(input, ctx);
   })
   .build();
 
@@ -440,8 +440,8 @@ const gitStashPopProcedure = createProcedure()
     shorts: { index: "n", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashPopInput): Promise<GitStashPopOutput> => {
-    return gitStashPop(input);
+  .handler(async (input: GitStashPopInput, ctx): Promise<GitStashPopOutput> => {
+    return gitStashPop(input, ctx);
   })
   .build();
 
@@ -455,8 +455,8 @@ const gitStashApplyProcedure = createProcedure()
     shorts: { index: "n", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashApplyInput): Promise<GitStashApplyOutput> => {
-    return gitStashApply(input);
+  .handler(async (input: GitStashApplyInput, ctx): Promise<GitStashApplyOutput> => {
+    return gitStashApply(input, ctx);
   })
   .build();
 
@@ -470,8 +470,8 @@ const gitStashDropProcedure = createProcedure()
     shorts: { index: "n", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashDropInput): Promise<GitStashDropOutput> => {
-    return gitStashDrop(input);
+  .handler(async (input: GitStashDropInput, ctx): Promise<GitStashDropOutput> => {
+    return gitStashDrop(input, ctx);
   })
   .build();
 
@@ -485,8 +485,8 @@ const gitStashExportProcedure = createProcedure()
     shorts: { index: "n", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashExportInput): Promise<GitStashExportOutput> => {
-    return gitStashExport(input);
+  .handler(async (input: GitStashExportInput, ctx): Promise<GitStashExportOutput> => {
+    return gitStashExport(input, ctx);
   })
   .build();
 
@@ -500,8 +500,8 @@ const gitStashImportProcedure = createProcedure()
     shorts: { message: "m", includeUntracked: "u", cwd: "C" },
     output: "json",
   })
-  .handler(async (input: GitStashImportInput): Promise<GitStashImportOutput> => {
-    return gitStashImport(input);
+  .handler(async (input: GitStashImportInput, ctx): Promise<GitStashImportOutput> => {
+    return gitStashImport(input, ctx);
   })
   .build();
 

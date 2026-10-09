@@ -181,7 +181,7 @@ console.log(`Preview server at ${result.url}`);
 
 ### vite.stop
 
-Stop a running dev or preview server.
+Stop a running dev or preview server, with the processes that it started (for example esbuild). Each server is a record of the process registry of `client-shell`, and it ends with the host.
 
 ```typescript
 const result = await client.exec<{

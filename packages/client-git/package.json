@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
+    "@mark1russell7/client-shell": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

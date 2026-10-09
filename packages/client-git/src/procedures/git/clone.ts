@@ -4,17 +4,16 @@
  * Clone repository
  */
 
-import { execFileSync } from "node:child_process";
-import { gitArg } from "./args.js";
 import { join, basename } from "node:path";
+import { gitArg } from "./args.js";
+import { git, type GitContext } from "./run.js";
 import type { GitCloneInput, GitCloneOutput } from "../../types.js";
 
 /**
  * Clone repository
  */
-export async function gitClone(input: GitCloneInput): Promise<GitCloneOutput> {
+export async function gitClone(input: GitCloneInput, ctx: GitContext = {}): Promise<GitCloneOutput> {
   const { url, dest, branch, depth, cwd } = input;
-  const opts = { cwd, encoding: "utf8" as const };
 
   // Determine destination directory
   const destDir = dest || basename(url, ".git").replace(/\.git$/, "");
@@ -25,13 +24,10 @@ export async function gitClone(input: GitCloneInput): Promise<GitCloneOutput> {
   if (depth) args.push("--depth", String(depth));
   args.push("--", gitArg("url", url), gitArg("dest", destDir));
 
-  execFileSync("git", args, opts);
+  await git(args, { cwd, signal: ctx.signal });
 
   // Get the branch that was checked out
-  const clonedBranch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-    cwd: fullPath,
-    encoding: "utf8",
-  }).trim();
+  const clonedBranch = (await git(["rev-parse", "--abbrev-ref", "HEAD"], { cwd: fullPath, signal: ctx.signal })).trim();
 
   return { path: fullPath, branch: clonedBranch };
 }
