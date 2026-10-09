@@ -23,7 +23,8 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "client": {
     "procedures": "./dist/register.js"

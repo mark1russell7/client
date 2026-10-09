@@ -3,6 +3,7 @@
   "dependencies": [
     "ts",
     "cue",
-    "vitest"
+    "vitest",
+    "node"
   ]
 }

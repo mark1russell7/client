@@ -24,9 +24,9 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:watch": "vitest",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run __tests__/docker.integration.test.ts",
-    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
@@ -35,10 +35,10 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3",
+    "@types/node": "^22.0.0"
   },
   "keywords": [
     "docker",
@@ -52,5 +52,8 @@
   ],
   "client": {
     "procedures": "./dist/register.js"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

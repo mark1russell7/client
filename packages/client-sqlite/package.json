@@ -20,7 +20,8 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "client": {
     "procedures": "./dist/register.js"
@@ -46,5 +47,8 @@
   "sideEffects": [
     "./dist/index.js",
     "./dist/register.js"
-  ]
+  ],
+  "engines": {
+    "node": ">=22"
+  }
 }

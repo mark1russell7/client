@@ -36,7 +36,8 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "sideEffects": [
     "./dist/index.js",
@@ -57,7 +58,7 @@
     "url": "https://github.com/mark1russell7/client-mongo.git"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
