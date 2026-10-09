@@ -15,10 +15,18 @@ export const ProcedureNewInputSchema: z.ZodObject<{
   path: z.ZodOptional<z.ZodString>;
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
-  /** Procedure name (e.g., "greet" or "user.create") */
-  name: z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/, "Name must be lowercase dot-separated segments"),
-  /** Namespace override (defaults to first segment of name) */
-  namespace: z.string().optional(),
+  /** Procedure name (e.g., "greet", "user.create" or "fs.readJson") */
+  name: z
+    .string()
+    .regex(
+      /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/,
+      "Name must be dot-separated segments, each starting with a lowercase letter (camelCase is allowed)"
+    ),
+  /** Namespace override (defaults to first segment of name): the folder under src/procedures */
+  namespace: z
+    .string()
+    .regex(/^[a-z][a-zA-Z0-9]*$/, "Namespace must be one segment that starts with a lowercase letter")
+    .optional(),
   /** Procedure description for CLI help */
   description: z.string().optional(),
   /** Project path (defaults to cwd) */
