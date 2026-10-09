@@ -64,6 +64,8 @@ import {
   outputItems,
   outputValue,
   type InvokeOptions,
+  type Invocation,
+  type Interceptor,
 } from "../procedures/invoke.js";
 import { isHandlerConfig, isStreamConfig, type HandlerCallback, type OutputConfig } from "./consumption.js";
 import {
@@ -131,6 +133,8 @@ function readAhead<T>(source: AsyncIterable<T>, size: number): AsyncIterable<T> 
 interface CallerContext {
   metadata?: Record<string, unknown> | undefined;
   signal?: AbortSignal | undefined;
+  /** The invocation whose handler makes the call: the interceptors link a nested call to it. */
+  parent?: Invocation | undefined;
 }
 
 /**
@@ -185,6 +189,8 @@ export class Client<TContext = {}> {
   private readonly throwOnError: boolean;
   /** The bus of the local procedures. Undefined: the global bus. */
   private bus: EventBus | undefined;
+  /** The interceptors of the local invocations (roadmap 1.2) */
+  private interceptors: readonly Interceptor[] = [];
 
   /**
    * Context values set via withContext().
@@ -213,6 +219,7 @@ export class Client<TContext = {}> {
       this.defaultMetadata = opts.defaultMetadata || {};
       this.throwOnError = opts.throwOnError !== false;
       this.bus = opts.bus;
+      this.interceptors = opts.interceptors ?? [];
     }
 
     // Initialize empty context (child clients override this)
@@ -235,6 +242,7 @@ export class Client<TContext = {}> {
     (child as any).defaultMetadata = parent.defaultMetadata;
     (child as any).throwOnError = parent.throwOnError;
     (child as any).bus = parent.bus;
+    (child as any).interceptors = parent.interceptors;
 
     // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
     // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
@@ -525,14 +533,26 @@ export class Client<TContext = {}> {
    * metadata and the signal of the caller: when the caller aborts, its nested work stops. (Before,
    * each nested call started again with no metadata and no signal: deep dive CORE-10.)
    */
-  private invokeOptions(metadata: Record<string, unknown> = {}, signal?: AbortSignal): InvokeOptions {
+  private invokeOptions(caller: CallerContext = {}): InvokeOptions {
     const self = this;
-    const caller: CallerContext = { metadata, signal };
-    const client: ProcedureClient = {
-      call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, caller),
-      stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, caller),
+    // The nested calls get the metadata and the signal of the invocation (an interceptor can
+    // change them), and name it as their parent
+    const client = (invocation: Invocation): ProcedureClient => {
+      const nested: CallerContext = { metadata: invocation.metadata, signal: invocation.signal, parent: invocation };
+      return {
+        call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, nested),
+        stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, nested),
+      };
     };
-    return { registry: this.procedureRegistry, metadata, signal, client, bus: this.bus };
+    return {
+      registry: this.procedureRegistry,
+      metadata: caller.metadata ?? {},
+      signal: caller.signal,
+      client,
+      bus: this.bus,
+      interceptors: this.interceptors,
+      parent: caller.parent,
+    };
   }
 
   /** The call options of a remote call for a caller: its metadata as context, and its signal. */
@@ -571,7 +591,7 @@ export class Client<TContext = {}> {
   ): Promise<TOutput> {
     const procedure = this.procedureRegistry.get(path);
     if (procedure?.handler) {
-      const options = this.invokeOptions(caller.metadata, caller.signal);
+      const options = this.invokeOptions(caller);
       return outputValue(await invokeProcedure<TOutput>(procedure, input, options), path);
     }
     // No local handler: the transport runs it (a remote procedure)
@@ -594,7 +614,7 @@ export class Client<TContext = {}> {
     return (async function* () {
       const procedure = self.procedureRegistry.get(path);
       if (procedure?.handler) {
-        const options = self.invokeOptions(caller.metadata, caller.signal);
+        const options = self.invokeOptions(caller);
         yield* outputItems(await invokeProcedure<TOutput>(procedure, input, options));
         return;
       }
@@ -1088,7 +1108,7 @@ export class Client<TContext = {}> {
     return (async function* () {
       if (procedure.handler) {
         // The resolver validated the input already
-        const options = { ...self.invokeOptions(context.metadata, context.signal), inputValidated: true };
+        const options = { ...self.invokeOptions({ metadata: context.metadata, signal: context.signal }), inputValidated: true };
         yield* outputItems(await invokeProcedure(procedure, input, options));
         return;
       }

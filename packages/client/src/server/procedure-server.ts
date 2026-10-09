@@ -17,7 +17,7 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import { InvocationError, invokeProcedure } from "../procedures/invoke.js";
+import { InvocationError, invokeProcedure, type Interceptor } from "../procedures/invoke.js";
 import type { CollectionStorage } from "@mark1russell7/client-collections";
 
 // =============================================================================
@@ -62,6 +62,12 @@ export interface ProcedureServerOptions extends ServerOptions {
    * A server for an outside caller (the MCP server of the dev tools) sets it.
    */
   strictCalls?: boolean | undefined;
+
+  /**
+   * The interceptors of each request and its nested calls, the outermost first: policy,
+   * tracing, timeouts, metrics (see `procedures/interceptors.ts`).
+   */
+  interceptors?: readonly Interceptor[] | undefined;
 }
 
 /**
@@ -129,6 +135,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private servesRegistry = false;
   private readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   private readonly strictCalls: boolean;
+  private readonly interceptors: readonly Interceptor[];
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -136,6 +143,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.procedureRegistry = options.registry ?? PROCEDURE_REGISTRY;
     this.expose = options.expose;
     this.strictCalls = options.strictCalls ?? false;
+    this.interceptors = options.interceptors ?? [];
 
     // Configure collections
     if (options.collections) {
@@ -302,6 +310,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         repository: this,
         expose: this.expose,
         strictCalls: this.strictCalls,
+        interceptors: this.interceptors,
       });
       if (output.kind === "stream") {
         return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };
