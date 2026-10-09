@@ -184,3 +184,64 @@ describe("route() overrides and validation errors (deep dive CORE-14)", () => {
     expect(codes).toEqual({ "test.a": "SKIPPED", "test.b": "VALIDATION_ERROR", "test.c": "SKIPPED" });
   });
 });
+
+describe("route() output modes (deep dive core.md, low items)", () => {
+  it("an outputMode: \"batch\" procedure gives its array to sponge, and each element to stream", async () => {
+    const reg = new ProcedureRegistry();
+    reg.register({
+      ...defineProcedure({
+        path: ["test", "batch"],
+        input: outputSchema<Record<string, never>>(),
+        output: outputSchema<number[]>(),
+        handler: async () => [1, 2, 3],
+      }),
+      outputMode: "batch",
+    });
+    const client = new Client(noTransport).useRegistry(reg);
+
+    const sponged = (await client.route({ route: { test: { batch: {} } } })) as unknown as { test: { batch: { data: unknown } } };
+    expect(sponged.test.batch.data).toEqual([1, 2, 3]);
+
+    const streamed = (await client.route({
+      route: { test: { batch: { in: {}, out: { type: "stream" } } } },
+    })) as unknown as { test: { batch: { data: AsyncIterable<number> } } };
+    const items: number[] = [];
+    for await (const item of streamed.test.batch.data) items.push(item);
+    expect(items).toEqual([1, 2, 3]);
+  });
+
+  it("StreamOutputConfig.bufferSize reads that many items ahead of the reader", async () => {
+    let produced = 0;
+    const reg = new ProcedureRegistry();
+    reg.register(
+      defineProcedure({
+        path: ["test", "count"],
+        input: outputSchema<Record<string, never>>(),
+        output: outputSchema<number>(),
+        handler: async function* () {
+          for (let i = 1; i <= 5; i++) {
+            produced = i;
+            yield i;
+          }
+        },
+      })
+    );
+    const client = new Client(noTransport).useRegistry(reg);
+    const read = async (bufferSize?: number): Promise<number> => {
+      produced = 0;
+      const out = bufferSize === undefined ? { type: "stream" as const } : { type: "stream" as const, bufferSize };
+      const response = (await client.route({ route: { test: { count: { in: {}, out } } } })) as unknown as {
+        test: { count: { data: AsyncIterable<number> } };
+      };
+      const iterator = response.test.count.data[Symbol.asyncIterator]();
+      await iterator.next();
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+      const seen = produced;
+      await iterator.return?.(undefined);
+      return seen;
+    };
+
+    expect(await read()).toBe(1);
+    expect(await read(2)).toBe(3);
+  });
+});

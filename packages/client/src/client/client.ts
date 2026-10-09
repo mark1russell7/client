@@ -74,6 +74,57 @@ import {
   type AnyProcedureRef,
 } from "../procedures/ref.js";
 
+/** Each element of each array item: the stream form of an `outputMode: "batch"` procedure. */
+async function* batchElements(items: AsyncIterable<unknown>): AsyncGenerator<unknown, void, undefined> {
+  for await (const item of items) {
+    if (Array.isArray(item)) {
+      yield* item;
+    } else {
+      yield item;
+    }
+  }
+}
+
+/**
+ * The items of a source, with up to `size` items read ahead of the reader. With size 0, the
+ * source runs only when the reader reads (the source itself is returned).
+ */
+function readAhead<T>(source: AsyncIterable<T>, size: number): AsyncIterable<T> {
+  if (size <= 0) return source;
+  return (async function* () {
+    const iterator = source[Symbol.asyncIterator]();
+    const buffer: Array<Promise<IteratorResult<T>>> = [];
+    let ended = false;
+    const pull = (): void => {
+      while (!ended && buffer.length < size + 1) {
+        const next = iterator.next();
+        buffer.push(next);
+        // The handler marks the end, and keeps a failure from being unhandled until it is read
+        next.then(
+          (result) => {
+            if (result.done) ended = true;
+          },
+          () => {
+            ended = true;
+          }
+        );
+      }
+    };
+    let finished = false;
+    try {
+      // Before each read: the item for the reader, and `size` items ahead
+      for (pull(); buffer.length > 0; pull()) {
+        const result = await buffer.shift()!;
+        if (result.done) break;
+        yield result.value;
+      }
+      finished = true;
+    } finally {
+      if (!finished) await iterator.return?.();
+    }
+  })();
+}
+
 /** The metadata and the signal of a procedure, for the nested calls that it makes. */
 interface CallerContext {
   metadata?: Record<string, unknown> | undefined;
@@ -981,8 +1032,12 @@ export class Client<TContext = {}> {
    *
    * The `out` config of the route leaf chooses the result (BUGS-2026-07 H8):
    * - sponge (the default): the value, or the last item of a stream (or `accumulate` of all items);
-   * - stream: `data` is an AsyncIterable of the items. The procedure starts when the reader reads;
+   * - stream: `data` is an AsyncIterable of the items. The procedure starts when the reader reads.
+   *   With `bufferSize`, that many items are read ahead of the reader;
    * - handlers: `progress` gets each item but the last, `complete` gets the last, `error` gets the error.
+   *
+   * A procedure with `outputMode: "batch"` returns an array: sponge gives the array, and stream
+   * gives each element.
    */
   private async executeProcedure(
     resolved: ResolvedRoute,
@@ -993,7 +1048,8 @@ export class Client<TContext = {}> {
     try {
       const items = this.routeItems(resolved, context);
       if (isStreamConfig(outputConfig)) {
-        return { success: true, data: items };
+        const elements = resolved.procedure.outputMode === "batch" ? batchElements(items) : items;
+        return { success: true, data: readAhead(elements, outputConfig.bufferSize ?? 0) };
       }
       if (isHandlerConfig(outputConfig)) {
         return { success: true, data: await this.consumeWithHandlers(items, outputConfig, path) };

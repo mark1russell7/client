@@ -350,5 +350,8 @@ export function isNullOutput(output: AnyComponentOutput): output is NullOutput {
 export function isStreamingFactory<TData>(
   factory: AnyComponentFactory<TData>
 ): factory is StreamingComponentFactory<TData> {
-  return factory.constructor.name === "AsyncGeneratorFunction";
+  // The tag of the prototype, not `constructor.name`: an own `constructor` property, or a
+  // bundler that renames classes, does not change it. A plain function that returns a
+  // generator is not detected here: the handler of a component streams its result anyway.
+  return Object.prototype.toString.call(factory) === "[object AsyncGeneratorFunction]";
 }

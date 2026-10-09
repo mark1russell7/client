@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { defineComponent } from "./define.js";
+import { defineComponent, componentToProcedure } from "./define.js";
+import { isStreamingFactory } from "./types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import type { ProcedureContext } from "../procedures/types.js";
 import type { ComponentOutput } from "./types.js";
@@ -10,7 +11,7 @@ async function renderVia(namespace: string, type: string, data: unknown): Promis
   const procedure = PROCEDURE_REGISTRY.get(path);
   if (!procedure?.handler) throw new Error(`no component at ${path.join(".")}`);
   const ctx = { metadata: {}, path, client: { call: async () => undefined } } as unknown as ProcedureContext;
-  return (await procedure.handler({ data, size: "md", path: "root" }, ctx)) as ComponentOutput;
+  return (await procedure.handler({ data, size: { width: 100, height: 50 }, path: "root" }, ctx)) as ComponentOutput;
 }
 
 describe("component rendering (regression: BUGS-2026-07 L3)", () => {
@@ -66,5 +67,76 @@ describe("component rendering (regression: BUGS-2026-07 L3)", () => {
 
     expect(output.type).toBe("first");
     expect(finished).toBe(true);
+  });
+});
+
+describe("component rendering through the invocation path (deep dive core.md, low items)", () => {
+  it("validates the input of a child component", async () => {
+    defineComponent({
+      type: "lo-strict-child",
+      namespace: "lo1",
+      input: {
+        parse: (v: unknown) => v as { n: number },
+        safeParse: (v: unknown) =>
+          typeof (v as { n?: unknown })?.n === "number"
+            ? { success: true as const, data: v as { n: number } }
+            : { success: false as const, error: { message: "n must be a number", errors: [] } },
+      },
+      factory: (ctx) => ({ type: "child", props: { n: (ctx.data as { n: number }).n } }),
+    });
+    defineComponent({
+      type: "lo-parent",
+      namespace: "lo1",
+      factory: async (ctx) => ctx.render({ type: "lo-strict-child", n: "not a number" }, ctx.size, "child"),
+    });
+
+    await expect(renderVia("lo1", "lo-parent", {})).rejects.toThrow(/n must be a number/);
+  });
+
+  it("gives the child its own path in ctx.path", async () => {
+    // A component context has no procedure path: a wrapper of the child's handler records it
+    const procedure = componentToProcedure(
+      { type: "lo-path-probe", factory: () => ({ type: "probe", props: {} }) },
+      ["components", "lo2", "lo-path-probe"]
+    );
+    const seen: string[][] = [];
+    const wrapped = { ...procedure, handler: async (input: unknown, ctx: ProcedureContext) => { seen.push([...ctx.path]); return procedure.handler!(input as never, ctx); } };
+    PROCEDURE_REGISTRY.register(wrapped, { override: true });
+    defineComponent({
+      type: "lo-path-parent",
+      namespace: "lo2",
+      factory: async (ctx) => ctx.render({ type: "lo-path-probe" }, ctx.size, "child"),
+    });
+
+    await renderVia("lo2", "lo-path-parent", {});
+    expect(seen).toEqual([["components", "lo2", "lo-path-probe"]]);
+  });
+});
+
+describe("isStreamingFactory", () => {
+  it("does not depend on constructor.name", () => {
+    const factory = async function* () {
+      yield { type: "x", props: {} };
+    };
+    Object.defineProperty(factory, "constructor", { value: Function });
+    expect(isStreamingFactory(factory)).toBe(true);
+    expect(isStreamingFactory(() => ({ type: "x", props: {} }))).toBe(false);
+    expect(isStreamingFactory(async () => ({ type: "x", props: {} }))).toBe(false);
+  });
+
+  it("a plain function that returns a generator still streams", async () => {
+    const generator = async function* () {
+      yield { type: "first", props: {} };
+      yield { type: "second", props: {} };
+    };
+    const procedure = componentToProcedure(
+      { type: "lo-wrapped-gen", factory: (() => generator()) as never },
+      ["components", "lo-wrapped-gen"]
+    );
+    const ctx = { metadata: {}, path: procedure.path, client: { call: async () => undefined } } as unknown as ProcedureContext;
+    const result = await procedure.handler!({ data: {}, size: { width: 1, height: 1 }, path: "root" }, ctx);
+    const items: string[] = [];
+    for await (const item of result as AsyncIterable<ComponentOutput>) items.push(item.type);
+    expect(items).toEqual(["first", "second"]);
   });
 });

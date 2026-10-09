@@ -31,8 +31,8 @@ export interface SpongeOutputConfig {
 export interface StreamOutputConfig {
   type: "stream";
   /**
-   * Buffer size for stream backpressure.
-   * Default: unbuffered (0 = no limit)
+   * The number of items to read ahead of the reader. 0 or no value: the procedure runs only
+   * when the reader reads.
    */
   bufferSize?: number;
 }
