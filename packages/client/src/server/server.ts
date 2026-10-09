@@ -243,9 +243,10 @@ export class Server {
   }
 
   /**
-   * Find handler for a method.
+   * Find handler for a method. A subclass can add handlers that it finds at request time
+   * (`ProcedureServer` looks up its registry).
    */
-  private findHandler(method: Method): ServerHandler | null {
+  protected findHandler(method: Method): ServerHandler | null {
     for (const entry of this.handlers) {
       if (this.matchesMethod(entry.matcher, method)) {
         return entry.handler;
@@ -325,7 +326,9 @@ export class Server {
         id,
         status: {
           type: "error",
-          code: "404",
+          // The symbolic code, as the other errors: the HTTP transport maps it to 404. Before,
+          // the code was the string "404", which the HTTP transport sent as a 500 (deep dive TRN-7).
+          code: "NOT_FOUND",
           message: error.message,
           retryable: false,
         },

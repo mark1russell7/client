@@ -8,6 +8,7 @@
 
 import { print } from "./print.js";
 import type { Method, AnyProcedure } from "@mark1russell7/client";
+import { pathToMethod as corePathToMethod } from "@mark1russell7/client";
 import { parseFromSchema, generateHelp, extractSchemaFields, type CLIMeta } from "./parse.js";
 import { formatOutput, type Print } from "./format.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
@@ -18,11 +19,11 @@ import { startRepl } from "./repl.js";
 const VERSION = "1.0.0";
 
 /**
- * Convert procedure path to transport method
+ * Convert procedure path to transport method. The core mapping is the one of every host: the
+ * last segment is the operation (deep dive architecture review 3.3).
  */
 function pathToMethod(path: string[]): Method {
-  const [service, ...rest] = path;
-  return { service: service!, operation: rest.join(".") };
+  return corePathToMethod(path);
 }
 
 /**

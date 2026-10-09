@@ -3,7 +3,7 @@
  * Call a procedure on a remote peer through an outbound connection
  */
 
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, pathToMethod, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
 import { getConnection, connect } from "../connection/index.js";
 
@@ -80,12 +80,9 @@ export const serverCallProcedure: Procedure<
       throw new Error("Either connectionId or address is required");
     }
 
-    // Convert procedure path to Method format for client.call
-    const [service, ...rest] = pathArray;
-    if (!service) {
-      throw new Error("Procedure path must have at least one segment");
-    }
-    const method = { service, operation: rest.join(".") };
+    // Convert procedure path to Method format for client.call: the core mapping of every host
+    // (deep dive architecture review 3.3)
+    const method = pathToMethod(pathArray);
 
     const result = await client.call(method, input.input ?? {});
 

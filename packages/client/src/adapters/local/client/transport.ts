@@ -10,6 +10,7 @@ import { methodKey } from "./types.js";
 import type { ProcedureRegistry } from "../../../procedures/registry.js";
 import type { AnyProcedure } from "../../../procedures/types.js";
 import { InvocationError, invokeProcedure, isAsyncIterable } from "../../../procedures/invoke.js";
+import { methodToPath } from "../../../server/method.js";
 
 function successItem<TRes>(id: string, payload: unknown): ResponseItem<TRes> {
   return { id, status: { type: "success", code: 200 }, payload: payload as TRes, metadata: {} };
@@ -97,7 +98,7 @@ export class LocalTransport implements Transport {
   /** The procedure of the registry at the path of a method. */
   private procedureFor(method: Method): AnyProcedure | undefined {
     if (!this.registry) return undefined;
-    return this.registry.get([...method.service.split("."), ...method.operation.split(".")]);
+    return this.registry.get(methodToPath(method));
   }
 
   /**

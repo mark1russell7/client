@@ -38,6 +38,7 @@ import type {
 } from "./types.js";
 import { ClientError } from "./types.js";
 import { compose } from "../middleware/compose.js";
+import { pathToMethod } from "../server/method.js";
 import type { CallOptions, ClientContextInput } from "./context.js";
 import { mergeContext, normalizeCallOptions } from "./context.js";
 import type { SchemaDefinition, ZodLike } from "./validation/types.js";
@@ -1053,15 +1054,7 @@ export class Client<TContext = {}> {
    * Convert procedure path to Method object.
    */
   private pathToMethod(path: ProcedurePath): Method {
-    if (path.length < 2) {
-      throw new Error(`Invalid procedure path: ${path.join(".")}`);
-    }
-
-    // Path format: [service, ...nested, operation]
-    // e.g., ['collections', 'users', 'get'] -> { service: 'collections.users', operation: 'get' }
-    const operation = path[path.length - 1]!;
-    const service = path.slice(0, -1).join(".");
-
-    return { service, operation };
+    // The one mapping of every host (deep dive architecture review 3.3)
+    return pathToMethod(path);
   }
 }
