@@ -3,11 +3,11 @@
 [![npm version](https://img.shields.io/npm/v/@mark1russell7/client-git.svg)](https://www.npmjs.com/package/@mark1russell7/client-git)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Git operations as RPC procedures - `git.add`, `git.commit`, `git.push`, `git.status`, and 19 more git commands exposed as type-safe procedures.
+> Git operations as RPC procedures - `git.add`, `git.commit`, `git.push`, `git.status`, and 22 more git commands exposed as type-safe procedures.
 
 ## Overview
 
-`@mark1russell7/client-git` exposes comprehensive Git functionality as RPC procedures through the client system. It provides 23 procedures covering all major Git operations including repository state management, staging, commits, branching, remote operations, stashing, and repository predicates.
+`@mark1russell7/client-git` exposes comprehensive Git functionality as RPC procedures through the client system. It provides 26 procedures covering all major Git operations including repository state management, staging, commits, branching, remote operations, stashing, and repository predicates.
 
 This package wraps Git commands directly (not through `client-shell`), providing structured input/output with full type safety via Zod schemas.
 
@@ -36,16 +36,16 @@ graph TB
 
 ```mermaid
 graph LR
-    A[client-git<br/>23 Procedures] --> B[Repository State<br/>5 procedures]
+    A[client-git<br/>26 Procedures] --> B[Repository State<br/>5 procedures]
     A --> C[Staging & Commits<br/>3 procedures]
-    A --> D[Remote Operations<br/>6 procedures]
+    A --> D[Remote Operations<br/>5 procedures]
     A --> E[Predicates<br/>6 procedures]
     A --> F[Stash Operations<br/>7 procedures]
 
     B -.-> B1[status, log, diff,<br/>branch, init]
     C -.-> C1[add, commit,<br/>checkout]
-    D -.-> D1[push, pull, fetch,<br/>clone, remote, init]
-    E -.-> E1[hasChanges, isClean,<br/>hasStagedChanges,<br/>hasUntrackedFiles, etc]
+    D -.-> D1[push, pull, fetch,<br/>clone, remote]
+    E -.-> E1[hasChanges, isClean,<br/>hasStagedChanges,<br/>hasUnstagedChanges,<br/>hasUntrackedFiles,<br/>hasLocalCommits]
     F -.-> F1[stash.list, stash.push,<br/>stash.pop, stash.apply,<br/>stash.drop, stash.export,<br/>stash.import]
 
     style A fill:#e1f5ff

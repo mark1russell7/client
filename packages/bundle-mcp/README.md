@@ -12,9 +12,10 @@
 `@mark1russell7/bundle-mcp` provides a **curated collection of procedures** optimized for AI assistant integration via MCP. Unlike `bundle-dev` which includes all tools, this bundle focuses on **high-level orchestration** tools since Claude already has shell access for low-level operations.
 
 **Key Design Decisions:**
-- `src/register.ts` exports `mcpNamespaces`: the namespaces that the MCP server gives to Claude as tools. Today: `cli`, `client`, `cue`, `db`, `docker`, `lib`, `logs`, `mongo`, `procedure` and `vitest` (68 tools).
+- `src/register.ts` exports `mcpNamespaces`: the namespaces that the MCP server gives to Claude as tools. Today: `client`, `cue`, `db`, `docker`, `lib`, `logs`, `mongo`, `procedure` and `vitest`. `mcpExclude` removes some procedures of those namespaces (`vitest.watch` and the `procedure.*` stubs). The exact list is in `packages/impl-mcp-dev/tools.snapshot.txt` (62 tools on 2026-10-08), and the site shows it: <https://mark1russell7.github.io/client/#/claude>.
+- `cli` is not a tool namespace: `cli.run` runs any `mark` command, also `shell exec`.
 - **Excludes** low-level tools (`fs.*`, `git.*`, `pnpm.*`): Claude has its own shell.
-- `shell.*` is registered, because `docker.*` runs through `shell.exec`, but it is not a tool. A data-driven procedure (`client.chain`, `eval`, a procedure that `procedure.define` made) can call only exposed procedures, so it cannot reach `shell.exec` either.
+- `shell.*` is registered, because `docker.*` runs its commands through `shell.run` (with an argument list, no shell), but it is not a tool. A data-driven procedure (`client.chain`, `eval`, a procedure that `procedure.define` made) can call only exposed procedures, so it cannot reach `shell.exec` either.
 - **Not in the bundle:** `snapshot.*` (`restore` overwrites folders), `s3.*` (`delete`) and `test.*` (`vitest.*` runs the tests).
 - `packages/impl-mcp-dev/tools.snapshot.txt` pins the tool list, and a test checks it. See [../documentation/BUGS-2026-07.md](../documentation/BUGS-2026-07.md) (H18).
 
