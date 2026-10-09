@@ -766,7 +766,7 @@ importers:
         version: link:../client
       '@mark1russell7/docker-sqlite':
         specifier: github:mark1russell7/docker-sqlite#main
-        version: https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/352adc980a976f129f66c0d9b88a714fccf888d6
+        version: https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/239baa6818613476ab9872101c433c0ca7f12f07
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
@@ -1544,8 +1544,8 @@ packages:
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
 
-  '@mark1russell7/docker-sqlite@https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/352adc980a976f129f66c0d9b88a714fccf888d6':
-    resolution: {gitHosted: true, integrity: sha512-o16hNSI584J8f67ANGdN5ekzxDrqamaZpjNneWNQXZTeWeWrXpsF/K7D1/l7xTKTPAM/hD+jpUmx1IIt4AMZnA==, tarball: https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/352adc980a976f129f66c0d9b88a714fccf888d6}
+  '@mark1russell7/docker-sqlite@https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/239baa6818613476ab9872101c433c0ca7f12f07':
+    resolution: {gitHosted: true, integrity: sha512-SXFmftPjhjy58Cm8IxJVg6hRZzDwf3jQDuRZ+nhSpFp/+6IAtf1NPc6xkvsEb1mPINWHjL9afiV+d/GCkswsmw==, tarball: https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/239baa6818613476ab9872101c433c0ca7f12f07}
     version: 0.1.0
     engines: {node: '>=20'}
 
@@ -3715,7 +3715,7 @@ snapshots:
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
 
-  '@mark1russell7/docker-sqlite@https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/352adc980a976f129f66c0d9b88a714fccf888d6':
+  '@mark1russell7/docker-sqlite@https://codeload.github.com/mark1russell7/docker-sqlite/tar.gz/239baa6818613476ab9872101c433c0ca7f12f07':
     dependencies:
       sql.js: 1.14.2
 

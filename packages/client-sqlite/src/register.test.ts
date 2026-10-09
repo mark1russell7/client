@@ -53,7 +53,8 @@ describe("db.execute and db.query", () => {
 
     const result = await call<DbQueryOutput>("db", "query", { dbPath, sql: "SELECT COUNT(*) AS c FROM t" });
     expect(result.rows).toEqual([{ c: 20 }]);
-  });
+    // Each insert loads and saves the file in turn: on a loaded Windows machine 20 of them took more than 5 s
+  }, 30_000);
 });
 
 describe("logs.store and logs.query", () => {
