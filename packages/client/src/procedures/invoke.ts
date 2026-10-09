@@ -262,6 +262,7 @@ export function createProcedureContext(procedure: AnyProcedure, options: InvokeO
     metadata: options.metadata ?? {},
     path: procedure.path,
     client: options.client ?? registryClient(procedure, options),
+    registry: options.registry ?? PROCEDURE_REGISTRY,
   };
   if (options.signal) context.signal = options.signal;
   if (options.repository) context.repository = options.repository;

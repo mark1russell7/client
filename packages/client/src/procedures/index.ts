@@ -23,13 +23,14 @@ export type {
   RegistryListener,
   ProcedureModule,
   RegistrationOptions,
+  ProcedureRegistryLike,
 } from "./types.js";
 
 // Type utilities
 export { pathToKey, keyToPath } from "./types.js";
 
 // Registry
-export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY } from "./registry.js";
+export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY, assertValidPath } from "./registry.js";
 
 // Definition helpers
 export {
@@ -82,6 +83,18 @@ export {
   isDataDriven,
   markDataDriven,
   RUNS_REFS_TAG,
+  RAW_INPUT_TAG,
+  takesRawInput,
+  rawInputRule,
+  MAX_DATA_DEPTH,
+  LITERAL_KEY,
+  isLiteral,
+  isPlainObject,
+  createRefScope,
+  lookupOutputRef,
+  resolveOutputRef,
+  withScope,
+  scopeOf,
   executeRef,
   // Templates
   extractTemplate,
@@ -98,6 +111,8 @@ export type {
   HydrateOptions,
   StepResultInfo,
   ContinueDecision,
+  OutputRef,
+  RefScope,
 } from "./ref.js";
 
 // Core language procedures (chain, parallel, if, etc.)
@@ -141,6 +156,7 @@ export {
   hasRuntimeProcedure,
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
+  isRuntimeDefined,
 } from "./define-procedure.js";
 export type {
   AggregationDefinition,

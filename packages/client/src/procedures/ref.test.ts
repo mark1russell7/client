@@ -448,10 +448,10 @@ describe("ref.ts", () => {
     });
 
     it("throws on hydration depth exceeded", async () => {
-      // Create deeply nested structure
+      // Create deeply nested refs. Plain data does not count (deep dive CORE-12).
       const createDeep = (depth: number): object => {
         if (depth === 0) return { value: "leaf" };
-        return { nested: createDeep(depth - 1) };
+        return { $proc: ["nested"], input: { value: createDeep(depth - 1) } };
       };
 
       await expect(

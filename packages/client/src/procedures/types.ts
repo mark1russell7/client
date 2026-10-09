@@ -148,6 +148,24 @@ export interface ProcedureContext {
    * ```
    */
   client: ProcedureClient;
+
+  /**
+   * The registry of the caller: `ctx.client` finds the nested procedures here. A procedure that
+   * reads or changes the registry (`procedure.define`, `client.lookup`) uses this one. When it is
+   * not set, such a procedure uses `PROCEDURE_REGISTRY`.
+   */
+  registry?: ProcedureRegistryLike;
+}
+
+/**
+ * The part of `ProcedureRegistry` that a procedure can use through `ctx.registry`.
+ */
+export interface ProcedureRegistryLike {
+  get(path: ProcedurePath): AnyProcedure | undefined;
+  has(path: ProcedurePath): boolean;
+  getAll(): AnyProcedure[];
+  register(procedure: AnyProcedure, options?: RegistrationOptions): void;
+  unregister(path: ProcedurePath): boolean;
 }
 
 /**

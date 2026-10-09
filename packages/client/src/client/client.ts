@@ -66,9 +66,10 @@ import {
 import { isHandlerConfig, isStreamConfig, type HandlerCallback, type OutputConfig } from "./consumption.js";
 import {
   isAnyProcedureRef,
-  isControlFlowPath,
+  isPlainObject,
   normalizeRef,
   hydrateInput,
+  rawInputRule,
   type ProcedureRef,
   type AnyProcedureRef,
 } from "../procedures/ref.js";
@@ -341,7 +342,7 @@ export class Client<TContext = {}> {
    * main procedure runs.
    *
    * @param refOrPath - Procedure reference, JSON procedure ref, or procedure path
-   * @param input - Input for the procedure (only if path is provided)
+   * @param input - Input for the procedure. With a reference, its fields go over the fields of the reference's input.
    * @returns Output of the procedure
    *
    * @example
@@ -418,6 +419,13 @@ export class Client<TContext = {}> {
 
     if (isAnyProcedureRef(refOrPath)) {
       ref = normalizeRef(refOrPath);
+      // The fields of `input` go over the fields of the ref's input (before, `input` was ignored)
+      if (input !== undefined) {
+        ref = {
+          ...ref,
+          input: isPlainObject(ref.input) && isPlainObject(input) ? { ...ref.input, ...input } : input,
+        };
+      }
     } else if (Array.isArray(refOrPath) && refOrPath.every((s) => typeof s === "string")) {
       // Path array provided, use second argument as input
       ref = {
@@ -434,14 +442,16 @@ export class Client<TContext = {}> {
       return this.execInternal<TOut>(path, inp);
     };
 
-    // Control-flow procedures (chain/parallel/conditional/tryCatch/and/or/map/reduce)
-    // must receive their operand refs RAW: their handlers execute the refs themselves
-    // with correct ordering/laziness/error-scoping. Eagerly hydrating here would run the
-    // operands up-front and can hijack an all-refs array into an implicit chain that
-    // clobbers `steps`. See documentation/BUGS-2026-07.md (C2, H2, H3, M35).
-    const hydratedInput = isControlFlowPath(ref.path)
+    // A procedure that takes its input raw (control flow, the `runs-refs` and `raw-input` tags,
+    // `procedure.define`) gets its operand refs RAW: it runs them itself, with correct
+    // ordering/laziness/error-scoping. Eagerly hydrating here would run the operands up-front
+    // and can hijack an all-refs array into an implicit chain that clobbers `steps`. See
+    // documentation/BUGS-2026-07.md (C2, H2, H3, M35). The procedure in the registry decides,
+    // also for the refs nested in the input (deep dive CORE-5: before, the last path segment did).
+    const rawInput = rawInputRule(this.procedureRegistry);
+    const hydratedInput = rawInput(ref.path)
       ? ref.input
-      : await hydrateInput(ref.input, executor);
+      : await hydrateInput(ref.input, executor, { rawInput });
 
     return { path: ref.path, input: hydratedInput };
   }

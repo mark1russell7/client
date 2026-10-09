@@ -26,16 +26,24 @@
  */
 
 import { defineProcedure, validateProcedure } from "./define.js";
-import { PROCEDURE_REGISTRY } from "./registry.js";
+import { PROCEDURE_REGISTRY, assertValidPath } from "./registry.js";
 import type {
   Procedure,
   ProcedurePath,
   ProcedureMetadata,
   ProcedureContext,
   AnyProcedure,
+  ProcedureRegistryLike,
 } from "./types.js";
 import { anySchema } from "./core/schemas.js";
-import { markDataDriven } from "./ref.js";
+import {
+  createRefScope,
+  hydrateInput,
+  isAnyProcedureRef,
+  markDataDriven,
+  rawInputRule,
+  RUNS_REFS_TAG,
+} from "./ref.js";
 
 // =============================================================================
 // Types
@@ -96,147 +104,80 @@ export interface DefineProcedureOutput {
 /**
  * Create a handler that executes an aggregation definition.
  *
- * The handler:
- * 1. Takes the procedure input
- * 2. Walks the aggregation tree
- * 3. Resolves $ref references to input values
- * 4. Executes $proc calls via the client
- * 5. Returns the final result
+ * The body runs as `exec()` runs a ref, with the same interpreter (`hydrateInput`). The scope of
+ * the body has one name, `input`: the input of the procedure. So `{ $ref: "input.dir" }` reads a
+ * field of the input, and `$last`, the step names, `item`, `acc` and `index` keep their meaning
+ * inside the body. (Deep dive CORE-4: before, a first pass replaced every `$ref` with a field of
+ * the input, so `$last` and the step names became undefined, and nested refs of a root that is
+ * not control flow never ran.)
  */
 function createAggregationHandler(
   aggregation: AggregationDefinition
 ): (input: unknown, ctx: ProcedureContext) => Promise<unknown> {
   return async (input: unknown, ctx: ProcedureContext): Promise<unknown> => {
-    // Resolve the aggregation tree with the input context
-    const resolvedInput = resolveInputRefs(aggregation.input, { input });
-
-    // Execute the root procedure
-    if (!ctx.client) {
+    if (!ctx?.client) {
       throw new Error("procedure.define requires a client context to execute aggregations");
     }
-
-    return ctx.client.call(aggregation.$proc, resolvedInput);
+    const scope = createRefScope();
+    scope.outputs.set("input", input);
+    return hydrateInput(aggregation, (path, value) => ctx.client.call(path, value), {
+      scope,
+      rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY),
+    });
   };
 }
 
-/**
- * Resolve $ref placeholders in an input tree.
- *
- * Supports:
- * - { $ref: "input.path.to.value" } - reference to input field
- * - { $ref: "$last" } - reference to last result (in chains)
- * - Nested objects and arrays
- */
-function resolveInputRefs(
-  value: unknown,
-  context: { input: unknown; last?: unknown }
-): unknown {
-  if (value === null || value === undefined) {
-    return value;
-  }
-
-  // Handle $ref objects
-  if (typeof value === "object" && value !== null && "$ref" in value) {
-    const ref = (value as { $ref: string }).$ref;
-    return resolveRefPath(ref, context);
-  }
-
-  // Handle arrays
-  if (Array.isArray(value)) {
-    return value.map(item => resolveInputRefs(item, context));
-  }
-
-  // Handle objects
-  if (typeof value === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value)) {
-      result[key] = resolveInputRefs(val, context);
-    }
-    return result;
-  }
-
-  // Primitives pass through
-  return value;
-}
-
-/**
- * Resolve a dot-separated path against a context object.
- */
-function resolveRefPath(
-  path: string,
-  context: { input: unknown; last?: unknown }
-): unknown {
-  const parts = path.split(".");
-  let current: unknown;
-
-  // Handle special prefixes
-  if (parts[0] === "input") {
-    current = context.input;
-    parts.shift();
-  } else if (parts[0] === "$last") {
-    current = context.last;
-    parts.shift();
-  } else {
-    // Assume it's an input reference
-    current = context.input;
-  }
-
-  // Navigate the path
-  for (const part of parts) {
-    if (current === null || current === undefined) {
-      return undefined;
-    }
-    if (typeof current !== "object") {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[part];
-  }
-
-  return current;
-}
-
 // =============================================================================
-// Registry for Runtime-Defined Procedures
+// Runtime-Defined Procedures
 // =============================================================================
 
 /**
- * Storage for runtime-defined procedures.
- * Maps path key to procedure definition.
+ * The handlers that `procedure.define` made. The registry is the only store of the procedures:
+ * a procedure is runtime-defined when its handler is in this set. (Before, a separate map kept
+ * them, and `procedure.delete` removed only the map entry: deep dive CORE-3.)
  */
-const runtimeProcedures = new Map<string, AnyProcedure>();
+const RUNTIME_HANDLERS = new WeakSet<object>();
+
+/** True for a procedure that `procedure.define` made. */
+export function isRuntimeDefined(procedure: { handler?: unknown }): boolean {
+  return typeof procedure.handler === "function" && RUNTIME_HANDLERS.has(procedure.handler);
+}
+
+type RegistryOf = Pick<ProcedureRegistryLike, "get" | "getAll" | "unregister">;
 
 /**
  * Get a runtime-defined procedure by path.
  */
-export function getRuntimeProcedure(path: ProcedurePath): AnyProcedure | undefined {
-  return runtimeProcedures.get(path.join("."));
+export function getRuntimeProcedure(
+  path: ProcedurePath,
+  registry: RegistryOf = PROCEDURE_REGISTRY
+): AnyProcedure | undefined {
+  const procedure = registry.get(path);
+  return procedure && isRuntimeDefined(procedure) ? procedure : undefined;
 }
 
 /**
  * Check if a runtime procedure exists.
  */
-export function hasRuntimeProcedure(path: ProcedurePath): boolean {
-  return runtimeProcedures.has(path.join("."));
+export function hasRuntimeProcedure(path: ProcedurePath, registry: RegistryOf = PROCEDURE_REGISTRY): boolean {
+  return getRuntimeProcedure(path, registry) !== undefined;
 }
 
 /**
  * Get all runtime-defined procedures.
  */
-export function getAllRuntimeProcedures(): AnyProcedure[] {
-  return Array.from(runtimeProcedures.values());
+export function getAllRuntimeProcedures(registry: RegistryOf = PROCEDURE_REGISTRY): AnyProcedure[] {
+  return registry.getAll().filter(isRuntimeDefined);
 }
 
 /**
  * Clear all runtime-defined procedures.
  * Useful for testing.
  */
-export function clearRuntimeProcedures(): void {
-  // Unregister from the global registry too, so test isolation and re-defines stay correct now
-  // that runtime procedures are registered there. See documentation/BUGS-2026-07.md (H4).
-  for (const proc of runtimeProcedures.values()) {
-    PROCEDURE_REGISTRY.unregister(proc.path);
+export function clearRuntimeProcedures(registry: RegistryOf = PROCEDURE_REGISTRY): void {
+  for (const proc of getAllRuntimeProcedures(registry)) {
+    registry.unregister(proc.path);
   }
-  runtimeProcedures.clear();
 }
 
 // =============================================================================
@@ -258,6 +199,14 @@ interface DefineMetadata extends ProcedureMetadata {
  *
  * This is a meta-procedure that creates other procedures at runtime
  * from JSON aggregation definitions.
+ *
+ * The rules (deep dive CORE-3, MCP-4):
+ * - The procedure goes into the caller's registry (`ctx.registry`).
+ * - `replace: true` replaces only a procedure that `procedure.define` made. A code procedure
+ *   stays: an MCP client cannot replace a tool or an internal procedure.
+ * - The registry gets the procedure first. A define that fails leaves nothing.
+ * - The new procedure is data-driven: with a server's `expose` rule, it calls only exposed paths.
+ * - Its input is raw (the `runs-refs` tag): `exec()` does not run the body at definition time.
  */
 export const defineProcedureProcedure: Procedure<
   DefineProcedureInput,
@@ -269,25 +218,31 @@ export const defineProcedureProcedure: Procedure<
   output: anySchema as any,
   metadata: {
     description: "Define a new procedure from an aggregation",
-    tags: ["core", "meta"],
+    tags: ["core", "meta", RUNS_REFS_TAG],
     metaProcedure: true,
   },
   handler: async (
     input: DefineProcedureInput,
-    _ctx: ProcedureContext
+    ctx: ProcedureContext
   ): Promise<DefineProcedureOutput> => {
     const { path, aggregation, metadata, replace } = input;
+    const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
 
-    // Check if procedure already exists
-    const pathKey = path.join(".");
-    const exists = runtimeProcedures.has(pathKey);
-
-    if (exists && !replace) {
-      throw new Error(`Procedure already exists at path: ${pathKey}`);
+    assertValidPath(path);
+    if (!isAnyProcedureRef(aggregation)) {
+      throw new Error('procedure.define: the aggregation must be a procedure ref: { "$proc": [...], "input": {...} }');
     }
 
-    // Create the aggregation handler
-    const handler = createAggregationHandler(aggregation);
+    const pathKey = path.join(".");
+    const existing = registry.get(path);
+    if (existing && !isRuntimeDefined(existing)) {
+      throw new Error(
+        `A code procedure exists at path: ${pathKey}. procedure.define can replace only a procedure that procedure.define made.`
+      );
+    }
+    if (existing && !replace) {
+      throw new Error(`Procedure already exists at path: ${pathKey}`);
+    }
 
     // Create the procedure
     const procedure: AnyProcedure = defineProcedure({
@@ -299,26 +254,23 @@ export const defineProcedureProcedure: Procedure<
         generatedFrom: "procedure.define",
         aggregation,
       },
-      handler,
+      handler: createAggregationHandler(aggregation),
     });
 
     // Its behavior comes from data: a server with an expose rule lets it call only exposed procedures
     markDataDriven(procedure);
+    RUNTIME_HANDLERS.add(procedure.handler!);
 
     // Validate the procedure
     validateProcedure(procedure);
 
-    // Register in runtime storage
-    runtimeProcedures.set(pathKey, procedure);
-
-    // Also register in the global PROCEDURE_REGISTRY so exec()/call()/transports can actually find
-    // and run it. Without this, runtime-defined procedures were uncallable ("No handler
-    // registered"). See documentation/BUGS-2026-07.md (H4).
-    PROCEDURE_REGISTRY.register(procedure, { override: replace ?? false });
+    // The registry is the store: exec()/call()/transports find the procedure there. See
+    // documentation/BUGS-2026-07.md (H4).
+    registry.register(procedure, { override: existing !== undefined });
 
     return {
       path,
-      replaced: exists,
+      replaced: existing !== undefined,
     };
   },
 });
@@ -342,8 +294,8 @@ export const getProcedureProcedure: Procedure<
     description: "Get a runtime-defined procedure by path",
     tags: ["core", "meta"],
   },
-  handler: async (input: { path: ProcedurePath }): Promise<AnyProcedure | null> => {
-    return getRuntimeProcedure(input.path) ?? null;
+  handler: async (input: { path: ProcedurePath }, ctx?: ProcedureContext): Promise<AnyProcedure | null> => {
+    return getRuntimeProcedure(input.path, ctx?.registry ?? PROCEDURE_REGISTRY) ?? null;
   },
 });
 
@@ -362,8 +314,11 @@ export const listProceduresProcedure: Procedure<
     description: "List all runtime-defined procedures",
     tags: ["core", "meta"],
   },
-  handler: async (): Promise<{ procedures: Array<{ path: ProcedurePath; metadata: ProcedureMetadata }> }> => {
-    const procedures = getAllRuntimeProcedures().map(proc => ({
+  handler: async (
+    _input: Record<string, never>,
+    ctx?: ProcedureContext
+  ): Promise<{ procedures: Array<{ path: ProcedurePath; metadata: ProcedureMetadata }> }> => {
+    const procedures = getAllRuntimeProcedures(ctx?.registry ?? PROCEDURE_REGISTRY).map(proc => ({
       path: proc.path,
       metadata: proc.metadata,
     }));
@@ -386,10 +341,19 @@ export const deleteProcedureProcedure: Procedure<
     description: "Delete a runtime-defined procedure",
     tags: ["core", "meta"],
   },
-  handler: async (input: { path: ProcedurePath }): Promise<{ deleted: boolean }> => {
-    const pathKey = input.path.join(".");
-    const deleted = runtimeProcedures.delete(pathKey);
-    return { deleted };
+  handler: async (input: { path: ProcedurePath }, ctx?: ProcedureContext): Promise<{ deleted: boolean }> => {
+    const registry = ctx?.registry ?? PROCEDURE_REGISTRY;
+    const existing = registry.get(input.path);
+    if (!existing) {
+      return { deleted: false };
+    }
+    // A code procedure stays (deep dive CORE-3: before, delete only forgot the runtime record)
+    if (!isRuntimeDefined(existing)) {
+      throw new Error(
+        `procedure.delete removes only a procedure that procedure.define made: ${input.path.join(".")} is a code procedure.`
+      );
+    }
+    return { deleted: registry.unregister(input.path) };
   },
 });
 
