@@ -34,7 +34,7 @@
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

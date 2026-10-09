@@ -38,7 +38,7 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^3.0.0"
+    "vitest": "^5.0.3"
   },
   "keywords": [
     "docker",
