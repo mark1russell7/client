@@ -294,139 +294,261 @@ export function createDualRegistry(
 // Stream Utilities
 // =============================================================================
 
+/** This function ends an iterator and does not wait: a source with a pending item ends after it. */
+function endSource(iterator: AsyncIterator<unknown>): void {
+  try {
+    void Promise.resolve(iterator.return?.()).catch(() => undefined);
+  } catch {
+    // A source whose return() throws has nothing more to end
+  }
+}
+
+/**
+ * A queue with one writer and one reader: the reader waits on one wake-up, not on each source.
+ */
+class Mailbox<T> {
+  private readonly items: T[] = [];
+  private wake: (() => void) | null = null;
+  private ended = false;
+  private failure: { error: unknown } | null = null;
+
+  push(item: T): void {
+    this.items.push(item);
+    this.notify();
+  }
+
+  end(failure?: { error: unknown }): void {
+    this.ended = true;
+    if (failure) this.failure = failure;
+    this.notify();
+  }
+
+  get isEnded(): boolean {
+    return this.ended;
+  }
+
+  private notify(): void {
+    const wake = this.wake;
+    this.wake = null;
+    wake?.();
+  }
+
+  /** The items, then the failure (if any) when the writer has ended. */
+  async *drain(): AsyncGenerator<T, void, undefined> {
+    for (;;) {
+      if (this.items.length > 0) {
+        yield this.items.shift()!;
+        continue;
+      }
+      if (this.ended) {
+        if (this.failure) throw this.failure.error;
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        this.wake = resolve;
+      });
+    }
+  }
+}
+
 /**
  * Merge multiple component streams into one.
  * Yields outputs from all streams as they arrive.
+ *
+ * Each source has at most one pending `next()`, and the reader waits on one shared wake-up.
+ * (Before, each round raced the pending promises of all sources: an idle source collected one
+ * reaction per item of the other sources, 81 MiB at 200k items. Deep dive DATA-12.) When the
+ * reader stops, or a source fails, the function ends the other sources.
  */
 export async function* mergeStreams(
   ...streams: AsyncIterable<ComponentOutput>[]
 ): AsyncIterable<ComponentOutput> {
-  type Pulled = { iter: AsyncIterator<ComponentOutput>; result: IteratorResult<ComponentOutput> };
-  const pull = (iter: AsyncIterator<ComponentOutput>): Promise<Pulled> =>
-    iter.next().then((result) => ({ iter, result }));
+  type Settled =
+    | { index: number; result: IteratorResult<ComponentOutput> }
+    | { index: number; error: unknown };
 
-  // One pending next() per stream. A result that loses the race stays pending and is
-  // yielded later (BUGS-2026-07: each round called next() on every stream and kept only
-  // the winner's result, so the other streams' items were lost).
-  const pending = new Map<AsyncIterator<ComponentOutput>, Promise<Pulled>>();
-  for (const stream of streams) {
-    const iter = stream[Symbol.asyncIterator]();
-    pending.set(iter, pull(iter));
-  }
+  const iterators = streams.map((stream) => stream[Symbol.asyncIterator]());
+  const active = new Set<number>();
+  const settled = new Mailbox<Settled>();
 
-  while (pending.size > 0) {
-    const { iter, result } = await Promise.race(pending.values());
-    if (result.done) {
-      pending.delete(iter);
-      continue;
+  const pull = (index: number): void => {
+    iterators[index]!.next().then(
+      (result) => settled.push({ index, result }),
+      (error: unknown) => settled.push({ index, error }),
+    );
+  };
+
+  iterators.forEach((_, index) => {
+    active.add(index);
+    pull(index);
+  });
+
+  try {
+    if (active.size === 0) return;
+    for await (const item of settled.drain()) {
+      if ("error" in item) {
+        active.delete(item.index);
+        throw item.error;
+      }
+      if (item.result.done) {
+        active.delete(item.index);
+        if (active.size === 0) return;
+        continue;
+      }
+      yield item.result.value;
+      // The next item of this source, after the reader took this one
+      pull(item.index);
     }
-    pending.set(iter, pull(iter));
-    yield result.value;
+  } finally {
+    for (const index of active) endSource(iterators[index]!);
+  }
+}
+
+/** The state of a timed stream: the source, the outputs, and the stop flag of the reader. */
+interface TimedStream {
+  iterator: AsyncIterator<ComponentOutput>;
+  outputs: Mailbox<ComponentOutput>;
+  stopped: boolean;
+}
+
+/**
+ * Read a source in the background and give each item to `onItem`. `onEnd` runs when the source
+ * ends or fails, before the outputs end. When the reader stops, the source is not read further.
+ */
+async function* timedStream(
+  stream: AsyncIterable<ComponentOutput>,
+  onItem: (output: ComponentOutput, state: TimedStream) => void,
+  onEnd: (state: TimedStream) => void,
+  onStop: () => void,
+): AsyncIterable<ComponentOutput> {
+  const state: TimedStream = {
+    iterator: stream[Symbol.asyncIterator](),
+    outputs: new Mailbox<ComponentOutput>(),
+    stopped: false,
+  };
+
+  void (async () => {
+    let failure: { error: unknown } | undefined;
+    try {
+      while (!state.stopped) {
+        const result = await state.iterator.next();
+        if (result.done || state.stopped) break;
+        onItem(result.value, state);
+      }
+    } catch (error) {
+      failure = { error };
+    } finally {
+      if (!state.stopped) onEnd(state);
+      state.outputs.end(failure);
+    }
+  })();
+
+  try {
+    yield* state.outputs.drain();
+  } finally {
+    if (!state.outputs.isEnded) {
+      // The reader stopped early: no more reads of the source (deep dive DATA-12)
+      state.stopped = true;
+      onStop();
+      endSource(state.iterator);
+    }
   }
 }
 
 /**
  * Throttle a component stream to emit at most once per interval.
+ *
+ * The first item of an interval goes out at once. The last item that arrives during the
+ * interval goes out when the interval ends. (Before, it waited until the source ended: deep
+ * dive DATA-12.) When the source ends, a waiting item goes out at once.
  */
-export async function* throttleStream(
+export function throttleStream(
   stream: AsyncIterable<ComponentOutput>,
   intervalMs: number
 ): AsyncIterable<ComponentOutput> {
-  let lastEmit = 0;
-  let pending: ComponentOutput | null = null;
+  let lastEmit = -Infinity;
+  let pending: { output: ComponentOutput } | null = null;
+  let timer: TimerId | null = null;
 
-  for await (const output of stream) {
-    const now = Date.now();
-
-    if (now - lastEmit >= intervalMs) {
-      yield output;
-      lastEmit = now;
-      pending = null;
-    } else {
-      pending = output;
+  const stopTimer = (): void => {
+    if (timer !== null) {
+      clearTimer(timer);
+      timer = null;
     }
-  }
+  };
 
-  // Emit final pending output
-  if (pending) {
-    yield pending;
-  }
+  return timedStream(
+    stream,
+    (output, state) => {
+      const now = Date.now();
+      if (timer === null && now - lastEmit >= intervalMs) {
+        lastEmit = now;
+        state.outputs.push(output);
+        return;
+      }
+      pending = { output };
+      if (timer === null) {
+        timer = setTimer(() => {
+          timer = null;
+          if (pending && !state.stopped) {
+            lastEmit = Date.now();
+            state.outputs.push(pending.output);
+            pending = null;
+          }
+        }, Math.max(0, lastEmit + intervalMs - now));
+      }
+    },
+    (state) => {
+      stopTimer();
+      if (pending) {
+        state.outputs.push(pending.output);
+        pending = null;
+      }
+    },
+    stopTimer,
+  );
 }
 
 /**
  * Debounce a component stream to emit only after a quiet period.
+ *
+ * When the stream ends, the last output goes out at once (BUGS-2026-07 H29). When the reader
+ * stops, the source is not read further (deep dive DATA-12).
  */
-export async function* debounceStream(
+export function debounceStream(
   stream: AsyncIterable<ComponentOutput>,
   waitMs: number
 ): AsyncIterable<ComponentOutput> {
-  let latest: ComponentOutput | null = null;
+  let latest: { output: ComponentOutput } | null = null;
   let timer: TimerId | null = null;
 
-  const outputs: ComponentOutput[] = [];
-  // An object, so the state written inside the processor is not narrowed away below
-  const state: { done: boolean; failed: boolean; error: unknown } = { done: false, failed: false, error: undefined };
-  let wake: (() => void) | null = null;
-  const notify = (): void => {
-    const resolve = wake;
-    wake = null;
-    resolve?.();
+  const stopTimer = (): void => {
+    if (timer !== null) {
+      clearTimer(timer);
+      timer = null;
+    }
   };
 
-  // Process the stream
-  const processor = (async () => {
-    try {
-      for await (const output of stream) {
-        latest = output;
-
-        if (timer) {
-          clearTimer(timer);
-        }
-
-        timer = setTimer(() => {
-          timer = null;
-          if (latest) {
-            outputs.push(latest);
-            latest = null;
-            notify();
-          }
-        }, waitMs);
-      }
-    } catch (error) {
-      state.failed = true;
-      state.error = error;
-    } finally {
-      // The stream ended: emit the pending output at once and wake the consumer
-      // (BUGS-2026-07 H29: the consumer waited for a wake-up that never came)
-      if (timer) {
-        clearTimer(timer);
+  return timedStream(
+    stream,
+    (output, state) => {
+      latest = { output };
+      stopTimer();
+      timer = setTimer(() => {
         timer = null;
-      }
+        if (latest && !state.stopped) {
+          state.outputs.push(latest.output);
+          latest = null;
+        }
+      }, waitMs);
+    },
+    (state) => {
+      stopTimer();
       if (latest) {
-        outputs.push(latest);
+        state.outputs.push(latest.output);
         latest = null;
       }
-      state.done = true;
-      notify();
-    }
-  })();
-
-  // Yield outputs as they become available
-  while (true) {
-    if (outputs.length > 0) {
-      yield outputs.shift()!;
-      continue;
-    }
-    if (state.done) {
-      break;
-    }
-    await new Promise<void>((r) => {
-      wake = r;
-    });
-  }
-
-  await processor;
-  if (state.failed) {
-    throw state.error;
-  }
+    },
+    stopTimer,
+  );
 }
