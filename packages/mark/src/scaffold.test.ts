@@ -66,7 +66,16 @@ function compile(packageDir: string): { ok: boolean; output: string } {
   return { ok: result.status === 0, output: `${result.stdout}\n${result.stderr}` };
 }
 
-describe("lib new + procedure new", () => {
+/**
+ * cue-config needs the CUE binary. CI installs it, so there the test always runs. On a computer
+ * without CUE, the test is skipped with a note.
+ */
+const cueInstalled = spawnSync("cue", ["version"], { stdio: "ignore" }).status === 0;
+if (!cueInstalled && !process.env["CI"]) {
+  console.warn("scaffold.test.ts: CUE is not installed, so the lib new + procedure new test is skipped.");
+}
+
+describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", () => {
   let root: string;
   let packageDir: string;
   const ctx = diskContext();

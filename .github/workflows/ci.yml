@@ -33,6 +33,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
+      # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark)
+      - name: Install CUE
+        run: |
+          curl -fsSL https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP" cue
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       # Each package builds dist/ with `tsc -b`. Dependents read the types from dist/.
       - run: pnpm build
