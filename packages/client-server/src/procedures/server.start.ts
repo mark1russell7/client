@@ -9,37 +9,17 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { checkServer, readLockfileForPort } from "../lockfile.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
-// Lockfile paths (same as cli/src/lockfile.ts)
 const MARK_DIR = path.join(os.homedir(), ".mark");
 const SERVERS_DIR = path.join(MARK_DIR, "servers");
-const LEGACY_LOCKFILE_PATH = path.join(MARK_DIR, "server.lock");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
 const serverStartInputSchema = schema<ServerStartInput>();
 const serverStartOutputSchema = schema<ServerStartOutput>();
 
-/**
- * Read lockfile for a specific port
- */
-function readLockfileForPort(port: number): { pid: number; port: number; endpoint: string; startedAt: string } | null {
-  try {
-    const content = fs.readFileSync(path.join(SERVERS_DIR, `${port}.lock`), "utf-8");
-    return JSON.parse(content);
-  } catch {
-    // Try legacy lockfile
-    try {
-      const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
-      const data = JSON.parse(content);
-      if (data.port === port) return data;
-    } catch {
-      // No lockfile
-    }
-    return null;
-  }
-}
 
 /**
  * Check if process is alive
@@ -125,7 +105,7 @@ export const serverStartProcedure: Procedure<
 
     // Check if server is already running on this port
     const existing = readLockfileForPort(port);
-    if (existing && isProcessAlive(existing.pid)) {
+    if (existing && (await checkServer(existing)) === "alive") {
       return {
         success: false,
         message: `Server already running on port ${port} (PID ${existing.pid})`,
@@ -170,6 +150,8 @@ export const serverStartProcedure: Procedure<
       stdio: ["ignore", logFd, logFd],
       env: { ...process.env },
       cwd: process.cwd(),
+      // No console window on Windows (deep dive CLI-16)
+      windowsHide: true,
     });
 
     // Unref so parent can exit
@@ -191,7 +173,7 @@ export const serverStartProcedure: Procedure<
 
       // Check for lockfile
       const lockfile = readLockfileForPort(port);
-      if (lockfile && isProcessAlive(lockfile.pid)) {
+      if (lockfile && (await checkServer(lockfile)) === "alive") {
         return {
           success: true,
           pid: lockfile.pid,

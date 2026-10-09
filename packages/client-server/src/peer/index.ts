@@ -16,7 +16,8 @@ import {
   type Method,
 } from "@mark1russell7/client";
 import type { Request } from "express";
-import type { TransportConfig, TransportType } from "../types.js";
+import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
+import { bearerToken, hostAllowed, originAllowed, tokenMatches } from "./security.js";
 
 /**
  * URL strategy that matches the client's defaultUrlPattern
@@ -123,7 +124,7 @@ class PeerImpl implements Peer {
     }
   }
 
-  private async startHttpTransport(config: { type: "http"; port?: number; host?: string; basePath?: string; cors?: boolean; urlStrategy?: "rest" | "rpc" }): Promise<void> {
+  private async startHttpTransport(config: HttpTransportConfig): Promise<void> {
     // Dynamic import to avoid bundling express if not used
     const express = (await import("express")).default;
 
@@ -136,6 +137,21 @@ class PeerImpl implements Peer {
     // deliberately. See documentation/BUGS-2026-07.md (H19).
     const host = config.host ?? "127.0.0.1";
     const basePath = config.basePath ?? "/api";
+
+    // Host, origin and token checks (deep dive TRN-1, CLI-1, CLI-2). The health endpoints need no
+    // token: a client uses them to check that a lockfile's server is alive.
+    app.use((req, res, next) => {
+      if (!hostAllowed(host, req.headers.host) || !originAllowed(req.headers.origin, config.corsOrigins)) {
+        res.status(403).json({ error: "Forbidden: the host or the origin is not allowed", code: "FORBIDDEN" });
+        return;
+      }
+      const isHealth = req.path === "/health" || req.path === `${basePath}/health`;
+      if (!isHealth && req.method !== "OPTIONS" && !tokenMatches(config.token, bearerToken(req.headers.authorization))) {
+        res.status(401).json({ error: "Unauthorized: this server requires its token", code: "UNAUTHORIZED" });
+        return;
+      }
+      next();
+    });
 
     // Health endpoint for container orchestration
     app.get(`${basePath}/health`, (_req, res) => {
@@ -172,7 +188,8 @@ class PeerImpl implements Peer {
       port,
       host,
       basePath,
-      cors: config.cors ?? true,
+      // Off by default: before, every peer sent Access-Control-Allow-Origin: * (deep dive CLI-2)
+      cors: config.cors ?? false,
       urlStrategy,
     });
 
@@ -185,7 +202,7 @@ class PeerImpl implements Peer {
     });
   }
 
-  private async startWebSocketTransport(config: { type: "websocket"; port?: number; host?: string; path?: string }): Promise<void> {
+  private async startWebSocketTransport(config: WebSocketTransportConfig): Promise<void> {
     // WebSocket transport requires an HTTP server to attach to
     // For standalone WebSocket, we create an HTTP server first
     const { createServer } = await import("http");
@@ -202,6 +219,16 @@ class PeerImpl implements Peer {
     const wsTransport = new WebSocketServerTransport(this.server, {
       server: httpServer,
       path,
+      // Host, origin and token checks: before, any web page could open a connection and call
+      // procedures (cross-site WebSocket hijacking, deep dive TRN-1)
+      authenticate: (req) => {
+        const token = new URL(req.url ?? "/", "http://localhost").searchParams.get("token") ?? bearerToken(req.headers.authorization);
+        return (
+          hostAllowed(host, req.headers.host) &&
+          originAllowed(req.headers.origin, config.origins) &&
+          tokenMatches(config.token, token)
+        );
+      },
     });
 
     this.server.addTransport(wsTransport);

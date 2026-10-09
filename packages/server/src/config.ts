@@ -36,7 +36,7 @@ export function parseConfig(argv: string[]): ServerConfig {
         if (!isNaN(port)) {
           // Apply port to first transport or create default HTTP
           if (config.transports.length === 0) {
-            config.transports.push({ type: "http", port, cors: true });
+            config.transports.push({ type: "http", port });
           } else {
             config.transports[0]!.port = port;
           }
@@ -46,7 +46,7 @@ export function parseConfig(argv: string[]): ServerConfig {
       const value = argv[++i];
       if (value) {
         if (config.transports.length === 0) {
-          config.transports.push({ type: "http", host: value, cors: true });
+          config.transports.push({ type: "http", host: value });
         } else {
           config.transports[0]!.host = value;
         }
@@ -61,7 +61,7 @@ export function parseConfig(argv: string[]): ServerConfig {
             if (!existing) {
               config.transports.push({
                 type,
-                ...(type === "http" ? { cors: true, basePath: "/api" } : {}),
+                ...(type === "http" ? { basePath: "/api" } : {}),
                 ...(type === "websocket" ? { path: "/ws" } : {}),
               });
             }
@@ -98,12 +98,13 @@ export function parseConfig(argv: string[]): ServerConfig {
 
   // Default to HTTP transport if none specified
   if (config.transports.length === 0) {
+    // Loopback and no CORS by default: the server serves every procedure it loads. Before, it
+    // listened on 0.0.0.0 with Access-Control-Allow-Origin: * (deep dive CLI-1, DATA-20).
     config.transports.push({
       type: "http",
       port: 3000,
-      host: "0.0.0.0",
+      host: "127.0.0.1",
       basePath: "/api",
-      cors: true,
     });
   }
 
@@ -111,12 +112,11 @@ export function parseConfig(argv: string[]): ServerConfig {
   for (const transport of config.transports) {
     if (transport.type === "http") {
       transport.port ??= 3000;
-      transport.host ??= "0.0.0.0";
+      transport.host ??= "127.0.0.1";
       transport.basePath ??= "/api";
-      transport.cors ??= true;
     } else if (transport.type === "websocket") {
       transport.port ??= 3001;
-      transport.host ??= "0.0.0.0";
+      transport.host ??= "127.0.0.1";
       transport.path ??= "/ws";
     }
   }
@@ -142,13 +142,14 @@ OPTIONS:
                             Default: 3000
 
   --host <address>          Host to bind to
-                            Default: 0.0.0.0
+                            Default: 127.0.0.1 (0.0.0.0 exposes every
+                            procedure to the network)
 
   --base-path <path>        Base path for HTTP transport
                             Default: /api
 
-  --cors                    Enable CORS (default)
-  --no-cors                 Disable CORS
+  --cors                    Enable CORS
+  --no-cors                 Disable CORS (default)
 
   --verbose, -v             Verbose output
 

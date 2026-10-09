@@ -13,10 +13,14 @@ export interface HttpTransportConfig {
   port?: number;
   host?: string;
   basePath?: string;
+  /** Send CORS headers. The default is false: only `corsOrigins` (or loopback pages) are served to browsers. */
   cors?: boolean;
+  /** Browser origins that may call the peer, besides loopback origins */
   corsOrigins?: string[];
   /** URL strategy: "rest" (default) or "rpc" for /rpc/service/operation format */
   urlStrategy?: "rest" | "rpc";
+  /** A secret that every request must send as `Authorization: Bearer <token>` */
+  token?: string;
 }
 
 export interface WebSocketTransportConfig {
@@ -24,6 +28,10 @@ export interface WebSocketTransportConfig {
   port?: number;
   host?: string;
   path?: string;
+  /** Browser origins that may connect, besides loopback origins */
+  origins?: string[];
+  /** A secret that every connection must send as `?token=<token>` (or a bearer header) */
+  token?: string;
 }
 
 export interface LocalTransportConfig {
@@ -41,6 +49,8 @@ export interface ServerCreateInput {
   transports?: TransportConfig[];
   /** Auto-register all procedures from registry */
   autoRegister?: boolean;
+  /** A secret that every request must carry (each transport that has no token of its own gets this one) */
+  token?: string;
 }
 
 export interface ServerCreateOutput {

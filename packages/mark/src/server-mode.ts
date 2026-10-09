@@ -7,7 +7,8 @@
 
 import { print } from "./print.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
-import { writeLockfile, removeLockfileForPort, getLockfilePath } from "./lockfile.js";
+import { randomBytes } from "node:crypto";
+import { writeLockfile, removeLockfileForPort, getLockfilePath, currentBuild } from "./lockfile.js";
 
 export interface ServerModeOptions {
   port: number;
@@ -31,11 +32,12 @@ function buildTransports(options: ServerModeOptions) {
     port: number;
     host: string;
     basePath?: string;
-    cors?: boolean;
     path?: string;
   }> = [];
 
-  const { port, host = "0.0.0.0", transport = "http" } = options;
+  // Loopback and no CORS by default: the server holds the whole registry, shell.* included.
+  // Before, it listened on 0.0.0.0 with Access-Control-Allow-Origin: * (deep dive CLI-1, TRN-1).
+  const { port, host = "127.0.0.1", transport = "http" } = options;
 
   if (transport === "http" || transport === "both") {
     transports.push({
@@ -43,7 +45,6 @@ function buildTransports(options: ServerModeOptions) {
       port,
       host,
       basePath: "/api",
-      cors: true,
     });
   }
 
@@ -89,24 +90,37 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   const transports = buildTransports(options);
 
   // DOGFOOD: Use server.create procedure
+  // Every request must send this token. Only the lockfile (readable by this user) holds it.
+  const token = randomBytes(32).toString("hex");
+  const host = options.host ?? "127.0.0.1";
+  if (!["127.0.0.1", "localhost", "::1"].includes(host)) {
+    print.warning(`The server listens on ${host}: other computers can reach it. Every request needs its token.`);
+  }
+
   const result = await client.call<
-    { transports: typeof transports; autoRegister: boolean },
+    { transports: typeof transports; autoRegister: boolean; token: string },
     ServerCreateResult
   >(
     { service: "server", operation: "create" },
     {
       transports,
       autoRegister: true,
+      token,
     }
   );
 
-  // Write lockfile for client discovery
+  // Write lockfile for client discovery. A client uses this server only from the same folder,
+  // with the same build of mark, and when the health endpoint answers with this peer id.
   await writeLockfile({
     pid: process.pid,
     port,
     transport: options.transport ?? "http",
-    endpoint: result.endpoints[0]?.address ?? `http://localhost:${port}/api`,
+    endpoint: result.endpoints[0]?.address ?? `http://127.0.0.1:${port}/api`,
     startedAt: new Date().toISOString(),
+    token,
+    cwd: process.cwd(),
+    build: currentBuild(),
+    peerId: result.serverId,
   });
 
   print.success("\nCLI Server running!");
@@ -123,7 +137,7 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   // Handle shutdown
   const cleanup = async () => {
     print.info("\nStopping server...");
-    await removeLockfileForPort(port);
+    removeLockfileForPort(port);
     process.exit(0);
   };
 
@@ -140,21 +154,24 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
  * Extract port from argv
  */
 export function extractPort(argv: string[]): number | null {
+  // --port 4000 and --port=4000 (before, the second form was ignored: deep dive CLI-1)
+  const inline = argv.find((arg) => arg.startsWith("--port="));
   const portIdx = argv.indexOf("--port");
-  if (portIdx !== -1) {
-    const portValue = argv[portIdx + 1];
-    if (portValue !== undefined) {
-      const port = parseInt(portValue, 10);
-      if (!isNaN(port)) return port;
-    }
+  const portValue = inline !== undefined ? inline.slice("--port=".length) : portIdx !== -1 ? argv[portIdx + 1] : undefined;
+  if (portValue === undefined) return null;
+  const port = Number(portValue);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid port: ${portValue}`);
   }
-  return null;
+  return port;
 }
 
 /**
  * Extract host from argv
  */
 export function extractHost(argv: string[]): string | null {
+  const inline = argv.find((arg) => arg.startsWith("--host="));
+  if (inline !== undefined) return inline.slice("--host=".length);
   const hostIdx = argv.indexOf("--host");
   if (hostIdx !== -1) {
     const hostValue = argv[hostIdx + 1];

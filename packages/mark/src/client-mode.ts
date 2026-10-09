@@ -5,7 +5,7 @@
  * Falls back to local execution if no server is available.
  */
 
-import { readLockfile, isServerAlive } from "./lockfile.js";
+import { currentBuild, findServer } from "./lockfile.js";
 import type { AnyProcedure } from "@mark1russell7/client";
 import { parseFromSchema, type CLIMeta } from "./parse.js";
 
@@ -28,15 +28,18 @@ export async function tryClientMode(
   procedures: AnyProcedure[],
   onItem?: (item: unknown) => void
 ): Promise<ClientModeResult | null> {
-  // Check for running server
-  const lockfile = await readLockfile();
-  if (!lockfile) {
-    return null; // No lockfile, fall back to local
+  // A running server of this build, started in this folder, that answers as the peer of its
+  // lockfile and has a token. Otherwise the CLI runs the command itself. (Before, any server
+  // with a live PID was used: relative paths resolved in the server's folder, an old build ran
+  // after a rebuild, and a reused PID broke every command: deep dive CLI-3, CLI-4, CLI-14.)
+  // server.* manages the servers themselves: it always runs here. (Through the server,
+  // `mark server stop` ran server.stop inside the server it stopped: no answer, no cleanup.)
+  if (path[0] === "server") {
+    return null;
   }
-
-  // Verify server is still alive
-  if (!(await isServerAlive(lockfile))) {
-    return null; // Server not running, fall back to local
+  const lockfile = await findServer({ cwd: process.cwd(), build: currentBuild() });
+  if (!lockfile?.token) {
+    return null;
   }
 
   let client: InstanceType<typeof import("@mark1russell7/client").Client>;
@@ -50,6 +53,7 @@ export async function tryClientMode(
     // Connect to server
     const transport = new HttpTransport({
       baseUrl: lockfile.endpoint,
+      defaultHeaders: { Authorization: `Bearer ${lockfile.token}` },
     });
     client = new Client({ transport });
 
@@ -69,9 +73,10 @@ export async function tryClientMode(
       input = proc.input.parse(input) as Record<string, unknown>;
     }
 
-    // Convert path to method
-    const [service, ...rest] = path;
-    method = { service: service!, operation: rest.join(".") };
+    // The method of the path as ProcedureServer registers it: the last segment is the operation.
+    // (Before, the first segment was the service, so a path of three segments - docker compose up -
+    // was not found on the server.)
+    method = { service: path.slice(0, -1).join("."), operation: path[path.length - 1]! };
   } catch {
     // Nothing was sent to the server yet - fall back to local execution
     return null;

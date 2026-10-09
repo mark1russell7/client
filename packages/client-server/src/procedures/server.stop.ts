@@ -3,105 +3,18 @@
  * Stops the running CLI server daemon
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as os from "node:os";
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "../lockfile.js";
 import type { ServerStopInput, ServerStopOutput } from "../types.js";
 
-// Lockfile paths (same as cli/src/lockfile.ts)
-const MARK_DIR = path.join(os.homedir(), ".mark");
-const SERVERS_DIR = path.join(MARK_DIR, "servers");
-const LEGACY_LOCKFILE_PATH = path.join(MARK_DIR, "server.lock");
-
-interface LockfileData {
-  pid: number;
-  port: number;
-  endpoint: string;
-  startedAt: string;
-  transport?: string;
-}
 
 const serverStopInputSchema = schema<ServerStopInput>();
 const serverStopOutputSchema = schema<ServerStopOutput>();
 
-/**
- * Read lockfile for a specific port
- */
-function readLockfileForPort(port: number): LockfileData | null {
-  try {
-    const content = fs.readFileSync(path.join(SERVERS_DIR, `${port}.lock`), "utf-8");
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
 
-/**
- * Read all server lockfiles
- */
-function readAllLockfiles(): LockfileData[] {
-  const results: LockfileData[] = [];
-  try {
-    const files = fs.readdirSync(SERVERS_DIR);
-    for (const file of files) {
-      if (file.endsWith(".lock")) {
-        try {
-          const content = fs.readFileSync(path.join(SERVERS_DIR, file), "utf-8");
-          results.push(JSON.parse(content));
-        } catch {
-          // Skip corrupt lockfiles
-        }
-      }
-    }
-  } catch {
-    // Directory doesn't exist
-  }
-  // Fallback to legacy lockfile
-  if (results.length === 0) {
-    try {
-      const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
-      results.push(JSON.parse(content));
-    } catch {
-      // No legacy lockfile
-    }
-  }
-  return results;
-}
 
-/**
- * Remove lockfile for a port
- */
-function removeLockfileForPort(port: number): void {
-  try {
-    fs.unlinkSync(path.join(SERVERS_DIR, `${port}.lock`));
-  } catch {
-    // Ignore
-  }
-  // Also clean legacy lockfile if it matches
-  try {
-    const content = fs.readFileSync(LEGACY_LOCKFILE_PATH, "utf-8");
-    const data = JSON.parse(content) as LockfileData;
-    if (data.port === port) {
-      fs.unlinkSync(LEGACY_LOCKFILE_PATH);
-    }
-  } catch {
-    // Ignore
-  }
-}
 
-/**
- * Check if process is alive
- */
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Kill process by PID
@@ -156,9 +69,16 @@ export const serverStopProcedure: Procedure<
     for (const lockfile of targets) {
       const { pid, port } = lockfile;
 
-      if (!isProcessAlive(pid)) {
+      // Signal the PID only when the server answers as the peer of this lockfile: Windows reuses
+      // PIDs, and before, a stale lockfile made this kill an unrelated process (deep dive CLI-4)
+      const state = await checkServer(lockfile);
+      if (state !== "alive") {
         removeLockfileForPort(port);
-        results.push(`Port ${port}: cleaned up stale lockfile`);
+        results.push(
+          state === "dead"
+            ? `Port ${port}: cleaned up stale lockfile`
+            : `Port ${port}: another process answers on this port; nothing stopped (stale lockfile removed)`
+        );
         continue;
       }
 
@@ -175,7 +95,7 @@ export const serverStopProcedure: Procedure<
       let stopped = false;
 
       while (Date.now() - startTime < maxWait) {
-        if (!isProcessAlive(pid)) {
+        if ((await checkServer(lockfile, 300)) === "dead") {
           removeLockfileForPort(port);
           results.push(`Port ${port}: stopped (PID ${pid})`);
           stopped = true;

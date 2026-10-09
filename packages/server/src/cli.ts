@@ -29,9 +29,9 @@ async function main(): Promise<void> {
   const clientModule = await import("@mark1russell7/client");
   const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
 
-  // Import client-server to register server.create procedure
-  const clientServer = await import("@mark1russell7/client-server");
-  clientServer.registerServerProcedures();
+  // Importing client-server registers server.create. (A second registerServerProcedures() call
+  // threw "already registered", so the server never started: deep dive CLI-6.)
+  await import("@mark1russell7/client-server");
 
   // Dynamically import procedure packages
   for (const pkg of config.procedures) {

@@ -29,7 +29,12 @@ export const serverCreateProcedure: Procedure<
     const serverId = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     // Default transports if not specified
-    const transports = input.transports ?? [{ type: "http" as const, port: 3000 }];
+    // A server-wide token goes to each transport that has none of its own
+    const transports = (input.transports ?? [{ type: "http" as const, port: 3000 }]).map((transport) =>
+      transport.type === "local" || input.token === undefined || transport.token !== undefined
+        ? transport
+        : { ...transport, token: input.token }
+    );
     const autoRegister = input.autoRegister ?? true;
 
     // Create peer with configured transports

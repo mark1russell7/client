@@ -419,7 +419,8 @@ async function run(argv: string[]): Promise<void> {
   // Handle --server flag: start server mode
   if (argv.includes("--server")) {
     const port = extractPort(argv) ?? 3000;
-    const host = extractHost(argv) ?? "0.0.0.0";
+    // Loopback unless --host says otherwise (deep dive CLI-1)
+    const host = extractHost(argv) ?? "127.0.0.1";
     await startServerMode({ port, host, verbose });
     return;
   }
