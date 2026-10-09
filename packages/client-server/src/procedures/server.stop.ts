@@ -5,11 +5,11 @@
 
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { serverStopInputSchema } from "../input-schemas.js";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "../lockfile.js";
 import type { ServerStopInput, ServerStopOutput } from "../types.js";
 
 
-const serverStopInputSchema = schema<ServerStopInput>();
 const serverStopOutputSchema = schema<ServerStopOutput>();
 
 

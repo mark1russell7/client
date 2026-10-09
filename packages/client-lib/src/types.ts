@@ -232,9 +232,24 @@ export interface PackageAuditResult {
   fixedDirs?: string[] | undefined;
 }
 
+/**
+ * A procedure flag that hides a global flag of `mark` after the command path. It is not an
+ * error: the user gives the global flag before the command.
+ */
+export interface FlagNotice {
+  /** The procedure path, for example "docker compose down" */
+  procedure: string;
+  /** The flag of the procedure, for example "-v" */
+  flag: string;
+  /** The global flag that it hides, for example "-v (--version)" */
+  global: string;
+}
+
 export interface LibAuditOutput {
   /** Overall success (all packages valid) */
   success: boolean;
+  /** Procedure flags that hide a global flag of mark after the command path (information only) */
+  flagNotices: FlagNotice[];
   /** Project template used for validation */
   template: {
     files: string[];

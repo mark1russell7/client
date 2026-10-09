@@ -2,8 +2,9 @@
  * lib.new procedure
  *
  * Creates a new client package in the workspace, at packages/<name>, with the
- * structure the other client packages have: cue-config files, src/index.ts,
- * src/register.ts, the "./register" export and the "client.procedures" field.
+ * structure the other client packages have: cue-config files, src/index.ts (which
+ * imports src/register.ts), src/register.ts, src/types.ts, the "./register" export and the
+ * "client.procedures" field. `mark procedure new` then adds procedures that compile.
  * Uses fs.* and shell.* procedures via ctx.client.call() for all operations.
  *
  * After it, run `pnpm install` and `pnpm build` in the workspace root.
@@ -21,7 +22,20 @@ interface ShellRunOutput {
   success: boolean;
 }
 
-const INDEX_TS = `// Entry point
+// Importing the package registers its procedures, as in the other client packages
+const INDEX_TS = `// Entry point: importing the package registers its procedures
+export * from "./register.js";
+export * from "./types.js";
+`;
+
+// \`mark procedure new\` appends the types of each procedure, and adds the zod import then.
+// An unused import here would fail noUnusedLocals (deep dive CLI-13).
+const TYPES_TS = `/**
+ * Type definitions of the procedures of this package
+ *
+ * mark procedure new adds the types of each new procedure here.
+ */
+
 export {};
 `;
 
@@ -108,6 +122,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
   const files = [
     join(packagePath, "src", "index.ts"),
     join(packagePath, "src", "register.ts"),
+    join(packagePath, "src", "types.ts"),
     join(packagePath, "dependencies.json"),
     join(packagePath, "package.json"),
     join(packagePath, "tsconfig.json"),
@@ -121,7 +136,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
       packagePath,
       created: [`${packagePath}/`, `${join(packagePath, "src")}/`, ...files],
       operations: [
-        "Would create packages/" + input.name + " with src/index.ts and src/register.ts",
+        "Would create packages/" + input.name + " with src/index.ts, src/register.ts and src/types.ts",
         `Would run cue-config init --preset ${input.preset}`,
         "Would run cue-config generate",
         `Would set the package name to ${packageName}, the exports, client.procedures and the client dependency`,
@@ -143,6 +158,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     for (const [file, content] of [
       [join(packagePath, "src", "index.ts"), INDEX_TS],
       [join(packagePath, "src", "register.ts"), registerTs(input.name)],
+      [join(packagePath, "src", "types.ts"), TYPES_TS],
     ] as const) {
       await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
         ["fs", "write"],

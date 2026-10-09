@@ -5,6 +5,7 @@
 
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { serverConnectionsInputSchema } from "../input-schemas.js";
 import { getConnectionIds, getConnection } from "../connection/index.js";
 
 // =============================================================================
@@ -30,7 +31,6 @@ export interface ServerConnectionsOutput {
 // Procedure
 // =============================================================================
 
-const serverConnectionsInputSchema = schema<ServerConnectionsInput>();
 const serverConnectionsOutputSchema = schema<ServerConnectionsOutput>();
 
 export const serverConnectionsProcedure: Procedure<

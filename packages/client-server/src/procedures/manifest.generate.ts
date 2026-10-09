@@ -5,6 +5,7 @@
 
 import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { manifestGenerateInputSchema } from "../input-schemas.js";
 import type { ManifestGenerateInput, ManifestGenerateOutput, ProcedureInfo } from "../types.js";
 import { generateTypeScript } from "../manifest/typescript.js";
 import { generateJson } from "../manifest/json.js";
@@ -12,7 +13,6 @@ import { writeFile, mkdir } from "fs/promises";
 import { join, dirname } from "path";
 
 // Use pass-through schemas
-const manifestGenerateInputSchema = schema<ManifestGenerateInput>();
 const manifestGenerateOutputSchema = schema<ManifestGenerateOutput>();
 
 export const manifestGenerateProcedure: Procedure<

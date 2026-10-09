@@ -96,9 +96,11 @@ sequenceDiagram
     ProcNew->>Templates: Generate exports
     Templates-->>ProcNew: Export statement
     ProcNew->>FS: Update src/procedures/user/index.ts
+    ProcNew->>FS: Add the procedure to src/register.ts
     ProcNew-->>User: Success + next steps
-    User->>User: Update register.ts manually
 ```
+
+The scaffolded code compiles with the strict options of the workspace. A name whose path, file, type names or registration exists already is an error, and then nothing is written.
 
 ## Quick Start
 
@@ -134,8 +136,8 @@ Scaffold a new procedure with type definitions and boilerplate.
 
 ```typescript
 interface ProcedureNewInput {
-  name: string;              // Dot-notation name (e.g., "user.create")
-  namespace?: string;        // Namespace override (defaults to first segment)
+  name: string;              // Dot-notation name (e.g., "user.create" or "fs.readJson")
+  namespace?: string;        // Namespace override: the folder under src/procedures (defaults to first segment)
   description?: string;      // Procedure description
   path?: string;             // Project path (defaults to cwd)
   dryRun?: boolean;          // Preview without creating files
@@ -162,6 +164,8 @@ const result = await client.call(["procedure", "new"], {
 
 **Generated Files:**
 
+The file of a procedure is `src/procedures/<first segment>/<middle segments>/<last segment>.ts`: `api.v2.users.create` gives `src/procedures/api/v2/users/create.ts`.
+
 1. **Procedure File** (`src/procedures/user/create.ts`):
 ```typescript
 /**
@@ -175,8 +179,8 @@ import type { UserCreateInput, UserCreateOutput } from "../../types.js";
 /**
  * Create a new user
  */
-export async function userCreate(input: UserCreateInput): Promise<UserCreateOutput> {
-  // TODO: Implement user.create procedure
+export async function userCreate(_input: UserCreateInput): Promise<UserCreateOutput> {
+  // TODO: Implement user.create (rename _input to input when the code uses it)
   return {
     success: true,
     message: "Hello from user.create",
@@ -184,7 +188,7 @@ export async function userCreate(input: UserCreateInput): Promise<UserCreateOutp
 }
 ```
 
-2. **Type Definitions** (appended to `src/types.ts`):
+2. **Type Definitions** (appended to `src/types.ts`, which gets `import { z } from "zod"` if it has none, or is created):
 ```typescript
 // =============================================================================
 // user.create Types - Create a new user
@@ -211,35 +215,31 @@ export interface UserCreateOutput {
 export { userCreate } from "./create.js";
 ```
 
-4. **Next Steps** (printed in operations):
+4. **Registration** (added to `src/register.ts`: the imports, the definition, and the item of the `registerProcedures([...])` array):
 ```typescript
-Next steps:
-1. Implement the procedure logic in src/procedures/user/create.ts
-2. Add registration to register.ts:
+import { createProcedure, outputSchema, registerProcedures, zodAdapter } from "@mark1russell7/client";
+import { userCreate } from "./procedures/user/create.js";
+import { UserCreateInputSchema, type UserCreateInput, type UserCreateOutput } from "./types.js";
 
-   import { userCreate } from "./procedures/user/create.js";
-   import { UserCreateInputSchema, type UserCreateInput, type UserCreateOutput } from "./types.js";
+const userCreateProcedure = createProcedure()
+  .path(["user", "create"])
+  .input(zodAdapter<UserCreateInput>(UserCreateInputSchema))
+  .output(outputSchema<UserCreateOutput>())
+  .meta({
+    description: "Create a new user",
+    args: [],
+    shorts: {},
+    output: "text",
+  })
+  .handler(async (input: UserCreateInput): Promise<UserCreateOutput> => userCreate(input))
+  .build();
 
-   const userCreateInputSchema = zodAdapter<UserCreateInput>(UserCreateInputSchema);
-   const userCreateOutputSchema = outputSchema<UserCreateOutput>();
-
-   const userCreateProcedure = createProcedure()
-     .path(["user", "create"])
-     .input(userCreateInputSchema)
-     .output(userCreateOutputSchema)
-     .meta({
-       description: "Create a new user",
-       args: [],
-       shorts: {},
-       output: "text",
-     })
-     .handler(async (input: UserCreateInput): Promise<UserCreateOutput> => {
-       return userCreate(input);
-     })
-     .build();
-
-   // Add to registerProcedures array
+export function register(): void {
+  registerProcedures([userCreateProcedure]);
+}
 ```
+
+If `src/register.ts` has no `registerProcedures([...])` or `registerAll([...])` call, the operations say what to add.
 
 #### `procedure.list`
 
@@ -411,21 +411,18 @@ cd my-client-package
 
 2. **Scaffold procedures**:
 ```bash
-node cli/dist/index.js procedure new myapp.start
-node cli/dist/index.js procedure new myapp.stop
-node cli/dist/index.js procedure new myapp.status
+node packages/mark/dist/cli.js procedure new myapp.start --path packages/myapp
+node packages/mark/dist/cli.js procedure new myapp.stop --path packages/myapp
+node packages/mark/dist/cli.js procedure new myapp.status --path packages/myapp
 ```
 
 3. **Implement handlers**:
-Edit the generated files in `src/procedures/myapp/*.ts`
+Edit the generated files in `src/procedures/myapp/*.ts`. `procedure new` registered each procedure in `src/register.ts`.
 
-4. **Register procedures**:
-Add registration code to `src/register.ts` (follow the printed instructions)
-
-5. **Build and test**:
+4. **Build and test**:
 ```bash
-npm run build
-npm test
+pnpm build
+pnpm test
 ```
 
 ## Naming Conventions
@@ -434,11 +431,14 @@ Procedure names follow dot-notation:
 - **Single segment**: `greet` → `["greet"]`
 - **Two segments**: `user.create` → `["user", "create"]`
 - **Nested**: `api.users.permissions.grant` → `["api", "users", "permissions", "grant"]`
+- **camelCase segments**: `fs.readJson` → `["fs", "readJson"]`
 
 Generated identifiers:
 - **camelCase** for function names: `user.create` → `userCreate`
 - **PascalCase** for types: `user.create` → `UserCreate`
-- **kebab-case** for files: `user.create` → `create.ts` (in `user/` dir)
+- **Files**: the last segment, in the folders of the other segments: `user.create` → `user/create.ts`, `api.users.permissions.grant` → `api/users/permissions/grant.ts`
+
+Two names can give the same identifiers (`a.b.c` and `a.bC` both give `aBC`). The second one is an error.
 
 ## Requirements
 

@@ -5,11 +5,11 @@
 
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { serverConnectInputSchema } from "../input-schemas.js";
 import type { ServerConnectInput, ServerConnectOutput } from "../types.js";
 import { connect } from "../connection/index.js";
 
 // Use pass-through schemas
-const serverConnectInputSchema = schema<ServerConnectInput>();
 const serverConnectOutputSchema = schema<ServerConnectOutput>();
 
 export const serverConnectProcedure: Procedure<
@@ -20,7 +20,7 @@ export const serverConnectProcedure: Procedure<
   .path(["server", "connect"])
   .input(serverConnectInputSchema)
   .output(serverConnectOutputSchema)
-  .meta({ description: "Connect to a remote peer for bidirectional RPC" })
+  .meta({ description: "Connect to a remote peer for bidirectional RPC", args: ["address"] })
   .handler(async (input: ServerConnectInput) => {
     const connectOptions: Parameters<typeof connect>[0] = {
       address: input.address,

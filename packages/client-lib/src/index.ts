@@ -52,3 +52,6 @@ export {
   extractMark1Russell7Deps,
   getPackageNameFromRef,
 } from "./git/index.js";
+
+// The global flags of the mark CLI (also at "@mark1russell7/client-lib/cli-flags", with no side effects)
+export { CLI_GLOBAL_FLAGS, findGlobalFlag, type CliGlobalFlag } from "./cli-flags.js";

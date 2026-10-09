@@ -5,11 +5,11 @@
 
 import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { serverCreateInputSchema } from "../input-schemas.js";
 import type { ServerCreateInput, ServerCreateOutput } from "../types.js";
 import { createPeer, type Peer } from "../peer/index.js";
 
 // Use pass-through schemas for simplicity (validation happens at Zod level if needed)
-const serverCreateInputSchema = schema<ServerCreateInput>();
 const serverCreateOutputSchema = schema<ServerCreateOutput>();
 
 // Active peers (module-level state for now, could be in context)

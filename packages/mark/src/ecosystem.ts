@@ -14,7 +14,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // =============================================================================
 // Types
@@ -100,29 +100,32 @@ export function discoverFromEcosystem(): DiscoveredPackage[] {
 }
 
 /**
- * Dynamically load procedures from discovered packages
+ * Dynamically load procedures from discovered packages.
+ *
+ * A package that fails to load gives one warning line on stderr, also without `verbose`: before,
+ * its commands were missing with no message (deep dive CLI-18). A package that is not built yet
+ * (no procedures file) is reported only with `verbose`.
  */
 export async function loadEcosystemProcedures(verbose = false): Promise<string[]> {
   const discovered = discoverFromEcosystem();
   const loaded: string[] = [];
 
   for (const pkg of discovered) {
-    try {
-      // Build the full path to the procedures file
-      const proceduresFullPath = path.join(pkg.path, pkg.proceduresPath);
+    // Build the full path to the procedures file
+    const proceduresFullPath = path.join(pkg.path, pkg.proceduresPath);
 
-      // Check if file exists
-      if (!fs.existsSync(proceduresFullPath)) {
-        if (verbose) {
-          console.warn(`Procedures file not found: ${proceduresFullPath}`);
-        }
-        continue;
+    // Check if file exists
+    if (!fs.existsSync(proceduresFullPath)) {
+      if (verbose) {
+        console.warn(`Procedures file not found (build the package): ${proceduresFullPath}`);
       }
+      continue;
+    }
 
-      // Dynamic import - the module will self-register procedures
-      // Use file:// URL for Windows compatibility
-      const fileUrl = `file://${proceduresFullPath.replace(/\\/g, "/")}`;
-      await import(fileUrl);
+    try {
+      // Dynamic import - the module will self-register procedures. pathToFileURL escapes
+      // "#", "%" and spaces in the path (before, a string join broke such paths).
+      await import(pathToFileURL(proceduresFullPath).href);
 
       loaded.push(pkg.name);
 
@@ -130,8 +133,10 @@ export async function loadEcosystemProcedures(verbose = false): Promise<string[]
         console.log(`Loaded procedures from: ${pkg.name}`);
       }
     } catch (error) {
-      if (verbose) {
-        console.warn(`Failed to load procedures from ${pkg.name}:`, error);
+      const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+      console.warn(`mark: the procedures of ${pkg.name} did not load: ${message}`);
+      if (verbose && error instanceof Error && error.stack) {
+        console.warn(error.stack);
       }
     }
   }
