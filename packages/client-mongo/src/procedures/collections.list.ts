@@ -4,14 +4,12 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { getBaseMeta } from "../types.js";
 
 // Input/Output types
-interface ListInput {
-  [key: string]: never;
-}
+/** The input: only the scope fields. */
+type ListInput = ScopeInput;
 
 interface ListOutput {
   collections: string[];
@@ -30,9 +28,8 @@ export const listProcedure: Procedure<
   .input(listInputSchema)
   .output(listOutputSchema)
   .meta({ description: "List all collections in the database" })
-  .handler(async (_input: ListInput, ctx: ProcedureContext) => {
-    const meta = getBaseMeta(ctx.metadata);
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
+  .handler(async (input: ListInput, ctx: ProcedureContext) => {
+    const db = await databaseFor(input, ctx);
 
     const collections = await db.listCollections().toArray();
     const collectionNames = collections

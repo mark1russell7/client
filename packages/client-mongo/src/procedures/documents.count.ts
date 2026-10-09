@@ -4,12 +4,12 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection, type DocumentQuery } from "../types.js";
+import { type DocumentQuery } from "../types.js";
 
 // Input/Output types
-interface CountInput {
+interface CountInput extends ScopeInput {
   query?: DocumentQuery;
 }
 
@@ -31,10 +31,7 @@ export const countProcedure: Procedure<
   .output(countOutputSchema)
   .meta({ description: "Count documents matching a filter" })
   .handler(async (input: CountInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     const count = await collection.countDocuments(input.query ?? {});
 

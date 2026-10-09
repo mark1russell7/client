@@ -9,10 +9,9 @@ import {
   type Procedure,
   type ProcedureContext,
 } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
 import {
-  requireCollection,
   type PaginationOutput,
   type DocumentQuery,
   type SortSpec,
@@ -20,7 +19,7 @@ import {
 } from "../types.js";
 
 // Input/Output types
-interface FindInput {
+interface FindInput extends ScopeInput {
   query?: DocumentQuery;
   projection?: Record<string, 0 | 1>;
   sort?: SortSpec;
@@ -44,6 +43,7 @@ function parseFindInput(data: unknown): FindInput {
   }
   const raw = data as Record<string, unknown>;
   const result: FindInput = {};
+  copyScope(raw, result);
 
   if (raw["query"] !== undefined) {
     result.query = raw["query"] as DocumentQuery;
@@ -86,10 +86,7 @@ export const findProcedure: Procedure<
   .output(findOutputSchema)
   .meta({ description: "Find documents with pagination and filtering" })
   .handler(async (input: FindInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     const query = input.query ?? {};
     const page = input.page ?? 1;

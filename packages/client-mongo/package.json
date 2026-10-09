@@ -6,9 +6,10 @@
   "license": "MIT",
   "author": "Mark Russell <marktheprogrammer17@gmail.com>",
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "typescript": "^5.9.3",
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^4.1.11"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -34,7 +35,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "sideEffects": [
     "./dist/index.js",

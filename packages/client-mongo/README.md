@@ -166,6 +166,24 @@ await connect({
 });
 ```
 
+### The first call connects
+
+A host does not have to call `connect()`. When there is no open connection, the first procedure call connects with the options of `configure()`, or with the environment variables. Concurrent first calls share one attempt.
+
+```typescript
+import { configure } from "@mark1russell7/client-mongo";
+
+configure({ uri: "mongodb://localhost:27017", database: "myapp" });
+```
+
+### The collection and the database of a call
+
+Each procedure reads `collection` and `database` from its input. An MCP tool call can set them. The call metadata is the fallback, for the clients that set it.
+
+```typescript
+await client.call(["mongo", "documents", "count"], { collection: "users", query: { active: true } });
+```
+
 ## API Reference
 
 ### Connection Management
@@ -549,89 +567,103 @@ interface InsertOutput {
 
 ##### `mongo.documents.update`
 
-Update documents matching a query.
+Update one document by `id`, or the documents that match a `filter`.
+
+A write needs exactly one of `id` or `filter`. An unknown field is an error: `query` is the field of `find` and `count`, not of `update`. An empty filter matches every document, so it needs `confirm: true`.
 
 ```typescript
-// Update single document
+// Update one document by ID
 const result = await client.call(
   ["mongo", "documents", "update"],
   {
-    query: { _id: "..." },
+    collection: "users",
+    id: "...",
     update: { $set: { status: "inactive" } },
     upsert: false
-  },
-  { metadata: { collection: "users" } }
+  }
 );
 
 // Update multiple documents
 const result = await client.call(
   ["mongo", "documents", "update"],
   {
-    query: { status: "pending" },
+    collection: "users",
+    filter: { status: "pending" },
     update: { $set: { status: "active" } },
     multi: true
-  },
-  { metadata: { collection: "users" } }
+  }
 );
 ```
 
 **Input:**
 ```typescript
 interface UpdateInput {
-  query: DocumentQuery;
+  collection?: string;     // Or metadata.collection
+  database?: string;       // Or metadata.database
+  id?: string;             // Exactly one of id and filter
+  idType?: "auto" | "objectId" | "string";
+  filter?: DocumentQuery;
   update: DocumentUpdate;
   multi?: boolean;   // Update all matching documents
   upsert?: boolean;  // Insert if not found
+  confirm?: boolean; // Required for an empty filter
 }
 
 type DocumentUpdate = UpdateFilter<Document>;
 ```
 
+An upsert by `id` in the "auto" mode updates the document with that ID in either form. When no document matches, the new document gets the ObjectId form of the ID.
+
 **Output:**
 ```typescript
 interface UpdateOutput {
+  acknowledged: boolean;
   matchedCount: number;
   modifiedCount: number;
-  upsertedId?: string;
+  upsertedId: string | null;
+  upsertedCount: number;
 }
 ```
 
 ##### `mongo.documents.delete`
 
-Delete documents matching a query.
+Delete one document by `id`, or the documents that match a `filter`. The rules of `update` apply: exactly one target, no unknown fields, and `confirm: true` for an empty filter.
 
 ```typescript
-// Delete single document
+// Delete one document by ID
 const result = await client.call(
   ["mongo", "documents", "delete"],
-  {
-    query: { _id: "..." }
-  },
-  { metadata: { collection: "users" } }
+  { collection: "users", id: "..." }
 );
 
 // Delete multiple documents
 const result = await client.call(
   ["mongo", "documents", "delete"],
   {
-    query: { status: "inactive" },
+    collection: "users",
+    filter: { status: "inactive" },
     multi: true
-  },
-  { metadata: { collection: "users" } }
+  }
 );
 ```
 
 **Input:**
 ```typescript
 interface DeleteInput {
-  query: DocumentQuery;
-  multi?: boolean;  // Delete all matching documents
+  collection?: string;     // Or metadata.collection
+  database?: string;       // Or metadata.database
+  id?: string;             // Exactly one of id and filter
+  idType?: "auto" | "objectId" | "string";
+  filter?: DocumentQuery;
+  multi?: boolean;   // Delete all matching documents
+  confirm?: boolean; // Required for an empty filter
 }
 ```
 
 **Output:**
 ```typescript
 interface DeleteOutput {
+  acknowledged: boolean;
   deletedCount: number;
 }
 ```
@@ -1029,7 +1061,7 @@ console.log(findResult.pagination);
 await client.call(
   ["mongo", "documents", "update"],
   {
-    query: { email: "alice@example.com" },
+    filter: { email: "alice@example.com" },
     update: { $set: { status: "inactive" } }
   },
   { metadata: { collection: "users" } }
@@ -1039,7 +1071,7 @@ await client.call(
 await client.call(
   ["mongo", "documents", "delete"],
   {
-    query: { status: "inactive" },
+    filter: { status: "inactive" },
     multi: true
   },
   { metadata: { collection: "users" } }

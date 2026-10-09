@@ -4,14 +4,13 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection, type IndexInfo } from "../types.js";
+import { type IndexInfo } from "../types.js";
 
 // Input/Output types
-interface ListIndexesInput {
-  [key: string]: never;
-}
+/** The input: only the scope fields. */
+type ListIndexesInput = ScopeInput;
 
 interface ListIndexesOutput {
   indexes: IndexInfo[];
@@ -30,11 +29,8 @@ export const listIndexesProcedure: Procedure<
   .input(listIndexesInputSchema)
   .output(listIndexesOutputSchema)
   .meta({ description: "List indexes on a collection" })
-  .handler(async (_input: ListIndexesInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+  .handler(async (input: ListIndexesInput, ctx: ProcedureContext) => {
+    const { collection } = await collectionFor(input, ctx);
 
     const indexes = await collection.listIndexes().toArray();
 

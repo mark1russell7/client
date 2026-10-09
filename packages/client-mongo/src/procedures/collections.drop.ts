@@ -4,12 +4,11 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionName, databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection } from "../types.js";
 
 // Input/Output types
-interface DropInput {
+interface DropInput extends ScopeInput {
   /** Confirmation required to prevent accidental drops */
   confirm: boolean;
 }
@@ -33,14 +32,14 @@ export const dropProcedure: Procedure<
   .output(dropOutputSchema)
   .meta({ description: "Drop (delete) a collection" })
   .handler(async (input: DropInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
+    const name = collectionName(input, ctx);
 
     if (!input.confirm) {
       throw new Error("confirm must be true to drop a collection");
     }
 
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const dropped = await db.dropCollection(meta.collection);
+    const db = await databaseFor(input, ctx);
+    const dropped = await db.dropCollection(name);
 
     return {
       acknowledged: true,

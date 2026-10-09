@@ -4,12 +4,11 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection } from "../types.js";
 
 // Input/Output types
-interface DropIndexInput {
+interface DropIndexInput extends ScopeInput {
   indexName: string;
 }
 
@@ -31,10 +30,7 @@ export const dropIndexProcedure: Procedure<
   .output(dropIndexOutputSchema)
   .meta({ description: "Drop an index from a collection" })
   .handler(async (input: DropIndexInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     await collection.dropIndex(input.indexName);
 

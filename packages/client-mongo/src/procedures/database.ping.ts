@@ -4,14 +4,12 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { getBaseMeta } from "../types.js";
 
 // Input/Output types
-interface PingInput {
-  [key: string]: never;
-}
+/** The input: only the scope fields. */
+type PingInput = ScopeInput;
 
 interface PingOutput {
   ok: boolean;
@@ -31,9 +29,8 @@ export const pingProcedure: Procedure<
   .input(pingInputSchema)
   .output(pingOutputSchema)
   .meta({ description: "Health check and connectivity test" })
-  .handler(async (_input: PingInput, ctx: ProcedureContext) => {
-    const meta = getBaseMeta(ctx.metadata);
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
+  .handler(async (input: PingInput, ctx: ProcedureContext) => {
+    const db = await databaseFor(input, ctx);
 
     const start = Date.now();
     await db.command({ ping: 1 });

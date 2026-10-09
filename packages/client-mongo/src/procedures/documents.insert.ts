@@ -4,12 +4,12 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection, type MongoDocument } from "../types.js";
+import { type MongoDocument } from "../types.js";
 
 // Input/Output types
-interface InsertInput {
+interface InsertInput extends ScopeInput {
   /** Single document or array of documents */
   documents: MongoDocument | MongoDocument[];
 }
@@ -34,10 +34,7 @@ export const insertProcedure: Procedure<
   .output(insertOutputSchema)
   .meta({ description: "Insert one or more documents" })
   .handler(async (input: InsertInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     const docs = Array.isArray(input.documents)
       ? input.documents

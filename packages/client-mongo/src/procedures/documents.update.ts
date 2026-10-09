@@ -3,32 +3,19 @@
  * Update documents matching a filter
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import type { Document } from "mongodb";
-import { getDb } from "../connection.js";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { collectionFor } from "../scope.js";
 import { schema } from "./schema.js";
-import {
-  requireCollection,
-  buildIdFilter,
-  type IdType,
-  type DocumentQuery,
-  type DocumentUpdate,
-} from "../types.js";
+import type { DocumentUpdate } from "../types.js";
+import { parseTarget, targetFilter, upsertFilter, type TargetInput } from "./target.js";
 
 // Input/Output types
-interface UpdateInput {
-  /** Filter to match documents (or id for single document) */
-  filter?: DocumentQuery;
-  /** Document ID (alternative to filter for single document) */
-  id?: string;
-  /** How to interpret the id (default: "auto" — matches ObjectId or string) */
-  idType?: IdType;
+/** The input: exactly one of `id` or `filter`, the update, and the scope fields. */
+interface UpdateInput extends TargetInput {
   /** Update operations */
   update: DocumentUpdate;
   /** Insert if not found */
   upsert?: boolean;
-  /** Update all matching documents */
-  multi?: boolean;
 }
 
 interface UpdateOutput {
@@ -39,20 +26,25 @@ interface UpdateOutput {
   upsertedCount: number;
 }
 
-// Schemas
-const updateInputSchema = schema<UpdateInput>();
-const updateOutputSchema = schema<UpdateOutput>();
-
-/**
- * Build filter from id or filter input.
- * Uses Document type which accepts any _id via index signature.
- */
-function buildFilter(input: UpdateInput): Document {
-  if (input.id) {
-    return buildIdFilter(input.id, input.idType);
+function parseUpdateInput(data: unknown): UpdateInput {
+  const procedure = "mongo.documents.update";
+  const { target, raw } = parseTarget(procedure, data, ["update", "upsert"]);
+  const update = raw["update"];
+  if (typeof update !== "object" || update === null) {
+    throw new Error(`${procedure}: update must be an object (or a pipeline array)`);
   }
-  return input.filter ?? {};
+  const result: UpdateInput = { ...target, update: update as DocumentUpdate };
+  const upsert = raw["upsert"];
+  if (upsert !== undefined) {
+    if (typeof upsert !== "boolean") throw new Error(`${procedure}: upsert must be a boolean`);
+    result.upsert = upsert;
+  }
+  return result;
 }
+
+// Schemas
+const updateInputSchema = zodAdapter<UpdateInput>({ parse: parseUpdateInput });
+const updateOutputSchema = schema<UpdateOutput>();
 
 export const updateProcedure: Procedure<
   UpdateInput,
@@ -64,27 +56,13 @@ export const updateProcedure: Procedure<
   .output(updateOutputSchema)
   .meta({ description: "Update documents matching a filter" })
   .handler(async (input: UpdateInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
-    const filter = buildFilter(input);
+    const { collection } = await collectionFor(input, ctx);
+    const upsert = input.upsert ?? false;
+    const filter = upsert ? await upsertFilter(collection, input) : targetFilter(input);
 
-    if (input.multi) {
-      const result = await collection.updateMany(filter, input.update, {
-        upsert: input.upsert ?? false,
-      });
-      return {
-        acknowledged: result.acknowledged,
-        matchedCount: result.matchedCount,
-        modifiedCount: result.modifiedCount,
-        upsertedId: result.upsertedId ? String(result.upsertedId) : null,
-        upsertedCount: result.upsertedCount,
-      };
-    }
-
-    const result = await collection.updateOne(filter, input.update, {
-      upsert: input.upsert ?? false,
-    });
+    const result = input.multi
+      ? await collection.updateMany(filter, input.update, { upsert })
+      : await collection.updateOne(filter, input.update, { upsert });
     return {
       acknowledged: result.acknowledged,
       matchedCount: result.matchedCount,

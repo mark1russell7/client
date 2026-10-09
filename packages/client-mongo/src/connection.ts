@@ -140,6 +140,37 @@ export async function connect(
   return connection;
 }
 
+// The options of the connection that ensureConnection() makes, and its attempt in progress
+let lazyOptions: MongoConnectionOptions = {};
+let pending: Promise<MongoConnection> | null = null;
+
+/**
+ * Set the options of the connection that the procedures make on their first call.
+ * The defaults are the `MONGODB_URI` and `MONGODB_DATABASE` environment variables.
+ */
+export function configure(options: MongoConnectionOptions): void {
+  lazyOptions = options;
+}
+
+/**
+ * Get the default connection, and connect first when there is no open one.
+ *
+ * The procedures call this function, so a host does not have to call `connect()`. (Before,
+ * nothing called `connect()`, and each `mongo.*` tool of the MCP server failed: deep dive DATA-5.)
+ * Concurrent first calls share one connection attempt.
+ */
+export function ensureConnection(): Promise<MongoConnection> {
+  if (defaultConnection?.isConnected()) {
+    return Promise.resolve(defaultConnection);
+  }
+  if (!pending) {
+    pending = connect(lazyOptions).finally(() => {
+      pending = null;
+    });
+  }
+  return pending;
+}
+
 /**
  * Disconnect the default connection
  */
