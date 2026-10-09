@@ -142,10 +142,37 @@ export function checkProgram(value: unknown): string | null {
   return null;
 }
 
+/**
+ * True when the brackets of a JSON text nest deeper than `limit`. The scan is linear and has
+ * no recursion: `JSON.parse` of a very deep text can overflow the stack in some engines.
+ */
+function nestsDeeperThan(text: string, limit: number): boolean {
+  let depth = 0;
+  let inString = false;
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") index++;
+      else if (char === '"') inString = false;
+    } else if (char === '"') {
+      inString = true;
+    } else if (char === "[" || char === "{") {
+      if (++depth > limit) return true;
+    } else if (char === "]" || char === "}") {
+      depth--;
+    }
+  }
+  return false;
+}
+
 /** The program of a JSON text, or the reason why the text is not a program. */
 export function parseProgram(text: string): { ok: true; program: Json } | { ok: false; reason: string } {
   if (text.length > LIMITS.text) {
     return { ok: false, reason: `The program has more than ${LIMITS.text.toLocaleString("en")} characters.` };
+  }
+  // The root counts as a level, so a program at the limit has LIMITS.depth + 1 open brackets
+  if (nestsDeeperThan(text, LIMITS.depth + 1)) {
+    return { ok: false, reason: `The program has more than ${LIMITS.depth} levels of nested values.` };
   }
   let parsed: unknown;
   try {

@@ -66,11 +66,18 @@ describe("share links", () => {
   });
 
   it("refuse a program that is too deep or too large (deep dive SITE-6)", () => {
-    let deep: Json = 1;
-    for (let index = 0; index < 3000; index++) deep = [deep];
-    const read = readProgram(encodeProgram(deep));
+    // The text of 3000 nested lists: JSON.stringify of such a value overflows the stack in Node 22
+    const deepText = "[".repeat(3000) + "1" + "]".repeat(3000);
+    const link = btoa(deepText).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const read = readProgram(link);
     expect(read.ok).toBe(false);
     if (!read.ok) expect(read.reason).toContain("levels");
+    // A bracket in a string does not count
+    expect(readProgram(encodeProgram({ $proc: ["client", "identity"], input: { value: "[".repeat(500) } })).ok).toBe(true);
+    let limit: Json = 1;
+    for (let index = 0; index < LIMITS.depth; index++) limit = [limit];
+    expect(readProgram(encodeProgram(limit)).ok).toBe(true);
+    expect(readProgram(encodeProgram([limit])).ok).toBe(false);
 
     const wide: Json = Array.from({ length: LIMITS.nodes + 1 }, () => 0);
     expect(checkProgram(wide)).toContain("values");

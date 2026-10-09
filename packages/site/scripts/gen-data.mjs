@@ -232,7 +232,8 @@ function git(...args) {
     return null;
   }
 }
-const commit = process.env["GITHUB_SHA"] || git("rev-parse", "HEAD");
+// Not GITHUB_SHA: in a workflow_run job it names the head of main, not the commit that CI tested
+const commit = process.env["SITE_COMMIT"] || git("rev-parse", "HEAD");
 const build = { commit, date: (commit && git("show", "-s", "--format=%cI", commit)) || new Date().toISOString() };
 
 // ---------------------------------------------------------------------------
