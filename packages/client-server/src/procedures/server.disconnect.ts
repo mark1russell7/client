@@ -5,11 +5,11 @@
 
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { serverDisconnectInputSchema } from "../input-schemas.js";
 import type { ServerDisconnectInput, ServerDisconnectOutput } from "../types.js";
 import { disconnect } from "../connection/index.js";
 
 // Use pass-through schemas
-const serverDisconnectInputSchema = schema<ServerDisconnectInput>();
 const serverDisconnectOutputSchema = schema<ServerDisconnectOutput>();
 
 export const serverDisconnectProcedure: Procedure<

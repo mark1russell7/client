@@ -10,28 +10,28 @@ export type TransportType = "http" | "websocket" | "local";
 
 export interface HttpTransportConfig {
   type: "http";
-  port?: number;
-  host?: string;
-  basePath?: string;
+  port?: number | undefined;
+  host?: string | undefined;
+  basePath?: string | undefined;
   /** Send CORS headers. The default is false: only `corsOrigins` (or loopback pages) are served to browsers. */
-  cors?: boolean;
+  cors?: boolean | undefined;
   /** Browser origins that may call the peer, besides loopback origins */
-  corsOrigins?: string[];
+  corsOrigins?: string[] | undefined;
   /** URL strategy: "rest" (default) or "rpc" for /rpc/service/operation format */
-  urlStrategy?: "rest" | "rpc";
+  urlStrategy?: "rest" | "rpc" | undefined;
   /** A secret that every request must send as `Authorization: Bearer <token>` */
-  token?: string;
+  token?: string | undefined;
 }
 
 export interface WebSocketTransportConfig {
   type: "websocket";
-  port?: number;
-  host?: string;
-  path?: string;
+  port?: number | undefined;
+  host?: string | undefined;
+  path?: string | undefined;
   /** Browser origins that may connect, besides loopback origins */
-  origins?: string[];
+  origins?: string[] | undefined;
   /** A secret that every connection must send as `?token=<token>` (or a bearer header) */
-  token?: string;
+  token?: string | undefined;
 }
 
 export interface LocalTransportConfig {
@@ -46,11 +46,11 @@ export type TransportConfig = HttpTransportConfig | WebSocketTransportConfig | L
 
 export interface ServerCreateInput {
   /** Transports to enable */
-  transports?: TransportConfig[];
+  transports?: TransportConfig[] | undefined;
   /** Auto-register all procedures from registry */
-  autoRegister?: boolean;
+  autoRegister?: boolean | undefined;
   /** A secret that every request must carry (each transport that has no token of its own gets this one) */
-  token?: string;
+  token?: string | undefined;
 }
 
 export interface ServerCreateOutput {
@@ -73,9 +73,9 @@ export interface ServerConnectInput {
   /** Remote server address */
   address: string;
   /** Transport type to use */
-  transport?: TransportType;
+  transport?: TransportType | undefined;
   /** Connection timeout in ms */
-  timeout?: number;
+  timeout?: number | undefined;
 }
 
 export interface ProcedureInfo {
@@ -120,11 +120,11 @@ export type ManifestFormat = "json" | "typescript";
 
 export interface ManifestGenerateInput {
   /** Output formats to generate */
-  formats?: ManifestFormat[];
+  formats?: ManifestFormat[] | undefined;
   /** Namespace filter (only include procedures under this path) */
-  namespace?: string[];
+  namespace?: string[] | undefined;
   /** Output directory for files */
-  outputDir?: string;
+  outputDir?: string | undefined;
 }
 
 export interface ManifestGenerateOutput {
@@ -182,11 +182,11 @@ export interface ProcedureUpdateMessage {
 
 export interface ServerStartInput {
   /** Port to listen on */
-  port?: number;
+  port?: number | undefined;
   /** Host to bind to */
-  host?: string;
+  host?: string | undefined;
   /** Transport type */
-  transport?: "http" | "websocket" | "both";
+  transport?: "http" | "websocket" | "both" | undefined;
 }
 
 export interface ServerStartOutput {
@@ -210,9 +210,9 @@ export interface ServerStartOutput {
 
 export interface ServerStopInput {
   /** Port of server to stop (stops all if omitted) */
-  port?: number;
+  port?: number | undefined;
   /** Force kill with SIGKILL instead of SIGTERM */
-  force?: boolean;
+  force?: boolean | undefined;
 }
 
 export interface ServerStopOutput {
@@ -228,7 +228,7 @@ export interface ServerStopOutput {
 
 export interface ServerStatusInput {
   /** Port to check (shows all if omitted) */
-  port?: number;
+  port?: number | undefined;
 }
 
 export interface ServerStatusOutput {

@@ -9,6 +9,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { createProcedure, type Procedure } from "@mark1russell7/client";
 import { schema } from "../schema.js";
+import { serverStartInputSchema } from "../input-schemas.js";
 import { checkServer, readLockfileForPort } from "../lockfile.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
@@ -17,7 +18,6 @@ const SERVERS_DIR = path.join(MARK_DIR, "servers");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
-const serverStartInputSchema = schema<ServerStartInput>();
 const serverStartOutputSchema = schema<ServerStartOutput>();
 
 
@@ -56,7 +56,8 @@ function findCliPath(): string {
   if (currentScript) {
     // Normalize path for cross-platform check
     const normalized = currentScript.replace(/\\/g, "/");
-    if (normalized.endsWith("cli.js") || normalized.includes("cli/dist")) {
+    // mark runs as dist/bin.js (its bin) or dist/cli.js
+    if (normalized.endsWith("/dist/bin.js") || normalized.endsWith("cli.js") || normalized.includes("cli/dist")) {
       // Return absolute path
       return path.resolve(currentScript);
     }

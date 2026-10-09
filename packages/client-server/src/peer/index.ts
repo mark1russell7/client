@@ -99,8 +99,15 @@ class PeerImpl implements Peer {
   async start(): Promise<void> {
     if (this.started) return;
 
-    for (const transport of this.transports) {
-      await this.startTransport(transport);
+    try {
+      for (const transport of this.transports) {
+        await this.startTransport(transport);
+      }
+    } catch (error) {
+      // Stop the transports that started, so a failed start leaves no port open
+      await this.server.stop().catch(() => {});
+      this.endpoints = [];
+      throw error;
     }
 
     this.started = true;
@@ -216,6 +223,20 @@ class PeerImpl implements Peer {
 
     const httpServer = createServer();
 
+    // Listen first, then attach the WebSocket server. A listen error (EADDRINUSE, EACCES) rejects:
+    // before, the error had no listener, so the process ended with an unhandled 'error' event
+    // (deep dive CLI-16).
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error): void => {
+        reject(new Error(`The WebSocket server cannot listen on ${host}:${port}: ${error.message}`));
+      };
+      httpServer.once("error", onError);
+      httpServer.listen(port, host, () => {
+        httpServer.off("error", onError);
+        resolve();
+      });
+    });
+
     const wsTransport = new WebSocketServerTransport(this.server, {
       server: httpServer,
       path,
@@ -232,12 +253,12 @@ class PeerImpl implements Peer {
     });
 
     this.server.addTransport(wsTransport);
-    await wsTransport.start();
-
-    // Start the HTTP server for WebSocket upgrades
-    await new Promise<void>((resolve) => {
-      httpServer.listen(port, host, () => resolve());
-    });
+    try {
+      await wsTransport.start();
+    } catch (error) {
+      httpServer.close();
+      throw error;
+    }
 
     this.endpoints.push({
       type: "websocket",
