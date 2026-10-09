@@ -6,10 +6,10 @@
  * go to a temporary folder. (vitest.coverage replaces test.coverage of the retired client-test.)
  */
 
-import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runCommand } from "@mark1russell7/client-shell/command";
 import type { VitestCoverageInput, VitestRunInput, VitestRunOutput } from "../../types.js";
 import { resolveVitestCli } from "../../vitest-cli.js";
 
@@ -35,18 +35,6 @@ interface CoverageSummary {
   total?: Record<"lines" | "branches" | "functions" | "statements", { pct?: number } | undefined>;
 }
 
-/** The end of a stream: the procedure keeps the last OUTPUT_LIMIT characters. */
-class Tail {
-  private text = "";
-  push(chunk: Buffer): void {
-    this.text += chunk.toString("utf8");
-    if (this.text.length > OUTPUT_LIMIT * 2) this.text = this.text.slice(-OUTPUT_LIMIT);
-  }
-  toString(): string {
-    return this.text.length > OUTPUT_LIMIT ? this.text.slice(-OUTPUT_LIMIT) : this.text;
-  }
-}
-
 function readCoverage(file: string): VitestRunOutput["coverage"] {
   if (!existsSync(file)) return undefined;
   const total = (JSON.parse(readFileSync(file, "utf8")) as CoverageSummary).total;
@@ -59,9 +47,15 @@ function readCoverage(file: string): VitestRunOutput["coverage"] {
   };
 }
 
+/** The part of the procedure context that the vitest procedures read. */
+interface VitestContext {
+  metadata: Record<string, unknown>;
+  signal?: AbortSignal | undefined;
+}
+
 export async function vitestRun(
   input: VitestRunInput,
-  _ctx: { metadata: Record<string, unknown> }
+  ctx: VitestContext
 ): Promise<VitestRunOutput> {
   if (input.watch) {
     throw new Error("vitest.run runs the tests once. Use vitest.watch for watch mode.");
@@ -95,23 +89,22 @@ export async function vitestRun(
     args.push("--passWithNoTests");
   }
 
-  const stdout = new Tail();
-  const stderr = new Tail();
   const started = Date.now();
-  const code = await new Promise<number | null>((resolve, reject) => {
-    // No shell: test patterns cannot inject commands
-    const proc = spawn(process.execPath, args, {
-      cwd,
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    proc.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
-    proc.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
-    proc.on("close", resolve);
-    proc.on("error", reject);
+  // No shell: test patterns cannot inject commands. The signal kills vitest and its workers.
+  const run = await runCommand(process.execPath, {
+    args,
+    cwd,
+    signal: ctx.signal,
+    maxOutputBytes: OUTPUT_LIMIT,
+    keep: "tail",
   });
+  if (run.error) {
+    rmSync(reportDir, { recursive: true, force: true });
+    throw new Error(`vitest did not start: ${run.error}`);
+  }
+  const code = run.signal ? null : run.exitCode;
 
-  const output = { exitCode: code ?? -1, stdout: stdout.toString(), stderr: stderr.toString() };
+  const output = { exitCode: code ?? -1, stdout: run.stdout, stderr: run.stderr };
   try {
     const coverage = input.coverage ? readCoverage(join(coverageDir, "coverage-summary.json")) : undefined;
     let report: VitestJsonReport | undefined;
@@ -136,7 +129,7 @@ export async function vitestRun(
 
 export async function vitestCoverage(
   input: VitestCoverageInput,
-  ctx: { metadata: Record<string, unknown> }
+  ctx: VitestContext
 ): Promise<VitestRunOutput> {
   const { threshold, ...run } = input;
   const result = await vitestRun({ ...run, coverage: true }, ctx);

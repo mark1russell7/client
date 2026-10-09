@@ -53,6 +53,14 @@ const OUTPUT_TAIL_BYTES = 64 * 1024;
 /** How long `stop` waits after the first kill, before it kills again with SIGKILL. */
 const STOP_GRACE_MS = 5000;
 
+// The CSI and OSC escape sequences of terminals (colors, styles, links)
+const ANSI = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
+
+/** This function removes the ANSI escape sequences from a text. */
+export function stripAnsi(text: string): string {
+  return text.replace(ANSI, "");
+}
+
 interface Entry {
   info: ManagedProcessInfo;
   child: ChildProcess;
@@ -168,14 +176,16 @@ export class ProcessRegistry {
 
   /**
    * This function waits until the output of the process matches `pattern`, and gives the match.
-   * It rejects when the process ends first, or after `timeout` milliseconds.
+   * The pattern sees the output without ANSI escape codes: a program can color its output when
+   * the environment has `FORCE_COLOR`. It rejects when the process ends first, or after
+   * `timeout` milliseconds.
    */
   waitFor(id: string, pattern: RegExp, timeout = 30_000): Promise<RegExpMatchArray> {
     const entry = this.entries.get(id);
     if (!entry) return Promise.reject(new Error(`No process ${id}`));
     return new Promise((resolve, reject) => {
       const check = (): void => {
-        const match = entry.output.text().match(pattern);
+        const match = stripAnsi(entry.output.text()).match(pattern);
         if (match) {
           stop();
           resolve(match);
@@ -220,6 +230,13 @@ export class ProcessRegistry {
     const running = this.list(filter).filter((info) => info.status === "running");
     await Promise.all(running.map((info) => this.stop(info.id)));
     return running.length;
+  }
+
+  /** This function removes the record of an ended process. It keeps the record of a running one. */
+  forget(id: string): boolean {
+    const entry = this.entries.get(id);
+    if (!entry || !entry.info.exitedAt) return false;
+    return this.entries.delete(id);
   }
 
   /** This function removes the oldest records of ended processes past `keepExited`. */

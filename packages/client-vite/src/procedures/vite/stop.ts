@@ -7,6 +7,6 @@ import { serverManager } from "../../server-manager.js";
 
 export async function viteStop(input: ViteStopInput): Promise<ViteStopOutput> {
   const { serverId } = input;
-  const success = serverManager.stop(serverId);
+  const success = await serverManager.stop(serverId);
   return { success };
 }

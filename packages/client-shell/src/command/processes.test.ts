@@ -63,6 +63,26 @@ describe("ProcessRegistry", () => {
     expect(registry.list().map((info) => info.id)).toEqual(ids.slice(2));
   }, 20_000);
 
+  it("forgets the record of an ended process only", async () => {
+    const registry = new ProcessRegistry();
+    const running = registry.start(process.execPath, { args: ["-e", "setInterval(() => {}, 1000)"] });
+    const ended = registry.start(process.execPath, { args: ["-e", ""] });
+    await registry.exited(ended.id);
+    expect(registry.forget(running.id)).toBe(false);
+    expect(registry.forget(ended.id)).toBe(true);
+    expect(registry.list().map((info) => info.id)).toEqual([running.id]);
+    await registry.stop(running.id);
+  }, 20_000);
+
+  it("matches the pattern against the output without color codes", async () => {
+    const registry = new ProcessRegistry();
+    const colored = "console.log('  \\u001b[1mLocal\\u001b[22m:   \\u001b[36mhttp://localhost:\\u001b[1m5173\\u001b[22m/\\u001b[39m'); setInterval(() => {}, 1000)";
+    const started = registry.start(process.execPath, { args: ["-e", colored] });
+    const match = await registry.waitFor(started.id, /Local:\s+(http:\/\/\S+)/, 10_000);
+    expect(match[1]).toBe("http://localhost:5173/");
+    await registry.stop(started.id);
+  }, 20_000);
+
   it("rejects the wait when the process ends before the pattern appears", async () => {
     const registry = new ProcessRegistry();
     const started = registry.start(process.execPath, { args: ["-e", "console.log('bye')"] });

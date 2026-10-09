@@ -1,75 +1,60 @@
 /**
  * Vite Server Manager - Manages running Vite servers
+ *
+ * The manager is a view of the process registry of client-shell, for the group "vite"
+ * (deep dive WRP-4, WRP-10): `stop` ends the whole process tree (vite and esbuild), the registry
+ * reads the output of each server, and the servers end when the host ends.
  */
 
-import { ChildProcess } from "child_process";
+import { processes } from "@mark1russell7/client-shell/command";
+import { resolveViteCli } from "./vite-cli.js";
 
-interface ManagedServer {
-  process: ChildProcess;
+/** The group of the vite servers in the process registry. */
+export const VITE_GROUP = "vite";
+
+/** The line where vite prints the URL of a server that is ready. */
+const READY = /Local:\s+(https?:\/\/\S+)/;
+
+export interface StartedServer {
+  serverId: string;
   url: string;
-  startedAt: Date;
+  pid: number;
 }
 
 class ServerManager {
-  private servers = new Map<string, ManagedServer>();
-  private counter = 0;
-
-  register(process: ChildProcess, url: string): string {
-    const serverId = `vite-${Date.now()}-${++this.counter}`;
-    this.servers.set(serverId, { process, url, startedAt: new Date() });
-
-    process.on("exit", () => {
-      this.servers.delete(serverId);
+  /**
+   * Start `vite <args>` with the project's own vite and no shell, and wait for its URL.
+   * When the server does not get ready, the manager stops it and throws.
+   */
+  async start(args: string[], cwd: string | undefined, timeout = 30000): Promise<StartedServer> {
+    const root = cwd ?? process.cwd();
+    const started = processes.start(process.execPath, {
+      args: [resolveViteCli(root), ...args],
+      cwd: root,
+      // No colors: the output stays plain text for the readers of the registry
+      env: { NO_COLOR: "1" },
+      group: VITE_GROUP,
+      label: `vite ${args.join(" ")}`.trim(),
     });
-
-    return serverId;
-  }
-
-  get(serverId: string): ManagedServer | undefined {
-    return this.servers.get(serverId);
-  }
-
-  stop(serverId: string): boolean {
-    const server = this.servers.get(serverId);
-    if (!server) return false;
-
-    const killed = server.process.kill("SIGTERM");
-    if (killed) {
-      this.servers.delete(serverId);
+    try {
+      const match = await processes.waitFor(started.id, READY, timeout);
+      return { serverId: started.id, url: match[1]!, pid: started.pid };
+    } catch (error) {
+      await processes.stop(started.id);
+      throw error;
     }
-    return killed;
   }
 
-  async waitForReady(serverId: string, timeout = 30000): Promise<string> {
-    const server = this.servers.get(serverId);
-    if (!server) throw new Error(`Server ${serverId} not found`);
+  /** True when the server has a record and is running. */
+  running(serverId: string): boolean {
+    const info = processes.get(serverId);
+    return info?.group === VITE_GROUP && info.status === "running";
+  }
 
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error("Timeout waiting for server to start"));
-      }, timeout);
-
-      const onData = (data: Buffer) => {
-        const output = data.toString();
-        // Look for Vite's ready message with URL
-        const match = output.match(/Local:\s+(https?:\/\/[^\s]+)/);
-        if (match && match[1]) {
-          clearTimeout(timeoutId);
-          server.process.stdout?.off("data", onData);
-          const url = match[1];
-          server.url = url;
-          resolve(url);
-        }
-      };
-
-      server.process.stdout?.on("data", onData);
-      server.process.stderr?.on("data", onData);
-
-      server.process.on("exit", (code) => {
-        clearTimeout(timeoutId);
-        reject(new Error(`Server exited with code ${code}`));
-      });
-    });
+  /** Stop a server and the processes that it started, and wait for its end. */
+  async stop(serverId: string): Promise<boolean> {
+    if (!this.running(serverId)) return false;
+    return (await processes.stop(serverId)).stopped;
   }
 }
 

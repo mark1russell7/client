@@ -33,8 +33,8 @@ const nodeRunProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
   })
-  .handler(async (input: NodeRunInput): Promise<NodeRunOutput> => {
-    return nodeRun(input);
+  .handler(async (input: NodeRunInput, ctx): Promise<NodeRunOutput> => {
+    return nodeRun(input, ctx);
   })
   .build();
 
