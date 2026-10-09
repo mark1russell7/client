@@ -45,6 +45,20 @@ async function executeWithConcurrency<T, R>(
 }
 
 /**
+ * Call a listener. A listener that throws does not stop the run: the function returns a log
+ * line for its error (deep dive DATA-21).
+ */
+function notify<T>(name: string, listener: ((arg: T) => void) | undefined, arg: T): string | undefined {
+  if (!listener) return undefined;
+  try {
+    listener(arg);
+    return undefined;
+  } catch (error) {
+    return name + " threw: " + (error instanceof Error ? error.message : String(error));
+  }
+}
+
+/**
  * Execute DAG with level-based parallelization
  *
  * - Levels are processed sequentially (level 0 first, then 1, etc.)
@@ -81,7 +95,7 @@ export async function executeDAG<TNode extends DAGNode>(
     const levelResults = await executeWithConcurrency(
       level,
       async (node) => {
-        onNodeStart?.(node);
+        const startError = notify("onNodeStart", onNodeStart, node);
         const nodeStart = Date.now();
         let result: NodeResult<TNode>;
         try {
@@ -99,7 +113,11 @@ export async function executeDAG<TNode extends DAGNode>(
             logs: ["Processor threw: " + err.message],
           };
         }
-        onNodeComplete?.(result);
+        const completeError = notify("onNodeComplete", onNodeComplete, result);
+        const listenerErrors = [startError, completeError].filter((line): line is string => line !== undefined);
+        if (listenerErrors.length > 0) {
+          result = { ...result, logs: [...(result.logs ?? []), ...listenerErrors] };
+        }
         return result;
       },
       concurrency

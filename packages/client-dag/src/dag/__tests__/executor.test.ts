@@ -284,3 +284,33 @@ describe("createProcessor", () => {
     expect(result.duration).toBeGreaterThanOrEqual(45);
   });
 });
+
+describe("executeDAG listeners (deep dive DATA-21)", () => {
+  it("runs every node when onNodeStart throws, and records the error in the logs", async () => {
+    const dag = buildLeveledDAG(buildNodeMap([createNode("a"), createNode("b", ["a"])]));
+    const processor = vi.fn(async (node: DAGNode) => createSuccessResult(node));
+
+    const result = await executeDAG(dag, processor, {
+      onNodeStart: () => {
+        throw new Error("listener failed");
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(processor).toHaveBeenCalledTimes(2);
+    expect(result.results.get("a")!.logs).toContain("onNodeStart threw: listener failed");
+  });
+
+  it("keeps the result when onNodeComplete throws", async () => {
+    const dag = buildLeveledDAG(buildNodeMap([createNode("a")]));
+
+    const result = await executeDAG(dag, async (node) => createSuccessResult(node), {
+      onNodeComplete: () => {
+        throw new Error("listener failed");
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.results.get("a")!.logs).toContain("onNodeComplete threw: listener failed");
+  });
+});

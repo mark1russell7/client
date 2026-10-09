@@ -25,8 +25,10 @@ export function buildLeveledDAG<TNode extends DAGNode>(
   const dependents = new Map<string, Set<string>>();
 
   for (const [name, node] of nodes) {
-    const depsInDag = node.dependencies.filter((dep) => nodes.has(dep));
-    inDegree.set(name, depsInDag.length);
+    // A set: a dependency that a node lists twice counts once. (`dependents` is a set, so it
+    // takes the in-degree down once: a repeated dependency was "Circular": deep dive DATA-21.)
+    const depsInDag = new Set(node.dependencies.filter((dep) => nodes.has(dep)));
+    inDegree.set(name, depsInDag.size);
     dependents.set(name, new Set());
   }
 
