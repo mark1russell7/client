@@ -126,10 +126,16 @@ The package provides a `mark` binary for command-line usage.
 #### Basic Syntax
 
 ```bash
-mark <path...> [positional...] [--options]
+mark [global options] <path...> [positional...] [--options]
+mark --server [--port N] [--host H] [--transport http|websocket|both]
+mark -i
 ```
 
+The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@mark1russell7/cli` runs nothing.
+
 #### Global Options
+
+A flag before the command path is a global flag. After the path, a flag is the command's flag when the command declares it. Otherwise it is a global flag. For example, `mark docker compose down -v` gives `-v` (volumes) to the command. To show the version, write `mark -v`. `mark lib audit` lists the command flags that hide a global flag.
 
 | Option | Short | Description |
 |--------|-------|-------------|
@@ -137,7 +143,27 @@ mark <path...> [positional...] [--options]
 | `--version` | `-v` | Show CLI version |
 | `--verbose` | `-V` | Enable verbose output during discovery |
 | `--format <format>` | `-f` | Override output format (text, json, table, streaming) |
+| `--local` | | Run the command in this process, not on the CLI server |
 | `--json <json>` | | Execute raw procedure reference |
+| `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`) |
+| `--interactive` | `-i` | Start the REPL |
+
+#### Exit Codes and Failures
+
+`mark` exits with code 1 when:
+
+- the command is unknown, or the command line has a problem (an unknown flag, a missing value, an extra argument);
+- the input is not valid for the procedure;
+- the procedure throws an error;
+- the result reports a failure.
+
+A procedure reports a failure in one of three ways:
+
+1. It throws an error. This is the usual way.
+2. It returns an object with `success: false`. Use this when the result has more to show, for example the problems that `lib audit` found.
+3. It returns an object with an `exitCode` that is not 0. Use this for a procedure that runs an external command, for example `vitest run`.
+
+For a streaming procedure, `mark` examines each item. One failed item makes the command fail.
 
 #### Examples
 
@@ -152,13 +178,16 @@ mark lib --help
 mark lib new --help
 
 # Execute command with options
-mark lib new my-package --description "My package"
+mark lib new my-package --preset lib
 
 # Override output format
 mark git status --format json
 
+# A global flag before the command (docker ps has its own --format)
+mark --format json docker ps
+
 # Verbose discovery
-mark lib new my-pkg --verbose
+mark --verbose lib new my-pkg
 ```
 
 ### Programmatic API
@@ -174,9 +203,9 @@ import { run } from "@mark1russell7/cli";
 await run(["lib", "new", "my-package"]);
 ```
 
-#### `parseFromSchema(params, meta): Record<string, unknown>`
+#### `parseFromSchema(params, meta, schema?): Record<string, unknown>`
 
-Parse CLI arguments based on procedure metadata.
+Parse CLI arguments based on procedure metadata. With the schema, each value is converted by the type of its field. `parseCommandLine(argv, procedures)` splits a whole command line: the global flags, the path and the input.
 
 ```typescript
 import { parseFromSchema } from "@mark1russell7/cli";
@@ -266,8 +295,8 @@ The CLI uses a multi-step discovery process to find and load procedures:
 ```mermaid
 graph TB
     START[CLI Starts]
-    MANIFEST[Read ~/git/ecosystem/<br/>ecosystem.manifest.json]
-    PACKAGES[Iterate packages]
+    MANIFEST[Find the workspace root:<br/>pnpm-workspace.yaml]
+    PACKAGES[Iterate packages/*]
     PKGJSON[Read package.json]
     CHECK{Has client<br/>.procedures?}
     IMPORT[Dynamic import<br/>procedures file]
@@ -295,9 +324,11 @@ graph TB
 
 For a package to be discovered, it must:
 
-1. Be listed in `ecosystem.manifest.json`
+1. Be a folder in `packages/` of the workspace that holds this CLI
 2. Have a `client.procedures` field in package.json
 3. Export procedure registrations from that file
+
+A package that does not load gives one warning line. A package that is not built yet is reported only with `--verbose`.
 
 **Example package.json:**
 ```json
@@ -336,7 +367,7 @@ const libNew = defineProcedure({
 
 | Source | Path | Description |
 |--------|------|-------------|
-| Ecosystem Manifest | `~/git/ecosystem/ecosystem.manifest.json` | Primary source of truth |
+| Workspace | `<root>/pnpm-workspace.yaml`, `<root>/packages/*` | The packages that `mark` examines |
 | Package Metadata | `<pkg>/package.json` | Contains `client.procedures` path |
 | Procedure Registry | `PROCEDURE_REGISTRY` | Global registry from `@mark1russell7/client` |
 
@@ -364,11 +395,13 @@ graph LR
 
 ### Parsing Rules
 
-1. **Path Segments**: Consumed until a procedure match is found
-2. **Positional Args**: Non-flag arguments after the path
-3. **Options**: Arguments starting with `--` or `-`
-4. **Short Flags**: Single-character flags with `-`
-5. **Boolean Flags**: Flags without values default to `true`
+1. **Path Segments**: Consumed until a procedure match is found.
+2. **Flags**: A flag is a field of the input schema (`--skip-git` or `--skipGit`), or the short letter of the metadata (`-m`). A flag that the procedure does not declare is a global flag. Otherwise it is an error.
+3. **Types**: Each value is converted by the type of its field. A string field keeps its text: `mark fs exists 2024` gives the path `"2024"`, not a number. A number field needs a number. An object field, or a field with no type, takes JSON.
+4. **Boolean Flags**: A boolean flag alone is `true`. It also takes `true` or `false` after it, `--flag=false`, or `--no-flag`.
+5. **Arrays and Records**: A repeated array flag collects its values (`--tag a --tag b`). A record flag takes `key=value` and can be repeated (`--env A=1 --env B=2`). Both also take JSON.
+6. **Positional Args**: The fields of `args` take the arguments in order. A last array field takes the rest. An argument that no field takes is an error.
+7. **Values**: A negative number is a value (`--count -5`). `--` ends the flags: the tokens after it are arguments. Short boolean flags can be grouped (`-it`). A short flag can have its value attached (`-n5`).
 
 ### Examples
 
@@ -376,24 +409,19 @@ graph LR
 # Simple command
 mark lib new my-package
 # path: ["lib", "new"]
-# positional: ["my-package"]
+# input: { name: "my-package" }
 
 # With options
-mark lib new my-package --description "My package" --skip-git
-# path: ["lib", "new"]
-# positional: ["my-package"]
-# options: { description: "My package", skipGit: true }
+mark lib new my-package --preset lib --dry-run
+# input: { name: "my-package", preset: "lib", dryRun: true }
 
-# Short flags
-mark git commit -m "message" --amend
-# path: ["git", "commit"]
-# options: { m: "message", amend: true }
+# Short flags (the metadata maps -m to message)
+mark git commit -m "message" --amend false
+# input: { message: "message", amend: false }
 
-# With equals syntax
-mark pnpm add lodash --dev=true
-# path: ["pnpm", "add"]
-# positional: ["lodash"]
-# options: { dev: true }
+# Arguments that look like flags, after --
+mark docker exec box -- ls -la /tmp
+# input: { container: "box", command: ["ls", "-la", "/tmp"] }
 ```
 
 ### Metadata-Based Mapping

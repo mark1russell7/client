@@ -7,7 +7,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "mark": "./dist/cli.js"
+    "mark": "./dist/bin.js"
   },
   "exports": {
     ".": {
@@ -23,8 +23,9 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test:e2e": "vitest run e2e/",
-    "test:e2e:watch": "vitest e2e/"
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:watch": "vitest --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",

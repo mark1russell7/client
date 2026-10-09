@@ -6,8 +6,9 @@
  */
 
 import { basename, join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, type AnyProcedure, type ProcedureContext } from "@mark1russell7/client";
 import type {
+  FlagNotice,
   LibAuditInput,
   LibAuditOutput,
   PackageAuditResult,
@@ -15,6 +16,7 @@ import type {
 } from "../../types.js";
 import { libScan } from "./scan.js";
 import { resolveWorkspaceRoot } from "../../workspace.js";
+import { CLI_GLOBAL_FLAGS } from "../../cli-flags.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
 interface FsReadJsonOutput { path: string; data: unknown; }
@@ -213,12 +215,58 @@ async function auditPackage(
 }
 
 /**
- * Audit all client packages of the workspace against the package template
+ * The field names of a procedure's input schema (a Zod object, also through zodAdapter)
+ */
+function inputFieldNames(schema: unknown): string[] {
+  const node = schema as { shape?: unknown; _def?: { shape?: () => Record<string, unknown> } } | undefined;
+  if (node?.shape && typeof node.shape === "object") {
+    return Object.keys(node.shape);
+  }
+  if (typeof node?._def?.shape === "function") {
+    return Object.keys(node._def.shape());
+  }
+  return [];
+}
+
+/**
+ * The procedure flags that hide a global flag of `mark` after the command path. `mark` gives a
+ * flag after the path to the procedure when the procedure declares it, so the user must give
+ * the global flag before the command. The server options (`--port`, `--host`, `--transport`)
+ * are not reported: they are global only with `--server`, which takes no command.
+ */
+export function findFlagNotices(procedures: readonly AnyProcedure[]): FlagNotice[] {
+  const notices: FlagNotice[] = [];
+  const globals = CLI_GLOBAL_FLAGS.filter((flag) => !flag.serverOption);
+  for (const procedure of procedures) {
+    const name = procedure.path.join(" ");
+    const shorts = ((procedure.metadata ?? {}) as { shorts?: Record<string, string> }).shorts ?? {};
+    for (const [field, letter] of Object.entries(shorts)) {
+      const global = globals.find((flag) => flag.short === letter);
+      if (global) {
+        notices.push({ procedure: name, flag: `-${letter} (${field})`, global: `-${letter} (--${global.long})` });
+      }
+    }
+    for (const field of inputFieldNames(procedure.input)) {
+      const kebab = field.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+      const global = globals.find((flag) => flag.long === field || flag.long === kebab);
+      if (global) {
+        notices.push({ procedure: name, flag: `--${kebab}`, global: `--${global.long}` });
+      }
+    }
+  }
+  return notices;
+}
+
+/**
+ * Audit all client packages of the workspace against the package template. The result also
+ * lists the procedure flags that hide a global flag of `mark` (information only).
  */
 export async function libAudit(input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput> {
   const template = PACKAGE_TEMPLATE;
+  const flagNotices = findFlagNotices(PROCEDURE_REGISTRY.getAll());
   const empty: LibAuditOutput = {
     success: false,
+    flagNotices,
     template,
     results: [],
     summary: { total: 0, valid: 0, invalid: 0 },
@@ -247,6 +295,7 @@ export async function libAudit(input: LibAuditInput, ctx: ProcedureContext): Pro
 
   return {
     success: invalidCount === 0,
+    flagNotices,
     template,
     results,
     summary: {

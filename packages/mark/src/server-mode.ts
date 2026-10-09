@@ -96,6 +96,9 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   if (!["127.0.0.1", "localhost", "::1"].includes(host)) {
     print.warning(`The server listens on ${host}: other computers can reach it. Every request needs its token.`);
   }
+  if (options.transport === "websocket") {
+    print.warning("A WebSocket-only server takes no `mark` commands: `mark` sends its commands over HTTP.");
+  }
 
   const result = await client.call<
     { transports: typeof transports; autoRegister: boolean; token: string },
@@ -151,19 +154,44 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
 }
 
 /**
+ * The port number of a `--port` value. An invalid port is an error (before, it became 3000:
+ * deep dive CLI-16).
+ */
+export function parsePort(value: string): number {
+  const port = /^\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid port: "${value}". Give a number from 1 to 65535.`);
+  }
+  return port;
+}
+
+/** The transports `--transport` accepts */
+export const SERVER_TRANSPORTS = ["http", "websocket", "both"] as const;
+
+/**
+ * The transport of a `--transport` value
+ */
+export function parseTransport(value: string): "http" | "websocket" | "both" {
+  const transport = SERVER_TRANSPORTS.find((name) => name === value);
+  if (!transport) {
+    throw new Error(`Invalid transport: "${value}". Give one of: ${SERVER_TRANSPORTS.join(", ")}.`);
+  }
+  return transport;
+}
+
+/**
  * Extract port from argv
  */
 export function extractPort(argv: string[]): number | null {
   // --port 4000 and --port=4000 (before, the second form was ignored: deep dive CLI-1)
   const inline = argv.find((arg) => arg.startsWith("--port="));
   const portIdx = argv.indexOf("--port");
-  const portValue = inline !== undefined ? inline.slice("--port=".length) : portIdx !== -1 ? argv[portIdx + 1] : undefined;
-  if (portValue === undefined) return null;
-  const port = Number(portValue);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Invalid port: ${portValue}`);
+  if (inline === undefined && portIdx === -1) return null;
+  const portValue = inline !== undefined ? inline.slice("--port=".length) : argv[portIdx + 1];
+  if (portValue === undefined) {
+    throw new Error("--port needs a value");
   }
-  return port;
+  return parsePort(portValue);
 }
 
 /**

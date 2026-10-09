@@ -6,8 +6,6 @@
  */
 
 import { currentBuild, findServer } from "./lockfile.js";
-import type { AnyProcedure } from "@mark1russell7/client";
-import { parseFromSchema, type CLIMeta } from "./parse.js";
 
 interface ClientModeResult {
   success: boolean;
@@ -18,14 +16,13 @@ interface ClientModeResult {
 }
 
 /**
- * Try to execute command via running server
+ * Try to execute command via running server. The input is the procedure input that the CLI
+ * parsed and validated already.
  * Returns null if no server available (should fall back to local)
  */
 export async function tryClientMode(
   path: string[],
-  args: string[],
-  options: Record<string, unknown>,
-  procedures: AnyProcedure[],
+  input: unknown,
   onItem?: (item: unknown) => void
 ): Promise<ClientModeResult | null> {
   // A running server of this build, started in this folder, that answers as the peer of its
@@ -38,13 +35,13 @@ export async function tryClientMode(
     return null;
   }
   const lockfile = await findServer({ cwd: process.cwd(), build: currentBuild() });
-  if (!lockfile?.token) {
+  // mark sends its commands over HTTP: a WebSocket-only server cannot take them
+  if (!lockfile?.token || lockfile.transport === "websocket") {
     return null;
   }
 
   let client: InstanceType<typeof import("@mark1russell7/client").Client>;
   let method: { service: string; operation: string };
-  let input: Record<string, unknown>;
   try {
     // Dynamic import client
     const clientModule = await import("@mark1russell7/client");
@@ -56,22 +53,6 @@ export async function tryClientMode(
       defaultHeaders: { Authorization: `Bearer ${lockfile.token}` },
     });
     client = new Client({ transport });
-
-    // Find matching procedure to get input schema
-    const proc = findProcedure(procedures, path);
-    if (!proc) {
-      return null; // Unknown procedure, fall back to local
-    }
-
-    // Parse input from CLI args
-    const meta = (proc.metadata ?? {}) as CLIMeta;
-    const parameters = { array: args, options };
-    input = parseFromSchema(parameters, meta);
-
-    // Validate input if schema exists
-    if (proc.input) {
-      input = proc.input.parse(input) as Record<string, unknown>;
-    }
 
     // The method of the path as ProcedureServer registers it: the last segment is the operation.
     // (Before, the first segment was the service, so a path of three segments - docker compose up -
@@ -106,17 +87,4 @@ export async function tryClientMode(
       error: error instanceof Error ? error.message : String(error),
     };
   }
-}
-
-/**
- * Find a procedure matching the given path
- */
-function findProcedure(
-  procedures: AnyProcedure[],
-  path: string[]
-): AnyProcedure | undefined {
-  return procedures.find((p) => {
-    if (p.path.length !== path.length) return false;
-    return p.path.every((seg, i) => seg === path[i]);
-  });
 }
