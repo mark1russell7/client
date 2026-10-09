@@ -143,7 +143,7 @@ const gitCommitProcedure = createProcedure()
   .meta({
     description: "Create commit",
     args: ["message"],
-    shorts: { all: "a", amend: "A", cwd: "C" },
+    shorts: { message: "m", all: "a", amend: "A", cwd: "C" },
     output: "json",
   })
   .handler(async (input: GitCommitInput, ctx): Promise<GitCommitOutput> => {
