@@ -51,10 +51,11 @@ import type {
   StreamingCallResponse,
   ProcedureCallResult,
 } from "./call-types.js";
-import { buildResponse } from "./call-types.js";
-import { RouteResolver, type ResolvedRoute } from "./route-resolver.js";
+import { buildResponse, toMiddlewareContext } from "./call-types.js";
+import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from "./route-resolver.js";
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
+import type { EventBus } from "../events/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import type { AnyProcedure, ProcedureClient, ProcedurePath } from "../procedures/types.js";
 import {
@@ -74,6 +75,63 @@ import {
   type ProcedureRef,
   type AnyProcedureRef,
 } from "../procedures/ref.js";
+
+/** Each element of each array item: the stream form of an `outputMode: "batch"` procedure. */
+async function* batchElements(items: AsyncIterable<unknown>): AsyncGenerator<unknown, void, undefined> {
+  for await (const item of items) {
+    if (Array.isArray(item)) {
+      yield* item;
+    } else {
+      yield item;
+    }
+  }
+}
+
+/**
+ * The items of a source, with up to `size` items read ahead of the reader. With size 0, the
+ * source runs only when the reader reads (the source itself is returned).
+ */
+function readAhead<T>(source: AsyncIterable<T>, size: number): AsyncIterable<T> {
+  if (size <= 0) return source;
+  return (async function* () {
+    const iterator = source[Symbol.asyncIterator]();
+    const buffer: Array<Promise<IteratorResult<T>>> = [];
+    let ended = false;
+    const pull = (): void => {
+      while (!ended && buffer.length < size + 1) {
+        const next = iterator.next();
+        buffer.push(next);
+        // The handler marks the end, and keeps a failure from being unhandled until it is read
+        next.then(
+          (result) => {
+            if (result.done) ended = true;
+          },
+          () => {
+            ended = true;
+          }
+        );
+      }
+    };
+    let finished = false;
+    try {
+      // Before each read: the item for the reader, and `size` items ahead
+      for (pull(); buffer.length > 0; pull()) {
+        const result = await buffer.shift()!;
+        if (result.done) break;
+        yield result.value;
+      }
+      finished = true;
+    } finally {
+      if (!finished) await iterator.return?.();
+    }
+  })();
+}
+
+/** The metadata and the signal of a procedure, for the nested calls that it makes. */
+interface CallerContext {
+  metadata?: Record<string, unknown> | undefined;
+  signal?: AbortSignal | undefined;
+}
 
 /**
  * Generate a unique message ID.
@@ -125,6 +183,8 @@ export class Client<TContext = {}> {
   private readonly middleware: ClientMiddleware[] = [];
   private readonly defaultMetadata: Metadata;
   private readonly throwOnError: boolean;
+  /** The bus of the local procedures. Undefined: the global bus. */
+  private bus: EventBus | undefined;
 
   /**
    * Context values set via withContext().
@@ -152,6 +212,7 @@ export class Client<TContext = {}> {
       this.transport = opts.transport;
       this.defaultMetadata = opts.defaultMetadata || {};
       this.throwOnError = opts.throwOnError !== false;
+      this.bus = opts.bus;
     }
 
     // Initialize empty context (child clients override this)
@@ -173,6 +234,7 @@ export class Client<TContext = {}> {
     (child as any).middleware = parent.middleware;
     (child as any).defaultMetadata = parent.defaultMetadata;
     (child as any).throwOnError = parent.throwOnError;
+    (child as any).bus = parent.bus;
 
     // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
     // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
@@ -459,15 +521,27 @@ export class Client<TContext = {}> {
 
   /**
    * The options of a local invocation. The nested calls of the procedure go through this
-   * client, so a path without a local handler goes to the transport.
+   * client, so a path without a local handler goes to the transport. The nested calls get the
+   * metadata and the signal of the caller: when the caller aborts, its nested work stops. (Before,
+   * each nested call started again with no metadata and no signal: deep dive CORE-10.)
    */
   private invokeOptions(metadata: Record<string, unknown> = {}, signal?: AbortSignal): InvokeOptions {
     const self = this;
+    const caller: CallerContext = { metadata, signal };
     const client: ProcedureClient = {
-      call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input),
-      stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input),
+      call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, caller),
+      stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, caller),
     };
-    return { registry: this.procedureRegistry, metadata, signal, client };
+    return { registry: this.procedureRegistry, metadata, signal, client, bus: this.bus };
+  }
+
+  /** The call options of a remote call for a caller: its metadata as context, and its signal. */
+  private remoteCallOptions(caller: CallerContext): CallOptions<TContext> {
+    const options: CallOptions<TContext> = { context: (caller.metadata ?? {}) as ClientContextInput<TContext> };
+    if (caller.signal) {
+      options.signal = caller.signal;
+    }
+    return options;
   }
 
   /**
@@ -492,28 +566,43 @@ export class Client<TContext = {}> {
    */
   private async execInternal<TOutput>(
     path: ProcedurePath,
-    input: unknown
+    input: unknown,
+    caller: CallerContext = {}
   ): Promise<TOutput> {
     const procedure = this.procedureRegistry.get(path);
     if (procedure?.handler) {
-      return outputValue(await invokeProcedure<TOutput>(procedure, input, this.invokeOptions()), path);
+      const options = this.invokeOptions(caller.metadata, caller.signal);
+      return outputValue(await invokeProcedure<TOutput>(procedure, input, options), path);
     }
     // No local handler: the transport runs it (a remote procedure)
-    return this.call(this.pathToMethod(path), this.remoteInput(procedure, path, input)) as Promise<TOutput>;
+    return this.call(
+      this.pathToMethod(path),
+      this.remoteInput(procedure, path, input),
+      this.remoteCallOptions(caller)
+    ) as Promise<TOutput>;
   }
 
   /**
    * Internal streaming execution (no hydration of the top-level input).
    */
-  private execStreamInternal<TOutput>(path: ProcedurePath, input: unknown): AsyncIterable<TOutput> {
+  private execStreamInternal<TOutput>(
+    path: ProcedurePath,
+    input: unknown,
+    caller: CallerContext = {}
+  ): AsyncIterable<TOutput> {
     const self = this;
     return (async function* () {
       const procedure = self.procedureRegistry.get(path);
       if (procedure?.handler) {
-        yield* outputItems(await invokeProcedure<TOutput>(procedure, input, self.invokeOptions()));
+        const options = self.invokeOptions(caller.metadata, caller.signal);
+        yield* outputItems(await invokeProcedure<TOutput>(procedure, input, options));
         return;
       }
-      yield* self.stream<unknown, TOutput>(self.pathToMethod(path), self.remoteInput(procedure, path, input));
+      yield* self.stream<unknown, TOutput>(
+        self.pathToMethod(path),
+        self.remoteInput(procedure, path, input),
+        self.remoteCallOptions(caller)
+      );
     })();
   }
 
@@ -750,6 +839,17 @@ export class Client<TContext = {}> {
   }
 
   /**
+   * Set the event bus of the local procedures of this client (`ctx.bus`).
+   *
+   * @param bus - Event bus for the procedures
+   * @returns this (for chaining)
+   */
+  useBus(bus: EventBus): this {
+    this.bus = bus;
+    return this;
+  }
+
+  /**
    * Make a call using the nested route API.
    *
    * This method supports:
@@ -803,39 +903,7 @@ export class Client<TContext = {}> {
     const resolution = resolver.resolve(request.route);
 
     if (!resolution.success) {
-      // Build error response for failed resolutions
-      const errorResults: Array<[ProcedurePath, ProcedureCallResult]> = resolution.errors.map(
-        (error) => [
-          error.path,
-          {
-            success: false,
-            error: {
-              code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
-              message: error.message,
-              retryable: false,
-              path: error.path,
-            },
-          },
-        ]
-      );
-
-      // Include any successful resolutions as pending
-      for (const resolved of resolution.resolved) {
-        errorResults.push([
-          resolved.path,
-          {
-            success: false,
-            error: {
-              code: "SKIPPED",
-              message: "Skipped due to other route errors",
-              retryable: false,
-              path: resolved.path,
-            },
-          },
-        ]);
-      }
-
-      return buildResponse<TRoute>(errorResults);
+      return buildResponse<TRoute>(this.resolutionFailure(resolution));
     }
 
     // Create execution context
@@ -871,20 +939,7 @@ export class Client<TContext = {}> {
 
     if (!resolution.success) {
       // Return error response immediately
-      const errorResults: Array<[ProcedurePath, ProcedureCallResult]> = resolution.errors.map(
-        (error) => [
-          error.path,
-          {
-            success: false,
-            error: {
-              code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
-              message: error.message,
-              retryable: false,
-              path: error.path,
-            },
-          },
-        ]
-      );
+      const errorResults = this.resolutionFailure(resolution);
 
       return {
         results: (async function* () {
@@ -904,6 +959,33 @@ export class Client<TContext = {}> {
       context,
       streamConfig
     );
+  }
+
+  /**
+   * The results of a route that did not resolve: an error for each leaf that failed, and
+   * `SKIPPED` for every other leaf, also the leaves after a validation error. (Before, the leaves
+   * after a validation error were missing: deep dive CORE-14.)
+   */
+  private resolutionFailure(resolution: RouteResolutionResult): Array<[ProcedurePath, ProcedureCallResult]> {
+    const skipped = (path: ProcedurePath): ProcedureCallResult => ({
+      success: false,
+      error: { code: "SKIPPED", message: "Skipped due to other route errors", retryable: false, path },
+    });
+    const results: Array<[ProcedurePath, ProcedureCallResult]> = resolution.errors.map((error) => [
+      error.path,
+      {
+        success: false,
+        error: {
+          code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
+          message: error.message,
+          retryable: false,
+          path: error.path,
+        },
+      },
+    ]);
+    for (const resolved of resolution.resolved) results.push([resolved.path, skipped(resolved.path)]);
+    for (const path of resolution.skipped) results.push([path, skipped(path)]);
+    return results;
   }
 
   /**
@@ -932,17 +1014,18 @@ export class Client<TContext = {}> {
   private createExecutionContext<TRoute extends Route>(
     request: CallRequest<TRoute>
   ): ExecutionContext {
-    // Merge context: parent chain -> client context -> middleware overrides
+    // Merge context: parent chain -> client context -> middleware overrides. The override keys
+    // become the keys that the middleware reads (deep dive CORE-14). No internal key goes into
+    // the metadata: a handler sees it as ctx.metadata (deep dive CORE-10).
     const effectiveContext = mergeContext(
       this.getEffectiveContext() as object,
-      (request.middlewares ?? {}) as object
+      toMiddlewareContext(request.middlewares)
     );
 
     const context: ExecutionContext = {
       metadata: {
         ...this.defaultMetadata,
         ...effectiveContext,
-        __middlewareOverrides: request.middlewares,
       },
     };
 
@@ -960,8 +1043,12 @@ export class Client<TContext = {}> {
    *
    * The `out` config of the route leaf chooses the result (BUGS-2026-07 H8):
    * - sponge (the default): the value, or the last item of a stream (or `accumulate` of all items);
-   * - stream: `data` is an AsyncIterable of the items. The procedure starts when the reader reads;
+   * - stream: `data` is an AsyncIterable of the items. The procedure starts when the reader reads.
+   *   With `bufferSize`, that many items are read ahead of the reader;
    * - handlers: `progress` gets each item but the last, `complete` gets the last, `error` gets the error.
+   *
+   * A procedure with `outputMode: "batch"` returns an array: sponge gives the array, and stream
+   * gives each element.
    */
   private async executeProcedure(
     resolved: ResolvedRoute,
@@ -972,7 +1059,8 @@ export class Client<TContext = {}> {
     try {
       const items = this.routeItems(resolved, context);
       if (isStreamConfig(outputConfig)) {
-        return { success: true, data: items };
+        const elements = resolved.procedure.outputMode === "batch" ? batchElements(items) : items;
+        return { success: true, data: readAhead(elements, outputConfig.bufferSize ?? 0) };
       }
       if (isHandlerConfig(outputConfig)) {
         return { success: true, data: await this.consumeWithHandlers(items, outputConfig, path) };

@@ -23,6 +23,7 @@ import type { ProcedureRegistry } from "./registry.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
 import { isDataDriven } from "./ref.js";
 import type { EventBus } from "../events/types.js";
+import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
 // =============================================================================
 // Errors
@@ -72,6 +73,7 @@ export interface InvokeOptions {
   /** When the signal aborts, a stream stops, and its handler gets `return()`. */
   signal?: AbortSignal | undefined;
   repository?: RepositoryProvider | undefined;
+  /** The bus of `ctx.bus`. The default is the global bus of `getGlobalEventBus()`. */
   bus?: EventBus | undefined;
   /** The input is valid already (for example, the route resolver validated it). */
   inputValidated?: boolean | undefined;
@@ -266,7 +268,11 @@ export function createProcedureContext(procedure: AnyProcedure, options: InvokeO
   };
   if (options.signal) context.signal = options.signal;
   if (options.repository) context.repository = options.repository;
-  if (options.bus) context.bus = options.bus;
+  // Every context has a bus. With a signal, the waits of the handler on the bus end when the
+  // invocation aborts, so a stream handler that waits on ctx.bus.stream() can finish. (Before,
+  // no host set ctx.bus: deep dive CORE-15.)
+  const bus = options.bus ?? getGlobalEventBus();
+  context.bus = options.signal ? withEventBusSignal(bus, options.signal) : bus;
   return context;
 }
 

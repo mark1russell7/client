@@ -10,16 +10,25 @@
 import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
 import type { Client } from "../../client/client.js";
 import type { Method } from "../../client/types.js";
+import type { CallOptions } from "../../client/context.js";
 
 /**
  * API storage configuration options.
  */
 export interface ApiStorageOptions {
   /**
-   * Service name for RPC calls
+   * The collection of the core collection procedures. The calls go to
+   * `collections.<collection>.<operation>`, as `createCollectionProcedures(collection)` registers them.
+   * @example "users", "procedures"
+   */
+  collection?: string;
+
+  /**
+   * Service name for RPC calls. The default is `collections.<collection>`. Give a service only
+   * for a server with other paths.
    * @example "users", "orders", "products"
    */
-  service: string;
+  service?: string;
 
   /**
    * Optional API version
@@ -45,46 +54,77 @@ export interface ApiStorageOptions {
   };
 
   /**
-   * Request timeout in milliseconds
+   * Request timeout in milliseconds. A call that takes longer fails. 0: no timeout.
    * @default 30000 (30 seconds)
    */
   timeout?: number;
 
   /**
-   * Enable automatic retry on failures
+   * Retry a call that fails with a retryable error: true (3 attempts), false (1 attempt), or the
+   * number of attempts.
    * @default true
    */
-  retry?: boolean;
+  retry?: boolean | number;
+
+  /**
+   * The first delay between attempts in milliseconds. Each later delay is two times longer.
+   * @default 100
+   */
+  retryDelay?: number;
 
   /**
    * AbortSignal for cancelling requests
    */
   signal?: AbortSignal;
+
+  /**
+   * True: `close()` closes the client. The default is false: the client belongs to the caller.
+   * @default false
+   */
+  closeClient?: boolean;
 }
 
-/**
- * Standard API response format.
- */
-interface ApiResponse<T> {
-  /** Response data */
-  data: T;
-  /** Optional metadata */
-  metadata?: Record<string, unknown>;
+/** An error that says whether another attempt can succeed (a ClientError does). */
+function isRetryable(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { retryable?: unknown }).retryable === true
+  );
+}
+
+/** A promise that rejects when the signal aborts first. */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined, describe: () => Error): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(describe());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(describe());
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
 }
 
 /**
  * API storage backed by universal client.
  *
- * Maps collection operations to RPC calls:
- * - get(id) → client.call({ service, operation: "get" }, { id })
- * - set(id, value) → client.call({ service, operation: "set" }, { id, value })
+ * Maps collection operations to the core collection procedures
+ * (`createCollectionProcedures`), which take and return raw values:
+ * - get(id) → `collections.<collection>.get` with `{ id }`
+ * - set(id, value) → `collections.<collection>.set` with `{ id, value }`
+ * - setBatch(items) → `collections.<collection>.setBatch` with `{ items: [{ id, value }] }`
  * - etc.
  *
- * Features:
- * - Remote persistence via any transport (HTTP, WebSocket, gRPC)
- * - Automatic retry and timeout (via client middleware)
- * - Type-safe with full TypeScript inference
- * - Async operations (all return Promises)
+ * Before, the class expected a `{ data }` envelope and called `<service>.get`: no core
+ * procedure matched, and every read was undefined (deep dive CORE-9, DATA-9).
  *
  * @example
  * ```typescript
@@ -93,14 +133,11 @@ interface ApiResponse<T> {
  *   transport: new HttpTransport({ baseUrl: "https://api.example.com" })
  * });
  *
- * const storage = new ApiStorage(client, { service: "users" });
- *
- * // Use with collection
- * const users = createCollection(storage);
+ * const storage = new ApiStorage(client, { collection: "users" });
  *
  * // Operations are automatically sent to server
- * await users.set("123", { name: "John" });
- * const user = await users.get("123"); // Fetched from server
+ * await storage.set("123", { name: "John" });
+ * const user = await storage.get("123"); // Fetched from server
  * ```
  */
 export class ApiStorage<T> implements CollectionStorage<T> {
@@ -108,16 +145,22 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   private options: {
     service: string;
     version?: string;
-    operations: Required<ApiStorageOptions["operations"]>;
+    operations: Required<NonNullable<ApiStorageOptions["operations"]>>;
     timeout: number;
-    retry: boolean;
+    attempts: number;
+    retryDelay: number;
     signal?: AbortSignal;
+    closeClient: boolean;
   };
 
   constructor(client: Client, options: ApiStorageOptions) {
+    const service = options.service ?? (options.collection !== undefined ? `collections.${options.collection}` : undefined);
+    if (!service) {
+      throw new Error("ApiStorage requires a collection or a service");
+    }
     this.client = client;
     this.options = {
-      service: options.service,
+      service,
       ...(options.version !== undefined && { version: options.version }),
       operations: {
         get: "get",
@@ -134,8 +177,11 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         ...options.operations,
       },
       timeout: options.timeout ?? 30000,
-      retry: options.retry ?? true,
+      attempts:
+        options.retry === false ? 1 : options.retry === true || options.retry === undefined ? 3 : Math.max(1, options.retry),
+      retryDelay: options.retryDelay ?? 100,
       ...(options.signal !== undefined && { signal: options.signal }),
+      closeClient: options.closeClient ?? false,
     };
   }
 
@@ -144,40 +190,30 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   //
 
   async get(id: string): Promise<T | undefined> {
-    const response = await this.call<{ id: string }, ApiResponse<T | null>>("get", {
-      id,
-    });
-    return response.data ?? undefined;
+    const value = await this.call<T | null | undefined>("get", { id });
+    return value ?? undefined;
   }
 
   async getAll(): Promise<T[]> {
-    const response = await this.call<{}, ApiResponse<T[]>>("getAll", {});
-    return response.data;
+    const values = await this.call<T[]>("getAll", {});
+    if (!Array.isArray(values)) {
+      throw new Error(`${this.options.service}.getAll did not return an array`);
+    }
+    return values;
   }
 
   async find(predicate: (item: T) => boolean): Promise<T[]> {
-    // Note: Predicate functions can't be serialized over network
-    // Options:
-    // 1. Fetch all and filter client-side (simple but inefficient)
-    // 2. Use query language (e.g., MongoDB query, GraphQL)
-    // 3. Pre-defined server-side filters
-
-    // For now: Fetch all and filter client-side
-    // TODO: Consider adding query language support
+    // A predicate cannot go over the network: read all items, then filter here
     const all = await this.getAll();
     return all.filter(predicate);
   }
 
   async has(id: string): Promise<boolean> {
-    const response = await this.call<{ id: string }, ApiResponse<boolean>>("has", {
-      id,
-    });
-    return response.data;
+    return (await this.call<boolean>("has", { id })) === true;
   }
 
   async size(): Promise<number> {
-    const response = await this.call<{}, ApiResponse<number>>("size", {});
-    return response.data;
+    return Number(await this.call<number>("size", {}));
   }
 
   //
@@ -185,22 +221,15 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   //
 
   async set(id: string, value: T): Promise<void> {
-    await this.call<{ id: string; value: T }, ApiResponse<void>>("set", {
-      id,
-      value,
-    });
+    await this.call("set", { id, value });
   }
 
   async delete(id: string): Promise<boolean> {
-    const response = await this.call<{ id: string }, ApiResponse<boolean>>(
-      "delete",
-      { id }
-    );
-    return response.data;
+    return (await this.call<boolean>("delete", { id })) === true;
   }
 
   async clear(): Promise<void> {
-    await this.call<{}, ApiResponse<void>>("clear", {});
+    await this.call("clear", {});
   }
 
   //
@@ -208,29 +237,20 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   //
 
   async setBatch(items: Array<[string, T]>): Promise<void> {
-    await this.call<{ items: Array<[string, T]> }, ApiResponse<void>>(
-      "setBatch",
-      { items }
-    );
+    // The collection procedure takes objects, not tuples
+    await this.call("setBatch", { items: items.map(([id, value]) => ({ id, value })) });
   }
 
   async deleteBatch(ids: string[]): Promise<number> {
-    const response = await this.call<{ ids: string[] }, ApiResponse<number>>(
-      "deleteBatch",
-      { ids }
-    );
-    return response.data;
+    return Number(await this.call<number>("deleteBatch", { ids }));
   }
 
   async getBatch(ids: string[]): Promise<Map<string, T>> {
-    const response = await this.call<
-      { ids: string[] },
-      ApiResponse<Record<string, T>>
-    >("getBatch", { ids });
+    const values = (await this.call<Record<string, T> | null>("getBatch", { ids })) ?? {};
 
     // Convert object to Map
     const result = new Map<string, T>();
-    for (const [id, value] of Object.entries(response.data)) {
+    for (const [id, value] of Object.entries(values)) {
       result.set(id, value);
     }
     return result;
@@ -241,8 +261,10 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   //
 
   async close(): Promise<void> {
-    // Close underlying client transport
-    await this.client.close();
+    // The client belongs to the caller, unless the caller gave it to this storage
+    if (this.options.closeClient) {
+      await this.client.close();
+    }
   }
 
   async getMetadata(): Promise<StorageMetadata> {
@@ -264,40 +286,50 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   //
 
   /**
-   * Make RPC call via universal client.
+   * Make an RPC call via the universal client, with the timeout, the signal and the retries.
    */
-  private async call<TReq, TRes>(
-    operation: keyof Required<ApiStorageOptions>["operations"],
-    payload: TReq
-  ): Promise<TRes> {
-    const operationName =
-      this.options.operations?.[operation] ?? operation;
-
+  private async call<TRes>(operation: keyof Required<ApiStorageOptions>["operations"], payload: unknown): Promise<TRes> {
     const method: Method = {
       service: this.options.service,
-      operation: operationName,
+      operation: this.options.operations[operation] ?? operation,
       ...(this.options.version !== undefined && { version: this.options.version }),
     };
+    const label = `${method.service}.${method.operation}`;
 
-    const metadata: Record<string, unknown> = {};
-
-    if (this.options.timeout) {
-      metadata["timeout"] = {
-        overall: this.options.timeout,
-      };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.attempt<TRes>(method, payload, label);
+      } catch (error) {
+        if (attempt >= this.options.attempts || !isRetryable(error) || this.options.signal?.aborted) {
+          throw error;
+        }
+        const delay = this.options.retryDelay * 2 ** (attempt - 1);
+        await untilAborted(new Promise((resolve) => setTimeout(resolve, delay)), this.options.signal, () => error as Error);
+      }
     }
+  }
 
-    if (this.options.signal) {
-      metadata["signal"] = this.options.signal;
+  /** One attempt: the call ends at the timeout, or when the signal of the options aborts. */
+  private attempt<TRes>(method: Method, payload: unknown, label: string): Promise<TRes> {
+    const signals: AbortSignal[] = [];
+    if (this.options.signal) signals.push(this.options.signal);
+    const timer = this.options.timeout > 0 ? new AbortController() : undefined;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    if (timer) {
+      timeoutHandle = setTimeout(() => timer.abort(), this.options.timeout);
+      signals.push(timer.signal);
     }
+    const signal = signals.length === 0 ? undefined : signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 
-    // Call via universal client (uses configured transport and middleware)
-    const response = await this.client.call<TReq, TRes>(
-      method,
-      payload,
-      metadata
-    );
-
-    return response;
+    // The signal goes in the call options, so the transport can stop the request too. (Before,
+    // it went into the metadata, and the timeout was dropped: deep dive CORE-9.)
+    const callOptions: CallOptions<unknown> = {};
+    if (signal) callOptions.signal = signal;
+    const call = this.client.call<unknown, TRes>(method, payload, callOptions);
+    return untilAborted(call, signal, () =>
+      timer?.signal.aborted ? new Error(`${label} timed out after ${this.options.timeout} ms`) : new Error(`${label} was aborted`)
+    ).finally(() => {
+      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+    });
   }
 }

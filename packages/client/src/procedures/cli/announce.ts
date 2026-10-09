@@ -23,6 +23,14 @@ import * as path from "node:path";
 export interface AnnounceOptions {
   /** Be verbose about what's happening */
   verbose: boolean;
+  /** The folder to start from (default: the current folder) */
+  cwd?: string | undefined;
+  /**
+   * Add `client announce` to the postinstall script of the package that depends on this one.
+   * This edits a package.json that belongs to the consumer, so it happens only when asked
+   * (`client announce --propagate`). Default: false.
+   */
+  propagate?: boolean | undefined;
 }
 
 interface RegistryEntry {
@@ -141,12 +149,56 @@ async function readRegistry(rootDir: string): Promise<Registry> {
 }
 
 /**
- * Write the registry file.
+ * Write the registry file: to a temporary file, then a rename, so a reader never sees a part.
  */
 async function writeRegistry(rootDir: string, registry: Registry): Promise<void> {
   const registryPath = path.join(rootDir, REGISTRY_FILENAME);
   const content = JSON.stringify(registry, null, 2) + "\n";
-  await fs.writeFile(registryPath, content, "utf-8");
+  const temporary = `${registryPath}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+  try {
+    await fs.writeFile(temporary, content, "utf-8");
+    await fs.rename(temporary, registryPath);
+  } catch (error) {
+    await fs.rm(temporary, { force: true });
+    throw error;
+  }
+}
+
+/** A lock older than this belongs to a process that stopped: it is removed. */
+const STALE_LOCK_MS = 10_000;
+
+/**
+ * Read, change and write the registry under a lock file. Package managers run postinstall
+ * scripts in parallel: without the lock, two announcements read the same registry, and the
+ * second write loses the first entry (deep dive CORE-17).
+ */
+async function updateRegistry(rootDir: string, change: (registry: Registry) => boolean): Promise<void> {
+  const lockPath = path.join(rootDir, `${REGISTRY_FILENAME}.lock`);
+  const deadline = Date.now() + 30_000;
+  for (;;) {
+    try {
+      const handle = await fs.open(lockPath, "wx");
+      await handle.close();
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || Date.now() > deadline) throw error;
+      try {
+        const { mtimeMs } = await fs.stat(lockPath);
+        if (Date.now() - mtimeMs > STALE_LOCK_MS) await fs.rm(lockPath, { force: true });
+      } catch {
+        // The lock went away: try again
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10 + Math.random() * 20));
+    }
+  }
+  try {
+    const registry = await readRegistry(rootDir);
+    if (change(registry)) {
+      await writeRegistry(rootDir, registry);
+    }
+  } finally {
+    await fs.rm(lockPath, { force: true });
+  }
 }
 
 // =============================================================================
@@ -157,22 +209,21 @@ async function writeRegistry(rootDir: string, registry: Registry): Promise<void>
  * Announce this package's procedures to the project registry.
  *
  * Called from a package's postinstall script to register its procedures.
- * Also propagates the postinstall script UP the dependency chain for transitive discovery.
  *
- * The propagation works as follows:
+ * With `propagate: true` (`client announce --propagate`), it also adds the postinstall script
+ * to the package that depends on this one, for transitive discovery:
  * - When client is installed in package D, client's postinstall adds postinstall to D
  * - When D is installed in C, D's postinstall adds postinstall to C
  * - When C is installed in B, C's postinstall adds postinstall to B
- * - etc.
  *
- * This ensures that regardless of how deep procedures are defined,
- * they can propagate up to the project root for efficient discovery.
+ * The propagation edits the package.json of the consumer, so it happens only when asked.
+ * Without it, each package that has its own postinstall script still registers itself.
  */
 export async function announce(options: AnnounceOptions): Promise<void> {
   const { verbose } = options;
 
   // Find the package we're in (the one whose postinstall is running)
-  const containing = await findContainingPackage(process.cwd());
+  const containing = await findContainingPackage(options.cwd ?? process.cwd());
   if (!containing) {
     if (verbose) {
       console.log("[client] No package.json found, skipping announcement");
@@ -182,8 +233,11 @@ export async function announce(options: AnnounceOptions): Promise<void> {
 
   const { dir: packageDir, pkg } = containing;
 
-  // Always propagate postinstall to parent package (for transitive chain)
-  await propagatePostinstallToParent(packageDir, pkg, verbose);
+  // Propagate the postinstall script to the parent package only when asked: it edits the
+  // consumer's package.json (deep dive CORE-17)
+  if (options.propagate) {
+    await propagatePostinstallToParent(packageDir, pkg, verbose);
+  }
 
   // If this package has procedures, register them
   if (pkg.client?.procedures) {
@@ -214,10 +268,7 @@ async function registerProcedures(packageDir: string, pkg: PackageJson, verbose:
     return;
   }
 
-  // Read current registry
-  const registry = await readRegistry(projectRoot);
-
-  // Add/update our entry
+  // Add/update our entry, under the lock
   const entry: RegistryEntry = {
     proceduresPath: pkg.client!.procedures!,
     registeredAt: new Date().toISOString(),
@@ -225,10 +276,10 @@ async function registerProcedures(packageDir: string, pkg: PackageJson, verbose:
   if (pkg.version) {
     entry.version = pkg.version;
   }
-  registry.packages[pkg.name] = entry;
-
-  // Write updated registry
-  await writeRegistry(projectRoot, registry);
+  await updateRegistry(projectRoot, (registry) => {
+    registry.packages[pkg.name] = entry;
+    return true;
+  });
 
   if (verbose) {
     console.log(`[client] Registered ${pkg.name} -> ${pkg.client!.procedures}`);
@@ -361,23 +412,21 @@ async function ensurePostinstall(packageDir: string, pkg: PackageJson, verbose: 
 export async function unannounce(options: AnnounceOptions): Promise<void> {
   const { verbose } = options;
 
-  const containing = await findContainingPackage(process.cwd());
+  const containing = await findContainingPackage(options.cwd ?? process.cwd());
   if (!containing) return;
 
   const { dir: packageDir, pkg } = containing;
   const projectRoot = await findProjectRoot(packageDir);
   if (!projectRoot) return;
 
-  const registry = await readRegistry(projectRoot);
-
-  if (registry.packages[pkg.name]) {
+  await updateRegistry(projectRoot, (registry) => {
+    if (!registry.packages[pkg.name]) return false;
     delete registry.packages[pkg.name];
-    await writeRegistry(projectRoot, registry);
-
     if (verbose) {
       console.log(`[client] Unregistered ${pkg.name}`);
     }
-  }
+    return true;
+  });
 }
 
 /**

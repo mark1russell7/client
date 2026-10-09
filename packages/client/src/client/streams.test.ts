@@ -7,6 +7,11 @@ import type { Message, ResponseItem, Transport } from "./types.js";
 
 describe("routeStream (regression: BUGS-2026-07 H12)", () => {
   it("gives every result to both the iterator and the completion promise", async () => {
+    // All four handlers wait on one gate, so they complete in the same tick. (Separate timers
+    // completed in separate ticks, and so they hid deep dive CORE-2: the stream strategy lost
+    // every result but the first of a tick.)
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
     const reg = new ProcedureRegistry();
     for (const name of ["a", "b", "c", "d"]) {
       reg.register(
@@ -15,7 +20,7 @@ describe("routeStream (regression: BUGS-2026-07 H12)", () => {
           input: outputSchema<Record<string, never>>(),
           output: outputSchema<{ name: string }>(),
           handler: async () => {
-            await new Promise((resolve) => setTimeout(resolve, 5));
+            await gate;
             return { name };
           },
         })
@@ -25,6 +30,7 @@ describe("routeStream (regression: BUGS-2026-07 H12)", () => {
     const client = new Client(stubTransport).useRegistry(reg);
 
     const response = client.routeStream({ route: { test: { a: {}, b: {}, c: {}, d: {} } } });
+    open();
 
     const seen: string[] = [];
     for await (const { path } of response.results) {

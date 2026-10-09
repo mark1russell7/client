@@ -7,7 +7,8 @@
 
 import type { ZodLike } from "../client/validation/types.js";
 import type { Procedure, ProcedurePath, ProcedureContext } from "../procedures/types.js";
-import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "../procedures/registry.js";
+import { invokeProcedure, isAsyncIterable } from "../procedures/invoke.js";
 import type {
   ComponentDefinition,
   ComponentContext,
@@ -215,10 +216,13 @@ export function componentToProcedure<TData>(
     tags: [...(metadata?.tags ?? []), "component"],
   };
 
-  // Create handler based on factory type
-  const handler = streaming || isStreamingFactory(factory)
+  // Create handler based on factory type. With no `streaming` flag and a plain function, the
+  // handler gives the factory's result: one output, or the items of a generator that it returns.
+  const handler = streaming === true || (streaming === undefined && isStreamingFactory(factory))
     ? createStreamingHandler(factory as AnyComponentFactory<TData>)
-    : createStandardHandler(factory as AnyComponentFactory<TData>);
+    : streaming === false
+      ? createStandardHandler(factory as AnyComponentFactory<TData>)
+      : createAdaptiveHandler(factory as AnyComponentFactory<TData>);
 
   return {
     path,
@@ -309,6 +313,23 @@ function createStandardHandler<TData>(
 }
 
 /**
+ * Create a handler that gives what the factory gives: one output, or a stream when the factory
+ * returns an async generator. `invokeProcedure` reads a returned generator as a stream.
+ */
+function createAdaptiveHandler<TData>(
+  factory: AnyComponentFactory<TData>
+): (input: ComponentInput<TData>, ctx: ProcedureContext) => Promise<ComponentOutput> {
+  return async (input, ctx) => {
+    const result = factory(procedureToComponentContext(input, ctx));
+    if (isAsyncIterable(result)) {
+      // The handler type has no "maybe a stream" form: invokeProcedure tests the result
+      return result as unknown as ComponentOutput;
+    }
+    return await (result as ComponentOutput | Promise<ComponentOutput>);
+  };
+}
+
+/**
  * Create a streaming handler from a component factory.
  */
 function createStreamingHandler<TData>(
@@ -370,11 +391,13 @@ function createRenderFunction(
     }
 
     // Find the component procedure: in the namespace of the component that renders, then
-    // the global one (BUGS-2026-07 L3: namespaced components were never found)
+    // the global one (BUGS-2026-07 L3: namespaced components were never found). A context
+    // that names its registry is searched first.
+    const registry = (ctx as ProcedureContext & { registry?: ProcedureRegistry }).registry ?? PROCEDURE_REGISTRY;
     const namespace = ctx.path?.length === 3 ? ctx.path[1] : undefined;
     const procedure =
-      (namespace !== undefined ? PROCEDURE_REGISTRY.get(["components", namespace, type]) : undefined) ??
-      PROCEDURE_REGISTRY.get(["components", type]);
+      (namespace !== undefined ? registry.get(["components", namespace, type]) : undefined) ??
+      registry.get(["components", type]);
     if (!procedure || !procedure.handler) {
       return {
         type: "unknown",
@@ -390,22 +413,28 @@ function createRenderFunction(
       depth: (path.match(/\./g) || []).length,
     };
 
-    const result = await procedure.handler(input, ctx);
-
-    // Handle generator result: take the first output, then end the generator
-    if (isAsyncGenerator(result)) {
-      try {
-        const { value, done } = await result.next();
-        if (done || value === undefined) {
-          throw new Error("Child component yielded no output");
-        }
-        return value as ComponentOutput;
-      } finally {
-        await result.return?.(undefined);
-      }
+    // The child runs through the invocation path: its input and output are validated, and its
+    // context has its own path. (Before, the parent called the handler directly, with no
+    // validation and with the parent's context.)
+    const options: Parameters<typeof invokeProcedure>[2] = { metadata: ctx.metadata, client: ctx.client };
+    if (ctx.signal) options.signal = ctx.signal;
+    if (ctx.bus) options.bus = ctx.bus;
+    if (ctx.repository) options.repository = ctx.repository;
+    const output = await invokeProcedure<ComponentOutput>(procedure, input, options);
+    if (output.kind === "value") {
+      return output.value;
     }
 
-    return result as ComponentOutput;
+    // A streaming child: take the first output, then end the stream so its finally blocks run
+    try {
+      const { value, done } = await output.items.next();
+      if (done || value === undefined) {
+        throw new Error("Child component yielded no output");
+      }
+      return value;
+    } finally {
+      await output.items.return(undefined);
+    }
   };
 }
 

@@ -64,6 +64,33 @@ export interface MiddlewareOverrides {
   [key: string]: unknown;
 }
 
+/**
+ * This function converts the overrides of a route call to the context keys that the middleware
+ * reads: `retry.attempts` becomes `retry.maxAttempts`, and `timeout.ms` becomes
+ * `timeout.overall`. The other keys pass unchanged. (Before, the documented keys had no
+ * effect: deep dive CORE-14.)
+ *
+ * @param overrides - The `middlewares` of a route call
+ * @returns The context for the metadata of the calls
+ */
+export function toMiddlewareContext(overrides: MiddlewareOverrides | undefined): Record<string, unknown> {
+  const context: Record<string, unknown> = {};
+  if (!overrides) return context;
+  for (const [key, value] of Object.entries(overrides)) {
+    if (FORBIDDEN_ROUTE_KEYS.has(key)) continue;
+    context[key] = value;
+  }
+  if (overrides.retry) {
+    const { attempts, ...rest } = overrides.retry;
+    context["retry"] = attempts === undefined ? rest : { ...rest, maxAttempts: attempts };
+  }
+  if (overrides.timeout) {
+    const { ms, ...rest } = overrides.timeout;
+    context["timeout"] = ms === undefined ? rest : { ...rest, overall: ms };
+  }
+  return context;
+}
+
 // =============================================================================
 // Batch Strategy Types
 // =============================================================================
@@ -77,9 +104,9 @@ export type BatchStrategy = "all" | "race" | "stream";
  * Stream configuration for batch execution.
  */
 export interface StreamConfig {
-  /** Buffer size for streaming results */
+  /** When this many results wait for the reader, no new call starts. 0 or no value: no limit. */
   bufferSize?: number;
-  /** Emit partial results as they arrive */
+  /** True (the default): each result as it arrives. False: all results at the end, in route order. */
   emitPartial?: boolean;
   /** Maximum concurrent requests */
   concurrency?: number;
@@ -91,9 +118,12 @@ export interface StreamConfig {
 export interface BatchConfig {
   /** Execution strategy */
   strategy: BatchStrategy;
-  /** Stream-specific configuration */
+  /** Stream configuration: `concurrency` applies to every strategy but `race` */
   streamConfig?: StreamConfig;
-  /** Continue on individual route errors */
+  /**
+   * True (the default): every call runs to its end. False: the first failure cancels the other
+   * calls, and each of them gets a `CANCELLED` result.
+   */
   continueOnError?: boolean;
 }
 
@@ -249,6 +279,24 @@ export type ValidateRoute<TRoute, TRegisteredPaths extends string[][]> =
 // =============================================================================
 
 /**
+ * Route keys that name a property of every object. A route key is a path segment, and code
+ * that walks a route with such a key reaches `Object.prototype` (deep dive CORE-6).
+ */
+const FORBIDDEN_ROUTE_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * This function throws for a route key that would reach `Object.prototype`. `JSON.parse` makes
+ * `"__proto__"` an own key, so a route from JSON can contain it.
+ *
+ * @param key - A route key (a procedure path segment)
+ */
+export function assertRouteKey(key: string): void {
+  if (FORBIDDEN_ROUTE_KEYS.has(key)) {
+    throw new Error(`Invalid route key: ${key}`);
+  }
+}
+
+/**
  * Flattened route entry with path, input, and output configuration.
  */
 export interface FlattenedRouteEntry {
@@ -273,6 +321,7 @@ export function flattenRoute(route: Route): FlattenedRouteEntry[] {
   const results: FlattenedRouteEntry[] = [];
 
   function traverse(node: RouteNode | RouteLeaf, path: ProcedurePath): void {
+    path.forEach(assertRouteKey);
     // Check if this is a new-style leaf: { in: ..., out?: ... }
     if (isRouteLeafWithConfig(node)) {
       results.push({
@@ -334,6 +383,7 @@ export function buildResponse<TRoute extends Route>(
   const response: Record<string, unknown> = {};
 
   for (const [path, result] of results) {
+    path.forEach(assertRouteKey);
     let current = response;
 
     for (let i = 0; i < path.length; i++) {
@@ -343,7 +393,8 @@ export function buildResponse<TRoute extends Route>(
       if (isLast) {
         current[segment] = result;
       } else {
-        if (!(segment in current)) {
+        // An own key only: `in` also saw inherited names such as "toString"
+        if (!Object.hasOwn(current, segment)) {
           current[segment] = {};
         }
         current = current[segment] as Record<string, unknown>;
@@ -387,6 +438,7 @@ export function createRoute<TInput extends RouteLeaf>(
   path: ProcedurePath,
   input: TInput
 ): Route {
+  path.forEach(assertRouteKey);
   const route: Record<string, unknown> = {};
   let current = route;
 
@@ -416,8 +468,9 @@ export function mergeRoutes(...routes: Route[]): Route {
 
   function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(source)) {
+      assertRouteKey(key);
       if (
-        key in target &&
+        Object.hasOwn(target, key) &&
         typeof target[key] === "object" &&
         typeof value === "object" &&
         !Array.isArray(target[key]) &&

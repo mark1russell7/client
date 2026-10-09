@@ -201,6 +201,8 @@ export {
   createDynamicHandlerLoader,
   ProcedureStorageAdapter,
   SyncedProcedureRegistry,
+  getProcedureStore,
+  ProcedureStoreError,
   createSyncedRegistry,
   createMemorySyncedRegistry,
   createApiSyncedRegistry,
@@ -302,17 +304,24 @@ export { RouteResolver, createRouteResolver, isValidRoute, getMissingPaths, matc
 export type { ResolvedRoute, RouteResolutionResult, RouteResolutionError } from "./client/route-resolver.js";
 
 export { BatchExecutor, createBatchExecutor, Semaphore, executeWithConcurrency } from "./client/batch-executor.js";
-export type { ProcedureExecutor, ExecutionContext, BatchExecutionResult } from "./client/batch-executor.js";
+export type { ProcedureExecutor, ExecutionContext, BatchExecutionResult, BatchItem } from "./client/batch-executor.js";
 
 // ============================================================================
 // Events System - Pub/sub messaging and streaming coordination
 // ============================================================================
-export { DefaultEventBus as EventBus, createEventBus, createTypedEventBus } from "./events/index.js";
+export {
+  DefaultEventBus as EventBus,
+  createEventBus,
+  createTypedEventBus,
+  getGlobalEventBus,
+  withEventBusSignal,
+} from "./events/index.js";
 export type {
   EventBus as IEventBus,
   TypedEventBus,
   EventHandler,
   EventBusOptions,
+  EventWaitOptions,
   ChannelMap,
 } from "./events/index.js";
 

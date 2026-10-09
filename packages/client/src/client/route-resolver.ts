@@ -50,6 +50,11 @@ export interface RouteResolutionResult {
   resolved: ResolvedRoute[];
   /** Errors encountered during resolution */
   errors: RouteResolutionError[];
+  /**
+   * The routes that the resolver did not examine: it stopped at the first error. A caller
+   * reports each of them, so no leaf of the route is missing from the response (deep dive CORE-14).
+   */
+  skipped: ProcedurePath[];
   /** Whether all routes resolved successfully */
   success: boolean;
 }
@@ -103,8 +108,9 @@ export class RouteResolver {
     const flattened = flattenRoute(route);
     const resolved: ResolvedRoute[] = [];
     const errors: RouteResolutionError[] = [];
+    const skipped: ProcedurePath[] = [];
 
-    for (const entry of flattened) {
+    for (const [index, entry] of flattened.entries()) {
       const { path, input, outputConfig } = entry;
       const procedure = this.registry.get(path);
 
@@ -132,6 +138,7 @@ export class RouteResolver {
           });
 
           if (!options.continueOnError) {
+            skipped.push(...flattened.slice(index + 1).map((rest) => rest.path));
             break;
           }
           continue;
@@ -150,6 +157,7 @@ export class RouteResolver {
     return {
       resolved,
       errors,
+      skipped,
       success: errors.length === 0,
     };
   }
@@ -375,7 +383,8 @@ export function filterRouteByPattern(route: Route, pattern: ProcedurePath): Rout
         if (isLast) {
           current[segment] = entry.leaf;
         } else {
-          if (!(segment in current)) {
+          // An own key only (deep dive CORE-6). flattenRoute rejected the prototype keys.
+          if (!Object.hasOwn(current, segment)) {
             current[segment] = {};
           }
           current = current[segment] as RouteNode;

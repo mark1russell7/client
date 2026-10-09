@@ -421,14 +421,14 @@ const client = new Client({
 .use(createAuthMiddleware({ token: getToken() }));
 
 // Option 1: Remote storage (all operations go to server)
-const remoteUsers = new ApiStorage<User>(client, { service: "users" });
+const remoteUsers = new ApiStorage<User>(client, { collection: "users" });
 
 // Option 2: Local storage (in-memory, like minimongo)
 const localUsers = new InMemoryStorage<User>();
 
 // Option 3: Hybrid storage (local cache + remote sync)
 const hybridUsers = new HybridStorage<User>(
-  new ApiStorage<User>(client, { service: "users" }),
+  new ApiStorage<User>(client, { collection: "users" }),
   {
     writeStrategy: "write-through",  // or "write-back"
     conflictResolution: "remote",    // or "local", "merge", "error"
@@ -479,33 +479,24 @@ interface CollectionStorage<T> {
 
 ```typescript
 class ApiStorage<T> implements CollectionStorage<T> {
-  constructor(
-    private client: Client,
-    private options: { service: string; version?: string }
-  ) {}
+  // The calls go to the core collection procedures: collections.<collection>.<operation>
+  constructor(private client: Client, options: { collection: string; timeout?: number; retry?: boolean | number }) {}
 
   async get(id: string): Promise<T | undefined> {
-    // Collection operation becomes RPC call through the client!
-    const response = await this.client.call<{ id: string }, { data: T }>(
-      { service: this.options.service, operation: "get" },
+    // Collection operation becomes RPC call through the client! The procedure returns the raw value.
+    const value = await this.client.call<{ id: string }, T | null>(
+      { service: `collections.${this.collection}`, operation: "get" },
       { id }
     );
-    return response.data;
+    return value ?? undefined;
   }
 
   async set(id: string, value: T): Promise<void> {
-    await this.client.call(
-      { service: this.options.service, operation: "set" },
-      { id, value }
-    );
+    await this.client.call({ service: `collections.${this.collection}`, operation: "set" }, { id, value });
   }
 
   async delete(id: string): Promise<boolean> {
-    const response = await this.client.call<{ id: string }, { deleted: boolean }>(
-      { service: this.options.service, operation: "delete" },
-      { id }
-    );
-    return response.deleted;
+    return this.client.call({ service: `collections.${this.collection}`, operation: "delete" }, { id });
   }
 
   // ... all other operations follow the same pattern
@@ -741,7 +732,7 @@ const prodClient = new Client({
 .use(createRetryMiddleware({ maxRetries: 3 }))
 .use(createAuthMiddleware({ token: process.env.API_TOKEN }));
 
-const prodUsers = new ApiStorage<User>(prodClient, { service: "users" });
+const prodUsers = new ApiStorage<User>(prodClient, { collection: "users" });
 
 // All operations go through the client to the server:
 await prodUsers.set("123", { id: "123", name: "John", email: "john@example.com" });
@@ -767,7 +758,7 @@ const hybridClient = new Client({
 .use(createRetryMiddleware({ maxRetries: 3 }));
 
 const hybridUsers = new HybridStorage<User>(
-  new ApiStorage<User>(hybridClient, { service: "users" }),
+  new ApiStorage<User>(hybridClient, { collection: "users" }),
   {
     writeStrategy: "write-through",
     conflictResolution: "remote",
@@ -794,7 +785,7 @@ mockTransport.mockSuccess(
 );
 
 const testClient = new Client({ transport: mockTransport });
-const testUsers = new ApiStorage<User>(testClient, { service: "users" });
+const testUsers = new ApiStorage<User>(testClient, { collection: "users" });
 
 // Same collection API works with mock:
 const user = await testUsers.get("123");
@@ -825,7 +816,7 @@ async function createUserProfile(storage: CollectionStorage<User>, userData: Use
 await createUserProfile(new InMemoryStorage<User>(), newUser);
 
 // Works with remote storage (production)
-await createUserProfile(new ApiStorage<User>(client, { service: "users" }), newUser);
+await createUserProfile(new ApiStorage<User>(client, { collection: "users" }), newUser);
 
 // Works with hybrid storage (offline-first apps)
 await createUserProfile(hybridStorage, newUser);
@@ -955,7 +946,7 @@ const response = await fetch("/api/users/123");
 const user = await response.json();
 
 // After: Collections via Client
-const users = new ApiStorage<User>(client, { service: "users" });
+const users = new ApiStorage<User>(client, { collection: "users" });
 const user = await users.get("123");
 ```
 
@@ -967,7 +958,7 @@ const users = new InMemoryStorage<User>();
 
 // After: Hybrid (local + remote)
 const users = new HybridStorage<User>(
-  new ApiStorage<User>(client, { service: "users" }),
+  new ApiStorage<User>(client, { collection: "users" }),
   { writeStrategy: "write-through" }
 );
 // Same API, now syncs to server!

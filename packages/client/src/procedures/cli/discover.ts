@@ -36,14 +36,65 @@ interface PackageJson {
   name: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  exports?: unknown;
   client?: {
     procedures?: string;
   };
 }
 
-interface DiscoveredPackage {
+/** A package that declares procedures. */
+export interface DiscoveredPackage {
   name: string;
   proceduresPath: string;
+  /** The module specifier that the generated file imports */
+  importPath: string;
+}
+
+/** The string targets of an exports value: a string, an array, or the leaves of conditions. */
+function exportTargets(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(exportTargets);
+  if (value && typeof value === "object") return Object.values(value).flatMap(exportTargets);
+  return [];
+}
+
+/**
+ * The specifier that imports the procedures file of a package. With an `exports` map, a bare
+ * `pkg/dist/register.js` import fails unless the map exports that path: the function looks for
+ * the subpath (also a `./*` pattern) whose target is the file. When the map has none, it
+ * imports the package root, which registers the procedures of the packages of this repository.
+ * (Before, the generated import ignored the map, and failed: deep dive CORE-17.)
+ *
+ * @param name - Package name
+ * @param manifest - The package.json of the package
+ * @param proceduresPath - The `client.procedures` field
+ * @returns The module specifier for the generated import
+ */
+export function procedureImportPath(name: string, manifest: { exports?: unknown }, proceduresPath: string): string {
+  const file = "./" + proceduresPath.replace(/^\.\//, "");
+  if (manifest.exports === undefined) {
+    return `${name}/${file.slice(2)}`;
+  }
+  const exportsMap =
+    typeof manifest.exports === "string" || Array.isArray(manifest.exports) ||
+    !Object.keys(manifest.exports as object).some((key) => key.startsWith("."))
+      ? { ".": manifest.exports }
+      : (manifest.exports as Record<string, unknown>);
+
+  for (const [subpath, value] of Object.entries(exportsMap)) {
+    for (const target of exportTargets(value)) {
+      if (!subpath.includes("*")) {
+        if (target === file) return subpath === "." ? name : `${name}/${subpath.slice(2)}`;
+        continue;
+      }
+      // A pattern: "./*" -> "./dist/*.js"
+      const [before, after] = target.split("*") as [string, string | undefined];
+      if (after === undefined || !file.startsWith(before) || !file.endsWith(after)) continue;
+      const star = file.slice(before.length, file.length - after.length);
+      return `${name}/${subpath.replace("*", star).slice(2)}`;
+    }
+  }
+  return name;
 }
 
 // =============================================================================
@@ -51,9 +102,14 @@ interface DiscoveredPackage {
 // =============================================================================
 
 /**
- * Discover packages with procedure declarations.
+ * Discover packages with procedure declarations: the dependencies of the root package and
+ * their dependencies, in `node_modules`.
+ *
+ * @param rootDir - The folder of the root package.json
+ * @param verbose - Log each package
+ * @returns The packages that declare procedures, sorted by name
  */
-async function discoverPackages(
+export async function discoverPackages(
   rootDir: string,
   verbose: boolean
 ): Promise<DiscoveredPackage[]> {
@@ -84,7 +140,6 @@ async function discoverPackages(
   // Scan each dependency
   async function scanPackage(packageName: string, nodeModulesPath: string): Promise<void> {
     if (scanned.has(packageName)) return;
-    scanned.add(packageName);
 
     const pkgDir = path.join(nodeModulesPath, packageName);
     const pkgJsonPath = path.join(pkgDir, "package.json");
@@ -94,9 +149,12 @@ async function discoverPackages(
       const content = await fs.readFile(pkgJsonPath, "utf-8");
       pkg = JSON.parse(content);
     } catch {
-      // Package doesn't exist at this path (might be hoisted differently)
+      // Package doesn't exist at this path (might be hoisted differently). It is not scanned
+      // yet: the next location can have it. (Before, the name was marked as scanned before
+      // the read, so a hoisted transitive package was skipped: deep dive CORE-17.)
       return;
     }
+    scanned.add(packageName);
 
     // Check if this package declares procedures
     if (pkg.client?.procedures) {
@@ -109,6 +167,7 @@ async function discoverPackages(
         discovered.push({
           name: packageName,
           proceduresPath,
+          importPath: procedureImportPath(packageName, pkg, proceduresPath),
         });
 
         if (verbose) {
@@ -146,11 +205,14 @@ async function discoverPackages(
 
 /**
  * Generate the TypeScript file content.
+ *
+ * @param packages - The discovered packages
+ * @returns The file content: one side-effect import for each package
  */
-function generateCode(packages: DiscoveredPackage[]): string {
+export function generateCode(packages: DiscoveredPackage[]): string {
   const timestamp = new Date().toISOString();
   const imports = packages
-    .map((p) => `import "${p.name}/${p.proceduresPath.replace(/^\.\//, "")}";`)
+    .map((p) => `import "${p.importPath}";`)
     .join("\n");
 
   const packageList = packages.map((p) => `  "${p.name}",`).join("\n");
@@ -204,9 +266,17 @@ async function loadFromRegistry(
     const packages: DiscoveredPackage[] = [];
 
     for (const [name, entry] of Object.entries(registry.packages)) {
+      // The exports map of the installed package decides the import path
+      let manifest: { exports?: unknown } = {};
+      try {
+        manifest = JSON.parse(await fs.readFile(path.join(rootDir, "node_modules", name, "package.json"), "utf-8"));
+      } catch {
+        // Not installed at the root: import the declared file
+      }
       packages.push({
         name,
         proceduresPath: entry.proceduresPath,
+        importPath: procedureImportPath(name, manifest, entry.proceduresPath),
       });
     }
 

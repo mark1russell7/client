@@ -169,7 +169,10 @@ export interface ProcedureStorageConfig {
   /** Storage type to use */
   type: "memory" | "api" | "hybrid";
 
-  /** Service name for API storage (default: "procedures") */
+  /** The collection of the core collection procedures for API storage (default: "procedures") */
+  collection?: string | undefined;
+
+  /** The service of the calls, for a server with other paths (default: `collections.<collection>`) */
   service?: string | undefined;
 
   /** Options for the synced registry */

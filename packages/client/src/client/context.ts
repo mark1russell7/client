@@ -152,6 +152,8 @@ export function mergeContext<T extends object>(
 
     for (const [key, value] of Object.entries(override)) {
       if (value === undefined) continue;
+      // A context from JSON can have an own "__proto__" key: never copy it (deep dive CORE-6)
+      if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
 
       if (isPlainObject(value) && isPlainObject((result as Record<string, unknown>)[key])) {
         // Deep merge objects

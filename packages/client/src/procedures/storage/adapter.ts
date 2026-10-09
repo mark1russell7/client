@@ -74,14 +74,16 @@ export class ProcedureStorageAdapter {
    *
    * @param procedure - Procedure to store
    * @param options - Override default serialization options
+   * @returns The record that the storage got
    */
-  async store(procedure: AnyProcedure, options?: SerializeOptions): Promise<void> {
+  async store(procedure: AnyProcedure, options?: SerializeOptions): Promise<SerializedProcedure> {
     const key = getProcedureKey(procedure);
     const serialized = serializeProcedure(procedure, {
       ...this.serializeOptions,
       ...options,
     });
     await this.storage.set(key, serialized);
+    return serialized;
   }
 
   /**
@@ -170,14 +172,23 @@ export class ProcedureStorageAdapter {
    * Store multiple procedures.
    *
    * @param procedures - Procedures to store
-   * @param options - Override default serialization options
+   * @param options - Override default serialization options, or a function that gives the
+   *   options of each procedure (for example, its handler reference)
+   * @returns The records that the storage got
    */
-  async storeAll(procedures: AnyProcedure[], options?: SerializeOptions): Promise<void> {
+  async storeAll(
+    procedures: AnyProcedure[],
+    options?: SerializeOptions | ((procedure: AnyProcedure) => SerializeOptions | undefined)
+  ): Promise<SerializedProcedure[]> {
     const items: Array<[string, SerializedProcedure]> = procedures.map((proc) => [
       getProcedureKey(proc),
-      serializeProcedure(proc, { ...this.serializeOptions, ...options }),
+      serializeProcedure(proc, {
+        ...this.serializeOptions,
+        ...(typeof options === "function" ? options(proc) : options),
+      }),
     ]);
     await this.storage.setBatch(items);
+    return items.map(([, serialized]) => serialized);
   }
 
   /**
