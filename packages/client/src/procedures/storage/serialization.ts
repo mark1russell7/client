@@ -272,7 +272,8 @@ export function createDynamicHandlerLoader(allowedModules: readonly string[]): H
         return undefined;
       }
       try {
-        const module = await import(ref.module);
+        // The specifier is checked against the allowlist above. A bundler cannot follow it.
+        const module = await import(/* @vite-ignore */ ref.module);
         return module[ref.export];
       } catch {
         return undefined;

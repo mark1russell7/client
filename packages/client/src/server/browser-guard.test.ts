@@ -134,6 +134,25 @@ describe("HTTP server transport: browser checks", () => {
   });
 });
 
+describe("HTTP server transport: CORS preflight", () => {
+  it("allows the headers that HttpTransport sends from the metadata (X-Metadata for pagination)", async () => {
+    const { port } = await startHttp({ cors: true, corsOptions: { origin: ["https://app.example"] } });
+    const res = await new Promise<{ status: number; allow: string }>((resolve, reject) => {
+      const req = request(
+        { host: "127.0.0.1", port, method: "OPTIONS", path: "/api/t/run", headers: { origin: "https://app.example", "access-control-request-headers": "x-metadata" } },
+        (r) => {
+          r.resume();
+          r.on("end", () => resolve({ status: r.statusCode ?? 0, allow: String(r.headers["access-control-allow-headers"] ?? "") }));
+        }
+      );
+      req.on("error", reject);
+      req.end();
+    });
+    expect(res.status).toBe(204);
+    expect(res.allow.split(", ")).toEqual(expect.arrayContaining(["X-Metadata", "X-Request-Id", "Accept"]));
+  });
+});
+
 describe("WebSocket server transport: browser checks", () => {
   async function startWs(options: Partial<ConstructorParameters<typeof WebSocketServerTransport>[1]> = {}) {
     const { server } = makeServer();

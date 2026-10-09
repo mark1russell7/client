@@ -11,7 +11,7 @@ import type { Server as HttpServer } from "http";
 import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
 import type { Metadata } from "../../../client/types.js";
 import type { Server } from "../../../server/index.js";
-import { HTTPMethod, decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
+import { HTTPMethod, HTTPHeaders, decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
@@ -172,8 +172,10 @@ export class HttpServerTransport implements ServerTransport {
   private setupRoutes(): void {
     // CORS
     if (this.options.cors) {
-      const corsOptions = this.options.corsOptions ?? {
-        origin: "*",
+      // The given options go over the defaults. Before, options with only `origin` replaced
+      // them all, and the server sent "Access-Control-Allow-Headers: undefined".
+      const corsOptions = {
+        origin: "*" as string | string[],
         methods: [
           HTTPMethod.GET,
           HTTPMethod.POST,
@@ -182,8 +184,25 @@ export class HttpServerTransport implements ServerTransport {
           HTTPMethod.PATCH,
           HTTPMethod.OPTIONS,
         ],
-        allowedHeaders: ["Content-Type", "Authorization", "collection", "collectionName", "database"],
+        // The headers that HttpTransport sends from the metadata. Without X-Metadata, a page of
+        // another origin failed its preflight for every call with custom metadata (pagination).
+        allowedHeaders: [
+          "Content-Type",
+          "Accept",
+          HTTPHeaders.AUTHORIZATION,
+          HTTPHeaders.API_KEY,
+          HTTPHeaders.REQUEST_ID,
+          HTTPHeaders.TRACE_ID,
+          HTTPHeaders.SPAN_ID,
+          HTTPHeaders.PARENT_SPAN_ID,
+          HTTPHeaders.TIMEOUT,
+          HTTPHeaders.METADATA,
+          "collection",
+          "collectionName",
+          "database",
+        ],
         credentials: true,
+        ...this.options.corsOptions,
       };
 
       // One allowed origin goes back: the request's origin when it is in the list (a header
