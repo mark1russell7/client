@@ -28,16 +28,22 @@ async function main(): Promise<void> {
   // Load bundles dynamically
   // The namespaces that the bundles expose as tools. A bundle without mcpNamespaces exposes everything.
   let exposed: Set<string> | undefined;
+  // Single procedures that are not tools, although their namespace is exposed
+  const excluded = new Set<string>();
   for (const bundle of config.bundles) {
     try {
       if (config.debug) {
         console.error(`[mcp-server] Loading bundle: ${bundle}`);
       }
-      const module = (await import(`${bundle}/register.js`)) as { mcpNamespaces?: readonly string[] };
+      const module = (await import(`${bundle}/register.js`)) as {
+        mcpNamespaces?: readonly string[];
+        mcpExclude?: readonly string[];
+      };
       if (Array.isArray(module.mcpNamespaces)) {
         exposed ??= new Set();
         for (const namespace of module.mcpNamespaces) exposed.add(namespace);
       }
+      for (const key of module.mcpExclude ?? []) excluded.add(key);
     } catch (error) {
       console.error(`[mcp-server] Failed to load bundle "${bundle}":`, error);
       process.exit(1);
@@ -50,7 +56,7 @@ async function main(): Promise<void> {
   // See BUGS-2026-07 H18.
   const exposedNamespaces = exposed;
   const expose = exposedNamespaces
-    ? (path: ProcedurePath): boolean => exposedNamespaces.has(path[0] ?? "")
+    ? (path: ProcedurePath): boolean => exposedNamespaces.has(path[0] ?? "") && !excluded.has(path.join("."))
     : undefined;
 
   const server = new ProcedureServer({

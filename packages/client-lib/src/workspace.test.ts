@@ -43,8 +43,13 @@ describe("resolveWorkspaceRoot", () => {
     expect(existsSync(join(packagesDir(root), "client-lib", "package.json"))).toBe(true);
   });
 
-  it("uses an explicit rootPath and expands ~", () => {
-    expect(resolveWorkspaceRoot("~/some/where")).toBe(join(homedir(), "some", "where"));
+  it("uses an explicit rootPath only when it is a workspace root (deep dive DATA-18), and expands ~", () => {
+    const workspace = mkdtempSync(join(tmpdir(), "lib-workspace-"));
+    writeFileSync(join(workspace, "pnpm-workspace.yaml"), "packages: []\n");
+    expect(resolveWorkspaceRoot(workspace)).toBe(workspace);
+    expect(() => resolveWorkspaceRoot("~/not-a-workspace-folder")).toThrow(
+      `Not a workspace root (no pnpm-workspace.yaml): ${join(homedir(), "not-a-workspace-folder")}`,
+    );
   });
 });
 

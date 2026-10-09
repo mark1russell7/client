@@ -13,7 +13,8 @@
 
 import { describe, it, expect } from "vitest";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -93,6 +94,14 @@ describe("dev-tools MCP server", () => {
 
     expect(result?.isError).toBe(true);
     expect(result?.content?.[0]?.text).toContain("Procedure not exposed: shell.exec");
+  }, 60_000);
+
+  it("passes the input of a docker tool as arguments, not as shell syntax (deep dive WRP-1, MCP-2)", async () => {
+    const marker = join(tmpdir(), `mcp-docker-marker-${process.pid}-${Date.now()}`);
+    await withServer((request) =>
+      request("tools/call", { name: "docker.logs", arguments: { container: `x & echo marker> "${marker}"` } }),
+    );
+    expect(existsSync(marker)).toBe(false);
   }, 60_000);
 
   it("lets client.chain call an exposed procedure", async () => {

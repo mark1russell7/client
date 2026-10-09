@@ -29,7 +29,6 @@
   ],
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-cli": "workspace:*",
     "@mark1russell7/client-lib": "workspace:*",
     "@mark1russell7/client-procedure": "workspace:*",
     "@mark1russell7/client-cue": "workspace:*",

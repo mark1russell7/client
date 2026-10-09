@@ -1,4 +1,3 @@
-cli.run
 client.all
 client.and
 client.any
@@ -58,12 +57,6 @@ procedure.delete
 procedure.export
 procedure.get
 procedure.list
-procedure.load
 procedure.new
-procedure.register
-procedure.remote
-procedure.store
-procedure.sync
 vitest.coverage
 vitest.run
-vitest.watch

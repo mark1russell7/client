@@ -48,7 +48,13 @@ export function findWorkspaceRoot(start: string): string | null {
  */
 export function resolveWorkspaceRoot(rootPath?: string): string {
   if (rootPath) {
-    return resolve(expandHome(rootPath));
+    // Only a real workspace root: lib.new runs that workspace's cue CLI, and lib.rename rewrites
+    // its files, so a rootPath elsewhere ran a script from any folder (deep dive DATA-18)
+    const root = resolve(expandHome(rootPath));
+    if (!existsSync(join(root, "pnpm-workspace.yaml"))) {
+      throw new Error(`Not a workspace root (no pnpm-workspace.yaml): ${root}`);
+    }
+    return root;
   }
   const own = findWorkspaceRoot(dirname(fileURLToPath(import.meta.url)));
   if (!own) {

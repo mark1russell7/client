@@ -221,9 +221,6 @@ importers:
       '@mark1russell7/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-cli':
-        specifier: workspace:*
-        version: link:../client-cli
       '@mark1russell7/client-cue':
         specifier: workspace:*
         version: link:../client-cue
@@ -351,6 +348,9 @@ importers:
       '@mark1russell7/client':
         specifier: workspace:*
         version: link:../client
+      '@mark1russell7/client-fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10

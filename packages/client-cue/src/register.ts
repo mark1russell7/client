@@ -6,6 +6,9 @@
  */
 
 import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+// The cue procedures read and write files through fs.*: register them wherever cue.* runs.
+// (Over the MCP server, fs.* was not registered, so every cue tool failed: deep dive WRP-3.)
+import "@mark1russell7/client-fs";
 import { cueInit } from "./procedures/cue/init.js";
 import { cueAdd } from "./procedures/cue/add.js";
 import { cueRemove } from "./procedures/cue/remove.js";

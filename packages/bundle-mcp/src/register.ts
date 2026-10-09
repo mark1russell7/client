@@ -16,7 +16,6 @@
  */
 
 // Core orchestration
-import "@mark1russell7/client-cli";
 import "@mark1russell7/client-lib";
 import "@mark1russell7/client-procedure";
 import "@mark1russell7/client-cue";
@@ -31,9 +30,12 @@ import "@mark1russell7/client-sqlite";
 // Testing
 import "@mark1russell7/client-vitest";
 
-/** The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools. */
+/**
+ * The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools.
+ * `cli` is not one: `cli.run` runs any `mark` command, also `shell exec`, so it would give back what
+ * the list keeps out (deep dive CLI-5, TRN-2).
+ */
 export const mcpNamespaces: readonly string[] = [
-  "cli",
   "client",
   "cue",
   "db",
@@ -43,4 +45,19 @@ export const mcpNamespaces: readonly string[] = [
   "mongo",
   "procedure",
   "vitest",
+];
+
+/**
+ * Procedures of the exposed namespaces that are not tools all the same:
+ * - `vitest.watch` starts a process that no tool can stop (deep dive WRP-4);
+ * - `procedure.store`, `load`, `sync`, `remote` and `register` report success but persist nothing
+ *   (deep dive CORE-16, DATA-10).
+ */
+export const mcpExclude: readonly string[] = [
+  "vitest.watch",
+  "procedure.store",
+  "procedure.load",
+  "procedure.sync",
+  "procedure.remote",
+  "procedure.register",
 ];
