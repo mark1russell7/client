@@ -1,6 +1,10 @@
 /**
  * The trace of a run: the calls as a tree, with a bar for the time of each call.
  *
+ * A call is under the call that started it. A call that hydration ran for the input of another
+ * call is under that call (its consumer), as in the blocks: `add { a: multiply }` shows multiply
+ * under add, with the tag "input", although multiply ran first.
+ *
  * The tree is a WAI-ARIA tree: one row has the focus (Tab reaches it), the arrow keys move,
  * Left and Right close and open a call, Home and End go to the first and the last row, and
  * Enter shows the input and the output of a call. Only the visible rows are in the page, so a
@@ -27,16 +31,44 @@ interface Row {
 
 interface Tree {
   children: Map<number | null, TraceCall[]>;
+  /** The parent of each call in the tree: its consumer, or the call that started it. */
+  parentOf: Map<number, number | null>;
   total: number;
+}
+
+/**
+ * The parent of each call in the tree. A consumer comes first, unless it makes a cycle (a
+ * consumer that is under the call): then the call that started it.
+ */
+function treeParents(calls: TraceCall[]): Map<number, number | null> {
+  const ids = new Set(calls.map((call) => call.id));
+  const parentOf = new Map<number, number | null>();
+  for (const call of calls) {
+    parentOf.set(call.id, call.consumer !== undefined && ids.has(call.consumer) ? call.consumer : call.parent);
+  }
+  for (const call of calls) {
+    if (call.consumer === undefined) continue;
+    const seen = new Set<number>([call.id]);
+    for (let up = parentOf.get(call.id) ?? null; up !== null; up = parentOf.get(up) ?? null) {
+      if (seen.has(up)) {
+        parentOf.set(call.id, call.parent);
+        break;
+      }
+      seen.add(up);
+    }
+  }
+  return parentOf;
 }
 
 function buildTree(result: RunResult): Tree {
   const children = new Map<number | null, TraceCall[]>();
+  const parentOf = treeParents(result.calls);
   let total = Math.max(result.duration, 0.01);
   for (const call of result.calls) {
-    const list = children.get(call.parent);
+    const parent = parentOf.get(call.id) ?? null;
+    const list = children.get(parent);
     if (list) list.push(call);
-    else children.set(call.parent, [call]);
+    else children.set(parent, [call]);
     total = Math.max(total, call.end ?? call.start);
   }
   // A call whose parent is not in the trace (the trace was full) goes to the top level
@@ -47,7 +79,9 @@ function buildTree(result: RunResult): Tree {
       children.set(null, [...(children.get(null) ?? []), ...list]);
     }
   }
-  return { children, total };
+  // A consumer comes after the calls of its input: show the children in the order they started
+  for (const list of children.values()) list.sort((a, b) => a.start - b.start || a.id - b.id);
+  return { children, parentOf, total };
 }
 
 /** The visible rows: a depth-first walk without recursion, which skips the closed calls. */
@@ -179,7 +213,10 @@ export function Trace({ result }: { result: RunResult }): ReactElement {
         break;
       case "ArrowLeft":
         if (row.hasChildren && !closed.has(row.call.id)) toggle(row.call.id, true);
-        else if (row.call.parent !== null) move(rows.findIndex((candidate) => candidate.call.id === row.call.parent));
+        else {
+          const parent = tree.parentOf.get(row.call.id) ?? null;
+          if (parent !== null) move(rows.findIndex((candidate) => candidate.call.id === parent));
+        }
         break;
       case "Enter":
       case " ":
@@ -210,6 +247,7 @@ export function Trace({ result }: { result: RunResult }): ReactElement {
             const width = Math.max(((end - call.start) / tree.total) * 100, 0.8);
             const name = call.key.replace(/^client\./, "");
             const failed = call.error !== undefined;
+            const isInput = call.consumer !== undefined && tree.parentOf.get(call.id) === call.consumer;
             return (
               <div
                 key={call.id}
@@ -220,7 +258,7 @@ export function Trace({ result }: { result: RunResult }): ReactElement {
                 aria-setsize={row.siblings}
                 aria-expanded={row.hasChildren ? !closed.has(call.id) : undefined}
                 aria-selected={open === call.id}
-                aria-label={`${name}, ${failed ? `error: ${call.error}` : `result ${previewValue(call.output, 80)}`}, ${(end - call.start).toFixed(2)} ms`}
+                aria-label={`${name}${isInput ? ", an input" : ""}, ${failed ? `error: ${call.error}` : `result ${previewValue(call.output, 80)}`}, ${(end - call.start).toFixed(2)} ms`}
                 tabIndex={index === activeIndex ? 0 : -1}
                 className={`trace-row cat-${category}${open === call.id ? " open" : ""}`}
                 style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
@@ -247,6 +285,11 @@ export function Trace({ result }: { result: RunResult }): ReactElement {
                     <span className="twisty" aria-hidden="true" />
                   )}
                   {name}
+                  {isInput ? (
+                    <span className="trace-via" title="Hydration ran this call for the input of the call above it">
+                      input
+                    </span>
+                  ) : null}
                   {failed ? <span className="err">✗ {call.error}</span> : <span className="out">→ {previewValue(call.output)}</span>}
                 </span>
                 <span className="trace-track" aria-hidden="true">

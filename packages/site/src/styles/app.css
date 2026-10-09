@@ -1184,6 +1184,14 @@ button.collapsed {
   margin-left: var(--space-2);
 }
 
+.trace-via {
+  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-ink-muted);
+}
+
 .trace-name .err {
   color: var(--status-critical-ink);
   margin-left: var(--space-2);

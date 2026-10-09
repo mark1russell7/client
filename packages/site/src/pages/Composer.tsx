@@ -306,7 +306,10 @@ function ResultPanel({
             </pre>
           )}
           <h3 className="trace-title">Trace</h3>
-          <p className="muted small">Each call, nested under its caller. Select a call for its input and output.</p>
+          <p className="muted small">
+            Each call is under the call that started it. A call that ran for the input of another call is under that call, with
+            the tag “input”. Select a call for its input and output.
+          </p>
           <Trace result={result} />
         </>
       )}
