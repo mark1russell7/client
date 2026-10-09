@@ -8,14 +8,12 @@
 
 | Status | Count | IDs |
 |---|---:|---|
-| Fixed in July | 43 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: it is fixed in October) |
-| Fixed in October | 39 | see the next table |
+| Fixed in July | 42 | C1–C7, H1–H4, H7, H10, H11, H13, H14, H16, H19, H24, H25, H27, H28, M4, M6, M7, M10, M12–M16, M18–M21, M23, M24, M30, M35, M39, M41, L1 (H18 was referenced in July too, but only its documentation was corrected: it is fixed in October. M11 was listed here, but its commit fixed M14: the deep dive found it open, and it is fixed in October) |
+| Fixed in October | 54 | see the next table |
 | Fixed earlier, confirmed in October | 6 | H20, H21, M9, L27; H30 and M40 in the `logger` repository |
 | Obsolete (the code was deleted) | 9 | L21 (`client-logger`, retired), H17, L26 (aggregation layer), L25 (`lib.pull`), M31 (`lib.refresh`), H22 (`client-server-mongo`), H23 (`client-connection`), L18, L19 (mock packages) |
 | Not a bug | 1 | L20: `splay`'s own tests assert that `pathDepth("data.items[0]")` is 2 |
-| Open: latent | 1 | L15 |
-| Open: restored, to rebuild | 11 | C8–C12, L10, L11, L12, L14, L16, L17. The collections modules were deleted on 2026-10-08 and restored the same day. See ARCHITECTURE-PROPOSALS P8. |
-| Open: needs a decision | 3 | L2; M27, M28 (`cue`) |
+| Open: needs a decision | 1 | L2 |
 
 ## Fixed in October
 
@@ -53,6 +51,10 @@
 | H5 | WebSocket stream frames, a `cancel` message, and a client that yields frames as they arrive | `b6a5527` |
 | M2 | the retry middleware passes items through, and retries only before the first item | `49b8f88` |
 | H18 | the MCP server exposes only `bundle-mcp`'s `mcpNamespaces` (`shell.*` out, `lib.*` in, 68 tools). A data-driven procedure (`client.chain`, `eval`, a procedure that `procedure.define` made) calls only exposed procedures, so `client.chain` cannot reach `shell.exec`. Importing any client package registers its procedures | `8f8091e` |
+| C8–C12, L10, L11, L12, L14, L16, L17 | the restored collections modules (P8): contract tests with fast-check for every structure, and the eleven defects fixed. See the commit message for each one | `52a5f68` |
+| L15 | `HashMap` iteration fails fast when the map changes (a modification count) | `b5eead4` |
+| M11 | the dynamic handler loader takes an allowlist, and the storage factory has no default loader (deep dive CORE-7, DATA-11) | `e1b5b57` |
+| M27, M28 | `cue`: the dead `onlyBuiltDependencies` block is removed; the `vitest` feature has a CUE file and a schema entry | `150df3b`, `f2bb602` (`cue`) |
 | L13 | composite map methods go through `lruMap`/`ttlMap`. Partly real: most `HashMap` composites already called `this.set`/`this.delete` on the proxy, but `replace`, `replaceEntry` and `deleteEntry` changed the buckets directly (an LRU `replace` left the recency and the reported eviction value stale) | `9bcce4a` |
 
 ### Found and fixed in October (not in the July register)
@@ -77,8 +79,6 @@
 
 ## Open
 
-**Latent** (the only consumer is not affected):
+**Needs a decision** (the options are in the architecture proposals): L2 (route-leaf detection).
 
-- L15: `HashMap` has no modification count, so an iterator does not fail fast when the map changes during iteration.
-
-**Needs a decision** (the options are in the architecture proposals): L2 (route-leaf detection), M27 and M28 (`cue` generator: the per-package `pnpm` field, and a `vitest` feature with no CUE file).
+The findings of the October deep dive have their own register: [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md).

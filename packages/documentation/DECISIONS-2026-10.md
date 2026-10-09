@@ -13,6 +13,25 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### The deep dive, wave 1: changes of behavior and judgment calls
+
+The owner asked for the deep dive and the fixes of its findings ("ok letsdo everythig including depedive", 2026-10-08). Seven branches fixed the findings, one for each area. [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md) gives the status and the commit of each finding. These fixes change behavior that a user can see. The owner can review each one:
+
+- **One interpreter for procedure-as-data** (`8a9e7c7`). The chain's `resolveRefs` and the `resolveInputRefs` of `procedure.define` are gone. `exec()`, chain steps, control-flow operands and defined procedures all use the hydration of `ref.ts`.
+  - A control-flow operand that is not a call (a branch of `conditional`, `try`, a task) is hydrated as a program: its nested calls run, and a list of only calls is a chain. Before, `conditional` gave such a branch back raw, with nothing run.
+  - Sibling refs run one at a time, in order, by default. `parallel: true` runs them together. Before, they always ran together, so the order of side effects was not defined.
+  - An unknown `$ref` name in a scope is an error. Before, it was `undefined` (a misspelled name gave `NaN` with no error).
+  - In a `procedure.define` body, a bare `$ref` name does not read an input field. Use `input.x`.
+  - `$literal` keeps a value as data.
+- **The cache middleware is opt-in for each method** (`06b5172`): `createCacheMiddleware` needs `methods`. Nothing in the repository used it. Before, it cached mutations, and its key ignored the metadata, so one user could get the response of another.
+- **A transport timeout is not retryable** (`06b5172`): the server can have run the call already. The per-attempt timeout of the timeout middleware is retryable.
+- **`procedure.remote connect` is `NOT_IMPLEMENTED`** (`8d1e7f3`). A storage that a procedure makes at run time would give it network reach.
+- **The expose rule is not applied to the target path of `procedure.define`** (MCP-4). A defined procedure is data-driven, so it can call only exposed procedures. `replace` works only over runtime-defined procedures.
+- **The `mark` Dockerfile and compose file are retired** (`612e842`). A container cannot serve the local workspace with the lockfile token. Reverse with `git revert 612e842`.
+- **Browser checks are on in every server transport** (`43b98ee`). A host that serves a web page from another origin must list it in `allowedOrigins`. A RESTful URL strategy needs `allowGet: true`.
+- **`fs.glob` returns "/" paths, sorted** (`31152e5`), also on Windows.
+- To reverse one change: revert its commit. Each commit holds one area.
+
 ### Streaming end to end, and one invocation path (P1, P3)
 
 The owner approved both on 2026-10-08. The judgment calls:
