@@ -41,6 +41,39 @@ export class RegistryError extends Error {
 }
 
 // =============================================================================
+// Path Segments
+// =============================================================================
+
+/** Segments that name properties of every object. A path must not use them. */
+const RESERVED_SEGMENTS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * This function checks a procedure path: at least one segment, each a non-empty string, and
+ * none of `__proto__`, `constructor` or `prototype`. A reserved segment reaches
+ * `Object.prototype` in a tree walk (deep dive CORE-6). A segment can contain a dot
+ * (`["fs", "read.json"]`), but the registry rejects two different paths with the same key.
+ *
+ * @throws RegistryError when the path is not valid
+ */
+export function assertValidPath(path: ProcedurePath): void {
+  if (!Array.isArray(path) || path.length === 0) {
+    throw new RegistryError("A procedure path must have at least one segment", path ?? []);
+  }
+  for (const segment of path) {
+    if (typeof segment !== "string" || segment === "") {
+      throw new RegistryError(`A path segment must be a non-empty string: ${JSON.stringify(path)}`, path);
+    }
+    if (RESERVED_SEGMENTS.has(segment)) {
+      throw new RegistryError(`A path segment must not be ${JSON.stringify(segment)}: ${JSON.stringify(path)}`, path);
+    }
+  }
+}
+
+function samePath(a: ProcedurePath, b: ProcedurePath): boolean {
+  return a.length === b.length && a.every((segment, index) => segment === b[index]);
+}
+
+// =============================================================================
 // Procedure Registry
 // =============================================================================
 
@@ -93,9 +126,18 @@ export class ProcedureRegistry {
       ? [...options.pathPrefix, ...procedure.path]
       : procedure.path;
 
+    assertValidPath(path);
     const key = pathToKey(path);
 
-    if (this.procedures.has(key) && !options?.override) {
+    const replaced = this.procedures.get(key);
+    // The key joins the segments with dots: ["a.b", "c"] and ["a", "b.c"] have one key
+    if (replaced && !samePath(replaced.path, path)) {
+      throw new RegistryError(
+        `Procedure path ${JSON.stringify(path)} has the same key as ${JSON.stringify(replaced.path)}: ${key}`,
+        path
+      );
+    }
+    if (replaced && !options?.override) {
       throw new RegistryError(
         `Procedure already registered at path: ${key}`,
         path
@@ -109,6 +151,8 @@ export class ProcedureRegistry {
     };
 
     this.procedures.set(key, storedProcedure);
+    // A listener that keeps state per path sees the old procedure go first
+    if (replaced) this.emit("unregister", replaced);
     this.emit("register", storedProcedure);
   }
 
@@ -251,7 +295,9 @@ export class ProcedureRegistry {
    * ```
    */
   getTree(): Record<string, unknown> {
-    const tree: Record<string, unknown> = {};
+    // Null-prototype containers and own-property checks: a segment such as "toString" is a
+    // name, not a property of Object.prototype (deep dive CORE-6)
+    const tree: Record<string, unknown> = Object.create(null);
 
     for (const procedure of this.procedures.values()) {
       let current = tree;
@@ -263,8 +309,8 @@ export class ProcedureRegistry {
         if (isLast) {
           current[segment] = procedure;
         } else {
-          if (!(segment in current)) {
-            current[segment] = {};
+          if (!Object.hasOwn(current, segment)) {
+            current[segment] = Object.create(null);
           }
           current = current[segment] as Record<string, unknown>;
         }

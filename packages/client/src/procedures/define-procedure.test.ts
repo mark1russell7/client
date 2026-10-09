@@ -15,7 +15,11 @@ import {
 } from "./define-procedure.js";
 import type { ProcedureContext } from "./types.js";
 import type { AggregationDefinition } from "./define-procedure.js";
-import { PROCEDURE_REGISTRY } from "./registry.js";
+import { PROCEDURE_REGISTRY, ProcedureRegistry } from "./registry.js";
+import { metaProcedures } from "./define-procedure.js";
+import { Client } from "../client/client.js";
+import { allCoreProcedures } from "./core/index.js";
+import { isDataDriven } from "./ref.js";
 
 /**
  * Simple inline mock client for tests
@@ -605,5 +609,100 @@ describe("$ref resolution", () => {
       bool: true,
       nil: null,
     });
+  });
+});
+
+// =============================================================================
+// Deep dive 2026-10: CORE-3 / MCP-4 (the registry stays consistent) and CORE-4 (the body runs
+// with the same semantics as exec()), through a Client with its own registry
+// =============================================================================
+
+describe("procedure.define through a client (deep dive 2026-10)", () => {
+  const stubTransport = { send: async function* () {} } as unknown as ConstructorParameters<typeof Client>[0];
+
+  function makeClient(): { client: Client; registry: ProcedureRegistry } {
+    const registry = new ProcedureRegistry();
+    for (const procedure of [...allCoreProcedures, ...metaProcedures]) registry.register(procedure);
+    return { client: new Client(stubTransport).useRegistry(registry), registry };
+  }
+
+  const define = (client: Client, path: string[], aggregation: unknown, replace?: boolean) =>
+    client.exec({ $proc: ["procedure", "define"], input: { path, aggregation, ...(replace ? { replace } : {}) } });
+
+  const add = (a: unknown, b: unknown) => ({ $proc: ["client", "add"], input: { a, b } });
+  const multiply = (a: unknown, b: unknown) => ({ $proc: ["client", "multiply"], input: { a, b } });
+
+  it("CORE-4: a three-step pipeline keeps $last and the step names", async () => {
+    const { client } = makeClient();
+    await define(client, ["test", "pipeline"], {
+      $proc: ["client", "chain"],
+      input: {
+        steps: [
+          { ...add({ $ref: "input.a" }, 1), $name: "one" },
+          multiply({ $ref: "$last" }, 2),
+          add({ $ref: "one" }, { $ref: "$last" }),
+        ],
+      },
+    });
+    const result = await client.exec<{ results: unknown[] }>(["test", "pipeline"], { a: 1 });
+    expect(result.results).toEqual([2, 4, 6]);
+  });
+
+  it("CORE-4: map in a body keeps item and index", async () => {
+    const { client } = makeClient();
+    await define(client, ["test", "scale"], {
+      $proc: ["client", "map"],
+      input: { items: { $ref: "input.items" }, fn: add(multiply({ $ref: "item" }, { $ref: "input.factor" }), { $ref: "index" }) },
+    });
+    const result = await client.exec<{ results: unknown[] }>(["test", "scale"], { items: [1, 2], factor: 10 });
+    expect(result.results).toEqual([10, 21]);
+  });
+
+  it("CORE-4: nested refs in the input of a code procedure run", async () => {
+    const { client } = makeClient();
+    await define(client, ["test", "nested"], add(multiply({ $ref: "input.x" }, 2), 1));
+    expect(await client.exec(["test", "nested"], { x: 3 })).toBe(7);
+  });
+
+  it("CORE-3: the procedure goes into the caller's registry", async () => {
+    const { client, registry } = makeClient();
+    await define(client, ["test", "local"], add(1, 1));
+    expect(registry.get(["test", "local"])).toBeDefined();
+    expect(PROCEDURE_REGISTRY.get(["test", "local"])).toBeUndefined();
+    expect(isDataDriven(registry.get(["test", "local"])!)).toBe(true);
+    const listed = await client.exec<{ procedures: Array<{ path: string[] }> }>(["procedure", "list"], {});
+    expect(listed.procedures.map((p) => p.path.join("."))).toEqual(["test.local"]);
+  });
+
+  it("CORE-3: replace cannot replace a code procedure", async () => {
+    const { client } = makeClient();
+    await expect(define(client, ["client", "add"], { $proc: ["client", "constant"], input: { value: 0 } }, true)).rejects.toThrow(
+      /code procedure/,
+    );
+    expect(await client.exec(["client", "add"], { a: 2, b: 2 })).toBe(4);
+  });
+
+  it("CORE-3: delete unregisters, and the path can be defined again", async () => {
+    const { client, registry } = makeClient();
+    await define(client, ["test", "temp"], add(1, 1));
+    expect(await client.exec(["procedure", "delete"], { path: ["test", "temp"] })).toEqual({ deleted: true });
+    expect(registry.get(["test", "temp"])).toBeUndefined();
+    await define(client, ["test", "temp"], add(2, 2));
+    expect(await client.exec(["test", "temp"], {})).toBe(4);
+  });
+
+  it("CORE-3: delete does not remove a code procedure", async () => {
+    const { client, registry } = makeClient();
+    await expect(client.exec(["procedure", "delete"], { path: ["client", "add"] })).rejects.toThrow(/code procedure/);
+    expect(registry.get(["client", "add"])).toBeDefined();
+  });
+
+  it("CORE-3: a failed define leaves nothing", async () => {
+    const { client, registry } = makeClient();
+    await expect(define(client, ["test", "__proto__"], add(1, 1))).rejects.toThrow(/__proto__/);
+    await expect(define(client, ["test", "noBody"], { not: "a ref" })).rejects.toThrow(/aggregation/);
+    expect(registry.getAll().filter((p) => p.path[0] === "test")).toEqual([]);
+    const listed = await client.exec<{ procedures: unknown[] }>(["procedure", "list"], {});
+    expect(listed.procedures).toEqual([]);
   });
 });

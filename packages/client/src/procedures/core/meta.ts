@@ -8,7 +8,7 @@
 
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-import { parseProcedureJson, stringifyProcedureJson, isAnyProcedureRef, RUNS_REFS_TAG } from "../ref.js";
+import { parseProcedureJson, stringifyProcedureJson, isAnyProcedureRef, RUNS_REFS_TAG, RAW_INPUT_TAG } from "../ref.js";
 import { PROCEDURE_REGISTRY } from "../registry.js";
 
 // =============================================================================
@@ -113,7 +113,8 @@ const exportProcedure: ExportProcedure = defineProcedure({
   output: anySchema as any,
   metadata: {
     description: "Serialize procedure aggregation to JSON string",
-    tags: ["core", "meta"],
+    // The refs of the input are data: exec() must not run them (deep dive CORE-5)
+    tags: ["core", "meta", RAW_INPUT_TAG],
   },
   handler: async (input: ExportInput): Promise<ExportOutput> => {
     try {
@@ -226,7 +227,8 @@ const stringifyJsonProcedure: StringifyJsonProcedure = defineProcedure({
   output: anySchema as any,
   metadata: {
     description: "Stringify value to JSON (with procedure ref support)",
-    tags: ["core", "meta"],
+    // The refs of the input are data: exec() must not run them (deep dive CORE-5)
+    tags: ["core", "meta", RAW_INPUT_TAG],
   },
   handler: async (input: StringifyJsonInput): Promise<string> => {
     const indent = input.pretty ? (input.indent ?? 2) : input.indent;
@@ -262,8 +264,9 @@ const lookupProcedure: LookupProcedure = defineProcedure({
     description: "Look up procedure in registry by path",
     tags: ["core", "meta"],
   },
-  handler: async (input: LookupInput): Promise<LookupOutput> => {
-    const proc = PROCEDURE_REGISTRY.get(input.path);
+  handler: async (input: LookupInput, ctx): Promise<LookupOutput> => {
+    // The registry of the caller (a server or a client with its own registry)
+    const proc = (ctx?.registry ?? PROCEDURE_REGISTRY).get(input.path);
     if (proc) {
       return {
         exists: true,

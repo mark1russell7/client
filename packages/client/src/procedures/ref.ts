@@ -8,7 +8,9 @@
  * - PROCEDURE_SYMBOL: Symbol tag to identify procedure references in JSON/objects
  * - ProcedureRef: A reference to a procedure with pre-bound input
  * - $when: Controls when a procedure reference is executed during hydration
- * - $name: Names a context so nested refs can defer execution to it
+ * - $name: Names the result of a chain step, for `$ref`
+ * - $ref: Reads a name of the scope (a chain step, `$last`, `item`, `acc`, `index`, `input`)
+ * - $literal: Gives a value without hydration
  * - hydrateInput: Walks input tree and executes nested procedure references
  * - executeRef: Helper for procedures to execute deferred refs
  * - proc(): Factory function to create procedure references
@@ -17,13 +19,19 @@
  *
  * The `$when` field controls when a procedure reference is executed:
  * - `"$immediate"` (or absent): Execute during hydration (default)
- * - `"$never"`: Never execute during hydration, pass as pure data
+ * - `"$never"`: Never execute during hydration, pass as pure data (with its whole subtree)
  * - `"$parent"`: Defer to parent procedure (pass as data)
- * - `"someName"`: Defer to named ancestor context (matched via $name)
+ * - `"someName"`: Defer to the runner that gives this name in its `contextStack`
+ *   (`dag.traverse` gives "dag.traverse", `core.catch` gives "catch")
  *
- * ## Named Contexts with $name
+ * A deferred ref is data at every depth: hydration of the input that holds it does not run it.
+ * The procedure that receives it runs it later (deep dive CORE-11).
  *
- * Use `$name` to create a named execution context that nested refs can target:
+ * ## Raw input
+ *
+ * A procedure that takes its input raw (control flow, the `runs-refs` and `raw-input` tags) gets
+ * the refs of its input unchanged: it runs them itself. Such an input carries the scope of the
+ * caller (`withScope`), so nested control flow can read the names of an outer chain.
  *
  * @example
  * ```typescript
@@ -69,7 +77,7 @@ export const PROCEDURE_JSON_KEY: string = "$proc";
 export const PROCEDURE_WHEN_KEY: string = "$when";
 
 /**
- * JSON key used to name a context for deferred execution.
+ * JSON key that names the result of a chain step: a later step reads it with `{ $ref: "<name>" }`.
  */
 export const PROCEDURE_NAME_KEY: string = "$name";
 
@@ -77,6 +85,12 @@ export const PROCEDURE_NAME_KEY: string = "$name";
  * JSON key used to reference outputs from named stages.
  */
 export const OUTPUT_REF_KEY: string = "$ref";
+
+/**
+ * JSON key of a literal. Hydration gives the value of `{ $literal: value }` and does not look
+ * inside it, so a `$proc` or a `$ref` in the value stays data (for example a JSON Schema `$ref`).
+ */
+export const LITERAL_KEY: string = "$literal";
 
 // =============================================================================
 // Execution Timing Constants
@@ -180,17 +194,37 @@ export function createRefScope(parent?: RefScope, name?: string): RefScope {
 /**
  * Get a value by path from an object.
  * Supports dot-separated paths like "foo.bar.baz".
+ * Only the own properties are read, so a path such as "a.constructor" gives undefined.
  */
 export function getPath(obj: unknown, path: string[]): unknown {
   let value = obj;
   for (const key of path) {
-    if (value && typeof value === "object") {
+    if (value && typeof value === "object" && Object.hasOwn(value, key)) {
       value = (value as Record<string, unknown>)[key];
     } else {
       return undefined;
     }
   }
   return value;
+}
+
+/**
+ * Look up an output reference in a scope and its parents.
+ *
+ * The first segment is a name: the innermost scope with that name gives the value. `$last` is the
+ * last result of the innermost scope that has one. The other segments read fields of the value.
+ * `found` is false when no scope has the name. A missing field is `found` with the value undefined.
+ */
+export function lookupOutputRef(refPath: string, scope: RefScope | undefined): { found: boolean; value?: unknown } {
+  const [first, ...rest] = refPath.split(".");
+  for (let current = scope; current; current = current.parent) {
+    if (first === "$last") {
+      if (Object.hasOwn(current, "last")) return { found: true, value: getPath(current.last, rest) };
+    } else if (current.outputs.has(first!)) {
+      return { found: true, value: getPath(current.outputs.get(first!), rest) };
+    }
+  }
+  return { found: false };
 }
 
 /**
@@ -201,24 +235,50 @@ export function getPath(obj: unknown, path: string[]): unknown {
  * @returns The resolved value, or undefined if not found
  */
 export function resolveOutputRef(refPath: string, scope: RefScope): unknown {
-  const parts = refPath.split(".");
-  const [first, ...rest] = parts;
+  return lookupOutputRef(refPath, scope).value;
+}
 
-  // Handle $last reference
-  if (first === "$last") {
-    return getPath(scope.last, rest);
-  }
+// =============================================================================
+// Scope of a raw input
+// =============================================================================
 
-  // Look up in current scope, then parent scopes
-  let currentScope: RefScope | undefined = scope;
-  while (currentScope) {
-    if (currentScope.outputs.has(first!)) {
-      return getPath(currentScope.outputs.get(first!), rest);
-    }
-    currentScope = currentScope.parent;
-  }
+const SCOPE_KEY = Symbol.for("@mark/ref-scope");
 
-  return undefined;
+/**
+ * This function gives a copy of a raw input that carries a scope. A procedure that takes its input
+ * raw (control flow) reads the scope with `scopeOf()` and makes it the parent of its own scope.
+ * Thus the operands of a nested control-flow procedure can read the names of the outer chain.
+ * The scope is a property that is not enumerable: JSON and the transports do not see it.
+ */
+export function withScope<T>(input: T, scope: RefScope | undefined): T {
+  if (!scope || !isPlainObject(input)) return input;
+  const copy = { ...input };
+  Object.defineProperty(copy, SCOPE_KEY, { value: scope, enumerable: false });
+  return copy as T;
+}
+
+/** The scope that a raw input carries (see `withScope()`), or undefined. */
+export function scopeOf(input: unknown): RefScope | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  return (input as { [SCOPE_KEY]?: RefScope })[SCOPE_KEY];
+}
+
+// =============================================================================
+// Plain data
+// =============================================================================
+
+/** True for a plain object: an object literal, or an object with a null prototype. */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/** True for `{ $literal: value }`: a plain object whose only key is `$literal`. */
+export function isLiteral(value: unknown): value is { $literal: unknown } {
+  if (!isPlainObject(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === 1 && keys[0] === LITERAL_KEY;
 }
 
 // =============================================================================
@@ -540,8 +600,20 @@ export function proc<TOutput = unknown>(
 // JSON Conversion
 // =============================================================================
 
+/** The `$name` and `$when` fields of a reference, for a copy in the other form. */
+function refFields(ref: { $name?: string | undefined; $when?: ProcedureWhen | undefined }): {
+  $name?: string;
+  $when?: ProcedureWhen;
+} {
+  return {
+    ...(ref.$name !== undefined ? { $name: ref.$name } : {}),
+    ...(ref.$when !== undefined ? { $when: ref.$when } : {}),
+  };
+}
+
 /**
  * Convert a procedure reference from JSON form to runtime form.
+ * The `$name` and `$when` fields stay (deep dive CORE-11: before, they were dropped).
  */
 export function fromJson<TInput, TOutput>(
   json: ProcedureRefJson<TInput>
@@ -550,16 +622,19 @@ export function fromJson<TInput, TOutput>(
     [PROCEDURE_SYMBOL]: true,
     path: json.$proc,
     input: json.input,
+    ...refFields(json),
   } as ProcedureRef<TInput, TOutput>;
 }
 
 /**
  * Convert a procedure reference from runtime form to JSON form.
+ * The `$name` and `$when` fields stay.
  */
 export function toJson<TInput>(ref: ProcedureRef<TInput>): ProcedureRefJson<TInput> {
   return {
     $proc: ref.path,
     input: ref.input,
+    ...refFields(ref),
   };
 }
 
@@ -592,17 +667,45 @@ export type RefExecutor = <TInput, TOutput>(
  * Options for input hydration.
  */
 export interface HydrateOptions {
-  /** Maximum depth for recursive hydration (default: 10) */
+  /**
+   * Maximum nesting of procedure refs (default: 10). Plain data does not count: only the input
+   * of a ref inside the input of another ref adds one level.
+   */
   maxDepth?: number | undefined;
 
-  /** Whether to execute refs in parallel when possible (default: false) */
+  /**
+   * Whether sibling refs run at the same time (default: false). With false, the refs run one
+   * after the other, from left to right and depth first, so the order of their effects is known.
+   */
   parallel?: boolean | undefined;
 
-  /** Initial context stack for named contexts */
+  /**
+   * The context names of the runner. A ref with `$when: "<name>"` runs only when this list has
+   * the name. A runner such as `core.catch` gives its own name here when it hydrates its operand.
+   */
   contextStack?: string[] | undefined;
 
-  /** Scope for resolving output references ($ref) */
+  /**
+   * Scope for resolving output references ($ref). Without a scope, a `$ref` object stays as it
+   * is (for example a JSON Schema reference). With a scope, a `$ref` name that no scope has is an error.
+   */
   scope?: RefScope | undefined;
+
+  /**
+   * This function tells whether the procedure at a path takes its input raw (control flow, the
+   * `runs-refs` and `raw-input` tags). Such a procedure gets the refs of its input unchanged and
+   * runs them itself. The default knows the core control-flow paths only. See `rawInputRule()`.
+   */
+  rawInput?: ((path: ProcedurePath) => boolean) | undefined;
+}
+
+/** The maximum nesting of plain data in an input. A deeper input is an error, not a stack overflow. */
+export const MAX_DATA_DEPTH = 1000;
+
+/** The objects on the path from the root of the input to a value, to find a cycle. */
+interface Ancestors {
+  readonly value: object;
+  readonly up: Ancestors | undefined;
 }
 
 /**
@@ -611,10 +714,14 @@ export interface HydrateOptions {
 interface HydrateContext {
   executor: RefExecutor;
   maxDepth: number;
+  parallel: boolean;
   contextStack: string[];
   scope?: RefScope | undefined;
+  rawInput: (path: ProcedurePath) => boolean;
   /** Prevent recursive implicit chain detection */
-  skipImplicitChain?: boolean | undefined;
+  skipImplicitChain: boolean;
+  /** Inside a deferred ref, a `$ref` name that is not known yet stays for the runner. */
+  deferred: boolean;
 }
 
 /**
@@ -622,6 +729,18 @@ interface HydrateContext {
  *
  * Walks the input object tree and replaces any ProcedureRef or ProcedureRefJson
  * objects with the result of executing that procedure, respecting $when timing.
+ *
+ * The rules:
+ * - A ref with `$when: "$immediate"` (the default) runs. A ref whose procedure takes its input
+ *   raw (see `HydrateOptions.rawInput`) gets its input unchanged, with the scope attached.
+ * - A ref with `$when: "$never"` stays as it is, with its whole subtree.
+ * - A ref with `$when: "$parent"` or `$when: "<name>"` stays data for its runner. Its procedure
+ *   gets that ref later. The immediate refs of its input run now, unless the procedure takes its
+ *   input raw. A named ref runs now only when `contextStack` has the name.
+ * - A `$ref` object gives a value from the scope. `{ $literal: value }` gives the value unchanged.
+ * - An array whose items are all refs, outside the input of a ref, runs as one `client.chain`.
+ * - Values that are not plain data (`Date`, `Map`, typed arrays, class instances) stay unchanged.
+ *   A subtree without refs stays the same object.
  *
  * @param input - The input object potentially containing procedure references
  * @param executor - Function to execute procedure references
@@ -647,123 +766,157 @@ export async function hydrateInput<T>(
   executor: RefExecutor,
   options: HydrateOptions = {}
 ): Promise<T> {
-  const { maxDepth = 10, contextStack = [], scope } = options;
-  const ctx: HydrateContext = { executor, maxDepth, contextStack, scope };
-  return hydrateValue(input, ctx, 0);
+  const ctx: HydrateContext = {
+    executor,
+    maxDepth: options.maxDepth ?? 10,
+    parallel: options.parallel ?? false,
+    contextStack: options.contextStack ?? [],
+    scope: options.scope,
+    rawInput: options.rawInput ?? isControlFlowPath,
+    skipImplicitChain: false,
+    deferred: false,
+  };
+  return hydrateValue(input, ctx, 0, undefined, 0);
+}
+
+/** The values of `fn` for each item: one after the other, or at the same time. */
+async function eachValue<T>(items: readonly T[], fn: (item: T) => Promise<unknown>, parallel: boolean): Promise<unknown[]> {
+  if (parallel) return Promise.all(items.map(fn));
+  const results: unknown[] = [];
+  for (const item of items) results.push(await fn(item));
+  return results;
+}
+
+/** This function resolves a `$ref` in the scope of the hydration. */
+function resolveRefValue(value: OutputRef, ctx: HydrateContext): unknown {
+  // No scope: the object is data (for example a JSON Schema reference), or a later scope binds it
+  if (!ctx.scope) return value;
+  const { found, value: resolved } = lookupOutputRef(value.$ref, ctx.scope);
+  if (found) return resolved;
+  // Inside a deferred ref, the runner can bind the name later
+  if (ctx.deferred) return value;
+  const name = value.$ref.split(".")[0];
+  throw new Error(
+    `Unknown $ref name "${name}" in "${value.$ref}": no step, item or input has this name here. ` +
+      `For a literal $ref object, write { "$literal": { "$ref": ... } }.`
+  );
 }
 
 /**
  * Internal recursive hydration function.
+ *
+ * `refDepth` counts the refs around the value. `dataDepth` counts all levels.
  */
 async function hydrateValue<T>(
   value: T,
   ctx: HydrateContext,
-  depth: number
+  refDepth: number,
+  ancestors: Ancestors | undefined,
+  dataDepth: number
 ): Promise<T> {
-  // Depth check
-  if (depth > ctx.maxDepth) {
-    throw new Error(`Hydration depth exceeded maximum of ${ctx.maxDepth}`);
-  }
-
   // Handle null/undefined/primitives
-  if (value === null || value === undefined) {
+  if (value === null || typeof value !== "object") {
     return value;
   }
 
-  if (typeof value !== "object") {
-    return value;
+  if (dataDepth > MAX_DATA_DEPTH) {
+    throw new Error(`Hydration failed: the input has more than ${MAX_DATA_DEPTH} levels of nesting`);
+  }
+  for (let current = ancestors; current; current = current.up) {
+    if (current.value === value) {
+      throw new Error("Hydration failed: the input is cyclic (an object contains itself)");
+    }
+  }
+
+  // { $literal: value } gives the value without hydration
+  if (isLiteral(value)) {
+    return value.$literal as T;
   }
 
   // Check if this is an output reference ($ref)
   if (isOutputRef(value)) {
-    if (ctx.scope) {
-      return resolveOutputRef(value.$ref, ctx.scope) as T;
-    }
-    // No scope available - return the $ref as-is (will be resolved later by chain)
-    return value;
+    return resolveRefValue(value, ctx) as T;
   }
 
   // Check if this is a procedure reference ($proc)
   if (isAnyProcedureRef(value)) {
-    const name = getRefName(value);
-
-    // Check if we should execute this ref based on $when
-    if (!shouldExecuteRef(value, ctx.contextStack, false)) {
-      // Don't execute - pass through as data
-      // But still hydrate the input for any nested $immediate refs
-      // Skip implicit chain detection inside procedure ref inputs to prevent double-wrapping
-      const ref = normalizeRef(value);
-      const inputCtx = { ...ctx, skipImplicitChain: true };
-      const hydratedInput = await hydrateValue(ref.input, inputCtx, depth + 1);
-
-      // Return the ref with hydrated input
-      if (isProcedureRefJson(value)) {
-        return {
-          ...value,
-          input: hydratedInput,
-        } as T;
-      } else {
-        return {
-          ...value,
-          input: hydratedInput,
-        } as T;
-      }
-    }
-
-    // Execute this ref
-    const ref = normalizeRef(value);
-
-    // Push this context name if present
-    const newStack = name ? [name, ...ctx.contextStack] : ctx.contextStack;
-    // Skip implicit chain detection inside procedure ref inputs to prevent double-wrapping
-    const newCtx = { ...ctx, contextStack: newStack, skipImplicitChain: true };
-
-    // First, hydrate the input of the procedure reference itself
-    const hydratedInput = await hydrateValue(ref.input, newCtx, depth + 1);
-
-    // Then execute the procedure with hydrated input
-    const result = await ctx.executor(ref.path, hydratedInput);
-
-    return result as T;
+    return hydrateRef(value, ctx, refDepth, ancestors, dataDepth) as Promise<T>;
   }
+
+  const inner: Ancestors = { value, up: ancestors };
 
   // Handle arrays
   if (Array.isArray(value)) {
     // Check if this is an array of procedure refs (implicit chain)
     // Only treat as implicit chain if ALL elements are procedure refs
     // Skip if we're already inside an implicit chain to prevent infinite recursion
-    if (
-      !ctx.skipImplicitChain &&
-      value.length > 0 &&
-      value.every((item) => isAnyProcedureRef(item))
-    ) {
-      // Transform to explicit chain
-      const implicitChain: ProcedureRefJson = {
-        $proc: ["client", "chain"],
-        input: { steps: value },
-      };
-      // Hydrate the implicit chain with skipImplicitChain flag to prevent recursion
-      const chainCtx = { ...ctx, skipImplicitChain: true };
-      return hydrateValue(implicitChain as unknown as T, chainCtx, depth);
+    if (!ctx.skipImplicitChain && value.length > 0 && value.every((item) => isAnyProcedureRef(item))) {
+      // client.chain runs the steps in order: they reach it raw. (Before, hydration ran the steps
+      // all at once, and client.chain got their results: deep dive, architecture review 3.4.)
+      const implicitChain: ProcedureRefJson = { $proc: ["client", "chain"], input: { steps: value } };
+      return hydrateRef(implicitChain, { ...ctx, skipImplicitChain: true }, refDepth, ancestors, dataDepth) as Promise<T>;
     }
 
-    const hydrated = await Promise.all(
-      value.map((item) => hydrateValue(item, ctx, depth + 1))
-    );
-    return hydrated as T;
+    const items = await eachValue(value, (item) => hydrateValue(item, ctx, refDepth, inner, dataDepth + 1), ctx.parallel);
+    return (items.every((item, index) => item === value[index]) ? value : items) as T;
+  }
+
+  // Values that are not plain data (Date, Map, typed arrays, class instances) stay unchanged
+  if (!isPlainObject(value)) {
+    return value;
   }
 
   // Handle plain objects
-  const obj = value as Record<string, unknown>;
-  const entries = Object.entries(obj);
-  const hydratedEntries = await Promise.all(
-    entries.map(async ([key, val]) => {
-      const hydratedVal = await hydrateValue(val, ctx, depth + 1);
-      return [key, hydratedVal] as const;
-    })
-  );
+  const entries = Object.entries(value);
+  const values = await eachValue(entries, ([, val]) => hydrateValue(val, ctx, refDepth, inner, dataDepth + 1), ctx.parallel);
+  if (values.every((val, index) => val === entries[index]![1])) {
+    return value;
+  }
+  // Object.fromEntries makes own properties, also for a key such as "__proto__"
+  return Object.fromEntries(entries.map(([key], index) => [key, values[index]])) as T;
+}
 
-  return Object.fromEntries(hydratedEntries) as T;
+/** This function hydrates one procedure ref: it runs the ref, or it keeps the ref as data. */
+async function hydrateRef(
+  value: AnyProcedureRef,
+  ctx: HydrateContext,
+  refDepth: number,
+  ancestors: Ancestors | undefined,
+  dataDepth: number
+): Promise<unknown> {
+  const when = getRefWhen(value);
+
+  // $never: pure data, with its whole subtree (deep dive CORE-11: before, its input was hydrated)
+  if (when === WHEN_NEVER) {
+    return value;
+  }
+
+  if (refDepth >= ctx.maxDepth) {
+    throw new Error(`Hydration depth exceeded maximum of ${ctx.maxDepth}`);
+  }
+
+  const ref = normalizeRef(value);
+  const raw = ctx.rawInput(ref.path);
+  const inner: Ancestors = { value, up: ancestors };
+  // The input of a ref is never an implicit chain
+  const inputCtx = (deferred: boolean): HydrateContext => ({ ...ctx, skipImplicitChain: true, deferred });
+
+  // A ref that waits for its runner ($parent, or a name that the runner did not give) is data.
+  // Its own $name is not a context here: hydration of its input does not run refs that wait for
+  // it, at any depth (deep dive CORE-11: before, this depended on the depth of the ref).
+  if (!shouldExecuteRef(value, ctx.contextStack, false)) {
+    if (raw) return value;
+    const input = await hydrateValue(ref.input, inputCtx(true), refDepth + 1, inner, dataDepth + 1);
+    return input === ref.input ? value : { ...value, input };
+  }
+
+  // A procedure that takes its input raw gets it unchanged, with the scope of the caller
+  if (raw) {
+    return ctx.executor(ref.path, withScope(ref.input, ctx.scope));
+  }
+
+  const input = await hydrateValue(ref.input, inputCtx(false), refDepth + 1, inner, dataDepth + 1);
+  return ctx.executor(ref.path, input);
 }
 
 // =============================================================================
@@ -792,19 +945,33 @@ export const CONTROL_FLOW_PROCEDURES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Whether a procedure path targets a core control-flow procedure whose operand refs
- * must not be pre-hydrated by `exec()`.
+ * Whether a procedure path is one of the core control-flow procedures (`client.chain`,
+ * `client.map` and the others). The whole path must match: a user procedure `foo.map` is not
+ * control flow (deep dive CORE-5: before, only the last segment was compared).
  */
 export function isControlFlowPath(path: ProcedurePath): boolean {
-  const last = path[path.length - 1];
-  return typeof last === "string" && CONTROL_FLOW_PROCEDURES.has(last);
+  return path.length === 2 && path[0] === "client" && CONTROL_FLOW_PROCEDURES.has(path[1]!);
 }
 
 /**
  * The tag of a procedure that runs procedure refs from its input (for example `dag.traverse`).
  * A server with an `expose` rule lets such a procedure call only the exposed procedures.
+ * Hydration gives such a procedure its input raw.
  */
 export const RUNS_REFS_TAG = "runs-refs";
+
+/**
+ * The tag of a procedure that takes refs as data and does not run them (for example
+ * `client.export`, which writes a ref as JSON). Hydration gives such a procedure its input raw.
+ */
+export const RAW_INPUT_TAG = "raw-input";
+
+/** The fields of a procedure that the rules of this module read. */
+interface ProcedureShape {
+  path: ProcedurePath;
+  metadata?: { tags?: string[] | undefined } | undefined;
+  handler?: unknown;
+}
 
 const DATA_DRIVEN_HANDLERS = new WeakSet<object>();
 
@@ -824,16 +991,39 @@ export function markDataDriven<T extends { handler?: unknown }>(procedure: T): T
  * control-flow procedures, the procedures with the `runs-refs` tag and the procedures that
  * `procedure.define` made. The caller of such a procedure chooses what it calls.
  */
-export function isDataDriven(procedure: {
-  path: ProcedurePath;
-  metadata?: { tags?: string[] | undefined } | undefined;
-  handler?: unknown;
-}): boolean {
+export function isDataDriven(procedure: ProcedureShape): boolean {
   return (
     isControlFlowPath(procedure.path) ||
     (procedure.metadata?.tags?.includes(RUNS_REFS_TAG) ?? false) ||
     (typeof procedure.handler === "function" && DATA_DRIVEN_HANDLERS.has(procedure.handler))
   );
+}
+
+/**
+ * A procedure that takes its input raw: the control-flow procedures and the procedures with the
+ * `runs-refs` or `raw-input` tag. `exec()` and hydration do not run the refs of such an input.
+ * A procedure that `procedure.define` made takes ordinary input: its body is the data-driven part.
+ */
+export function takesRawInput(procedure: ProcedureShape): boolean {
+  const tags = procedure.metadata?.tags;
+  return (
+    isControlFlowPath(procedure.path) ||
+    (tags?.includes(RUNS_REFS_TAG) ?? false) ||
+    (tags?.includes(RAW_INPUT_TAG) ?? false)
+  );
+}
+
+/**
+ * The raw-input rule of a registry, for `HydrateOptions.rawInput`. The procedure at the path
+ * decides (deep dive CORE-5). A path that the registry does not have uses the control-flow paths.
+ */
+export function rawInputRule(
+  registry: { get(path: ProcedurePath): ProcedureShape | undefined } | undefined
+): (path: ProcedurePath) => boolean {
+  return (path) => {
+    const procedure = registry?.get(path);
+    return procedure ? takesRawInput(procedure) : isControlFlowPath(path);
+  };
 }
 
 // =============================================================================
@@ -849,6 +1039,7 @@ export function isDataDriven(procedure: {
  * @param ref - The procedure reference to execute
  * @param executor - Function to execute the procedure
  * @param additionalInput - Additional input to merge (e.g., cwd for dag.traverse)
+ * @param options - Hydration options for the input of the ref (for example the runner's `contextStack`)
  * @returns The result of executing the procedure
  *
  * @example
@@ -864,7 +1055,8 @@ export function isDataDriven(procedure: {
 export async function executeRef<TOutput = unknown>(
   ref: AnyProcedureRef,
   executor: RefExecutor,
-  additionalInput?: Record<string, unknown>
+  additionalInput?: Record<string, unknown>,
+  options: HydrateOptions = {}
 ): Promise<TOutput> {
   const normalized = normalizeRef(ref);
   const baseInput = typeof normalized.input === "object" ? normalized.input : {};
@@ -875,10 +1067,13 @@ export async function executeRef<TOutput = unknown>(
     ...additionalInput,
   };
 
+  const raw = (options.rawInput ?? isControlFlowPath)(normalized.path);
+  if (raw) {
+    return executor(normalized.path, withScope(mergedInput, options.scope));
+  }
+
   // Hydrate the merged input (execute any nested $immediate refs)
-  const hydratedInput = await hydrateInput(mergedInput, executor, {
-    contextStack: [], // Fresh context for deferred execution
-  });
+  const hydratedInput = await hydrateInput(mergedInput, executor, options);
 
   return executor(normalized.path, hydratedInput);
 }
@@ -890,6 +1085,7 @@ export async function executeRef<TOutput = unknown>(
 /**
  * Extract a JSON template from a procedure reference.
  * Useful for serializing imperative procedure compositions.
+ * The `$name` and `$when` fields stay. A `$literal` stays as it is.
  *
  * @param ref - Procedure reference to extract template from
  * @returns JSON-serializable template
@@ -912,19 +1108,17 @@ function extractTemplateValue(value: unknown): unknown {
     return value;
   }
 
-  // Convert procedure refs to JSON form
-  if (isProcedureRef(value)) {
-    return {
-      $proc: value.path,
-      input: extractTemplateValue(value.input),
-    };
+  if (isLiteral(value)) {
+    return value;
   }
 
-  // Already JSON form
-  if (isProcedureRefJson(value)) {
+  // Convert procedure refs to JSON form (runtime form, or already JSON form)
+  if (isAnyProcedureRef(value)) {
+    const ref = normalizeRef(value);
     return {
-      $proc: value.$proc,
-      input: extractTemplateValue(value.input),
+      $proc: ref.path,
+      input: extractTemplateValue(ref.input),
+      ...refFields(ref),
     };
   }
 
@@ -935,11 +1129,7 @@ function extractTemplateValue(value: unknown): unknown {
 
   // Handle plain objects
   const obj = value as Record<string, unknown>;
-  const result: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(obj)) {
-    result[key] = extractTemplateValue(val);
-  }
-  return result;
+  return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, extractTemplateValue(val)]));
 }
 
 // =============================================================================
@@ -948,6 +1138,7 @@ function extractTemplateValue(value: unknown): unknown {
 
 /**
  * Parse JSON string and convert $proc objects to runtime ProcedureRef objects.
+ * The `$name` and `$when` fields stay. A `$literal` stays as it is.
  *
  * @param json - JSON string potentially containing procedure references
  * @returns Parsed object with ProcedureRef objects
@@ -969,12 +1160,17 @@ function convertJsonToRefs(value: unknown): unknown {
     return value;
   }
 
+  if (isLiteral(value)) {
+    return value;
+  }
+
   // Convert $proc objects to ProcedureRef
   if (isProcedureRefJson(value)) {
     return {
       [PROCEDURE_SYMBOL]: true,
       path: value.$proc,
       input: convertJsonToRefs(value.input),
+      ...refFields(value),
     };
   }
 
@@ -985,11 +1181,7 @@ function convertJsonToRefs(value: unknown): unknown {
 
   // Handle plain objects
   const obj = value as Record<string, unknown>;
-  const result: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(obj)) {
-    result[key] = convertJsonToRefs(val);
-  }
-  return result;
+  return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, convertJsonToRefs(val)]));
 }
 
 /**

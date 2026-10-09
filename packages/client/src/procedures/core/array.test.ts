@@ -308,6 +308,26 @@ describe("rangeProcedure", () => {
     const result = await rangeProcedure.handler!({ start: 5, end: 0, step: -1 }, {} as any);
     expect(result).toEqual([5, 4, 3, 2, 1]);
   });
+
+  // Deep dive SITE-6: a shared link with range { start: 1e17, end: 2e17 } looped forever
+  it("rejects a range where the step does not change the value", async () => {
+    await expect(rangeProcedure.handler!({ start: 1e17, end: 2e17 }, {} as any)).rejects.toThrow(/limit/);
+  });
+
+  it("rejects a range with more items than the limit", async () => {
+    await expect(rangeProcedure.handler!({ start: 0, end: 1e9 }, {} as any)).rejects.toThrow(/limit/);
+  });
+
+  it("rejects bounds that are not finite numbers", async () => {
+    await expect(rangeProcedure.handler!({ start: 0, end: Infinity }, {} as any)).rejects.toThrow(/finite/);
+    await expect(rangeProcedure.handler!({ start: "0" as never, end: 3 }, {} as any)).rejects.toThrow(/finite/);
+  });
+
+  it("does not go past end with a fractional step", async () => {
+    const result = await rangeProcedure.handler!({ start: 0, end: 0.3, step: 0.1 }, {} as any);
+    expect(result.length).toBe(3);
+    expect(result.every((value) => value < 0.3)).toBe(true);
+  });
 });
 
 // =============================================================================

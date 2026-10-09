@@ -484,6 +484,9 @@ interface RangeInput {
 
 type RangeProcedure = Procedure<RangeInput, number[], { description: string; tags: string[] }>;
 
+/** The maximum number of items of `client.range`. */
+export const MAX_RANGE_LENGTH = 1_000_000;
+
 const rangeProcedure: RangeProcedure = defineProcedure({
   path: ["range"],
   input: anySchema as any,
@@ -494,15 +497,26 @@ const rangeProcedure: RangeProcedure = defineProcedure({
   },
   handler: async (input: RangeInput): Promise<number[]> => {
     const step = input.step ?? 1;
+    for (const [name, value] of [["start", input.start], ["end", input.end], ["step", step]] as const) {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        throw new Error(`range: ${name} must be a finite number, got ${String(value)}`);
+      }
+    }
+    if (step === 0) {
+      return [];
+    }
+    // The length comes first, and item k is start + k * step. (Deep dive SITE-6: before, the loop
+    // added step to the last value. At 1e17, start + 1 is start, so the loop never ended.)
+    const length = Math.max(0, Math.ceil((input.end - input.start) / step));
+    if (length > MAX_RANGE_LENGTH) {
+      throw new Error(`range: ${length} items is more than the limit of ${MAX_RANGE_LENGTH}`);
+    }
     const result: number[] = [];
-    if (step > 0) {
-      for (let i = input.start; i < input.end; i += step) {
-        result.push(i);
-      }
-    } else if (step < 0) {
-      for (let i = input.start; i > input.end; i += step) {
-        result.push(i);
-      }
+    for (let k = 0; k < length; k++) {
+      const value = input.start + k * step;
+      // A rounding error can make the last value reach end: it is not in the range
+      if (step > 0 ? value >= input.end : value <= input.end) break;
+      result.push(value);
     }
     return result;
   },
