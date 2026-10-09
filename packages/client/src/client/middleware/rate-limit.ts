@@ -9,6 +9,7 @@
 
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { RateLimitContext } from "./contexts.js";
+import { abortedItem } from "./items.js";
 
 /**
  * Rate limiting options.
@@ -128,7 +129,7 @@ export function createRateLimitMiddleware(
 
   // Queue for "queue" strategy
   const queue: QueuedRequest[] = [];
-  let processingQueue = false;
+  let drainTimer: ReturnType<typeof setTimeout> | undefined;
 
   /**
    * Refill tokens based on elapsed time.
@@ -163,15 +164,17 @@ export function createRateLimitMiddleware(
   }
 
   /**
-   * Acquire a token (blocking for queue strategy).
+   * Acquire a token (blocking for queue strategy). Returns false when the signal aborted the
+   * wait. A new request waits behind the queued requests, also when a token is free: before,
+   * an arrival could take the token of a queued request (deep dive TRN-12).
    */
-  async function acquireToken(): Promise<void> {
+  async function acquireToken(signal?: AbortSignal): Promise<boolean> {
     refillTokens();
 
-    if (tokens >= 1) {
+    if (queue.length === 0 && tokens >= 1) {
       // Token available
       tokens -= 1;
-      return;
+      return true;
     }
 
     // No tokens available
@@ -195,61 +198,65 @@ export function createRateLimitMiddleware(
       throw new RateLimitError(`${message} (queue full)`, stats);
     }
 
-    return new Promise((resolve, reject) => {
-      queue.push({
-        resolve,
-        reject,
-        timestamp: Date.now(),
-      });
+    if (signal?.aborted) return false;
 
-      // Start processing queue if not already running
-      if (!processingQueue) {
-        processQueue();
-      }
+    return new Promise<boolean>((resolve) => {
+      const request: QueuedRequest = {
+        resolve: () => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve(true);
+        },
+        reject: () => resolve(false),
+        timestamp: Date.now(),
+      };
+      // A queued request whose caller aborts leaves the queue (before, it kept its place)
+      const onAbort = (): void => {
+        const index = queue.indexOf(request);
+        if (index >= 0) queue.splice(index, 1);
+        resolve(false);
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      queue.push(request);
+      scheduleDrain();
     });
   }
 
   /**
-   * Process queued requests.
+   * Give tokens to the queued requests, in order, and wait for the next token while the queue
+   * is not empty. The timer keeps the process alive while requests wait: before, an unref'd
+   * timer let the process exit with queued requests that never ran (deep dive TRN-12).
    */
-  function processQueue(): void {
-    if (processingQueue || queue.length === 0) {
-      return;
+  function scheduleDrain(): void {
+    if (drainTimer !== undefined) return;
+    refillTokens();
+    while (queue.length > 0 && tokens >= 1) {
+      tokens -= 1;
+      queue.shift()!.resolve();
     }
-
-    processingQueue = true;
-
-    const interval = setInterval(() => {
-      refillTokens();
-
-      while (queue.length > 0 && tokens >= 1) {
-        const request = queue.shift();
-        if (request) {
-          tokens -= 1;
-          request.resolve();
-        }
-      }
-
-      if (queue.length === 0) {
-        clearInterval(interval);
-        processingQueue = false;
-      }
-    }, 100); // Check every 100ms
-    // Don't let the queue-drain timer keep the process alive. See BUGS-2026-07.md (M4).
-    interval.unref?.();
+    if (queue.length === 0) return;
+    // The time until the next whole token
+    const wait = Math.max(1, Math.ceil(((1 - tokens) * window) / maxRequests));
+    drainTimer = setTimeout(() => {
+      drainTimer = undefined;
+      scheduleDrain();
+    }, wait);
   }
 
-  return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
+  const middleware = <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       totalRequests++;
 
       // Acquire token (may throw or wait)
-      await acquireToken();
+      if (!(await acquireToken(context.message.signal))) {
+        yield abortedItem<TRes>(context.message.id);
+        return;
+      }
 
       // Execute request
       yield* next(context);
     };
   };
+  return middleware;
 }
 
 /**

@@ -5,7 +5,7 @@
  * Works with any transport!
  */
 
-import type { ClientRunner, ClientContext, ResponseItem, Method, TypedClientMiddleware } from "../types.js";
+import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
 import { compose, lruMap, ttlMap, hashMap } from "@mark1russell7/client-collections";
 import type { MapLike } from "@mark1russell7/client-collections";
@@ -14,6 +14,13 @@ import type { MapLike } from "@mark1russell7/client-collections";
  * Cache middleware options.
  */
 export interface CacheOptions {
+  /**
+   * The methods whose responses the middleware caches: a list of `"service.operation"` names,
+   * or a predicate. Caching is opt-in for each method: before, the middleware cached every
+   * call, mutations too (deep dive TRN-5).
+   */
+  methods: readonly string[] | ((method: Method) => boolean);
+
   /**
    * Time-to-live for cache entries in milliseconds.
    * @default 60000 (1 minute)
@@ -41,13 +48,14 @@ export interface CacheOptions {
 
   /**
    * Custom cache key generator.
-   * Default: `{service}.{operation}:{JSON.stringify(payload)}`
+   * Default: the method, the payload and the request metadata (see `defaultKeyGenerator`).
    *
    * @param method - Method being called
    * @param payload - Request payload
+   * @param metadata - Request metadata (auth, pagination, custom fields)
    * @returns Cache key string
    */
-  keyGenerator?: (method: Method, payload: unknown) => string;
+  keyGenerator?: (method: Method, payload: unknown, metadata: Metadata) => string;
 
   /**
    * Predicate to determine if a response should be cached.
@@ -103,14 +111,43 @@ export function stableStringify(value: unknown): string {
 }
 
 /**
- * Default cache key generator.
+ * The metadata keys that do not change a response: middleware state and tracing. The other
+ * keys (auth, pagination, custom fields) are part of the cache key.
  */
-export function defaultKeyGenerator(method: Method, payload: unknown): string {
+const VOLATILE_METADATA = new Set(["retry", "timeout", "tracing", "cache", "circuitBreaker", "rateLimit"]);
+
+/** The part of the metadata that can change a response. */
+function keyMetadata(metadata: Metadata): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (VOLATILE_METADATA.has(key) || key.startsWith("__") || value === undefined) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Default cache key generator: the method, the payload and the metadata that can change the
+ * response. Before, the key ignored the metadata: with `withContext({ auth })`, one user got
+ * the cached response of another user, and a pagination cursor in the metadata returned the
+ * first page forever (deep dive TRN-5).
+ */
+export function defaultKeyGenerator(method: Method, payload: unknown, metadata?: Metadata): string {
   const methodKey = method.version
     ? `${method.version}:${method.service}.${method.operation}`
     : `${method.service}.${method.operation}`;
 
-  return `${methodKey}:${stableStringify(payload)}`;
+  const base = `${methodKey}:${stableStringify(payload)}`;
+  return metadata ? `${base}|${stableStringify(keyMetadata(metadata))}` : base;
+}
+
+/** A deep copy of a cache entry, or undefined when the payload cannot be copied. */
+function copyItem<T>(item: ResponseItem<T>): ResponseItem<T> | undefined {
+  try {
+    return structuredClone(item);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -140,14 +177,16 @@ function defaultShouldCache(item: ResponseItem<unknown>): boolean {
  * @example
  * ```typescript
  * client.use(createCacheMiddleware({
+ *   methods: ["users.get", "users.list"], // only these calls are cached
  *   capacity: 100,
  *   ttl: 60000, // 1 minute
  *   onStats: (stats) => console.log(`Hit rate: ${stats.hitRate}%`)
  * }));
  * ```
  */
-export function createCacheMiddleware(options: CacheOptions = {}): TypedClientMiddleware<CacheContext, {}> {
+export function createCacheMiddleware(options: CacheOptions): TypedClientMiddleware<CacheContext, {}> {
   const {
+    methods,
     ttl = 60000,
     capacity = 100,
     onStats,
@@ -197,38 +236,51 @@ export function createCacheMiddleware(options: CacheOptions = {}): TypedClientMi
     statsTimer.unref?.();
   }
 
+  const cacheable =
+    typeof methods === "function"
+      ? methods
+      : ((names: ReadonlySet<string>) => (method: Method): boolean => names.has(`${method.service}.${method.operation}`))(
+          new Set(methods),
+        );
+
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
+      if (!cacheable(context.message.method)) {
+        yield* next(context);
+        return;
+      }
+
       // Generate cache key
-      const cacheKey = keyGenerator(context.message.method, context.message.payload);
+      const cacheKey = keyGenerator(context.message.method, context.message.payload, context.message.metadata);
 
       // Check cache - use has() to avoid throwing "Key not found" error
       if (cache.has(cacheKey)) {
         const cached = cache.get(cacheKey);
         if (cached) {
-          // Cache hit - yield cached items
+          // Cache hit - yield a copy: a caller that changes its result does not change the cache
           stats.hits++;
           for (const item of cached) {
-            yield item as ResponseItem<TRes>;
+            yield (copyItem(item) ?? item) as ResponseItem<TRes>;
           }
           return;
         }
       }
 
-      // Cache miss - fetch and store
+      // Cache miss - fetch and store. Only a response of one item is cached: a stream is never
+      // collected or cached (before, the middleware kept every item of a stream in memory).
       stats.misses++;
-      const items: ResponseItem<TRes>[] = [];
+      let first: ResponseItem<TRes> | undefined;
+      let count = 0;
 
-      const responseStream = next(context);
-      for await (const item of responseStream) {
-        items.push(item);
+      for await (const item of next(context)) {
+        count++;
+        if (count === 1) first = item;
         yield item;
       }
 
-      // Store in cache if all items are cacheable
-      const allCacheable = items.every((item) => shouldCache(item));
-      if (allCacheable && items.length > 0) {
-        cache.set(cacheKey, items as ResponseItem<unknown>[]);
+      if (count === 1 && first && shouldCache(first)) {
+        const copy = copyItem(first);
+        if (copy) cache.set(cacheKey, [copy as ResponseItem<unknown>]);
       }
     };
   };

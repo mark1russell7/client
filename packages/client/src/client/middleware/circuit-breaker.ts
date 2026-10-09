@@ -10,7 +10,7 @@
  * Works with both client and server!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware, Status } from "../types.js";
+import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { CircuitBreakerContext } from "./contexts.js";
 
 /**
@@ -45,6 +45,13 @@ export interface CircuitBreakerOptions {
    * @default 2
    */
   successThreshold?: number;
+
+  /**
+   * Number of probe requests that run at the same time in HALF_OPEN. The other requests fail
+   * fast with a CircuitBreakerError until a probe ends.
+   * @default successThreshold
+   */
+  halfOpenMaxRequests?: number;
 
   /**
    * Custom error predicate.
@@ -124,11 +131,14 @@ export function createCircuitBreakerMiddleware(
     isFailure = () => true,
     onStateChange,
   } = options;
+  const halfOpenMaxRequests = options.halfOpenMaxRequests ?? successThreshold;
 
   let state: CircuitState = "CLOSED";
   let failures: FailureRecord[] = [];
   let successes = 0;
   let totalRequests = 0;
+  let probesInFlight = 0;
+  let lastStateChange = Date.now();
   let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
@@ -137,6 +147,7 @@ export function createCircuitBreakerMiddleware(
   function setState(newState: CircuitState): void {
     const oldState = state;
     state = newState;
+    if (oldState !== newState) lastStateChange = Date.now();
 
     if (oldState !== newState && onStateChange) {
       onStateChange(oldState, newState);
@@ -211,7 +222,9 @@ export function createCircuitBreakerMiddleware(
   }
 
   /**
-   * Check if request should be allowed.
+   * Check if request should be allowed. In HALF_OPEN, only `halfOpenMaxRequests` probes run at
+   * the same time: the other requests fail fast until a probe ends (deep dive TRN-4: before,
+   * HALF_OPEN let all traffic through).
    */
   function shouldAllowRequest(): boolean {
     if (state === "CLOSED") {
@@ -222,11 +235,22 @@ export function createCircuitBreakerMiddleware(
       return false;
     }
 
-    // HALF_OPEN - allow limited requests for testing
-    return true;
+    return probesInFlight < halfOpenMaxRequests;
   }
 
-  return <TReq, TRes>(
+  function getStats(): CircuitBreakerStats {
+    const now = Date.now();
+    return {
+      state,
+      failures: failures.filter((f) => now - f.timestamp < failureWindow).length,
+      successes,
+      totalRequests,
+      lastFailureTime: failures.length > 0 ? failures[failures.length - 1]!.timestamp : null,
+      lastStateChange,
+    };
+  }
+
+  const middleware = <TReq, TRes>(
     next: ClientRunner<TReq, TRes>
   ): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
@@ -240,37 +264,47 @@ export function createCircuitBreakerMiddleware(
         throw new CircuitBreakerError(state, lastError);
       }
 
+      const probe = state === "HALF_OPEN";
+      if (probe) probesInFlight++;
+      // The outcome is recorded once, as soon as it is known. Transports report failures as
+      // error items (BUGS-2026-07 H11), and a Client with throwOnError stops reading at the
+      // error item: the generator then gets return() at the yield, and code after the loop
+      // never runs. So the failure is recorded before the error item goes out (deep dive TRN-4).
+      let recorded = false;
+      const fail = (error: Error): void => {
+        if (recorded) return;
+        recorded = true;
+        if (isFailure(error)) recordFailure(error);
+      };
       try {
-        // Execute request. Transports report failures as status.type === "error" items in the
-        // response stream WITHOUT throwing (the client throws after middleware), so inspect each
-        // item rather than relying on a thrown error. See documentation/BUGS-2026-07.md (H11).
-        let errorStatus: Extract<Status, { type: "error" }> | undefined;
         for await (const item of next(context)) {
           if (item.status.type === "error") {
-            errorStatus = item.status;
+            const err = new Error(item.status.message);
+            (err as Error & { code?: string }).code = item.status.code;
+            fail(err);
           }
           yield item;
         }
-
-        if (errorStatus) {
-          const err = new Error(errorStatus.message);
-          (err as Error & { code?: string }).code = errorStatus.code;
-          if (isFailure(err)) {
-            recordFailure(err);
-          }
-        } else {
-          recordSuccess();
-        }
       } catch (error) {
         // A thrown error (transport-level, not an error-status item) also counts as a failure.
-        if (isFailure(error as Error)) {
-          recordFailure(error as Error);
-        }
+        fail(error as Error);
         throw error;
+      } finally {
+        if (probe) probesInFlight--;
+        // The stream ended, or the reader stopped early, with no error: a success
+        if (!recorded) {
+          recorded = true;
+          recordSuccess();
+        }
       }
     };
   };
+  statsOf.set(middleware, getStats);
+  return middleware;
 }
+
+/** The stats function of each circuit breaker middleware */
+const statsOf = new WeakMap<object, () => CircuitBreakerStats>();
 
 /**
  * Get circuit breaker statistics.
@@ -287,9 +321,8 @@ export function createCircuitBreakerMiddleware(
  * ```
  */
 export function getCircuitBreakerStats(
-  _middleware: ClientMiddleware
+  middleware: ClientMiddleware | TypedClientMiddleware<CircuitBreakerContext, {}>
 ): CircuitBreakerStats | null {
-  // This is a placeholder - in practice, you'd need to expose stats
-  // through a closure or separate API
-  return null;
+  // Before, this function always returned null (deep dive TRN-4)
+  return statsOf.get(middleware as object)?.() ?? null;
 }
