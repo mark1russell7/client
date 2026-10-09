@@ -77,9 +77,9 @@ export type BatchStrategy = "all" | "race" | "stream";
  * Stream configuration for batch execution.
  */
 export interface StreamConfig {
-  /** Buffer size for streaming results */
+  /** When this many results wait for the reader, no new call starts. 0 or no value: no limit. */
   bufferSize?: number;
-  /** Emit partial results as they arrive */
+  /** True (the default): each result as it arrives. False: all results at the end, in route order. */
   emitPartial?: boolean;
   /** Maximum concurrent requests */
   concurrency?: number;
@@ -91,9 +91,12 @@ export interface StreamConfig {
 export interface BatchConfig {
   /** Execution strategy */
   strategy: BatchStrategy;
-  /** Stream-specific configuration */
+  /** Stream configuration: `concurrency` applies to every strategy but `race` */
   streamConfig?: StreamConfig;
-  /** Continue on individual route errors */
+  /**
+   * True (the default): every call runs to its end. False: the first failure cancels the other
+   * calls, and each of them gets a `CANCELLED` result.
+   */
   continueOnError?: boolean;
 }
 
