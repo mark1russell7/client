@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D25-green.svg)](https://nodejs.org/)
 
 > Bridge between splay's rendering model and client's procedure system. Enables server-side component rendering via RPC.
 
@@ -391,7 +391,7 @@ graph BT
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 25
 - **Dependencies:**
   - `@mark1russell7/client`
   - `@mark1russell7/splay`

@@ -121,12 +121,13 @@ This package depends on:
 ### Basic Container Operations
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-docker"; // registers its procedures
 
-const client = new Client(/* ... */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Run a container
-const result = await client.call(["docker", "run"], {
+const result = await client.exec(["docker", "run"], {
   image: "nginx:latest",
   name: "my-nginx",
   ports: ["8080:80"],
@@ -147,7 +148,7 @@ console.log(result);
 
 ```typescript
 // Build an image from a Dockerfile
-await client.call(["docker", "build"], {
+await client.exec(["docker", "build"], {
   context: ".",
   tag: "my-app:latest",
   dockerfile: "Dockerfile",
@@ -163,7 +164,7 @@ await client.call(["docker", "build"], {
 
 ```typescript
 // Execute a command in a running container
-await client.call(["docker", "exec"], {
+await client.exec(["docker", "exec"], {
   container: "my-nginx",
   command: "nginx -t",
   interactive: false,
@@ -171,7 +172,7 @@ await client.call(["docker", "exec"], {
 });
 
 // Interactive shell session
-await client.call(["docker", "exec"], {
+await client.exec(["docker", "exec"], {
   container: "my-app",
   command: "/bin/bash",
   interactive: true,
@@ -186,26 +187,26 @@ await client.call(["docker", "exec"], {
 
 ```typescript
 // List all containers
-const containers = await client.call(["docker", "ps"], {
+const containers = await client.exec(["docker", "ps"], {
   all: true,
   format: "json",
 });
 
 // Stop containers
-await client.call(["docker", "stop"], {
+await client.exec(["docker", "stop"], {
   containers: ["nginx-1", "nginx-2"],
   time: 10, // Grace period in seconds
 });
 
 // Remove containers
-await client.call(["docker", "rm"], {
+await client.exec(["docker", "rm"], {
   containers: ["nginx-1"],
   force: true,
   volumes: true,
 });
 
 // Get container logs
-const logs = await client.call(["docker", "logs"], {
+const logs = await client.exec(["docker", "logs"], {
   container: "my-app",
   tail: 100,
   timestamps: true,
@@ -217,7 +218,7 @@ const logs = await client.call(["docker", "logs"], {
 
 ```typescript
 // Start services
-await client.call(["docker", "compose", "up"], {
+await client.exec(["docker", "compose", "up"], {
   file: "docker-compose.yml",
   detach: true,
   build: true,
@@ -226,7 +227,7 @@ await client.call(["docker", "compose", "up"], {
 });
 
 // Stop and remove services
-await client.call(["docker", "compose", "down"], {
+await client.exec(["docker", "compose", "down"], {
   file: "docker-compose.yml",
   volumes: true,
   removeOrphans: true,
@@ -274,7 +275,7 @@ Run a Docker container.
 
 **Example:**
 ```typescript
-await client.call(["docker", "run"], {
+await client.exec(["docker", "run"], {
   image: "postgres:15",
   name: "my-db",
   ports: ["5432:5432"],
@@ -305,7 +306,7 @@ Build a Docker image from a Dockerfile.
 
 **Example:**
 ```typescript
-await client.call(["docker", "build"], {
+await client.exec(["docker", "build"], {
   context: ".",
   tag: "my-app:v1.0.0",
   buildArgs: {
@@ -331,7 +332,7 @@ Pull a Docker image from a registry.
 
 **Example:**
 ```typescript
-await client.call(["docker", "pull"], {
+await client.exec(["docker", "pull"], {
   image: "nginx",
   tag: "alpine",
 });
@@ -357,7 +358,7 @@ Execute a command in a running container.
 
 **Example:**
 ```typescript
-await client.call(["docker", "exec"], {
+await client.exec(["docker", "exec"], {
   container: "my-app",
   command: "npm run migrate",
   env: {
@@ -382,7 +383,7 @@ Stop running containers.
 
 **Example:**
 ```typescript
-await client.call(["docker", "stop"], {
+await client.exec(["docker", "stop"], {
   containers: ["web-1", "web-2", "worker-1"],
   time: 30,
 });
@@ -405,7 +406,7 @@ Remove containers.
 
 **Example:**
 ```typescript
-await client.call(["docker", "rm"], {
+await client.exec(["docker", "rm"], {
   containers: ["temp-container"],
   force: true,
   volumes: true,
@@ -429,7 +430,7 @@ List containers.
 
 **Example:**
 ```typescript
-const result = await client.call(["docker", "ps"], {
+const result = await client.exec(["docker", "ps"], {
   all: true,
   format: "json",
 });
@@ -455,7 +456,7 @@ Get container logs.
 
 **Example:**
 ```typescript
-const logs = await client.call(["docker", "logs"], {
+const logs = await client.exec(["docker", "logs"], {
   container: "my-app",
   tail: 50,
   timestamps: true,
@@ -483,7 +484,7 @@ Start services with Docker Compose.
 
 **Example:**
 ```typescript
-await client.call(["docker", "compose", "up"], {
+await client.exec(["docker", "compose", "up"], {
   file: "docker-compose.prod.yml",
   services: ["web", "db"],
   detach: true,
@@ -509,7 +510,7 @@ Stop and remove services with Docker Compose.
 
 **Example:**
 ```typescript
-await client.call(["docker", "compose", "down"], {
+await client.exec(["docker", "compose", "down"], {
   volumes: true,
   removeOrphans: true,
   rmi: "local",
@@ -562,10 +563,10 @@ export interface DockerCommandOutput {
 The `bundle-dev` package includes `client-docker` for development workflows:
 
 ```typescript
-import "@mark1russell7/bundle-dev/register.js";
+import "@mark1russell7/bundle-dev"; // registers its procedures
 
 // docker.* procedures are now available
-await client.call(["docker", "run"], { ... });
+await client.exec(["docker", "run"], { ... });
 ```
 
 ### With client-shell
@@ -585,7 +586,7 @@ Combine with `client-fs` for Dockerfile management:
 
 ```typescript
 // Write Dockerfile
-await client.call(["fs", "write"], {
+await client.exec(["fs", "write"], {
   path: "Dockerfile",
   content: `
 FROM node:20-alpine
@@ -597,7 +598,7 @@ CMD ["node", "index.js"]
 });
 
 // Build image
-await client.call(["docker", "build"], {
+await client.exec(["docker", "build"], {
   context: ".",
   tag: "my-app:latest",
 });
@@ -609,25 +610,25 @@ await client.call(["docker", "build"], {
 
 ```typescript
 // Start entire stack
-await client.call(["docker", "compose", "up"], {
+await client.exec(["docker", "compose", "up"], {
   detach: true,
   build: true,
 });
 
 // Check service status
-const containers = await client.call(["docker", "ps"], {
+const containers = await client.exec(["docker", "ps"], {
   all: false,
   format: "json",
 });
 
 // View logs for specific service
-const webLogs = await client.call(["docker", "logs"], {
+const webLogs = await client.exec(["docker", "logs"], {
   container: "myapp-web-1",
   tail: 100,
 });
 
 // Clean up
-await client.call(["docker", "compose", "down"], {
+await client.exec(["docker", "compose", "down"], {
   volumes: true,
 });
 ```
@@ -636,7 +637,7 @@ await client.call(["docker", "compose", "down"], {
 
 ```typescript
 // Multi-stage build with build args
-await client.call(["docker", "build"], {
+await client.exec(["docker", "build"], {
   context: ".",
   tag: "my-app:production",
   dockerfile: "Dockerfile.prod",
@@ -649,12 +650,12 @@ await client.call(["docker", "build"], {
 });
 
 // Tag for registry
-await client.call(["shell", "exec"], {
+await client.exec(["shell", "exec"], {
   command: "docker tag my-app:production registry.example.com/my-app:latest",
 });
 
 // Push to registry
-await client.call(["shell", "exec"], {
+await client.exec(["shell", "exec"], {
   command: "docker push registry.example.com/my-app:latest",
 });
 ```
@@ -665,7 +666,7 @@ await client.call(["shell", "exec"], {
 // Wait for container to be healthy
 async function waitForHealthy(container: string, maxAttempts = 30) {
   for (let i = 0; i < maxAttempts; i++) {
-    const result = await client.call(["docker", "ps"], {
+    const result = await client.exec(["docker", "ps"], {
       filter: `name=${container}`,
       format: "json",
     });
@@ -686,7 +687,7 @@ async function waitForHealthy(container: string, maxAttempts = 30) {
 
 ```typescript
 try {
-  await client.call(["docker", "run"], {
+  await client.exec(["docker", "run"], {
     image: "nonexistent:image",
     detach: true,
   });
@@ -700,7 +701,7 @@ try {
 }
 
 // Check success field
-const result = await client.call(["docker", "build"], {
+const result = await client.exec(["docker", "build"], {
   context: ".",
   tag: "my-app",
 });

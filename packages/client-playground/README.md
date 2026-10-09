@@ -98,7 +98,7 @@ This package depends on:
 ### Runtime Requirements
 
 - `tsx` or `ts-node` - For executing `.play.ts` files
-- Node.js >=25.0.0
+- Node.js >= 22.0.0
 
 ## Usage
 
@@ -252,7 +252,7 @@ console.log(`Current branch: ${result.branch}`);
 
 // Custom formatting
 const data = await run(
-  proc(["pnpm", "list"]).ref,
+  proc(["git", "log"]).input({ count: 5 }).ref,
   { print: true, format: "text" }
 );
 ```
@@ -495,9 +495,9 @@ import { proc, run } from "@mark1russell7/client-playground";
 console.log("=== Testing git.status ===");
 await run(proc(["git", "status"]).input({ cwd: "." }).ref);
 
-// Test pnpm list
-console.log("\n=== Testing pnpm.list ===");
-await run(proc(["pnpm", "list"]).ref);
+// Test pnpm store path
+console.log("\n=== Testing pnpm.store.path ===");
+await run(proc(["pnpm", "store", "path"]).ref);
 
 // Test shell execution
 console.log("\n=== Testing shell.exec ===");
@@ -653,9 +653,9 @@ console.log(`Clean: ${status.clean}`);
 
 ```typescript
 // Direct client - more boilerplate
-import { Client, LocalTransport } from "@mark1russell7/client";
-const client = new Client({ transport: new LocalTransport() });
-const result = await client.call(["git", "status"], { cwd: "." });
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
+const result = await client.exec(["git", "status"], { cwd: "." });
 
 // Playground - concise
 import { proc, run } from "@mark1russell7/client-playground";

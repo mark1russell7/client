@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-purple.svg)](https://modelcontextprotocol.io/)
 
 > Core types and utilities for MCP (Model Context Protocol) integration. Converts Zod schemas and procedures to MCP-compatible formats.
@@ -251,6 +251,7 @@ interface McpToolFilter {
   excludeTags?: string[];      // Exclude procedures with these tags
   excludeInternal?: boolean;   // Exclude procedures starting with _
   pathPrefix?: string[];       // Only include procedures with this path prefix
+  include?: (path: string[]) => boolean;  // Only the procedures for which it gives true
 }
 ```
 
@@ -284,7 +285,7 @@ graph TB
 import { proceduresToMcpTools, type McpToolFilter } from "@mark1russell7/mcp";
 
 const filter: McpToolFilter = {
-  includeTags: ["fs", "git"],      // Only these namespaces
+  includeTags: ["fs", "git"],      // Only the procedures with these tags
   excludeTags: ["internal"],       // Exclude internal
   excludeInternal: true,           // Exclude _prefixed
   pathPrefix: ["fs"],              // Only fs.* procedures
@@ -345,7 +346,7 @@ graph BT
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 22
 - **Dependencies:**
   - `@mark1russell7/client`
   - `zod`

@@ -72,23 +72,23 @@ yarn add @mark1russell7/client-git
 ## Quick Start
 
 ```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-git/register.js";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-git"; // registers its procedures
 
-const client = new Client();
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Get repository status
-const status = await client.call(["git", "status"], {
+const status = await client.exec(["git", "status"], {
   cwd: "/path/to/repo",
 });
 console.log(status.branch, status.files);
 
 // Stage and commit
-await client.call(["git", "add"], { all: true });
-await client.call(["git", "commit"], { message: "feat: add new feature" });
+await client.exec(["git", "add"], { all: true });
+await client.exec(["git", "commit"], { message: "feat: add new feature" });
 
 // Push to remote
-await client.call(["git", "push"], { remote: "origin" });
+await client.exec(["git", "push"], { remote: "origin" });
 ```
 
 ## API Reference
@@ -131,7 +131,7 @@ interface GitStatusOutput {
 
 **Example:**
 ```typescript
-const status = await client.call(["git", "status"], { cwd: "./my-repo" });
+const status = await client.exec(["git", "status"], { cwd: "./my-repo" });
 console.log(`On branch ${status.branch}`);
 console.log(`${status.ahead} commits ahead, ${status.behind} behind`);
 console.log(`${status.files.length} changed files`);
@@ -173,7 +173,7 @@ interface GitLogOutput {
 
 **Example:**
 ```typescript
-const log = await client.call(["git", "log"], { count: 5 });
+const log = await client.exec(["git", "log"], { count: 5 });
 for (const commit of log.commits) {
   console.log(`${commit.shortHash} - ${commit.message}`);
 }
@@ -219,11 +219,11 @@ interface GitDiffOutput {
 **Example:**
 ```typescript
 // Show unstaged changes
-const diff = await client.call(["git", "diff"], { stat: true });
+const diff = await client.exec(["git", "diff"], { stat: true });
 console.log(`${diff.additions} additions, ${diff.deletions} deletions`);
 
 // Show staged changes
-const staged = await client.call(["git", "diff"], { staged: true });
+const staged = await client.exec(["git", "diff"], { staged: true });
 ```
 
 #### `git.branch`
@@ -264,14 +264,14 @@ interface GitBranchOutput {
 **Example:**
 ```typescript
 // List all branches
-const branches = await client.call(["git", "branch"], { list: true });
+const branches = await client.exec(["git", "branch"], { list: true });
 console.log("Branches:", branches.branches.map(b => b.name));
 
 // Create new branch
-await client.call(["git", "branch"], { name: "feature/new-feature" });
+await client.exec(["git", "branch"], { name: "feature/new-feature" });
 
 // Delete branch
-await client.call(["git", "branch"], { name: "old-feature", delete: true });
+await client.exec(["git", "branch"], { name: "old-feature", delete: true });
 ```
 
 #### `git.init`
@@ -324,10 +324,10 @@ interface GitAddOutput {
 **Example:**
 ```typescript
 // Stage specific files
-await client.call(["git", "add"], { paths: ["file1.ts", "file2.ts"] });
+await client.exec(["git", "add"], { paths: ["file1.ts", "file2.ts"] });
 
 // Stage all changes
-await client.call(["git", "add"], { all: true });
+await client.exec(["git", "add"], { all: true });
 ```
 
 #### `git.commit`
@@ -360,7 +360,7 @@ interface GitCommitOutput {
 
 **Example:**
 ```typescript
-const commit = await client.call(["git", "commit"], {
+const commit = await client.exec(["git", "commit"], {
   message: "feat: add new feature\n\nDetailed description here",
   all: true, // Auto-stage modified files
 });
@@ -394,13 +394,13 @@ interface GitCheckoutOutput {
 **Example:**
 ```typescript
 // Checkout existing branch
-await client.call(["git", "checkout"], { ref: "main" });
+await client.exec(["git", "checkout"], { ref: "main" });
 
 // Create and checkout new branch
-await client.call(["git", "checkout"], { ref: "feature/new", create: true });
+await client.exec(["git", "checkout"], { ref: "feature/new", create: true });
 
 // Restore specific file
-await client.call(["git", "checkout"], { ref: "HEAD", paths: ["file.ts"] });
+await client.exec(["git", "checkout"], { ref: "HEAD", paths: ["file.ts"] });
 ```
 
 ### Remote Operations
@@ -435,17 +435,17 @@ interface GitPushOutput {
 **Example:**
 ```typescript
 // Push to origin
-await client.call(["git", "push"], {});
+await client.exec(["git", "push"], {});
 
 // Push and set upstream
-await client.call(["git", "push"], {
+await client.exec(["git", "push"], {
   remote: "origin",
   branch: "feature/new",
   setUpstream: true,
 });
 
 // Force push (use with caution!)
-await client.call(["git", "push"], { force: true });
+await client.exec(["git", "push"], { force: true });
 ```
 
 #### `git.pull`
@@ -528,7 +528,7 @@ interface GitCloneOutput {
 
 **Example:**
 ```typescript
-const clone = await client.call(["git", "clone"], {
+const clone = await client.exec(["git", "clone"], {
   url: "https://github.com/user/repo.git",
   dest: "./my-repo",
   depth: 1, // Shallow clone
@@ -612,12 +612,12 @@ Check if the working directory is clean (no changes).
 
 **Example:**
 ```typescript
-const { value: hasChanges } = await client.call(["git", "hasChanges"], {});
+const { value: hasChanges } = await client.exec(["git", "hasChanges"], {});
 if (hasChanges) {
   console.log("Repository has uncommitted changes");
 }
 
-const { value: isClean } = await client.call(["git", "isClean"], {});
+const { value: isClean } = await client.exec(["git", "isClean"], {});
 if (isClean) {
   console.log("Working directory is clean");
 }
@@ -809,20 +809,20 @@ interface GitStashImportOutput {
 **Stash Example:**
 ```typescript
 // Save current work
-await client.call(["git", "stash", "push"], {
+await client.exec(["git", "stash", "push"], {
   message: "WIP: feature in progress",
   includeUntracked: true,
 });
 
 // List stashes
-const stashes = await client.call(["git", "stash", "list"], {});
+const stashes = await client.exec(["git", "stash", "list"], {});
 console.log(`${stashes.count} stashes`);
 
 // Apply most recent stash
-await client.call(["git", "stash", "apply"], { index: 0 });
+await client.exec(["git", "stash", "apply"], { index: 0 });
 
 // Export stash for backup
-const exported = await client.call(["git", "stash", "export"], { index: 0 });
+const exported = await client.exec(["git", "stash", "export"], { index: 0 });
 fs.writeFileSync("backup.patch", exported.patch);
 ```
 
@@ -863,19 +863,19 @@ fs.writeFileSync("backup.patch", exported.patch);
 
 ```typescript
 // 1. Check status
-const status = await client.call(["git", "status"], {});
+const status = await client.exec(["git", "status"], {});
 console.log(`On branch ${status.branch}`);
 
 // 2. Stage changes
-await client.call(["git", "add"], { all: true });
+await client.exec(["git", "add"], { all: true });
 
 // 3. Create commit
-const commit = await client.call(["git", "commit"], {
+const commit = await client.exec(["git", "commit"], {
   message: "feat: implement new feature",
 });
 
 // 4. Push to remote
-await client.call(["git", "push"], {
+await client.exec(["git", "push"], {
   remote: "origin",
   setUpstream: true,
 });
@@ -884,18 +884,18 @@ await client.call(["git", "push"], {
 ### Conditional Operations with Predicates
 
 ```typescript
-const { value: hasChanges } = await client.call(["git", "hasChanges"], {});
+const { value: hasChanges } = await client.exec(["git", "hasChanges"], {});
 if (hasChanges) {
-  await client.call(["git", "stash", "push"], {
+  await client.exec(["git", "stash", "push"], {
     message: "Auto-stash before pull",
   });
 }
 
-await client.call(["git", "pull"], { rebase: true });
+await client.exec(["git", "pull"], { rebase: true });
 
-const { value: hasStashes } = await client.call(["git", "stash", "list"], {});
+const { value: hasStashes } = await client.exec(["git", "stash", "list"], {});
 if (hasStashes.count > 0) {
-  await client.call(["git", "stash", "pop"], {});
+  await client.exec(["git", "stash", "pop"], {});
 }
 ```
 
@@ -903,21 +903,21 @@ if (hasStashes.count > 0) {
 
 ```typescript
 // Create feature branch
-await client.call(["git", "checkout"], {
+await client.exec(["git", "checkout"], {
   ref: "feature/new-feature",
   create: true,
 });
 
 // Work on feature...
-await client.call(["git", "add"], { all: true });
-await client.call(["git", "commit"], { message: "feat: complete feature" });
+await client.exec(["git", "add"], { all: true });
+await client.exec(["git", "commit"], { message: "feat: complete feature" });
 
 // Merge to main
-await client.call(["git", "checkout"], { ref: "main" });
-await client.call(["git", "pull"], {});
+await client.exec(["git", "checkout"], { ref: "main" });
+await client.exec(["git", "pull"], {});
 
 // Delete feature branch
-await client.call(["git", "branch"], {
+await client.exec(["git", "branch"], {
   name: "feature/new-feature",
   delete: true,
 });
@@ -927,19 +927,19 @@ await client.call(["git", "branch"], {
 
 ```typescript
 // Clone repository
-const clone = await client.call(["git", "clone"], {
+const clone = await client.exec(["git", "clone"], {
   url: "https://github.com/user/repo.git",
   dest: "./my-repo",
 });
 
 // Set remote
-await client.call(["git", "remote"], {
+await client.exec(["git", "remote"], {
   name: "upstream",
   url: "https://github.com/original/repo.git",
 });
 
 // Fetch from upstream
-await client.call(["git", "fetch"], {
+await client.exec(["git", "fetch"], {
   remote: "upstream",
   prune: true,
 });
@@ -969,7 +969,7 @@ graph LR
 
 ```typescript
 // bundle-dev/src/register.ts
-import "@mark1russell7/client-git/register.js";
+import "@mark1russell7/client-git"; // registers its procedures
 
 // client-lib uses git procedures internally
 import { gitStatus, gitAdd, gitCommit } from "@mark1russell7/client-git";
@@ -1029,16 +1029,14 @@ pnpm clean
 
 ### Direct Function Imports
 
+The handlers start git themselves. Their context is optional: it gives only the abort `signal`.
+
 ```typescript
 import { gitStatus, gitCommit, gitPush } from "@mark1russell7/client-git";
-import { Client } from "@mark1russell7/client";
 
-const client = new Client();
-const ctx = { client };
-
-const status = await gitStatus({ cwd: "./repo" }, ctx);
-await gitCommit({ message: "feat: new feature" }, ctx);
-await gitPush({ remote: "origin" }, ctx);
+const status = await gitStatus({ cwd: "./repo" });
+await gitCommit({ message: "feat: new feature", cwd: "./repo" });
+await gitPush({ remote: "origin", cwd: "./repo" }, { signal: AbortSignal.timeout(60_000) });
 ```
 
 ### Custom Registration
@@ -1063,7 +1061,7 @@ All git procedures may throw errors for invalid operations:
 
 ```typescript
 try {
-  await client.call(["git", "commit"], {
+  await client.exec(["git", "commit"], {
     message: "feat: new feature",
   });
 } catch (error) {
@@ -1102,7 +1100,7 @@ ls -la .git
 
 Use `git.checkout` to return to a branch:
 ```typescript
-await client.call(["git", "checkout"], { ref: "main" });
+await client.exec(["git", "checkout"], { ref: "main" });
 ```
 
 ## License

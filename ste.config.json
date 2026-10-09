@@ -4,7 +4,15 @@
     "README.md",
     "CLAUDE.md",
     "packages/cli/src/**/*.{ts,tsx}",
-    "packages/cli/*.config.{ts,mts}"
+    "packages/cli/*.config.{ts,mts}",
+    "packages/documentation/*.md",
+    "packages/bundle-dev/README.md",
+    "packages/bundle-mcp/README.md",
+    "packages/client-cli/README.md",
+    "packages/client-cue/README.md",
+    "packages/client-lib/README.md",
+    "packages/client-vite/README.md",
+    "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [
     "**/node_modules/**",
@@ -13,7 +21,14 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/*.spec.tsx"
+    "**/*.spec.tsx",
+    "packages/documentation/*-2026-07.md",
+    "packages/documentation/DOCUMENTATION_AUDIT.md",
+    "packages/documentation/PACKAGES.md",
+    "packages/documentation/PROCEDURES.md",
+    "packages/documentation/ARCHITECTURE-PROPOSALS-2026-10.md",
+    "packages/documentation/BUGS-STATUS-2026-10.md",
+    "packages/documentation/DECISIONS-2026-10.md"
   ],
   "technicalNouns": [],
   "technicalVerbs": [],
