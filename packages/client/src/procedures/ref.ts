@@ -697,6 +697,49 @@ export interface HydrateOptions {
    * runs them itself. The default knows the core control-flow paths only. See `rawInputRule()`.
    */
   rawInput?: ((path: ProcedurePath) => boolean) | undefined;
+
+  /**
+   * This function gets an event each time hydration runs a ref (see `HydrationEvent`). A trace
+   * uses it to show a nested call under the call that gets its result. An error of the function
+   * does not change the hydration.
+   */
+  onRef?: ((event: HydrationEvent) => void) | undefined;
+}
+
+/**
+ * An event of hydration: a procedure ref of the input runs now. Its input is hydrated already,
+ * so the events of the refs inside its input came first.
+ */
+export interface HydrationEvent {
+  /** The path of the procedure that runs. */
+  readonly path: ProcedurePath;
+  /**
+   * The ref that runs: the object of the program. For an array of refs that runs as an implicit
+   * chain, it is the `client.chain` ref that hydration made.
+   */
+  readonly ref: AnyProcedureRef;
+  /**
+   * The ref whose input holds this ref: the call that gets the result. It is undefined when the
+   * ref is at the top of the hydrated value. Then the caller of the hydration gets the result:
+   * `exec()` gives it to the root call, and a control-flow procedure to its operand call.
+   */
+  readonly consumer: AnyProcedureRef | undefined;
+}
+
+/** The observers of `observeHydration()`: they get the events of every hydration. */
+const hydrationObservers = new Set<(event: HydrationEvent) => void>();
+
+/**
+ * This function adds an observer of every hydration in this process (or worker), and gives the
+ * function that removes it. A host that does not call `hydrateInput` itself (the Composer of
+ * the site runs `client.exec()`) uses it for its trace. The observer gets the events of all
+ * concurrent hydrations: use it where one program runs at a time.
+ */
+export function observeHydration(observer: (event: HydrationEvent) => void): () => void {
+  hydrationObservers.add(observer);
+  return () => {
+    hydrationObservers.delete(observer);
+  };
 }
 
 /** The maximum nesting of plain data in an input. A deeper input is an error, not a stack overflow. */
@@ -722,6 +765,8 @@ interface HydrateContext {
   skipImplicitChain: boolean;
   /** Inside a deferred ref, a `$ref` name that is not known yet stays for the runner. */
   deferred: boolean;
+  /** The `onRef` function of the options */
+  onRef: ((event: HydrationEvent) => void) | undefined;
 }
 
 /**
@@ -775,8 +820,32 @@ export async function hydrateInput<T>(
     rawInput: options.rawInput ?? isControlFlowPath,
     skipImplicitChain: false,
     deferred: false,
+    onRef: options.onRef,
   };
   return hydrateValue(input, ctx, 0, undefined, 0);
+}
+
+/**
+ * This function tells the observers that a ref runs now. The consumer is the nearest ref
+ * around the ref. An observer that throws does not change the hydration.
+ */
+function notifyRef(ctx: HydrateContext, ref: AnyProcedureRef, path: ProcedurePath, ancestors: Ancestors | undefined): void {
+  if (!ctx.onRef && hydrationObservers.size === 0) return;
+  let consumer: AnyProcedureRef | undefined;
+  for (let current = ancestors; current; current = current.up) {
+    if (isAnyProcedureRef(current.value)) {
+      consumer = current.value;
+      break;
+    }
+  }
+  const event: HydrationEvent = { path, ref, consumer };
+  for (const observer of ctx.onRef ? [ctx.onRef, ...hydrationObservers] : hydrationObservers) {
+    try {
+      observer(event);
+    } catch {
+      // A trace must not change the program
+    }
+  }
 }
 
 /** The values of `fn` for each item: one after the other, or at the same time. */
@@ -912,10 +981,12 @@ async function hydrateRef(
 
   // A procedure that takes its input raw gets it unchanged, with the scope of the caller
   if (raw) {
+    notifyRef(ctx, value, ref.path, ancestors);
     return ctx.executor(ref.path, withScope(ref.input, ctx.scope));
   }
 
   const input = await hydrateValue(ref.input, inputCtx(false), refDepth + 1, inner, dataDepth + 1);
+  notifyRef(ctx, value, ref.path, ancestors);
   return ctx.executor(ref.path, input);
 }
 
