@@ -163,4 +163,31 @@ describe("PriorityQueue follows the PriorityQueue contract (C9)", () => {
     expect(queue.poll()).toBe(1);
     expect(queue.size).toBe(3);
   });
+
+  // fast-check found it with seed -1520927003. The sift-down compared the children with a copy of
+  // the child that it had moved up, not with the element that sinks.
+  it("keeps the heap order after a poll that sinks an element two levels", () => {
+    const queue = priorityQueue<number>();
+    queue.add(0);
+    queue.offer(0);
+    queue.add(1);
+    queue.add(0);
+    queue.offer(1);
+    queue.offer(1);
+    expect([queue.poll(), queue.poll(), queue.poll()]).toEqual([0, 0, 0]);
+    expect(queue.validate()).toBe(true);
+  });
+
+  it("polls in sorted order for many random inputs", () => {
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -5, max: 5 }), { maxLength: 60 }), (values) => {
+        const queue = priorityQueue<number>();
+        for (const v of values) queue.offer(v);
+        const out: number[] = [];
+        while (!queue.isEmpty) out.push(queue.poll());
+        expect(out).toEqual([...values].sort((a, b) => a - b));
+      }),
+      { numRuns: 300 },
+    );
+  });
 });

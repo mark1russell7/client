@@ -308,6 +308,11 @@ export class PriorityQueue<T> implements IPriorityQueue<T> {
 
   /**
    * Bubbles an element down the heap to maintain heap property.
+   *
+   * The element moves down through a hole: a smaller child moves up into the hole, and the
+   * element goes into the last hole. The children are compared with the element. (Before, they
+   * were compared with `_heap[index]`, which after the first step is a copy of the child that
+   * moved up: a poll could leave a larger element above a smaller one.)
    */
   private bubbleDown(index: number): void {
     const length = this._heap.length;
@@ -316,28 +321,24 @@ export class PriorityQueue<T> implements IPriorityQueue<T> {
     while (true) {
       const leftChildIndex = 2 * index + 1;
       const rightChildIndex = 2 * index + 2;
-      let smallestIndex = index;
-
-      if (
-        leftChildIndex < length &&
-        this._compare(this._heap[leftChildIndex]!, this._heap[smallestIndex]!) < 0
-      ) {
-        smallestIndex = leftChildIndex;
-      }
-
-      if (
-        rightChildIndex < length &&
-        this._compare(this._heap[rightChildIndex]!, this._heap[smallestIndex]!) < 0
-      ) {
-        smallestIndex = rightChildIndex;
-      }
-
-      if (smallestIndex === index) {
+      if (leftChildIndex >= length) {
         break;
       }
 
-      this._heap[index] = this._heap[smallestIndex]!;
-      index = smallestIndex;
+      let childIndex = leftChildIndex;
+      if (
+        rightChildIndex < length &&
+        this._compare(this._heap[rightChildIndex]!, this._heap[leftChildIndex]!) < 0
+      ) {
+        childIndex = rightChildIndex;
+      }
+
+      if (this._compare(this._heap[childIndex]!, element) >= 0) {
+        break;
+      }
+
+      this._heap[index] = this._heap[childIndex]!;
+      index = childIndex;
     }
 
     this._heap[index] = element;
