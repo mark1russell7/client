@@ -3,21 +3,24 @@
  */
 
 import { spawn } from "child_process";
+import { resolveViteCli, viteArg } from "../../vite-cli.js";
 import type { ViteDevInput, ViteDevOutput } from "../../types.js";
 import { serverManager } from "../../server-manager.js";
 
 export async function viteDev(input: ViteDevInput): Promise<ViteDevOutput> {
   const { cwd, port, host, open } = input;
 
-  const args = ["vite"];
+  // The project's own vite, run with Node and an argument list: no shell (deep dive WRP-8)
+  const args = [resolveViteCli(cwd ?? process.cwd())];
   if (port) args.push("--port", String(port));
-  if (host) args.push("--host", host);
+  if (host) args.push("--host", viteArg("host", host));
   if (open) args.push("--open");
 
-  const child = spawn("npx", args, {
+  const child = spawn(process.execPath, args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    shell: true,
+    shell: false,
+    windowsHide: true,
   });
 
   const serverId = serverManager.register(child, "");

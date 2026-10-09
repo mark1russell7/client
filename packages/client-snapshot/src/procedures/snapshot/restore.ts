@@ -4,8 +4,8 @@
  * Restore an environment snapshot from S3.
  */
 
-import { existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import * as tar from "tar";
@@ -16,6 +16,7 @@ import type {
   SnapshotMetadata,
 } from "../../types.js";
 import { listAllObjects, findSnapshotKey } from "./s3-lookup.js";
+import { assertSnapshotName } from "./names.js";
 
 /**
  * Restore a snapshot from S3
@@ -28,10 +29,14 @@ export async function snapshotRestore(
   // safe to delete. The extraction target is `input.targetPath` (required) and
   // is never removed — that is the fix for the self-deleting-restore bug where
   // targetPath defaulted to workDir and the `finally` then wiped it.
-  const workDir = join(tmpdir(), `restore-${input.id}`);
+  //
+  // The id must be a plain name, and the scratch folder is a new unique folder: before, the id
+  // went into the path, so `x/../../<dir>` made the `finally` delete <dir>, even when the S3
+  // lookup failed (deep dive DATA-1).
+  assertSnapshotName("id", input.id);
+  const workDir = mkdtempSync(join(tmpdir(), "restore-"));
 
   try {
-    mkdirSync(workDir, { recursive: true });
 
     // First, download metadata to get archive location
     const downloadStart = Date.now();
@@ -97,8 +102,11 @@ export async function snapshotRestore(
 
     // Check for existing files if not overwriting
     if (!input.overwrite) {
+      // The archive stores each repository under the base name of its path (createArchive), not
+      // under its package name: before, the guard checked the package name, so an existing working
+      // copy was overwritten with overwrite: false (deep dive DATA-2)
       for (const repo of metadata.repositories) {
-        const repoPath = join(targetPath, repo.name);
+        const repoPath = join(targetPath, basename(repo.path));
         if (existsSync(repoPath)) {
           throw new Error(
             `Target path already exists: ${repoPath}. Use overwrite: true to replace.`
@@ -118,7 +126,7 @@ export async function snapshotRestore(
     // Restore stashes if available
     const restoredPaths: string[] = [];
     for (const repo of metadata.repositories) {
-      const repoPath = join(targetPath, repo.name);
+      const repoPath = join(targetPath, basename(repo.path));
       if (existsSync(repoPath)) {
         restoredPaths.push(repoPath);
       }

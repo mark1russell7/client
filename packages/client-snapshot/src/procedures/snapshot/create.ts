@@ -4,13 +4,14 @@
  * Create an environment snapshot and upload to S3.
  */
 
-import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { join, basename, dirname, resolve } from "node:path";
 import { tmpdir, hostname } from "node:os";
 import { randomUUID, createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import * as tar from "tar";
 import type { ProcedureContext } from "@mark1russell7/client";
+import { assertSnapshotName, isExcluded } from "./names.js";
 import type {
   SnapshotCreateInput,
   SnapshotCreateOutput,
@@ -26,11 +27,13 @@ export async function snapshotCreate(
   input: SnapshotCreateInput,
   ctx: ProcedureContext
 ): Promise<SnapshotCreateOutput> {
+  // A plain name: it goes into S3 keys and the snapshot id (a "/" made ids that restore,
+  // diff and delete never found: deep dive DATA-1, DATA-16)
+  assertSnapshotName("name", input.name);
   const id = `${input.name}-${Date.now()}-${randomUUID().slice(0, 8)}`;
-  const workDir = join(tmpdir(), `snapshot-${id}`);
+  const workDir = mkdtempSync(join(tmpdir(), "snapshot-"));
 
   try {
-    mkdirSync(workDir, { recursive: true });
 
     // Get repository paths to snapshot
     const repoPaths = input.paths || (await getEcosystemPaths(ctx));
@@ -278,12 +281,9 @@ async function createArchive(
       gzip: gzipOpts,
       file: archivePath,
       cwd,
-      filter: (path) => {
-        for (const pattern of excludePatterns) {
-          if (path.includes(pattern)) return false;
-        }
-        return true;
-      },
+      // Whole path segments, and "*.ext" for file endings. (Before, `path.includes("dist")`
+      // left out src/distance.ts, and "*.log" matched nothing: deep dive DATA-3.)
+      filter: (path) => !isExcluded(path, excludePatterns),
     },
     existingRepos.map((p) => basename(p))
   );

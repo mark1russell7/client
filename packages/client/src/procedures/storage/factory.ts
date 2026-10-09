@@ -13,7 +13,6 @@ import type { HybridStorageOptions } from "./hybrid.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../registry.js";
 import type { SerializedProcedure, SyncedRegistryOptions, HandlerLoader } from "./types.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";
-import { createDynamicHandlerLoader } from "./serialization.js";
 
 // =============================================================================
 // Factory Configuration
@@ -107,7 +106,9 @@ export function createSyncedRegistry(config: CreateSyncedRegistryConfig): Synced
     hybridOptions,
     registryOptions = {},
     baseRegistry = PROCEDURE_REGISTRY,
-    handlerLoader = createDynamicHandlerLoader(),
+    // No loader unless the caller gives one: stored records load as stubs. (Before, the default
+    // imported any module a stored record named: BUGS-2026-07 M11, deep dive CORE-7.)
+    handlerLoader,
   } = config;
 
   // Validate client is provided for api/hybrid
@@ -259,8 +260,8 @@ export function createCustomSyncedRegistry(
   options?: Partial<SyncedRegistryOptions>,
   baseRegistry: ProcedureRegistry = PROCEDURE_REGISTRY
 ): SyncedProcedureRegistry {
+  // No default loader: see createSyncedRegistry
   return new SyncedProcedureRegistry(baseRegistry, storage, {
-    handlerLoader: createDynamicHandlerLoader(),
     ...options,
   });
 }

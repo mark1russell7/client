@@ -7,6 +7,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import type { ShellStreamInput, ShellStreamItem } from "../../types.js";
 
 /** A queue with one writer (the process events) and one reader (the generator). */
@@ -71,9 +72,12 @@ export async function* shellStream(
   });
 
   // Split each stream into lines. The last part of a chunk waits for the rest of its line.
+  // A decoder per stream keeps a character whose bytes arrive in two chunks. (Before, each chunk
+  // was decoded alone, so a split "€" became three replacement characters: deep dive WRP-2.)
   const partial = { stdout: "", stderr: "" };
+  const decoders = { stdout: new StringDecoder("utf8"), stderr: new StringDecoder("utf8") };
   const onData = (type: "stdout" | "stderr") => (data: Buffer) => {
-    const text = partial[type] + data.toString("utf8");
+    const text = partial[type] + decoders[type].write(data);
     const lines = text.split(/\r?\n/);
     partial[type] = lines.pop() ?? "";
     for (const line of lines) queue.push({ type, line });
@@ -84,7 +88,8 @@ export async function* shellStream(
   proc.on("error", (error) => queue.fail(error));
   proc.on("close", (code, signal) => {
     for (const type of ["stdout", "stderr"] as const) {
-      if (partial[type]) queue.push({ type, line: partial[type] });
+      const rest = partial[type] + decoders[type].end();
+      if (rest) queue.push({ type, line: rest });
     }
     queue.push({
       type: "exit",

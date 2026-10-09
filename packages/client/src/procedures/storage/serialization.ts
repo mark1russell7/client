@@ -236,22 +236,41 @@ export async function deserializeProcedures(
 // =============================================================================
 
 /**
- * Create a handler loader using dynamic imports.
+ * Create a handler loader using dynamic imports of the allowed modules only.
  *
- * @returns Handler loader that uses import() to load modules
+ * A stored procedure record names the module of its handler, and the storage can be remote
+ * (`api`, `hybrid`). So the loader imports only the modules in `allowedModules` (exact package
+ * names, or a prefix that ends with "*"), and never a URL or a path (`data:`, `file:`, `node:`,
+ * `./x`, `/x`, a drive letter). Before, it imported any module that a record named: a record
+ * with `node:child_process` ran a shell command (BUGS-2026-07 M11, deep dive CORE-7, DATA-11).
+ *
+ * @param allowedModules - Module names the loader may import, such as "@mark1russell7/client-git"
+ * @returns Handler loader that uses import() to load allowed modules
  *
  * @example
  * ```typescript
- * const loader = createDynamicHandlerLoader();
+ * const loader = createDynamicHandlerLoader(["@mark1russell7/client-*"]);
  * const handler = await loader.load({
  *   module: "@mark1russell7/client-cli",
  *   export: "libScanHandler",
  * });
  * ```
  */
-export function createDynamicHandlerLoader(): HandlerLoader {
+export function createDynamicHandlerLoader(allowedModules: readonly string[]): HandlerLoader {
+  const allowed = (specifier: string): boolean => {
+    // A URL scheme (data:, file:, node:, C:) or a relative or absolute path is never allowed
+    if (/^[a-z][a-z0-9+.-]*:/i.test(specifier) || /^[./\\]/.test(specifier)) {
+      return false;
+    }
+    return allowedModules.some((entry) =>
+      entry.endsWith("*") ? specifier.startsWith(entry.slice(0, -1)) : specifier === entry
+    );
+  };
   return {
     async load(ref: HandlerReference): Promise<unknown | undefined> {
+      if (!allowed(ref.module)) {
+        return undefined;
+      }
       try {
         const module = await import(ref.module);
         return module[ref.export];

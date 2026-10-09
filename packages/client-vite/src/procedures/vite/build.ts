@@ -3,21 +3,24 @@
  */
 
 import { spawn } from "child_process";
+import { resolveViteCli, viteArg } from "../../vite-cli.js";
 import { resolve } from "path";
 import type { ViteBuildInput, ViteBuildOutput } from "../../types.js";
 
 export async function viteBuild(input: ViteBuildInput): Promise<ViteBuildOutput> {
   const { cwd, outDir, mode } = input;
 
-  const args = ["vite", "build"];
-  if (outDir) args.push("--outDir", outDir);
-  if (mode) args.push("--mode", mode);
+  // The project's own vite, run with Node and an argument list: no shell (deep dive WRP-8)
+  const args = [resolveViteCli(cwd ?? process.cwd()), "build"];
+  if (outDir) args.push("--outDir", viteArg("outDir", outDir));
+  if (mode) args.push("--mode", viteArg("mode", mode));
 
   return new Promise((resolve_promise, reject) => {
-    const child = spawn("npx", args, {
+    const child = spawn(process.execPath, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
+      shell: false,
+      windowsHide: true,
     });
 
     let stderr = "";
