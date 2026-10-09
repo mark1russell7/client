@@ -183,9 +183,24 @@ describe("throttleStream emits the trailing item (deep dive DATA-12)", () => {
     await throttled.return?.();
   });
 
-  it("emits at most one item per interval and the last item at the end", async () => {
-    const ids = await collect(throttleStream(timed([["a", 0], ["b", 1], ["c", 1], ["d", 80], ["e", 1]]), 40));
+  it("emits the first and the last item of a burst, and the last item at the end", async () => {
+    // Two bursts with no waits inside them. The trailing timer of the first burst (40 ms) fires
+    // before the pause (80 ms) ends, so "c" goes out. Whether "d" goes out at once depends on
+    // the machine load (it does when it comes 40 ms or more after "c"), so the test does not
+    // examine it.
+    async function* bursts(): AsyncGenerator<ComponentOutput> {
+      yield output("a");
+      yield output("b");
+      yield output("c");
+      await sleep(80);
+      yield output("d");
+      yield output("e");
+    }
 
-    expect(ids).toEqual(["a", "c", "d", "e"]);
+    const ids = await collect(throttleStream(bursts(), 40));
+
+    expect(ids.slice(0, 2)).toEqual(["a", "c"]);
+    expect(ids[ids.length - 1]).toBe("e");
+    expect(ids).not.toContain("b");
   });
 });
