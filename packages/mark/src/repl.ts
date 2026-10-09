@@ -27,17 +27,35 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 
   print.info("Type any command (without 'mark' prefix). Ctrl+C to exit.\n");
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: "mark> ",
-  });
-
-  await runLines(rl, (argv) => executeArgs(argv, ctx), () => rl.prompt());
+  const reader = lineReader(process.stdin, process.stdout);
+  await runLines(reader.lines, (argv) => executeArgs(argv, ctx), reader.prompt);
 
   print.info("\nGoodbye!");
   // A piped script keeps the exit code of its failed commands. An interactive session exits with 0.
   process.exit(process.stdin.isTTY ? 0 : (process.exitCode ?? 0));
+}
+
+/**
+ * The lines of an input, and a prompt that does nothing after the input ends. (A piped script
+ * ends its input while a command runs: a prompt after that threw "readline was closed".)
+ */
+export function lineReader(
+  input: NodeJS.ReadableStream,
+  output: NodeJS.WritableStream
+): { lines: AsyncIterable<string>; prompt: () => void } {
+  const rl = readline.createInterface({ input, output, prompt: "mark> " });
+  let closed = false;
+  rl.on("close", () => {
+    closed = true;
+  });
+  return {
+    lines: rl,
+    prompt: () => {
+      if (!closed) {
+        rl.prompt();
+      }
+    },
+  };
 }
 
 /**

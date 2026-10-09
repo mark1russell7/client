@@ -7,7 +7,8 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { Client, LocalTransport, ProcedureRegistry } from "@mark1russell7/client";
 import { executeArgs, type CliContext } from "./cli.js";
 import { failureOf } from "./failure.js";
-import { runLines, tokenize } from "./repl.js";
+import { lineReader, runLines, tokenize } from "./repl.js";
+import { PassThrough, Readable } from "node:stream";
 import { testProcedures } from "../test/procedures.js";
 
 function context(): CliContext {
@@ -105,6 +106,23 @@ describe("the REPL (CLI-15)", () => {
       events.push(`end ${argv[0]}`);
     });
     expect(events).toEqual(["start first|one", "end first", "start second|two words|", "end second"]);
+  });
+
+  it("runs every line of a piped script when the input ends while a command runs", async () => {
+    const input = Readable.from(["first\nsecond\n", "third\n"]);
+    const output = new PassThrough();
+    output.resume();
+    const reader = lineReader(input, output);
+    const done: string[] = [];
+    await runLines(
+      reader.lines,
+      async (argv) => {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        done.push(argv[0]!);
+      },
+      reader.prompt
+    );
+    expect(done).toEqual(["first", "second", "third"]);
   });
 
   it("keeps a quoted empty string as an argument", () => {
