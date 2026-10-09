@@ -273,7 +273,9 @@ export const DagTraverseInputSchema: z.ZodObject<{
   visit: z.ZodUnion<[z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
   filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
   root: z.ZodOptional<z.ZodString>;
+  rootPath: z.ZodOptional<z.ZodString>;
   concurrency: z.ZodDefault<z.ZodNumber>;
+  serialize: z.ZodDefault<z.ZodEnum<["auto", "repository", "none"]>>;
   continueOnError: z.ZodDefault<z.ZodBoolean>;
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
@@ -295,8 +297,17 @@ export const DagTraverseInputSchema: z.ZodObject<{
   filter: z.array(z.string()).optional(),
   /** Start from specific root package */
   root: z.string().optional(),
+  /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
+  rootPath: z.string().optional(),
   /** Max parallel operations (default: 4) */
   concurrency: z.number().default(4),
+  /**
+   * When the visits of nodes in one git repository run one at a time (default: "auto").
+   * - "auto": when the visit calls a `git` procedure (git locks the index of the repository)
+   * - "repository": always
+   * - "none": never
+   */
+  serialize: z.enum(["auto", "repository", "none"]).default("auto"),
   /** Continue on error (default: false) */
   continueOnError: z.boolean().default(false),
   /** Preview without executing (default: false) */

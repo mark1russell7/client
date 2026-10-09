@@ -199,3 +199,15 @@ describe("visualizeDAG", () => {
     expect(output).toContain("-> [a]");
   });
 });
+
+describe("buildLeveledDAG with a repeated dependency (deep dive DATA-21)", () => {
+  it("counts each dependency once", () => {
+    // b lists a twice: the in-degree of b is 1, not 2
+    const nodes = buildNodeMap([createNode("a"), createNode("b", ["a", "a"])]);
+
+    const dag = buildLeveledDAG(nodes);
+
+    expect(dag.levels.map((level) => level.map((node) => node.id))).toEqual([["a"], ["b"]]);
+    expect(dag.leaves).toEqual(["a"]);
+  });
+});

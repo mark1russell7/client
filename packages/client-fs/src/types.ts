@@ -277,6 +277,7 @@ export const GlobInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
   absolute: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
   dot: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+  ignore: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }> = z.object({
   /** Glob pattern to match */
   pattern: z.string(),
@@ -286,6 +287,8 @@ export const GlobInputSchema: z.ZodObject<{
   absolute: z.boolean().optional().default(false),
   /** Include dotfiles (default: false) */
   dot: z.boolean().optional().default(false),
+  /** Glob patterns of the paths to leave out. The search does not enter the folders that they match. */
+  ignore: z.array(z.string()).optional(),
 });
 
 export type GlobInput = z.infer<typeof GlobInputSchema>;
@@ -293,7 +296,7 @@ export type GlobInput = z.infer<typeof GlobInputSchema>;
 export interface GlobOutput {
   /** Glob pattern used */
   pattern: string;
-  /** Matching paths */
+  /** Matching paths, sorted: relative to `cwd` with "/" separators, or absolute with `absolute: true` */
   matches: string[];
 }
 

@@ -18,6 +18,8 @@ import type { ProcedureContext } from "@mark1russell7/client";
 
 export interface S3ListedObject {
   key: string;
+  /** The time of the last write (ISO 8601), as s3.list gives it */
+  lastModified?: string;
 }
 
 interface S3ListResult {

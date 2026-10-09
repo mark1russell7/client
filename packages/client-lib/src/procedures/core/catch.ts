@@ -67,12 +67,13 @@ export async function coreCatch(
     ...(cwd ? { cwd } : {}),
   };
 
-  // Hydrate the try input (execute any nested $immediate refs)
-  const hydratedTryInput = await hydrateInput(tryInput, executor, {
-    contextStack: ["catch"],
-  });
-
   try {
+    // Hydrate the try input (execute any nested $immediate refs). The hydration is inside the
+    // `try`: a nested ref that throws is an error of the `try` step (deep dive DATA-22).
+    const hydratedTryInput = await hydrateInput(tryInput, executor, {
+      contextStack: ["catch"],
+    });
+
     // Execute the try procedure
     const result = await ctx.client.call(normalizedTry.path, hydratedTryInput);
 
@@ -108,12 +109,12 @@ export async function coreCatch(
       ...(cwd ? { cwd } : {}),
     };
 
-    // Hydrate handler input
-    const hydratedHandlerInput = await hydrateInput(handlerInput, executor, {
-      contextStack: ["catch"],
-    });
-
     try {
+      // Hydrate handler input (a failure here is a failure of the handler)
+      const hydratedHandlerInput = await hydrateInput(handlerInput, executor, {
+        contextStack: ["catch"],
+      });
+
       const decision = await ctx.client.call(normalizedHandler.path, hydratedHandlerInput) as ContinueDecision;
 
       return {

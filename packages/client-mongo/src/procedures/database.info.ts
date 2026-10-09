@@ -4,14 +4,13 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { getBaseMeta, type DatabaseInfo } from "../types.js";
+import { type DatabaseInfo } from "../types.js";
 
 // Input/Output types
-interface InfoInput {
-  [key: string]: never;
-}
+/** The input: only the scope fields. */
+type InfoInput = ScopeInput;
 
 // Schemas
 const infoInputSchema = schema<InfoInput>();
@@ -26,9 +25,8 @@ export const infoProcedure: Procedure<
   .input(infoInputSchema)
   .output(infoOutputSchema)
   .meta({ description: "Get database information and statistics" })
-  .handler(async (_input: InfoInput, ctx: ProcedureContext) => {
-    const meta = getBaseMeta(ctx.metadata);
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
+  .handler(async (input: InfoInput, ctx: ProcedureContext) => {
+    const db = await databaseFor(input, ctx);
 
     const stats = await db.stats();
     const collections = await db.listCollections().toArray();

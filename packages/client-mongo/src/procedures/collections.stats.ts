@@ -4,14 +4,13 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection, type CollectionStats } from "../types.js";
+import type { CollectionStats } from "../types.js";
 
 // Input/Output types
-interface StatsInput {
-  [key: string]: never;
-}
+/** The input: only the scope fields. */
+type StatsInput = ScopeInput;
 
 // Schemas
 const statsInputSchema = schema<StatsInput>();
@@ -26,12 +25,10 @@ export const statsProcedure: Procedure<
   .input(statsInputSchema)
   .output(statsOutputSchema)
   .meta({ description: "Get collection statistics" })
-  .handler(async (_input: StatsInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
+  .handler(async (input: StatsInput, ctx: ProcedureContext) => {
+    const { db, name } = await collectionFor(input, ctx);
     // Use collStats command since stats() is deprecated
-    const stats = await db.command({ collStats: meta.collection });
+    const stats = await db.command({ collStats: name });
 
     return {
       count: (stats["count"] as number) ?? 0,

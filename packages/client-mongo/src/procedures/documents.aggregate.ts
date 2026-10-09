@@ -4,17 +4,16 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
 import {
-  requireCollection,
   type AggregationStage,
   type AggregationOptions,
   type MongoDocument,
 } from "../types.js";
 
 // Input/Output types
-interface AggregateInput {
+interface AggregateInput extends ScopeInput {
   pipeline: AggregationStage[];
   options?: AggregationOptions;
 }
@@ -37,10 +36,7 @@ export const aggregateProcedure: Procedure<
   .output(aggregateOutputSchema)
   .meta({ description: "Run an aggregation pipeline" })
   .handler(async (input: AggregateInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     const results = await collection
       .aggregate(input.pipeline, input.options)

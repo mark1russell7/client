@@ -25,31 +25,36 @@ import type { ProcedureContext } from "@mark1russell7/client";
 import type { LibRenameInput, LibRenameOutput, RenameChange } from "../../types.js";
 import { resolveWorkspaceRoot } from "../../workspace.js";
 
-interface FsGlobOutput { pattern: string; files: string[]; count: number; }
+interface FsGlobOutput { pattern: string; matches: string[]; }
+interface FsGlobInput { pattern: string; cwd: string; absolute: boolean; ignore: string[]; }
 interface FsExistsOutput { exists: boolean; path: string; }
 interface FsReadJsonOutput { path: string; data: unknown; }
 interface FsWriteOutput { path: string; bytesWritten: number; }
+
+// The folders that hold no source of the workspace
+const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.git/**"];
 
 /**
  * Find all package.json files under a root path (excluding node_modules)
  */
 async function findPackageJsonFiles(rootPath: string, ctx: ProcedureContext): Promise<string[]> {
-  const result = await ctx.client.call<{ pattern: string; cwd?: string; ignore?: string[] }, FsGlobOutput>(
+  const result = await ctx.client.call<FsGlobInput, FsGlobOutput>(
     ["fs", "glob"],
-    { pattern: "**/package.json", cwd: rootPath, ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**"] }
+    { pattern: "**/package.json", cwd: rootPath, absolute: true, ignore: IGNORE }
   );
-  return result.files;
+  // fs.glob returns `matches`. (Before, this read `files`, which does not exist: deep dive DATA-7.)
+  return result.matches;
 }
 
 /**
  * Find all TypeScript files under a root path (excluding node_modules, dist)
  */
 async function findTypeScriptFiles(rootPath: string, ctx: ProcedureContext): Promise<string[]> {
-  const result = await ctx.client.call<{ pattern: string; cwd?: string; ignore?: string[] }, FsGlobOutput>(
+  const result = await ctx.client.call<FsGlobInput, FsGlobOutput>(
     ["fs", "glob"],
-    { pattern: "**/*.{ts,tsx}", cwd: rootPath, ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**"] }
+    { pattern: "**/*.{ts,tsx}", cwd: rootPath, absolute: true, ignore: IGNORE }
   );
-  return result.files;
+  return result.matches;
 }
 
 /**

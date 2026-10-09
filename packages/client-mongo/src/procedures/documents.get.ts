@@ -9,17 +9,16 @@ import {
   type Procedure,
   type ProcedureContext,
 } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
 import {
-  requireCollection,
   buildIdFilter,
   type IdType,
   type MongoDocument,
 } from "../types.js";
 
 // Input/Output types
-interface GetInput {
+interface GetInput extends ScopeInput {
   id: string;
   /** How to interpret the id (default: "auto" — matches ObjectId or string) */
   idType?: IdType;
@@ -45,6 +44,7 @@ function parseGetInput(data: unknown): GetInput {
   }
 
   const result: GetInput = { id };
+  copyScope(raw, result);
 
   const idType = raw["idType"];
   if (idType !== undefined) {
@@ -73,10 +73,7 @@ export const getProcedure: Procedure<
   .output(getOutputSchema)
   .meta({ description: "Get a single document by ID" })
   .handler(async (input: GetInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     const document = await collection.findOne(
       buildIdFilter(input.id, input.idType)

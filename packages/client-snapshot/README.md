@@ -356,10 +356,12 @@ Restore environment from S3 snapshot.
 {
   id: string;                // Required: Snapshot ID
   bucket: string;            // Required: S3 bucket name
-  targetPath?: string;       // Restore to different location
+  targetPath: string;        // Required: the folder to restore into
   overwrite?: boolean;       // Default: false - safety protection
 }
 ```
+
+The archive is extracted into a staging folder first. Then each restored folder moves into `targetPath`. With `overwrite: true`, a restored folder replaces the existing folder of that name, so no stale file stays. Other folders of `targetPath` do not change.
 
 **Output:**
 ```typescript
@@ -384,6 +386,8 @@ List available snapshots in S3 bucket.
   maxResults?: number;       // Default: 100
 }
 ```
+
+The procedure reads all pages of the listing and returns the newest `maxResults` snapshots.
 
 **Output:**
 ```typescript

@@ -4,12 +4,12 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { getBaseMeta, type CollectionOptions } from "../types.js";
+import { type CollectionOptions } from "../types.js";
 
 // Input/Output types
-interface CreateInput {
+interface CreateInput extends ScopeInput {
   name: string;
   options?: CollectionOptions;
 }
@@ -33,8 +33,7 @@ export const createCollectionProcedure: Procedure<
   .output(createOutputSchema)
   .meta({ description: "Create a new collection" })
   .handler(async (input: CreateInput, ctx: ProcedureContext) => {
-    const meta = getBaseMeta(ctx.metadata);
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
+    const db = await databaseFor(input, ctx);
 
     await db.createCollection(input.name, input.options);
 

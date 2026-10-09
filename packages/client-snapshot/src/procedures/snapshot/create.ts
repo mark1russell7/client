@@ -5,13 +5,15 @@
  */
 
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { join, basename, dirname, resolve } from "node:path";
 import { tmpdir, hostname } from "node:os";
-import { randomUUID, createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import * as tar from "tar";
 import type { ProcedureContext } from "@mark1russell7/client";
 import { assertSnapshotName, isExcluded } from "./names.js";
+import { readPart, sha256File } from "./archive-io.js";
 import type {
   SnapshotCreateInput,
   SnapshotCreateOutput,
@@ -19,6 +21,9 @@ import type {
   RepositoryInfo,
   SnapshotPreset,
 } from "../../types.js";
+
+/** The size of each part of a multipart upload (the S3 minimum) */
+const PART_SIZE = 5 * 1024 * 1024;
 
 /**
  * Create a snapshot of the environment
@@ -67,8 +72,8 @@ export async function snapshotCreate(
     const archivePath = join(workDir, `${id}.tar.gz`);
     await createArchive(archivePath, repoPaths, input.preset, workDir);
 
-    // Calculate checksum
-    const checksum = calculateChecksum(archivePath);
+    // Calculate checksum (a stream: the archive is never in memory as a whole)
+    const checksum = await sha256File(archivePath);
     const archiveSize = statSync(archivePath).size;
 
     // Update metadata with checksum
@@ -80,17 +85,15 @@ export async function snapshotCreate(
     const uploadStart = Date.now();
     const s3Key = `snapshots/${input.name}/${id}.tar.gz`;
 
-    // Read archive as base64 for upload
-    const archiveContent = readFileSync(archivePath);
-
-    // Use multipart upload for large files (> 5MB)
-    if (archiveSize > 5 * 1024 * 1024) {
-      await multipartUpload(ctx, input.bucket, s3Key, archiveContent);
+    // Use multipart upload for large files (> 5MB). The parts are read from the file, one at a
+    // time (deep dive DATA-19).
+    if (archiveSize > PART_SIZE) {
+      await multipartUpload(ctx, input.bucket, s3Key, archivePath, archiveSize);
     } else {
       await ctx.client.call(["s3", "upload"], {
         bucket: input.bucket,
         key: s3Key,
-        body: archiveContent.toString("base64"),
+        body: readFileSync(archivePath).toString("base64"),
         base64: true,
         contentType: "application/gzip",
         metadata: {
@@ -290,24 +293,15 @@ async function createArchive(
 }
 
 /**
- * Calculate SHA-256 checksum
- */
-function calculateChecksum(filePath: string): string {
-  const content = readFileSync(filePath);
-  return createHash("sha256").update(content).digest("hex");
-}
-
-/**
- * Multipart upload for large files
+ * Multipart upload for large files. Each part is read from the file when it goes up.
  */
 async function multipartUpload(
   ctx: ProcedureContext,
   bucket: string,
   key: string,
-  content: Buffer
+  archivePath: string,
+  archiveSize: number
 ): Promise<void> {
-  const PART_SIZE = 5 * 1024 * 1024; // 5MB minimum part size
-
   // Initialize multipart upload
   const initResult = await ctx.client.call<
     { bucket: string; key: string; contentType?: string },
@@ -320,12 +314,13 @@ async function multipartUpload(
 
   const uploadId = initResult.uploadId;
   const parts: Array<{ etag: string; partNumber: number }> = [];
+  const file = await open(archivePath, "r");
 
   try {
     // Upload parts
     let partNumber = 1;
-    for (let offset = 0; offset < content.length; offset += PART_SIZE) {
-      const chunk = content.subarray(offset, offset + PART_SIZE);
+    for (let offset = 0; offset < archiveSize; offset += PART_SIZE) {
+      const chunk = await readPart(file, offset, PART_SIZE);
 
       const partResult = await ctx.client.call<
         { bucket: string; key: string; uploadId: string; partNumber: number; body: string },
@@ -354,12 +349,26 @@ async function multipartUpload(
       parts,
     });
   } catch (error) {
-    // Abort on failure
-    await ctx.client.call(["s3", "multipart", "abort"], {
-      bucket,
-      key,
-      uploadId,
-    });
+    // Abort on failure. The error of the upload stays the error: before, a failed abort
+    // replaced it.
+    try {
+      await ctx.client.call(["s3", "multipart", "abort"], {
+        bucket,
+        key,
+        uploadId,
+      });
+    } catch (abortError) {
+      throw new Error(
+        `${messageOf(error)} (the abort of upload ${uploadId} also failed: ${messageOf(abortError)})`,
+        { cause: error }
+      );
+    }
     throw error;
+  } finally {
+    await file.close();
   }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -4,12 +4,12 @@
  */
 
 import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
-import { getDb } from "../connection.js";
+import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
-import { requireCollection, type IndexSpec, type IndexOptions } from "../types.js";
+import { type IndexSpec, type IndexOptions } from "../types.js";
 
 // Input/Output types
-interface CreateIndexInput {
+interface CreateIndexInput extends ScopeInput {
   keys: IndexSpec;
   options?: IndexOptions;
 }
@@ -33,10 +33,7 @@ export const createIndexProcedure: Procedure<
   .output(createIndexOutputSchema)
   .meta({ description: "Create an index on a collection" })
   .handler(async (input: CreateIndexInput, ctx: ProcedureContext) => {
-    const meta = requireCollection(ctx.metadata);
-
-    const db = meta.database ? getDb().client.db(meta.database) : getDb();
-    const collection = db.collection(meta.collection);
+    const { collection } = await collectionFor(input, ctx);
 
     const indexName = await collection.createIndex(input.keys, input.options);
 

@@ -33,6 +33,8 @@
  * - "$never": Never auto-execute, pass as pure data
  */
 
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import type { ProcedureContext, ProcedurePath } from "@mark1russell7/client";
 import { isAnyProcedureRef, hydrateInput } from "@mark1russell7/client";
 import type {
@@ -50,8 +52,59 @@ import {
   filterDAGFromRoot,
 } from "../../dag/index.js";
 
+/** The folder of the git repository that holds `path` (it has `.git`), or `path` itself. */
+export function repositoryRoot(path: string): string {
+  let current = resolve(path);
+  for (;;) {
+    if (existsSync(join(current, ".git"))) return current;
+    const parent = dirname(current);
+    if (parent === current) return resolve(path);
+    current = parent;
+  }
+}
+
+/** True when the value names a `git` procedure: a path, or a `$proc` ref at any depth. */
+export function callsGit(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    if (value[0] === "git" && value.every((part) => typeof part === "string")) return true;
+    return value.some(callsGit);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).some(callsGit);
+  }
+  return false;
+}
+
+/**
+ * Run the tasks of one key one at a time, in the order of the calls. Tasks of other keys run
+ * in parallel.
+ */
+export function keyedLock(): <T>(key: string, task: () => Promise<T>) => Promise<T> {
+  const tails = new Map<string, Promise<void>>();
+  return async <T>(key: string, task: () => Promise<T>): Promise<T> => {
+    const previous = tails.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const done = new Promise<void>((resolveDone) => {
+      release = resolveDone;
+    });
+    const tail = previous.then(() => done);
+    tails.set(key, tail);
+    await previous;
+    try {
+      return await task();
+    } finally {
+      release();
+      if (tails.get(key) === tail) tails.delete(key);
+    }
+  };
+}
+
 /**
  * Execute a DAG traversal with a custom visit procedure
+ *
+ * The visits of nodes in one git repository run one at a time when the visit calls git (or
+ * with `serialize: "repository"`). All the packages of a workspace share one repository, and
+ * concurrent `git add` calls failed on `index.lock` (deep dive DATA-17).
  */
 export async function dagTraverse(
   input: DagTraverseInput,
@@ -61,7 +114,7 @@ export async function dagTraverse(
   const results: TraverseNodeResult[] = [];
 
   // Scan for all packages
-  const scanResult = await libScan({}, ctx);
+  const scanResult = await libScan(input.rootPath !== undefined ? { rootPath: input.rootPath } : {}, ctx);
   let allNodes = buildDAGNodes(scanResult.packages);
 
   // Filter to specific packages if requested
@@ -111,8 +164,20 @@ export async function dagTraverse(
     throw new Error("visit must be a procedure path or $proc reference with $when");
   }
 
+  const serialize = input.serialize ?? "auto";
+  const oneAtATime = serialize === "repository" || (serialize === "auto" && callsGit(input.visit));
+  const lock = keyedLock();
+
   // Create processor that executes visit procedure per node
   const processor = createProcessor(async (node: DAGNode) => {
+    if (oneAtATime) {
+      await lock(repositoryRoot(node.repoPath), () => visit(node));
+    } else {
+      await visit(node);
+    }
+  });
+
+  async function visit(node: DAGNode): Promise<void> {
     if (input.dryRun) {
       results.push({
         name: node.name,
@@ -174,7 +239,7 @@ export async function dagTraverse(
       results.push(result);
       throw error; // Re-throw for DAG executor to handle
     }
-  });
+  }
 
   // Execute DAG traversal
   const dagResult = await executeDAG(dag, processor, {

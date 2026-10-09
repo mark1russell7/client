@@ -6,18 +6,17 @@
  *
  * @example
  * ```typescript
- * // Local usage - connect and use procedures
- * import { connect } from "@mark1russell7/client-mongo";
+ * // Local usage: the first call connects (MONGODB_URI, or configure())
+ * import { configure } from "@mark1russell7/client-mongo";
  *
- * await connect({ uri: "mongodb://localhost:27017", database: "myapp" });
+ * configure({ uri: "mongodb://localhost:27017", database: "myapp" });
  *
  * // Via RPC client
  * import { Client } from "client";
  *
  * const result = await client.call(
  *   ["mongo", "documents", "find"],
- *   { query: { status: "active" }, limit: 10 },
- *   { metadata: { collection: "users" } }
+ *   { collection: "users", query: { status: "active" }, limit: 10 },
  * );
  * ```
  */
@@ -28,6 +27,8 @@
 
 export {
   connect,
+  configure,
+  ensureConnection,
   disconnect,
   getDb,
   getClient,
@@ -37,6 +38,7 @@ export {
 } from "./connection.js";
 
 export type { MongoConnection, MongoConnectionOptions } from "./connection.js";
+export type { ScopeInput } from "./scope.js";
 
 // =============================================================================
 // Types
