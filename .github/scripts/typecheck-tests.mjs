@@ -3,14 +3,14 @@
 // The tsconfig presets of cue exclude `*.test.ts` and `*.spec.ts`, so `pnpm typecheck` does
 // not read the tests. For each package with a tsconfig.json, this script writes a temporary
 // config next to it. That config extends the package config, includes the whole `src` folder
-// with the tests, and emits nothing. Then it starts `tsc -p` on it and deletes it.
+// with the tests and the `test` folder of their helpers, and emits nothing. Then it starts `tsc -p` on it and deletes it.
 //
 // Usage: node .github/scripts/typecheck-tests.mjs [package-folder ...]
 // With no argument, it examines each folder in packages/ that has a test file.
 // Exit code: 1 when a package has a type error.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,15 @@ function hasTests(dir) {
 // from the list when its tests type-check. Do not add a package.
 const KNOWN_FAILING = new Set(["client", "client-collections", "client-dag", "client-git"]);
 
+/** The path of the tsc script of the TypeScript that a package uses. */
+function typescriptBin(dir) {
+  const manifestPath = createRequire(join(dir, "package.json")).resolve("typescript/package.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.tsc;
+  if (!bin) throw new Error(`The typescript package at ${dirname(manifestPath)} has no tsc bin`);
+  return join(dirname(manifestPath), bin);
+}
+
 const requested = process.argv.slice(2);
 const folders = (requested.length > 0 ? requested : readdirSync(PACKAGES))
   .map((name) => join(PACKAGES, name))
@@ -50,8 +59,9 @@ for (const dir of folders) {
     JSON.stringify(
       {
         extends: "./tsconfig.json",
-        compilerOptions: { noEmit: true, composite: false, incremental: false, declaration: false, declarationMap: false, isolatedDeclarations: false },
-        include: ["${configDir}/src/**/*"],
+        // The helpers of the tests can be in a test/ folder next to src/, so the root is the package
+        compilerOptions: { noEmit: true, composite: false, incremental: false, declaration: false, declarationMap: false, isolatedDeclarations: false, rootDir: "${configDir}" },
+        include: ["${configDir}/src/**/*", "${configDir}/test/**/*"],
         exclude: ["${configDir}/node_modules", "${configDir}/dist"],
       },
       null,
@@ -59,8 +69,9 @@ for (const dir of folders) {
     ),
   );
   try {
-    // The TypeScript of the package, so each package uses its own version
-    const tsc = createRequire(join(dir, "package.json")).resolve("typescript/bin/tsc");
+    // The TypeScript of the package, so each package uses its own version. The bin comes from
+    // the package.json of typescript: TypeScript 7 does not export "./bin/tsc".
+    const tsc = typescriptBin(dir);
     const result = spawnSync(process.execPath, [tsc, "-p", temp, "--pretty", "false"], { cwd: dir, encoding: "utf8" });
     const folder = relative(PACKAGES, dir);
     if (result.status === 0) {

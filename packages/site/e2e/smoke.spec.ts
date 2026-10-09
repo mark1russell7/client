@@ -102,8 +102,17 @@ test.describe("the Composer", () => {
     await open(page, "#/catalog/%E0%A4");
     await expect(page.locator("h1")).toBeVisible();
 
-    // An endless range: the page stays responsive, and Stop ends the run
-    await open(page, `#/composer?p=${encode({ $proc: ["client", "range"], input: { start: 1e17, end: 2e17 } })}`);
+    // A long run: the page stays responsive, and Stop ends the run. (An endless range is now an
+    // error of the core: a range has at most 1 000 000 items. So the long run is one call for each
+    // item of the largest range.)
+    const long = {
+      $proc: ["client", "map"],
+      input: {
+        items: { $proc: ["client", "range"], input: { start: 0, end: 1_000_000 } },
+        fn: { $proc: ["client", "add"], input: { a: { $ref: "item" }, b: 1 } },
+      },
+    };
+    await open(page, `#/composer?p=${encode(long)}`);
     await page.getByRole("button", { name: "▶ Run" }).click();
     await page.getByRole("button", { name: "■ Stop" }).click();
     await expect(page.locator(".status-line")).toContainText("stopped");

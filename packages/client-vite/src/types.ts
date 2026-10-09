@@ -9,13 +9,13 @@ import { z } from "zod";
 // ============================================================================
 
 export const ViteDevInputSchema: z.ZodObject<{
-  cwd: z.ZodString;
+  cwd: z.ZodOptional<z.ZodString>;
   port: z.ZodOptional<z.ZodNumber>;
   host: z.ZodOptional<z.ZodString>;
   open: z.ZodOptional<z.ZodBoolean>;
 }> = z.object({
-  /** Working directory containing vite config */
-  cwd: z.string(),
+  /** Working directory containing vite config (default: the current folder) */
+  cwd: z.string().optional(),
   /** Port to run on */
   port: z.number().optional(),
   /** Host to bind to */
@@ -40,12 +40,12 @@ export interface ViteDevOutput {
 // ============================================================================
 
 export const ViteBuildInputSchema: z.ZodObject<{
-  cwd: z.ZodString;
+  cwd: z.ZodOptional<z.ZodString>;
   outDir: z.ZodOptional<z.ZodString>;
   mode: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  /** Working directory containing vite config */
-  cwd: z.string(),
+  /** Working directory containing vite config (default: the current folder) */
+  cwd: z.string().optional(),
   /** Output directory */
   outDir: z.string().optional(),
   /** Build mode */
@@ -66,11 +66,11 @@ export interface ViteBuildOutput {
 // ============================================================================
 
 export const VitePreviewInputSchema: z.ZodObject<{
-  cwd: z.ZodString;
+  cwd: z.ZodOptional<z.ZodString>;
   port: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
-  /** Working directory containing built output */
-  cwd: z.string(),
+  /** Working directory containing built output (default: the current folder) */
+  cwd: z.string().optional(),
   /** Port to run on */
   port: z.number().optional(),
 });
