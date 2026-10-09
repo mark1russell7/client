@@ -63,6 +63,7 @@ function parseCliArgs(): ParsedArgs {
         args: rest,
         options: {
           verbose: { type: "boolean", short: "v", default: false },
+          propagate: { type: "boolean", default: false },
         },
         allowPositionals: false,
       });
@@ -136,6 +137,9 @@ Examples:
   # Register procedures (called automatically via postinstall)
   client announce
 
+  # Also add "client announce" to the postinstall script of the package that depends on this one
+  client announce --propagate
+
 How it works:
   1. Libraries with procedures add to package.json:
      { "client": { "procedures": "./dist/register.js" } }
@@ -194,6 +198,7 @@ async function main(): Promise<void> {
         try {
           await announce({
             verbose: options["verbose"] as boolean,
+            propagate: options["propagate"] as boolean,
           });
         } catch {
           // Silently ignore errors - this runs in postinstall
