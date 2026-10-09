@@ -19,6 +19,7 @@ import {
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
 import { dagTraverse } from "./procedures/dag/index.js";
+import { scopedInput } from "./scoped-input.js";
 import { coreCatch } from "./procedures/core/index.js";
 import {
   LibScanInputSchema,
@@ -131,7 +132,7 @@ const ecosystemProceduresProcedure = createProcedure()
 
 const dagTraverseProcedure = createProcedure()
   .path(["dag", "traverse"])
-  .input(zodAdapter<DagTraverseInput>(DagTraverseInputSchema))
+  .input(scopedInput<DagTraverseInput>(DagTraverseInputSchema))
   .output(outputSchema<DagTraverseOutput>())
   .meta({
     description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
@@ -152,7 +153,7 @@ const dagTraverseProcedure = createProcedure()
 
 const coreCatchProcedure = createProcedure()
   .path(["core", "catch"])
-  .input(zodAdapter<CoreCatchInput>(CoreCatchInputSchema))
+  .input(scopedInput<CoreCatchInput>(CoreCatchInputSchema))
   .output(outputSchema<CoreCatchOutput>())
   .meta({
     description: "Execute a procedure with error handling",
