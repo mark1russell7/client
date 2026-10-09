@@ -132,19 +132,38 @@ async function findContainingPackage(startDir: string): Promise<{ dir: string; p
 const REGISTRY_FILENAME = ".client-registry.json";
 
 /**
- * Read the registry file, or return empty registry if it doesn't exist.
+ * Read the registry file, or return an empty registry if the file does not exist.
+ *
+ * Any other failure is an error. Before, every failure gave an empty registry, so a read that
+ * failed (a corrupt file, a file that Windows held for a moment) made the next write remove
+ * every entry.
  */
 async function readRegistry(rootDir: string): Promise<Registry> {
   const registryPath = path.join(rootDir, REGISTRY_FILENAME);
-
+  let content: string;
   try {
-    const content = await fs.readFile(registryPath, "utf-8");
-    return JSON.parse(content) as Registry;
-  } catch {
-    return {
-      schemaVersion: 1,
-      packages: {},
-    };
+    content = await retryOnWindowsContention(() => fs.readFile(registryPath, "utf-8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { schemaVersion: 1, packages: {} };
+    }
+    throw error;
+  }
+  return JSON.parse(content) as Registry;
+}
+
+/**
+ * Run a file operation again when Windows reports that another process holds the file for a
+ * moment (EPERM, EACCES, EBUSY): a rename over a file that a reader has open fails that way.
+ */
+async function retryOnWindowsContention<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= 20 || !isLockContention(error) || (error as NodeJS.ErrnoException).code === "EEXIST") throw error;
+      await new Promise((resolve) => setTimeout(resolve, 10 * attempt));
+    }
   }
 }
 
@@ -157,7 +176,7 @@ async function writeRegistry(rootDir: string, registry: Registry): Promise<void>
   const temporary = `${registryPath}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
   try {
     await fs.writeFile(temporary, content, "utf-8");
-    await fs.rename(temporary, registryPath);
+    await retryOnWindowsContention(() => fs.rename(temporary, registryPath));
   } catch (error) {
     await fs.rm(temporary, { force: true });
     throw error;
@@ -166,6 +185,17 @@ async function writeRegistry(rootDir: string, registry: Registry): Promise<void>
 
 /** A lock older than this belongs to a process that stopped: it is removed. */
 const STALE_LOCK_MS = 10_000;
+
+/**
+ * True when another writer holds the lock. On Windows, a lock file that its owner is deleting
+ * cannot be opened until the delete completes: `open` fails with EPERM (or EACCES, EBUSY), not
+ * EEXIST.
+ */
+function isLockContention(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code === "EEXIST") return true;
+  return process.platform === "win32" && (code === "EPERM" || code === "EACCES" || code === "EBUSY");
+}
 
 /**
  * Read, change and write the registry under a lock file. Package managers run postinstall
@@ -181,7 +211,7 @@ async function updateRegistry(rootDir: string, change: (registry: Registry) => b
       await handle.close();
       break;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || Date.now() > deadline) throw error;
+      if (!isLockContention(error) || Date.now() > deadline) throw error;
       try {
         const { mtimeMs } = await fs.stat(lockPath);
         if (Date.now() - mtimeMs > STALE_LOCK_MS) await fs.rm(lockPath, { force: true });
