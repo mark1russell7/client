@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -44,6 +44,48 @@ describe("s3.download (regression: BUGS-2026-07 M22)", () => {
     nextResponse = { Body: body("x".repeat(100)), ContentLength: 100 };
 
     await expect(s3Download({ bucket: "b", key: "k", maxBytes: 10 })).rejects.toThrow("more than maxBytes");
+  });
+
+  it("keeps the previous file when the transfer fails (deep dive DATA-14)", async () => {
+    const destPath = join(dir, "archive.tar.gz");
+    writeFileSync(destPath, "previous archive");
+    async function* failing() {
+      yield Buffer.from("partial");
+      throw new Error("connection reset");
+    }
+    nextResponse = { Body: Readable.from(failing()), ContentLength: 100 };
+
+    await expect(s3Download({ bucket: "b", key: "k", destPath })).rejects.toThrow("connection reset");
+
+    expect(readFileSync(destPath, "utf8")).toBe("previous archive");
+    expect(readdirSync(dir)).toEqual(["archive.tar.gz"]);
+  });
+
+  it("replaces the file when the transfer succeeds", async () => {
+    const destPath = join(dir, "archive.tar.gz");
+    writeFileSync(destPath, "previous archive");
+    nextResponse = { Body: body("new archive"), ContentLength: 11 };
+
+    await s3Download({ bucket: "b", key: "k", destPath });
+
+    expect(readFileSync(destPath, "utf8")).toBe("new archive");
+    expect(readdirSync(dir)).toEqual(["archive.tar.gz"]);
+  });
+
+  it("counts the bytes when Content-Length is missing or wrong (deep dive DATA-14)", async () => {
+    nextResponse = { Body: body("x".repeat(100)) };
+    await expect(s3Download({ bucket: "b", key: "k", maxBytes: 10 })).rejects.toThrow("more than maxBytes");
+
+    nextResponse = { Body: body("x".repeat(100)), ContentLength: 5 };
+    await expect(s3Download({ bucket: "b", key: "k", maxBytes: 10 })).rejects.toThrow("more than maxBytes");
+  });
+
+  it("applies an explicit maxBytes to a file download", async () => {
+    const destPath = join(dir, "big.bin");
+    nextResponse = { Body: body("x".repeat(100)) };
+
+    await expect(s3Download({ bucket: "b", key: "k", destPath, maxBytes: 10 })).rejects.toThrow("more than maxBytes");
+    expect(readdirSync(dir)).toEqual([]);
   });
 
   it("still returns small objects as base64 or text", async () => {

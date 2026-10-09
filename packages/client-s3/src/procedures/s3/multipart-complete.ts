@@ -36,10 +36,14 @@ export async function s3MultipartComplete(
     Key: input.key,
     UploadId: input.uploadId,
     MultipartUpload: {
-      Parts: input.parts.map((part) => ({
-        ETag: `"${part.etag}"`,
-        PartNumber: part.partNumber,
-      })),
+      // S3 refuses parts out of order. Parts that were uploaded in parallel can arrive in any
+      // order, so the procedure sorts them by number.
+      Parts: [...input.parts]
+        .sort((a, b) => a.partNumber - b.partNumber)
+        .map((part) => ({
+          ETag: `"${part.etag}"`,
+          PartNumber: part.partNumber,
+        })),
     },
   });
 
