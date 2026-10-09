@@ -4,10 +4,9 @@
  * Restore an environment snapshot from S3.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
-import { createHash } from "node:crypto";
 import * as tar from "tar";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type {
@@ -17,6 +16,7 @@ import type {
 } from "../../types.js";
 import { listAllObjects, findSnapshotKey } from "./s3-lookup.js";
 import { assertSnapshotName } from "./names.js";
+import { sha256File } from "./archive-io.js";
 
 /**
  * Restore a snapshot from S3
@@ -80,9 +80,7 @@ export async function snapshotRestore(
     // creation time. Do this before extracting so a corrupted or tampered
     // archive never reaches the target directory.
     if (metadata.checksum) {
-      const actualChecksum = createHash("sha256")
-        .update(readFileSync(archivePath))
-        .digest("hex");
+      const actualChecksum = await sha256File(archivePath);
       if (actualChecksum !== metadata.checksum) {
         throw new Error(
           `Checksum mismatch for snapshot ${input.id}: expected ${metadata.checksum}, got ${actualChecksum}`
@@ -115,11 +113,29 @@ export async function snapshotRestore(
       }
     }
 
-    // Extract archive
-    await tar.extract({
-      file: archivePath,
-      cwd: targetPath,
-    });
+    // Extract into a staging folder in the target, then move each top-level folder into place.
+    // With overwrite: true, a restored folder replaces the existing one: before, the archive
+    // was extracted over it, and files that the snapshot does not hold stayed. A failed
+    // extraction leaves the target as it was.
+    const staging = mkdtempSync(join(targetPath, ".snapshot-restore-"));
+    try {
+      await tar.extract({
+        file: archivePath,
+        cwd: staging,
+      });
+      for (const entry of readdirSync(staging)) {
+        const destination = join(targetPath, entry);
+        if (existsSync(destination)) {
+          if (!input.overwrite) {
+            throw new Error(`Target path already exists: ${destination}. Use overwrite: true to replace.`);
+          }
+          rmSync(destination, { recursive: true, force: true });
+        }
+        renameSync(join(staging, entry), destination);
+      }
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
 
     const extractDuration = Date.now() - extractStart;
 
