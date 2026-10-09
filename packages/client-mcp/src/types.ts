@@ -4,6 +4,7 @@
  * Configuration options for the MCP server transport.
  */
 
+import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { ProcedureRegistry } from "@mark1russell7/client";
 import type { McpServerInfo, McpToolFilter } from "@mark1russell7/mcp";
 
@@ -39,6 +40,12 @@ export interface McpServerTransportOptions {
 
   /** SSE-specific options (when transport is "sse") */
   sseOptions?: SseTransportOptions;
+
+  /**
+   * An MCP SDK transport to connect, in place of `transport`. Use it to embed the server in
+   * another process, or in a test (the SDK's `InMemoryTransport`).
+   */
+  sdkTransport?: SdkTransport;
 
   /** Enable debug logging */
   debug?: boolean;

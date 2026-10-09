@@ -23,7 +23,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run"
   },
   "sideEffects": [
     "./dist/index.js",
@@ -42,6 +43,7 @@
     "typescript": "^5.9.3",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@mark1russell7/client": "workspace:*",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "vitest": "^4.1.11"
   }
 }

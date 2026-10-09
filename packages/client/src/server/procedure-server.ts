@@ -6,7 +6,8 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { Method, ServerRequest, ServerResponse } from "./types.js";
+import type { Method, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
+import { methodToPath, pathToMethod } from "./method.js";
 import type {
   AnyProcedure,
   ProcedurePath,
@@ -61,13 +62,16 @@ export interface ProcedureServerOptions extends ServerOptions {
  * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler is HANDLER_ERROR.
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
+  // An error that says it is retryable stays retryable: before, every error lost the flag
+  // (deep dive TRN-7)
+  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
   return {
     id,
     status: {
       type: "error",
       code: error instanceof InvocationError ? error.code : "HANDLER_ERROR",
       message: error instanceof Error ? error.message : String(error),
-      retryable: false,
+      retryable: typeof retryable === "boolean" ? retryable : false,
     },
     metadata: {},
   };
@@ -107,7 +111,15 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
 export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly procedureRegistry: ProcedureRegistry;
   private readonly storages = new Map<string, CollectionStorage<unknown>>();
-  private readonly registeredProcedures = new Set<string>();
+  /** The procedures that `registerProcedure` pinned, by key */
+  private readonly pinnedProcedures = new Map<string, AnyProcedure>();
+  /**
+   * True after `registerFromRegistry()`: the server serves each procedure of the registry that
+   * has a handler and passes the expose rule, looked up when the request arrives (deep dive
+   * TRN-13). Before, the server copied the registry at startup: a later registration was not
+   * found, and an override or an unregistration was not seen.
+   */
+  private servesRegistry = false;
   private readonly expose: ((path: ProcedurePath) => boolean) | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
@@ -198,48 +210,19 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   // ===========================================================================
 
   /**
-   * Register a procedure as a server handler.
+   * Register a procedure as a server handler. The server keeps this procedure object. A
+   * procedure of the registry at the same path comes first when the server serves the registry.
    *
    * @param procedure - Procedure definition
    */
   registerProcedure(procedure: AnyProcedure): void {
-    const key = pathToKey(procedure.path);
-
-    // Skip if already registered
-    if (this.registeredProcedures.has(key)) {
-      return;
-    }
-
     // Must have a handler
     if (!procedure.handler) {
-      throw new Error(`Procedure at ${key} has no handler`);
+      throw new Error(`Procedure at ${pathToKey(procedure.path)} has no handler`);
     }
-
-    // Convert path to method
-    const method = this.pathToMethod(procedure.path);
-    const self = this;
-
-    this.register(method, async (request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> => {
-      try {
-        // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
-        // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
-        const output = await invokeProcedure(procedure, request.payload, {
-          registry: self.procedureRegistry,
-          metadata: request.metadata,
-          signal: request.signal,
-          repository: self,
-          expose: self.expose,
-        });
-        if (output.kind === "stream") {
-          return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };
-        }
-        return { id: request.id, status: { type: "success", code: 200 }, payload: output.value, metadata: {} };
-      } catch (error) {
-        return errorResponse(request.id, error);
-      }
-    });
-
-    this.registeredProcedures.add(key);
+    // The path must make a method: this throws for a path of one segment
+    pathToMethod(procedure.path);
+    this.pinnedProcedures.set(pathToKey(procedure.path), procedure);
   }
 
   /**
@@ -263,25 +246,59 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   }
 
   /**
-   * Register all procedures from the registry.
-   * Only registers procedures that have handlers.
+   * Serve the procedures of the registry. The server looks up each request in the registry when
+   * the request arrives, so a later registration, an override or an unregistration takes effect
+   * at once. A procedure without a handler (a stub synced from storage, BUGS-2026-07 H14/H28) or
+   * outside the expose rule is not served.
    */
   registerFromRegistry(): void {
-    const procedures = this.procedureRegistry.getAll();
+    this.servesRegistry = true;
+  }
 
-    for (const procedure of procedures) {
-      // Skip handler-less procedures (e.g. synced-from-storage stubs). registerProcedure
-      // throws when a procedure has no handler; this method's contract is to register
-      // ONLY procedures that have handlers, so one stub must not abort server startup.
-      // See BUGS-2026-07 H14/H28.
-      if (!procedure.handler) {
-        continue;
+  /**
+   * The procedure that answers a method, or undefined. The registry comes first (when the server
+   * serves it), then the pinned procedures.
+   */
+  private resolveProcedure(method: Method): AnyProcedure | undefined {
+    const path = methodToPath(method);
+    if (this.servesRegistry) {
+      const procedure = this.procedureRegistry.get(path);
+      if (procedure?.handler && (!this.expose || this.expose(procedure.path))) {
+        return procedure;
       }
-      // A procedure outside the expose rule gets no handler: callers cannot reach it
-      if (this.expose && !this.expose(procedure.path)) {
-        continue;
+    }
+    return this.pinnedProcedures.get(pathToKey(path));
+  }
+
+  /**
+   * The handlers that `register()` added come first (exact or pattern matches). Then the server
+   * looks up the procedure of the method.
+   */
+  protected override findHandler(method: Method): ServerHandler | null {
+    const handler = super.findHandler(method);
+    if (handler) return handler;
+    const procedure = this.resolveProcedure(method);
+    return procedure ? (request) => this.invoke(procedure, request) : null;
+  }
+
+  /** Run a procedure for a request. */
+  private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
+    try {
+      // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
+      // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
+      const output = await invokeProcedure(procedure, request.payload, {
+        registry: this.procedureRegistry,
+        metadata: request.metadata,
+        signal: request.signal,
+        repository: this,
+        expose: this.expose,
+      });
+      if (output.kind === "stream") {
+        return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };
       }
-      this.registerProcedure(procedure);
+      return { id: request.id, status: { type: "success", code: 200 }, payload: output.value, metadata: {} };
+    } catch (error) {
+      return errorResponse(request.id, error);
     }
   }
 
@@ -307,36 +324,33 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   // Utility Methods
   // ===========================================================================
 
-  /**
-   * Convert procedure path to Method object.
-   */
-  private pathToMethod(path: ProcedurePath): Method {
-    if (path.length < 2) {
-      throw new Error(`Invalid procedure path: ${path.join(".")}`);
+  /** The paths that the server serves now. */
+  private servedKeys(): Set<string> {
+    const keys = new Set(this.pinnedProcedures.keys());
+    if (this.servesRegistry) {
+      for (const procedure of this.procedureRegistry.getAll()) {
+        if (procedure.handler && (!this.expose || this.expose(procedure.path))) {
+          keys.add(pathToKey(procedure.path));
+        }
+      }
     }
-
-    // Path format: [service, ...nested, operation]
-    // e.g., ['collections', 'users', 'get'] -> { service: 'collections.users', operation: 'get' }
-    const operation = path[path.length - 1]!;
-    const service = path.slice(0, -1).join(".");
-
-    return { service, operation };
+    return keys;
   }
 
   /**
-   * Get count of registered procedures.
+   * Get count of the procedures that the server serves now.
    */
   get procedureCount(): number {
-    return this.registeredProcedures.size;
+    return this.servedKeys().size;
   }
 
   /**
-   * Check if a procedure is registered.
+   * Check if the server serves a procedure now.
    *
    * @param path - Procedure path
    */
   hasProcedure(path: ProcedurePath): boolean {
-    return this.registeredProcedures.has(pathToKey(path));
+    return this.resolveProcedure(pathToMethod(path)) !== undefined;
   }
 
   /**

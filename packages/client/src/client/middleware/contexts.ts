@@ -10,7 +10,7 @@
  * // Middleware composition with type accumulation
  * const client = new Client(transport)
  *   .use(createRetryMiddleware())     // Client<BaseContext & RetryContext>
- *   .use(createCacheMiddleware())     // Client<... & CacheContext>
+ *   .use(createCacheMiddleware({ methods: ["users.get"] }))     // Client<... & CacheContext>
  *   .use(createAuthMiddleware(...))   // Client<... & AuthContext>
  * ```
  */

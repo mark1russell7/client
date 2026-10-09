@@ -11,8 +11,9 @@ import {
   ListToolsRequestSchema,
   type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { ServerTransport, Server, ProcedureRegistry } from "@mark1russell7/client";
-import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, pathToMethod } from "@mark1russell7/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -68,6 +69,8 @@ export class McpServerTransport implements ServerTransport {
   private tools: Map<string, McpTool> = new Map();
   private registerListener: ((procedure: unknown) => void) | undefined;
   private unregisterListener: ((procedure: unknown) => void) | undefined;
+  /** A pending list_changed notification: a burst of registrations sends one */
+  private listChangedTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(server: Server, options: McpServerTransportOptions = {}) {
     this.server = server;
@@ -81,10 +84,11 @@ export class McpServerTransport implements ServerTransport {
     };
     this.registry = options.registry ?? PROCEDURE_REGISTRY;
 
-    // Create MCP server with capabilities
+    // Create MCP server with capabilities. The tool list follows the registry: when it changes,
+    // the server sends notifications/tools/list_changed (deep dive roadmap 0.4)
     this.mcpServer = new McpServer(this.options.serverInfo, {
       capabilities: {
-        tools: {},
+        tools: { listChanged: true },
       },
     });
 
@@ -126,18 +130,14 @@ export class McpServerTransport implements ServerTransport {
         };
       }
 
-      // Decode path from tool name
+      // Decode path from tool name. The method is the core mapping of every host (deep dive
+      // architecture review 3.3)
       const path = decodePath(name);
-      const operation = path[path.length - 1];
-      const service = path.slice(0, -1).join(".");
 
       // Build ServerRequest
       const serverRequest = {
         id: generateRequestId(),
-        method: {
-          service: service || path[0]!,
-          operation: operation!,
-        },
+        method: pathToMethod(path),
         payload: args ?? {},
         metadata: {
           transport: "mcp" as const,
@@ -266,6 +266,7 @@ export class McpServerTransport implements ServerTransport {
   private refreshTools(): void {
     const procedures = this.registry.getAll();
     const mcpTools = proceduresToMcpTools(procedures, this.options.toolFilter);
+    const before = this.toolSignature();
 
     this.tools.clear();
     for (const tool of mcpTools) {
@@ -273,6 +274,26 @@ export class McpServerTransport implements ServerTransport {
     }
 
     this.log(`Refreshed tools: ${this.tools.size} available`);
+    if (this.running && this.toolSignature() !== before) this.scheduleListChanged();
+  }
+
+  /** The tool names and descriptions: a change of this text is a change of the tool list. */
+  private toolSignature(): string {
+    const entries = Array.from(this.tools.values(), (tool) => [tool.name, tool.description ?? ""]);
+    return JSON.stringify(entries.sort((a, b) => (a[0]! < b[0]! ? -1 : a[0]! > b[0]! ? 1 : 0)));
+  }
+
+  /** Send one notifications/tools/list_changed for a burst of registry events. */
+  private scheduleListChanged(): void {
+    if (this.listChangedTimer) return;
+    this.listChangedTimer = setTimeout(() => {
+      this.listChangedTimer = undefined;
+      if (!this.running) return;
+      this.mcpServer.sendToolListChanged().catch((error: unknown) => {
+        this.log(`list_changed failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }, 0);
+    this.listChangedTimer.unref?.();
   }
 
   /**
@@ -301,8 +322,11 @@ export class McpServerTransport implements ServerTransport {
 
     try {
       // Create appropriate transport
-      let transport;
-      if (this.options.transport === "stdio") {
+      let transport: SdkTransport;
+      if (this.options.sdkTransport) {
+        transport = this.options.sdkTransport;
+        this.log("Using the given transport");
+      } else if (this.options.transport === "stdio") {
         transport = createStdioTransport();
         this.log("Using stdio transport");
       } else if (this.options.transport === "sse") {
@@ -333,6 +357,10 @@ export class McpServerTransport implements ServerTransport {
 
     // Cleanup registry listeners
     this.removeRegistryListeners();
+    if (this.listChangedTimer) {
+      clearTimeout(this.listChangedTimer);
+      this.listChangedTimer = undefined;
+    }
 
     await this.mcpServer.close();
     this.running = false;

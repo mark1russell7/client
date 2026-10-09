@@ -8,6 +8,7 @@
 import type { Transport, Message, ResponseItem } from "../../../client/types.js";
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler } from "./types.js";
 import { WebSocketState } from "./types.js";
+import { withoutInternalKeys } from "../../metadata.js";
 
 /**
  * Pending request waiting for response.
@@ -58,6 +59,8 @@ class ItemQueue<T> {
 }
 
 interface PendingRequest {
+  /** The id of the caller's message: the response items carry it */
+  messageId: string;
   /** The response items of the request, in order */
   queue: ItemQueue<ResponseItem<unknown>>;
   /** The request timeout: it runs until the first frame arrives */
@@ -82,13 +85,12 @@ interface PendingRequest {
  * const client = new Client({ transport });
  * ```
  */
+function errorItem<TRes>(id: string, code: string, message: string, retryable: boolean): ResponseItem<TRes> {
+  return { id, status: { type: "error", code, message, retryable }, payload: null as TRes, metadata: {} };
+}
+
 function abortedItem<TRes>(id: string): ResponseItem<TRes> {
-  return {
-    id,
-    status: { type: "error", code: "ABORTED", message: "Request was aborted", retryable: false },
-    payload: null as TRes,
-    metadata: {},
-  };
+  return errorItem<TRes>(id, "ABORTED", "Request was aborted", false);
 }
 
 export class WebSocketTransport implements Transport {
@@ -107,6 +109,7 @@ export class WebSocketTransport implements Transport {
     };
     connectionTimeout: number;
     requestTimeout: number;
+    streamWindow: number;
     heartbeat: {
       enabled: boolean;
       interval: number;
@@ -119,7 +122,16 @@ export class WebSocketTransport implements Transport {
     onServerRequest: ServerRequestHandler | undefined;
     onEvent: EventHandler | undefined;
   };
+  /** The requests in progress, by wire id */
   private pendingRequests: Map<string, PendingRequest> = new Map();
+  /**
+   * The transport makes the id of each request on the wire. Before, the wire id was the
+   * message id: a retry with the same id, or two calls with one id, took each other's frames
+   * (deep dive TRN-8/9).
+   */
+  private wireSeq = 0;
+  /** The functions that run at each state change (the callers that wait for a connection) */
+  private stateListeners = new Set<() => void>();
   /** Set by close(): the connection is being closed on purpose, so it must not reconnect */
   private closing = false;
   private reconnectAttempts = 0;
@@ -139,6 +151,7 @@ export class WebSocketTransport implements Transport {
       },
       connectionTimeout: options.connectionTimeout ?? 10000,
       requestTimeout: options.requestTimeout ?? 30000,
+      streamWindow: Math.max(2, options.streamWindow ?? 64),
       heartbeat: {
         enabled: options.heartbeat?.enabled ?? true,
         interval: options.heartbeat?.interval ?? 30000,
@@ -156,6 +169,12 @@ export class WebSocketTransport implements Transport {
     this.connect();
   }
 
+  /** Change the state, and tell the callers that wait for a connection. */
+  private setState(state: WebSocketState): void {
+    this.state = state;
+    for (const listener of [...this.stateListeners]) listener();
+  }
+
   /**
    * Connect to WebSocket server.
    */
@@ -167,15 +186,17 @@ export class WebSocketTransport implements Transport {
       return;
     }
 
-    this.state = WebSocketState.CONNECTING;
+    this.setState(WebSocketState.CONNECTING);
 
     try {
-      this.ws = new WebSocket(this.options.url);
+      const ws = new WebSocket(this.options.url);
+      this.ws = ws;
 
       // Connection opened
-      this.ws.onopen = () => {
-        this.state = WebSocketState.CONNECTED;
+      ws.onopen = () => {
+        if (this.ws !== ws) return;
         this.reconnectAttempts = 0;
+        this.setState(WebSocketState.CONNECTED);
         console.error(`[${this.name}] Connected to ${this.options.url}`);
 
         if (this.options.onConnect) {
@@ -189,7 +210,8 @@ export class WebSocketTransport implements Transport {
       };
 
       // Message received
-      this.ws.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (this.ws !== ws) return;
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
           this.handleMessage(message);
@@ -199,12 +221,15 @@ export class WebSocketTransport implements Transport {
       };
 
       // Connection closed
-      this.ws.onclose = (event) => {
+      ws.onclose = (event) => {
+        if (this.ws !== ws) return;
+        this.ws = null;
         this.handleClose(event.reason);
       };
 
       // Connection error
-      this.ws.onerror = (event) => {
+      ws.onerror = (event) => {
+        if (this.ws !== ws) return;
         console.error(`[${this.name}] WebSocket error:`, event);
         const error = new Error("WebSocket connection error");
         if (this.options.onError) {
@@ -213,16 +238,54 @@ export class WebSocketTransport implements Transport {
       };
     } catch (error) {
       console.error(`[${this.name}] Failed to create WebSocket:`, error);
+      this.ws = null;
       this.handleClose("Failed to create WebSocket");
     }
+  }
+
+  /**
+   * Leave the current socket without waiting for its close handshake, and handle the close
+   * now. A dead peer never answers the handshake: before, the heartbeat called close() and
+   * waited, so the state stayed CONNECTED and the requests hung (deep dive TRN-6).
+   */
+  private dropConnection(reason: string): void {
+    const ws = this.ws;
+    this.ws = null;
+    if (ws) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      try {
+        ws.close();
+      } catch {
+        // The socket is unusable: nothing more to do
+      }
+    }
+    this.handleClose(reason);
+  }
+
+  /** Fail every request in progress (a stream ends with the error too). */
+  private failPending(reason: string): void {
+    for (const pending of this.pendingRequests.values()) {
+      pending.queue.fail(new Error(reason));
+      if (pending.timeout) {
+        clearTimeout(pending.timeout);
+      }
+    }
+    this.pendingRequests.clear();
   }
 
   /**
    * Handle WebSocket close.
    */
   private handleClose(reason?: string): void {
-    this.state = WebSocketState.DISCONNECTED;
     this.stopHeartbeat();
+
+    // An intentional close() must not reconnect (BUGS-2026-07 H6)
+    const reconnect = this.options.reconnect;
+    const willReconnect = !this.closing && reconnect.enabled && this.reconnectAttempts < reconnect.maxAttempts;
+    this.setState(willReconnect ? WebSocketState.RECONNECTING : WebSocketState.DISCONNECTED);
 
     console.error(`[${this.name}] Disconnected${reason ? `: ${reason}` : ""}`);
 
@@ -230,23 +293,9 @@ export class WebSocketTransport implements Transport {
       this.options.onDisconnect(reason);
     }
 
-    // Fail all pending requests (a stream ends with the error too)
-    for (const pending of this.pendingRequests.values()) {
-      pending.queue.fail(new Error("WebSocket connection closed"));
-      if (pending.timeout) {
-        clearTimeout(pending.timeout);
-      }
-    }
-    this.pendingRequests.clear();
+    this.failPending("WebSocket connection closed");
 
-    // An intentional close() must not reconnect (BUGS-2026-07 H6)
-    if (this.closing) {
-      return;
-    }
-
-    // Attempt reconnection
-    const reconnect = this.options.reconnect;
-    if (reconnect.enabled && this.reconnectAttempts < reconnect.maxAttempts) {
+    if (willReconnect) {
       this.scheduleReconnect();
     }
   }
@@ -260,7 +309,7 @@ export class WebSocketTransport implements Transport {
     }
 
     this.reconnectAttempts++;
-    this.state = WebSocketState.RECONNECTING;
+    this.setState(WebSocketState.RECONNECTING);
 
     const reconnect = this.options.reconnect;
     const delay = Math.min(
@@ -275,6 +324,8 @@ export class WebSocketTransport implements Transport {
     }
 
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      // connect() returns at once in RECONNECTING only for CONNECTING/CONNECTED
       this.connect();
     }, delay);
   }
@@ -286,7 +337,8 @@ export class WebSocketTransport implements Transport {
     this.stopHeartbeat();
 
     this.heartbeatTimer = setInterval(() => {
-      if (this.state === WebSocketState.CONNECTED && this.ws) {
+      // One ping at a time: a new ping must not replace the timeout of an unanswered one
+      if (this.state === WebSocketState.CONNECTED && this.ws && !this.heartbeatTimeout) {
         // Send ping
         const ping: WebSocketMessage = {
           id: `ping-${Date.now()}`,
@@ -296,8 +348,9 @@ export class WebSocketTransport implements Transport {
 
         // Set timeout for pong
         this.heartbeatTimeout = setTimeout(() => {
-          console.warn(`[${this.name}] Heartbeat timeout - closing connection`);
-          this.ws?.close();
+          this.heartbeatTimeout = undefined;
+          console.warn(`[${this.name}] Heartbeat timeout - dropping connection`);
+          this.dropConnection("Heartbeat timeout");
         }, this.options.heartbeat.timeout);
       }
     }, this.options.heartbeat.interval);
@@ -381,7 +434,7 @@ export class WebSocketTransport implements Transport {
         return;
       }
       pending.queue.push({
-        id: message.id,
+        id: pending.messageId,
         status: { type: "success", code: 200 },
         payload: message.payload,
         metadata: message.metadata || {},
@@ -435,7 +488,7 @@ export class WebSocketTransport implements Transport {
     }
 
     const responseItem: ResponseItem<any> = {
-      id: message.id,
+      id: pending.messageId,
       status,
       payload: message.payload,
       metadata: message.metadata || {},
@@ -451,6 +504,10 @@ export class WebSocketTransport implements Transport {
    * call, each item of a stream. When the reader stops early or the message's signal aborts, the
    * transport sends a "cancel" message, and the server stops the stream.
    *
+   * Flow control (deep dive TRN-3): the request gives the server credit for `streamWindow`
+   * items. As the reader takes items, the transport sends more credit, so the server never
+   * runs ahead of a slow reader by more than the window.
+   *
    * @param message - Message to send
    * @returns Async iterable of response items
    */
@@ -461,33 +518,44 @@ export class WebSocketTransport implements Transport {
     }
 
     // Wait for connection
-    await this.waitForConnection();
+    await this.waitForConnection(message.signal);
+    if (message.signal?.aborted) {
+      yield abortedItem<TRes>(message.id);
+      return;
+    }
 
-    // Create WebSocket message
+    const wireId = `${message.id}~${++this.wireSeq}`;
+    const window = this.options.streamWindow;
+
+    // Create WebSocket message. The internal metadata keys stay in this process (deep dive TRN-11).
     const wsMessage: WebSocketMessage<TReq> = {
-      id: message.id,
+      id: wireId,
       type: "request",
       method: message.method,
       payload: message.payload,
-      metadata: message.metadata,
+      metadata: withoutInternalKeys(message.metadata),
+      credit: window,
     };
 
     const queue = new ItemQueue<ResponseItem<unknown>>();
-    const pending: PendingRequest = { queue };
+    const pending: PendingRequest = { messageId: message.id, queue };
     pending.timeout = setTimeout(() => {
-      if (this.pendingRequests.get(message.id) !== pending) return;
-      this.pendingRequests.delete(message.id);
-      this.sendCancel(message.id);
+      if (this.pendingRequests.get(wireId) !== pending) return;
+      this.pendingRequests.delete(wireId);
+      this.sendCancel(wireId);
       console.error(`[${this.name}] Request timeout for ${message.id}`);
-      queue.fail(new Error("Request timeout"));
+      // An error item, not a thrown error: the server got the request and can still run it,
+      // so a retry middleware must not repeat it (deep dive TRN-8)
+      queue.push(errorItem(message.id, "TIMEOUT", `Request timeout after ${this.options.requestTimeout}ms`, false));
+      queue.end();
     }, this.options.requestTimeout);
-    this.pendingRequests.set(message.id, pending);
+    this.pendingRequests.set(wireId, pending);
 
     const onAbort = (): void => {
-      if (this.pendingRequests.get(message.id) !== pending) return;
-      this.pendingRequests.delete(message.id);
+      if (this.pendingRequests.get(wireId) !== pending) return;
+      this.pendingRequests.delete(wireId);
       if (pending.timeout) clearTimeout(pending.timeout);
-      this.sendCancel(message.id);
+      this.sendCancel(wireId);
       queue.push(abortedItem(message.id));
       queue.end();
     };
@@ -500,16 +568,22 @@ export class WebSocketTransport implements Transport {
         console.error(`[${this.name}] Send error:`, error);
         throw error;
       }
+      let taken = 0;
       for await (const item of queue) {
         yield item as ResponseItem<TRes>;
+        // The reader took the item: give the server credit, in batches of half the window
+        if (++taken >= window / 2 && this.pendingRequests.get(wireId) === pending) {
+          this.sendCredit(wireId, taken);
+          taken = 0;
+        }
       }
     } finally {
       message.signal?.removeEventListener("abort", onAbort);
       if (pending.timeout) clearTimeout(pending.timeout);
-      if (this.pendingRequests.get(message.id) === pending) {
+      if (this.pendingRequests.get(wireId) === pending) {
         // The reader stopped before the end: the server stops the stream
-        this.pendingRequests.delete(message.id);
-        this.sendCancel(message.id);
+        this.pendingRequests.delete(wireId);
+        this.sendCancel(wireId);
       }
     }
   }
@@ -522,32 +596,44 @@ export class WebSocketTransport implements Transport {
     }
   }
 
+  /** This function gives the server credit for more items of a stream. */
+  private sendCredit(id: string, credit: number): void {
+    if (this.ws && this.state === WebSocketState.CONNECTED) {
+      const message: WebSocketMessage = { id, type: "credit", credit };
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+
   /**
-   * Wait for WebSocket connection.
+   * Wait for WebSocket connection. The wait follows the state changes. Before, each waiting
+   * call polled every 100 ms, and the poller ran on after a timeout until the connection came
+   * back (deep dive TRN-14).
    */
-  private async waitForConnection(): Promise<void> {
+  private async waitForConnection(signal?: AbortSignal): Promise<void> {
     if (this.state === WebSocketState.CONNECTED) {
       return;
     }
+    if (this.state === WebSocketState.DISCONNECTED) {
+      throw new Error("WebSocket disconnected");
+    }
 
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("Connection timeout"));
-      }, this.options.connectionTimeout);
-
-      const checkConnection = () => {
-        if (this.state === WebSocketState.CONNECTED) {
-          clearTimeout(timeout);
-          resolve();
-        } else if (this.state === WebSocketState.DISCONNECTED) {
-          clearTimeout(timeout);
-          reject(new Error("WebSocket disconnected"));
-        } else {
-          setTimeout(checkConnection, 100);
-        }
+      const finish = (error?: Error): void => {
+        clearTimeout(timeout);
+        this.stateListeners.delete(check);
+        signal?.removeEventListener("abort", onAbort);
+        if (error) reject(error);
+        else resolve();
       };
-
-      checkConnection();
+      const check = (): void => {
+        if (this.state === WebSocketState.CONNECTED) finish();
+        else if (this.state === WebSocketState.DISCONNECTED) finish(new Error("WebSocket disconnected"));
+      };
+      // The caller aborted: send() then gives the ABORTED item
+      const onAbort = (): void => finish();
+      const timeout = setTimeout(() => finish(new Error("Connection timeout")), this.options.connectionTimeout);
+      this.stateListeners.add(check);
+      signal?.addEventListener("abort", onAbort, { once: true });
     });
   }
 
@@ -601,11 +687,11 @@ export class WebSocketTransport implements Transport {
   }
 
   /**
-   * Close WebSocket connection.
+   * Close WebSocket connection. The requests in progress fail.
    */
   async close(): Promise<void> {
     this.closing = true;
-    this.state = WebSocketState.DISCONNECTING;
+    this.setState(WebSocketState.DISCONNECTING);
     this.stopHeartbeat();
 
     if (this.reconnectTimer) {
@@ -613,12 +699,22 @@ export class WebSocketTransport implements Transport {
       this.reconnectTimer = undefined;
     }
 
+    const hadSocket = this.ws !== null;
     if (this.ws) {
-      this.ws.close();
+      const ws = this.ws;
       this.ws = null;
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.close();
     }
 
-    this.state = WebSocketState.DISCONNECTED;
+    this.failPending("WebSocket connection closed");
+    this.setState(WebSocketState.DISCONNECTED);
+    if (hadSocket && this.options.onDisconnect) {
+      this.options.onDisconnect("closed");
+    }
   }
 
   /**

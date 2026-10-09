@@ -66,6 +66,13 @@ export interface WebSocketServerTransportOptions {
    * @default true
    */
   clientTracking?: boolean;
+
+  /**
+   * The number of bytes that a connection can hold in its send buffer before a stream waits
+   * (deep dive TRN-3: before, a stream ran to its end whatever the reader did).
+   * @default 1 MiB
+   */
+  highWaterMark?: number;
 }
 
 /**
@@ -76,7 +83,7 @@ export interface WebSocketMessage<TReq = unknown> {
   id: string;
 
   /** Message type */
-  type: "request" | "response" | "error" | "stream" | "cancel" | "ping" | "pong" | "server-request" | "server-response" | "event";
+  type: "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
 
   /** RPC method (for requests) */
   method?: {
@@ -114,6 +121,13 @@ export interface WebSocketMessage<TReq = unknown> {
     message: string;
     retryable?: boolean;
   };
+
+  /**
+   * Flow control of a stream (deep dive TRN-3). In a request: the number of stream items that
+   * the client can take before it sends more credit. In a "credit" message: the number of more
+   * items. A request without credit gets its stream with no limit (the old protocol).
+   */
+  credit?: number;
 
   /** Stream indicator (for streaming responses) */
   stream?: {

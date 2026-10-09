@@ -111,10 +111,15 @@ export function createTimeoutError(timeoutMs: number): HTTPErrorDetails {
 }
 
 /**
- * Create abort error details -- needs fixing
+ * Create abort error details: the caller aborted the request, so a retry must not repeat it.
+ * Before, an abort was a non-retryable HTTP_ERROR (deep dive TRN-7).
  */
 export function createAbortError(): HTTPErrorDetails {
-  return createHTTPError();
+  return {
+    code: HTTPErrorCode.ABORTED,
+    message: HTTPErrorMessage[HTTPErrorCode.ABORTED],
+    retryable: false,
+  };
 }
 
 // needs fixing

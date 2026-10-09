@@ -38,13 +38,13 @@ export interface HttpServerTransportOptions {
 
   /**
    * Host to bind to.
-   * @default "0.0.0.0"
+   * @default "127.0.0.1"
    */
   host?: string;
 
   /**
    * URL strategy for converting HTTP requests to RPC methods.
-   * @default defaultServerUrlStrategy
+   * @default createPatternServerUrlStrategy(basePath): the format of the HTTP client
    */
   urlStrategy?: HttpUrlStrategy;
 
@@ -61,7 +61,15 @@ export interface HttpServerTransportOptions {
   cors?: boolean;
 
   /**
-   * Custom CORS options.
+   * The largest request body, in bytes, when the transport reads the body itself (the app has
+   * no body parser).
+   * @default 1 MiB
+   */
+  bodyLimit?: number;
+
+  /**
+   * Custom CORS options. `origin` is "*", one origin or a list: the response names the
+   * request's origin when it is in the list.
    */
   corsOptions?: {
     origin?: string | string[];

@@ -39,6 +39,7 @@ export type { ServerOptions } from "./server.js";
 
 export { ProcedureServer, createProcedureServer } from "./procedure-server.js";
 export type { ProcedureServerOptions, StorageConfig } from "./procedure-server.js";
+export { pathToMethod, methodToPath } from "./method.js";
 export {
   HandlerNotFoundError,
   ServerError,

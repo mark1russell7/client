@@ -5,7 +5,8 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
+import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
+import { ABORTED_FIRST, errorItem, nextOrAbort } from "./items.js";
 import type { TimeoutContext } from "./contexts.js";
 
 /**
@@ -113,6 +114,79 @@ function composeAbortSignals(...signals: (AbortSignal | undefined)[]): {
 }
 
 /**
+ * Run `next` with a timeout. When the time runs out, the request's signal aborts, and the
+ * reader gets one TIMEOUT error item in place of the transport's ABORTED item or thrown error.
+ * The middleware does not wait for a transport that ignores the signal.
+ *
+ * Before, the middleware waited for a thrown error, but the transports yield error items: the
+ * reader got "ABORTED" (not retryable), so a per-attempt timeout with retry never retried, and
+ * a transport that ignored the signal kept the caller waiting (deep dive TRN-7).
+ */
+async function* runWithTimeout<TReq, TRes>(
+  next: ClientRunner<TReq, TRes>,
+  context: ClientContext<TReq>,
+  ms: number,
+  message: string,
+  retryable: boolean,
+): AsyncGenerator<ResponseItem<TRes>, void, undefined> {
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), ms);
+
+  // Compose with existing signal
+  const originalSignal = context.message.signal;
+  const { controller: composedController, cleanup } = composeAbortSignals(originalSignal, timeoutController.signal);
+  context.message.signal = composedController.signal;
+  const timedOut = (): boolean => timeoutController.signal.aborted && !originalSignal?.aborted;
+  const timeoutItem = (): ResponseItem<TRes> => errorItem<TRes>(context.message.id, "TIMEOUT", message, retryable);
+
+  const iterator = next(context)[Symbol.asyncIterator]();
+  // "running": a next() may be pending; "done": the iterator ended; "abandoned": the timeout won
+  let phase: "running" | "done" | "abandoned" = "running";
+  try {
+    for (;;) {
+      const result = await nextOrAbort(iterator, timeoutController.signal);
+      if (result === ABORTED_FIRST) {
+        phase = "abandoned";
+        // The transport did not stop in time: end it in the background, and give the timeout
+        void Promise.resolve(iterator.return?.()).catch(() => undefined);
+        yield timeoutItem();
+        return;
+      }
+      if (result.done) {
+        phase = "done";
+        return;
+      }
+      if (result.value.status.type === "error" && timedOut()) {
+        // The transport saw the aborted signal and reported ABORTED: it is a timeout
+        yield timeoutItem();
+        return;
+      }
+      yield result.value;
+    }
+  } catch (error) {
+    phase = "done";
+    if (timedOut()) {
+      yield timeoutItem();
+      return;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    cleanup();
+    // Restore the caller's original signal; we only swapped in the composed signal for this
+    // attempt. Leaving the (possibly aborted) composed signal in place poisons subsequent
+    // retry attempts with instant aborts. See documentation/BUGS-2026-07.md (H10).
+    if (originalSignal) {
+      context.message.signal = originalSignal;
+    } else {
+      delete context.message.signal;
+    }
+    // The reader stopped early: the transport stops too
+    if (phase === "running") await iterator.return?.();
+  }
+}
+
+/**
  * Create overall timeout middleware.
  *
  * Applies timeout to the entire request, including all retry attempts.
@@ -149,41 +223,8 @@ export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "ov
         return;
       }
 
-      // Create timeout controller
-      const timeoutController = new AbortController();
-      const timeoutId = setTimeout(() => timeoutController.abort(), overall);
-
-      // Compose with existing signal
-      const { controller: composedController, cleanup } = composeAbortSignals(
-        context.message.signal,
-        timeoutController.signal,
-      );
-
-      // Replace context signal with composed signal
-      const originalSignal = context.message.signal;
-      context.message.signal = composedController.signal;
-
-      try {
-        const responseStream = next(context);
-        yield* responseStream;
-      } catch (error) {
-        // Check if timeout caused the abort
-        if (timeoutController.signal.aborted && !originalSignal?.aborted) {
-          throw new Error(message);
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
-        cleanup();
-        // Restore the caller's original signal; we only swapped in the composed signal for this
-        // attempt. Leaving the (possibly aborted) composed signal in place poisons subsequent
-        // retry attempts with instant aborts. See documentation/BUGS-2026-07.md (H10).
-        if (originalSignal) {
-          context.message.signal = originalSignal;
-        } else {
-          delete context.message.signal;
-        }
-      }
+      // The overall timeout ends the request: a retry inside it cannot help
+      yield* runWithTimeout(next, context, overall, message, false);
     };
   };
 }
@@ -225,41 +266,8 @@ export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttemp
         return;
       }
 
-      // Create timeout controller
-      const timeoutController = new AbortController();
-      const timeoutId = setTimeout(() => timeoutController.abort(), perAttempt);
-
-      // Compose with existing signal
-      const { controller: composedController, cleanup } = composeAbortSignals(
-        context.message.signal,
-        timeoutController.signal,
-      );
-
-      // Replace context signal with composed signal
-      const originalSignal = context.message.signal;
-      context.message.signal = composedController.signal;
-
-      try {
-        const responseStream = next(context);
-        yield* responseStream;
-      } catch (error) {
-        // Check if timeout caused the abort
-        if (timeoutController.signal.aborted && !originalSignal?.aborted) {
-          throw new Error(message);
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
-        cleanup();
-        // Restore the caller's original signal; we only swapped in the composed signal for this
-        // attempt. Leaving the (possibly aborted) composed signal in place poisons subsequent
-        // retry attempts with instant aborts. See documentation/BUGS-2026-07.md (H10).
-        if (originalSignal) {
-          context.message.signal = originalSignal;
-        } else {
-          delete context.message.signal;
-        }
-      }
+      // A retry middleware outside this one can start a new attempt
+      yield* runWithTimeout(next, context, perAttempt, message, true);
     };
   };
 }

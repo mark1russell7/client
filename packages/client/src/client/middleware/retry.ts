@@ -7,6 +7,7 @@
 
 import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
 import type { RetryContext } from "./contexts.js";
+import { abortedItem, sleep, thrownItem } from "./items.js";
 
 /**
  * Retry middleware options.
@@ -100,11 +101,11 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
   } = options;
   const defaultMaxRetries = options.maxRetries ?? 3;
 
-  const backoff = (attempt: number): Promise<void> => {
-    // Exponential backoff with jitter
+  /** The backoff delay of an attempt: exponential, with jitter */
+  const backoffDelay = (attempt: number): number => {
     const baseDelay = defaultRetryDelay * Math.pow(2, attempt);
     const jitterAmount = defaultJitter * baseDelay * (Math.random() * 2 - 1);
-    return new Promise((resolve) => setTimeout(resolve, Math.max(0, baseDelay + jitterAmount)));
+    return Math.max(0, baseDelay + jitterAmount);
   };
 
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
@@ -116,6 +117,8 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
         customShouldRetry
           ? customShouldRetry(item, attempt)
           : item.status.type === "error" && item.status.retryable;
+      const signal = context.message.signal;
+      const baseId = context.message.id;
 
       let attempt = 0;
       for (;;) {
@@ -124,10 +127,14 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
           attempt,
           maxAttempts: maxRetries,
         };
+        // Each attempt gets its own request id. The id correlates the frames of one attempt
+        // on the wire: a cancelled attempt can still answer under its id (deep dive TRN-8/9).
+        context.message.id = attempt === 0 ? baseId : `${baseId}.retry${attempt}`;
 
         // Check if cancelled before attempt
-        if (context.message.signal?.aborted) {
-          throw new Error("Request was aborted");
+        if (signal?.aborted) {
+          yield abortedItem<TRes>(context.message.id);
+          return;
         }
 
         // The items pass through as they arrive (BUGS-2026-07 M2: before, the middleware
@@ -148,14 +155,18 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
             yield item;
           }
         } catch (error) {
-          const isAborted =
-            context.message.signal?.aborted || (error instanceof Error && error.name === "AbortError");
+          const isAborted = signal?.aborted || (error instanceof Error && error.name === "AbortError");
           if (started || isAborted || attempt >= maxRetries) {
             throw error;
           }
-          await backoff(attempt);
-          attempt++;
-          continue;
+          // A thrown error is retried only when it is a network failure, or when shouldRetry
+          // says so. Before, every thrown error was retried: a validation error, an open
+          // circuit breaker, a rate limit (deep dive TRN-8).
+          const item = thrownItem<TRes>(context.message.id, error);
+          if (!shouldRetryItem(item, attempt)) {
+            throw error;
+          }
+          retryItem = item;
         }
 
         if (retryItem === undefined) {
@@ -165,6 +176,8 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
           }
           return;
         }
+
+        let delay = backoffDelay(attempt);
 
         // Before retry hook
         if (onBeforeRetry) {
@@ -180,13 +193,15 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
 
           // Use custom delay if provided by hook
           if (hookResult.delayMs !== undefined) {
-            await new Promise((resolve) => setTimeout(resolve, hookResult.delayMs));
-            attempt++;
-            continue;
+            delay = hookResult.delayMs;
           }
         }
 
-        await backoff(attempt);
+        // The backoff stops at once when the caller aborts (deep dive TRN-8)
+        if (!(await sleep(delay, signal))) {
+          yield abortedItem<TRes>(context.message.id);
+          return;
+        }
         attempt++;
       }
     };

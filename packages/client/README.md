@@ -326,12 +326,13 @@ interface RetryOptions {
 
 #### Cache Middleware
 ```typescript
-createCacheMiddleware(options?: CacheOptions)
+createCacheMiddleware(options: CacheOptions)
 
 interface CacheOptions {
-  maxSize?: number;          // default: 100
+  methods: string[] | ((method: Method) => boolean); // required: the cached calls
+  capacity?: number;         // default: 100
   ttl?: number;              // default: 60000ms
-  keyFn?: (method: Method, payload: unknown) => string;
+  keyGenerator?: (method: Method, payload: unknown, metadata: Metadata) => string;
   storage?: Map<string, CacheEntry>;
 }
 ```
@@ -728,7 +729,7 @@ Middleware context types accumulate through the chain:
 ```typescript
 const client = new Client(transport)
   .use(createRetryMiddleware())     // Client<RetryContext>
-  .use(createCacheMiddleware())     // Client<RetryContext & CacheContext>
+  .use(createCacheMiddleware({ methods: ["users.get"] })) // Client<RetryContext & CacheContext>
   .use(createAuthMiddleware());     // Client<... & AuthContext>
 ```
 
@@ -866,7 +867,7 @@ const error = createError("E_TIMEOUT", {
 const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) })
   .use(createTimeoutMiddleware({ overall: 10000, perAttempt: 5000 }))
   .use(createRetryMiddleware({ maxAttempts: 3, initialDelay: 1000 }))
-  .use(createCacheMiddleware({ maxSize: 100, ttl: 60000 }))
+  .use(createCacheMiddleware({ methods: ["users.get"], capacity: 100, ttl: 60000 }))
   .use(createCircuitBreakerMiddleware({ threshold: 5, timeout: 60000 }))
   .use(createRateLimitMiddleware({ maxTokens: 10, refillRate: 1 }))
   .use(createTracingMiddleware())

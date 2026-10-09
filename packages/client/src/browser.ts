@@ -81,6 +81,7 @@ export {
   HandlerNotFoundError,
   ServerError,
 } from "./server/types.js";
+export { pathToMethod, methodToPath } from "./server/method.js";
 export type {
   ServerRequest,
   ServerResponse,

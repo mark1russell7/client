@@ -65,7 +65,7 @@ Middleware types accumulate through the `use()` chain:
 │                                                                     │
 │  new Client(transport)              → Client<{}>                    │
 │    .use(createRetryMiddleware())    → Client<RetryContext>          │
-│    .use(createCacheMiddleware())    → Client<RetryContext           │
+│    .use(createCacheMiddleware({…})) → Client<RetryContext           │
 │                                              & CacheContext>        │
 │    .use(createAuthMiddleware(...))  → Client<RetryContext           │
 │                                              & CacheContext          │

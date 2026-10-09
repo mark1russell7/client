@@ -13,7 +13,7 @@
  * // Type accumulates as middleware is added
  * const client = new Client(transport)
  *   .use(createRetryMiddleware())     // Client<BaseContext & RetryContext>
- *   .use(createCacheMiddleware())     // Client<... & CacheContext>
+ *   .use(createCacheMiddleware({ methods: ["users.get"] }))     // Client<... & CacheContext>
  *   .use(createAuthMiddleware(...))   // Client<... & AuthContext>
  *
  * // Middleware requiring context validates at compile time
@@ -38,6 +38,7 @@ import type {
 } from "./types.js";
 import { ClientError } from "./types.js";
 import { compose } from "../middleware/compose.js";
+import { pathToMethod } from "../server/method.js";
 import type { CallOptions, ClientContextInput } from "./context.js";
 import { mergeContext, normalizeCallOptions } from "./context.js";
 import type { SchemaDefinition, ZodLike } from "./validation/types.js";
@@ -98,7 +99,7 @@ function generateId(): string {
  * // HTTP client with type-accumulating middleware
  * const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) })
  *   .use(createRetryMiddleware())    // Client<{} & RetryContext>
- *   .use(createCacheMiddleware())    // Client<{} & RetryContext & CacheContext>
+ *   .use(createCacheMiddleware({ methods: ["users.get"] }))    // Client<{} & RetryContext & CacheContext>
  *   .use(createAuthMiddleware({      // Client<... & AuthContext>
  *     token: "abc123"
  *   }));
@@ -261,7 +262,7 @@ export class Client<TContext = {}> {
    * const client = new Client(transport)
    *   .use(createTimeoutMiddleware({ overall: 5000 }))  // Client<TimeoutContext>
    *   .use(createRetryMiddleware())                     // Client<TimeoutContext & RetryContext>
-   *   .use(createCacheMiddleware());                    // Client<... & CacheContext>
+   *   .use(createCacheMiddleware({ methods: ["users.get"] }));                    // Client<... & CacheContext>
    *
    * // Middleware ordering (onion model)
    * client
@@ -1053,15 +1054,7 @@ export class Client<TContext = {}> {
    * Convert procedure path to Method object.
    */
   private pathToMethod(path: ProcedurePath): Method {
-    if (path.length < 2) {
-      throw new Error(`Invalid procedure path: ${path.join(".")}`);
-    }
-
-    // Path format: [service, ...nested, operation]
-    // e.g., ['collections', 'users', 'get'] -> { service: 'collections.users', operation: 'get' }
-    const operation = path[path.length - 1]!;
-    const service = path.slice(0, -1).join(".");
-
-    return { service, operation };
+    // The one mapping of every host (deep dive architecture review 3.3)
+    return pathToMethod(path);
   }
 }
