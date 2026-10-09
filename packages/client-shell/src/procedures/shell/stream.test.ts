@@ -29,16 +29,18 @@ describe("shell.stream", () => {
   });
 
   it("delivers a line before the command ends", async () => {
-    const script = "console.log('ready'); setTimeout(() => console.log('late'), 400)";
+    // The command ends 5 s after its first line. The start of Node alone can take 0.5 s on a
+    // busy machine, so the limit is the end of the command, not a short time.
+    const script = "console.log('ready'); setTimeout(() => console.log('late'), 5000)";
     const started = Date.now();
     for await (const item of client.stream<unknown, ShellStreamItem>(method, { command: process.execPath, args: ["-e", script] })) {
       if (item.type === "stdout") {
         expect(item.line).toBe("ready");
-        expect(Date.now() - started).toBeLessThan(400);
+        expect(Date.now() - started).toBeLessThan(5000);
         break;
       }
     }
-  });
+  }, 15_000);
 
   it("ends the command when the reader stops early", async () => {
     const script = "setInterval(() => console.log('tick'), 10)";
