@@ -14,7 +14,7 @@
 - **Self-Documenting**: Generates help text from procedure schemas
 - **Type-Safe**: Leverages Zod schemas for runtime validation
 - **Multiple Output Formats**: text, json, table, streaming with spinners
-- **Ecosystem-Aware**: Reads ecosystem.manifest.json to discover available packages
+- **Workspace-Aware**: Loads each package of its pnpm workspace that declares `client.procedures`
 - **Extensible**: New commands added by installing procedure packages
 
 ## Architecture
@@ -32,7 +32,7 @@ graph TB
     end
 
     subgraph "Discovery Layer"
-        MANIFEST[ecosystem.manifest.json]
+        MANIFEST[pnpm workspace<br/>packages/*]
         DISCOVER[Package Discovery]
         LOADER[Dynamic Importer]
     end
@@ -77,20 +77,17 @@ graph TB
 
 ## Installation
 
-```bash
-npm install @mark1russell7/cli
-```
-
-Or from GitHub:
+`mark` is the package `packages/mark` of the `client` monorepo. Build the workspace, then run the CLI:
 
 ```bash
-npm install github:mark1russell7/cli#main
+pnpm install && pnpm build
+node packages/mark/dist/cli.js --help
 ```
 
 ### Prerequisites
 
 - Node.js >= 25.0.0
-- npm >= 11.0.0
+- pnpm (the version of the workspace `packageManager` field)
 
 ## Execution Flow
 
@@ -250,8 +247,8 @@ Format and print procedure results.
 
 ```typescript
 import { formatOutput } from "@mark1russell7/cli";
-import { print } from "gluegun";
 
+// print: an object with info, error, success, warning, table and spin (see format.ts)
 formatOutput(print, { message: "Success!" }, "text");
 formatOutput(print, { rows: [...] }, "table");
 formatOutput(print, { data: {...} }, "json");
@@ -415,9 +412,13 @@ mark lib new my-package
 mark lib new my-package --preset lib --dry-run
 # input: { name: "my-package", preset: "lib", dryRun: true }
 
-# Short flags (the metadata maps -m to message)
-mark git commit -m "message" --amend false
+# A boolean flag with a value
+mark git commit --message "message" --amend false
 # input: { message: "message", amend: false }
+
+# Short flags (the metadata of git push maps -f to force and -u to setUpstream)
+mark git push -fu
+# input: { force: true, setUpstream: true }
 
 # Arguments that look like flags, after --
 mark docker exec box -- ls -la /tmp
@@ -471,13 +472,13 @@ Default format for human-readable output.
 Structured output for programmatic consumption.
 
 ```bash
-mark lib list --format json
+mark lib scan --format json
 ```
 
 ```json
 {
-  "packages": ["pkg1", "pkg2"],
-  "count": 2
+  "rootPath": "/path/to/client",
+  "packages": { "@mark1russell7/client-lib": { "name": "@mark1russell7/client-lib" } }
 }
 ```
 
@@ -486,13 +487,13 @@ mark lib list --format json
 Tabular data display.
 
 ```bash
-mark lib list --format table
+mark procedure list --format table
 ```
 
 ```
-name          version    path
-my-package    1.0.0      ~/git/my-package
-other-pkg     2.1.0      ~/git/other-pkg
+path              description
+fs read           Read file contents
+fs write          Write content to file
 ```
 
 ### Streaming Format
@@ -500,48 +501,26 @@ other-pkg     2.1.0      ~/git/other-pkg
 Shows a spinner during execution, then displays the result.
 
 ```bash
-mark lib refresh --format streaming
-# Running lib refresh...
-# lib refresh complete
+mark lib audit --format streaming
+# Running lib audit...
+# lib audit complete
 # Result displayed
 ```
 
-## Integration with Ecosystem
+## Integration with the Workspace
 
-The CLI integrates seamlessly with the ecosystem infrastructure:
-
-### Ecosystem Manifest
-
-Located at `~/git/ecosystem/ecosystem.manifest.json`:
-
-```json
-{
-  "version": "1.0.0",
-  "root": "~/git",
-  "packages": {
-    "@mark1russell7/client-lib": {
-      "repo": "github:mark1russell7/client-lib#main",
-      "path": "client-lib"
-    },
-    "@mark1russell7/client-git": {
-      "repo": "github:mark1russell7/client-git#main",
-      "path": "client-git"
-    }
-  }
-}
-```
+`mark` loads each package of its pnpm workspace that has a `client.procedures` field in its `package.json`. The field names the built module that registers the procedures.
 
 ### Procedure Packages
 
 Each client package can export procedures:
 
 ```
-client-lib/
+packages/client-lib/
 ├── src/
-│   ├── procedures/
-│   │   ├── lib.new.ts
-│   │   └── lib.refresh.ts
-│   └── register.ts         # Exports all procedures
+│   ├── procedures/lib/new.ts
+│   ├── procedures/lib/audit.ts
+│   └── register.ts         # Registers all procedures
 ├── dist/
 │   └── register.js         # Built procedures
 └── package.json
@@ -580,8 +559,8 @@ Commands are discovered dynamically. Common procedure packages include:
 
 Package management and scaffolding:
 - `mark lib new <name>` - Create new package
-- `mark lib refresh [path]` - Refresh package dependencies
-- `mark lib list` - List all packages
+- `mark lib scan` - List the workspace packages
+- `mark lib audit` - Check the packages against the template
 
 ### client-git
 
@@ -622,37 +601,28 @@ mark --json '{
   "$proc": ["lib", "new"],
   "input": {
     "name": "my-package",
-    "description": "Test package"
+    "dryRun": true
   }
 }'
 ```
 
 ### Chaining Commands
 
-Use standard shell pipes:
+Use standard shell pipes. A failed command exits with code 1, so `&&` stops at it:
 
 ```bash
 # Get package list and filter
-mark lib list --format json | jq '.packages[]'
+mark --format json lib scan | jq '.packages | keys'
 
-# Create and immediately refresh
-mark lib new my-pkg && mark lib refresh my-pkg
+# Create a package, then audit the workspace
+mark lib new my-pkg && mark lib audit
 ```
 
 ### Environment Variables
 
-The CLI respects standard environment variables:
-
 ```bash
-# Set home directory
+# The home folder holds the lockfiles of the CLI servers (~/.mark)
 export HOME=/custom/path
-
-# Verbose mode
-export VERBOSE=1
-mark lib new my-pkg
-
-# Custom ecosystem location
-export ECOSYSTEM_PATH=/path/to/ecosystem
 ```
 
 ## Development
@@ -660,31 +630,37 @@ export ECOSYSTEM_PATH=/path/to/ecosystem
 ### Building
 
 ```bash
-npm run build
+pnpm --filter @mark1russell7/cli build
 ```
 
 ### Testing
 
 ```bash
-npm test
-npm run test:e2e
+pnpm --filter @mark1russell7/cli test       # unit tests (src/**/*.test.ts)
+pnpm --filter @mark1russell7/cli test:e2e   # end-to-end tests: they run dist/bin.js as a process
 ```
+
+The end-to-end tests use a temporary home folder and a temporary workspace. They do not change the repository and do not use a running CLI server.
+
+There is no container image of `mark`: the CLI server serves the workspace of the folder where it starts, on loopback, with a token in the lockfile of the user. A container cannot give that. To serve procedures over the network, use the `server` package.
 
 ### Project Structure
 
 ```
-cli/
+packages/mark/
 ├── src/
-│   ├── cli.ts           # Main CLI implementation
-│   ├── parse.ts         # Argument parser
+│   ├── bin.ts           # The mark executable
+│   ├── cli.ts           # Main CLI implementation (also runnable as dist/cli.js)
+│   ├── args.ts          # Command line splitting: global flags, path, procedure flags
+│   ├── parse.ts         # Field types, value conversion and help text
+│   ├── failure.ts       # Procedure-level failure and the exit code
 │   ├── format.ts        # Output formatters
 │   ├── ecosystem.ts     # Discovery system
-│   └── index.ts         # Public API
-├── dist/                # Compiled output
-│   ├── cli.js          # Main entry point
-│   └── index.js        # Public API exports
+│   └── index.ts         # Public API (importing it runs nothing)
+├── e2e/                 # End-to-end tests
+├── test/                # Test procedures for the unit tests
 └── package.json
-    └── bin: { "mark": "./dist/cli.js" }
+    └── bin: { "mark": "./dist/bin.js" }
 ```
 
 ### Key Modules
@@ -720,14 +696,6 @@ Procedure discovery:
 
 ## Troubleshooting
 
-### Ecosystem Manifest Not Found
-
-```
-Warning: ecosystem.manifest.json not found
-```
-
-**Solution:** Ensure `~/git/ecosystem/ecosystem.manifest.json` exists. The CLI will still work but won't auto-discover procedures.
-
 ### Procedure Not Found
 
 ```
@@ -735,21 +703,21 @@ Unknown command: mark foo bar
 ```
 
 **Solution:**
-1. Check if the package is in ecosystem.manifest.json
+1. Check that the package is in `packages/` of the workspace
 2. Verify the package has `client.procedures` in package.json
-3. Ensure the package is built (`npm run build` in the package)
-4. Use `--verbose` to see which packages are being loaded
+3. Ensure the package is built (`pnpm build` in the workspace root)
+4. Use `mark --verbose` to see which packages are being loaded
 
 ### Import Error
 
 ```
-Failed to load procedures from @mark1russell7/client-foo
+mark: the procedures of @mark1russell7/client-foo did not load: <message>
 ```
 
 **Solution:**
 1. Check that the procedures file exists at the specified path
 2. Verify the file is valid JavaScript (not TypeScript)
-3. Build the package: `cd <package> && npm run build`
+3. Build the workspace: `pnpm build`
 
 ### Help Not Showing Schema Fields
 
@@ -765,7 +733,7 @@ The CLI depends on:
 
 - `@mark1russell7/client` - Client library and procedure system
 - `@mark1russell7/client-*` - Various procedure packages
-- `gluegun` - CLI framework utilities
+- `chalk`, `ora`, `cli-table3` - Terminal output
 - `zod` - Schema validation
 
 ## License
