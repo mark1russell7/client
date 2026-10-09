@@ -50,8 +50,8 @@ import type {
   StreamingCallResponse,
   ProcedureCallResult,
 } from "./call-types.js";
-import { buildResponse } from "./call-types.js";
-import { RouteResolver, type ResolvedRoute } from "./route-resolver.js";
+import { buildResponse, toMiddlewareContext } from "./call-types.js";
+import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from "./route-resolver.js";
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
@@ -72,6 +72,12 @@ import {
   type ProcedureRef,
   type AnyProcedureRef,
 } from "../procedures/ref.js";
+
+/** The metadata and the signal of a procedure, for the nested calls that it makes. */
+interface CallerContext {
+  metadata?: Record<string, unknown> | undefined;
+  signal?: AbortSignal | undefined;
+}
 
 /**
  * Generate a unique message ID.
@@ -448,15 +454,27 @@ export class Client<TContext = {}> {
 
   /**
    * The options of a local invocation. The nested calls of the procedure go through this
-   * client, so a path without a local handler goes to the transport.
+   * client, so a path without a local handler goes to the transport. The nested calls get the
+   * metadata and the signal of the caller: when the caller aborts, its nested work stops. (Before,
+   * each nested call started again with no metadata and no signal: deep dive CORE-10.)
    */
   private invokeOptions(metadata: Record<string, unknown> = {}, signal?: AbortSignal): InvokeOptions {
     const self = this;
+    const caller: CallerContext = { metadata, signal };
     const client: ProcedureClient = {
-      call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input),
-      stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input),
+      call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, caller),
+      stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, caller),
     };
     return { registry: this.procedureRegistry, metadata, signal, client };
+  }
+
+  /** The call options of a remote call for a caller: its metadata as context, and its signal. */
+  private remoteCallOptions(caller: CallerContext): CallOptions<TContext> {
+    const options: CallOptions<TContext> = { context: (caller.metadata ?? {}) as ClientContextInput<TContext> };
+    if (caller.signal) {
+      options.signal = caller.signal;
+    }
+    return options;
   }
 
   /**
@@ -481,28 +499,43 @@ export class Client<TContext = {}> {
    */
   private async execInternal<TOutput>(
     path: ProcedurePath,
-    input: unknown
+    input: unknown,
+    caller: CallerContext = {}
   ): Promise<TOutput> {
     const procedure = this.procedureRegistry.get(path);
     if (procedure?.handler) {
-      return outputValue(await invokeProcedure<TOutput>(procedure, input, this.invokeOptions()), path);
+      const options = this.invokeOptions(caller.metadata, caller.signal);
+      return outputValue(await invokeProcedure<TOutput>(procedure, input, options), path);
     }
     // No local handler: the transport runs it (a remote procedure)
-    return this.call(this.pathToMethod(path), this.remoteInput(procedure, path, input)) as Promise<TOutput>;
+    return this.call(
+      this.pathToMethod(path),
+      this.remoteInput(procedure, path, input),
+      this.remoteCallOptions(caller)
+    ) as Promise<TOutput>;
   }
 
   /**
    * Internal streaming execution (no hydration of the top-level input).
    */
-  private execStreamInternal<TOutput>(path: ProcedurePath, input: unknown): AsyncIterable<TOutput> {
+  private execStreamInternal<TOutput>(
+    path: ProcedurePath,
+    input: unknown,
+    caller: CallerContext = {}
+  ): AsyncIterable<TOutput> {
     const self = this;
     return (async function* () {
       const procedure = self.procedureRegistry.get(path);
       if (procedure?.handler) {
-        yield* outputItems(await invokeProcedure<TOutput>(procedure, input, self.invokeOptions()));
+        const options = self.invokeOptions(caller.metadata, caller.signal);
+        yield* outputItems(await invokeProcedure<TOutput>(procedure, input, options));
         return;
       }
-      yield* self.stream<unknown, TOutput>(self.pathToMethod(path), self.remoteInput(procedure, path, input));
+      yield* self.stream<unknown, TOutput>(
+        self.pathToMethod(path),
+        self.remoteInput(procedure, path, input),
+        self.remoteCallOptions(caller)
+      );
     })();
   }
 
@@ -792,39 +825,7 @@ export class Client<TContext = {}> {
     const resolution = resolver.resolve(request.route);
 
     if (!resolution.success) {
-      // Build error response for failed resolutions
-      const errorResults: Array<[ProcedurePath, ProcedureCallResult]> = resolution.errors.map(
-        (error) => [
-          error.path,
-          {
-            success: false,
-            error: {
-              code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
-              message: error.message,
-              retryable: false,
-              path: error.path,
-            },
-          },
-        ]
-      );
-
-      // Include any successful resolutions as pending
-      for (const resolved of resolution.resolved) {
-        errorResults.push([
-          resolved.path,
-          {
-            success: false,
-            error: {
-              code: "SKIPPED",
-              message: "Skipped due to other route errors",
-              retryable: false,
-              path: resolved.path,
-            },
-          },
-        ]);
-      }
-
-      return buildResponse<TRoute>(errorResults);
+      return buildResponse<TRoute>(this.resolutionFailure(resolution));
     }
 
     // Create execution context
@@ -860,20 +861,7 @@ export class Client<TContext = {}> {
 
     if (!resolution.success) {
       // Return error response immediately
-      const errorResults: Array<[ProcedurePath, ProcedureCallResult]> = resolution.errors.map(
-        (error) => [
-          error.path,
-          {
-            success: false,
-            error: {
-              code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
-              message: error.message,
-              retryable: false,
-              path: error.path,
-            },
-          },
-        ]
-      );
+      const errorResults = this.resolutionFailure(resolution);
 
       return {
         results: (async function* () {
@@ -893,6 +881,33 @@ export class Client<TContext = {}> {
       context,
       streamConfig
     );
+  }
+
+  /**
+   * The results of a route that did not resolve: an error for each leaf that failed, and
+   * `SKIPPED` for every other leaf, also the leaves after a validation error. (Before, the leaves
+   * after a validation error were missing: deep dive CORE-14.)
+   */
+  private resolutionFailure(resolution: RouteResolutionResult): Array<[ProcedurePath, ProcedureCallResult]> {
+    const skipped = (path: ProcedurePath): ProcedureCallResult => ({
+      success: false,
+      error: { code: "SKIPPED", message: "Skipped due to other route errors", retryable: false, path },
+    });
+    const results: Array<[ProcedurePath, ProcedureCallResult]> = resolution.errors.map((error) => [
+      error.path,
+      {
+        success: false,
+        error: {
+          code: error.type === "not_found" ? "NOT_FOUND" : "VALIDATION_ERROR",
+          message: error.message,
+          retryable: false,
+          path: error.path,
+        },
+      },
+    ]);
+    for (const resolved of resolution.resolved) results.push([resolved.path, skipped(resolved.path)]);
+    for (const path of resolution.skipped) results.push([path, skipped(path)]);
+    return results;
   }
 
   /**
@@ -921,17 +936,18 @@ export class Client<TContext = {}> {
   private createExecutionContext<TRoute extends Route>(
     request: CallRequest<TRoute>
   ): ExecutionContext {
-    // Merge context: parent chain -> client context -> middleware overrides
+    // Merge context: parent chain -> client context -> middleware overrides. The override keys
+    // become the keys that the middleware reads (deep dive CORE-14). No internal key goes into
+    // the metadata: a handler sees it as ctx.metadata (deep dive CORE-10).
     const effectiveContext = mergeContext(
       this.getEffectiveContext() as object,
-      (request.middlewares ?? {}) as object
+      toMiddlewareContext(request.middlewares)
     );
 
     const context: ExecutionContext = {
       metadata: {
         ...this.defaultMetadata,
         ...effectiveContext,
-        __middlewareOverrides: request.middlewares,
       },
     };
 
