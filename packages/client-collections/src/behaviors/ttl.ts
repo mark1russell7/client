@@ -67,7 +67,7 @@ interface TTLEntry<V> {
  */
 export function ttlMap<K, V>(
   options: TTLOptions
-): Middleware<MapLike<K, V> & { readonly dispose: () => void }> {
+): Middleware<MapLike<K, V>, MapLike<K, V> & { readonly dispose: () => void }> {
   const { ttl, checkInterval = 1000, onExpire } = options;
 
   return (
@@ -201,7 +201,7 @@ export function ttlCollection<T>(
   options: Omit<TTLOptions, "onExpire"> & {
     onExpire?: (info: { element: T; createdAt: number; expiredAt: number }) => void;
   }
-): Middleware<Collection<T> & { readonly dispose: () => void }> {
+): Middleware<Collection<T>, Collection<T> & { readonly dispose: () => void }> {
   const { ttl, checkInterval = 1000, onExpire } = options;
 
   return (

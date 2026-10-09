@@ -53,7 +53,7 @@ interface LRUNode<K, V> {
  */
 export function lruMap<K, V>(
   options: LRUOptions
-): Middleware<MapLike<K, V> & { readonly isFull: boolean }> {
+): Middleware<MapLike<K, V>, MapLike<K, V> & { readonly isFull: boolean }> {
   const { capacity, onEvict } = options;
 
   return (next: MapLike<K, V>): MapLike<K, V> & { readonly isFull: boolean } => {

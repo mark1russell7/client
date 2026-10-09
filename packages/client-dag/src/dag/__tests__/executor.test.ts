@@ -159,7 +159,7 @@ describe("executeDAG", () => {
     await executeDAG(dag, async (node) => createSuccessResult(node), { onNodeComplete });
 
     expect(onNodeComplete).toHaveBeenCalled();
-    const callArg = onNodeComplete.mock.calls[0][0] as NodeResult<DAGNode>;
+    const callArg = onNodeComplete.mock.calls[0]![0] as NodeResult<DAGNode>;
     expect(callArg.node.id).toBe("a");
   });
 
