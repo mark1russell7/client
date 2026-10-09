@@ -7,6 +7,7 @@
 import type { IncomingMessage } from "http";
 import type { Server as HttpServer } from "http";
 import type { WebSocket } from "ws";
+import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 
 /**
  * WebSocket authentication handler.
@@ -25,7 +26,7 @@ export type WebSocketConnectionHandler = (ws: WebSocket, req: IncomingMessage) =
 /**
  * WebSocket server transport options.
  */
-export interface WebSocketServerTransportOptions {
+export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOptions, "allowGet"> {
   /**
    * HTTP server to attach WebSocket server to.
    * Required - WebSocket upgrades HTTP connections.
@@ -40,7 +41,8 @@ export interface WebSocketServerTransportOptions {
 
   /**
    * Authentication handler for WebSocket upgrade.
-   * Return true to allow connection, false to reject.
+   * Return true to allow connection, false to reject. It runs after the browser checks of the
+   * host and the origin (`allowedHosts`, `allowedOrigins`), which are always on.
    */
   authenticate?: WebSocketAuthHandler;
 

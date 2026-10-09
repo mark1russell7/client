@@ -7,6 +7,7 @@
 import type { Request, Express } from "express";
 import type { Server as HttpServer } from "http";
 import type { Method } from "../../../client/types.js";
+import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 
 /**
  * URL strategy for converting HTTP requests to RPC methods.
@@ -16,7 +17,7 @@ export type HttpUrlStrategy = (req: Request) => Method | null;
 /**
  * HTTP server transport options.
  */
-export interface HttpServerTransportOptions {
+export interface HttpServerTransportOptions extends BrowserGuardOptions {
   /**
    * Express app instance.
    * If not provided, a new app will be created.

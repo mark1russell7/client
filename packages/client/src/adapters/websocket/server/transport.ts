@@ -16,6 +16,7 @@ import type {
   ConnectionEventHandler,
 } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
+import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 
 /**
  * WebSocket server transport adapter.
@@ -104,7 +105,7 @@ export class WebSocketServerTransport implements ServerTransport {
 
   private wss: WebSocketServer | null = null;
   private options: Required<
-    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection">
+    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts">
   > & {
     authenticate?: WebSocketServerTransportOptions["authenticate"];
     onConnection?: WebSocketServerTransportOptions["onConnection"];
@@ -124,6 +125,9 @@ export class WebSocketServerTransport implements ServerTransport {
   // The flow control of the streams in progress, by the same key
   private credits = new Map<string, StreamCredit>();
 
+  /** The browser checks of each connection (see `server/browser-guard.ts`) */
+  private readonly guard: BrowserGuardOptions;
+
   // Connection lifecycle event handlers
   private connectHandlers: ConnectionEventHandler[] = [];
   private disconnectHandlers: ConnectionEventHandler[] = [];
@@ -140,6 +144,7 @@ export class WebSocketServerTransport implements ServerTransport {
       clientTracking: options.clientTracking ?? true,
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
+    this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
   }
 
   async start(): Promise<void> {
@@ -150,17 +155,29 @@ export class WebSocketServerTransport implements ServerTransport {
       perMessageDeflate: this.options.perMessageDeflate,
       maxPayload: this.options.maxPayload,
       clientTracking: this.options.clientTracking,
-      verifyClient: this.options.authenticate
-        ? async ({ req }: { req: IncomingMessage }, callback: (result: boolean) => void) => {
-            try {
-              const allowed = await this.options.authenticate!(req);
-              callback(allowed);
-            } catch (error) {
-              console.error("[WebSocket] Authentication error:", error);
-              callback(false);
-            }
-          }
-        : undefined,
+      // The browser checks run for every connection: before, a connection was checked only
+      // when the host gave an authenticate handler, so any web page could open one and call
+      // procedures (cross-site WebSocket hijacking)
+      verifyClient: async (
+        { req }: { req: IncomingMessage },
+        callback: (result: boolean, code?: number, message?: string) => void
+      ) => {
+        const guard = checkBrowserRequest(req, this.guard);
+        if (!guard.ok) {
+          callback(false, guard.status, guard.message);
+          return;
+        }
+        if (!this.options.authenticate) {
+          callback(true);
+          return;
+        }
+        try {
+          callback(await this.options.authenticate(req));
+        } catch (error) {
+          console.error("[WebSocket] Authentication error:", error);
+          callback(false);
+        }
+      },
     });
 
     // Handle connections

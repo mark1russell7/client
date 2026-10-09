@@ -15,6 +15,7 @@ import { HTTPMethod, decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shar
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
+import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
@@ -97,13 +98,27 @@ const INVOCATION_HTTP_STATUS: Record<string, number> = {
  * await httpTransport.start();
  * ```
  */
+/**
+ * The origins that the CORS options allow: a page that CORS lets read the response can also
+ * call. With CORS off, no other origin can call.
+ */
+function corsOrigins(options: HttpServerTransportOptions): BrowserGuardOptions["allowedOrigins"] {
+  if (!options.cors) return [];
+  const origin = options.corsOptions?.origin ?? "*";
+  if (origin === "*") return "*";
+  return Array.isArray(origin) ? origin : [origin];
+}
+
 export class HttpServerTransport implements ServerTransport {
   readonly name = "http";
 
   private app: Express;
   private httpServer: HttpServer | null = null;
   private options: Required<
-    Omit<HttpServerTransportOptions, "app" | "corsOptions" | "httpServer" | "bodyLimit">
+    Omit<
+      HttpServerTransportOptions,
+      "app" | "corsOptions" | "httpServer" | "bodyLimit" | "allowedOrigins" | "allowedHosts" | "allowGet"
+    >
   > & {
     corsOptions: HttpServerTransportOptions["corsOptions"] | undefined;
     httpServer: HttpServer | undefined;
@@ -113,6 +128,8 @@ export class HttpServerTransport implements ServerTransport {
   private openRequests = new Set<AbortController>();
   private stopped = false;
   private readonly bodyLimit: number;
+  /** The browser checks of each procedure call (see `server/browser-guard.ts`) */
+  private readonly guard: BrowserGuardOptions;
 
   constructor(server: Server, options: HttpServerTransportOptions = {}) {
     this.server = server;
@@ -130,6 +147,11 @@ export class HttpServerTransport implements ServerTransport {
       httpServer: options.httpServer,
     };
     this.bodyLimit = options.bodyLimit ?? 1024 * 1024;
+    this.guard = {
+      allowedOrigins: options.allowedOrigins ?? corsOrigins(options),
+      allowedHosts: options.allowedHosts,
+      allowGet: options.allowGet,
+    };
 
     // Use provided app or create new one
     if (options.app) {
@@ -214,6 +236,12 @@ export class HttpServerTransport implements ServerTransport {
   private async handleHttpRequest(req: Request, res: Response): Promise<void> {
     if (this.stopped) {
       res.status(503).json({ error: "Server stopped", code: "SERVER_STOPPED", retryable: true });
+      return;
+    }
+    // A web page must not reach the procedures: host, origin, method and body type
+    const guard = checkBrowserRequest(req, this.guard, true);
+    if (!guard.ok) {
+      res.status(guard.status).json({ error: guard.message, code: guard.code, retryable: false });
       return;
     }
     // A closed connection or stop() aborts the request: a stream stops, and its handler gets return()

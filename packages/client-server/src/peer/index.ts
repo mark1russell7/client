@@ -198,6 +198,10 @@ class PeerImpl implements Peer {
       // Off by default: before, every peer sent Access-Control-Allow-Origin: * (deep dive CLI-2)
       cors: config.cors ?? false,
       urlStrategy,
+      // The transport's browser checks follow the peer's rule: loopback origins and the listed
+      // ones (the token is required in any case). The RESTful strategy calls by GET.
+      allowedOrigins: (origin) => originAllowed(origin, config.corsOrigins),
+      allowGet: config.urlStrategy === "rest",
     });
 
     this.server.addTransport(httpTransport);
@@ -240,6 +244,7 @@ class PeerImpl implements Peer {
     const wsTransport = new WebSocketServerTransport(this.server, {
       server: httpServer,
       path,
+      allowedOrigins: (origin) => originAllowed(origin, config.origins),
       // Host, origin and token checks: before, any web page could open a connection and call
       // procedures (cross-site WebSocket hijacking, deep dive TRN-1)
       authenticate: (req) => {
