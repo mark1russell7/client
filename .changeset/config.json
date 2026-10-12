@@ -33,6 +33,7 @@
       "@mark1russell7/client-snapshot",
       "@mark1russell7/client-splay",
       "@mark1russell7/client-sqlite",
+      "@mark1russell7/client-store",
       "@mark1russell7/client-vite",
       "@mark1russell7/client-vitest",
       "@mark1russell7/mcp",
