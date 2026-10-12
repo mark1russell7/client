@@ -16,15 +16,15 @@
  *   An argument that no field takes is an error.
  */
 
-import type { AnyProcedure } from "@mark1russell7/client";
 import { findGlobalFlag, type CliGlobalFlag } from "@mark1russell7/client-lib/cli-flags";
 import {
   convertValue,
-  extractSchemaFields,
+  fieldsOf,
   mergeValue,
   toCamel,
   toKebab,
   type CLIMeta,
+  type CommandLike,
   type FieldType,
 } from "./parse.js";
 
@@ -36,6 +36,7 @@ export type GlobalName =
   | "format"
   | "local"
   | "json"
+  | "no-input"
   | "interactive"
   | "server"
   | "port"
@@ -45,11 +46,11 @@ export type GlobalName =
 /** The global flags that the command line gives: true for a flag, text for a flag with a value */
 export type Globals = Partial<Record<GlobalName, string | boolean>>;
 
-export interface ParsedCommandLine {
+export interface ParsedCommandLine<T extends CommandLike = CommandLike> {
   /** The command path */
   path: string[];
   /** The procedure at the path, if there is one */
-  procedure: AnyProcedure | undefined;
+  procedure: T | undefined;
   /** The procedure input, converted by the field types (not validated yet) */
   input: Record<string, unknown>;
   /** The global flags */
@@ -71,14 +72,14 @@ function isFlag(token: string): boolean {
 /**
  * Find a procedure matching the given path
  */
-export function findProcedure(procedures: readonly AnyProcedure[], path: readonly string[]): AnyProcedure | undefined {
+export function findProcedure<T extends CommandLike>(procedures: readonly T[], path: readonly string[]): T | undefined {
   return procedures.find((p) => p.path.length === path.length && p.path.every((seg, i) => seg === path[i]));
 }
 
 /**
  * Find procedures that are children of the given path
  */
-export function findChildren(procedures: readonly AnyProcedure[], path: readonly string[]): AnyProcedure[] {
+export function findChildren<T extends CommandLike>(procedures: readonly T[], path: readonly string[]): T[] {
   return procedures.filter((p) => p.path.length > path.length && path.every((seg, i) => seg === p.path[i]));
 }
 
@@ -101,9 +102,9 @@ interface ProcedureFlags {
  * The flags a procedure declares: each field of its input schema (camelCase and kebab-case
  * names) and the short letters of its metadata.
  */
-export function procedureFlags(procedure: AnyProcedure | undefined): ProcedureFlags {
+export function procedureFlags(procedure: CommandLike | undefined): ProcedureFlags {
   const meta = (procedure?.metadata ?? {}) as CLIMeta;
-  const schemaFields = procedure ? extractSchemaFields(procedure.input) : [];
+  const schemaFields = procedure ? fieldsOf(procedure) : [];
   const fields = new Map(schemaFields.map((field) => [field.name, field.fieldType]));
   const long = new Map<string, FlagSpec>();
   const short = new Map<string, FlagSpec>();
@@ -231,7 +232,7 @@ export function parseLeadingGlobals(argv: readonly string[]): { globals: Globals
  * or a group of procedures. The first word is part of the path even when it names nothing (the
  * command is then unknown).
  */
-function readPath(tokens: readonly string[], procedures: readonly AnyProcedure[]): string[] {
+function readPath(tokens: readonly string[], procedures: readonly CommandLike[]): string[] {
   const path: string[] = [];
   for (const token of tokens) {
     if (isFlag(token) || token === "--") {
@@ -254,7 +255,7 @@ function readPath(tokens: readonly string[], procedures: readonly AnyProcedure[]
 /**
  * Split a whole command line: global flags, the command path, and the procedure input
  */
-export function parseCommandLine(argv: readonly string[], procedures: readonly AnyProcedure[]): ParsedCommandLine {
+export function parseCommandLine<T extends CommandLike>(argv: readonly string[], procedures: readonly T[]): ParsedCommandLine<T> {
   const leading = parseLeadingGlobals(argv);
   const globals = leading.globals;
   const errors = [...leading.errors];

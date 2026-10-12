@@ -545,7 +545,26 @@ function valueHint(field: SchemaFieldInfo): string {
 }
 
 /**
- * Generate help text for a procedure based on its metadata and schema
+ * A command as mark sees it: a procedure of the registry (with its input schema), or a command
+ * of the manifest (with the fields of its input). See manifest.ts.
+ */
+export interface CommandLike {
+  path: readonly string[];
+  metadata?: unknown;
+  /** The input schema of a procedure of the registry */
+  input?: unknown;
+  /** The fields of the input of a command of the manifest */
+  fields?: readonly SchemaFieldInfo[];
+}
+
+/** The fields of the input of a command: from the manifest, or read from the schema */
+export function fieldsOf(command: CommandLike): SchemaFieldInfo[] {
+  return command.fields ? [...command.fields] : extractSchemaFields(command.input);
+}
+
+/**
+ * Generate help text for a procedure based on its metadata and schema. `schema` is the input
+ * schema, or the fields of the input (a command of the manifest).
  */
 export function generateHelp(
   path: string[],
@@ -558,7 +577,11 @@ export function generateHelp(
   const lines: string[] = [];
 
   // Extract schema fields for enhanced help
-  const schemaFields = schema ? extractSchemaFields(schema) : [];
+  const schemaFields: SchemaFieldInfo[] = Array.isArray(schema)
+    ? (schema as SchemaFieldInfo[])
+    : schema
+      ? extractSchemaFields(schema)
+      : [];
   const schemaFieldMap = new Map(schemaFields.map((f) => [f.name, f]));
 
   // Command signature: the last positional array takes the rest of the arguments

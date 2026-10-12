@@ -277,6 +277,17 @@ interface CLIMeta {
 }
 ```
 
+### Questions for missing arguments
+
+In a terminal, mark asks for each required argument that the command line does not give. The question shows the name, the type and the description of the field. mark does not ask in these cases:
+
+- stdin or stdout is not a terminal;
+- the environment variable `CI` is set;
+- the command line has `--no-input` before the command;
+- the procedure sets `interactive: false`.
+
+Then a missing argument is an error of the input (exit code 1).
+
 ### Output Format Types
 
 ```typescript
@@ -284,6 +295,23 @@ type OutputFormat = "text" | "json" | "table" | "streaming";
 ```
 
 ## Ecosystem Discovery
+
+### The command manifest
+
+The build of mark writes `dist/manifest.json`. It holds the path, the CLI metadata, the input fields and the JSON Schema of each command. mark reads it first, so the help and a call to the CLI server do not load the procedures. The procedures load only when a command runs in this process.
+
+- A fingerprint records the build of each package that has procedures (its `dist/.tsbuildinfo`). When a package is built again, added or removed, the manifest is stale. Then mark loads the procedures as before and writes the manifest again.
+- mark depends on each package that has procedures, so `pnpm build` builds mark after them. A test fails when a package is missing from the dependencies of mark, or when the manifest after the build does not match the registry.
+
+Measured on Windows with Node 24 (median of 5 runs, the same machine load):
+
+| Command | Before | After |
+|---|---:|---:|
+| `mark --help` | 1127 ms | 164 ms |
+| `mark git status` (CLI server) | 1170 ms | 352 ms |
+| `mark git status --local` | 1141 ms | 1027 ms |
+
+### Discovery of the procedures
 
 The CLI uses a multi-step discovery process to find and load procedures:
 
