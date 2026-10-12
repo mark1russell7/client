@@ -13,11 +13,17 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
-    "lint:ste": "ste-lint"
+    "lint:ste": "ste-lint",
+    "changeset": "changeset",
+    "check:packages": "node scripts/check-packages.mjs",
+    "release:bootstrap": "node scripts/npm-bootstrap.mjs"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@changesets/cli": "^3.0.3",
     "@mark1russell7/cue": "github:mark1russell7/cue",
     "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint",
+    "publint": "^0.3.25",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
