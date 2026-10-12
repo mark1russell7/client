@@ -368,6 +368,15 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    *
    * @param path - Procedure path
    */
+  /**
+   * The registry that this server serves. A face of the server (the MCP transport) lists its
+   * tools from it: with an explicit registry (`createRegistry()`), the global registry is not the
+   * server's.
+   */
+  getRegistry(): ProcedureRegistry {
+    return this.procedureRegistry;
+  }
+
   hasProcedure(path: ProcedurePath): boolean {
     return this.resolveProcedure(pathToMethod(path)) !== undefined;
   }

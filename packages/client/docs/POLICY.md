@@ -88,3 +88,17 @@ The first interceptor of the list is the outermost.
 ### Interceptors and middlewares
 
 The client middlewares (retry, cache, auth, circuit breaker, rate limit) wrap `transport.send`: they run for a remote call. The interceptors run for each invocation of a local procedure, also for each nested call. Use a middleware for the network and an interceptor for the procedures.
+
+## The policy of a host
+
+`hostPolicy()` (`server/host-policy.ts`) builds the policy of a host from one set of options: `expose` (patterns, a tool surface or a function), `exclude`, `strictCalls`, `timeoutMs`, more `interceptors`, and the `token` and `browser` checks of the network transports. `procedureServerOptions(policy, registry)` gives it to a `ProcedureServer`, and `createPeer({ policy })` of `client-server` gives it to a peer.
+
+```ts
+import { ProcedureServer, createRegistry, hostPolicy, procedureServerOptions } from "@mark1russell7/client";
+import bundleMcpModule from "@mark1russell7/bundle-mcp/module";
+
+const policy = hostPolicy({ expose: { namespaces: ["docker"] }, strictCalls: true, timeoutMs: 60_000 });
+const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(bundleMcpModule)));
+```
+
+The three hosts use it: the MCP dev-tools server (the tool surface of its bundles, `strictCalls`, a time limit), the procedure server of `server` and `mark serve` (the token and `--expose`), and the warm server of `mark` (the token).

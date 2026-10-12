@@ -113,6 +113,12 @@ export {
   registerModule,
   registerProcedures,
   createAndRegister,
+  // Modules and explicit registries (roadmap 3.1)
+  clientModule,
+  defineModule,
+  moduleClosure,
+  registerModules,
+  createRegistry,
   // Procedure reference system (procedure-as-data)
   PROCEDURE_SYMBOL,
   PROCEDURE_JSON_KEY,
@@ -207,6 +213,7 @@ export type {
   CollectionStorage,
   StorageMetadata,
   ProcedureModule,
+  ModuleInput,
   RegistrationOptions,
   ProcedureRegistryLike,
   ProcedureDefinition,
@@ -268,6 +275,10 @@ export type {
   ProcedureMetrics,
   MetricsInterceptor,
 } from "./procedures/interceptors.js";
+
+// The policy of a host (roadmap 2.3): one builder for the MCP server, the server CLI and mark
+export { hostPolicy, procedureServerOptions, exposePatterns, surfaceRule } from "./server/host-policy.js";
+export type { HostPolicy, HostPolicyOptions, ToolSurface } from "./server/host-policy.js";
 
 // ============================================================================
 // Nested Route API - Batch calls with per-call middleware overrides

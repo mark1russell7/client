@@ -130,11 +130,26 @@ The package provides a `mark` binary for command-line usage.
 
 ```bash
 mark [global options] <path...> [positional...] [--options]
+mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns]
+mark mcp [--bundles list] [--tool-timeout ms] [--debug]
 mark --server [--port N] [--host H] [--transport http|websocket|both]
 mark -i
 ```
 
 The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@mark1russell7/cli` runs nothing.
+
+#### The hosts
+
+`mark` is the one command that a user needs. It starts each host of the ecosystem:
+
+| Command | Host | Notes |
+|---|---|---|
+| `mark <command>` | This process | The registry has the module of each workspace package with `client.procedures`. |
+| `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. |
+| `mark serve` | The procedure server | The options of the `server` CLI. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
+| `mark mcp` | The dev-tools MCP server, over stdio | The server of Claude Code's MCP configuration. stdout holds only protocol lines, and `mark mcp --help` writes to stderr. |
+
+`mark mcp <procedure>` runs an `mcp.*` procedure (for example `mark mcp listTools`), not the server. Each host gets its policy from `hostPolicy()` of `@mark1russell7/client`.
 
 #### Global Options
 
@@ -318,6 +333,8 @@ Measured on Windows with Node 24 (median of 5 runs, the same machine load):
 | `mark git status --local` | 1141 ms | 1027 ms |
 
 ### Discovery of the procedures
+
+The registry of `mark` is a registry of its own (`loadEcosystemRegistry()`). For each workspace package with `client.procedures`, `mark` imports its `./module` entry, which registers nothing, and puts its procedures in that registry with `createRegistry()`. A package without a `./module` entry still works: `mark` imports its procedures file and takes the procedures that the import adds to the global registry.
 
 The CLI uses a multi-step discovery process to find and load procedures:
 

@@ -1,45 +1,20 @@
 /**
- * Procedure Registration for CLI operations
- *
- * Provides cli.run procedure for calling mark CLI commands via client-shell.
+ * Importing this file registers the procedures of @mark1russell7/client-cli in the global registry
+ * (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as data
+ * are in `module.ts`, which registers nothing: a host with its own registry uses that one.
  */
 
 // Import shell dependency to ensure shell.exec is registered
 import "@mark1russell7/client-shell";
 
-import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
-import { cliRun } from "./procedures/cli/index.js";
-import { CliRunInputSchema, CliRunOutputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import { registerProcedures } from "@mark1russell7/client";
+import { cliModule } from "./module.js";
 
-// =============================================================================
-// cli.run Procedure
-// =============================================================================
-
-const cliRunProcedure = createProcedure()
-  .path(["cli", "run"])
-  .input(zodAdapter<CliRunInput>(CliRunInputSchema))
-  .output(zodAdapter<CliRunOutput>(CliRunOutputSchema))
-  .meta({
-    description: "Run a mark CLI command",
-    args: ["path"],
-    shorts: { cwd: "C", timeout: "t" },
-    output: "json",
-  })
-  .handler(async (input: CliRunInput, ctx: ProcedureContext): Promise<CliRunOutput> => {
-    return cliRun(input, ctx);
-  })
-  .build();
-
-// =============================================================================
-// Registration
-// =============================================================================
+export * from "./module.js";
 
 export function registerCliProcedures(): void {
-  registerProcedures([
-    cliRunProcedure,
-  ]);
+  registerProcedures(cliModule.procedures);
 }
 
-// Auto-register
+// Auto-register when this module is loaded
 registerCliProcedures();

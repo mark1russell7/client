@@ -9,12 +9,13 @@
 import { print } from "./print.js";
 import type { Method, AnyProcedure } from "@mark1russell7/client";
 import { realpathSync } from "node:fs";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fieldsOf, generateHelp, resultFieldsOf, type CLIMeta, type CommandLike } from "./parse.js";
 import { readFreshManifest, writeManifest, type ManifestCommand } from "./manifest.js";
 import { askMissing, canAsk, missingFields, processTerminal, terminalAsker, type Asker, type Terminal } from "./ask.js";
 import { formatOutput, type OutputFormat, type Print } from "./format.js";
-import { loadEcosystemProcedures } from "./ecosystem.js";
+import { loadEcosystemRegistry } from "./ecosystem.js";
 import { startServerMode, parsePort, parseTransport } from "./server-mode.js";
 import { tryClientMode } from "./client-mode.js";
 import { startRepl } from "./repl.js";
@@ -137,6 +138,8 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
   }
 
   print.info("Run 'mark <command> --help' for more information.");
+  print.info("Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns]' (the procedure server),");
+  print.info("       'mark mcp' (the dev-tools MCP server over stdio).");
   print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both]' and 'mark -i' (the REPL).");
 }
 
@@ -171,15 +174,17 @@ export interface ExecuteOptions {
  */
 export async function initCli(verbose = false): Promise<CliContext> {
   const clientModule = await import("@mark1russell7/client");
-  const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
+  const { Client, LocalTransport } = clientModule;
 
-  await loadEcosystemProcedures(verbose);
+  // A registry of its own, from the module of each package (roadmap 3.1): not the global one
+  const { registry } = await loadEcosystemRegistry(verbose);
 
-  // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1)
-  const transport = new LocalTransport({ registry: PROCEDURE_REGISTRY });
-  const client = new Client({ transport });
+  // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1).
+  // useRegistry(): exec() of a program (--json) uses the same registry.
+  const transport = new LocalTransport({ registry });
+  const client = new Client({ transport }).useRegistry(registry);
 
-  const procedures = PROCEDURE_REGISTRY.getAll();
+  const procedures = registry.getAll();
 
   return { client, procedures, verbose };
 }
@@ -412,6 +417,56 @@ export async function executeArgs(
   }
 }
 
+const MCP_HELP = `Usage: mark mcp [options]
+
+Start the dev-tools MCP server over stdio (the server of Claude Code's MCP configuration).
+It has a registry of its own, from the modules of its bundles, and the host policy of an MCP
+server: only the tools of the bundles, strict nested calls, and a time limit for each call.
+
+Options:
+  --bundles <list>      Comma-separated bundles (default: MCP_BUNDLES, or @mark1russell7/bundle-mcp)
+  --tool-timeout <ms>   The time limit of each tool call (default: MCP_TOOL_TIMEOUT_MS, or 600000)
+  --debug               Write debug lines to stderr
+  -h, --help            Show this help
+
+\`mark mcp <procedure>\` runs an mcp.* procedure instead (mark mcp serve, mark mcp listTools).`;
+
+/**
+ * Start the dev-tools MCP server (`mark mcp`). stdout carries the protocol: this function
+ * writes nothing to stdout, and the server sends console.log to stderr.
+ */
+async function startMcp(args: string[]): Promise<void> {
+  const { loadConfig, startDevToolsServer } = await import("@mark1russell7/mcp-dev-tools");
+  const config = loadConfig();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    const eq = arg.indexOf("=");
+    const name = eq === -1 ? arg : arg.slice(0, eq);
+    const value = (): string => {
+      if (eq !== -1) return arg.slice(eq + 1);
+      const next = args[++i];
+      if (next === undefined) throw new Error(`${name} needs a value`);
+      return next;
+    };
+    if (name === "-h" || name === "--help") {
+      process.stderr.write(`${MCP_HELP}\n`);
+      return;
+    } else if (name === "--bundles") {
+      config.bundles = value().split(",").map((bundle) => bundle.trim()).filter(Boolean);
+    } else if (name === "--tool-timeout") {
+      const ms = Number(value());
+      if (!Number.isFinite(ms) || ms < 0) throw new Error(`--tool-timeout needs a number of milliseconds`);
+      config.toolTimeoutMs = ms;
+    } else if (name === "--debug") {
+      config.debug = true;
+    } else {
+      throw new Error(`Unknown option of mark mcp: ${arg}. Run 'mark mcp --help'.`);
+    }
+  }
+  // The server reads stdin until the client closes it: the process stays alive until then
+  await startDevToolsServer(config);
+}
+
 /**
  * Run the CLI
  */
@@ -456,6 +511,23 @@ async function run(argv: string[]): Promise<void> {
       return;
     }
     await startRepl({ verbose });
+    return;
+  }
+
+  // The front door (roadmap 2.3): `mark serve` starts the procedure server (the `server` CLI),
+  // and `mark mcp` starts the dev-tools MCP server over stdio (the server of impl-mcp-dev).
+  // `mark mcp <procedure>` still runs an mcp.* procedure (`mark mcp serve`, `mark mcp listTools`).
+  const [command, ...commandArgs] = leading.rest;
+  if (command === "serve") {
+    const { runServer } = await import("@mark1russell7/server");
+    // A --procedures package resolves from the current folder, then from mark, which depends on
+    // every procedure package of the workspace
+    const markDir = dirname(dirname(fileURLToPath(import.meta.url)));
+    await runServer(commandArgs, { resolveFrom: [process.cwd(), markDir] });
+    return;
+  }
+  if (command === "mcp" && commandArgs.every((arg) => arg.startsWith("-"))) {
+    await startMcp(commandArgs);
     return;
   }
 

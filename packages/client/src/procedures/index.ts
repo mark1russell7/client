@@ -54,6 +54,16 @@ export {
   createAndRegister,
 } from "./discovery.js";
 
+// Modules and explicit registries (roadmap 3.1)
+export {
+  clientModule,
+  defineModule,
+  moduleClosure,
+  registerModules,
+  createRegistry,
+} from "./module.js";
+export type { ModuleInput } from "./module.js";
+
 // Procedure reference system (procedure-as-data)
 export {
   // Constants

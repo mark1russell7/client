@@ -1,20 +1,7 @@
 /**
- * bundle-mcp - the tools that Claude gets from the dev-tools MCP server
- *
- * Importing a client package registers its procedures. The MCP server exposes only the
- * namespaces in `mcpNamespaces`. Claude has fs.*, git.* and pnpm.* through its own shell, so
- * they are not tools.
- *
- * shell.*, fs.* and git.* are registered all the same: docker.* runs its commands through
- * shell.run, and lib.* reads files and the repository (client-lib registers client-fs and
- * client-git). They are not tools. A code procedure calls them only when its `metadata.calls`
- * names them, and a data-driven procedure (client.chain, eval, a procedure that procedure.define
- * made) cannot call them: the server lets such a procedure call only the exposed procedures.
- * snapshot.*, s3.* and test.* are not in the bundle: snapshot.restore and s3.delete change data,
- * and vitest.* runs the tests. See documentation/BUGS-2026-07.md (H18) and
- * ARCHITECTURE-PROPOSALS-2026-10.md (P2).
- *
- * tools.snapshot.txt in impl-mcp-dev pins the result: a test compares the server's tools with it.
+ * Importing this file registers the procedures of the bundle in the global registry: it imports
+ * each package of the bundle (DECISIONS-2026-10, "Every package root registers its procedures").
+ * The lists and the modules are in `module.ts`, which registers nothing.
  */
 
 // Core orchestration
@@ -32,40 +19,4 @@ import "@mark1russell7/client-sqlite";
 // Testing
 import "@mark1russell7/client-vitest";
 
-/**
- * The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools.
- * `cli` is not one: `cli.run` runs any `mark` command, also `shell exec`, so it would give back what
- * the list keeps out (deep dive CLI-5, TRN-2).
- */
-export const mcpNamespaces: readonly string[] = [
-  "client",
-  "cue",
-  "db",
-  "docker",
-  "lib",
-  "logs",
-  "mongo",
-  "procedure",
-  "vitest",
-];
-
-/**
- * Procedures of the exposed namespaces that are not tools all the same:
- * - `vitest.watch` starts a long-running process. `vitest.stop` and `vitest.list` manage these
- *   processes. A tool call does not leave a process running, so the three stay out (deep dive WRP-4);
- * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@mark1russell7/client-store`
- *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
- *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
- *   a registry that has a store, and `procedure.register` with no store declares a procedure
- *   with no handler (deep dive CORE-16, DATA-10).
- */
-export const mcpExclude: readonly string[] = [
-  "vitest.watch",
-  "vitest.stop",
-  "vitest.list",
-  "procedure.store",
-  "procedure.load",
-  "procedure.sync",
-  "procedure.remote",
-  "procedure.register",
-];
+export * from "./module.js";

@@ -976,6 +976,12 @@ importers:
       '@mark1russell7/client-vitest':
         specifier: workspace:*
         version: link:../client-vitest
+      '@mark1russell7/mcp-dev-tools':
+        specifier: workspace:*
+        version: link:../impl-mcp-dev
+      '@mark1russell7/server':
+        specifier: workspace:*
+        version: link:../server
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
