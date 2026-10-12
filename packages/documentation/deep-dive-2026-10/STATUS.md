@@ -46,7 +46,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | CORE-13 | medium | fixed | `8a9e7c7` | A raw input carries the caller's scope. An unknown `$ref` name in a scope is an error. |
 | CORE-14 | medium | fixed | `92980cb` | The documented override keys map to the middleware keys. Leaves after a validation error come back as `SKIPPED`. |
 | CORE-15 | low–medium | fixed | `f40d27c` | The event bus defects are fixed. Each procedure context has a bus (`Client` option `bus`, or the global bus). |
-| CORE-16 / DATA-10 | low–medium | partly | `8d1e7f3` | The procedures work on the store of the caller's registry and fail with `NOT_CONFIGURED` without one. `procedure.remote connect` is `NOT_IMPLEMENTED`: a storage made at run time would give a procedure network reach. |
+| CORE-16 / DATA-10 | low–medium | fixed | `8d1e7f3`, `6567e2d` | `procedure.store`/`load`/`sync` work on a program store (`client-store`) and fail with `NOT_CONFIGURED` without one. Decision: `procedure.remote connect` stays `NOT_IMPLEMENTED`, because a storage that a procedure makes at run time would give it network reach. |
 | CORE-17 | low | fixed | `6b05f8f`, `065436b` | discover follows the exports map. announce locks and writes atomically, also under Windows file contention. |
 | Low items | low | fixed | `e2bbe2c`, `8a9e7c7` | `continueOnError`, race cancellation, the stream buffer options, `outputMode: "batch"`, child components through `invokeProcedure`, `isStreamingFactory`, the `unregister` event on override, `Client.exec(ref, input)`. |
 
@@ -103,7 +103,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | DATA-21 | low | fixed | `50b79ea` | Duplicate dependencies count once. Listener errors are logged. |
 | DATA-22 | low | fixed | `50b79ea` | `core.catch` hydrates inside the `try`. |
 | Minor | low | fixed | `3b0ab59`, `0843ba5` | Restore with `overwrite` replaces each folder. A failed part keeps its error. |
-| Open | low | open | | The mongo input schemas are pass-through, so the MCP tool list does not describe `collection` or `filter` (roadmap 2.1). |
+| Mongo schemas | low | fixed | `8306c1e`, `830af9c` | The mongo tools have real input and output schemas, so the MCP tool list describes `collection`, `filter` and the other fields. |
 
 ## The `mark` CLI and the servers
 
