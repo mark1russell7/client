@@ -6,6 +6,7 @@
  */
 
 import type { Method } from "../types.js";
+import type { InferSchema, ProcedureSchema } from "../../procedures/schema.js";
 
 // =============================================================================
 // Schema Types (Zod-compatible but decoupled)
@@ -34,8 +35,8 @@ export interface ZodErrorLike {
  * Schema definition for a method (input and/or output validation).
  */
 export interface SchemaDefinition<
-  TInput extends ZodLike = ZodLike,
-  TOutput extends ZodLike = ZodLike,
+  TInput extends ProcedureSchema = ProcedureSchema,
+  TOutput extends ProcedureSchema = ProcedureSchema,
 > {
   /** Input/request payload schema */
   input?: TInput;
@@ -46,20 +47,12 @@ export interface SchemaDefinition<
 /**
  * Infer the input type from a schema definition.
  */
-export type InferInput<T> = T extends SchemaDefinition<infer TInput, any>
-  ? TInput extends ZodLike<infer U>
-    ? U
-    : unknown
-  : unknown;
+export type InferInput<T> = T extends SchemaDefinition<infer TInput, any> ? InferSchema<TInput> : unknown;
 
 /**
  * Infer the output type from a schema definition.
  */
-export type InferOutput<T> = T extends SchemaDefinition<any, infer TOutput>
-  ? TOutput extends ZodLike<infer U>
-    ? U
-    : unknown
-  : unknown;
+export type InferOutput<T> = T extends SchemaDefinition<any, infer TOutput> ? InferSchema<TOutput> : unknown;
 
 // =============================================================================
 // Method Key
