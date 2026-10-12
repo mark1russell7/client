@@ -33,8 +33,25 @@ const { StdioClientTransport } = (await import(pathToFileURL(sdk.resolve("@model
   StdioClientTransport: new (options: { command: string; args: string[]; stderr?: string }) => unknown;
 };
 
-/** The tools of the packages in `packages/client`: their output schemas are not done yet. */
-const CORE_TOOLS = /^(client\.|procedure\.(define|delete|export|get|list)$)/;
+/**
+ * The core tools whose result is not an object: a boolean (`not`, `all`, `any`, `none`), any JSON
+ * value whose shape depends on the program (`and`, `or`, `conditional`, `reduce`, `identity`,
+ * `constant`) or no value (`throw`). They have real output schemas, but MCP gives an
+ * `outputSchema` only to an object result.
+ */
+const NOT_OBJECT_OUTPUT = new Set([
+  "client.all",
+  "client.and",
+  "client.any",
+  "client.conditional",
+  "client.constant",
+  "client.identity",
+  "client.none",
+  "client.not",
+  "client.or",
+  "client.reduce",
+  "client.throw",
+]);
 
 /** A tool whose output is a union (one value, or a stream of items): no object schema. */
 const UNION_OUTPUT = new Set(["docker.logs"]);
@@ -58,11 +75,11 @@ afterAll(async () => {
 });
 
 describe("MCP structured output", () => {
-  it("declares an object output schema with field descriptions for each tool outside the core", () => {
+  it("declares an object output schema with field descriptions for each tool with an object result", () => {
     const missing: string[] = [];
     const undescribed: string[] = [];
     for (const tool of tools) {
-      if (CORE_TOOLS.test(tool.name) || UNION_OUTPUT.has(tool.name)) continue;
+      if (NOT_OBJECT_OUTPUT.has(tool.name) || UNION_OUTPUT.has(tool.name)) continue;
       if (tool.outputSchema?.type !== "object") {
         missing.push(tool.name);
         continue;
@@ -110,6 +127,27 @@ describe("MCP structured output", () => {
     expect(Object.keys((scanned.structuredContent as { packages: Record<string, unknown> }).packages)).toContain(
       "@mark1russell7/structured-a"
     );
+  }, 60_000);
+
+  it("gives structured content for the core tools with an object result", async () => {
+    const mapped = await client.callTool({
+      name: "client.map",
+      // fn calls an exposed tool: a data-driven procedure calls only exposed procedures
+      arguments: { items: [1, 2, 3], fn: { $proc: ["client", "identity"], input: { value: { $ref: "item" } } } },
+    });
+    expect(mapped.isError).toBeFalsy();
+    expect(mapped.structuredContent).toEqual({ results: [1, 2, 3] });
+
+    const caught = await client.callTool({
+      name: "client.tryCatch",
+      arguments: { try: { $proc: ["client", "throw"], input: { message: "boom" } }, catch: "caught" },
+    });
+    expect(caught.structuredContent).toMatchObject({ success: false, value: "caught", error: "boom" });
+
+    const found = await client.callTool({ name: "procedure.get", arguments: { path: "client.map" } });
+    expect(found.structuredContent).toMatchObject({ found: true, key: "client.map", runtime: false });
+    const missing = await client.callTool({ name: "procedure.get", arguments: { path: "no.such" } });
+    expect(missing.structuredContent).toEqual({ found: false });
   }, 60_000);
 
   it("gives no structured content for an error", async () => {
