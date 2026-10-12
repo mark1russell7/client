@@ -18,6 +18,13 @@
   background: var(--color-surface);
 }
 
+/* The shortcut shows only where the header has room for it */
+@media (max-width: 1319px) {
+  .search-kbd {
+    display: none;
+  }
+}
+
 kbd,
 .search-kbd {
   font-family: var(--font-mono);
@@ -31,9 +38,15 @@ kbd,
   white-space: nowrap;
 }
 
+/* A medium screen: the header keeps one row, so the button is an icon */
 @media (max-width: 1180px) and (min-width: 721px) {
+  .search-label,
   .search-kbd {
     display: none;
+  }
+
+  .search-button {
+    padding: var(--space-1) var(--space-2);
   }
 }
 

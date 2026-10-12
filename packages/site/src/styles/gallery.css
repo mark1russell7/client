@@ -211,5 +211,21 @@
 
   .gallery-grid.layout-grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  /* On a phone the dialog uses the rows of the list: more examples in view */
+  .layout-grid .gallery-card {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .layout-grid .gallery-picture {
+    width: 7rem;
+    height: 4.5rem;
+  }
+
+  .gallery-head p {
+    display: none;
   }
 }

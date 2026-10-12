@@ -226,7 +226,15 @@ export function Home(): ReactElement {
           <a className="panel explore-card" href={href("composer", undefined, { example: "chain" })}>
             <h3>The Composer →</h3>
             <p className="small">
-              Build a program with blocks, JSON or TypeScript. The Graph tab draws it as a tree of calls, and the trace shows each call.
+              Build a program with blocks, JSON or TypeScript, or start from the gallery. The Graph tab draws it as a tree of calls, and the
+              trace shows each call.
+            </p>
+          </a>
+          <a className="panel explore-card" href={href("architecture")}>
+            <h3>The journey of one call →</h3>
+            <p className="small">
+              Follow one streaming call through the middlewares, the transport, the server and the interceptors, over HTTP, WebSocket or
+              MCP. Each step comes from the real code.
             </p>
           </a>
           <a className="panel explore-card" href={href("status")}>
