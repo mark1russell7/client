@@ -57,6 +57,7 @@ import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { EventBus } from "../events/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
+import { validateSchema } from "../procedures/schema.js";
 import type { AnyProcedure, ProcedureClient, ProcedurePath } from "../procedures/types.js";
 import {
   InvocationError,
@@ -592,17 +593,17 @@ export class Client<TContext = {}> {
    * The input for a procedure without a local handler: validated with the local schema when
    * the registry has the procedure, then sent to the transport.
    */
-  private remoteInput(procedure: AnyProcedure | undefined, path: ProcedurePath, input: unknown): unknown {
+  private async remoteInput(procedure: AnyProcedure | undefined, path: ProcedurePath, input: unknown): Promise<unknown> {
     if (!procedure) return input;
-    const result = procedure.input.safeParse(input);
-    if (!result.success) {
+    const result = await validateSchema(procedure.input, input);
+    if (!result.ok) {
       throw new InvocationError(
         "VALIDATION_ERROR",
-        `Input validation failed for ${path.join(".")}: ${result.error.message}`,
+        `Input validation failed for ${path.join(".")}: ${result.message}`,
         path
       );
     }
-    return result.data;
+    return result.value;
   }
 
   /**
@@ -621,7 +622,7 @@ export class Client<TContext = {}> {
     // No local handler: the transport runs it (a remote procedure)
     return this.call(
       this.pathToMethod(path),
-      this.remoteInput(procedure, path, input),
+      await this.remoteInput(procedure, path, input),
       this.remoteCallOptions(caller)
     ) as Promise<TOutput>;
   }
@@ -644,7 +645,7 @@ export class Client<TContext = {}> {
       }
       yield* self.stream<unknown, TOutput>(
         self.pathToMethod(path),
-        self.remoteInput(procedure, path, input),
+        await self.remoteInput(procedure, path, input),
         self.remoteCallOptions(caller)
       );
     })();
@@ -1131,8 +1132,11 @@ export class Client<TContext = {}> {
     const { path, procedure, input } = resolved;
     return (async function* () {
       if (procedure.handler) {
-        // The resolver validated the input already
-        const options = { ...self.invokeOptions({ metadata: context.metadata, signal: context.signal }), inputValidated: true };
+        // The resolver validated the input already (not an asynchronous schema: see ResolvedRoute)
+        const options = {
+          ...self.invokeOptions({ metadata: context.metadata, signal: context.signal }),
+          inputValidated: resolved.inputValidated !== false,
+        };
         yield* outputItems(await invokeProcedure(procedure, input, options));
         return;
       }

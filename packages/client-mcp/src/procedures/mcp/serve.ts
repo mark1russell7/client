@@ -32,25 +32,25 @@ const McpServeInputSchema = z.object({
    * Transport type (default: "stdio"). Only stdio is implemented: the SSE transport needs an
    * HTTP server integration, and accepting "sse" here only led to an error (BUGS-2026-07 L28).
    */
-  transport: z.enum(["stdio"]).default("stdio"),
+  transport: z.enum(["stdio"]).default("stdio").describe("Transport type (default: \"stdio\"). Only stdio is implemented: the SSE transport needs an HTTP server integration, and accepting \"sse\" here only led to an error (BUGS-2026-07 L28)."),
   /** Server name for MCP (default: "procedure-server") */
-  name: z.string().optional(),
+  name: z.string().optional().describe("Server name for MCP (default: \"procedure-server\")"),
   /** Server version for MCP (default: "1.0.0") */
-  version: z.string().optional(),
+  version: z.string().optional().describe("Server version for MCP (default: \"1.0.0\")"),
   /** Whether to auto-register all procedures (default: true) */
-  autoRegister: z.boolean().default(true),
+  autoRegister: z.boolean().default(true).describe("Whether to auto-register all procedures (default: true)"),
   /** Enable debug logging */
-  debug: z.boolean().default(false),
+  debug: z.boolean().default(false).describe("Enable debug logging"),
   /** The namespaces (first path segments) of the tools. With this list, the bundles give no tools. */
-  namespaces: z.array(z.string()).optional(),
+  namespaces: z.array(z.string()).optional().describe("The namespaces (first path segments) of the tools. With this list, the bundles give no tools."),
   /** Procedure keys of the tool namespaces that are not tools. */
-  exclude: z.array(z.string()).optional(),
+  exclude: z.array(z.string()).optional().describe("Procedure keys of the tool namespaces that are not tools."),
   /** The bundles whose mcpNamespaces and mcpExclude give the tools, when `namespaces` is not given. */
-  bundles: z.array(z.string()).optional(),
+  bundles: z.array(z.string()).optional().describe("The bundles whose mcpNamespaces and mcpExclude give the tools, when `namespaces` is not given."),
   /** True (the default): a procedure of code without metadata.calls can call only tools. */
-  strictCalls: z.boolean().default(true),
+  strictCalls: z.boolean().default(true).describe("True (the default): a procedure of code without metadata.calls can call only tools."),
   /** The time limit of each tool call, in milliseconds (default: 600000). 0: no limit. */
-  toolTimeoutMs: z.number().int().min(0).default(600_000),
+  toolTimeoutMs: z.number().int().min(0).default(600_000).describe("The time limit of each tool call, in milliseconds (default: 600000). 0: no limit."),
 });
 
 type McpServeInput = z.infer<typeof McpServeInputSchema>;

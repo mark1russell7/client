@@ -1,8 +1,13 @@
 /**
- * Zod Validation Middleware
+ * Schema Validation Middleware for transport calls
  *
- * Validates request and response payloads using Zod schemas.
- * Schemas can be registered per-route or overridden per-call.
+ * Validates the request and response payloads of calls that go to a transport (a remote
+ * service), by method key. Schemas can be registered per-route (`Client.schema()`) or
+ * overridden per-call.
+ *
+ * A procedure of the registry does not need this middleware: `invokeProcedure` validates its
+ * input and output with its own schemas. Both use `validateSchema()` of the core, so any
+ * Standard Schema (zod 4, valibot, arktype) works here too, also an asynchronous one.
  */
 
 import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem } from "../types.js";
@@ -10,11 +15,10 @@ import type {
   SchemaDefinition,
   SchemaRegistry,
   MethodKey,
-  ZodLike,
-  ZodErrorLike,
   ZodValidationContext,
 } from "./types.js";
 import { methodToKey, ValidationError } from "./types.js";
+import { validateSchema, type ProcedureSchema } from "../../procedures/schema.js";
 
 // =============================================================================
 // Middleware Options
@@ -119,7 +123,7 @@ export function createZodMiddleware(options: ZodMiddlewareOptions = {}): ZodMidd
       let inputValidated = false;
 
       if (schema?.input) {
-        const result = validatePayload(
+        const result = await validatePayload(
           context.message.payload,
           schema.input,
           "input",
@@ -149,7 +153,7 @@ export function createZodMiddleware(options: ZodMiddlewareOptions = {}): ZodMidd
       for await (const item of responseStream) {
         // Only validate successful responses with output schema
         if (schema?.output && item.status.type === "success") {
-          const result = validatePayload(
+          const result = await validatePayload(
             item.payload,
             schema.output,
             "output",
@@ -199,23 +203,24 @@ function getSchemaForContext(
 /**
  * Validate a payload against a schema.
  */
-function validatePayload<T>(
+async function validatePayload<T>(
   payload: unknown,
-  schema: ZodLike<T>,
+  schema: ProcedureSchema<T>,
   phase: "input" | "output",
   method: { service: string; operation: string; version?: string },
   options: {
     mode: ValidationMode;
     onValidationError: ((error: ValidationError) => void) | undefined;
   },
-): { success: true; data: T } | { success: false } {
-  const result = schema.safeParse(payload);
+): Promise<{ success: true; data: T } | { success: false }> {
+  // The one validation path of the core: any Standard Schema, also an asynchronous one
+  const result = await validateSchema(schema, payload);
 
-  if (!result.success) {
+  if (!result.ok) {
     const error = new ValidationError(
       `${phase} validation failed for ${method.service}.${method.operation}`,
       phase,
-      result.error as ZodErrorLike,
+      { message: result.message, issues: result.issues.map((issue) => ({ message: issue.message, path: (issue.path ?? []).map((part) => (typeof part === "object" ? part.key : part)) })) },
       method,
     );
 
@@ -239,7 +244,7 @@ function validatePayload<T>(
     return { success: false };
   }
 
-  return { success: true, data: result.data };
+  return { success: true, data: result.value };
 }
 
 // =============================================================================

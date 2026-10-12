@@ -3,9 +3,11 @@
  * Delete documents matching a filter
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor } from "../scope.js";
 import { schema } from "./schema.js";
+import { described, scopeFields, targetFields } from "./input-schemas.js";
+import { z } from "zod";
 import { parseTarget, targetFilter, type TargetInput } from "./target.js";
 
 // Input/Output types
@@ -18,9 +20,10 @@ interface DeleteOutput {
 }
 
 // Schemas
-const deleteInputSchema = zodAdapter<DeleteInput>({
-  parse: (data: unknown) => parseTarget("mongo.documents.delete", data).target,
-});
+const deleteInputSchema = described<DeleteInput>(
+  (data: unknown) => parseTarget("mongo.documents.delete", data).target,
+  z.object({ ...scopeFields(), ...targetFields() })
+);
 const deleteOutputSchema = schema<DeleteOutput>();
 
 export const deleteProcedure: Procedure<

@@ -6,6 +6,7 @@
  * All procedures are namespaced under "client" (e.g., client.import, client.eval).
  */
 
+import { z } from "zod";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 import {
@@ -42,14 +43,19 @@ const anySchema: {
 
 interface ImportInput {
   /** JSON string containing procedure ref */
-  json?: string;
+  json?: string | undefined;
   /** File path to load procedure ref from (requires fs.read procedure) */
-  path?: string;
+  path?: string | undefined;
 }
+
+const ImportInputSchema = z.object({
+  json: z.string().optional().describe("JSON string containing procedure ref"),
+  path: z.string().optional().describe("File path to load procedure ref from (requires fs.read procedure)"),
+});
 
 interface ImportOutput {
   /** The parsed procedure reference */
-  procedure: unknown;
+  procedure?: unknown;
   /** Whether parsing succeeded */
   success: boolean;
   /** Error message if failed */
@@ -60,7 +66,7 @@ type ImportProcedure = Procedure<ImportInput, ImportOutput, { description: strin
 
 const importProcedure: ImportProcedure = defineProcedure({
   path: ["import"],
-  input: anySchema as any,
+  input: ImportInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Parse procedure aggregation from JSON string",
@@ -102,10 +108,15 @@ const importProcedure: ImportProcedure = defineProcedure({
 
 interface ExportInput {
   /** Procedure reference to serialize */
-  procedure: unknown;
+  procedure?: unknown;
   /** Pretty print JSON output */
-  pretty?: boolean;
+  pretty?: boolean | undefined;
 }
+
+const ExportInputSchema = z.object({
+  procedure: z.unknown().optional().describe("Procedure reference to serialize"),
+  pretty: z.boolean().optional().describe("Pretty print JSON output"),
+});
 
 interface ExportOutput {
   /** Serialized JSON string */
@@ -120,7 +131,7 @@ type ExportProcedure = Procedure<ExportInput, ExportOutput, { description: strin
 
 const exportProcedure: ExportProcedure = defineProcedure({
   path: ["export"],
-  input: anySchema as any,
+  input: ExportInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Serialize procedure aggregation to JSON string",
@@ -147,16 +158,21 @@ const exportProcedure: ExportProcedure = defineProcedure({
 
 interface EvalInput {
   /** Procedure reference (path or full ref) */
-  procedure: unknown;
+  procedure?: unknown;
   /** Input to pass to the procedure */
-  input?: unknown;
+  input?: unknown | undefined;
 }
+
+const EvalInputSchema = z.object({
+  procedure: z.unknown().optional().describe("Procedure reference (path or full ref)"),
+  input: z.unknown().optional().describe("Input to pass to the procedure"),
+});
 
 type EvalProcedure = Procedure<EvalInput, unknown, { description: string; tags: string[] }>;
 
 const evalProcedure: EvalProcedure = defineProcedure({
   path: ["eval"],
-  input: anySchema as any,
+  input: EvalInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Evaluate a procedure reference (for dynamic composition)",
@@ -212,14 +228,19 @@ interface ParseJsonInput {
   /** JSON string to parse */
   json: string;
   /** Whether to parse procedure refs ($proc syntax) */
-  parseProcedures?: boolean;
+  parseProcedures?: boolean | undefined;
 }
+
+const ParseJsonInputSchema = z.object({
+  json: z.string().describe("JSON string to parse"),
+  parseProcedures: z.boolean().optional().describe("Whether to parse procedure refs ($proc syntax)"),
+});
 
 type ParseJsonProcedure = Procedure<ParseJsonInput, unknown, { description: string; tags: string[] }>;
 
 const parseJsonProcedure: ParseJsonProcedure = defineProcedure({
   path: ["parseJson"],
-  input: anySchema as any,
+  input: ParseJsonInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Parse JSON string (optionally with procedure ref support)",
@@ -239,18 +260,24 @@ const parseJsonProcedure: ParseJsonProcedure = defineProcedure({
 
 interface StringifyJsonInput {
   /** Value to stringify */
-  value: unknown;
+  value?: unknown;
   /** Pretty print with indentation */
-  pretty?: boolean;
+  pretty?: boolean | undefined;
   /** Custom indentation (number of spaces or string) */
-  indent?: number | string;
+  indent?: number | string | undefined;
 }
+
+const StringifyJsonInputSchema = z.object({
+  value: z.unknown().optional().describe("Value to stringify"),
+  pretty: z.boolean().optional().describe("Pretty print with indentation"),
+  indent: z.union([z.number(), z.string()]).optional().describe("Custom indentation (number of spaces or string)"),
+});
 
 type StringifyJsonProcedure = Procedure<StringifyJsonInput, string, { description: string; tags: string[] }>;
 
 const stringifyJsonProcedure: StringifyJsonProcedure = defineProcedure({
   path: ["stringifyJson"],
-  input: anySchema as any,
+  input: StringifyJsonInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Stringify value to JSON (with procedure ref support)",
@@ -272,6 +299,10 @@ interface LookupInput {
   path: string[];
 }
 
+const LookupInputSchema = z.object({
+  path: z.array(z.string()).describe("Procedure path to look up"),
+});
+
 interface LookupOutput {
   /** Whether procedure exists */
   exists: boolean;
@@ -285,7 +316,7 @@ type LookupProcedure = Procedure<LookupInput, LookupOutput, { description: strin
 
 const lookupProcedure: LookupProcedure = defineProcedure({
   path: ["lookup"],
-  input: anySchema as any,
+  input: LookupInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Look up procedure in registry by path",

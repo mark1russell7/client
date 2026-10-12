@@ -12,21 +12,21 @@ import { z } from "zod";
 
 export const CliRunInputSchema: z.ZodObject<{
   path: z.ZodArray<z.ZodString>;
-  args: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean]>>>;
+  args: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodString, z.ZodNumber, z.ZodBoolean]>>>;
   positional: z.ZodOptional<z.ZodArray<z.ZodString>>;
   cwd: z.ZodOptional<z.ZodString>;
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Procedure path to call, e.g. ["lib", "new"] for "mark lib new" */
-  path: z.array(z.string()),
+  path: z.array(z.string()).describe("Procedure path to call, e.g. [\"lib\", \"new\"] for \"mark lib new\""),
   /** Named arguments as key-value pairs, e.g. { name: "foo" } -> "--name foo" */
-  args: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  args: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional().describe("Named arguments as key-value pairs, e.g. { name: \"foo\" } -> \"--name foo\""),
   /** Positional arguments after the path */
-  positional: z.array(z.string()).optional(),
+  positional: z.array(z.string()).optional().describe("Positional arguments after the path"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type CliRunInput = z.infer<typeof CliRunInputSchema>;

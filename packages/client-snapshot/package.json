@@ -68,7 +68,7 @@
     "@mark1russell7/client-s3": "workspace:*",
     "@mark1russell7/client-shell": "workspace:*",
     "tar": "^7.5.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

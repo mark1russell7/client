@@ -3,15 +3,18 @@
  * Create an index on a collection
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields } from "./input-schemas.js";
+import { z } from "zod";
+import type { CreateIndexesOptions } from "mongodb";
 import { type IndexSpec, type IndexOptions } from "../types.js";
 
 // Input/Output types
 interface CreateIndexInput extends ScopeInput {
   keys: IndexSpec;
-  options?: IndexOptions;
+  options?: IndexOptions | undefined;
 }
 
 interface CreateIndexOutput {
@@ -20,7 +23,22 @@ interface CreateIndexOutput {
 }
 
 // Schemas
-const createIndexInputSchema = schema<CreateIndexInput>();
+const createIndexInputSchema = zodAdapter<CreateIndexInput>(
+  z.object({
+    ...scopeFields(),
+    keys: z
+      .record(z.string(), z.union([z.literal(1), z.literal(-1), z.literal("text"), z.literal("2dsphere")]))
+      .describe('The fields of the index and their order: 1, -1, "text" or "2dsphere"'),
+    options: z
+      .looseObject({
+        name: z.string().optional().describe("The name of the index"),
+        unique: z.boolean().optional().describe("A unique index"),
+        sparse: z.boolean().optional().describe("A sparse index"),
+      })
+      .optional()
+      .describe("The options of the index"),
+  })
+);
 const createIndexOutputSchema = schema<CreateIndexOutput>();
 
 export const createIndexProcedure: Procedure<
@@ -35,7 +53,8 @@ export const createIndexProcedure: Procedure<
   .handler(async (input: CreateIndexInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 
-    const indexName = await collection.createIndex(input.keys, input.options);
+    // The schema leaves out an option that the input does not give: no option is undefined at run time
+    const indexName = await collection.createIndex(input.keys, input.options as CreateIndexesOptions | undefined);
 
     return {
       acknowledged: true,

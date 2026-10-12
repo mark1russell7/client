@@ -147,6 +147,25 @@ export {
   type ZodLikeSchema,
 } from "./core/index.js";
 
+// Schemas: Standard Schema v1, validation and JSON Schema (roadmap 2.1)
+export {
+  validateSchema,
+  validateSchemaAsync,
+  jsonSchemaOf,
+  isStandardSchema,
+  describeIssues,
+} from "./schema.js";
+export type {
+  StandardSchemaV1,
+  StandardJSONSchemaConverter,
+  ProcedureSchema,
+  InferSchema,
+  SchemaResult,
+  JsonSchema,
+  JsonSchemaTarget,
+  JsonSchemaSource,
+} from "./schema.js";
+
 // Meta-procedures for runtime procedure definition
 export {
   defineProcedureProcedure,

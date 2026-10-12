@@ -36,9 +36,9 @@ export interface DbQueryInput {
   /** SQL query to execute */
   sql: string;
   /** Query parameters */
-  params?: unknown[];
+  params?: unknown[] | undefined;
   /** Database path (defaults to CLI log database) */
-  dbPath?: string;
+  dbPath?: string | undefined;
 }
 
 export interface DbQueryOutput<T = Record<string, unknown>> {
@@ -56,9 +56,9 @@ export interface DbExecuteInput {
   /** SQL statement to execute (INSERT, UPDATE, DELETE, etc.) */
   sql: string;
   /** Statement parameters */
-  params?: unknown[];
+  params?: unknown[] | undefined;
   /** Database path (defaults to CLI log database) */
-  dbPath?: string;
+  dbPath?: string | undefined;
 }
 
 export interface DbExecuteOutput {
@@ -76,17 +76,17 @@ export interface LogsStoreInput {
   /** Log message */
   message: string;
   /** Session ID for grouping logs */
-  sessionId?: string;
+  sessionId?: string | undefined;
   /** Command that generated this log */
-  command?: string;
+  command?: string | undefined;
   /** Additional context (e.g., package name) */
-  context?: string;
+  context?: string | undefined;
   /** Additional structured data */
-  data?: Record<string, unknown>;
+  data?: Record<string, unknown> | undefined;
   /** Error stack trace if applicable */
-  errorStack?: string;
+  errorStack?: string | undefined;
   /** Database path (defaults to CLI log database) */
-  dbPath?: string;
+  dbPath?: string | undefined;
 }
 
 export interface LogsStoreOutput {
@@ -100,19 +100,19 @@ export interface LogsStoreOutput {
 
 export interface LogsQueryInput {
   /** Filter by session ID */
-  sessionId?: string;
+  sessionId?: string | undefined;
   /** Filter by command */
-  command?: string;
+  command?: string | undefined;
   /** Filter by log level(s) */
-  level?: LogLevel | LogLevel[];
+  level?: LogLevel | LogLevel[] | undefined;
   /** Maximum number of logs to return */
-  limit?: number;
+  limit?: number | undefined;
   /** Offset for pagination */
-  offset?: number;
+  offset?: number | undefined;
   /** Order by (default: timestamp DESC) */
-  orderBy?: "asc" | "desc";
+  orderBy?: "asc" | "desc" | undefined;
   /** Database path (defaults to CLI log database) */
-  dbPath?: string;
+  dbPath?: string | undefined;
 }
 
 export interface LogEntry {

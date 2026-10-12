@@ -3,9 +3,12 @@
  * Run an aggregation pipeline
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields, documentObject } from "./input-schemas.js";
+import { z } from "zod";
+import type { AggregateOptions } from "mongodb";
 import {
   type AggregationStage,
   type AggregationOptions,
@@ -15,7 +18,7 @@ import {
 // Input/Output types
 interface AggregateInput extends ScopeInput {
   pipeline: AggregationStage[];
-  options?: AggregationOptions;
+  options?: AggregationOptions | undefined;
 }
 
 interface AggregateOutput {
@@ -23,7 +26,19 @@ interface AggregateOutput {
 }
 
 // Schemas
-const aggregateInputSchema = schema<AggregateInput>();
+const aggregateInputSchema = zodAdapter<AggregateInput>(
+  z.object({
+    ...scopeFields(),
+    pipeline: z.array(documentObject()).describe("The aggregation stages, in order (for example [{ $match: {...} }, { $group: {...} }])"),
+    options: z
+      .looseObject({
+        allowDiskUse: z.boolean().optional().describe("Allow the use of disk for large stages"),
+        maxTimeMS: z.number().optional().describe("The longest run time in milliseconds"),
+      })
+      .optional()
+      .describe("The options of the aggregation"),
+  })
+);
 const aggregateOutputSchema = schema<AggregateOutput>();
 
 export const aggregateProcedure: Procedure<
@@ -39,7 +54,8 @@ export const aggregateProcedure: Procedure<
     const { collection } = await collectionFor(input, ctx);
 
     const results = await collection
-      .aggregate(input.pipeline, input.options)
+      // The schema leaves out an option that the input does not give
+      .aggregate(input.pipeline, input.options as AggregateOptions | undefined)
       .toArray();
 
     return { results };

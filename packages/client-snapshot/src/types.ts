@@ -13,7 +13,7 @@ import { z } from "zod";
 
 export type SnapshotPreset = "light" | "medium" | "heavy";
 
-export const SnapshotPresetSchema: z.ZodEnum<["light", "medium", "heavy"]> = z.enum(["light", "medium", "heavy"]);
+export const SnapshotPresetSchema: z.ZodEnum<{ light: "light"; medium: "medium"; heavy: "heavy" }> = z.enum(["light", "medium", "heavy"]);
 
 /**
  * Preset descriptions:
@@ -89,21 +89,21 @@ export interface SnapshotMetadata {
 
 export const SnapshotCreateInputSchema: z.ZodObject<{
   name: z.ZodString;
-  preset: z.ZodDefault<z.ZodEnum<["light", "medium", "heavy"]>>;
+  preset: z.ZodDefault<z.ZodEnum<{ light: "light"; medium: "medium"; heavy: "heavy" }>>;
   bucket: z.ZodString;
   paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
   description: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Snapshot name (used in S3 key and metadata) */
-  name: z.string(),
+  name: z.string().describe("Snapshot name (used in S3 key and metadata)"),
   /** Capture preset (default: medium) */
-  preset: SnapshotPresetSchema.default("medium"),
+  preset: SnapshotPresetSchema.default("medium").describe("Capture preset (default: medium)"),
   /** S3 bucket for storage */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket for storage"),
   /** Specific paths to include (default: all repos in ecosystem) */
-  paths: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional().describe("Specific paths to include (default: all repos in ecosystem)"),
   /** Optional description */
-  description: z.string().optional(),
+  description: z.string().optional().describe("Optional description"),
 });
 
 export type SnapshotCreateInput = z.infer<typeof SnapshotCreateInputSchema>;
@@ -130,17 +130,17 @@ export const SnapshotRestoreInputSchema: z.ZodObject<{
   overwrite: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Snapshot ID to restore */
-  id: z.string(),
+  id: z.string().describe("Snapshot ID to restore"),
   /** S3 bucket containing snapshot */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket containing snapshot"),
   /**
    * Destination directory the snapshot is extracted into. Required: restore
    * must never fall back to a temporary scratch directory, because that
    * scratch directory is deleted on cleanup and would wipe the restored files.
    */
-  targetPath: z.string(),
+  targetPath: z.string().describe("Destination directory the snapshot is extracted into. Required: restore must never fall back to a temporary scratch directory, because that scratch directory is deleted on cleanup and would wipe the restored files."),
   /** Overwrite existing files (default: false) */
-  overwrite: z.boolean().optional().default(false),
+  overwrite: z.boolean().optional().default(false).describe("Overwrite existing files (default: false)"),
 });
 
 export type SnapshotRestoreInput = z.infer<typeof SnapshotRestoreInputSchema>;
@@ -168,11 +168,11 @@ export const SnapshotListInputSchema: z.ZodObject<{
   maxResults: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
 }> = z.object({
   /** S3 bucket to list */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket to list"),
   /** Filter by name prefix */
-  prefix: z.string().optional(),
+  prefix: z.string().optional().describe("Filter by name prefix"),
   /** Maximum results (default: 100) */
-  maxResults: z.number().optional().default(100),
+  maxResults: z.number().optional().default(100).describe("Maximum results (default: 100)"),
 });
 
 export type SnapshotListInput = z.infer<typeof SnapshotListInputSchema>;
@@ -209,11 +209,11 @@ export const SnapshotDiffInputSchema: z.ZodObject<{
   paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }> = z.object({
   /** Snapshot ID to compare against */
-  id: z.string(),
+  id: z.string().describe("Snapshot ID to compare against"),
   /** S3 bucket containing snapshot */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket containing snapshot"),
   /** Specific paths to compare (default: all) */
-  paths: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional().describe("Specific paths to compare (default: all)"),
 });
 
 export type SnapshotDiffInput = z.infer<typeof SnapshotDiffInputSchema>;
@@ -256,9 +256,9 @@ export const SnapshotDeleteInputSchema: z.ZodObject<{
   bucket: z.ZodString;
 }> = z.object({
   /** Snapshot ID to delete */
-  id: z.string(),
+  id: z.string().describe("Snapshot ID to delete"),
   /** S3 bucket containing snapshot */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket containing snapshot"),
 });
 
 export type SnapshotDeleteInput = z.infer<typeof SnapshotDeleteInputSchema>;

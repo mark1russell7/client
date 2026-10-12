@@ -3,9 +3,11 @@
  * Health check and connectivity test
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 
 // Input/Output types
 /** The input: only the scope fields. */
@@ -17,7 +19,9 @@ interface PingOutput {
 }
 
 // Schemas
-const pingInputSchema = schema<PingInput>();
+const pingInputSchema = zodAdapter<PingInput>(
+  z.object({ ...scopeFields() })
+);
 const pingOutputSchema = schema<PingOutput>();
 
 export const pingProcedure: Procedure<

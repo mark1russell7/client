@@ -3,9 +3,11 @@
  * Drop an index from a collection
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 
 // Input/Output types
 interface DropIndexInput extends ScopeInput {
@@ -17,7 +19,12 @@ interface DropIndexOutput {
 }
 
 // Schemas
-const dropIndexInputSchema = schema<DropIndexInput>();
+const dropIndexInputSchema = zodAdapter<DropIndexInput>(
+  z.object({
+    ...scopeFields(),
+    indexName: z.string().min(1).describe("The name of the index to drop"),
+  })
+);
 const dropIndexOutputSchema = schema<DropIndexOutput>();
 
 export const dropIndexProcedure: Procedure<

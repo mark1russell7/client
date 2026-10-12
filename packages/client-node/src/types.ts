@@ -17,17 +17,17 @@ export const NodeRunInputSchema: z.ZodObject<{
   maxOutputBytes: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Script path to run */
-  script: z.string(),
+  script: z.string().describe("Script path to run"),
   /** Arguments to pass to the script */
-  args: z.array(z.string()).optional(),
+  args: z.array(z.string()).optional().describe("Arguments to pass to the script"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional().describe("Environment variables"),
   /** Timeout in milliseconds. At the timeout, the script and its child processes are killed. */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds. At the timeout, the script and its child processes are killed."),
   /** The most bytes kept of each output stream (default: 64 MiB). The procedure keeps the first bytes. */
-  maxOutputBytes: z.number().int().positive().optional(),
+  maxOutputBytes: z.number().int().positive().optional().describe("The most bytes kept of each output stream (default: 64 MiB). The procedure keeps the first bytes."),
 });
 
 export type NodeRunInput = z.infer<typeof NodeRunInputSchema>;
@@ -58,20 +58,20 @@ export const NodeSpawnInputSchema: z.ZodObject<{
   }>>;
 }> = z.object({
   /** Script path to run */
-  script: z.string(),
+  script: z.string().describe("Script path to run"),
   /** Arguments to pass to the script */
-  args: z.array(z.string()).optional(),
+  args: z.array(z.string()).optional().describe("Arguments to pass to the script"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional().describe("Environment variables"),
   /** Ready pattern - wait for this in stdout before returning */
   ready: z
     .object({
       pattern: z.string(),
       timeout: z.number().optional(),
     })
-    .optional(),
+    .optional().describe("Ready pattern - wait for this in stdout before returning"),
 });
 
 export type NodeSpawnInput = z.infer<typeof NodeSpawnInputSchema>;
@@ -92,9 +92,9 @@ export const NodeKillInputSchema: z.ZodObject<{
   signal: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Process ID returned from node.spawn */
-  processId: z.string(),
+  processId: z.string().describe("Process ID returned from node.spawn"),
   /** Signal to send (default: SIGTERM) */
-  signal: z.string().optional(),
+  signal: z.string().optional().describe("Signal to send (default: SIGTERM)"),
 });
 
 export type NodeKillInput = z.infer<typeof NodeKillInputSchema>;
@@ -115,9 +115,9 @@ export const NodeStatusInputSchema: z.ZodObject<{
   output: z.ZodOptional<z.ZodBoolean>;
 }> = z.object({
   /** Optional process ID to filter by */
-  processId: z.string().optional(),
+  processId: z.string().optional().describe("Optional process ID to filter by"),
   /** Also give the end of the output of each process (the last 64 KiB) */
-  output: z.boolean().optional(),
+  output: z.boolean().optional().describe("Also give the end of the output of each process (the last 64 KiB)"),
 });
 
 export type NodeStatusInput = z.infer<typeof NodeStatusInputSchema>;

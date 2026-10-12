@@ -6,6 +6,7 @@
  */
 
 import type { Method } from "../types.js";
+import type { InferSchema, ProcedureSchema } from "../../procedures/schema.js";
 
 // =============================================================================
 // Schema Types (Zod-compatible but decoupled)
@@ -21,19 +22,21 @@ export interface ZodLike<T = unknown> {
 }
 
 /**
- * Generic Zod error interface.
+ * Generic Zod error interface. Zod 4 gives `issues` (zod 3 gave `errors` too), so both are
+ * optional: a reader uses `message`, or `validateSchema()` of the core.
  */
 export interface ZodErrorLike {
   message: string;
-  errors: Array<{ path: (string | number)[]; message: string }>;
+  errors?: ReadonlyArray<{ path?: ReadonlyArray<PropertyKey>; message: string }> | undefined;
+  issues?: ReadonlyArray<{ path?: ReadonlyArray<PropertyKey>; message: string }> | undefined;
 }
 
 /**
  * Schema definition for a method (input and/or output validation).
  */
 export interface SchemaDefinition<
-  TInput extends ZodLike = ZodLike,
-  TOutput extends ZodLike = ZodLike,
+  TInput extends ProcedureSchema = ProcedureSchema,
+  TOutput extends ProcedureSchema = ProcedureSchema,
 > {
   /** Input/request payload schema */
   input?: TInput;
@@ -44,20 +47,12 @@ export interface SchemaDefinition<
 /**
  * Infer the input type from a schema definition.
  */
-export type InferInput<T> = T extends SchemaDefinition<infer TInput, any>
-  ? TInput extends ZodLike<infer U>
-    ? U
-    : unknown
-  : unknown;
+export type InferInput<T> = T extends SchemaDefinition<infer TInput, any> ? InferSchema<TInput> : unknown;
 
 /**
  * Infer the output type from a schema definition.
  */
-export type InferOutput<T> = T extends SchemaDefinition<any, infer TOutput>
-  ? TOutput extends ZodLike<infer U>
-    ? U
-    : unknown
-  : unknown;
+export type InferOutput<T> = T extends SchemaDefinition<any, infer TOutput> ? InferSchema<TOutput> : unknown;
 
 // =============================================================================
 // Method Key
@@ -141,8 +136,8 @@ export class ValidationError extends Error {
    * Get formatted validation error details.
    */
   get details(): string {
-    const errors = this.zodError.errors
-      .map((e) => `  - ${e.path.join(".")}: ${e.message}`)
+    const errors = (this.zodError.issues ?? this.zodError.errors ?? [])
+      .map((e) => `  - ${(e.path ?? []).map(String).join(".")}: ${e.message}`)
       .join("\n");
     return `${this.phase} validation failed for ${this.method.service}.${this.method.operation}:\n${errors}`;
   }

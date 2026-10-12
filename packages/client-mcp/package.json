@@ -75,6 +75,6 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3",
     "@mark1russell7/client": "workspace:*",
-    "zod": "^3.24.0"
+    "zod": "^4.6.5"
   }
 }

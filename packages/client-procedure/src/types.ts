@@ -21,18 +21,18 @@ export const ProcedureNewInputSchema: z.ZodObject<{
     .regex(
       /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/,
       "Name must be dot-separated segments, each starting with a lowercase letter (camelCase is allowed)"
-    ),
+    ).describe("Procedure name (e.g., \"greet\", \"user.create\" or \"fs.readJson\")"),
   /** Namespace override (defaults to first segment of name): the folder under src/procedures */
   namespace: z
     .string()
     .regex(/^[a-z][a-zA-Z0-9]*$/, "Namespace must be one segment that starts with a lowercase letter")
-    .optional(),
+    .optional().describe("Namespace override (defaults to first segment of name): the folder under src/procedures"),
   /** Procedure description for CLI help */
-  description: z.string().optional(),
+  description: z.string().optional().describe("Procedure description for CLI help"),
   /** Project path (defaults to cwd) */
-  path: z.string().optional(),
+  path: z.string().optional().describe("Project path (defaults to cwd)"),
   /** Preview changes without creating */
-  dryRun: z.boolean().default(false),
+  dryRun: z.boolean().default(false).describe("Preview changes without creating"),
 });
 
 export type ProcedureNewInput = z.infer<typeof ProcedureNewInputSchema>;

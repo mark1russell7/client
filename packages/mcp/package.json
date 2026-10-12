@@ -53,9 +53,6 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
-  "dependencies": {
-    "zod-to-json-schema": "^3.24.5"
-  },
   "peerDependencies": {
     "@mark1russell7/client": "workspace:^"
   },

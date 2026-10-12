@@ -3,7 +3,7 @@
  * Generates procedure manifests in various formats
  */
 
-import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { createProcedure, jsonSchemaOf, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import { schema } from "../schema.js";
 import { manifestGenerateInputSchema } from "../input-schemas.js";
 import type { ManifestGenerateInput, ManifestGenerateOutput, ProcedureInfo } from "../types.js";
@@ -51,7 +51,11 @@ export const manifestGenerateProcedure: Procedure<
       if (meta?.description !== undefined) {
         info.description = meta.description;
       }
-      // TODO: Add JSON schema generation from Zod schemas
+      // The JSON Schemas of the input and the output, when the schemas can describe themselves
+      const inputSchema = jsonSchemaOf(proc.input, { io: "input" });
+      const outputSchema = jsonSchemaOf(proc.output, { io: "output" });
+      if (inputSchema) info.inputSchema = inputSchema;
+      if (outputSchema) info.outputSchema = outputSchema;
       return info;
     });
 

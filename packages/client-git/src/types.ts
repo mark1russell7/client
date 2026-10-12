@@ -13,9 +13,9 @@ export const GitStatusInputSchema: z.ZodObject<{
   short: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Working directory (default: process.cwd()) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory (default: process.cwd())"),
   /** Show short format (default: false) */
-  short: z.boolean().optional().default(false),
+  short: z.boolean().optional().default(false).describe("Show short format (default: false)"),
 });
 
 export type GitStatusInput = z.infer<typeof GitStatusInputSchema>;
@@ -49,11 +49,11 @@ export const GitAddInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Paths to stage (default: []) */
-  paths: z.array(z.string()).optional().default([]),
+  paths: z.array(z.string()).optional().default([]).describe("Paths to stage (default: [])"),
   /** Stage all changes (default: false) */
-  all: z.boolean().optional().default(false),
+  all: z.boolean().optional().default(false).describe("Stage all changes (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitAddInput = z.infer<typeof GitAddInputSchema>;
@@ -73,13 +73,13 @@ export const GitCommitInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Commit message */
-  message: z.string(),
+  message: z.string().describe("Commit message"),
   /** Automatically stage modified files (default: false) */
-  all: z.boolean().optional().default(false),
+  all: z.boolean().optional().default(false).describe("Automatically stage modified files (default: false)"),
   /** Amend the last commit (default: false) */
-  amend: z.boolean().optional().default(false),
+  amend: z.boolean().optional().default(false).describe("Amend the last commit (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitCommitInput = z.infer<typeof GitCommitInputSchema>;
@@ -105,15 +105,15 @@ export const GitPushInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Remote name (default: origin) */
-  remote: z.string().optional().default("origin"),
+  remote: z.string().optional().default("origin").describe("Remote name (default: origin)"),
   /** Branch to push (default: current branch) */
-  branch: z.string().optional(),
+  branch: z.string().optional().describe("Branch to push (default: current branch)"),
   /** Force push (default: false) */
-  force: z.boolean().optional().default(false),
+  force: z.boolean().optional().default(false).describe("Force push (default: false)"),
   /** Set upstream tracking (default: false) */
-  setUpstream: z.boolean().optional().default(false),
+  setUpstream: z.boolean().optional().default(false).describe("Set upstream tracking (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitPushInput = z.infer<typeof GitPushInputSchema>;
@@ -135,13 +135,13 @@ export const GitPullInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Remote name (default: origin) */
-  remote: z.string().optional().default("origin"),
+  remote: z.string().optional().default("origin").describe("Remote name (default: origin)"),
   /** Branch to pull (default: current branch) */
-  branch: z.string().optional(),
+  branch: z.string().optional().describe("Branch to pull (default: current branch)"),
   /** Rebase instead of merge (default: false) */
-  rebase: z.boolean().optional().default(false),
+  rebase: z.boolean().optional().default(false).describe("Rebase instead of merge (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitPullInput = z.infer<typeof GitPullInputSchema>;
@@ -165,15 +165,15 @@ export const GitCloneInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Repository URL */
-  url: z.string(),
+  url: z.string().describe("Repository URL"),
   /** Destination directory (default: derived from URL) */
-  dest: z.string().optional(),
+  dest: z.string().optional().describe("Destination directory (default: derived from URL)"),
   /** Branch to clone (default: default branch) */
-  branch: z.string().optional(),
+  branch: z.string().optional().describe("Branch to clone (default: default branch)"),
   /** Create shallow clone with depth (default: full clone) */
-  depth: z.number().optional(),
+  depth: z.number().optional().describe("Create shallow clone with depth (default: full clone)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitCloneInput = z.infer<typeof GitCloneInputSchema>;
@@ -194,13 +194,13 @@ export const GitCheckoutInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Branch, tag, or commit to checkout */
-  ref: z.string(),
+  ref: z.string().describe("Branch, tag, or commit to checkout"),
   /** Create branch if it doesn't exist (default: false) */
-  create: z.boolean().optional().default(false),
+  create: z.boolean().optional().default(false).describe("Create branch if it doesn't exist (default: false)"),
   /** Specific paths to checkout (default: all) */
-  paths: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional().describe("Specific paths to checkout (default: all)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitCheckoutInput = z.infer<typeof GitCheckoutInputSchema>;
@@ -222,15 +222,15 @@ export const GitBranchInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Branch name (for create/delete) */
-  name: z.string().optional(),
+  name: z.string().optional().describe("Branch name (for create/delete)"),
   /** Delete the branch (default: false) */
-  delete: z.boolean().optional().default(false),
+  delete: z.boolean().optional().default(false).describe("Delete the branch (default: false)"),
   /** List branches (default: true if no name provided) */
-  list: z.boolean().optional().default(false),
+  list: z.boolean().optional().default(false).describe("List branches (default: true if no name provided)"),
   /** Include remote branches in list (default: false) */
-  remote: z.boolean().optional().default(false),
+  remote: z.boolean().optional().default(false).describe("Include remote branches in list (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitBranchInput = z.infer<typeof GitBranchInputSchema>;
@@ -260,13 +260,13 @@ export const GitLogInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Number of commits to show (default: 10) */
-  count: z.number().optional().default(10),
+  count: z.number().optional().default(10).describe("Number of commits to show (default: 10)"),
   /** One line per commit (default: false) */
-  oneline: z.boolean().optional().default(false),
+  oneline: z.boolean().optional().default(false).describe("One line per commit (default: false)"),
   /** Branch/tag/commit to start from (default: HEAD) */
-  ref: z.string().optional(),
+  ref: z.string().optional().describe("Branch/tag/commit to start from (default: HEAD)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitLogInput = z.infer<typeof GitLogInputSchema>;
@@ -298,15 +298,15 @@ export const GitDiffInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Show staged changes (default: false, shows unstaged) */
-  staged: z.boolean().optional().default(false),
+  staged: z.boolean().optional().default(false).describe("Show staged changes (default: false, shows unstaged)"),
   /** Compare against ref (branch/commit) */
-  ref: z.string().optional(),
+  ref: z.string().optional().describe("Compare against ref (branch/commit)"),
   /** Specific paths to diff */
-  paths: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional().describe("Specific paths to diff"),
   /** Show stat summary only (default: false) */
-  stat: z.boolean().optional().default(false),
+  stat: z.boolean().optional().default(false).describe("Show stat summary only (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitDiffInput = z.infer<typeof GitDiffInputSchema>;
@@ -339,11 +339,11 @@ export const GitInitInputSchema: z.ZodObject<{
   initialBranch: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Directory to initialize (default: process.cwd()) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Directory to initialize (default: process.cwd())"),
   /** Create a bare repository (default: false) */
-  bare: z.boolean().optional().default(false),
+  bare: z.boolean().optional().default(false).describe("Create a bare repository (default: false)"),
   /** Name for the initial branch */
-  initialBranch: z.string().optional(),
+  initialBranch: z.string().optional().describe("Name for the initial branch"),
 });
 
 export type GitInitInput = z.infer<typeof GitInitInputSchema>;
@@ -365,11 +365,11 @@ export const GitRemoteInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Remote name (default: origin) */
-  name: z.string().optional().default("origin"),
+  name: z.string().optional().default("origin").describe("Remote name (default: origin)"),
   /** New URL to set (if provided, sets the URL; otherwise gets it) */
-  url: z.string().optional(),
+  url: z.string().optional().describe("New URL to set (if provided, sets the URL; otherwise gets it)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitRemoteInput = z.infer<typeof GitRemoteInputSchema>;
@@ -393,15 +393,15 @@ export const GitFetchInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Remote name (default: origin) */
-  remote: z.string().optional().default("origin"),
+  remote: z.string().optional().default("origin").describe("Remote name (default: origin)"),
   /** Specific branch to fetch (default: all) */
-  branch: z.string().optional(),
+  branch: z.string().optional().describe("Specific branch to fetch (default: all)"),
   /** Fetch all remotes (default: false) */
-  all: z.boolean().optional().default(false),
+  all: z.boolean().optional().default(false).describe("Fetch all remotes (default: false)"),
   /** Prune deleted branches (default: false) */
-  prune: z.boolean().optional().default(false),
+  prune: z.boolean().optional().default(false).describe("Prune deleted branches (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitFetchInput = z.infer<typeof GitFetchInputSchema>;
@@ -419,7 +419,7 @@ export const GitPredicateInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Working directory (default: process.cwd()) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory (default: process.cwd())"),
 });
 
 export type GitPredicateInput = {
@@ -452,7 +452,7 @@ export const GitStashListInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Working directory (default: process.cwd()) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory (default: process.cwd())"),
 });
 
 export type GitStashListInput = z.infer<typeof GitStashListInputSchema>;
@@ -473,15 +473,15 @@ export const GitStashPushInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Stash message */
-  message: z.string().optional(),
+  message: z.string().optional().describe("Stash message"),
   /** Include untracked files (default: false) */
-  includeUntracked: z.boolean().optional(),
+  includeUntracked: z.boolean().optional().describe("Include untracked files (default: false)"),
   /** Keep staged changes in index (default: false) */
-  keepIndex: z.boolean().optional(),
+  keepIndex: z.boolean().optional().describe("Keep staged changes in index (default: false)"),
   /** Specific paths to stash */
-  paths: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional().describe("Specific paths to stash"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitStashPushInput = z.infer<typeof GitStashPushInputSchema>;
@@ -501,9 +501,9 @@ export const GitStashPopInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Stash index to pop (default: 0 = most recent) */
-  index: z.number().optional(),
+  index: z.number().optional().describe("Stash index to pop (default: 0 = most recent)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitStashPopInput = z.infer<typeof GitStashPopInputSchema>;
@@ -525,9 +525,9 @@ export const GitStashApplyInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Stash index to apply (default: 0 = most recent) */
-  index: z.number().optional(),
+  index: z.number().optional().describe("Stash index to apply (default: 0 = most recent)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitStashApplyInput = z.infer<typeof GitStashApplyInputSchema>;
@@ -547,9 +547,9 @@ export const GitStashDropInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Stash index to drop (default: 0 = most recent) */
-  index: z.number().optional(),
+  index: z.number().optional().describe("Stash index to drop (default: 0 = most recent)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitStashDropInput = z.infer<typeof GitStashDropInputSchema>;
@@ -567,9 +567,9 @@ export const GitStashExportInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Stash index to export (default: 0 = most recent) */
-  index: z.number().optional(),
+  index: z.number().optional().describe("Stash index to export (default: 0 = most recent)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitStashExportInput = z.infer<typeof GitStashExportInputSchema>;
@@ -597,13 +597,13 @@ export const GitStashImportInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Patch content to apply and stash */
-  patch: z.string(),
+  patch: z.string().describe("Patch content to apply and stash"),
   /** Message for the new stash */
-  message: z.string().optional(),
+  message: z.string().optional().describe("Message for the new stash"),
   /** Include untracked files (default: false) */
-  includeUntracked: z.boolean().optional(),
+  includeUntracked: z.boolean().optional().describe("Include untracked files (default: false)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitStashImportInput = z.infer<typeof GitStashImportInputSchema>;

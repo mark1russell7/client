@@ -3,9 +3,11 @@
  * Get database information and statistics
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 import { type DatabaseInfo } from "../types.js";
 
 // Input/Output types
@@ -13,7 +15,9 @@ import { type DatabaseInfo } from "../types.js";
 type InfoInput = ScopeInput;
 
 // Schemas
-const infoInputSchema = schema<InfoInput>();
+const infoInputSchema = zodAdapter<InfoInput>(
+  z.object({ ...scopeFields() })
+);
 const infoOutputSchema = schema<DatabaseInfo>();
 
 export const infoProcedure: Procedure<

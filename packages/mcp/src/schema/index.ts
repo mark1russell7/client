@@ -3,9 +3,11 @@
  */
 
 export {
+  toolInputSchema,
+  cachedToolInputSchema,
   zodToJsonSchema,
   cachedZodToJsonSchema,
   clearSchemaCache,
   getSchemaCacheSize,
   type ZodToJsonSchemaOptions,
-} from "./zod-to-json-schema.js";
+} from "./tool-schema.js";

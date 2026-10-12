@@ -14,9 +14,9 @@ export const ReadInputSchema: z.ZodObject<{
   encoding: z.ZodDefault<z.ZodOptional<z.ZodString>>;
 }> = z.object({
   /** Path to file to read */
-  path: z.string(),
+  path: z.string().describe("Path to file to read"),
   /** File encoding (default: utf8) */
-  encoding: z.string().optional().default("utf8"),
+  encoding: z.string().optional().default("utf8").describe("File encoding (default: utf8)"),
 });
 
 export type ReadInput = z.infer<typeof ReadInputSchema>;
@@ -38,16 +38,16 @@ export const WriteInputSchema: z.ZodObject<{
   path: z.ZodString;
   content: z.ZodString;
   encoding: z.ZodDefault<z.ZodOptional<z.ZodString>>;
-  mode: z.ZodDefault<z.ZodOptional<z.ZodEnum<["write", "append"]>>>;
+  mode: z.ZodDefault<z.ZodOptional<z.ZodEnum<{ write: "write"; append: "append" }>>>;
 }> = z.object({
   /** Path to file to write */
-  path: z.string(),
+  path: z.string().describe("Path to file to write"),
   /** Content to write */
-  content: z.string(),
+  content: z.string().describe("Content to write"),
   /** File encoding (default: utf8) */
-  encoding: z.string().optional().default("utf8"),
+  encoding: z.string().optional().default("utf8").describe("File encoding (default: utf8)"),
   /** Write mode: write (overwrite) or append (default: write) */
-  mode: z.enum(["write", "append"]).optional().default("write"),
+  mode: z.enum(["write", "append"]).optional().default("write").describe("Write mode: write (overwrite) or append (default: write)"),
 });
 
 export type WriteInput = z.infer<typeof WriteInputSchema>;
@@ -64,7 +64,7 @@ export const FileTypeInputSchema : z.ZodObject<{
   path: z.ZodString;
 }> = z.object({
   /** Path to check */
-  path: z.string(),
+  path: z.string().describe("Path to check"),
 });
 
 export type FileTypeInput = z.infer<typeof FileTypeInputSchema>;
@@ -85,7 +85,7 @@ export const ExistsInputSchema: z.ZodObject<{
   path: z.ZodString;
 }> = z.object({
   /** Path to check */
-  path: z.string(),
+  path: z.string().describe("Path to check"),
 });
 
 export type ExistsInput = z.infer<typeof ExistsInputSchema>;
@@ -106,9 +106,9 @@ export const MkdirInputSchema: z.ZodObject<{
   recursive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Path of directory to create */
-  path: z.string(),
+  path: z.string().describe("Path of directory to create"),
   /** Create parent directories if needed (default: true) */
-  recursive: z.boolean().optional().default(true),
+  recursive: z.boolean().optional().default(true).describe("Create parent directories if needed (default: true)"),
 });
 
 export type MkdirInput = z.infer<typeof MkdirInputSchema>;
@@ -130,11 +130,11 @@ export const RmInputSchema: z.ZodObject<{
   force: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Path to remove */
-  path: z.string(),
+  path: z.string().describe("Path to remove"),
   /** Remove directories and contents recursively (default: false) */
-  recursive: z.boolean().optional().default(false),
+  recursive: z.boolean().optional().default(false).describe("Remove directories and contents recursively (default: false)"),
   /** Ignore errors if path doesn't exist (default: false) */
-  force: z.boolean().optional().default(false),
+  force: z.boolean().optional().default(false).describe("Ignore errors if path doesn't exist (default: false)"),
 });
 
 export type RmInput = z.infer<typeof RmInputSchema>;
@@ -156,11 +156,11 @@ export const ReaddirInputSchema: z.ZodObject<{
   includeStats: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Path of directory to read */
-  path: z.string(),
+  path: z.string().describe("Path of directory to read"),
   /** Read subdirectories recursively (default: false) */
-  recursive: z.boolean().optional().default(false),
+  recursive: z.boolean().optional().default(false).describe("Read subdirectories recursively (default: false)"),
   /** Include file stats with each entry (default: false) */
-  includeStats: z.boolean().optional().default(false),
+  includeStats: z.boolean().optional().default(false).describe("Include file stats with each entry (default: false)"),
 });
 
 export type ReaddirInput = z.infer<typeof ReaddirInputSchema>;
@@ -191,7 +191,7 @@ export const StatInputSchema: z.ZodObject<{
   path: z.ZodString;
 }> = z.object({
   /** Path to get stats for */
-  path: z.string(),
+  path: z.string().describe("Path to get stats for"),
 });
 
 export type StatInput = z.infer<typeof StatInputSchema>;
@@ -224,13 +224,13 @@ export const CopyInputSchema: z.ZodObject<{
   overwrite: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Source path */
-  src: z.string(),
+  src: z.string().describe("Source path"),
   /** Destination path */
-  dest: z.string(),
+  dest: z.string().describe("Destination path"),
   /** Copy directories recursively (default: true) */
-  recursive: z.boolean().optional().default(true),
+  recursive: z.boolean().optional().default(true).describe("Copy directories recursively (default: true)"),
   /** Overwrite existing files (default: false) */
-  overwrite: z.boolean().optional().default(false),
+  overwrite: z.boolean().optional().default(false).describe("Overwrite existing files (default: false)"),
 });
 
 export type CopyInput = z.infer<typeof CopyInputSchema>;
@@ -252,11 +252,11 @@ export const MoveInputSchema: z.ZodObject<{
   overwrite: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }> = z.object({
   /** Source path */
-  src: z.string(),
+  src: z.string().describe("Source path"),
   /** Destination path */
-  dest: z.string(),
+  dest: z.string().describe("Destination path"),
   /** Overwrite existing files (default: false) */
-  overwrite: z.boolean().optional().default(false),
+  overwrite: z.boolean().optional().default(false).describe("Overwrite existing files (default: false)"),
 });
 
 export type MoveInput = z.infer<typeof MoveInputSchema>;
@@ -280,15 +280,15 @@ export const GlobInputSchema: z.ZodObject<{
   ignore: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }> = z.object({
   /** Glob pattern to match */
-  pattern: z.string(),
+  pattern: z.string().describe("Glob pattern to match"),
   /** Working directory (default: process.cwd()) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory (default: process.cwd())"),
   /** Return absolute paths (default: false) */
-  absolute: z.boolean().optional().default(false),
+  absolute: z.boolean().optional().default(false).describe("Return absolute paths (default: false)"),
   /** Include dotfiles (default: false) */
-  dot: z.boolean().optional().default(false),
+  dot: z.boolean().optional().default(false).describe("Include dotfiles (default: false)"),
   /** Glob patterns of the paths to leave out. The search does not enter the folders that they match. */
-  ignore: z.array(z.string()).optional(),
+  ignore: z.array(z.string()).optional().describe("Glob patterns of the paths to leave out. The search does not enter the folders that they match."),
 });
 
 export type GlobInput = z.infer<typeof GlobInputSchema>;
@@ -308,7 +308,7 @@ export const ReadJsonInputSchema: z.ZodObject<{
   path: z.ZodString;
 }> = z.object({
   /** Path to JSON file */
-  path: z.string(),
+  path: z.string().describe("Path to JSON file"),
 });
 
 export type ReadJsonInput = z.infer<typeof ReadJsonInputSchema>;

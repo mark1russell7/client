@@ -21,6 +21,8 @@ export type {
 
 // Schema utilities
 export {
+  toolInputSchema,
+  cachedToolInputSchema,
   zodToJsonSchema,
   cachedZodToJsonSchema,
   clearSchemaCache,

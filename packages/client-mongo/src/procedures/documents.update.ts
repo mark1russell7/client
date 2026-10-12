@@ -3,9 +3,11 @@
  * Update documents matching a filter
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor } from "../scope.js";
 import { schema } from "./schema.js";
+import { described, documentObject, scopeFields, targetFields } from "./input-schemas.js";
+import { z } from "zod";
 import type { DocumentUpdate } from "../types.js";
 import { parseTarget, targetFilter, upsertFilter, type TargetInput } from "./target.js";
 
@@ -43,7 +45,15 @@ function parseUpdateInput(data: unknown): UpdateInput {
 }
 
 // Schemas
-const updateInputSchema = zodAdapter<UpdateInput>({ parse: parseUpdateInput });
+const updateInputSchema = described<UpdateInput>(
+  parseUpdateInput,
+  z.object({
+    ...scopeFields(),
+    ...targetFields(),
+    update: documentObject().describe("The update operations, for example { $set: { status: \"done\" } }"),
+    upsert: z.boolean().optional().describe("Insert a document when none matches"),
+  })
+);
 const updateOutputSchema = schema<UpdateOutput>();
 
 export const updateProcedure: Procedure<

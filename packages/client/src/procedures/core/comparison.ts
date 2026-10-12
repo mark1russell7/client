@@ -5,6 +5,7 @@
  * All procedures are namespaced under "client" (e.g., client.eq, client.gt).
  */
 
+import { z } from "zod";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 
@@ -27,15 +28,20 @@ const anySchema: {
 // =============================================================================
 
 interface EqInput {
-  a: unknown;
-  b: unknown;
+  a?: unknown;
+  b?: unknown;
 }
+
+const EqInputSchema = z.object({
+  a: z.unknown().optional().describe("The first operand"),
+  b: z.unknown().optional().describe("The second operand"),
+});
 
 type EqProcedure = Procedure<EqInput, boolean, { description: string; tags: string[] }>;
 
 const eqProcedure: EqProcedure = defineProcedure({
   path: ["eq"],
-  input: anySchema as any,
+  input: EqInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Strict equality (===)",
@@ -51,15 +57,20 @@ const eqProcedure: EqProcedure = defineProcedure({
 // =============================================================================
 
 interface NeqInput {
-  a: unknown;
-  b: unknown;
+  a?: unknown;
+  b?: unknown;
 }
+
+const NeqInputSchema = z.object({
+  a: z.unknown().optional().describe("The first operand"),
+  b: z.unknown().optional().describe("The second operand"),
+});
 
 type NeqProcedure = Procedure<NeqInput, boolean, { description: string; tags: string[] }>;
 
 const neqProcedure: NeqProcedure = defineProcedure({
   path: ["neq"],
-  input: anySchema as any,
+  input: NeqInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Strict inequality (!==)",
@@ -79,11 +90,16 @@ interface GtInput {
   b: number;
 }
 
+const GtInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type GtProcedure = Procedure<GtInput, boolean, { description: string; tags: string[] }>;
 
 const gtProcedure: GtProcedure = defineProcedure({
   path: ["gt"],
-  input: anySchema as any,
+  input: GtInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Greater than (a > b)",
@@ -103,11 +119,16 @@ interface GteInput {
   b: number;
 }
 
+const GteInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type GteProcedure = Procedure<GteInput, boolean, { description: string; tags: string[] }>;
 
 const gteProcedure: GteProcedure = defineProcedure({
   path: ["gte"],
-  input: anySchema as any,
+  input: GteInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Greater than or equal (a >= b)",
@@ -127,11 +148,16 @@ interface LtInput {
   b: number;
 }
 
+const LtInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type LtProcedure = Procedure<LtInput, boolean, { description: string; tags: string[] }>;
 
 const ltProcedure: LtProcedure = defineProcedure({
   path: ["lt"],
-  input: anySchema as any,
+  input: LtInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Less than (a < b)",
@@ -151,11 +177,16 @@ interface LteInput {
   b: number;
 }
 
+const LteInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type LteProcedure = Procedure<LteInput, boolean, { description: string; tags: string[] }>;
 
 const lteProcedure: LteProcedure = defineProcedure({
   path: ["lte"],
-  input: anySchema as any,
+  input: LteInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Less than or equal (a <= b)",
@@ -174,14 +205,21 @@ interface BetweenInput {
   value: number;
   min: number;
   max: number;
-  inclusive?: boolean;
+  inclusive?: boolean | undefined;
 }
+
+const BetweenInputSchema = z.object({
+  value: z.number().describe("The value"),
+  min: z.number().describe("The lower bound"),
+  max: z.number().describe("The upper bound"),
+  inclusive: z.boolean().optional().describe("Include the bounds (default: true)"),
+});
 
 type BetweenProcedure = Procedure<BetweenInput, boolean, { description: string; tags: string[] }>;
 
 const betweenProcedure: BetweenProcedure = defineProcedure({
   path: ["between"],
-  input: anySchema as any,
+  input: BetweenInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is between min and max (inclusive by default)",

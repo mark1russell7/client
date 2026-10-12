@@ -5,12 +5,13 @@
 
 import {
   createProcedure,
-  zodAdapter,
   type Procedure,
   type ProcedureContext,
 } from "@mark1russell7/client";
 import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { described, idTypeField, scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 import {
   buildIdFilter,
   type IdType,
@@ -60,7 +61,14 @@ function parseGetInput(data: unknown): GetInput {
 }
 
 // Schemas
-const getInputSchema = zodAdapter<GetInput>({ parse: parseGetInput });
+const getInputSchema = described<GetInput>(
+  parseGetInput,
+  z.object({
+    ...scopeFields(),
+    id: z.string().min(1).describe("The id of the document"),
+    idType: idTypeField(),
+  })
+);
 const getOutputSchema = schema<GetOutput>();
 
 export const getProcedure: Procedure<

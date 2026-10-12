@@ -19,7 +19,7 @@ export const LibScanInputSchema: z.ZodObject<{
   rootPath: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
-  rootPath: z.string().optional(),
+  rootPath: z.string().optional().describe("Workspace root (defaults to the pnpm workspace that contains client-lib)"),
 });
 
 export type LibScanInput = z.infer<typeof LibScanInputSchema>;
@@ -109,13 +109,13 @@ export const LibRenameInputSchema: z.ZodObject<{
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
   /** Current package name to rename from */
-  oldName: z.string(),
+  oldName: z.string().describe("Current package name to rename from"),
   /** New package name to rename to */
-  newName: z.string(),
+  newName: z.string().describe("New package name to rename to"),
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
-  rootPath: z.string().optional(),
+  rootPath: z.string().optional().describe("Workspace root (defaults to the pnpm workspace that contains client-lib)"),
   /** Preview changes without applying (default: false) */
-  dryRun: z.boolean().default(false),
+  dryRun: z.boolean().default(false).describe("Preview changes without applying (default: false)"),
 });
 
 export type LibRenameInput = z.infer<typeof LibRenameInputSchema>;
@@ -162,13 +162,13 @@ export const LibNewInputSchema: z.ZodObject<{
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
   /** Package name (without @mark1russell7/ prefix) */
-  name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens"),
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens").describe("Package name (without @mark1russell7/ prefix)"),
   /** Feature preset to use */
-  preset: z.string().regex(/^[a-z][a-z0-9-]*$/, "Preset must be lowercase alphanumeric with hyphens").default("lib"),
+  preset: z.string().regex(/^[a-z][a-z0-9-]*$/, "Preset must be lowercase alphanumeric with hyphens").default("lib").describe("Feature preset to use"),
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
-  rootPath: z.string().optional(),
+  rootPath: z.string().optional().describe("Workspace root (defaults to the pnpm workspace that contains client-lib)"),
   /** Preview changes without creating */
-  dryRun: z.boolean().default(false),
+  dryRun: z.boolean().default(false).describe("Preview changes without creating"),
 });
 
 export type LibNewInput = z.infer<typeof LibNewInputSchema>;
@@ -197,9 +197,9 @@ export const LibAuditInputSchema: z.ZodObject<{
   fix: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
-  rootPath: z.string().optional(),
+  rootPath: z.string().optional().describe("Workspace root (defaults to the pnpm workspace that contains client-lib)"),
   /** Attempt to fix issues (create missing files/dirs) */
-  fix: z.boolean().default(false),
+  fix: z.boolean().default(false).describe("Attempt to fix issues (create missing files/dirs)"),
 });
 
 export type LibAuditInput = z.infer<typeof LibAuditInputSchema>;
@@ -285,12 +285,12 @@ const ProcRefSchema: z.ZodObject<{
 });
 
 export const DagTraverseInputSchema: z.ZodObject<{
-  visit: z.ZodUnion<[z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
+  visit: z.ZodUnion<readonly [z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
   filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
   root: z.ZodOptional<z.ZodString>;
   rootPath: z.ZodOptional<z.ZodString>;
   concurrency: z.ZodDefault<z.ZodNumber>;
-  serialize: z.ZodDefault<z.ZodEnum<["auto", "repository", "none"]>>;
+  serialize: z.ZodDefault<z.ZodEnum<{ auto: "auto"; repository: "repository"; none: "none" }>>;
   continueOnError: z.ZodDefault<z.ZodBoolean>;
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
@@ -307,26 +307,26 @@ export const DagTraverseInputSchema: z.ZodObject<{
   visit: z.union([
     z.array(z.string()),
     ProcRefSchema,
-  ]),
+  ]).describe("Procedure to execute for each node. - Array: procedure path, e.g., [\"git\", \"add\"] - $proc with $when: \"$never\" or \"$parent\": deferred, executed per-node Example: ```json { \"$proc\": [\"git\", \"add\"], \"input\": { \"all\": true }, \"$when\": \"$parent\" } ```"),
   /** Filter to specific package names */
-  filter: z.array(z.string()).optional(),
+  filter: z.array(z.string()).optional().describe("Filter to specific package names"),
   /** Start from specific root package */
-  root: z.string().optional(),
+  root: z.string().optional().describe("Start from specific root package"),
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
-  rootPath: z.string().optional(),
+  rootPath: z.string().optional().describe("Workspace root (defaults to the pnpm workspace that contains client-lib)"),
   /** Max parallel operations (default: 4) */
-  concurrency: z.number().default(4),
+  concurrency: z.number().default(4).describe("Max parallel operations (default: 4)"),
   /**
    * When the visits of nodes in one git repository run one at a time (default: "auto").
    * - "auto": when the visit calls a `git` procedure (git locks the index of the repository)
    * - "repository": always
    * - "none": never
    */
-  serialize: z.enum(["auto", "repository", "none"]).default("auto"),
+  serialize: z.enum(["auto", "repository", "none"]).default("auto").describe("When the visits of nodes in one git repository run one at a time (default: \"auto\"). - \"auto\": when the visit calls a `git` procedure (git locks the index of the repository) - \"repository\": always - \"none\": never"),
   /** Continue on error (default: false) */
-  continueOnError: z.boolean().default(false),
+  continueOnError: z.boolean().default(false).describe("Continue on error (default: false)"),
   /** Preview without executing (default: false) */
-  dryRun: z.boolean().default(false),
+  dryRun: z.boolean().default(false).describe("Preview without executing (default: false)"),
 });
 
 export type DagTraverseInput = z.infer<typeof DagTraverseInputSchema>;
@@ -366,15 +366,15 @@ export const CoreCatchInputSchema: z.ZodObject<{
    * { "$proc": ["git", "commit"], "input": { "message": "auto" }, "$when": "catch" }
    * ```
    */
-  try: z.unknown(),
+  try: z.unknown().describe("Procedure ref to try executing. Should use $when: \"catch\" so it's not auto-executed during hydration. Example: ```json { \"$proc\": [\"git\", \"commit\"], \"input\": { \"message\": \"auto\" }, \"$when\": \"catch\" } ```"),
   /**
    * Handler procedure ref called on error.
    * Receives StepResultInfo (success, error, proc) merged with its input.
    * Should return ContinueDecision { continue: boolean }.
    */
-  handler: z.unknown().optional(),
+  handler: z.unknown().optional().describe("Handler procedure ref called on error. Receives StepResultInfo (success, error, proc) merged with its input. Should return ContinueDecision { continue: boolean }."),
   /** Working directory for procedure execution */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory for procedure execution"),
 });
 
 export type CoreCatchInput = z.infer<typeof CoreCatchInputSchema>;

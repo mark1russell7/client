@@ -3,9 +3,11 @@
  * Insert one or more documents
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields, documentObject } from "./input-schemas.js";
+import { z } from "zod";
 import { type MongoDocument } from "../types.js";
 
 // Input/Output types
@@ -21,7 +23,14 @@ interface InsertOutput {
 }
 
 // Schemas
-const insertInputSchema = schema<InsertInput>();
+const insertInputSchema = zodAdapter<InsertInput>(
+  z.object({
+    ...scopeFields(),
+    documents: z
+      .union([documentObject(), z.array(documentObject())])
+      .describe("One document, or a list of documents"),
+  })
+);
 const insertOutputSchema = schema<InsertOutput>();
 
 export const insertProcedure: Procedure<

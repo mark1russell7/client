@@ -5,7 +5,8 @@
  * Procedures are the foundation for typed RPC calls with schema validation.
  */
 
-import type { ZodLike, ZodErrorLike } from "../client/validation/types.js";
+import type { ZodErrorLike } from "../client/validation/types.js";
+import type { ProcedureSchema } from "./schema.js";
 import type { CollectionStorage } from "@mark1russell7/client-collections";
 import type { EventBus } from "../events/types.js";
 import type { HydrationEvent } from "./ref.js";
@@ -314,11 +315,11 @@ export interface Procedure<
   /** Path in the route tree */
   path: ProcedurePath;
 
-  /** Input validation schema (Zod-compatible) */
-  input: ZodLike<TInput>;
+  /** Input validation schema: a Standard Schema (zod 4, valibot, arktype) or a `ZodLike` */
+  input: ProcedureSchema<TInput>;
 
-  /** Output validation schema (Zod-compatible) */
-  output: ZodLike<TOutput>;
+  /** Output validation schema: a Standard Schema or a `ZodLike` */
+  output: ProcedureSchema<TOutput>;
 
   /** Procedure metadata for documentation */
   metadata: TMeta;

@@ -31,9 +31,9 @@ export const CueInitInputSchema: z.ZodObject<{
   force: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  preset: z.string().optional().default("lib"),
-  force: z.boolean().optional().default(false),
-  cwd: z.string().optional(),
+  preset: z.string().optional().default("lib").describe("The preset: lib, react-lib or app"),
+  force: z.boolean().optional().default(false).describe("Write dependencies.json again when it exists"),
+  cwd: z.string().optional().describe("The folder of the package (default: the current folder)"),
 });
 
 export type CueInitInput = z.infer<typeof CueInitInputSchema>;
@@ -54,8 +54,8 @@ export const CueAddInputSchema: z.ZodObject<{
   feature: z.ZodString;
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  feature: z.string(),
-  cwd: z.string().optional(),
+  feature: z.string().describe("The feature: git, npm, ts, node, node-cjs, react, vite, vite-react, cue or vitest"),
+  cwd: z.string().optional().describe("The folder of the package (default: the current folder)"),
 });
 
 export type CueAddInput = z.infer<typeof CueAddInputSchema>;
@@ -76,8 +76,8 @@ export const CueRemoveInputSchema: z.ZodObject<{
   feature: z.ZodString;
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  feature: z.string(),
-  cwd: z.string().optional(),
+  feature: z.string().describe("The feature: git, npm, ts, node, node-cjs, react, vite, vite-react, cue or vitest"),
+  cwd: z.string().optional().describe("The folder of the package (default: the current folder)"),
 });
 
 export type CueRemoveInput = z.infer<typeof CueRemoveInputSchema>;
@@ -97,7 +97,7 @@ export interface CueRemoveOutput {
 export const CueGenerateInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("The folder of the package (default: the current folder)"),
 });
 
 export type CueGenerateInput = z.infer<typeof CueGenerateInputSchema>;
@@ -117,7 +117,7 @@ export interface CueGenerateOutput {
 export const CueValidateInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("The folder of the package (default: the current folder)"),
 });
 
 export type CueValidateInput = z.infer<typeof CueValidateInputSchema>;

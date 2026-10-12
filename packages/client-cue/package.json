@@ -66,7 +66,7 @@
     "@mark1russell7/client-fs": "workspace:*",
     "@mark1russell7/client-shell": "workspace:*",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "zod": "^3.24.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

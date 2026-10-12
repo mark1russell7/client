@@ -409,3 +409,24 @@ export {
 // import { createCacheMiddleware } from "client/client"
 // etc.
 // ============================================================================
+
+// ============================================================================
+// Schemas: Standard Schema v1, validation and JSON Schema (roadmap 2.1)
+// ============================================================================
+export {
+  validateSchema,
+  validateSchemaAsync,
+  jsonSchemaOf,
+  isStandardSchema,
+  describeIssues,
+} from "./procedures/index.js";
+export type {
+  StandardSchemaV1,
+  StandardJSONSchemaConverter,
+  ProcedureSchema,
+  InferSchema,
+  SchemaResult,
+  JsonSchema,
+  JsonSchemaTarget,
+  JsonSchemaSource,
+} from "./procedures/index.js";

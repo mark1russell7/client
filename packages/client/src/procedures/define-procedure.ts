@@ -47,6 +47,24 @@ import {
   RUNS_REFS_TAG,
 } from "./ref.js";
 
+// Input schemas of procedure.define and procedure.delete (roadmap 2.1)
+const procedurePathField = z.array(z.string().min(1)).min(1);
+const defineInputSchema = z.object({
+  path: procedurePathField.describe('The path of the new procedure, for example ["tools", "double"]'),
+  aggregation: z
+    .looseObject({
+      $proc: z.array(z.string().min(1)).min(1).describe("The path of the procedure that the body calls"),
+      input: z.unknown().optional().describe("The input of that call. It reads the input of the new procedure as { $ref: \"input.<field>\" }."),
+      $name: z.string().optional().describe("A name that a $ref can read"),
+    })
+    .describe("The body of the procedure: a call ({ $proc, input }) that runs, as client.exec runs it, each time the procedure is called"),
+  metadata: z.record(z.string(), z.unknown()).optional().describe("The metadata of the procedure, for example { description, tags }"),
+  replace: z.boolean().optional().describe("Replace a procedure that procedure.define made at the same path (never a procedure of code)"),
+});
+const deleteInputSchema = z.object({
+  path: procedurePathField.describe("The path of the procedure to delete (only a procedure that procedure.define made)"),
+});
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -217,7 +235,7 @@ export const defineProcedureProcedure: Procedure<
   DefineMetadata
 > = defineProcedure({
   path: ["procedure", "define"],
-  input: anySchema as any,
+  input: defineInputSchema as any,
   output: anySchema as any,
   metadata: {
     description: "Define a new procedure from an aggregation",
@@ -415,7 +433,7 @@ export const deleteProcedureProcedure: Procedure<
   ProcedureMetadata
 > = defineProcedure({
   path: ["procedure", "delete"],
-  input: anySchema as any,
+  input: deleteInputSchema as any,
   output: anySchema as any,
   metadata: {
     description: "Delete a runtime-defined procedure",

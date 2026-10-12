@@ -13,9 +13,9 @@ import { ensureConnection } from "./connection.js";
 /** The input fields that select the database and the collection. */
 export interface ScopeInput {
   /** The collection name. It takes the place of `metadata.collection`. */
-  collection?: string;
+  collection?: string | undefined;
   /** The database name. It takes the place of `metadata.database` and the connection default. */
-  database?: string;
+  database?: string | undefined;
 }
 
 /** The names of the scope fields, for the input parsers. */

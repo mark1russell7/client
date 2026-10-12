@@ -39,7 +39,7 @@ export function testProcedures(): AnyProcedure[] {
         command: z.array(z.string()),
         interactive: z.boolean().optional(),
         tty: z.boolean().optional(),
-        env: z.record(z.string()).optional(),
+        env: z.record(z.string(), z.string()).optional(),
       }),
       { args: ["container", "command"], shorts: { interactive: "i", tty: "t" } }
     ),

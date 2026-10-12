@@ -3,9 +3,11 @@
  * List indexes on a collection
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 import { type IndexInfo } from "../types.js";
 
 // Input/Output types
@@ -17,7 +19,9 @@ interface ListIndexesOutput {
 }
 
 // Schemas
-const listIndexesInputSchema = schema<ListIndexesInput>();
+const listIndexesInputSchema = zodAdapter<ListIndexesInput>(
+  z.object({ ...scopeFields() })
+);
 const listIndexesOutputSchema = schema<ListIndexesOutput>();
 
 export const listIndexesProcedure: Procedure<
