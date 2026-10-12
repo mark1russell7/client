@@ -33,16 +33,13 @@ const procedureNewProcedure = createProcedure()
   .build();
 
 export function registerProcedureProcedures(): void {
-  // Use override so registration is idempotent and order-independent: the core client also
-  // registers procedure.get/list (operating on runtime procedures), and registerAll() throws on
-  // duplicate paths — so loading client-procedure after core threw mid-bundle. client-procedure
-  // owns the full-registry introspection variants and wins deterministically. Found via the
-  // PROCEDURES.md generator; see documentation/BUGS-2026-07.md.
+  // Override makes the registration idempotent. procedure.list and procedure.get are the core
+  // ones: this package does not replace them (docs review DOC-6).
   PROCEDURE_REGISTRY.registerAll(
     [
       // procedure.new
       procedureNewProcedure,
-      // procedure.list, procedure.get, procedure.export (from registry.ts)
+      // procedure.export (from registry.ts)
       ...procedureRegistryProcedures,
     ],
     { override: true }

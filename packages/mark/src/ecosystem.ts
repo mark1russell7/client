@@ -15,6 +15,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { PROCEDURE_REGISTRY, allCoreProcedures } from "@mark1russell7/client";
 
 // =============================================================================
 // Types
@@ -99,6 +100,23 @@ export function discoverFromEcosystem(root: string | null = findWorkspaceRoot())
 }
 
 /**
+ * This function registers the core procedures of `@mark1russell7/client` that its import does not
+ * register: the math, string, array, object, comparison, type and meta procedures (`client.add`
+ * and the others). The import registers only the control-flow procedures. (Docs review DOC-6:
+ * before, `mark client add` was an unknown command.) A procedure that is registered already stays.
+ */
+export function registerCoreProcedures(): number {
+  let added = 0;
+  for (const procedure of allCoreProcedures) {
+    if (!PROCEDURE_REGISTRY.has(procedure.path)) {
+      PROCEDURE_REGISTRY.register(procedure);
+      added++;
+    }
+  }
+  return added;
+}
+
+/**
  * Dynamically load procedures from discovered packages.
  *
  * A package that fails to load gives one warning line on stderr, also without `verbose`: before,
@@ -107,6 +125,7 @@ export function discoverFromEcosystem(root: string | null = findWorkspaceRoot())
  * build of mark writes the manifest while other packages can still be in their build).
  */
 export async function loadEcosystemProcedures(verbose = false, warn = true): Promise<string[]> {
+  registerCoreProcedures();
   const discovered = discoverFromEcosystem();
   const loaded: string[] = [];
 

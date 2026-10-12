@@ -5,6 +5,11 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
+// The lib procedures call fs.* and git.* (their `calls` below). Importing those packages registers
+// them, so client-lib works alone. (Docs review DOC-5: before, lib.scan alone found no packages,
+// and over MCP its git calls failed with NOT_FOUND.)
+import "@mark1russell7/client-fs";
+import "@mark1russell7/client-git";
 import { createProcedure, registerProcedures, zodAdapter, outputSchema, RUNS_REFS_TAG } from "@mark1russell7/client";
 import {
   libScan,
@@ -19,7 +24,6 @@ import {
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
 import { dagTraverse } from "./procedures/dag/index.js";
-import { scopedInput } from "./scoped-input.js";
 import { coreCatch } from "./procedures/core/index.js";
 import {
   LibScanInputSchema,
@@ -136,7 +140,7 @@ const ecosystemProceduresProcedure = createProcedure()
 
 const dagTraverseProcedure = createProcedure()
   .path(["dag", "traverse"])
-  .input(scopedInput<DagTraverseInput>(DagTraverseInputSchema))
+  .input(zodAdapter<DagTraverseInput>(DagTraverseInputSchema))
   .output(outputSchema<DagTraverseOutput>())
   .meta({
     description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
@@ -157,7 +161,7 @@ const dagTraverseProcedure = createProcedure()
 
 const coreCatchProcedure = createProcedure()
   .path(["core", "catch"])
-  .input(scopedInput<CoreCatchInput>(CoreCatchInputSchema))
+  .input(zodAdapter<CoreCatchInput>(CoreCatchInputSchema))
   .output(outputSchema<CoreCatchOutput>())
   .meta({
     description: "Execute a procedure with error handling",
