@@ -168,7 +168,7 @@ const dockerLogsProcedure = createProcedure()
   .output(outputSchema<DockerCommandOutput | DockerLogItem>())
   .meta({
     description: "Get container logs",
-    calls: ["shell.run"],
+    calls: ["shell.run", "shell.stream"],
     args: ["container"],
     shorts: { follow: "f", tail: "n", timestamps: "t" },
     output: "json",

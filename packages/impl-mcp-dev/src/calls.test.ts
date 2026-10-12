@@ -71,6 +71,8 @@ function samples(): Record<string, unknown> {
     "docker.compose.up": cwd,
     "docker.exec": { container: "calls-test-none", command: "true" },
     "docker.logs": { container: "calls-test-none" },
+    // A second input of the same tool after "#": with follow, docker.logs streams through shell.stream
+    "docker.logs#follow": { container: "calls-test-none", follow: true },
     "docker.ps": {},
     "docker.pull": { image: "calls-test-none" },
     "docker.rm": { containers: ["calls-test-none"] },
@@ -151,7 +153,7 @@ async function recordNestedCalls(): Promise<Set<string>> {
       return { kind: "value", value: fake(to, invocation.input as { path?: string }, exists) };
     };
     for (const key of Object.keys(inputs).sort()) {
-      const procedure = PROCEDURE_REGISTRY.get(key.split("."));
+      const procedure = PROCEDURE_REGISTRY.get(key.split("#")[0]!.split("."));
       if (!procedure) continue;
       try {
         await outputValue(await invokeProcedure(procedure, inputs[key], { interceptors: [recorder] }));

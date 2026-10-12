@@ -19,6 +19,7 @@ docker.compose.down -> shell.run
 docker.compose.up -> shell.run
 docker.exec -> shell.run
 docker.logs -> shell.run
+docker.logs -> shell.stream
 docker.ps -> shell.run
 docker.pull -> shell.run
 docker.rm -> shell.run
