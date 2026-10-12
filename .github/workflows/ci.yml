@@ -73,7 +73,9 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 26
+          # Node 24 (npm 11): npm 12 does not install the github: dependencies of the general packages.
+          # Go back to 26 after scripts/use-npm-general-packages.mjs (packages/documentation/RELEASE.md).
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
