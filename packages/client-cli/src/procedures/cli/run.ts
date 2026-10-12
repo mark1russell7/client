@@ -35,6 +35,28 @@ function resolveMarkCli(): string {
 }
 
 /**
+ * The argv of `mark` for an input: the command path, then each named argument as
+ * `--key=<text>`, then `--` and the positional arguments.
+ *
+ * A string value goes as it is. Another value goes as JSON, which `mark` converts by the type of
+ * the field: `--flag=false` for a boolean, `--files=["a","b"]` for an array, `--env={"A":"1"}`
+ * for a record. Before, the procedure sent `--key value`, so a value that starts with "-" became
+ * a flag, and it dropped a `false` boolean, so a default of `true` could not be turned off.
+ * The `--` keeps a positional argument that starts with "-" from becoming a flag.
+ */
+export function buildMarkArgs(input: Pick<CliRunInput, "path" | "positional" | "args">): string[] {
+  const args: string[] = [...input.path];
+  for (const [key, value] of Object.entries(input.args ?? {})) {
+    if (value === undefined || value === null) continue;
+    args.push(`--${key}=${typeof value === "string" ? value : JSON.stringify(value)}`);
+  }
+  if (input.positional && input.positional.length > 0) {
+    args.push("--", ...input.positional.map(String));
+  }
+  return args;
+}
+
+/**
  * Execute via shell (spawn node process)
  */
 async function shellExecution(
@@ -42,26 +64,7 @@ async function shellExecution(
   ctx: ProcedureContext,
   startTime: number
 ): Promise<CliRunOutput> {
-  // Build command args: path + positional + named args
-  const args: string[] = [...input.path];
-
-  // Add positional arguments
-  if (input.positional) {
-    args.push(...input.positional);
-  }
-
-  // Add named arguments as --key value pairs
-  if (input.args) {
-    for (const [key, value] of Object.entries(input.args)) {
-      if (typeof value === "boolean") {
-        if (value) {
-          args.push(`--${key}`);
-        }
-      } else {
-        args.push(`--${key}`, String(value));
-      }
-    }
-  }
+  const args = buildMarkArgs(input);
 
   // Build shell input
   const shellInput: {
