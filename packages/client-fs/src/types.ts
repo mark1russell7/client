@@ -173,7 +173,7 @@ export interface ReaddirEntry {
   /** Type: file, directory, or other */
   type: FileType;
   /** Stats if includeStats was true */
-  stats?: StatOutput;
+  stats?: StatOutput | undefined;
 }
 
 export interface ReaddirOutput {
@@ -320,3 +320,88 @@ export interface ReadJsonOutput {
   data: unknown;
   stats : StatOutput
 }
+
+// =============================================================================
+// Output schemas (roadmap 2.1)
+// =============================================================================
+
+// Loose objects: a field that a schema does not name stays in the result (a strict schema would
+// remove it when the output is validated).
+
+const fileType = z.enum(FileType).describe("file, directory or other");
+
+export const StatOutputSchema: z.ZodType<StatOutput> = z.looseObject({
+  path: z.string().describe("The path"),
+  type: fileType,
+  size: z.number().describe("The size, in bytes"),
+  mtime: z.string().describe("The time of the last change (ISO 8601)"),
+  ctime: z.string().describe("The time of the last status change (ISO 8601)"),
+  atime: z.string().describe("The time of the last access (ISO 8601)"),
+  mode: z.number().describe("The mode bits (type and permissions)"),
+});
+
+export const ReadOutputSchema: z.ZodType<ReadOutput> = z.looseObject({
+  content: z.string().describe("The content of the file"),
+  path: z.string().describe("The path of the file"),
+  stats: StatOutputSchema.describe("The stats of the file"),
+});
+
+export const WriteOutputSchema: z.ZodType<WriteOutput> = z.looseObject({
+  path: z.string().describe("The path of the file"),
+  bytesWritten: z.number().describe("The number of bytes written"),
+});
+
+export const ExistsOutputSchema: z.ZodType<ExistsOutput> = z.union([
+  z.looseObject({ exists: z.literal(false).describe("The path does not exist") }),
+  z.looseObject({
+    exists: z.literal(true).describe("The path exists"),
+    stats: StatOutputSchema.describe("The stats of the path"),
+  }),
+]);
+
+export const MkdirOutputSchema: z.ZodType<MkdirOutput> = z.looseObject({
+  path: z.string().describe("The path of the folder"),
+  created: z.boolean().describe("False when the folder existed already"),
+});
+
+export const RmOutputSchema: z.ZodType<RmOutput> = z.looseObject({
+  path: z.string().describe("The path"),
+  removed: z.boolean().describe("False when the path did not exist (with force)"),
+});
+
+export const ReaddirOutputSchema: z.ZodType<ReaddirOutput> = z.looseObject({
+  path: z.string().describe("The path of the folder"),
+  entries: z
+    .array(
+      z.looseObject({
+        name: z.string().describe("The name of the entry"),
+        path: z.string().describe("The full path of the entry"),
+        type: fileType,
+        stats: StatOutputSchema.optional().describe("The stats, with includeStats"),
+      })
+    )
+    .describe("The entries of the folder"),
+});
+
+export const CopyOutputSchema: z.ZodType<CopyOutput> = z.looseObject({
+  src: z.string().describe("The source path"),
+  dest: z.string().describe("The destination path"),
+});
+
+export const MoveOutputSchema: z.ZodType<MoveOutput> = z.looseObject({
+  src: z.string().describe("The old path"),
+  dest: z.string().describe("The new path"),
+});
+
+export const GlobOutputSchema: z.ZodType<GlobOutput> = z.looseObject({
+  pattern: z.string().describe("The glob pattern"),
+  matches: z
+    .array(z.string())
+    .describe('The matching paths, sorted: relative to cwd with "/" separators, or absolute with absolute: true'),
+});
+
+export const ReadJsonOutputSchema: z.ZodType<ReadJsonOutput> = z.looseObject({
+  path: z.string().describe("The path of the file"),
+  data: z.unknown().describe("The parsed JSON value"),
+  stats: StatOutputSchema.describe("The stats of the file"),
+});
