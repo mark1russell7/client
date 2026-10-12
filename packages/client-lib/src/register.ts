@@ -52,6 +52,7 @@ const libScanProcedure = createProcedure()
   .output(outputSchema<LibScanOutput>())
   .meta({
     description: "Scan for packages in the git directory",
+    calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote"],
     args: [],
     shorts: {},
     output: "json",
@@ -67,6 +68,7 @@ const libRenameProcedure = createProcedure()
   .output(outputSchema<LibRenameOutput>())
   .meta({
     description: "Rename a package across the ecosystem",
+    calls: ["fs.glob", "fs.read.json", "fs.write", "fs.exists"],
     args: ["oldName", "newName"],
     shorts: { dryRun: "n" },
     output: "json",
@@ -82,6 +84,7 @@ const libNewProcedure = createProcedure()
   .output(outputSchema<LibNewOutput>())
   .meta({
     description: "Create a new package in the ecosystem",
+    calls: ["shell.run", "fs.exists", "fs.mkdir", "fs.write", "fs.read.json"],
     args: ["name"],
     shorts: { dryRun: "n" },
     output: "json",
@@ -97,6 +100,7 @@ const libAuditProcedure = createProcedure()
   .output(outputSchema<LibAuditOutput>())
   .meta({
     description: "Audit ecosystem packages for issues",
+    calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote", "fs.exists", "fs.mkdir", "fs.write"],
     args: [],
     shorts: { fix: "f" },
     output: "json",

@@ -9,6 +9,10 @@
  * A handler gives one value, or it is a generator that yields values (a stream). The result
  * tells which: `{ kind: "value" }` or `{ kind: "stream" }`. A caller that wants one value uses
  * `outputValue()` (the last item of a stream). A caller that wants each value uses `outputItems()`.
+ *
+ * Interceptors run around each invocation, the nested calls too (roadmap 1.2): policy, tracing,
+ * timeouts and metrics for every host. `interceptors.ts` has a timeout, a tracing and a metrics
+ * interceptor.
  */
 
 import type {
@@ -21,7 +25,7 @@ import type {
 import { pathToKey } from "./types.js";
 import type { ProcedureRegistry } from "./registry.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
-import { isDataDriven } from "./ref.js";
+import { nestedCallRefusal } from "./policy.js";
 import type { EventBus } from "../events/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
@@ -34,10 +38,12 @@ export type InvocationErrorCode =
   | "NOT_FOUND"
   | "NO_HANDLER"
   | "NOT_EXPOSED"
+  | "NOT_DECLARED"
   | "VALIDATION_ERROR"
   | "OUTPUT_VALIDATION_ERROR"
   | "NO_OUTPUT"
-  | "ABORTED";
+  | "ABORTED"
+  | "TIMEOUT";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -77,14 +83,62 @@ export interface InvokeOptions {
   bus?: EventBus | undefined;
   /** The input is valid already (for example, the route resolver validated it). */
   inputValidated?: boolean | undefined;
-  /** This client replaces the default `ctx.client`, for example a Client that sends unknown paths to its transport. */
-  client?: ProcedureClient | undefined;
+  /**
+   * This client replaces the default `ctx.client`, for example a Client that sends unknown paths
+   * to its transport. A function gets the invocation, so its nested calls can name their parent.
+   */
+  client?: ProcedureClient | ((invocation: Invocation) => ProcedureClient) | undefined;
   /**
    * The expose rule of a server. A data-driven procedure (control flow, `runs-refs`, a procedure
-   * that `procedure.define` made) can call only the paths for which it gives true.
+   * that `procedure.define` made) can call only the paths for which it gives true. A code
+   * procedure with `metadata.calls` can call what it declares and the exposed paths. See
+   * `policy.ts` (deep dive MCP-3).
    */
   expose?: ((path: ProcedurePath) => boolean) | undefined;
+  /** True: a code procedure without `metadata.calls` can call only the exposed paths. */
+  strictCalls?: boolean | undefined;
+  /** The interceptors of each invocation, the outermost first. The nested calls get them too. */
+  interceptors?: readonly Interceptor[] | undefined;
+  /** The invocation whose handler makes this call. The context client sets it for a nested call. */
+  parent?: Invocation | undefined;
 }
+
+// =============================================================================
+// Interceptors
+// =============================================================================
+
+let invocationCount = 0;
+
+/** One invocation, as an interceptor sees it. */
+export interface Invocation {
+  /** A number that identifies the invocation in this process. `next()` keeps it. */
+  readonly id: number;
+  readonly procedure: AnyProcedure;
+  readonly path: ProcedurePath;
+  /** The input before its validation. */
+  readonly input: unknown;
+  readonly metadata: Record<string, unknown>;
+  readonly signal: AbortSignal | undefined;
+  /** The invocation whose handler made this nested call. A call of a host has none. */
+  readonly parent: Invocation | undefined;
+  /** 0 for a call of a host, 1 for its nested calls, and so on. */
+  readonly depth: number;
+}
+
+/** The changes that an interceptor gives to the next step: the handler and the nested calls get them. */
+export interface InvocationChanges {
+  signal?: AbortSignal | undefined;
+  metadata?: Record<string, unknown> | undefined;
+}
+
+/** The rest of the chain: the next interceptors, then the validation and the handler. */
+export type InvocationNext = (changes?: InvocationChanges) => Promise<ProcedureOutput<unknown>>;
+
+/**
+ * A function around an invocation. It can examine the invocation, refuse it (throw), change its
+ * signal or metadata (`next(changes)`), and examine or wrap the output.
+ */
+export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
 
 // =============================================================================
 // Invocation
@@ -171,7 +225,8 @@ async function* validatedItems(
 /**
  * This function runs a procedure: it validates the input, makes the context, runs the handler
  * and validates the output. It throws an `InvocationError` for an invocation that cannot run,
- * and the handler's own error when the handler throws.
+ * and the handler's own error when the handler throws. The interceptors of the options run
+ * around these steps.
  */
 export async function invokeProcedure<TOutput = unknown>(
   procedure: AnyProcedure,
@@ -179,10 +234,44 @@ export async function invokeProcedure<TOutput = unknown>(
   options: InvokeOptions = {},
 ): Promise<ProcedureOutput<TOutput>> {
   const { path } = procedure;
-  const handler = procedure.handler;
-  if (!handler) {
+  if (!procedure.handler) {
     throw new InvocationError("NO_HANDLER", `Procedure has no handler: ${pathToKey(path)}`, path);
   }
+  if (options.signal?.aborted) throw abortError(path);
+
+  const invocation: Invocation = {
+    id: ++invocationCount,
+    procedure,
+    path,
+    input,
+    metadata: options.metadata ?? {},
+    signal: options.signal,
+    parent: options.parent,
+    depth: options.parent ? options.parent.depth + 1 : 0,
+  };
+  const interceptors = options.interceptors ?? [];
+  if (interceptors.length === 0) return runInvocation<TOutput>(invocation, options);
+
+  const dispatch = (index: number, current: Invocation, currentOptions: InvokeOptions): Promise<ProcedureOutput<unknown>> => {
+    const interceptor = interceptors[index];
+    if (!interceptor) return runInvocation(current, currentOptions);
+    return interceptor(current, (changes) => {
+      if (!changes) return dispatch(index + 1, current, currentOptions);
+      const changed: Invocation = {
+        ...current,
+        signal: changes.signal ?? current.signal,
+        metadata: changes.metadata ?? current.metadata,
+      };
+      return dispatch(index + 1, changed, { ...currentOptions, signal: changed.signal, metadata: changed.metadata });
+    });
+  };
+  return dispatch(0, invocation, options) as Promise<ProcedureOutput<TOutput>>;
+}
+
+/** The end of the chain: the validation, the context, the handler and the output. */
+async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOptions): Promise<ProcedureOutput<TOutput>> {
+  const { procedure, path, input } = invocation;
+  const handler = procedure.handler!;
   if (options.signal?.aborted) throw abortError(path);
 
   let data: unknown = input;
@@ -199,7 +288,7 @@ export async function invokeProcedure<TOutput = unknown>(
   }
 
   // The handler starts here, before the first await (the site's trace depends on it)
-  const result: unknown = await handler(data, createProcedureContext(procedure, options));
+  const result: unknown = await handler(data, createProcedureContext(procedure, options, invocation));
   if (isAsyncIterable(result)) {
     return { kind: "stream", items: validatedItems(procedure, result, options.signal) as AsyncGenerator<TOutput, void, undefined> };
   }
@@ -257,13 +346,25 @@ export async function* streamOutput<T>(start: () => Promise<ProcedureOutput<T>>)
 
 /**
  * The context of a procedure. Its `client` calls other procedures through `invokePath()` with
- * the same options, so the nested calls get the same metadata, signal and rules.
+ * the same options, so the nested calls get the same metadata, signal, rules and interceptors.
+ * With an invocation, the nested calls name it as their parent.
  */
-export function createProcedureContext(procedure: AnyProcedure, options: InvokeOptions = {}): ProcedureContext {
+export function createProcedureContext(
+  procedure: AnyProcedure,
+  options: InvokeOptions = {},
+  invocation?: Invocation,
+): ProcedureContext {
+  const nestedOptions: InvokeOptions = invocation ? { ...options, parent: invocation } : options;
+  let client: ProcedureClient;
+  if (typeof options.client === "function") {
+    client = invocation ? options.client(invocation) : registryClient(procedure, nestedOptions);
+  } else {
+    client = options.client ?? registryClient(procedure, nestedOptions);
+  }
   const context: ProcedureContext = {
     metadata: options.metadata ?? {},
     path: procedure.path,
-    client: options.client ?? registryClient(procedure, options),
+    client,
     registry: options.registry ?? PROCEDURE_REGISTRY,
   };
   if (options.signal) context.signal = options.signal;
@@ -279,16 +380,11 @@ export function createProcedureContext(procedure: AnyProcedure, options: InvokeO
 /** The client of a procedure's context: it runs the nested calls from the registry. */
 function registryClient(caller: AnyProcedure, options: InvokeOptions): ProcedureClient {
   const start = <TOutput>(path: ProcedurePath, input: unknown): Promise<ProcedureOutput<TOutput>> => {
-    // BUGS-2026-07 H18: a data-driven caller reaches only the exposed procedures
-    if (options.expose && isDataDriven(caller) && !options.expose(path)) {
-      return Promise.reject(
-        new InvocationError(
-          "NOT_EXPOSED",
-          `Procedure not exposed: ${pathToKey(path)}. ${pathToKey(caller.path)} runs procedure refs ` +
-            `from its input, so it can call only the procedures that this server exposes.`,
-          path,
-        ),
-      );
+    // The call policy of the host, with the immediate caller (BUGS-2026-07 H18, deep dive MCP-3).
+    // It runs before the lookup, so a refused path tells nothing about the procedure.
+    const refusal = nestedCallRefusal(caller, path, options);
+    if (refusal) {
+      return Promise.reject(new InvocationError(refusal.code, refusal.message, path));
     }
     return invokePath<TOutput>(path, input, options);
   };

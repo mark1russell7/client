@@ -71,9 +71,11 @@ function write(res: Response, chunk: string, signal: AbortSignal): Promise<void>
 const INVOCATION_HTTP_STATUS: Record<string, number> = {
   VALIDATION_ERROR: 400,
   NOT_EXPOSED: 403,
+  NOT_DECLARED: 403,
   NOT_FOUND: 404,
   NO_HANDLER: 404,
   ABORTED: 499,
+  TIMEOUT: 504,
   OUTPUT_VALIDATION_ERROR: 500,
   NO_OUTPUT: 500,
   HANDLER_ERROR: 500,

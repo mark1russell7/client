@@ -25,10 +25,16 @@
  */
 export interface RetryContext {
   retry: {
-    /** Current attempt number (0-indexed) */
-    attempt: number;
-    /** Maximum number of attempts configured */
-    maxAttempts: number;
+    /** Current attempt number (0-indexed). The middleware writes it: a call does not give it. */
+    attempt?: number;
+    /** Maximum number of attempts: an override of a call, then the value that the middleware uses */
+    maxAttempts?: number;
+    /** An override of the base delay, in milliseconds */
+    delay?: number;
+    /** An override of the factor of the delay from one attempt to the next */
+    backoffMultiplier?: number;
+    /** An override of the longest delay, in milliseconds */
+    maxDelay?: number;
   };
 }
 
@@ -37,15 +43,22 @@ export interface RetryContext {
 // =============================================================================
 
 /**
- * Context provided by cache middleware.
- * Tracks cache state for observability.
+ * Context of the cache middleware: the overrides of a call, and the state after it.
+ *
+ * The cache key is not in the context: it holds the payload, and the metadata of a retry
+ * travels in a header of limited size. (Before, the type named a `key` that the middleware
+ * never wrote.)
  */
 export interface CacheContext {
   cache: {
-    /** Whether the response was served from cache */
-    hit: boolean;
-    /** The cache key used for this request */
-    key: string;
+    /** The time-to-live of the entry that this call stores, in milliseconds */
+    ttl?: number;
+    /** True: the call skips the cache (no read, no write) */
+    bypass?: boolean;
+    /** True: the call fetches and replaces the stored response */
+    refresh?: boolean;
+    /** After the call: whether the response came from the cache */
+    hit?: boolean;
   };
 }
 
@@ -116,8 +129,8 @@ export interface TracingContext {
 export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
 /**
- * Context provided by circuit breaker middleware.
- * Tracks circuit breaker state for observability.
+ * Context provided by circuit breaker middleware: the middleware writes the state when it
+ * admits a call, and again when the call ends.
  */
 export interface CircuitBreakerContext {
   circuitBreaker: {
@@ -135,8 +148,8 @@ export interface CircuitBreakerContext {
 // =============================================================================
 
 /**
- * Context provided by rate limit middleware.
- * Tracks rate limiting state.
+ * Context provided by rate limit middleware: the middleware writes the state when a call gets
+ * its token.
  */
 export interface RateLimitContext {
   rateLimit: {
@@ -154,8 +167,8 @@ export interface RateLimitContext {
 // =============================================================================
 
 /**
- * Context provided by pagination middleware.
- * Tracks pagination parameters.
+ * Context provided by pagination middleware: the normalized page (or offset) and limit, as one
+ * object. The middleware writes the single keys (`page`, `limit`, `offset`) too.
  */
 export interface PaginationContext {
   pagination: {

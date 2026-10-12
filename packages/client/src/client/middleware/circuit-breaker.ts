@@ -255,6 +255,16 @@ export function createCircuitBreakerMiddleware(
   ): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       totalRequests++;
+      // The state for the other middlewares (CircuitBreakerContext)
+      const writeState = (): void => {
+        const now = Date.now();
+        context.message.metadata["circuitBreaker"] = {
+          state,
+          failures: failures.filter((f) => now - f.timestamp < failureWindow).length,
+          successes,
+        };
+      };
+      writeState();
 
       // Check if circuit allows request
       if (!shouldAllowRequest()) {
@@ -296,6 +306,7 @@ export function createCircuitBreakerMiddleware(
           recorded = true;
           recordSuccess();
         }
+        writeState();
       }
     };
   };

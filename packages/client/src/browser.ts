@@ -272,6 +272,38 @@ export type {
 } from "./procedures/index.js";
 
 // ============================================================================
+// Invocation: the one path, the call policy and the interceptors
+// (ARCHITECTURE-PROPOSALS P1, deep dive MCP-3, roadmap 1.2)
+// ============================================================================
+export {
+  invokeProcedure,
+  invokePath,
+  outputValue,
+  outputItems,
+  streamOutput,
+  InvocationError,
+} from "./procedures/invoke.js";
+export type {
+  InvokeOptions,
+  ProcedureOutput,
+  InvocationErrorCode,
+  Invocation,
+  InvocationChanges,
+  InvocationNext,
+  Interceptor,
+} from "./procedures/invoke.js";
+export { callMatches, validateCalls, declaredCalls, nestedCallRefusal, hasCallPolicy, hiddenReach } from "./procedures/policy.js";
+export type { CallPolicy, CallRefusal, HiddenCall } from "./procedures/policy.js";
+export { timeoutInterceptor, tracingInterceptor, metricsInterceptor } from "./procedures/interceptors.js";
+export type {
+  TimeoutInterceptorOptions,
+  TracingInterceptorOptions,
+  InvocationSpan,
+  ProcedureMetrics,
+  MetricsInterceptor,
+} from "./procedures/interceptors.js";
+
+// ============================================================================
 // Nested Route API - Batch calls with per-call middleware overrides
 // ============================================================================
 export type {

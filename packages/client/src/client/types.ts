@@ -6,6 +6,7 @@
  */
 
 import type { EventBus } from "../events/types.js";
+import type { Interceptor } from "../procedures/invoke.js";
 import type { ErrorMetadata } from "./errors/index.js";
 
 /**
@@ -351,4 +352,10 @@ export interface ClientOptions {
    * `getGlobalEventBus()`.
    */
   bus?: EventBus;
+
+  /**
+   * The interceptors of each local invocation and its nested calls, the outermost first (see
+   * `procedures/interceptors.ts`). A remote call goes through the middlewares, not these.
+   */
+  interceptors?: readonly Interceptor[];
 }

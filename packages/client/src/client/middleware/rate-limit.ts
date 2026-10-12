@@ -251,6 +251,12 @@ export function createRateLimitMiddleware(
         yield abortedItem<TRes>(context.message.id);
         return;
       }
+      // The state for the other middlewares (RateLimitContext)
+      context.message.metadata["rateLimit"] = {
+        tokensAvailable: Math.floor(tokens),
+        maxTokens: maxRequests,
+        queueSize: queue.length,
+      };
 
       // Execute request
       yield* next(context);

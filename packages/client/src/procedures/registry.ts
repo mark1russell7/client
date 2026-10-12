@@ -14,6 +14,7 @@ import type {
   RegistrationOptions,
 } from "./types.js";
 import { pathToKey } from "./types.js";
+import { validateCalls } from "./policy.js";
 
 // =============================================================================
 // Registry Errors
@@ -128,6 +129,12 @@ export class ProcedureRegistry {
 
     assertValidPath(path);
     const key = pathToKey(path);
+    // A list of nested calls that cannot be checked is an error now, not at the first call
+    try {
+      validateCalls((procedure.metadata as { calls?: unknown } | undefined)?.calls, path);
+    } catch (error) {
+      throw new RegistryError((error as Error).message, path);
+    }
 
     const replaced = this.procedures.get(key);
     // The key joins the segments with dots: ["a.b", "c"] and ["a", "b.c"] have one key
