@@ -12,9 +12,9 @@ describe("buildLeveledDAG", () => {
     const dag = buildLeveledDAG(nodes);
 
     expect(dag.levels.length).toBe(1);
-    expect(dag.levels[0].length).toBe(2);
-    expect(dag.levels[0][0].level).toBe(0);
-    expect(dag.levels[0][1].level).toBe(0);
+    expect(dag.levels[0]!.length).toBe(2);
+    expect(dag.levels[0]![0]!.level).toBe(0);
+    expect(dag.levels[0]![1]!.level).toBe(0);
   });
 
   it("assigns correct levels to linear chain", () => {
@@ -122,13 +122,13 @@ describe("buildLeveledDAG", () => {
 
     expect(dag.levels.length).toBe(4);
     // Level 0: a, g (leaves)
-    expect(new Set(dag.levels[0].map((n) => n.id))).toEqual(new Set(["a", "g"]));
+    expect(new Set(dag.levels[0]!.map((n) => n.id))).toEqual(new Set(["a", "g"]));
     // Level 1: b, c
-    expect(new Set(dag.levels[1].map((n) => n.id))).toEqual(new Set(["b", "c"]));
+    expect(new Set(dag.levels[1]!.map((n) => n.id))).toEqual(new Set(["b", "c"]));
     // Level 2: d, e
-    expect(new Set(dag.levels[2].map((n) => n.id))).toEqual(new Set(["d", "e"]));
+    expect(new Set(dag.levels[2]!.map((n) => n.id))).toEqual(new Set(["d", "e"]));
     // Level 3: f
-    expect(dag.levels[3].map((n) => n.id)).toEqual(["f"]);
+    expect(dag.levels[3]!.map((n) => n.id)).toEqual(["f"]);
   });
 });
 

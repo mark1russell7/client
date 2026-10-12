@@ -6,11 +6,11 @@
   "license": "MIT",
   "author": "Mark Russell <marktheprogrammer17@gmail.com>",
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@types/express": "^5.0.6",
+    "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3",
+    "@types/express": "^5.0.6"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -37,7 +37,8 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .tsbuildinfo",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "sideEffects": [
     "./dist/index.js",
@@ -59,7 +60,7 @@
     "url": "https://github.com/mark1russell7/client-server.git"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

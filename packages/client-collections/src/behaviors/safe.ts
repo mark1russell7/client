@@ -138,6 +138,7 @@ export interface SafeMapOperations<K, V> {
  * Exposes a `safe` property with Option/Result-based operations.
  */
 export function safeList<T>(): Middleware<
+  List<T>,
   List<T> & { safe: SafeListOperations<T> }
 > {
   return (next: List<T>): List<T> & { safe: SafeListOperations<T> } => {
@@ -206,6 +207,7 @@ export function safeList<T>(): Middleware<
  * Creates a safe Queue middleware.
  */
 export function safeQueue<T>(): Middleware<
+  Queue<T>,
   Queue<T> & { safe: SafeQueueOperations<T> }
 > {
   return (next: Queue<T>): Queue<T> & { safe: SafeQueueOperations<T> } => {
@@ -252,6 +254,7 @@ export function safeQueue<T>(): Middleware<
  * Creates a safe Deque middleware.
  */
 export function safeDeque<T>(): Middleware<
+  Deque<T>,
   Deque<T> & { safe: SafeDequeOperations<T> }
 > {
   return (next: Deque<T>): Deque<T> & { safe: SafeDequeOperations<T> } => {
@@ -316,6 +319,7 @@ export function safeDeque<T>(): Middleware<
  * Creates a safe Map middleware.
  */
 export function safeMap<K, V>(): Middleware<
+  MapLike<K, V>,
   MapLike<K, V> & { safe: SafeMapOperations<K, V> }
 > {
   return (

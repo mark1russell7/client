@@ -18,16 +18,19 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
   },
   "sideEffects": [
     "./dist/index.js",
     "./dist/register.js"
   ],
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3"
   },
   "description": "Procedure scaffolding procedures - procedure.new",
   "dependencies": {
@@ -36,5 +39,8 @@
   },
   "client": {
     "procedures": "./dist/register.js"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

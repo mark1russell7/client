@@ -5,19 +5,13 @@
   "private": true,
   "description": "The website of the client ecosystem: the Composer, the procedure catalog and the architecture map",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "src"
-  ],
   "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/react": "^19.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vite": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vitest": "^5.0.3",
     "@axe-core/playwright": "^4.13.0",
     "@mark1russell7/bundle-dev": "workspace:*",
     "@mark1russell7/bundle-mcp": "workspace:*",
@@ -41,16 +35,11 @@
     "@mark1russell7/client-sqlite": "workspace:*",
     "@mark1russell7/client-vite": "workspace:*",
     "@mark1russell7/client-vitest": "workspace:*",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "@mark1russell7/mcp": "workspace:*",
     "@playwright/test": "^1.64.0",
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.0.0",
-    "typescript": "^5.9.3",
-    "vite": "^6.0.0",
-    "vitest": "^4.1.11"
+    "typescript-api": "npm:typescript@^5.9.3"
   },
   "scripts": {
     "build": "node scripts/gen-data.mjs && vite build",
@@ -58,11 +47,11 @@
     "clean": "rm -rf dist .tsbuildinfo",
     "dev": "node scripts/gen-data.mjs && vite",
     "preview": "vite preview",
-    "gen": "node scripts/gen-data.mjs",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "gen": "node scripts/gen-data.mjs",
     "test:e2e": "playwright test"
   },
-  "sideEffects": false,
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-mono": "^5.3.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
@@ -70,7 +59,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
-  "peerDependencies": {
-    "react": ">=18"
+  "engines": {
+    "node": ">=22"
   }
 }

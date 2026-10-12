@@ -55,7 +55,7 @@ describe("git procedures with hostile values", () => {
   });
 
   it("still diffs and logs with a normal ref", async () => {
-    const diff = await gitDiff({ cwd: repo, ref: "HEAD~1", stat: true });
+    const diff = await gitDiff({ cwd: repo, ref: "HEAD~1", stat: true, staged: false });
     expect(diff.files.map((f) => f.path)).toEqual(["a.txt"]);
 
     const log = await gitLog({ cwd: repo, ref: "HEAD", count: 5 } as Parameters<typeof gitLog>[0]);
@@ -67,7 +67,7 @@ describe("git procedures with hostile values", () => {
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD");
 
     const { branches } = await gitBranch({ cwd: repo, remote: true } as Parameters<typeof gitBranch>[0]);
-    const byName = Object.fromEntries(branches.map((b) => [b.name, b.remote]));
+    const byName = Object.fromEntries((branches ?? []).map((b) => [b.name, b.remote]));
 
     expect(byName["feature/x"]).toBe(false);
     expect(byName["origin/main"]).toBe(true);
@@ -75,7 +75,7 @@ describe("git procedures with hostile values", () => {
 
   it("git.diff: a ref cannot write a file with --output", async () => {
     const target = join(repo, "written-by-diff.txt");
-    await expect(gitDiff({ cwd: repo, ref: `--output=${target}`, stat: true })).rejects.toThrow("Invalid ref");
+    await expect(gitDiff({ cwd: repo, ref: `--output=${target}`, stat: true, staged: false })).rejects.toThrow("Invalid ref");
     expect(existsSync(target)).toBe(false);
   });
 
@@ -88,7 +88,7 @@ describe("git procedures with hostile values", () => {
   });
 
   it("git.fetch, git.checkout, git.branch and git.remote reject option-like values", async () => {
-    await expect(gitFetch({ cwd: repo, remote: "--upload-pack=x" })).rejects.toThrow("Invalid remote");
+    await expect(gitFetch({ cwd: repo, remote: "--upload-pack=x", all: false, prune: false })).rejects.toThrow("Invalid remote");
     await expect(gitCheckout({ cwd: repo, ref: "--orphan=x" } as Parameters<typeof gitCheckout>[0])).rejects.toThrow("Invalid ref");
     await expect(gitBranch({ cwd: repo, name: "-D" } as Parameters<typeof gitBranch>[0])).rejects.toThrow("Invalid name");
     await expect(gitRemote({ cwd: repo, name: "origin", url: "--mirror" } as Parameters<typeof gitRemote>[0])).rejects.toThrow("Invalid url");

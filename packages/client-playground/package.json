@@ -18,15 +18,21 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .tsbuildinfo"
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
   },
   "sideEffects": false,
   "dependencies": {
     "@mark1russell7/client": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

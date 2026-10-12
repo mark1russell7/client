@@ -198,13 +198,13 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
   // Create cache using collections framework with LRU + TTL composition
   // This provides automatic eviction and expiration
   const cache: MapLike<string, ResponseItem<unknown>[]> = compose(
-    lruMap({
+    lruMap<string, ResponseItem<unknown>[]>({
       capacity,
       onEvict: () => {
         stats.evictions++;
       },
     }),
-    ttlMap({
+    ttlMap<string, ResponseItem<unknown>[]>({
       ttl,
       checkInterval: Math.min(ttl, 30000), // Check every 30s or TTL, whichever is shorter
     }),

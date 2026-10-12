@@ -56,21 +56,21 @@
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "watch": "tsc -b --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "watch": "tsc -b --watch"
   },
   "dependencies": {
     "@mark1russell7/client-collections": "workspace:*",
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "@types/express": "^5.0.0",
+    "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "@types/ws": "^8.18.1",
-    "typescript": "^5.7.0",
-    "vitest": "^4.0.16"
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3",
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.18.1"
   },
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0",
@@ -85,7 +85,7 @@
     }
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "keywords": [
     "rpc",

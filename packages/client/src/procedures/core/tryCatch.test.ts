@@ -3,8 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { tryCatchProcedure } from "./index.js";
+import { tryCatchProcedure as tryCatchDefinition } from "./index.js";
+import { valueHandler } from "../../../test/value-handler.js";
 import type { ProcedureContext } from "../types.js";
+
+// The tests read one value from the handler: valueHandler types it so, and checks it
+const tryCatchProcedure = valueHandler(tryCatchDefinition);
 
 /**
  * Simple inline mock client for tests
@@ -64,7 +68,7 @@ describe("tryCatch procedure", () => {
 
   describe("successful try", () => {
     it("returns try value on success", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: { data: "success" },
           catch: { error: "fallback" },
@@ -78,7 +82,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("returns primitive try value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: 42,
           catch: 0,
@@ -91,7 +95,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("returns string try value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: "operation succeeded",
           catch: "fallback message",
@@ -104,7 +108,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("returns null try value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: null,
           catch: "default",
@@ -117,7 +121,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("returns array try value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: [1, 2, 3],
           catch: [],
@@ -130,7 +134,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("returns boolean try value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: false,
           catch: true,
@@ -145,7 +149,7 @@ describe("tryCatch procedure", () => {
 
   describe("result structure", () => {
     it("always returns success as true (hydrated value)", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: "value",
           catch: "fallback",
@@ -159,7 +163,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("does not include error property on success", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: { data: true },
           catch: null,
@@ -171,7 +175,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("has proper structure with all expected fields", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: "test",
           catch: "fallback",
@@ -196,7 +200,7 @@ describe("tryCatch procedure", () => {
         },
       };
 
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: complexValue,
           catch: null,
@@ -208,7 +212,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("handles arrays of objects", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: [
             { id: 1, name: "first" },
@@ -226,7 +230,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("handles undefined try value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: undefined,
           catch: "default",
@@ -241,7 +245,7 @@ describe("tryCatch procedure", () => {
 
   describe("catch value variations", () => {
     it("accepts object as catch value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: "success",
           catch: { fallback: true, message: "error occurred" },
@@ -254,7 +258,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("accepts procedure ref as catch value (not executed on success)", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: "success",
           catch: { $proc: ["error", "handler"], input: {} },
@@ -268,7 +272,7 @@ describe("tryCatch procedure", () => {
     });
 
     it("accepts null as catch value", async () => {
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: "success",
           catch: null,
@@ -288,7 +292,7 @@ describe("tryCatch procedure", () => {
         client: undefined as any,
       };
 
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: { data: "no client" },
           catch: "fallback",
@@ -309,7 +313,7 @@ describe("tryCatch procedure", () => {
         data: { userId: 123, items: ["a", "b", "c"] },
       };
 
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: hydratedResult,
           catch: { status: "error", data: null },
@@ -322,7 +326,7 @@ describe("tryCatch procedure", () => {
 
     it("preserves procedure ref structure in try (already hydrated)", async () => {
       // After hydration, $proc refs are replaced with their results
-      const result = await tryCatchProcedure.handler(
+      const result = await tryCatchProcedure.handler!(
         {
           try: { resolved: true, from: "git.status" },
           catch: { resolved: false },

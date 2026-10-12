@@ -3,8 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { parallelProcedure } from "./index.js";
+import { parallelProcedure as parallelDefinition } from "./index.js";
+import { valueHandler } from "../../../test/value-handler.js";
 import type { ProcedureContext } from "../types.js";
+
+// The tests read one value from the handler: valueHandler types it so, and checks it
+const parallelProcedure = valueHandler(parallelDefinition);
 
 /**
  * Simple inline mock client for tests
@@ -64,7 +68,7 @@ describe("parallel procedure", () => {
 
   describe("basic execution", () => {
     it("returns tasks array as results", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [
             { value: 1 },
@@ -82,7 +86,7 @@ describe("parallel procedure", () => {
     });
 
     it("returns empty results for empty tasks array", async () => {
-      const result = await parallelProcedure.handler({ tasks: [] }, ctx);
+      const result = await parallelProcedure.handler!({ tasks: [] }, ctx);
 
       expect(result.results).toHaveLength(0);
       expect(result.allSucceeded).toBe(true);
@@ -90,7 +94,7 @@ describe("parallel procedure", () => {
     });
 
     it("handles single task", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [{ single: "value" }],
         },
@@ -103,7 +107,7 @@ describe("parallel procedure", () => {
     });
 
     it("preserves task order in results", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: ["first", "second", "third", "fourth", "fifth"],
         },
@@ -116,7 +120,7 @@ describe("parallel procedure", () => {
 
   describe("result structure", () => {
     it("returns allSucceeded as true for successful tasks", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [1, 2, 3],
         },
@@ -127,7 +131,7 @@ describe("parallel procedure", () => {
     });
 
     it("returns empty errors array for successful tasks", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [{ a: 1 }, { b: 2 }],
         },
@@ -138,7 +142,7 @@ describe("parallel procedure", () => {
     });
 
     it("returns proper structure with all expected fields", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: ["task1", "task2"],
         },
@@ -156,7 +160,7 @@ describe("parallel procedure", () => {
 
   describe("value types", () => {
     it("handles mixed value types", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [
             42,
@@ -181,7 +185,7 @@ describe("parallel procedure", () => {
     });
 
     it("handles nested objects", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [
             { level1: { level2: { level3: "deep" } } },
@@ -196,7 +200,7 @@ describe("parallel procedure", () => {
     });
 
     it("handles undefined values in tasks", async () => {
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [undefined, "valid", undefined],
         },
@@ -216,7 +220,7 @@ describe("parallel procedure", () => {
         client: undefined as any,
       };
 
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [1, 2, 3],
         },
@@ -232,7 +236,7 @@ describe("parallel procedure", () => {
     it("handles many tasks", async () => {
       const tasks = Array.from({ length: 100 }, (_, i) => ({ index: i }));
 
-      const result = await parallelProcedure.handler({ tasks }, ctx);
+      const result = await parallelProcedure.handler!({ tasks }, ctx);
 
       expect(result.results).toHaveLength(100);
       expect(result.results[0]).toEqual({ index: 0 });
@@ -243,7 +247,7 @@ describe("parallel procedure", () => {
     it("handles very large task array", async () => {
       const tasks = Array.from({ length: 1000 }, (_, i) => i);
 
-      const result = await parallelProcedure.handler({ tasks }, ctx);
+      const result = await parallelProcedure.handler!({ tasks }, ctx);
 
       expect(result.results).toHaveLength(1000);
       expect(result.results[0]).toBe(0);
@@ -260,7 +264,7 @@ describe("parallel procedure", () => {
         { status: "success", data: { id: 3 } },
       ];
 
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: hydratedResults,
         },
@@ -274,7 +278,7 @@ describe("parallel procedure", () => {
       // Already-resolved values (no $proc key) and literals pass through untouched.
       // A real hydrated task does NOT retain a $proc key - hydration replaces the ref
       // with its result - so genuine refs are executed (covered by exec-controlflow.test).
-      const result = await parallelProcedure.handler(
+      const result = await parallelProcedure.handler!(
         {
           tasks: [
             { from: "git.status", resolved: { branch: "main" } },
