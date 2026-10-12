@@ -13,6 +13,20 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### The deep dive, wave 2: changes of behavior and judgment calls
+
+Wave 2 (2026-10-11) merged the toolchain, the call policy, the documents, the site pages and the open items. The changes that a user can see:
+
+- **TypeScript 7 and vitest 5 in every package** (`35f7dbc`, `3166de5`). The site keeps TypeScript 5 under the alias `typescript-api`, only for `scripts/core-fields.mjs`: TypeScript 7 has no JavaScript compiler API.
+- **The MCP server refuses undeclared nested calls** (`3e3827f`). A code procedure that calls a procedure that is not a tool must name it in `metadata.calls`. Each tool call has a time limit (`MCP_TOOL_TIMEOUT_MS`, default 10 minutes).
+- **`mcp.serve` exposes nothing without a list** (`ec24f70`). It takes `namespaces`/`exclude`, or reads the lists of `bundle-mcp`.
+- **The cache keeps a TTL for each entry** (`eff47a0`), and `CacheContext` has no `key` (the key holds the payload).
+- **The standalone `server` needs a token** (`d0430e4`): a random token that it prints, `--token`, or `SERVER_TOKEN`. `--no-token` serves without one.
+- **`docker.logs` with `follow` is a stream** (`b462119`). Without `follow`, it gives one value, as before.
+- **`mark` asks for a missing required argument in a terminal** (`978175a`). `--no-input`, `CI` or a pipe turn the question off.
+- **MiniMongo uses the monorepo packages** (`link:` dependencies, MiniMongo `bd245b5`..`87de84a`), and its dev server serves only the three read procedures of the page.
+- To reverse one change: revert its commit.
+
 ### The deep dive, wave 1: changes of behavior and judgment calls
 
 The owner asked for the deep dive and the fixes of its findings ("ok letsdo everythig including depedive", 2026-10-08). Seven branches fixed the findings, one for each area. [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md) gives the status and the commit of each finding. These fixes change behavior that a user can see. The owner can review each one:

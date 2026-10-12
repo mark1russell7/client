@@ -7,7 +7,7 @@ This file records the status of each finding of the deep dive. The reports are i
 - **open**: no change yet.
 - **decision**: the fix needs a decision of the owner. The note gives the recommendation.
 
-Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each area. The merge commits are `cd7a3ec` (transports), `b182fc3` (core-A), `bab4156` (core-B), `8c1253b` (data), `264800e` (wrappers), `988bb4b` (cli) and `2c29751` (site). The table gives the commit of each fix on its branch.
+Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each area. Wave 2 (2026-10-11) merged as `87f6873` (toolchain), `b27377a` (policy), `4924d43` (docs) and `b4412d3` (site pages), with the extras fork before the site. The merge commits are `cd7a3ec` (transports), `b182fc3` (core-A), `bab4156` (core-B), `8c1253b` (data), `264800e` (wrappers), `988bb4b` (cli) and `2c29751` (site). The table gives the commit of each fix on its branch.
 
 ## Security and the MCP surface
 
@@ -26,7 +26,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | DATA-1 / DATA-2 / DATA-3 | critical / high | fixed | `e1b5b57` | Snapshot names are checked. Restore uses `mkdtemp`. The guard checks the archive entry. Exclusions match segments. |
 | CORE-7 / DATA-11 | medium | fixed | `e1b5b57` | The dynamic loader takes an allowlist. The storage factory has no default loader. |
 | DATA-18 | medium | fixed | `ee52893` | `rootPath` must hold `pnpm-workspace.yaml`. |
-| MCP-3 | high | open | | The guard examines only the immediate caller. The target design is `metadata.calls` on each code procedure, checked for each nested call (wave 2). |
+| MCP-3 | high | fixed | `2fb8329`, `3e3827f`, `8724c35` | Each code procedure declares its nested calls (`metadata.calls`). The MCP server sets `strictCalls`, so an undeclared caller reaches only exposed procedures. `impl-mcp-dev/reachable.snapshot.txt` pins what the tools can reach: `fs.*`, `shell.run` and `shell.stream`, never `shell.exec` or `cli.run`. |
 | MCP-4 / CORE-3 | high | fixed | `8a9e7c7` | `replace` works only over a runtime-defined procedure, and `procedure.delete` unregisters and refuses a code procedure. Decision: the expose rule is not applied to the target path. A defined procedure is data-driven, so it calls only exposed procedures, and a target outside the exposed namespaces is not reachable from MCP. |
 
 ## Core
@@ -69,7 +69,8 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | TRN-15 | low-medium | fixed | `6ea7dfa` | `stop()` aborts the open requests and leaves a caller's server open. |
 | TRN-16 | low | fixed | `6ea7dfa` | The close handler does all the cleanup. |
 | Lower items | low | fixed | `6ea7dfa` | One CORS origin with `Vary: Origin`. Query values do not replace reserved metadata. Doc examples corrected. |
-| Open | low | open | | The `CacheContext`, `CircuitBreakerContext`, `RateLimitContext` and `PaginationContext` types are never set. `mcp.serve` exposes every procedure. The cache middleware ignores the `cache.ttl`/`bypass`/`refresh` overrides, and retry ignores `delay`/`backoffMultiplier`/`maxDelay`. |
+| Open items | low | fixed | `eff47a0`, `ec24f70` | The middleware writes the context state that its types describe. `mcp.serve` serves a tool surface (`namespaces`/`exclude`, or the lists of `bundle-mcp`), not every procedure. The cache and retry overrides work. |
+| CORS defaults | low | fixed | `1c231d3` | `corsOptions` merge over the defaults (before, `origin` alone sent "Allow-Headers: undefined"), and `X-Metadata` passes the preflight. |
 
 ## Tool wrappers
 
@@ -82,7 +83,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | WRP-9 | low/medium | fixed | `6638311` | `shell.stream` has a bounded queue and pauses the program's output. |
 | WRP-10 | low | fixed | `6638311` | Timeouts and signals kill the whole process tree. Old process records are removed. |
 | Roadmap 2.2 | | fixed | `6638311`..`7db75d9` | `runCommand`/`streamCommand`/`killTree` in `@mark1russell7/client-shell/command`. git, cue, vite, vitest and node use it. docker and pnpm reach it through `shell.run`. |
-| Open | low | open | | `docker.logs` with `follow` and no `timeout` runs until it is cancelled. `client-snapshot` still uses `execSync` for git and pnpm. |
+| Open items | low | fixed | `b462119`, `3632b3a` | `docker.logs` with `follow` is a stream that ends when the reader stops. `client-snapshot` runs git and pnpm through `runCommand`. |
 
 ## Data and library packages
 
@@ -119,7 +120,9 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | CLI-19 | low | fixed | `82d5924`, `612e842`, `fd64ed7` | The e2e suite tests current commands. Decision: the stale Dockerfile and compose file are retired (revert `612e842` to restore them). CI installs CUE for the scaffold test. |
 | CLI-20 | low | fixed | `806add8` | `repo rename` changes only workspace package names, in every text file. |
 | Follow-ups | low | fixed | `a0852e2` | `git commit` takes `-m`. `git.status` works in a repository with no commits. |
-| Open | low | open | | `CLIMeta.interactive` and `prompts.ts` are not used (flagged). |
+| Prompts | low | fixed | `978175a` | In a terminal, `mark` asks for a missing required argument (not with `--no-input`, in CI or outside a terminal). |
+| cli.run argv | low | fixed | `2069d8f` | `cli.run` sends `--key=value`, `false` booleans and `--` before the positional arguments. |
+| Standalone server | medium | fixed | `d0430e4` | `server` needs a token by default (random, printed at start) and takes an `--expose` list. |
 
 ## The site, CI and the toolchain
 
@@ -138,10 +141,11 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | SITE-11 | low-medium | fixed | `dd37e64` | The catalog marks a CLI command only when `mark` loads its package. |
 | SITE-12 | low-medium | fixed | `dd37e64` | Dark text on the accent in the dark theme. |
 | SITE-13 | low | fixed | `a263785` | The counts and examples come from the data. |
-| SITE-14 | low | open | | The P5 toolchain alignment (wave 2). |
+| SITE-14 | low | fixed | `35f7dbc`, `3166de5`, `314c18f` | TypeScript 7, vitest 5, `@types/node` 22 and `node >=22` in every package, also in the `cue` presets. Every package has a `test` script. |
 | Ideas 3, 4, 5, 7, 8 | | done | `dd37e64`, `b341068` | Problem list, virtualized trace, put-inside and wrap-in-chain, smoke test, URL filters. |
-| Trace consumer edge | | decision | | It needs a hook in core hydration, for example `onRef(path, consumer)`. |
-| Test-file types | low | open | | The test files of `client` (335 errors), `client-collections` (11), `client-dag` (10) and `client-git` (4) do not type-check. CI reports them as known failures. |
+| Trace consumer edge | | done | `6b660c9`, `e1266fe` | `HydrateOptions.onRef` and `observeHydration()`. The trace shows a hydrated call under the call that gets its result. |
+| New pages | | done | `bc0c69e`, `0902eb6`, `a67c021` | The status board (`#/status`, from this file), the middleware lab (`#/lab`) and the program graph in the Composer. |
+| Test-file types | low | fixed | `eca5164`, `6f019a7` | The test files of every package type-check. It found a library type defect: the collection behaviors declared `Middleware<X & Y>`, not `Middleware<X, X & Y>`. |
 
 ## Collections and the general repositories
 
@@ -151,6 +155,23 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | PriorityQueue sift-down | fixed | `975dad9` | A poll could leave a larger element above a smaller one (found by fast-check). |
 | `cue` M27 / M28 | fixed | `cue` `150df3b`, `f2bb602` | The vitest feature has a CUE file and a schema entry. The dead `onlyBuiltDependencies` block is removed. |
 
+## The docs review (2026-10-11)
+
+The documentation fork checked each document against the code and ran each example. It found these defects.
+
+| ID | Severity | Status | Commit | Note |
+|---|---|---|---|---|
+| DOC-1 | medium | open | | A list of only `$never` calls runs as an implicit chain: chain steps ignore `$when`. |
+| DOC-2 | medium | open | | `client.eval` does not run the nested calls or `$ref` values inside the call that it evaluates. |
+| DOC-3 | low | decision | | `exec()` and a defined body treat the root differently (lists in the root input, a root `$when`). See PROGRAM-FORMAT.md section 11. |
+| DOC-4 | low | open | | `client.reduce` without `fn` returns `initial` without running it. `client.chain` ignores its `passThrough` and `initialInput` fields. |
+| DOC-5 | medium | open | | The `client-lib` root does not register `client-fs`, so `lib.scan` alone finds no packages. Over MCP, `lib.scan` and `lib.audit` call `git.*`, which the bundle does not register. |
+| DOC-6 | low | open | | The `bundle-mcp` root registers nothing. `client-procedure` replaces the core `procedure.list` and `procedure.get`. `mark` does not register the 84 core procedures that are not control flow. |
+| DOC-7 | low | fixed | `2069d8f` | `cli.run` sent `--key value` and dropped `false` booleans. |
+| DOC-8 | medium | fixed | `d0430e4` | The standalone `server` had no token and no expose rule. |
+| DOC-9 | low | fixed | `314c18f` | The `engines` fields disagreed. |
+| DOC-10 | low | open | | A runner that validates with Zod loses the scope of its input. `observeHydration()` sees every hydration of the process. |
+
 ## Architecture roadmap
 
 | Item | Status | Commit | Note |
@@ -159,9 +180,9 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | 0.2 The MCP surface | done | `ee52893`, `e1b5b57` | |
 | 0.3 One `pathToMethod` and a conformance test | done | `201f920` | `pathToMethod`/`methodToPath` in `client`. The test covers Local, HTTP, WebSocket and `Server.handle`. |
 | 0.4 Live registry lookup, `procedure.delete` unregisters, MCP `list_changed` | done | `201f920`, `8a9e7c7` | |
-| 1.1 Program Format v1 and one evaluator | partly | `8a9e7c7` | One interpreter for procedure-as-data. The normative format document is open. |
-| 1.2 Interceptors in `invokeProcedure` | open | | |
-| 1.3 A build-time manifest and a thin `mark` path | open | | |
+| 1.1 Program Format v1 and one evaluator | done | `8a9e7c7`, `88edf02` | One interpreter, and `documentation/PROGRAM-FORMAT.md`. Its section 11 lists the open points. |
+| 1.2 Interceptors in `invokeProcedure` | done | `9e20de8` | Timeout, tracing and metrics interceptors. Nested calls inherit the chain. The MCP server limits each tool call. |
+| 1.3 A build-time manifest and a thin `mark` path | done | `978175a` | `mark --help` went from 1127 ms to 164 ms, and a warm-server call from 1170 ms to 352 ms. |
 | 2.1 Standard Schema, real schemas for exposed procedures | open | | |
 | 2.2 `commandProcedure()` and the wrapper migration | done | `6638311` | As `runCommand`. |
 | 2.3 One `host` package | open | | |
