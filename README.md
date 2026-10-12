@@ -7,7 +7,9 @@
 
 **Procedures as data for TypeScript.** You define a procedure one time: a path, a Zod input, a Zod output and a handler. Then you use it in the same process, over HTTP or WebSocket, from the `mark` CLI, or from Claude as an MCP tool. A program is plain JSON: calls, references to earlier results, and control flow. The client gives streams, middleware, retries and a cache.
 
-**[The site](https://mark1russell7.github.io/client/)** has the [Composer](https://mark1russell7.github.io/client/#/composer) (build a program from blocks, then start it in your browser), the [middleware lab](https://mark1russell7.github.io/client/#/lab), the [procedure catalog](https://mark1russell7.github.io/client/#/catalog) and the [status board](https://mark1russell7.github.io/client/#/status).
+**[The site](https://mark1russell7.github.io/client/)** has the [Composer](https://mark1russell7.github.io/client/composer/) (build a program from blocks, then start it in your browser), the [middleware lab](https://mark1russell7.github.io/client/lab/), the [procedure catalog](https://mark1russell7.github.io/client/catalog/) and the [status board](https://mark1russell7.github.io/client/status/).
+
+[![A program of ten calls runs in the browser: the trace shows each call as it happens](packages/site/media/live-program.gif)](https://mark1russell7.github.io/client/composer/)
 
 ## Install
 

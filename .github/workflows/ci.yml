@@ -99,9 +99,12 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      # Chromium first: the site build prerenders each page in it, so the tests see the real HTML
       - name: Install Chromium for Playwright
         run: pnpm --filter @mark1russell7/site exec playwright install --with-deps chromium
+      - run: pnpm build
+        env:
+          SITE_PRERENDER: "1"
       # The examples run, share links round-trip, no page scrolls sideways at 375 px, axe-core,
       # the keyboard, and the code of the TypeScript tab runs with Node
       - run: pnpm --filter @mark1russell7/site test:e2e

@@ -31,7 +31,7 @@ The result is 62 tools (October 2026):
 | `procedure` | 6: `define`, `delete`, `export`, `get`, `list`, `new` |
 | `vitest` | 2: `coverage`, `run` |
 
-`packages/impl-mcp-dev/tools.snapshot.txt` has the exact list. A test of `impl-mcp-dev` starts the real server and compares its tools with the list. The site shows the list too: <https://mark1russell7.github.io/client/#/claude>.
+`packages/impl-mcp-dev/tools.snapshot.txt` has the exact list. A test of `impl-mcp-dev` starts the real server and compares its tools with the list. The site shows the list too: <https://mark1russell7.github.io/client/claude/>.
 
 ## What stays out
 
