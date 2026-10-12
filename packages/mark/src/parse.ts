@@ -518,7 +518,24 @@ export function fieldsOf(command: CommandLike): SchemaFieldInfo[] {
  */
 export function resultFieldsOfSchema(output: unknown): SchemaFieldInfo[] {
   const json = output ? (jsonSchemaOf(output as ProcedureSchema, { io: "output" }) as JsonNode | undefined) : undefined;
-  return json && json.type === "object" ? extractSchemaFields(json) : [];
+  if (!json) return [];
+  if (json.type === "object") return extractSchemaFields(json);
+  // A number, a string, a boolean or an array: the help shows the one value (`mark client add`)
+  if (typeof json.type === "string" && ["number", "integer", "string", "boolean", "array"].includes(json.type)) {
+    const fieldType = fieldTypeOfJson(json);
+    return [
+      {
+        name: "value",
+        type: typeName(fieldType),
+        fieldType,
+        required: true,
+        description: json.description,
+        defaultValue: undefined,
+        enumValues: undefined,
+      },
+    ];
+  }
+  return [];
 }
 
 /** The fields of the result of a command: from the manifest, or read from the output schema */

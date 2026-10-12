@@ -117,6 +117,51 @@ export interface DefineProcedureOutput {
   replaced: boolean;
 }
 
+/** The JSON form of a `ProcedureDescription`, for the output schemas of `procedure.get`/`list`. */
+const descriptionFields = {
+  path: z.array(z.string()).describe("The path of the procedure"),
+  key: z.string().describe("The path as a dotted key"),
+  description: z.string().optional().describe("The description of the metadata"),
+  tags: z.array(z.string()).optional().describe("The tags of the metadata"),
+  hasHandler: z.boolean().describe("True when the procedure has a handler (it can run)"),
+  runtime: z.boolean().describe("True for a procedure that procedure.define made"),
+  metadata: z.unknown().optional().describe("The whole metadata"),
+};
+
+/** The output of `procedure.define` */
+const DefineOutputSchema = z.looseObject({
+  path: z.array(z.string()).describe("The path of the defined procedure"),
+  replaced: z.boolean().describe("True when the call replaced a runtime-defined procedure"),
+}) as z.ZodType<DefineProcedureOutput>;
+
+/**
+ * The output of `procedure.get`: one object, so MCP clients get an object output schema. With
+ * `found: false`, the other fields are absent.
+ */
+const GetOutputSchema = z.looseObject({
+  found: z.boolean().describe("True when the registry has the procedure"),
+  path: descriptionFields.path.optional(),
+  key: descriptionFields.key.optional(),
+  description: descriptionFields.description,
+  tags: descriptionFields.tags,
+  hasHandler: descriptionFields.hasHandler.optional(),
+  runtime: descriptionFields.runtime.optional(),
+  metadata: descriptionFields.metadata,
+  hasInputSchema: z.boolean().optional().describe("True when the procedure has an input schema"),
+  hasOutputSchema: z.boolean().optional().describe("True when the procedure has an output schema"),
+}) as z.ZodType<{ found: false } | (ProcedureDescription & { found: true; hasInputSchema: boolean; hasOutputSchema: boolean })>;
+
+/** The output of `procedure.list` */
+const ListOutputSchema = z.looseObject({
+  procedures: z.array(z.looseObject(descriptionFields)).describe("The procedures, in the order of the registry"),
+  count: z.number().describe("The number of procedures"),
+}) as z.ZodType<{ procedures: ProcedureDescription[]; count: number }>;
+
+/** The output of `procedure.delete` */
+const DeleteOutputSchema = z.looseObject({
+  deleted: z.boolean().describe("True when the registry removed the procedure"),
+}) as z.ZodType<{ deleted: boolean }>;
+
 // =============================================================================
 // Aggregation Handler Factory
 // =============================================================================
@@ -246,7 +291,7 @@ export const defineProcedureProcedure: Procedure<
 > = defineProcedure({
   path: ["procedure", "define"],
   input: defineInputSchema as any,
-  output: anySchema as any,
+  output: DefineOutputSchema,
   metadata: {
     description: "Define a new procedure from an aggregation",
     tags: ["core", "meta", RUNS_REFS_TAG],
@@ -383,7 +428,7 @@ export const getProcedureProcedure: Procedure<
 > = defineProcedure({
   path: ["procedure", "get"],
   input: zodAdapter(getInputSchema),
-  output: anySchema as any,
+  output: GetOutputSchema,
   metadata: {
     description: "Describe a procedure by path or key",
     tags: ["core", "meta"],
@@ -417,7 +462,7 @@ export const listProceduresProcedure: Procedure<
 > = defineProcedure({
   path: ["procedure", "list"],
   input: zodAdapter(listInputSchema),
-  output: anySchema as any,
+  output: ListOutputSchema,
   metadata: {
     description: "List the registered procedures",
     tags: ["core", "meta"],
@@ -444,7 +489,7 @@ export const deleteProcedureProcedure: Procedure<
 > = defineProcedure({
   path: ["procedure", "delete"],
   input: deleteInputSchema as any,
-  output: anySchema as any,
+  output: DeleteOutputSchema,
   metadata: {
     description: "Delete a runtime-defined procedure",
     tags: ["core", "meta"],

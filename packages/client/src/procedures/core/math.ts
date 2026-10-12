@@ -6,22 +6,9 @@
  */
 
 import { z } from "zod";
+import { numberOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
 
 // =============================================================================
 // Add Procedure
@@ -42,7 +29,7 @@ type AddProcedure = Procedure<AddInput, number, { description: string; tags: str
 const addProcedure: AddProcedure = defineProcedure({
   path: ["add"],
   input: AddInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The sum of a and b"),
   metadata: {
     description: "Add two numbers",
     tags: ["core", "math"],
@@ -71,7 +58,7 @@ type SubtractProcedure = Procedure<SubtractInput, number, { description: string;
 const subtractProcedure: SubtractProcedure = defineProcedure({
   path: ["subtract"],
   input: SubtractInputSchema,
-  output: anySchema as any,
+  output: numberOutput("a minus b"),
   metadata: {
     description: "Subtract b from a",
     tags: ["core", "math"],
@@ -100,7 +87,7 @@ type MultiplyProcedure = Procedure<MultiplyInput, number, { description: string;
 const multiplyProcedure: MultiplyProcedure = defineProcedure({
   path: ["multiply"],
   input: MultiplyInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The product of a and b"),
   metadata: {
     description: "Multiply two numbers",
     tags: ["core", "math"],
@@ -129,7 +116,7 @@ type DivideProcedure = Procedure<DivideInput, number, { description: string; tag
 const divideProcedure: DivideProcedure = defineProcedure({
   path: ["divide"],
   input: DivideInputSchema,
-  output: anySchema as any,
+  output: numberOutput("a divided by b"),
   metadata: {
     description: "Divide a by b",
     tags: ["core", "math"],
@@ -161,7 +148,7 @@ type ModProcedure = Procedure<ModInput, number, { description: string; tags: str
 const modProcedure: ModProcedure = defineProcedure({
   path: ["mod"],
   input: ModInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The remainder of a divided by b"),
   metadata: {
     description: "Modulo (remainder of a / b)",
     tags: ["core", "math"],
@@ -188,7 +175,7 @@ type AbsProcedure = Procedure<AbsInput, number, { description: string; tags: str
 const absProcedure: AbsProcedure = defineProcedure({
   path: ["abs"],
   input: AbsInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The absolute value"),
   metadata: {
     description: "Absolute value",
     tags: ["core", "math"],
@@ -215,7 +202,7 @@ type MinProcedure = Procedure<MinInput, number, { description: string; tags: str
 const minProcedure: MinProcedure = defineProcedure({
   path: ["min"],
   input: MinInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The smallest value"),
   metadata: {
     description: "Minimum value from array",
     tags: ["core", "math"],
@@ -245,7 +232,7 @@ type MaxProcedure = Procedure<MaxInput, number, { description: string; tags: str
 const maxProcedure: MaxProcedure = defineProcedure({
   path: ["max"],
   input: MaxInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The largest value"),
   metadata: {
     description: "Maximum value from array",
     tags: ["core", "math"],
@@ -275,7 +262,7 @@ type SumProcedure = Procedure<SumInput, number, { description: string; tags: str
 const sumProcedure: SumProcedure = defineProcedure({
   path: ["sum"],
   input: SumInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The sum of the values"),
   metadata: {
     description: "Sum of all values in array",
     tags: ["core", "math"],
@@ -304,7 +291,7 @@ type PowProcedure = Procedure<PowInput, number, { description: string; tags: str
 const powProcedure: PowProcedure = defineProcedure({
   path: ["pow"],
   input: PowInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The base to the power of the exponent"),
   metadata: {
     description: "Raise base to exponent power",
     tags: ["core", "math"],
@@ -331,7 +318,7 @@ type SqrtProcedure = Procedure<SqrtInput, number, { description: string; tags: s
 const sqrtProcedure: SqrtProcedure = defineProcedure({
   path: ["sqrt"],
   input: SqrtInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The square root"),
   metadata: {
     description: "Square root",
     tags: ["core", "math"],
@@ -358,7 +345,7 @@ type FloorProcedure = Procedure<FloorInput, number, { description: string; tags:
 const floorProcedure: FloorProcedure = defineProcedure({
   path: ["floor"],
   input: FloorInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The value rounded down"),
   metadata: {
     description: "Round down to nearest integer",
     tags: ["core", "math"],
@@ -385,7 +372,7 @@ type CeilProcedure = Procedure<CeilInput, number, { description: string; tags: s
 const ceilProcedure: CeilProcedure = defineProcedure({
   path: ["ceil"],
   input: CeilInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The value rounded up"),
   metadata: {
     description: "Round up to nearest integer",
     tags: ["core", "math"],
@@ -414,7 +401,7 @@ type RoundProcedure = Procedure<RoundInput, number, { description: string; tags:
 const roundProcedure: RoundProcedure = defineProcedure({
   path: ["round"],
   input: RoundInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The value rounded to the nearest number"),
   metadata: {
     description: "Round to nearest integer or specified decimal places",
     tags: ["core", "math"],

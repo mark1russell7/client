@@ -26,7 +26,16 @@ describe("the help of a command", () => {
     expect(help).toMatch(/ {2}path \([^)]*, optional\)/);
   });
 
-  it("has no result section for a result that is not an object", () => {
+  it("shows one value for a number, a string, a boolean or an array result", () => {
+    const result = resultFieldsOfSchema(zodAdapter(z.number().describe("The sum of a and b")));
+    expect(result.map((field) => [field.name, field.type])).toEqual([["value", "number"]]);
+    const help = generateHelp(["client", "add"], { description: "Add two numbers" }, [], result);
+    expect(help).toContain("Result:");
+    expect(help).toContain("  value (number)");
+    expect(help).toContain("The sum of a and b");
+  });
+
+  it("has no result section for a union or any value", () => {
     const union = zodAdapter(z.union([z.looseObject({ a: z.string() }), z.looseObject({ b: z.number() })]));
     expect(resultFieldsOfSchema(union)).toEqual([]);
     expect(resultFieldsOfSchema(undefined)).toEqual([]);

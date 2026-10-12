@@ -6,22 +6,9 @@
  */
 
 import { z } from "zod";
+import { anyOutput, arrayOutput, booleanOutput, recordOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
 
 // =============================================================================
 // Helper: Get nested value by path
@@ -86,7 +73,7 @@ type GetProcedure = Procedure<GetInput, unknown, { description: string; tags: st
 const getProcedure: GetProcedure = defineProcedure({
   path: ["get"],
   input: GetInputSchema,
-  output: anySchema as any,
+  output: anyOutput("The value at the path, or the default"),
   metadata: {
     description: "Get nested value from object by dot-separated path",
     tags: ["core", "object"],
@@ -118,7 +105,7 @@ type SetProcedure = Procedure<SetInput, Record<string, unknown>, { description: 
 const setProcedure: SetProcedure = defineProcedure({
   path: ["set"],
   input: SetInputSchema,
-  output: anySchema as any,
+  output: recordOutput("The object with the value at the path"),
   metadata: {
     description: "Set nested value in object by dot-separated path (immutable)",
     tags: ["core", "object"],
@@ -169,7 +156,7 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
 const mergeProcedure: MergeProcedure = defineProcedure({
   path: ["merge"],
   input: MergeInputSchema,
-  output: anySchema as any,
+  output: recordOutput("The merged object"),
   metadata: {
     description: "Merge multiple objects (shallow or deep)",
     tags: ["core", "object"],
@@ -199,7 +186,7 @@ type KeysProcedure = Procedure<KeysInput, string[], { description: string; tags:
 const keysProcedure: KeysProcedure = defineProcedure({
   path: ["keys"],
   input: KeysInputSchema,
-  output: anySchema as any,
+  output: z.array(z.string()).describe("The own keys of the object"),
   metadata: {
     description: "Get array of object keys",
     tags: ["core", "object"],
@@ -226,7 +213,7 @@ type ValuesProcedure = Procedure<ValuesInput, unknown[], { description: string; 
 const valuesProcedure: ValuesProcedure = defineProcedure({
   path: ["values"],
   input: ValuesInputSchema,
-  output: anySchema as any,
+  output: arrayOutput("The own values of the object"),
   metadata: {
     description: "Get array of object values",
     tags: ["core", "object"],
@@ -255,7 +242,7 @@ type EntriesProcedure = Procedure<EntriesInput, EntriesOutput, { description: st
 const entriesProcedure: EntriesProcedure = defineProcedure({
   path: ["entries"],
   input: EntriesInputSchema,
-  output: anySchema as any,
+  output: z.array(z.tuple([z.string(), z.unknown()])).describe("The [key, value] pairs of the object"),
   metadata: {
     description: "Get array of [key, value] pairs",
     tags: ["core", "object"],
@@ -282,7 +269,7 @@ type FromEntriesProcedure = Procedure<FromEntriesInput, Record<string, unknown>,
 const fromEntriesProcedure: FromEntriesProcedure = defineProcedure({
   path: ["fromEntries"],
   input: FromEntriesInputSchema,
-  output: anySchema as any,
+  output: recordOutput("The object of the pairs"),
   metadata: {
     description: "Create object from [key, value] pairs",
     tags: ["core", "object"],
@@ -311,7 +298,7 @@ type PickProcedure = Procedure<PickInput, Record<string, unknown>, { description
 const pickProcedure: PickProcedure = defineProcedure({
   path: ["pick"],
   input: PickInputSchema,
-  output: anySchema as any,
+  output: recordOutput("The object with only the given keys"),
   metadata: {
     description: "Pick specified keys from object",
     tags: ["core", "object"],
@@ -346,7 +333,7 @@ type OmitProcedure = Procedure<OmitInput, Record<string, unknown>, { description
 const omitProcedure: OmitProcedure = defineProcedure({
   path: ["omit"],
   input: OmitInputSchema,
-  output: anySchema as any,
+  output: recordOutput("The object without the given keys"),
   metadata: {
     description: "Omit specified keys from object",
     tags: ["core", "object"],
@@ -382,7 +369,7 @@ type HasProcedure = Procedure<HasInput, boolean, { description: string; tags: st
 const hasProcedure: HasProcedure = defineProcedure({
   path: ["has"],
   input: HasInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when the path exists"),
   metadata: {
     description: "Check if object has a value at the specified path",
     tags: ["core", "object"],

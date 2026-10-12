@@ -6,22 +6,9 @@
  */
 
 import { z } from "zod";
+import { anyOutput, booleanOutput, stringOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
 
 // =============================================================================
 // Typeof Procedure
@@ -40,7 +27,7 @@ type TypeofProcedure = Procedure<TypeofInput, string, { description: string; tag
 const typeofProcedure: TypeofProcedure = defineProcedure({
   path: ["typeof"],
   input: TypeofInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The type name of the value"),
   metadata: {
     description: "Get type of value (string, number, boolean, object, array, null, undefined, function)",
     tags: ["core", "type"],
@@ -70,7 +57,7 @@ type IsNullProcedure = Procedure<IsNullInput, boolean, { description: string; ta
 const isNullProcedure: IsNullProcedure = defineProcedure({
   path: ["isNull"],
   input: IsNullInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for null"),
   metadata: {
     description: "Check if value is null",
     tags: ["core", "type"],
@@ -97,7 +84,7 @@ type IsUndefinedProcedure = Procedure<IsUndefinedInput, boolean, { description: 
 const isUndefinedProcedure: IsUndefinedProcedure = defineProcedure({
   path: ["isUndefined"],
   input: IsUndefinedInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for undefined"),
   metadata: {
     description: "Check if value is undefined",
     tags: ["core", "type"],
@@ -124,7 +111,7 @@ type IsNilProcedure = Procedure<IsNilInput, boolean, { description: string; tags
 const isNilProcedure: IsNilProcedure = defineProcedure({
   path: ["isNil"],
   input: IsNilInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for null or undefined"),
   metadata: {
     description: "Check if value is null or undefined",
     tags: ["core", "type"],
@@ -151,7 +138,7 @@ type IsArrayProcedure = Procedure<IsArrayInput, boolean, { description: string; 
 const isArrayProcedure: IsArrayProcedure = defineProcedure({
   path: ["isArray"],
   input: IsArrayInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for an array"),
   metadata: {
     description: "Check if value is an array",
     tags: ["core", "type"],
@@ -178,7 +165,7 @@ type IsObjectProcedure = Procedure<IsObjectInput, boolean, { description: string
 const isObjectProcedure: IsObjectProcedure = defineProcedure({
   path: ["isObject"],
   input: IsObjectInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for a plain object"),
   metadata: {
     description: "Check if value is a plain object (not array, not null)",
     tags: ["core", "type"],
@@ -205,7 +192,7 @@ type IsStringProcedure = Procedure<IsStringInput, boolean, { description: string
 const isStringProcedure: IsStringProcedure = defineProcedure({
   path: ["isString"],
   input: IsStringInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for a string"),
   metadata: {
     description: "Check if value is a string",
     tags: ["core", "type"],
@@ -232,7 +219,7 @@ type IsNumberProcedure = Procedure<IsNumberInput, boolean, { description: string
 const isNumberProcedure: IsNumberProcedure = defineProcedure({
   path: ["isNumber"],
   input: IsNumberInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for a number"),
   metadata: {
     description: "Check if value is a number (not NaN)",
     tags: ["core", "type"],
@@ -259,7 +246,7 @@ type IsBooleanProcedure = Procedure<IsBooleanInput, boolean, { description: stri
 const isBooleanProcedure: IsBooleanProcedure = defineProcedure({
   path: ["isBoolean"],
   input: IsBooleanInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True for a boolean"),
   metadata: {
     description: "Check if value is a boolean",
     tags: ["core", "type"],
@@ -288,7 +275,7 @@ type CoerceProcedure = Procedure<CoerceInput, unknown, { description: string; ta
 const coerceProcedure: CoerceProcedure = defineProcedure({
   path: ["coerce"],
   input: CoerceInputSchema,
-  output: anySchema as any,
+  output: anyOutput("The value in the target type"),
   metadata: {
     description: "Coerce value to specified type",
     tags: ["core", "type"],

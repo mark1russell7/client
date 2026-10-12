@@ -9,17 +9,6 @@ import { defineProcedure, PROCEDURE_REGISTRY, pathToKey, keyToPath } from "@mark
 import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
 import { z } from "zod";
 
-// Schema that accepts any value (for output schema)
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
-
 // procedure.list and procedure.get are core procedures (`@mark1russell7/client`, in
 // define-procedure.ts). This package gave its own versions for the whole registry and replaced
 // the core ones, so the results depended on the imports of the host (docs review DOC-6). The core
@@ -48,10 +37,23 @@ interface ProcedureExportOutput {
   error?: string;
 }
 
+/** The output of `procedure.export` (roadmap 2.1: before, a pass-through schema) */
+const ProcedureExportOutputSchema = z.looseObject({
+  success: z.boolean().describe("True when the registry has the procedure"),
+  definition: z
+    .looseObject({
+      $proc: z.array(z.string()).describe("The path of the procedure"),
+      metadata: z.record(z.string(), z.unknown()).optional().describe("The metadata of the procedure"),
+    })
+    .optional()
+    .describe("The procedure as a procedure reference, when it exists"),
+  error: z.string().optional().describe("The error message when the registry has no such procedure"),
+}) as z.ZodType<ProcedureExportOutput>;
+
 export const procedureExportProcedure: AnyProcedure = defineProcedure({
   path: ["procedure", "export"],
   input: ProcedureExportInputSchema,
-  output: anySchema as any,
+  output: ProcedureExportOutputSchema,
   metadata: {
     description: "Export a procedure definition as JSON",
     tags: ["procedure", "registry"],
