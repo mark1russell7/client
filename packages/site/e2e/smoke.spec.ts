@@ -300,6 +300,12 @@ test.describe("accessibility", () => {
       await page.emulateMedia({ colorScheme });
       const problems: string[] = [];
       const check = async (name: string): Promise<void> => {
+        // A dialog fades in: axe measures the contrast of the final colors, after the animations
+        await page.waitForFunction(() =>
+          document
+            .getAnimations()
+            .every((animation) => animation.playState !== "running" || animation.effect?.getTiming().iterations === Infinity),
+        );
         const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
         for (const violation of results.violations) {
           if (violation.impact === "serious" || violation.impact === "critical") {

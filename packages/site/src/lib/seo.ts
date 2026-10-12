@@ -75,7 +75,7 @@ function fixedPages(): PageMeta[] {
     page(
       "architecture",
       `Architecture: one call's journey, ${packages.length} packages`,
-      "Follow one streaming call through the real middlewares, transport, server and interceptors, over HTTP, WebSocket or MCP. Then the map of the packages.",
+      "One streaming call through the real middlewares, transport, server and interceptors (HTTP, WebSocket, MCP), and the package map.",
     ),
     page(
       "lab",
