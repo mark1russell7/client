@@ -14,6 +14,20 @@ if (!site || !site.endsWith("/")) {
   process.exit(1);
 }
 
+// The engines fetch the key file to check the request. Just after a deploy, the CDN of GitHub
+// Pages can still serve the old site for a minute or two: the first run got HTTP 403 (key not
+// valid). So wait until the key file is live.
+const keyLocation = new URL(`${KEY}.txt`, site).href;
+for (let attempt = 1; ; attempt++) {
+  const keyFile = await fetch(keyLocation, { cache: "no-store" }).catch(() => undefined);
+  if (keyFile?.ok && (await keyFile.text()).trim() === KEY) break;
+  if (attempt === 12) {
+    console.error(`The key file is not live after 3 minutes: ${keyLocation}`);
+    process.exit(1);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 15_000));
+}
+
 const sitemap = await fetch(new URL("sitemap.xml", site));
 if (!sitemap.ok) {
   console.error(`sitemap.xml: HTTP ${sitemap.status}`);
@@ -31,7 +45,7 @@ const response = await fetch("https://api.indexnow.org/indexnow", {
   body: JSON.stringify({
     host: new URL(site).host,
     key: KEY,
-    keyLocation: new URL(`${KEY}.txt`, site).href,
+    keyLocation,
     urlList: urls.slice(0, 10000),
   }),
 });

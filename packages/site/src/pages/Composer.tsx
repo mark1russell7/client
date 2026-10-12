@@ -25,7 +25,7 @@ import {
 } from "../lib/program";
 import { currentUrl, href, isOwnEntry, writeUrl, type Route } from "../lib/router";
 import { ProgramRunner } from "../lib/runner";
-import { runProgram, type RunResult } from "../lib/runtime";
+import type { RunResult } from "../lib/runtime";
 
 type Tab = "blocks" | "graph" | "json" | "ts";
 
@@ -442,7 +442,11 @@ export function Composer({ route }: { route: Route }): ReactElement {
       }
       setRunning(true);
       setProgress(0);
-      const next = runner.current ? await runner.current.run(toRun) : await runProgram(toRun);
+      // Without a Web Worker the program runs on the page. The runtime (the client and zod) loads
+      // only then: the worker has its own copy, so a static import loaded it twice.
+      const next = runner.current
+        ? await runner.current.run(toRun)
+        : await (await import("../lib/runtime")).runProgram(toRun);
       if (id === runCount.current) {
         setResult(next);
         setRunning(false);

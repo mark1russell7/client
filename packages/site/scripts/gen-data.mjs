@@ -137,7 +137,6 @@ if (unbuilt.length > 0) {
 // ---------------------------------------------------------------------------
 
 const client = await import(pathToFileURL(clientDist).href);
-const { zodToJsonSchema } = await import(pathToFileURL(join(PACKAGES, "mcp", "dist", "index.js")).href);
 const registry = client.PROCEDURE_REGISTRY;
 
 const owner = new Map();
@@ -184,12 +183,9 @@ const mcpSnapshot = join(PACKAGES, "impl-mcp-dev", "tools.snapshot.txt");
 if (!existsSync(mcpSnapshot)) fail("packages/impl-mcp-dev/tools.snapshot.txt is missing.");
 const mcpTools = new Set(readFileSync(mcpSnapshot, "utf8").split(/\r?\n/).filter(Boolean));
 
-function schemaOf(schema) {
-  try {
-    return zodToJsonSchema(schema);
-  } catch {
-    return { type: "object" };
-  }
+/** The JSON Schema of a procedure's input or output, as the MCP tools and `mark` see it. */
+function schemaOf(schema, io = "input") {
+  return client.jsonSchemaOf(schema, { io }) ?? { type: "object" };
 }
 
 const coreFields = readCoreFields(PACKAGES);
@@ -205,7 +201,7 @@ for (const proc of [...registry.getAll(), ...client.allCoreProcedures]) {
     description: proc.metadata?.description ?? "",
     tags: proc.metadata?.tags ?? [],
     input: schemaOf(proc.input),
-    output: schemaOf(proc.output),
+    output: schemaOf(proc.output, "output"),
     registered: registry.has(proc.path),
     cli: cliKeys.has(key),
     browser: browserKeys.has(key),
