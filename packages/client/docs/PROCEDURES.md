@@ -1,5 +1,7 @@
 # Procedure Aggregation Language
 
+> **History.** `packages/documentation/PROGRAM-FORMAT.md` is the current, normative description of procedure-as-data. This document describes an older form of the language.
+
 A comprehensive declarative/imperative programming system for composing, serializing, and executing procedures remotely.
 
 ## Overview

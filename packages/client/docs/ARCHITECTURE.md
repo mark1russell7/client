@@ -1,5 +1,7 @@
 # Architecture
 
+> **History.** The current architecture document is `packages/documentation/ARCHITECTURE.md`. This one describes the library before the monorepo.
+
 This document describes the architecture of the Universal RPC Library.
 
 ## System Overview

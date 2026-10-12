@@ -1,5 +1,7 @@
 # Collections Framework
 
+> **History.** The collections framework is the package `@mark1russell7/client-collections` now (`client/collections` was removed in October 2026). Its README and its contract tests are current. This document describes the older API.
+
 A Java Collections-inspired framework with composable behaviors.
 
 ## Overview

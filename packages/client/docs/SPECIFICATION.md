@@ -1,5 +1,7 @@
 # Universal Client System - Architectural Specification
 
+> **History.** This specification is from December 2024. The current documents are `packages/documentation/ARCHITECTURE.md`, `PROGRAM-FORMAT.md` and `docs/POLICY.md`. Some entry points that it names were removed in October 2026.
+
 > **Version:** 1.0.0
 > **Last Updated:** December 2024
 > **Package:** `client`
