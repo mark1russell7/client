@@ -165,6 +165,10 @@ server -p @mark1russell7/client-mongo/register -t http,websocket
 | `--verbose` | `-v` | - | Verbose output |
 | `--help` | `-h` | - | Show help |
 
+`mark serve` takes the same options and starts the same server.
+
+The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@mark1russell7/client`.
+
 ### Transport Configuration
 
 ```mermaid

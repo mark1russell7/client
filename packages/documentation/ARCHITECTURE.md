@@ -37,6 +37,8 @@ A procedure is an object with these fields (`packages/client/src/procedures/type
 
 A package registers its procedures when it is imported: its `src/register.ts` gives them to `registerProcedures()`, and its root `index.ts` imports `register.js`. The `client.procedures` field of `package.json` tells `mark` which packages to load. The core registers its control-flow procedures and its meta procedures when it is imported. The other 85 core procedures (math, string, array and more) are in `allCoreProcedures`, and a host registers them if it needs them.
 
+Each package also has a `./module` entry ([`packages/client/src/procedures/module.ts`](../client/src/procedures/module.ts)). The entry gives the procedures as data, and an import of it registers nothing. A module names the modules that its procedures use (its `requires` list): the list of `client-lib` has the modules of `client-fs` and `client-git`. `createRegistry(...modules)` makes a new registry with the core procedures, the modules and the modules of their lists. Two registries in one process stay apart: a nested call and `procedure.define` use the registry of their invocation.
+
 ## One invocation path
 
 Every host starts a procedure with `invokeProcedure()` in [`packages/client/src/procedures/invoke.ts`](../client/src/procedures/invoke.ts). The function does these steps:
@@ -64,15 +66,28 @@ The transports are `LocalTransport` (a registry in this process), `HttpTransport
 
 ## The hosts
 
-| Host | Package | How it starts procedures |
-|---|---|---|
-| `mark`, local mode | `mark` | It imports each package with `client.procedures`, parses the command line against the procedure's schema, and starts the procedure with `LocalTransport`. |
-| `mark`, warm mode | `mark`, `client-server` | `mark --server` starts a peer server on `127.0.0.1` and writes a lockfile in `~/.mark/servers/`. A later `mark` command in the same folder, from the same build, sends the command to that server over HTTP. |
-| `server` | `server`, `client-server` | A standalone HTTP and WebSocket server for the procedure packages that it loads. |
-| The MCP server | `impl-mcp-dev`, `client-mcp`, `bundle-mcp` | Claude Code starts it over stdio. `ProcedureServer` with an `expose` rule, and `McpServerTransport`. |
-| The Composer | `site` | It starts programs in a Web Worker of the browser, with `LocalTransport` and the core procedures. |
+| Host | Command | Package | How it starts procedures |
+|---|---|---|---|
+| `mark`, local mode | `mark <command>` | `mark` | It makes a registry from the module of each package with `client.procedures`. It parses the command line against the procedure's schema and starts the procedure with `LocalTransport`. |
+| `mark`, warm mode | `mark --server` | `mark`, `client-server` | It starts a peer server on `127.0.0.1` with the same registry, and writes a lockfile in `~/.mark/servers/`. A later `mark` command in the same folder, from the same build, goes to that server over HTTP. |
+| The procedure server | `mark serve`, or `server` | `server`, `client-server` | An HTTP and WebSocket server for the procedure packages of `--procedures`. Its registry has the modules of those packages and the `server.*` procedures. |
+| The MCP server | `mark mcp`, or `node packages/impl-mcp-dev/dist/server.js` | `impl-mcp-dev`, `client-mcp`, `bundle-mcp` | Claude Code starts it over stdio. Its registry has the modules of its bundles. `McpServerTransport` gives the tools of that registry. |
+| The Composer | | `site` | It starts programs in a Web Worker of the browser, with `LocalTransport` and the core procedures. |
 
-The warm mode removes the start time of Node for a command. The CLI still imports the packages before it looks for a server (roadmap item 1.3).
+`mark` is the one command that a user needs. The `server` and `mcp-dev-tools` commands start the same hosts.
+
+The warm mode removes the start time of Node for a command. `mark` reads a manifest that its build writes (`dist/manifest.json`). Thus the help and a command for a warm server load no procedures.
+
+### The policy of a host
+
+`hostPolicy()` ([`packages/client/src/server/host-policy.ts`](../client/src/server/host-policy.ts)) makes the policy of each host from one set of options:
+
+- `expose`: the procedures that callers can use. It takes patterns (`git.status`, `git.*`, `*`), a tool surface (namespaces less some keys) or a function.
+- `strictCalls`: a procedure of code without `metadata.calls` can use only exposed procedures.
+- `timeoutMs`: the time limit of each call from a caller.
+- `token` and `browser`: the checks of the network transports.
+
+`procedureServerOptions()` gives the policy to a `ProcedureServer`, and `createPeer({ policy })` gives it to a peer. The MCP server uses the tool surface of its bundles, `strictCalls` and a time limit. The procedure server uses its token and its `--expose` list. The warm server uses its token.
 
 ## Streaming
 
@@ -93,7 +108,7 @@ A registry often has `shell.*`, which starts any program. These rules protect it
 - **No shell strings.** The command wrappers give an argument list to `runCommand()` or `shell.run`. They refuse values that start with `-` where the tool reads them as options.
 - **Browser checks.** `HttpServerTransport` and `WebSocketServerTransport` examine each request ([`server/browser-guard.ts`](../client/src/server/browser-guard.ts)). On a loopback address, the `Host` name must be a loopback name. An `Origin` must be the origin of the server or a permitted origin (`allowedOrigins`). A call by GET needs `allowGet`, and a body must be JSON.
 - **The warm-server token.** `mark --server` makes a random token and writes it in its lockfile, which only the user can read. Each request must send it. `mark` uses a server only when its health endpoint gives the peer id of the lockfile.
-- **The standalone `server`.** It binds to `127.0.0.1` by default and has the browser checks. It has no token and no `expose` rule. Bind it to a different address only on a network that you trust.
+- **The procedure server.** `mark serve` and `server` bind to `127.0.0.1` by default and have the browser checks. Each request must send a token: `--token`, `SERVER_TOKEN`, or a random token that the server prints at its start. `--expose` limits the procedures. Use `--no-token` only on a computer that you trust.
 
 ## The program interpreter
 
