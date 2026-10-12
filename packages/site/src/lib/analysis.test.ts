@@ -78,6 +78,14 @@ const cases: ChainCase[] = [
     chain: true,
   },
   {
+    // A $never call is data: a list of them stays a list, and nothing runs (docs review DOC-1)
+    name: "a list of $never calls",
+    program: call("identity", { value: [{ ...(add(1, 1) as object), $when: "$never" }, { ...(add(2, 2) as object), $when: "$never" }] }),
+    list: ["input", "value"],
+    read: (value) => value,
+    chain: false,
+  },
+  {
     name: "a list in the try operand of tryCatch",
     program: call("tryCatch", { try: [add(1, 1), add(2, 2)], catch: 0 }),
     list: ["input", "try"],

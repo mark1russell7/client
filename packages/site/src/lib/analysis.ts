@@ -21,6 +21,11 @@ import { isOutputRef, isPlainObject, isProcRef, keyOf, locationKey, type Json, t
 
 const CONTROL_FLOW = new Set(["chain", "parallel", "conditional", "tryCatch", "and", "or", "map", "reduce"]);
 
+/** True for a call that hydration runs now: no `$when`, or `$immediate`. */
+function runsNow(ref: ProcRef): boolean {
+  return ref.$when === undefined || ref.$when === "$immediate";
+}
+
 /** The name of a core control-flow procedure ("chain"), or undefined. */
 export function controlFlowName(ref: ProcRef): string | undefined {
   const [namespace, name, ...rest] = ref.$proc;
@@ -79,7 +84,9 @@ function walkValue(w: Walker, value: Json | undefined, location: Location, fresh
     return;
   }
   if (Array.isArray(value)) {
-    if (fresh && value.length > 0 && value.every((item) => isProcRef(item))) {
+    // A call with a `$when` other than `$immediate` waits for its runner: it is data, so a list
+    // with one is not a chain (the core rule since the docs review, DOC-1)
+    if (fresh && value.length > 0 && value.every((item) => isProcRef(item) && runsNow(item))) {
       // The core runs the calls of an implicit chain as nested calls, before the chain starts
       w.analysis.chains.add(locationKey(location));
       value.forEach((item, index) => walkCall(w, item as ProcRef, [...location, index], false, scope));
