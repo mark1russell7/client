@@ -50,8 +50,11 @@ export function ogCard(route: StaticRoute, site: SiteFacts): OgCard {
   if (route.path === "") eyebrow = `TypeScript library · ${site.license} license`;
   else if (route.path.startsWith("catalog/")) eyebrow = "Procedures";
   else if (route.path.startsWith("architecture/")) eyebrow = "Architecture / package";
+  else if (route.path.startsWith("docs/packages/")) eyebrow = "Docs / package README";
+  else if (route.path.startsWith("docs/")) eyebrow = "Docs";
   else eyebrow = route.section || route.heading;
-  return { eyebrow, title: route.heading, description: route.description, siteName: site.name, address };
+  // A zero-width space after each slash: a package name breaks after its scope, not in a word
+  return { eyebrow, title: route.heading.replace(/\//g, "/​"), description: route.description, siteName: site.name, address };
 }
 
 function fontFaces(family: string, sources: readonly string[]): string {

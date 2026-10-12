@@ -9,7 +9,8 @@ import path from "node:path";
 import type { Browser } from "@playwright/test";
 import type { Plugin, ResolvedConfig } from "vite";
 import { build } from "../data";
-import { LIBRARY_NAME, REPOSITORY_URL, SITE_NAME, SITE_TAGLINE, SITE_URL, staticPages } from "../lib/seo";
+import { docs } from "../data/docs";
+import { LIBRARY_NAME, REPOSITORY_URL, SITE_NAME, SITE_TAGLINE, SITE_URL, registerDocDescriptions, staticPages } from "../lib/seo";
 import { headTags, ogImageFile, type SiteFacts } from "./head-tags";
 import { llmsTxt } from "./llms";
 import { ogCard, ogImageHtml, type OgFonts } from "./og-image";
@@ -97,6 +98,8 @@ export function spaFallbackPlugin(): Plugin {
       await writeFile(path.join(outDir, "404.html"), template, "utf8");
 
       const site = await siteFacts(root);
+      // The head tags of the docs pages get their real descriptions (the main bundle has none)
+      registerDocDescriptions(docs.map((doc) => [doc.slug, doc.description] as const));
       const routes = staticPages();
       const tokens = colorTokens(await readFile(path.join(root, "src", "styles", "tokens.css"), "utf8"));
 

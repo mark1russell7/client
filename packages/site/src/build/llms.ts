@@ -13,6 +13,8 @@ export function llmsTxt(routes: readonly StaticRoute[], site: SiteFacts): string
   const main = routes.filter((route) => route.path !== "" && !route.path.includes("/"));
   const procedures = routes.filter((route) => route.path.startsWith("catalog/"));
   const packages = routes.filter((route) => route.path.startsWith("architecture/"));
+  const guides = routes.filter((route) => route.path.startsWith("docs/") && !route.path.startsWith("docs/packages/"));
+  const readmes = routes.filter((route) => route.path.startsWith("docs/packages/"));
   return [
     `# ${site.libraryName}`,
     "",
@@ -23,12 +25,20 @@ export function llmsTxt(routes: readonly StaticRoute[], site: SiteFacts): string
     "same registry. A program is JSON: an object with `$proc` is a call, and `$ref` reads an earlier result.",
     "",
     `- Source: ${site.repository}`,
-    `- Program format: ${site.repository}/blob/main/packages/documentation/PROGRAM-FORMAT.md`,
-    `- Architecture: ${site.repository}/blob/main/packages/documentation/ARCHITECTURE.md`,
+    `- Program format: ${routeUrl(site.url, "docs/program-format")}`,
+    `- Architecture: ${routeUrl(site.url, "docs/architecture")}`,
     "",
     "## Pages",
     "",
     ...main.map(link),
+    "",
+    "## Docs",
+    "",
+    ...guides.map(link),
+    "",
+    "## Package READMEs",
+    "",
+    ...readmes.map(link),
     "",
     "## Procedures",
     "",

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { packages, procedureByKey, procedures, type JsonSchema, type ProcedureInfo } from "../data";
 import { encodeProgram, newCall } from "../lib/program";
-import { href, writeUrl, type Route } from "../lib/router";
+import { docHref, href, writeUrl, type Route } from "../lib/router";
+import { hasDoc } from "../data/doc-routes";
 import { exampleInput, usageCode } from "../lib/usage";
 import { compactJson } from "../lib/json-text";
 
@@ -142,6 +143,12 @@ function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
         <dt>Package</dt>
         <dd>
           <a href={href("architecture", procedure.package)}>{pkg?.name ?? procedure.package}</a>
+          {hasDoc(`packages/${procedure.package}`) ? (
+            <>
+              {" · "}
+              <a href={docHref(`packages/${procedure.package}`)}>README</a>
+            </>
+          ) : null}
         </dd>
         <dt>Path</dt>
         <dd>

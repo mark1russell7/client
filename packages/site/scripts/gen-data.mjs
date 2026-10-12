@@ -19,11 +19,12 @@
 // Output: src/data/generated/*.js with .d.ts files. Git ignores that folder.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
 import { readStatusData } from "./status-data.mjs";
+import { docModuleName, readDocs } from "./docs-data.mjs";
 import { countTests, npmVersion } from "./site-metrics.mjs";
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -247,6 +248,18 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// The docs pages (scripts/docs-data.mjs): the guides, the documents of the client library and
+// the README of each package, as HTML. A program block can run when the browser has its procedures.
+// ---------------------------------------------------------------------------
+
+let docs;
+try {
+  docs = readDocs(PACKAGES, packages, { canRun: (key) => browserKeys.has(key) });
+} catch (error) {
+  fail(`the docs pages cannot be made. ${error?.stack ?? error}`);
+}
+
+// ---------------------------------------------------------------------------
 // Output
 // ---------------------------------------------------------------------------
 
@@ -265,12 +278,25 @@ const metrics = { tests: tests.tests, testFiles: tests.files, npm };
 
 write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });
 write("status", status);
+// The list of the docs pages goes with the routes; the content of each page and the headings for
+// the command palette load only with the page and the palette.
+write("docs-index", docs.index);
+write("docs-routes", docs.routes);
+write("docs-search", docs.search);
+rmSync(join(OUT, "docs"), { recursive: true, force: true });
+mkdirSync(join(OUT, "docs"), { recursive: true });
+for (const [slug, page] of Object.entries(docs.pages)) {
+  const name = docModuleName(slug);
+  writeFileSync(join(OUT, "docs", `${name}.js`), `export default ${JSON.stringify(page)};\n`);
+  writeFileSync(join(OUT, "docs", `${name}.d.ts`), "declare const data: unknown;\nexport default data;\n");
+}
 
 log(
   `site data: ${packages.length} packages, ${procedures.length} procedures ` +
     `(${procedures.filter((p) => p.cli).length} in the CLI, ${procedures.filter((p) => p.mcp).length} MCP tools, ` +
     `${procedures.filter((p) => p.browser).length} in the browser), ` +
     `${status.findings.length} findings and ${status.roadmap.length} roadmap items on the status board, ` +
+    `${docs.index.length} docs pages (${docs.index.reduce((sum, doc) => sum + doc.programs, 0)} program blocks), ` +
     `${metrics.tests} tests in ${metrics.testFiles} files, npm: ${npm.version ?? "not published"}` +
     (failed.length ? `, ${failed.length} packages failed to load: ${failed.map((f) => f.package).join(", ")}` : ""),
 );

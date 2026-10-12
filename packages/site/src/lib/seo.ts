@@ -7,6 +7,7 @@
  */
 
 import { mcpTools, packages, procedureByKey, procedures } from "../data";
+import { docRoutes } from "../data/doc-routes";
 
 /** The name of the site, as the header shows it. */
 export const SITE_NAME = "client";
@@ -38,6 +39,7 @@ export const SECTIONS: Readonly<Record<string, string>> = {
   lab: "Lab",
   claude: "What Claude sees",
   status: "Status",
+  docs: "Docs",
 };
 
 function page(path: string, heading: string, description: string, title?: string): PageMeta {
@@ -92,7 +94,33 @@ function fixedPages(): PageMeta[] {
       "Bug and finding status board",
       "The status of each finding of the October 2026 deep dive and each bug of the July audit, with its severity and the commits that fixed it.",
     ),
+    page(
+      "docs",
+      "Documentation: guides, the program format and every package",
+      "The guides, the program format, the client library and the README of each package, with programs that run in your browser.",
+      `Documentation: guides, API and package READMEs | ${SITE_NAME}`,
+    ),
   ];
+}
+
+/**
+ * The docs pages: only the slug, the heading and the document title of each (the main bundle
+ * holds this small list). The descriptions come with the full list of the docs (refer to
+ * `registerDocDescriptions`): the build gives them, and so does the docs page when it loads.
+ */
+const docDescriptions = new Map<string, string>();
+
+/** This function gives the descriptions of the docs pages to the meta data (slug to description). */
+export function registerDocDescriptions(descriptions: Iterable<readonly [string, string]>): void {
+  for (const [slug, description] of descriptions) docDescriptions.set(slug, description);
+}
+
+/** The meta data of one docs page. */
+function docPage(slug: string): PageMeta | null {
+  const route = docRoutes.find((candidate) => candidate.slug === slug);
+  if (!route) return null;
+  const description = docDescriptions.get(slug) ?? `${route.heading}: a page of the documentation of ${LIBRARY_NAME}.`;
+  return page(`docs/${slug}`, route.heading, clip(description), route.title);
 }
 
 /** The meta data of the page of one procedure. */
@@ -128,6 +156,7 @@ export function metaOf(route: { page: string; rest: string }): PageMeta | null {
   if (route.rest === "") return fixedPages().find((candidate) => candidate.path === route.page) ?? null;
   if (route.page === "catalog") return procedurePage(route.rest);
   if (route.page === "architecture") return packagePage(route.rest);
+  if (route.page === "docs") return docPage(route.rest);
   return null;
 }
 
@@ -150,5 +179,6 @@ export function staticPages(): PageMeta[] {
     .sort((a, b) => a.dir.localeCompare(b.dir))
     .map((pkg) => packagePage(pkg.dir))
     .filter((meta): meta is PageMeta => meta !== null);
-  return [...fixedPages(), ...procedurePages, ...packagePages];
+  const docPages = docRoutes.map((route) => docPage(route.slug)).filter((meta): meta is PageMeta => meta !== null);
+  return [...fixedPages(), ...procedurePages, ...packagePages, ...docPages];
 }

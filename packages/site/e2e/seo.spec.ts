@@ -9,13 +9,32 @@ import { test, expect, type Page, type Response } from "@playwright/test";
 import { gzipSync } from "node:zlib";
 
 /** The fixed pages and a sample of the procedure and package pages. */
-const ROUTES = ["", "composer/", "catalog/", "catalog/client.chain/", "catalog/git.status/", "architecture/", "architecture/client/", "lab/", "claude/", "status/"];
+const ROUTES = [
+  "",
+  "composer/",
+  "catalog/",
+  "catalog/client.chain/",
+  "catalog/git.status/",
+  "architecture/",
+  "architecture/client/",
+  "lab/",
+  "claude/",
+  "status/",
+  "docs/",
+  "docs/program-format/",
+  // The longest README
+  "docs/packages/client-mongo/",
+];
 
 /** The budgets of one page, in bytes after gzip (a font counts as it is: woff2 is compressed already). */
 const PAGE_BUDGET = 256 * 1024;
-// The Composer's worker carries the whole client runtime: zod and the real input and output
-// schemas of the 100 core procedures (roadmap 2.1) took the page from 180 kB to 182 kB.
-const SCRIPT_BUDGET = 192 * 1024;
+const SCRIPT_BUDGET = 180 * 1024;
+/**
+ * The scripts of the Web Workers (the runtime that runs a program, the journey of a call). They
+ * load off the main thread when a program runs, so they have a budget of their own. Before, they
+ * counted in the page only when they loaded before the end of the measure (a matter of timing).
+ */
+const WORKER_BUDGET = 128 * 1024;
 
 /** This function opens a page and waits until the live app replaced the HTML of the build. */
 async function open(page: Page, path: string): Promise<void> {
@@ -110,17 +129,20 @@ test.describe("the router", () => {
 
 test.describe("the budgets", () => {
   /** The bytes that a page loads: scripts, style sheets, fonts and the document, after gzip. */
-  async function measure(page: Page, route: string): Promise<{ total: number; script: number; errors: string[] }> {
-    const bodies: Array<Promise<{ type: string; size: number }>> = [];
+  async function measure(page: Page, route: string): Promise<{ total: number; script: number; worker: number; errors: string[] }> {
+    const bodies: Array<Promise<{ type: string; url: string; size: number }>> = [];
     const errors: string[] = [];
+    const workers = new Set<string>();
+    page.on("worker", (worker) => workers.add(worker.url()));
     const onResponse = (response: Response): void => {
       const type = response.request().resourceType();
       if (!["script", "stylesheet", "font", "document"].includes(type) || response.status() !== 200) return;
+      const url = response.url();
       bodies.push(
         response
           .body()
-          .then((body) => ({ type, size: type === "font" ? body.length : gzipSync(body).length }))
-          .catch(() => ({ type, size: 0 })),
+          .then((body) => ({ type, url, size: type === "font" ? body.length : gzipSync(body).length }))
+          .catch(() => ({ type, url, size: 0 })),
       );
     };
     page.on("response", onResponse);
@@ -131,20 +153,23 @@ test.describe("the budgets", () => {
     await open(page, route);
     await page.waitForLoadState("networkidle");
     page.off("response", onResponse);
-    const sizes = await Promise.all(bodies);
+    const all = await Promise.all(bodies);
+    const sizes = all.filter((item) => !workers.has(item.url));
     return {
       total: sizes.reduce((sum, item) => sum + item.size, 0),
       script: sizes.filter((item) => item.type === "script").reduce((sum, item) => sum + item.size, 0),
+      worker: all.filter((item) => workers.has(item.url)).reduce((sum, item) => sum + item.size, 0),
       errors,
     };
   }
 
   for (const route of ROUTES) {
     test(`/${route} stays within its budget and logs no error`, async ({ page }) => {
-      const { total, script, errors } = await measure(page, route);
+      const { total, script, worker, errors } = await measure(page, route);
       expect(errors, "console errors").toEqual([]);
       expect(total, `the page loads ${Math.round(total / 1024)} kB of gzip`).toBeLessThanOrEqual(PAGE_BUDGET);
       expect(script, `the scripts are ${Math.round(script / 1024)} kB of gzip`).toBeLessThanOrEqual(SCRIPT_BUDGET);
+      expect(worker, `the workers are ${Math.round(worker / 1024)} kB of gzip`).toBeLessThanOrEqual(WORKER_BUDGET);
       // An image has its size, so the layout does not move when it loads
       await expect(page.locator("img:not([width]), img:not([height])")).toHaveCount(0);
     });
