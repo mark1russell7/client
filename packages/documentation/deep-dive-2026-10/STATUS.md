@@ -148,6 +148,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | SEO | | done | `750d5ce`, `33a50b3`, `72bdef5` | Path routes, 281 prerendered pages with their own titles, Open Graph images and JSON-LD, `sitemap.xml`, `llms.txt`, a web manifest. Each deploy sends its URLs to IndexNow. Google Search Console needs the owner's login. |
 | Home page | | done | `750d5ce` | A live program in the hero, numbers measured at build time, an install box. The first script went from 163 to 96 kB gzip. |
 | Delight | | done | `b3a3b95`, `d104889`, `5afe861` | The journey of one call through the layers on the Architecture page (four hosts, with a scrubber), a command palette (Ctrl+K), and an example gallery with graph thumbnails. |
+| Docs pages | | done | `1d7aed1`, `8b1bb3e`, `8e1bb12` | 41 prerendered pages under `/docs/` from the repository Markdown (guides, the client documents, each package README), with runnable program blocks, a table of contents and palette search. |
 | Test-file types | low | fixed | `eca5164`, `6f019a7` | The test files of every package type-check. It found a library type defect: the collection behaviors declared `Middleware<X & Y>`, not `Middleware<X, X & Y>`. |
 
 ## Collections and the general repositories
