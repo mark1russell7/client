@@ -14,6 +14,19 @@ type Docs = Document[];
 
 export class FakeServer {
   readonly databases = new Map<string, Map<string, Docs>>();
+  /** The indexes of each collection ("db.collection"), as listIndexes gives them. */
+  readonly indexes = new Map<string, Document[]>();
+
+  /** The indexes of a collection, with the default `_id_` index first. */
+  indexesOf(database: string, collection: string): Document[] {
+    const key = `${database}.${collection}`;
+    let list = this.indexes.get(key);
+    if (!list) {
+      list = [{ v: 2, key: { _id: 1 }, name: "_id_" }];
+      this.indexes.set(key, list);
+    }
+    return list;
+  }
 
   docs(database: string, collection: string): Docs {
     let db = this.databases.get(database);
@@ -214,6 +227,35 @@ export class FakeCollection {
     }
     return { acknowledged: true };
   }
+
+  /** An aggregation that only gives the documents back (the pipeline is not run). */
+  aggregate(pipeline: Document[] = []): { toArray(): Promise<Docs> } {
+    this.record("aggregate", pipeline);
+    return { toArray: async () => this.docs.map((d) => ({ ...d })) };
+  }
+
+  async createIndex(keys: Document, options: { name?: string; unique?: boolean } = {}): Promise<string> {
+    this.record("createIndex", keys);
+    const name = options.name ?? Object.entries(keys).map(([field, kind]) => `${field}_${kind}`).join("_");
+    const index: Document = { v: 2, key: keys, name };
+    if (options.unique !== undefined) index["unique"] = options.unique;
+    this.server.indexesOf(this.database, this.collectionName).push(index);
+    return name;
+  }
+
+  listIndexes(): { toArray(): Promise<Docs> } {
+    this.record("listIndexes", undefined);
+    return { toArray: async () => this.server.indexesOf(this.database, this.collectionName).map((i) => ({ ...i })) };
+  }
+
+  async dropIndex(name: string): Promise<Document> {
+    this.record("dropIndex", name);
+    const list = this.server.indexesOf(this.database, this.collectionName);
+    const at = list.findIndex((i) => i["name"] === name);
+    if (at === -1) throw new Error(`index not found with name [${name}]`);
+    list.splice(at, 1);
+    return { nIndexesWas: list.length + 1, ok: 1 };
+  }
 }
 
 /** A fake connection to `server`. Each collection object belongs to this connection. */
@@ -224,6 +266,7 @@ export function fakeConnection(server: FakeServer, defaultDatabase = "test"): Mo
   const collections = new Map<string, FakeCollection>();
   const isOpen = () => open;
 
+  const collectionNames = (database: string) => [...(server.databases.get(database)?.keys() ?? [])];
   const makeDb = (database: string) => ({
     databaseName: database,
     collection(name: string) {
@@ -234,6 +277,40 @@ export function fakeConnection(server: FakeServer, defaultDatabase = "test"): Mo
         collections.set(key, collection);
       }
       return collection;
+    },
+    async createCollection(name: string) {
+      server.docs(database, name);
+      return this.collection(name);
+    },
+    async dropCollection(name: string): Promise<boolean> {
+      server.indexes.delete(`${database}.${name}`);
+      return server.databases.get(database)?.delete(name) ?? false;
+    },
+    listCollections() {
+      return { toArray: async () => collectionNames(database).map((name) => ({ name, type: "collection" })) };
+    },
+    async stats(): Promise<Document> {
+      const size = collectionNames(database).reduce((sum, name) => sum + JSON.stringify(server.docs(database, name)).length, 0);
+      return { db: database, collections: collectionNames(database).length, dataSize: size, ok: 1 };
+    },
+    async command(command: Document): Promise<Document> {
+      if (command["ping"]) return { ok: 1 };
+      if (typeof command["collStats"] === "string") {
+        const name = command["collStats"];
+        const docs = server.docs(database, name);
+        const size = JSON.stringify(docs).length;
+        return {
+          ns: `${database}.${name}`,
+          count: docs.length,
+          size,
+          avgObjSize: docs.length ? Math.round(size / docs.length) : 0,
+          storageSize: 4096,
+          nindexes: server.indexesOf(database, name).length,
+          totalIndexSize: 4096,
+          ok: 1,
+        };
+      }
+      throw new Error(`The fake does not know the command ${JSON.stringify(command)}`);
     },
   });
 

@@ -1,4 +1,4 @@
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import {
   VitestCoverageInputSchema,
   VitestListInputSchema,
@@ -9,6 +9,10 @@ import {
   type VitestRunOutput,
   type VitestStopOutput,
   type VitestWatchOutput,
+  VitestRunOutputSchema,
+  VitestWatchOutputSchema,
+  VitestStopOutputSchema,
+  VitestListOutputSchema,
 } from "./types.js";
 import { vitestCoverage, vitestRun } from "./procedures/vitest/run.js";
 import { vitestWatch } from "./procedures/vitest/watch.js";
@@ -18,7 +22,7 @@ import { vitestList } from "./procedures/vitest/list.js";
 const vitestRunProcedure = createProcedure()
   .path(["vitest", "run"])
   .input(zodAdapter(VitestRunInputSchema))
-  .output(outputSchema<VitestRunOutput>())
+  .output(zodAdapter<VitestRunOutput>(VitestRunOutputSchema))
   .meta({
     description: "Run vitest tests once (no shell; uses the project's own vitest)",
     // Positional field names, and field -> short flag (the convention mark's CLI parser reads)
@@ -32,7 +36,7 @@ const vitestRunProcedure = createProcedure()
 const vitestCoverageProcedure = createProcedure()
   .path(["vitest", "coverage"])
   .input(zodAdapter(VitestCoverageInputSchema))
-  .output(outputSchema<VitestRunOutput>())
+  .output(zodAdapter<VitestRunOutput>(VitestRunOutputSchema))
   .meta({
     description: "Run vitest once with coverage, and check a minimum line coverage (no shell)",
     args: ["cwd"],
@@ -45,7 +49,7 @@ const vitestCoverageProcedure = createProcedure()
 const vitestWatchProcedure = createProcedure()
   .path(["vitest", "watch"])
   .input(zodAdapter(VitestWatchInputSchema))
-  .output(outputSchema<VitestWatchOutput>())
+  .output(zodAdapter<VitestWatchOutput>(VitestWatchOutputSchema))
   .meta({
     description: "Start vitest in watch mode (no shell; uses the project's own vitest)",
     args: ["cwd"],
@@ -58,7 +62,7 @@ const vitestWatchProcedure = createProcedure()
 const vitestStopProcedure = createProcedure()
   .path(["vitest", "stop"])
   .input(zodAdapter(VitestStopInputSchema))
-  .output(outputSchema<VitestStopOutput>())
+  .output(zodAdapter<VitestStopOutput>(VitestStopOutputSchema))
   .meta({
     description: "Stop a vitest watch process (all of them without an id)",
     args: ["id"],
@@ -71,7 +75,7 @@ const vitestStopProcedure = createProcedure()
 const vitestListProcedure = createProcedure()
   .path(["vitest", "list"])
   .input(zodAdapter(VitestListInputSchema))
-  .output(outputSchema<VitestListOutput>())
+  .output(zodAdapter<VitestListOutput>(VitestListOutputSchema))
   .meta({
     description: "List the vitest watch processes of this host",
     args: [],

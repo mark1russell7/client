@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionName, databaseFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 
@@ -27,7 +26,12 @@ const dropInputSchema = zodAdapter<DropInput>(
     confirm: z.boolean().describe("Set to true to drop the collection and all of its documents"),
   })
 );
-const dropOutputSchema = schema<DropOutput>();
+const dropOutputSchema = zodAdapter<DropOutput>(
+  z.looseObject({
+    acknowledged: z.boolean().describe("True when the server confirmed the write"),
+    dropped: z.boolean().describe("False when the collection did not exist"),
+  })
+);
 
 export const dropProcedure: Procedure<
   DropInput,

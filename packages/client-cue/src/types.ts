@@ -42,8 +42,8 @@ export interface CueInitOutput {
   success: boolean;
   preset: string;
   created: string[];
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 // =============================================================================
@@ -64,8 +64,8 @@ export interface CueAddOutput {
   success: boolean;
   feature: string;
   added: boolean;
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 // =============================================================================
@@ -86,8 +86,8 @@ export interface CueRemoveOutput {
   success: boolean;
   feature: string;
   removed: boolean;
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 // =============================================================================
@@ -106,8 +106,8 @@ export interface CueGenerateOutput {
   success: boolean;
   resolvedFeatures: string[];
   generated: string[];
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 // =============================================================================
@@ -127,5 +127,55 @@ export interface CueValidateOutput {
   valid: boolean;
   features: string[];
   errors: string[];
-  message?: string;
+  message?: string | undefined;
 }
+
+// =============================================================================
+// Output schemas (roadmap 2.1)
+// =============================================================================
+
+// Loose objects: a field that a schema does not name stays in the result (a strict schema
+// would remove it when the output is validated).
+
+const messageField = z.string().optional().describe("A message about the result");
+const errorField = z.string().optional().describe("The reason of a failure (when success is false)");
+
+export const CueInitOutputSchema: z.ZodType<CueInitOutput> = z.looseObject({
+  success: z.boolean().describe("True when dependencies.json exists after the call"),
+  preset: z.string().describe("The preset of the new dependencies.json"),
+  created: z.array(z.string()).describe("The files that the call made"),
+  message: messageField,
+  error: errorField,
+});
+
+export const CueAddOutputSchema: z.ZodType<CueAddOutput> = z.looseObject({
+  success: z.boolean().describe("True when the feature is in dependencies.json after the call"),
+  feature: z.string().describe("The feature"),
+  added: z.boolean().describe("True when the call added the feature (false when it was there already)"),
+  message: messageField,
+  error: errorField,
+});
+
+export const CueRemoveOutputSchema: z.ZodType<CueRemoveOutput> = z.looseObject({
+  success: z.boolean().describe("True when the feature is not in dependencies.json after the call"),
+  feature: z.string().describe("The feature"),
+  removed: z.boolean().describe("True when the call removed the feature"),
+  message: messageField,
+  error: errorField,
+});
+
+export const CueGenerateOutputSchema: z.ZodType<CueGenerateOutput> = z.looseObject({
+  success: z.boolean().describe("True when every file was generated"),
+  resolvedFeatures: z.array(z.string()).describe("The features with their dependencies"),
+  generated: z.array(z.string()).describe("The files that the call wrote"),
+  message: messageField,
+  error: errorField,
+});
+
+export const CueValidateOutputSchema: z.ZodType<CueValidateOutput> = z.looseObject({
+  success: z.boolean().describe("True when the validation ran"),
+  valid: z.boolean().describe("True when dependencies.json is valid"),
+  features: z.array(z.string()).describe("The features of dependencies.json"),
+  errors: z.array(z.string()).describe("The problems that the validation found"),
+  message: messageField,
+});

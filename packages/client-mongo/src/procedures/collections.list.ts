@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 
@@ -21,7 +20,11 @@ interface ListOutput {
 const listInputSchema = zodAdapter<ListInput>(
   z.object({ ...scopeFields() })
 );
-const listOutputSchema = schema<ListOutput>();
+const listOutputSchema = zodAdapter<ListOutput>(
+  z.looseObject({
+    collections: z.array(z.string()).describe("The collection names of the database"),
+  })
+);
 
 export const listProcedure: Procedure<
   ListInput,

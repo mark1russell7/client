@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures, outputSchema, zodAdapter } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -102,7 +102,26 @@ const logsQueryInputSchema = zodAdapter<LogsQueryInput>(
     dbPath: dbPathField,
   })
 );
-const logsQueryOutputSchema = outputSchema<LogsQueryOutput>();
+const logsQueryOutputSchema = zodAdapter<LogsQueryOutput>(
+  z.looseObject({
+    logs: z
+      .array(
+        z.looseObject({
+          id: z.number().describe("The id of the log row"),
+          timestamp: z.string().describe("The time of the entry (SQLite datetime text, UTC)"),
+          level: logLevel.describe("The level of the entry"),
+          message: z.string().describe("The log message"),
+          data: z.record(z.string(), z.unknown()).nullable().describe("The structured data of the entry, or null"),
+          sessionId: z.string().nullable().describe("The session of the entry, or null"),
+          command: z.string().nullable().describe("The command that made the entry, or null"),
+          context: z.string().nullable().describe("More context, or null"),
+          errorStack: z.string().nullable().describe("The stack trace of an error, or null"),
+        })
+      )
+      .describe("The entries that match the filters, in the order of orderBy"),
+    total: z.number().optional().describe("The number of entries that match the filters, without limit and offset"),
+  })
+);
 
 // =============================================================================
 // Log Table Migrations

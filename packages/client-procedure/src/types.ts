@@ -51,3 +51,13 @@ export interface ProcedureNewOutput {
   /** Any errors encountered */
   errors: string[];
 }
+
+/** The output schema of procedure.new (roadmap 2.1). Loose: a field that it does not name stays. */
+export const ProcedureNewOutputSchema: z.ZodType<ProcedureNewOutput> = z.looseObject({
+  success: z.boolean().describe("True when the procedure was made"),
+  procedurePath: z.array(z.string()).describe('The path of the new procedure, for example ["user", "create"]'),
+  created: z.array(z.string()).describe("The files that the call made"),
+  modified: z.array(z.string()).describe("The files that the call changed (types.ts, register.ts)"),
+  operations: z.array(z.string()).describe("The steps that the call ran"),
+  errors: z.array(z.string()).describe("The errors"),
+});

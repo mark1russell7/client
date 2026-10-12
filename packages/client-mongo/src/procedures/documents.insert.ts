@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
 import { type MongoDocument } from "../types.js";
@@ -31,7 +30,13 @@ const insertInputSchema = zodAdapter<InsertInput>(
       .describe("One document, or a list of documents"),
   })
 );
-const insertOutputSchema = schema<InsertOutput>();
+const insertOutputSchema = zodAdapter<InsertOutput>(
+  z.looseObject({
+    acknowledged: z.boolean().describe("True when the server confirmed the write"),
+    insertedIds: z.array(z.string()).describe("The ids of the new documents, as text"),
+    insertedCount: z.number().describe("The number of new documents"),
+  })
+);
 
 export const insertProcedure: Procedure<
   InsertInput,

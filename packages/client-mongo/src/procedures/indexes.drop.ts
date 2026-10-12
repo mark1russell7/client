@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 
@@ -25,7 +24,11 @@ const dropIndexInputSchema = zodAdapter<DropIndexInput>(
     indexName: z.string().min(1).describe("The name of the index to drop"),
   })
 );
-const dropIndexOutputSchema = schema<DropIndexOutput>();
+const dropIndexOutputSchema = zodAdapter<DropIndexOutput>(
+  z.looseObject({
+    acknowledged: z.boolean().describe("True when the server confirmed the write"),
+  })
+);
 
 export const dropIndexProcedure: Procedure<
   DropIndexInput,

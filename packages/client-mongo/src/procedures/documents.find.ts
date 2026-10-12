@@ -7,9 +7,9 @@ import {
   createProcedure,
   type Procedure,
   type ProcedureContext,
+  zodAdapter,
 } from "@mark1russell7/client";
 import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { described, documentObject, scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 import {
@@ -85,7 +85,19 @@ const findInputSchema = described<FindInput>(
     limit: z.number().int().min(1).optional().describe("The number of documents on a page"),
   })
 );
-const findOutputSchema = schema<FindOutput>();
+const findOutputSchema = zodAdapter<FindOutput>(
+  z.looseObject({
+    documents: z.array(z.record(z.string(), z.unknown())).describe("The documents of the page"),
+    pagination: z.looseObject({
+      page: z.number().describe("The page, from 1"),
+      limit: z.number().describe("The number of documents on a page"),
+      total: z.number().describe("The number of documents that match"),
+      totalPages: z.number().describe("The number of pages"),
+      hasNext: z.boolean().describe("True when a next page exists"),
+      hasPrev: z.boolean().describe("True when a previous page exists"),
+    }).describe("The page of the result"),
+  })
+);
 
 export const findProcedure: Procedure<
   FindInput,

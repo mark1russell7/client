@@ -5,7 +5,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 // The cue procedures read and write files through fs.*: register them wherever cue.* runs.
 // (Over the MCP server, fs.* was not registered, so every cue tool failed: deep dive WRP-3.)
 import "@mark1russell7/client-fs";
@@ -30,6 +30,11 @@ import {
   type CueGenerateOutput,
   type CueValidateInput,
   type CueValidateOutput,
+  CueInitOutputSchema,
+  CueAddOutputSchema,
+  CueRemoveOutputSchema,
+  CueGenerateOutputSchema,
+  CueValidateOutputSchema,
 } from "./types.js";
 
 // =============================================================================
@@ -39,7 +44,7 @@ import {
 const cueInitProcedure = createProcedure()
   .path(["cue", "init"])
   .input(zodAdapter<CueInitInput>(CueInitInputSchema))
-  .output(outputSchema<CueInitOutput>())
+  .output(zodAdapter<CueInitOutput>(CueInitOutputSchema))
   .meta({
     description: "Initialize dependencies.json with a preset",
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
@@ -55,7 +60,7 @@ const cueInitProcedure = createProcedure()
 const cueAddProcedure = createProcedure()
   .path(["cue", "add"])
   .input(zodAdapter<CueAddInput>(CueAddInputSchema))
-  .output(outputSchema<CueAddOutput>())
+  .output(zodAdapter<CueAddOutput>(CueAddOutputSchema))
   .meta({
     description: "Add a feature to dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write"],
@@ -71,7 +76,7 @@ const cueAddProcedure = createProcedure()
 const cueRemoveProcedure = createProcedure()
   .path(["cue", "remove"])
   .input(zodAdapter<CueRemoveInput>(CueRemoveInputSchema))
-  .output(outputSchema<CueRemoveOutput>())
+  .output(zodAdapter<CueRemoveOutput>(CueRemoveOutputSchema))
   .meta({
     description: "Remove a feature from dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write"],
@@ -87,7 +92,7 @@ const cueRemoveProcedure = createProcedure()
 const cueGenerateProcedure = createProcedure()
   .path(["cue", "generate"])
   .input(zodAdapter<CueGenerateInput>(CueGenerateInputSchema))
-  .output(outputSchema<CueGenerateOutput>())
+  .output(zodAdapter<CueGenerateOutput>(CueGenerateOutputSchema))
   .meta({
     description: "Generate config files from dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
@@ -103,7 +108,7 @@ const cueGenerateProcedure = createProcedure()
 const cueValidateProcedure = createProcedure()
   .path(["cue", "validate"])
   .input(zodAdapter<CueValidateInput>(CueValidateInputSchema))
-  .output(outputSchema<CueValidateOutput>())
+  .output(zodAdapter<CueValidateOutput>(CueValidateOutputSchema))
   .meta({
     description: "Validate dependencies.json",
     calls: ["fs.exists", "fs.read"],

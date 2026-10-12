@@ -9,12 +9,10 @@
 
 import type { ProcedureContext } from "@mark1russell7/client";
 import { dockerArg, runDocker } from "./shared.js";
-import type { DockerLogsInput, DockerCommandOutput } from "../../types.js";
+import type { DockerLogsInput, DockerCommandOutput, DockerLogItem } from "../../types.js";
 
-/** One item of a followed log: a line of the container, or the end of `docker logs` (the last item). */
-export type DockerLogItem =
-  | { type: "stdout" | "stderr"; line: string }
-  | { type: "exit"; exitCode: number; duration: number; signal?: string; timedOut?: boolean; aborted?: boolean };
+// The type lives in types.ts, next to its output schema
+export type { DockerLogItem };
 
 /**
  * Get container logs: one value, or with `follow` a stream of lines

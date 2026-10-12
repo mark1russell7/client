@@ -7,9 +7,9 @@ import {
   createProcedure,
   type Procedure,
   type ProcedureContext,
+  zodAdapter,
 } from "@mark1russell7/client";
 import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { described, idTypeField, scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 import {
@@ -69,7 +69,11 @@ const getInputSchema = described<GetInput>(
     idType: idTypeField(),
   })
 );
-const getOutputSchema = schema<GetOutput>();
+const getOutputSchema = zodAdapter<GetOutput>(
+  z.looseObject({
+    document: z.record(z.string(), z.unknown()).nullable().describe("The document, or null when no document has the id"),
+  })
+);
 
 export const getProcedure: Procedure<
   GetInput,

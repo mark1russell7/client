@@ -255,9 +255,10 @@ export interface IndexOptions {
  */
 export interface IndexInfo {
   name: string;
-  key: IndexSpec;
-  unique?: boolean;
-  sparse?: boolean;
+  /** The fields of the index and their kind. The server also gives kinds that IndexSpec does not name ("hashed", "2d"). */
+  key: Record<string, number | string>;
+  unique?: boolean | undefined;
+  sparse?: boolean | undefined;
 }
 
 // =============================================================================

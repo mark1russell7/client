@@ -10,7 +10,7 @@
 // and over MCP its git calls failed with NOT_FOUND.)
 import "@mark1russell7/client-fs";
 import "@mark1russell7/client-git";
-import { createProcedure, registerProcedures, zodAdapter, outputSchema, RUNS_REFS_TAG } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter, RUNS_REFS_TAG } from "@mark1russell7/client";
 import {
   libScan,
   libRename,
@@ -20,6 +20,7 @@ import {
 import {
   ecosystemProcedures,
   EcosystemProceduresInputSchema,
+  EcosystemProceduresOutputSchema,
   type EcosystemProceduresInput,
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
@@ -44,6 +45,12 @@ import {
   type DagTraverseOutput,
   type CoreCatchInput,
   type CoreCatchOutput,
+  LibScanOutputSchema,
+  LibRenameOutputSchema,
+  LibNewOutputSchema,
+  LibAuditOutputSchema,
+  DagTraverseOutputSchema,
+  CoreCatchOutputSchema,
 } from "./types.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 
@@ -54,7 +61,7 @@ import type { ProcedureContext } from "@mark1russell7/client";
 const libScanProcedure = createProcedure()
   .path(["lib", "scan"])
   .input(zodAdapter<LibScanInput>(LibScanInputSchema))
-  .output(outputSchema<LibScanOutput>())
+  .output(zodAdapter<LibScanOutput>(LibScanOutputSchema))
   .meta({
     description: "Scan for packages in the git directory",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote"],
@@ -70,7 +77,7 @@ const libScanProcedure = createProcedure()
 const libRenameProcedure = createProcedure()
   .path(["lib", "rename"])
   .input(zodAdapter<LibRenameInput>(LibRenameInputSchema))
-  .output(outputSchema<LibRenameOutput>())
+  .output(zodAdapter<LibRenameOutput>(LibRenameOutputSchema))
   .meta({
     description: "Rename a package across the ecosystem",
     calls: ["fs.glob", "fs.read.json", "fs.write", "fs.exists"],
@@ -86,7 +93,7 @@ const libRenameProcedure = createProcedure()
 const libNewProcedure = createProcedure()
   .path(["lib", "new"])
   .input(zodAdapter<LibNewInput>(LibNewInputSchema))
-  .output(outputSchema<LibNewOutput>())
+  .output(zodAdapter<LibNewOutput>(LibNewOutputSchema))
   .meta({
     description: "Create a new package in the ecosystem",
     calls: ["shell.run", "fs.exists", "fs.mkdir", "fs.write", "fs.read.json"],
@@ -102,7 +109,7 @@ const libNewProcedure = createProcedure()
 const libAuditProcedure = createProcedure()
   .path(["lib", "audit"])
   .input(zodAdapter<LibAuditInput>(LibAuditInputSchema))
-  .output(outputSchema<LibAuditOutput>())
+  .output(zodAdapter<LibAuditOutput>(LibAuditOutputSchema))
   .meta({
     description: "Audit ecosystem packages for issues",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote", "fs.exists", "fs.mkdir", "fs.write"],
@@ -122,7 +129,7 @@ const libAuditProcedure = createProcedure()
 const ecosystemProceduresProcedure = createProcedure()
   .path(["ecosystem", "procedures"])
   .input(zodAdapter<EcosystemProceduresInput>(EcosystemProceduresInputSchema))
-  .output(outputSchema<EcosystemProceduresOutput>())
+  .output(zodAdapter<EcosystemProceduresOutput>(EcosystemProceduresOutputSchema))
   .meta({
     description: "List all procedures across the ecosystem",
     args: [],
@@ -141,7 +148,7 @@ const ecosystemProceduresProcedure = createProcedure()
 const dagTraverseProcedure = createProcedure()
   .path(["dag", "traverse"])
   .input(zodAdapter<DagTraverseInput>(DagTraverseInputSchema))
-  .output(outputSchema<DagTraverseOutput>())
+  .output(zodAdapter<DagTraverseOutput>(DagTraverseOutputSchema))
   .meta({
     description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
     // It runs the procedure refs of its input: a server with an expose rule limits what they call
@@ -162,7 +169,7 @@ const dagTraverseProcedure = createProcedure()
 const coreCatchProcedure = createProcedure()
   .path(["core", "catch"])
   .input(zodAdapter<CoreCatchInput>(CoreCatchInputSchema))
-  .output(outputSchema<CoreCatchOutput>())
+  .output(zodAdapter<CoreCatchOutput>(CoreCatchOutputSchema))
   .meta({
     description: "Execute a procedure with error handling",
     // It runs the procedure refs of its input: a server with an expose rule limits what they call

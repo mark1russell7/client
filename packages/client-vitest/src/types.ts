@@ -19,40 +19,42 @@ export const VitestRunInputSchema: z.ZodObject<{
 });
 export type VitestRunInput = z.infer<typeof VitestRunInputSchema>;
 
-export const VitestRunOutputSchema: z.ZodObject<{
-  success: z.ZodBoolean;
-  passed: z.ZodNumber;
-  failed: z.ZodNumber;
-  skipped: z.ZodNumber;
-  duration: z.ZodNumber;
-  exitCode: z.ZodNumber;
-  stdout: z.ZodString;
-  stderr: z.ZodString;
-  coverage: z.ZodOptional<z.ZodObject<{
-    lines: z.ZodNumber;
-    branches: z.ZodNumber;
-    functions: z.ZodNumber;
-    statements: z.ZodNumber;
-  }>>;
-}> = z.object({
-  success: z.boolean(),
-  passed: z.number(),
-  failed: z.number(),
-  skipped: z.number(),
-  duration: z.number(),
+export interface VitestRunOutput {
+  success: boolean;
+  passed: number;
+  failed: number;
+  skipped: number;
+  duration: number;
   /** The exit code of vitest (-1 when a signal ended it) */
-  exitCode: z.number().describe("The exit code of vitest (-1 when a signal ended it)"),
+  exitCode: number;
   /** The last 64 KiB of the output */
+  stdout: string;
+  stderr: string;
+  coverage?: { lines: number; branches: number; functions: number; statements: number } | undefined;
+}
+
+// Output schemas (roadmap 2.1). Loose objects: a field that a schema does not name stays in the
+// result (a strict schema would remove it when the output is validated).
+
+export const VitestRunOutputSchema: z.ZodType<VitestRunOutput> = z.looseObject({
+  success: z.boolean().describe("True when vitest ended with exit code 0 (and, for vitest.coverage, the threshold is met)"),
+  passed: z.number().describe("The number of tests that passed"),
+  failed: z.number().describe("The number of tests that failed"),
+  skipped: z.number().describe("The number of tests that were skipped"),
+  duration: z.number().describe("The time of the run, in milliseconds"),
+  exitCode: z.number().describe("The exit code of vitest (-1 when a signal ended it)"),
   stdout: z.string().describe("The last 64 KiB of the output"),
-  stderr: z.string(),
-  coverage: z.object({
-    lines: z.number(),
-    branches: z.number(),
-    functions: z.number(),
-    statements: z.number(),
-  }).optional(),
+  stderr: z.string().describe("The last 64 KiB of the error output"),
+  coverage: z
+    .looseObject({
+      lines: z.number().describe("The line coverage, in percent"),
+      branches: z.number().describe("The branch coverage, in percent"),
+      functions: z.number().describe("The function coverage, in percent"),
+      statements: z.number().describe("The statement coverage, in percent"),
+    })
+    .optional()
+    .describe("The coverage percentages, when the run measured coverage"),
 });
-export type VitestRunOutput = z.infer<typeof VitestRunOutputSchema>;
 
 export const VitestCoverageInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
@@ -77,17 +79,18 @@ export const VitestWatchInputSchema: z.ZodObject<{
 });
 export type VitestWatchInput = z.infer<typeof VitestWatchInputSchema>;
 
-export const VitestWatchOutputSchema: z.ZodObject<{
-  id: z.ZodString;
-  pid: z.ZodNumber;
-  status: z.ZodEnum<{ started: "started"; stopped: "stopped" }>;
-}> = z.object({
+export interface VitestWatchOutput {
   /** The id of the process in the process registry: vitest.stop takes it */
+  id: string;
+  pid: number;
+  status: "started" | "stopped";
+}
+
+export const VitestWatchOutputSchema: z.ZodType<VitestWatchOutput> = z.looseObject({
   id: z.string().describe("The id of the process in the process registry: vitest.stop takes it"),
-  pid: z.number(),
-  status: z.enum(["started", "stopped"]),
+  pid: z.number().describe("The process id of vitest"),
+  status: z.enum(["started", "stopped"]).describe("started, or stopped when vitest ended at once"),
 });
-export type VitestWatchOutput = z.infer<typeof VitestWatchOutputSchema>;
 
 // =============================================================================
 // vitest.stop Types - Stop a vitest watch process
@@ -125,15 +128,37 @@ export type VitestListInput = z.infer<typeof VitestListInputSchema>;
 export interface VitestProcessInfo {
   id: string;
   pid: number;
-  cwd?: string;
+  cwd?: string | undefined;
   status: "running" | "exited" | "error";
   startedAt: string;
-  exitedAt?: string;
-  exitCode?: number;
+  exitedAt?: string | undefined;
+  exitCode?: number | undefined;
   /** With `output: true`, the end of the output */
-  output?: string;
+  output?: string | undefined;
 }
 
 export interface VitestListOutput {
   processes: VitestProcessInfo[];
 }
+
+export const VitestStopOutputSchema: z.ZodType<VitestStopOutput> = z.looseObject({
+  success: z.boolean().describe("False when an id was given and no running watch process has it"),
+  stopped: z.array(z.string()).describe("The ids of the processes that stopped"),
+});
+
+export const VitestListOutputSchema: z.ZodType<VitestListOutput> = z.looseObject({
+  processes: z
+    .array(
+      z.looseObject({
+        id: z.string().describe("The id that vitest.stop takes"),
+        pid: z.number().describe("The process id"),
+        cwd: z.string().optional().describe("The folder of the project"),
+        status: z.enum(["running", "exited", "error"]).describe("The state of the process"),
+        startedAt: z.string().describe("The start time (ISO 8601)"),
+        exitedAt: z.string().optional().describe("The end time (ISO 8601), when the process ended"),
+        exitCode: z.number().optional().describe("The exit code, when the process ended"),
+        output: z.string().optional().describe("With output: true, the last 64 KiB of the output"),
+      })
+    )
+    .describe("The vitest watch processes of this host"),
+});
