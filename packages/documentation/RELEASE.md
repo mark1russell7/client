@@ -55,15 +55,21 @@ The script packs each public package with pnpm and stages it with `npm stage pub
 
 ### 3. Approve the staged versions
 
-Approve each staged version on npmjs.com. Or list them with `npm stage list`, and approve each one with `npm stage approve <id> --otp <code>`.
+Start this command in a terminal. For each staged version of the packages, it starts `npm stage approve <id>`, and npm opens the browser for the 2FA:
+
+```sh
+node scripts/npm-bootstrap.mjs --approve
+```
+
+You can also approve each staged version on npmjs.com.
 
 ### 4. Connect each package to the release workflow
 
 ```sh
-node scripts/npm-bootstrap.mjs --trust --otp <code>
+node scripts/npm-bootstrap.mjs --trust
 ```
 
-The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --env npm --allow-publish` for each package. A 2FA code is valid for a short time. If the code expires, start the script again with a new code and `--only <package,package>`.
+The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --env npm --allow-publish` for each package, in the terminal, so npm can open the browser for the 2FA. If a command fails, start the script again with `--only <package,package>`.
 
 ### 5. Set the repository and the packages
 

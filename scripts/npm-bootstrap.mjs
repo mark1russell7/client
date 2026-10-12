@@ -8,12 +8,16 @@
 //   1. npm login
 //   2. node scripts/npm-bootstrap.mjs --dry-run     the tarballs, and what npm would stage
 //   3. node scripts/npm-bootstrap.mjs               stages each version that is not on npm
-//   4. Approve the staged versions on npmjs.com, or with `npm stage approve <id> --otp <code>`
-//   5. node scripts/npm-bootstrap.mjs --trust --otp <code>
+//   4. node scripts/npm-bootstrap.mjs --approve       approves each staged version (or on npmjs.com)
+//   5. node scripts/npm-bootstrap.mjs --trust
 //      connects each package to .github/workflows/release.yml (one command for each package)
 //
-// Options: --dry-run, --trust, --otp <code>, --only <name,name> (a part of the packages).
+// Steps 4 and 5 need the 2FA of the owner. Start them in a terminal: npm opens the browser to
+// confirm (or give --otp <code>, which is valid for a short time).
+//
+// Options: --dry-run, --approve, --trust, --otp <code>, --only <name,name> (a part of the packages).
 
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,6 +31,7 @@ const value = (name) => {
 };
 const dryRun = flag("--dry-run");
 const trust = flag("--trust");
+const approve = flag("--approve");
 const otp = value("--otp");
 const only = value("--only")?.split(",").map((s) => s.trim());
 
@@ -38,6 +43,14 @@ const packages = publicPackages().filter((p) => !only || only.includes(p.name));
 if (packages.length === 0) {
   console.error("No package to work on. Examine --only.");
   process.exit(1);
+}
+
+/**
+ * This function starts an npm command with the terminal of the user, so that npm can open the
+ * browser for the 2FA and wait. It gives the exit code.
+ */
+function interactive(args) {
+  return spawnSync("npm", args, { cwd: root, stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
 }
 
 /** The version of a package on npm, or undefined when npm does not have it. */
@@ -58,6 +71,33 @@ if (!dryRun) {
   }
 }
 
+// --approve: approve each staged version of these packages
+if (approve) {
+  const names = new Set(packages.map((p) => p.name));
+  const list = JSON.parse(run("npm", ["stage", "list", "--json"], root, true));
+  const todo = list.filter((s) => s.status === "staged" && names.has(s.packageName));
+  if (todo.length === 0) {
+    console.log("No staged version of these packages waits for an approval.");
+    process.exit(0);
+  }
+  const failures = [];
+  for (const s of todo) {
+    console.log(`npm stage approve ${s.id}   (${s.packageName}@${s.version})`);
+    if (dryRun) continue;
+    if (interactive(["stage", "approve", s.id, ...(otp ? ["--otp", otp] : [])]) !== 0) failures.push(s.packageName);
+  }
+  if (failures.length > 0) {
+    console.error(`\n${failures.length} approvals failed: ${failures.join(", ")}. Start the command again (it takes only the versions that still wait).`);
+    process.exit(1);
+  }
+  console.log(
+    dryRun
+      ? `\nThe dry run printed ${todo.length} approvals.`
+      : `\n${todo.length} versions approved. Next: node scripts/npm-bootstrap.mjs --trust`,
+  );
+  process.exit(0);
+}
+
 // --trust: connect each package to the release workflow
 if (trust) {
   const failures = [];
@@ -66,11 +106,9 @@ if (trust) {
     if (otp) args.push("--otp", otp);
     console.log(`npm ${args.join(" ")}`);
     if (dryRun) continue;
-    try {
-      run("npm", args, root);
-    } catch (error) {
+    if (interactive(args) !== 0) {
       failures.push(pkg.name);
-      console.error(`  failed: ${String(error.stderr ?? error.message).trim()}`);
+      console.error(`  failed: ${pkg.name}`);
     }
   }
   if (failures.length > 0) {
@@ -130,7 +168,7 @@ try {
 console.log(`\n${staged.length} ${dryRun ? "would be staged" : "staged"}, ${skipped.length} on npm already, ${failed.length} failed.`);
 if (!dryRun && staged.length > 0) {
   console.log("\nNext:");
-  console.log("  1. Approve the staged versions: on npmjs.com, or `npm stage list` and `npm stage approve <id> --otp <code>`.");
-  console.log("  2. node scripts/npm-bootstrap.mjs --trust --otp <code>");
+  console.log("  1. node scripts/npm-bootstrap.mjs --approve   (in a terminal: npm opens the browser for the 2FA)");
+  console.log("  2. node scripts/npm-bootstrap.mjs --trust");
 }
 if (failed.length > 0) process.exit(1);
