@@ -139,14 +139,22 @@ Onion-model middleware with:
 - Context propagation (parent → client → per-call)
 - Built-in middleware for common patterns
 
-### 4. Collections Framework
+### 4. Call Policy and Interceptors
+
+A host controls which procedures its callers reach, also through nested calls. See [docs/POLICY.md](docs/POLICY.md).
+- `expose`: the procedures that the callers of a server can reach.
+- A data-driven procedure (`client.chain`) calls only exposed procedures.
+- A procedure of code declares its nested calls in `metadata.calls`. With `strictCalls`, a procedure that declares nothing calls only exposed procedures.
+- Interceptors run around each invocation and its nested calls: `timeoutInterceptor`, `tracingInterceptor`, `metricsInterceptor`.
+
+### 5. Collections Framework
 
 Java-inspired data structures with:
 - Interface-based design (`List`, `Map`, `Set`, `Queue`)
 - Composable behaviors (LRU, TTL, bounded, synchronized)
 - Middleware-style composition
 
-### 5. Component System
+### 6. Component System
 
 Serializable UI descriptors for:
 - Server-side rendering
@@ -315,13 +323,16 @@ mockBuilder()
 createRetryMiddleware(options?: RetryOptions)
 
 interface RetryOptions {
-  maxAttempts?: number;      // default: 3
-  initialDelay?: number;     // default: 1000ms
-  maxDelay?: number;         // default: 30000ms
-  backoffFactor?: number;    // default: 2
-  jitter?: boolean;          // default: true
-  retryableErrors?: string[];
+  maxRetries?: number;          // default: 3
+  retryDelay?: number;          // default: 1000ms (the base delay)
+  backoffMultiplier?: number;   // default: 2
+  maxDelay?: number;            // default: no limit
+  jitter?: number;              // default: 0.1 (a fraction of the delay)
+  shouldRetry?: (item: ResponseItem<unknown>, attempt: number) => boolean;
 }
+
+// The overrides of one call, in its context or as route() overrides
+client.withContext({ retry: { maxAttempts: 5, delay: 200, backoffMultiplier: 3, maxDelay: 2000 } });
 ```
 
 #### Cache Middleware
@@ -333,8 +344,13 @@ interface CacheOptions {
   capacity?: number;         // default: 100
   ttl?: number;              // default: 60000ms
   keyGenerator?: (method: Method, payload: unknown, metadata: Metadata) => string;
-  storage?: Map<string, CacheEntry>;
+  shouldCache?: (item: ResponseItem<unknown>) => boolean;
 }
+
+// The overrides of one call, in its context or as route() overrides
+client.withContext({ cache: { ttl: 5000 } });      // the life of the stored entry
+client.withContext({ cache: { bypass: true } });   // no read, no write
+client.withContext({ cache: { refresh: true } });  // fetch, then replace the stored entry
 ```
 
 #### Timeout Middleware
