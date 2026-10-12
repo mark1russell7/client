@@ -6,22 +6,9 @@
  */
 
 import { z } from "zod";
+import { booleanOutput, numberOutput, stringOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
 
 // =============================================================================
 // Concat Procedure
@@ -42,7 +29,7 @@ type ConcatProcedure = Procedure<ConcatInput, string, { description: string; tag
 const concatProcedure: ConcatProcedure = defineProcedure({
   path: ["concat"],
   input: ConcatInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The joined strings"),
   metadata: {
     description: "Concatenate strings with optional separator",
     tags: ["core", "string"],
@@ -73,7 +60,7 @@ type SplitProcedure = Procedure<SplitInput, string[], { description: string; tag
 const splitProcedure: SplitProcedure = defineProcedure({
   path: ["split"],
   input: SplitInputSchema,
-  output: anySchema as any,
+  output: z.array(z.string()).describe("The parts of the string"),
   metadata: {
     description: "Split string by separator",
     tags: ["core", "string"],
@@ -102,7 +89,7 @@ type JoinProcedure = Procedure<JoinInput, string, { description: string; tags: s
 const joinProcedure: JoinProcedure = defineProcedure({
   path: ["join"],
   input: JoinInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The joined items"),
   metadata: {
     description: "Join array of strings with separator",
     tags: ["core", "string"],
@@ -135,7 +122,7 @@ type ReplaceProcedure = Procedure<ReplaceInput, string, { description: string; t
 const replaceProcedure: ReplaceProcedure = defineProcedure({
   path: ["replace"],
   input: ReplaceInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The string with the replacements"),
   metadata: {
     description: "Replace substring (first occurrence or all)",
     tags: ["core", "string"],
@@ -169,7 +156,7 @@ type SubstringProcedure = Procedure<SubstringInput, string, { description: strin
 const substringProcedure: SubstringProcedure = defineProcedure({
   path: ["substring"],
   input: SubstringInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The part of the string"),
   metadata: {
     description: "Extract substring from start to end index",
     tags: ["core", "string"],
@@ -198,7 +185,7 @@ type TrimProcedure = Procedure<TrimInput, string, { description: string; tags: s
 const trimProcedure: TrimProcedure = defineProcedure({
   path: ["trim"],
   input: TrimInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The string without the outer white space"),
   metadata: {
     description: "Trim whitespace from string",
     tags: ["core", "string"],
@@ -233,7 +220,7 @@ type ToLowerProcedure = Procedure<ToLowerInput, string, { description: string; t
 const toLowerProcedure: ToLowerProcedure = defineProcedure({
   path: ["toLower"],
   input: ToLowerInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The string in lower case"),
   metadata: {
     description: "Convert string to lowercase",
     tags: ["core", "string"],
@@ -260,7 +247,7 @@ type ToUpperProcedure = Procedure<ToUpperInput, string, { description: string; t
 const toUpperProcedure: ToUpperProcedure = defineProcedure({
   path: ["toUpper"],
   input: ToUpperInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The string in upper case"),
   metadata: {
     description: "Convert string to uppercase",
     tags: ["core", "string"],
@@ -289,7 +276,7 @@ type StartsWithProcedure = Procedure<StartsWithInput, boolean, { description: st
 const startsWithProcedure: StartsWithProcedure = defineProcedure({
   path: ["startsWith"],
   input: StartsWithInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when the string starts with the prefix"),
   metadata: {
     description: "Check if string starts with search string",
     tags: ["core", "string"],
@@ -318,7 +305,7 @@ type EndsWithProcedure = Procedure<EndsWithInput, boolean, { description: string
 const endsWithProcedure: EndsWithProcedure = defineProcedure({
   path: ["endsWith"],
   input: EndsWithInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when the string ends with the suffix"),
   metadata: {
     description: "Check if string ends with search string",
     tags: ["core", "string"],
@@ -347,7 +334,7 @@ type IncludesProcedure = Procedure<IncludesInput, boolean, { description: string
 const includesProcedure: IncludesProcedure = defineProcedure({
   path: ["includes"],
   input: IncludesInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when the string contains the search text"),
   metadata: {
     description: "Check if string contains search string",
     tags: ["core", "string"],
@@ -374,7 +361,7 @@ type StrLengthProcedure = Procedure<StrLengthInput, number, { description: strin
 const strLengthProcedure: StrLengthProcedure = defineProcedure({
   path: ["strLength"],
   input: StrLengthInputSchema,
-  output: anySchema as any,
+  output: numberOutput("The number of UTF-16 code units"),
   metadata: {
     description: "Get string length",
     tags: ["core", "string"],
@@ -403,7 +390,7 @@ type TemplateProcedure = Procedure<TemplateInput, string, { description: string;
 const templateProcedure: TemplateProcedure = defineProcedure({
   path: ["template"],
   input: TemplateInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The template with its placeholders filled"),
   metadata: {
     description: "String interpolation with {{key}} placeholders",
     tags: ["core", "string"],

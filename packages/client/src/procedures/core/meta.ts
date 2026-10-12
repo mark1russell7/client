@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { anyOutput, stringOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 import {
@@ -22,20 +23,6 @@ import {
 } from "../ref.js";
 import { callOperand } from "./operands.js";
 import { PROCEDURE_REGISTRY } from "../registry.js";
-
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
 
 // =============================================================================
 // Import Procedure
@@ -62,12 +49,18 @@ interface ImportOutput {
   error?: string;
 }
 
+const ImportOutputSchema = z.looseObject({
+  procedure: z.unknown().optional().describe("The parsed procedure reference"),
+  success: z.boolean().describe("True when the text is a valid procedure reference"),
+  error: z.string().optional().describe("The error message when the parse failed"),
+}) as z.ZodType<ImportOutput>;
+
 type ImportProcedure = Procedure<ImportInput, ImportOutput, { description: string; tags: string[] }>;
 
 const importProcedure: ImportProcedure = defineProcedure({
   path: ["import"],
   input: ImportInputSchema,
-  output: anySchema as any,
+  output: ImportOutputSchema,
   metadata: {
     description: "Parse procedure aggregation from JSON string",
     tags: ["core", "meta"],
@@ -127,12 +120,18 @@ interface ExportOutput {
   error?: string;
 }
 
+const ExportOutputSchema = z.looseObject({
+  json: z.string().describe("The procedure reference as JSON text"),
+  success: z.boolean().describe("True when the serialization succeeded"),
+  error: z.string().optional().describe("The error message when the serialization failed"),
+}) as z.ZodType<ExportOutput>;
+
 type ExportProcedure = Procedure<ExportInput, ExportOutput, { description: string; tags: string[] }>;
 
 const exportProcedure: ExportProcedure = defineProcedure({
   path: ["export"],
   input: ExportInputSchema,
-  output: anySchema as any,
+  output: ExportOutputSchema,
   metadata: {
     description: "Serialize procedure aggregation to JSON string",
     // The refs of the input are data: exec() must not run them (deep dive CORE-5)
@@ -173,7 +172,7 @@ type EvalProcedure = Procedure<EvalInput, unknown, { description: string; tags: 
 const evalProcedure: EvalProcedure = defineProcedure({
   path: ["eval"],
   input: EvalInputSchema,
-  output: anySchema as any,
+  output: anyOutput("The result of the evaluated call"),
   metadata: {
     description: "Evaluate a procedure reference (for dynamic composition)",
     tags: ["core", "meta", RUNS_REFS_TAG],
@@ -241,7 +240,7 @@ type ParseJsonProcedure = Procedure<ParseJsonInput, unknown, { description: stri
 const parseJsonProcedure: ParseJsonProcedure = defineProcedure({
   path: ["parseJson"],
   input: ParseJsonInputSchema,
-  output: anySchema as any,
+  output: anyOutput("The parsed JSON value"),
   metadata: {
     description: "Parse JSON string (optionally with procedure ref support)",
     tags: ["core", "meta"],
@@ -278,7 +277,7 @@ type StringifyJsonProcedure = Procedure<StringifyJsonInput, string, { descriptio
 const stringifyJsonProcedure: StringifyJsonProcedure = defineProcedure({
   path: ["stringifyJson"],
   input: StringifyJsonInputSchema,
-  output: anySchema as any,
+  output: stringOutput("The JSON text"),
   metadata: {
     description: "Stringify value to JSON (with procedure ref support)",
     // The refs of the input are data: exec() must not run them (deep dive CORE-5)
@@ -312,12 +311,18 @@ interface LookupOutput {
   path: string[];
 }
 
+const LookupOutputSchema = z.looseObject({
+  exists: z.boolean().describe("True when the registry has the procedure"),
+  metadata: z.unknown().optional().describe("The metadata of the procedure, when it exists"),
+  path: z.array(z.string()).describe("The path of the procedure"),
+}) as z.ZodType<LookupOutput>;
+
 type LookupProcedure = Procedure<LookupInput, LookupOutput, { description: string; tags: string[] }>;
 
 const lookupProcedure: LookupProcedure = defineProcedure({
   path: ["lookup"],
   input: LookupInputSchema,
-  output: anySchema as any,
+  output: LookupOutputSchema,
   metadata: {
     description: "Look up procedure in registry by path",
     tags: ["core", "meta"],

@@ -46,9 +46,9 @@
  */
 
 import { z } from "zod";
+import { anyOutput, booleanOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure, ProcedureContext } from "../types.js";
-import { anySchema } from "./schemas.js";
 
 // Re-export for convenience
 export { anySchema } from "./schemas.js";
@@ -158,12 +158,17 @@ interface ChainOutput {
   final: unknown;
 }
 
+const ChainOutputSchema = z.looseObject({
+  results: z.array(z.unknown()).describe("The result of each step, in order"),
+  final: z.unknown().optional().describe("The result of the last step"),
+}) as z.ZodType<ChainOutput>;
+
 type ChainProcedure = Procedure<ChainInput, ChainOutput, { description: string; tags: string[] }>;
 
 const chainProcedure: ChainProcedure = defineProcedure({
   path: ["chain"],
   input: ChainInputSchema as any,
-  output: anySchema as any,
+  output: ChainOutputSchema,
   metadata: {
     description: "Execute procedures sequentially",
     tags: controlFlowTags("control-flow"),
@@ -245,12 +250,25 @@ interface ParallelOutput {
   errors: Array<{ index: number; error: string }>;
 }
 
+const ParallelOutputSchema = z.looseObject({
+  results: z.array(z.unknown()).describe("The result of each task, in the order of the tasks"),
+  allSucceeded: z.boolean().describe("True when no task failed"),
+  errors: z
+    .array(
+      z.looseObject({
+        index: z.number().describe("The index of the task that failed"),
+        error: z.string().describe("The error message of the task"),
+      })
+    )
+    .describe("The failed tasks"),
+}) as z.ZodType<ParallelOutput>;
+
 type ParallelProcedure = Procedure<ParallelInput, ParallelOutput, { description: string; tags: string[] }>;
 
 const parallelProcedure: ParallelProcedure = defineProcedure({
   path: ["parallel"],
   input: ParallelInputSchema as any,
-  output: anySchema as any,
+  output: ParallelOutputSchema,
   metadata: {
     description: "Execute procedures in parallel",
     tags: controlFlowTags("control-flow"),
@@ -335,7 +353,7 @@ type ConditionalProcedure = Procedure<ConditionalInput, unknown, { description: 
 const conditionalProcedure: ConditionalProcedure = defineProcedure({
   path: ["conditional"],
   input: ConditionalInputSchema as any,
-  output: anySchema as any,
+  output: anyOutput("The value of the chosen branch: its shape depends on the program"),
   metadata: {
     description: "Conditional execution (if/then/else)",
     tags: controlFlowTags("control-flow"),
@@ -428,7 +446,7 @@ type AndProcedure = Procedure<AndInput, unknown, LogicMetadata>;
 const andProcedure: AndProcedure = defineProcedure({
   path: ["and"],
   input: LogicInputSchema as any,
-  output: anySchema as any,
+  output: anyOutput("The first falsy operand value, or the last value"),
   metadata: { ...andMetadata, tags: [...andMetadata.tags, RUNS_REFS_TAG] },
   handler: shortCircuit((value) => !value),
 });
@@ -443,7 +461,7 @@ type OrProcedure = Procedure<OrInput, unknown, LogicMetadata>;
 const orProcedure: OrProcedure = defineProcedure({
   path: ["or"],
   input: LogicInputSchema as any,
-  output: anySchema as any,
+  output: anyOutput("The first truthy operand value, or the last value"),
   metadata: { ...orMetadata, tags: [...orMetadata.tags, RUNS_REFS_TAG] },
   handler: shortCircuit((value) => Boolean(value)),
 });
@@ -458,7 +476,7 @@ type NotProcedure = Procedure<NotInput, boolean, LogicMetadata>;
 const notProcedure: NotProcedure = defineProcedure({
   path: ["not"],
   input: NotInputSchema as any,
-  output: anySchema as any,
+  output: booleanOutput("The negated truth value"),
   metadata: notMetadata,
   handler: notHandler,
 });
@@ -475,7 +493,7 @@ type AllProcedure = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
 const allProcedure: AllProcedure = defineProcedure({
   path: ["all"],
   input: VariadicBoolInputSchema as any,
-  output: anySchema as any,
+  output: booleanOutput("True when every value is truthy"),
   metadata: allMetadata,
   handler: allHandler,
 });
@@ -485,7 +503,7 @@ type AnyProcedureType = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
 const anyProcedure: AnyProcedureType = defineProcedure({
   path: ["any"],
   input: VariadicBoolInputSchema as any,
-  output: anySchema as any,
+  output: booleanOutput("True when one value is truthy"),
   metadata: anyMetadata,
   handler: anyLogicHandler,
 });
@@ -495,7 +513,7 @@ type NoneProcedure = Procedure<VariadicBoolInput, boolean, LogicMetadata>;
 const noneProcedure: NoneProcedure = defineProcedure({
   path: ["none"],
   input: VariadicBoolInputSchema as any,
-  output: anySchema as any,
+  output: booleanOutput("True when no value is truthy"),
   metadata: noneMetadata,
   handler: noneHandler,
 });
@@ -524,6 +542,10 @@ interface MapOutput {
   results: unknown[];
 }
 
+const MapOutputSchema = z.looseObject({
+  results: z.array(z.unknown()).describe("The result of fn for each item, in order"),
+}) as z.ZodType<MapOutput>;
+
 type MapProcedure = Procedure<MapInput, MapOutput, { description: string; tags: string[] }>;
 
 /**
@@ -550,7 +572,7 @@ async function hydrateItems(items: unknown, ctx: ProcedureContext | undefined, s
 const mapProcedure: MapProcedure = defineProcedure({
   path: ["map"],
   input: MapInputSchema as any,
-  output: anySchema as any,
+  output: MapOutputSchema,
   metadata: {
     description: "Map over an array: run fn for each item (the item is { $ref: \"item\" })",
     tags: controlFlowTags("collection"),
@@ -596,7 +618,7 @@ type ReduceProcedure = Procedure<ReduceInput, unknown, { description: string; ta
 const reduceProcedure: ReduceProcedure = defineProcedure({
   path: ["reduce"],
   input: ReduceInputSchema as any,
-  output: anySchema as any,
+  output: anyOutput("The last accumulator: its shape depends on the program"),
   metadata: {
     description: "Reduce an array: run fn for each item (acc and item are $refs)",
     tags: controlFlowTags("collection"),
@@ -634,7 +656,7 @@ type IdentityProcedure = Procedure<IdentityInput, unknown, { description: string
 const identityProcedure: IdentityProcedure = defineProcedure({
   path: ["identity"],
   input: ValueInputSchema as any,
-  output: anySchema as any,
+  output: anyOutput("The input value, unchanged"),
   metadata: {
     description: "Return input unchanged",
     tags: ["core", "utility"],
@@ -658,7 +680,7 @@ type ConstantProcedure = Procedure<ConstantInput, unknown, { description: string
 const constantProcedure: ConstantProcedure = defineProcedure({
   path: ["constant"],
   input: ValueInputSchema as any,
-  output: anySchema as any,
+  output: anyOutput("The constant value"),
   metadata: {
     description: "Return a constant value",
     tags: ["core", "utility"],
@@ -684,7 +706,7 @@ type ThrowProcedure = Procedure<ThrowInput, never, { description: string; tags: 
 const throwProcedure: ThrowProcedure = defineProcedure({
   path: ["throw"],
   input: ThrowInputSchema as any,
-  output: anySchema as any,
+  output: z.never().describe("client.throw never gives a value: it throws"),
   metadata: {
     description: "Throw an error",
     tags: ["core", "control-flow"],
@@ -718,12 +740,18 @@ interface TryCatchOutput {
   error?: string;
 }
 
+const TryCatchOutputSchema = z.looseObject({
+  success: z.boolean().describe("True when the try operand did not throw"),
+  value: z.unknown().optional().describe("The value of the try operand, or of the catch operand after an error"),
+  error: z.string().optional().describe("The error message of the try operand"),
+}) as z.ZodType<TryCatchOutput>;
+
 type TryCatchProcedure = Procedure<TryCatchInput, TryCatchOutput, { description: string; tags: string[] }>;
 
 const tryCatchProcedure: TryCatchProcedure = defineProcedure({
   path: ["tryCatch"],
   input: TryCatchInputSchema as any,
-  output: anySchema as any,
+  output: TryCatchOutputSchema,
   metadata: {
     description: "Try/catch wrapper for procedures",
     tags: controlFlowTags("control-flow"),

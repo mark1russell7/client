@@ -6,22 +6,9 @@
  */
 
 import { z } from "zod";
+import { booleanOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-
-// =============================================================================
-// Type-safe passthrough schema
-// =============================================================================
-
-const anySchema: {
-  parse: (data: unknown) => unknown;
-  safeParse: (data: unknown) => { success: true; data: unknown };
-  _output: unknown;
-} = {
-  parse: (data: unknown) => data,
-  safeParse: (data: unknown) => ({ success: true as const, data }),
-  _output: undefined as unknown,
-};
 
 // =============================================================================
 // Eq Procedure (Strict Equality)
@@ -42,7 +29,7 @@ type EqProcedure = Procedure<EqInput, boolean, { description: string; tags: stri
 const eqProcedure: EqProcedure = defineProcedure({
   path: ["eq"],
   input: EqInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when a equals b"),
   metadata: {
     description: "Strict equality (===)",
     tags: ["core", "comparison"],
@@ -71,7 +58,7 @@ type NeqProcedure = Procedure<NeqInput, boolean, { description: string; tags: st
 const neqProcedure: NeqProcedure = defineProcedure({
   path: ["neq"],
   input: NeqInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when a does not equal b"),
   metadata: {
     description: "Strict inequality (!==)",
     tags: ["core", "comparison"],
@@ -100,7 +87,7 @@ type GtProcedure = Procedure<GtInput, boolean, { description: string; tags: stri
 const gtProcedure: GtProcedure = defineProcedure({
   path: ["gt"],
   input: GtInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when a is greater than b"),
   metadata: {
     description: "Greater than (a > b)",
     tags: ["core", "comparison"],
@@ -129,7 +116,7 @@ type GteProcedure = Procedure<GteInput, boolean, { description: string; tags: st
 const gteProcedure: GteProcedure = defineProcedure({
   path: ["gte"],
   input: GteInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when a is greater than or equal to b"),
   metadata: {
     description: "Greater than or equal (a >= b)",
     tags: ["core", "comparison"],
@@ -158,7 +145,7 @@ type LtProcedure = Procedure<LtInput, boolean, { description: string; tags: stri
 const ltProcedure: LtProcedure = defineProcedure({
   path: ["lt"],
   input: LtInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when a is less than b"),
   metadata: {
     description: "Less than (a < b)",
     tags: ["core", "comparison"],
@@ -187,7 +174,7 @@ type LteProcedure = Procedure<LteInput, boolean, { description: string; tags: st
 const lteProcedure: LteProcedure = defineProcedure({
   path: ["lte"],
   input: LteInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when a is less than or equal to b"),
   metadata: {
     description: "Less than or equal (a <= b)",
     tags: ["core", "comparison"],
@@ -220,7 +207,7 @@ type BetweenProcedure = Procedure<BetweenInput, boolean, { description: string; 
 const betweenProcedure: BetweenProcedure = defineProcedure({
   path: ["between"],
   input: BetweenInputSchema,
-  output: anySchema as any,
+  output: booleanOutput("True when the value is in the range"),
   metadata: {
     description: "Check if value is between min and max (inclusive by default)",
     tags: ["core", "comparison"],
