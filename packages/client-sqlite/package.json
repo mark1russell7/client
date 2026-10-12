@@ -1,8 +1,26 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-sqlite",
-  "version": "1.0.0",
-  "description": "SQLite procedures for client - database operations via client.call",
+  "version": "0.1.0",
+  "description": "SQLite procedures with sql.js and no native build: db.query, db.execute and structured logs (logs.store, logs.query), safe for concurrent writes.",
+  "keywords": [
+    "sqlite",
+    "sql.js",
+    "database",
+    "logging",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-sqlite"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,8 +32,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -35,20 +68,5 @@
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
-  },
-  "keywords": [
-    "sqlite",
-    "client",
-    "procedures",
-    "rpc",
-    "database"
-  ],
-  "license": "MIT",
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
-  "engines": {
-    "node": ">=22"
   }
 }

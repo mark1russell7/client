@@ -62,6 +62,27 @@ jobs:
             }
           ' "$RUNNER_TEMP/audit.json"
 
+  package:
+    name: Packages (pack, publint, attw, install)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Each public package as npm gives it: the tarball, publint, attw, an install of all the
+      # tarballs into an empty project, imports, a program and the bins. Until the general packages
+      # (cue, splay, docker-sqlite) are on npm, three packages use github: dependencies
+      # (packages/documentation/RELEASE.md). The release workflow does not allow them.
+      - run: node scripts/check-packages.mjs --allow-git-deps
+
   site:
     name: Site (browser smoke test)
     runs-on: ubuntu-latest

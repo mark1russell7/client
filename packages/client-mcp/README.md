@@ -1,5 +1,7 @@
 # @mark1russell7/client-mcp
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-mcp)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
@@ -278,7 +280,7 @@ graph TB
   "mcpServers": {
     "my-server": {
       "command": "npx",
-      "args": ["@mark1russell7/impl-mcp-dev"]
+      "args": ["-y", "@mark1russell7/mcp-dev-tools"]
     }
   }
 }
@@ -291,7 +293,7 @@ graph TB
   "mcpServers": {
     "dev-tools": {
       "command": "node",
-      "args": ["C:/Users/me/git/impl-mcp-dev/dist/server.js"],
+      "args": ["C:/Users/me/git/client/packages/impl-mcp-dev/dist/server.js"],
       "env": {
         "MCP_BUNDLES": "@mark1russell7/bundle-mcp",
         "MCP_DEBUG": "true"

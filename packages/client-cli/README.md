@@ -1,5 +1,11 @@
 # @mark1russell7/client-cli
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-cli?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-cli)
+
+```sh
+npm install @mark1russell7/client-cli
+```
+
 `client-cli` gives one procedure, `cli.run`. It starts a command of the `mark` CLI in a new Node process and gives its output. Thus a program can use any `mark` command.
 
 `cli.run` is not a tool of the MCP server: it starts any `mark` command, `shell exec` too. As a tool, it gives back the shell access that the tool list keeps out (deep dive CLI-5).

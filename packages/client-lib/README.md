@@ -1,5 +1,11 @@
 # @mark1russell7/client-lib
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-lib?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-lib)
+
+```sh
+npm install @mark1russell7/client-lib
+```
+
 `client-lib` gives the procedures that manage the packages of the monorepo, and two runners of programs.
 
 | Procedure | Function |

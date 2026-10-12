@@ -1,5 +1,11 @@
 # @mark1russell7/client-vite
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-vite?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-vite)
+
+```sh
+npm install @mark1russell7/client-vite
+```
+
 `client-vite` starts Vite as procedures: a development server, a build, a preview server, and the stop of a server.
 
 | Procedure | Input | Output |

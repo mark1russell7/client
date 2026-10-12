@@ -1,8 +1,26 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/mcp",
-  "version": "0.0.1",
-  "description": "Core MCP types and utilities for procedure-to-tool mapping",
+  "version": "0.1.0",
+  "description": "Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "json-schema",
+    "zod",
+    "tools"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/mcp"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,8 +32,20 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -23,12 +53,11 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
-  "sideEffects": false,
   "dependencies": {
     "zod-to-json-schema": "^3.24.5"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "workspace:*"
+    "@mark1russell7/client": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
@@ -36,8 +65,5 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3",
     "@mark1russell7/client": "workspace:*"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

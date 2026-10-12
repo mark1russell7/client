@@ -1,5 +1,11 @@
 # @mark1russell7/bundle-dev
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/bundle-dev?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/bundle-dev)
+
+```sh
+npm install @mark1russell7/bundle-dev
+```
+
 `bundle-dev` registers the procedures of the development workflow with one import. It adds no procedures of its own.
 
 ```typescript

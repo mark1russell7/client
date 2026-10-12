@@ -1,7 +1,25 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-vitest",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Vitest as procedures: run the tests with results and coverage, watch, and stop the managed watch processes.",
+  "keywords": [
+    "vitest",
+    "testing",
+    "coverage",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-vitest"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,8 +31,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -22,10 +55,6 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
@@ -40,8 +69,5 @@
   },
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

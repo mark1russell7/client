@@ -1,8 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/bundle-mcp",
-  "version": "1.0.0",
-  "description": "Curated MCP bundle - high-level orchestration tools for Claude",
+  "version": "0.1.0",
+  "description": "The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-tools",
+    "tools",
+    "bundle",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/bundle-mcp"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,8 +37,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -26,9 +61,6 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/register.js"
-  ],
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-lib": "workspace:*",
@@ -45,17 +77,7 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
   },
-  "keywords": [
-    "bundle",
-    "mcp",
-    "procedures",
-    "claude"
-  ],
-  "license": "MIT",
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

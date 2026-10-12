@@ -1,5 +1,11 @@
 # @mark1russell7/cli
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/cli?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/cli)
+
+```sh
+npm install --global @mark1russell7/cli
+```
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Mark CLI - Development workflow automation through dynamic procedure discovery

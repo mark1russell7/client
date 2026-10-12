@@ -1,8 +1,27 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-docker",
-  "version": "1.0.0",
-  "description": "Wraps Docker CLI commands as procedures using client-shell",
+  "version": "0.1.0",
+  "description": "Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, stop, rm, compose up and down, run with argv and no shell injection.",
+  "keywords": [
+    "docker",
+    "docker-compose",
+    "containers",
+    "devops",
+    "automation",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-docker"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,8 +36,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -40,20 +74,7 @@
     "vitest": "^5.0.3",
     "@types/node": "^22.0.0"
   },
-  "keywords": [
-    "docker",
-    "containers",
-    "procedures"
-  ],
-  "license": "MIT",
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

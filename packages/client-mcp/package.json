@@ -1,8 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-mcp",
-  "version": "0.0.1",
-  "description": "MCP server transport for procedure system",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server transport: serve typed procedures as MCP tools to Claude and other MCP clients, with streaming progress, list_changed and an expose policy.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-tools",
+    "mcp-server",
+    "tools",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-mcp"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,8 +38,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -27,16 +62,12 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@mark1russell7/mcp": "workspace:*"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "workspace:*"
+    "@mark1russell7/client": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
@@ -45,8 +76,5 @@
     "vitest": "^5.0.3",
     "@mark1russell7/client": "workspace:*",
     "zod": "^3.24.0"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }
