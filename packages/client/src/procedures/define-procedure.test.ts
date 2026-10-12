@@ -761,3 +761,60 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     expect(await client.exec(["procedure", "get"], { path: ["no", "such"] })).toEqual({ found: false });
   });
 });
+
+describe("DOC-3: a defined body runs like exec()", () => {
+  const stubTransport = { send: async function* () {} } as unknown as ConstructorParameters<typeof Client>[0];
+  const add = (a: unknown, b: unknown) => ({ $proc: ["client", "add"], input: { a, b } });
+
+  function makeClient(): Client {
+    const registry = new ProcedureRegistry();
+    for (const procedure of [...allCoreProcedures, ...metaProcedures]) registry.register(procedure);
+    return new Client(stubTransport).useRegistry(registry);
+  }
+
+  /** The result of the program through exec(), and through procedure.define and a call. */
+  async function bothWays(program: Record<string, unknown>, input: Record<string, unknown> = {}): Promise<[unknown, unknown]> {
+    const client = makeClient();
+    const direct = await client.exec(program as never);
+    await client.exec({ $proc: ["procedure", "define"], input: { path: ["test", "doc3"], aggregation: program } });
+    const defined = await client.exec(["test", "doc3"], input);
+    return [direct, defined];
+  }
+
+  it("hydrates the root input as a root: a list of calls there is a chain", async () => {
+    const [direct, defined] = await bothWays({ $proc: ["client", "identity"], input: { value: [add(1, 1), add(2, 2)] } });
+    expect(direct).toMatchObject({ final: 4 });
+    expect(defined).toEqual(direct);
+  });
+
+  it("ignores a $when on the root call", async () => {
+    const [direct, defined] = await bothWays({ ...add(1, 2), $when: "$never" });
+    expect(direct).toBe(3);
+    expect(defined).toBe(3);
+  });
+
+  it("starts a control-flow root with its operands raw", async () => {
+    const [direct, defined] = await bothWays({
+      $proc: ["client", "chain"],
+      input: { steps: [add(1, 1), add({ $ref: "$last" }, 10)] },
+    });
+    expect(defined).toEqual(direct);
+  });
+
+  it("runs a nested ref of the root input", async () => {
+    const [direct, defined] = await bothWays(add(add(1, 1), 3));
+    expect(direct).toBe(5);
+    expect(defined).toBe(5);
+  });
+
+  it("gives input.* in the root input and in the operands of a control-flow root", async () => {
+    const client = makeClient();
+    await client.exec({ $proc: ["procedure", "define"], input: { path: ["test", "inc"], aggregation: add({ $ref: "input.x" }, 1) } });
+    expect(await client.exec(["test", "inc"], { x: 2 })).toBe(3);
+    await client.exec({
+      $proc: ["procedure", "define"],
+      input: { path: ["test", "steps"], aggregation: { $proc: ["client", "chain"], input: { steps: [add({ $ref: "input.x" }, 1)] } } },
+    });
+    expect(await client.exec(["test", "steps"], { x: 5 })).toMatchObject({ final: 6 });
+  });
+});

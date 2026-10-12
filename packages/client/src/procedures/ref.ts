@@ -828,6 +828,35 @@ export async function hydrateInput<T>(
 }
 
 /**
+ * The path and the input of the root call of a program: the call that `client.exec()` starts.
+ * `exec()` and the body of a procedure that `procedure.define` made both use this function, so
+ * the same program gives the same result in both (docs review DOC-3: before, a defined body
+ * hydrated its root call as a nested ref).
+ *
+ * The rules of the root call:
+ * - A `$when` on the root call does not apply: the caller starts the root call now.
+ * - A procedure that takes its input raw (`rawInput`) gets its input unchanged, with the scope
+ *   attached, and runs its operands itself.
+ * - Another procedure gets its input hydrated as a root: a list of calls that run now is an
+ *   implicit chain, and the nested refs run.
+ *
+ * The caller then starts the call with the path and the input.
+ */
+export async function prepareRootCall(
+  ref: AnyProcedureRef,
+  executor: RefExecutor,
+  options: Pick<HydrateOptions, "rawInput" | "onRef" | "scope"> = {}
+): Promise<{ path: ProcedurePath; input: unknown }> {
+  const root = normalizeRef(ref);
+  const rawInput = options.rawInput ?? isControlFlowPath;
+  if (rawInput(root.path)) {
+    return { path: root.path, input: withScope(root.input, options.scope) };
+  }
+  const input = await hydrateInput(root.input, executor, { rawInput, onRef: options.onRef, scope: options.scope });
+  return { path: root.path, input };
+}
+
+/**
  * This function tells the observers that a ref runs now. The consumer is the nearest ref
  * around the ref. An observer that throws does not change the hydration.
  */

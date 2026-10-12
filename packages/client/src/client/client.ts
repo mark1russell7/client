@@ -73,7 +73,7 @@ import {
   isAnyProcedureRef,
   isPlainObject,
   normalizeRef,
-  hydrateInput,
+  prepareRootCall,
   rawInputRule,
   type ProcedureRef,
   type AnyProcedureRef,
@@ -538,12 +538,8 @@ export class Client<TContext = {}> {
     // and can hijack an all-refs array into an implicit chain that clobbers `steps`. See
     // documentation/BUGS-2026-07.md (C2, H2, H3, M35). The procedure in the registry decides,
     // also for the refs nested in the input (deep dive CORE-5: before, the last path segment did).
-    const rawInput = rawInputRule(this.procedureRegistry);
-    const hydratedInput = rawInput(ref.path)
-      ? ref.input
-      : await hydrateInput(ref.input, executor, { rawInput, onRef: caller.onRef });
-
-    return { path: ref.path, input: hydratedInput };
+    // The body of a defined procedure starts its root call the same way (prepareRootCall, DOC-3)
+    return prepareRootCall(ref, executor, { rawInput: rawInputRule(this.procedureRegistry), onRef: caller.onRef });
   }
 
   /**

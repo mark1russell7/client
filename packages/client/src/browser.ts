@@ -139,6 +139,7 @@ export {
   toJson,
   normalizeRef,
   hydrateInput,
+  prepareRootCall,
   observeHydration,
   isControlFlowPath,
   isDataDriven,
