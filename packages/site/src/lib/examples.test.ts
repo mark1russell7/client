@@ -12,6 +12,10 @@ const expected: Record<string, unknown> = {
   conditional: "a long word",
   trycatch: { success: false, value: "fallback", error: "Division by zero" },
   parallel: { results: [3, "PROCEDURES AS DATA", [0, 1, 2, 3, 4]], allSucceeded: true },
+  records: { results: ["Ada is 36", "Linus is 54", "Grace is 45", "Alan is 41"] },
+  fallback: { success: false, value: "It failed: Division by zero", error: "Division by zero" },
+  define: { final: 42 },
+  fanout: { final: "ADA and GRACE" },
 };
 
 describe("the examples of the Composer", () => {

@@ -10,38 +10,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { categoryOf, procedureByKey } from "../data";
 import type { Analysis } from "../lib/analysis";
-import { buildGraph, NODE_HEIGHT, NODE_WIDTH, type GraphEdge, type GraphNode } from "../lib/graph";
+import { buildGraph, edgeGeometry, NODE_HEIGHT, NODE_WIDTH, type GraphNode } from "../lib/graph";
 import { locationKey, type Json, type Location } from "../lib/program";
-
-/** The path of an edge, and the place of its label. */
-function edgeGeometry(edge: GraphEdge, from: GraphNode, to: GraphNode): { d: string; lx: number; ly: number } {
-  const fx = from.x + NODE_WIDTH / 2;
-  const tx = to.x + NODE_WIDTH / 2;
-  if (edge.kind === "step") {
-    const y = from.y + NODE_HEIGHT / 2;
-    return { d: `M ${from.x + NODE_WIDTH} ${y} L ${to.x - 2} ${to.y + NODE_HEIGHT / 2}`, lx: (from.x + NODE_WIDTH + to.x) / 2, ly: y - 10 };
-  }
-  if (edge.kind === "input") {
-    const y1 = from.y + NODE_HEIGHT;
-    const y2 = to.y;
-    const bend = (y2 - y1) / 2;
-    return { d: `M ${fx} ${y1} C ${fx} ${y1 + bend}, ${tx} ${y2 - bend}, ${tx} ${y2}`, lx: tx, ly: y2 - 12 };
-  }
-  // A ref: from the bottom of the source to the top of a deeper reader, or to the bottom of a
-  // reader in the same row (an arc below the row)
-  const y1 = from.y + NODE_HEIGHT;
-  if (to.y > from.y) {
-    const y2 = to.y;
-    return {
-      d: `M ${fx + 18} ${y1} C ${fx + 18} ${y1 + 60}, ${tx + 18} ${y2 - 60}, ${tx + 18} ${y2 - 2}`,
-      lx: (fx + tx) / 2 + 18,
-      ly: (y1 + y2) / 2,
-    };
-  }
-  const y2 = to.y + NODE_HEIGHT;
-  const depth = 34 + Math.min(60, Math.abs(tx - fx) / 8);
-  return { d: `M ${fx} ${y1} C ${fx} ${y1 + depth}, ${tx} ${y2 + depth}, ${tx} ${y2 + 2}`, lx: (fx + tx) / 2, ly: Math.max(y1, y2) + depth * 0.75 };
-}
 
 export function ProgramGraph({
   program,
