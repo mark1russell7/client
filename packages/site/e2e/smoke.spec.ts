@@ -26,6 +26,9 @@ const PAGES = [
   "#/architecture",
   "#/architecture/client",
   "#/claude",
+  "#/status",
+  "#/status?status=open",
+  "#/lab",
 ];
 
 function encode(program: unknown): string {
@@ -155,6 +158,53 @@ test.describe("the keyboard", () => {
   });
 });
 
+test.describe("the new pages", () => {
+  test("the trace shows a call that ran for an input under the call that got its result", async ({ page }) => {
+    await open(page, "#/composer?example=nested");
+    await expect(page.locator(".status-ok")).toBeVisible();
+    const inner = page.getByRole("treeitem", { name: /^multiply, an input/ });
+    await expect(inner).toHaveAttribute("aria-level", "2");
+  });
+
+  test("the graph view shows the calls, and the keyboard moves in it", async ({ page }) => {
+    await open(page, "#/composer?example=chain");
+    await page.getByRole("tab", { name: "Graph" }).click();
+    const tree = page.getByRole("tree", { name: /The program as a graph/ });
+    await expect(tree.getByRole("treeitem")).toHaveCount(4);
+    await tree.getByRole("treeitem").first().focus();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".graph-detail")).toContainText("client.multiply");
+    await page.getByRole("button", { name: "Edit in the blocks" }).click();
+    await expect(page.getByRole("tab", { name: "Blocks" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: /Call of client\.multiply, selected/ })).toBeFocused();
+  });
+
+  test("the status board filters the findings, and a link keeps the filters", async ({ page }) => {
+    await open(page, "#/status");
+    const count = page.locator("p", { hasText: /of \d+ findings/ });
+    await expect(count).toBeVisible();
+    const openChip = page.getByRole("group", { name: "Status", exact: true }).getByRole("button", { name: "Open", exact: true });
+    await openChip.click();
+    await expect(page).toHaveURL(/status=open/);
+    const filtered = await count.textContent();
+    await page.reload();
+    await expect(count).toHaveText(filtered ?? "");
+    await expect(openChip).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("the middleware lab runs a scenario through the real middlewares", async ({ page }) => {
+    await open(page, "#/lab");
+    await page.getByRole("button", { name: "A hot key" }).click();
+    // Six requests with one key: the server answers the first one, and the cache the others
+    const totals = page.locator(".lab-totals");
+    await expect(totals.locator("div", { hasText: "succeeded" })).toHaveText(/6\s*succeeded/, { timeout: 15_000 });
+    await expect(totals.locator("div", { hasText: "server calls" })).toHaveText(/^1\s*server calls/);
+    await expect(page.locator(".timeline-row")).toHaveCount(6);
+  });
+});
+
 test.describe("the layout", () => {
   test("no page scrolls sideways at 375 px", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
@@ -196,6 +246,14 @@ test.describe("accessibility", () => {
       await page.getByRole("button", { name: /^add:/ }).click();
       await expect(page.getByRole("group", { name: /Where does add go/ })).toBeVisible();
       await check("the Composer with its states");
+      // The graph view, and the lab after a scenario
+      await page.getByRole("tab", { name: "Graph" }).click();
+      await page.getByRole("treeitem").first().click();
+      await check("the graph view");
+      await open(page, "#/lab");
+      await page.getByRole("button", { name: "A slow stream" }).click();
+      await page.waitForTimeout(1500);
+      await check("the lab with a scenario");
       expect(problems).toEqual([]);
     });
   }

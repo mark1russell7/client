@@ -198,6 +198,22 @@ p {
   margin-top: var(--space-1);
 }
 
+/* A medium screen: the header keeps one row with the six pages */
+@media (max-width: 1180px) and (min-width: 721px) {
+  .site-header {
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .site-header nav a {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .header-end .github-link {
+    display: none;
+  }
+}
+
 /*
  * The phone layout (deep dive SITE-1). The header is not sticky and takes two short rows: the
  * brand and the theme, then the navigation, which scrolls inside itself. The page never
@@ -394,6 +410,21 @@ textarea[aria-invalid="true"] {
   color: var(--color-accent-strong);
   border-bottom-color: var(--color-accent);
   font-weight: 600;
+}
+
+/* Four tabs and the count of calls fit at 375 px: the count goes under the tabs */
+@media (max-width: 480px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab-buttons {
+    gap: 0;
+  }
+
+  .tabs button {
+    padding: var(--space-2);
+  }
 }
 
 .tab-panel:focus-visible {
@@ -1182,6 +1213,14 @@ button.collapsed {
 .trace-name .out {
   color: var(--color-ink-muted);
   margin-left: var(--space-2);
+}
+
+.trace-via {
+  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-ink-muted);
 }
 
 .trace-name .err {

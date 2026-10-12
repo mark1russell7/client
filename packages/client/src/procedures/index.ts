@@ -79,6 +79,7 @@ export {
   normalizeRef,
   // Hydration
   hydrateInput,
+  observeHydration,
   isControlFlowPath,
   isDataDriven,
   markDataDriven,
@@ -109,6 +110,7 @@ export type {
   AnyProcedureRef,
   RefExecutor,
   HydrateOptions,
+  HydrationEvent,
   StepResultInfo,
   ContinueDecision,
   OutputRef,

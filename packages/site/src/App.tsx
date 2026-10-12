@@ -7,12 +7,16 @@ import { Composer } from "./pages/Composer";
 import { Catalog } from "./pages/Catalog";
 import { Architecture } from "./pages/Architecture";
 import { Claude } from "./pages/Claude";
+import { Status } from "./pages/Status";
+import { Lab } from "./pages/Lab";
 
 const NAV: Array<{ page: string; label: string }> = [
   { page: "composer", label: "Composer" },
   { page: "catalog", label: "Procedures" },
   { page: "architecture", label: "Architecture" },
+  { page: "lab", label: "Lab" },
   { page: "claude", label: "What Claude sees" },
+  { page: "status", label: "Status" },
 ];
 
 type Theme = "light" | "dark" | "system";
@@ -105,6 +109,12 @@ export function App(): ReactElement {
     case "claude":
       page = <Claude />;
       break;
+    case "status":
+      page = <Status route={route} />;
+      break;
+    case "lab":
+      page = <Lab />;
+      break;
     default:
       page = <Home />;
   }
@@ -138,7 +148,7 @@ export function App(): ReactElement {
           <ThemeToggle />
         </div>
       </header>
-      <main id="main" tabIndex={-1} className={route.page === "composer" || route.page === "architecture" ? "main wide" : "main"}>
+      <main id="main" tabIndex={-1} className={["composer", "architecture", "status", "lab"].includes(route.page) ? "main wide" : "main"}>
         <ErrorBoundary resetKey={`${route.page}/${route.rest}?${route.query.toString()}`}>{page}</ErrorBoundary>
       </main>
       <Footer />

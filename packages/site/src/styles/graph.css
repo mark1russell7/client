@@ -1,0 +1,170 @@
+/* The graph view of the Composer */
+
+.program-graph {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-ink-secondary);
+}
+
+.legend-line {
+  display: inline-block;
+  width: 26px;
+  height: 0;
+  border-top: 2px solid var(--color-rule-strong);
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
+
+.legend-line.step {
+  border-top-color: var(--color-ink-secondary);
+}
+
+.legend-line.ref {
+  border-top: 2px dashed var(--color-accent);
+}
+
+.graph-scroll {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--color-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--color-surface);
+}
+
+.graph-canvas {
+  position: relative;
+  margin: 0 auto;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.graph-edge {
+  fill: none;
+  stroke: var(--color-rule-strong);
+  stroke-width: 1.5;
+}
+
+.graph-edge.step {
+  stroke: var(--color-ink-secondary);
+  stroke-width: 2;
+}
+
+.graph-edge.ref {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.arrow-head {
+  fill: var(--color-ink-secondary);
+}
+
+.arrow-head.ref {
+  fill: var(--color-accent);
+}
+
+.graph-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-ink-secondary);
+  background: var(--color-surface);
+  border-radius: var(--radius-small);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.graph-label.ref {
+  color: var(--color-accent-strong);
+  border: 1px dashed var(--color-accent);
+}
+
+button.graph-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-rule-strong);
+  border-left: 4px solid var(--cat, var(--color-rule-strong));
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  text-align: left;
+  font: inherit;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+button.graph-node:hover {
+  background: var(--color-surface-sunken);
+}
+
+button.graph-node.selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+button.graph-node.unknown {
+  border-style: dashed;
+  border-color: var(--status-critical);
+}
+
+button.graph-node.warning .graph-node-name {
+  color: var(--status-critical-ink);
+}
+
+.graph-node-name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-node-meta {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-step-name {
+  font-family: var(--font-mono);
+  color: var(--color-accent-strong);
+  margin-right: var(--space-1);
+}
+
+.graph-step-name::before {
+  content: "$name ";
+  color: var(--color-ink-muted);
+}
+
+.graph-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 2.25rem;
+}
