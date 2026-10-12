@@ -76,6 +76,7 @@ import {
   rawInputRule,
   type ProcedureRef,
   type AnyProcedureRef,
+  type HydrationEvent,
 } from "../procedures/ref.js";
 
 /** Each element of each array item: the stream form of an `outputMode: "batch"` procedure. */
@@ -135,6 +136,18 @@ interface CallerContext {
   signal?: AbortSignal | undefined;
   /** The invocation whose handler makes the call: the interceptors link a nested call to it. */
   parent?: Invocation | undefined;
+  /** The hydration observer of the program (`exec(ref, input, { onRef })`). */
+  onRef?: ((event: HydrationEvent) => void) | undefined;
+}
+
+/** The options of `exec()` and `execStream()`. */
+export interface ExecOptions {
+  /**
+   * This function gets the hydration events of this program only: the refs that hydration runs,
+   * also inside control flow and runners, with the call that gets each result. A trace uses it.
+   * (`observeHydration()` gets the events of every program in the process.)
+   */
+  onRef?: ((event: HydrationEvent) => void) | undefined;
 }
 
 /**
@@ -449,10 +462,12 @@ export class Client<TContext = {}> {
    */
   async exec<TOutput = unknown>(
     refOrPath: AnyProcedureRef | ProcedurePath,
-    input?: unknown
+    input?: unknown,
+    options: ExecOptions = {}
   ): Promise<TOutput> {
-    const { path, input: hydratedInput } = await this.prepareRef(refOrPath, input);
-    return this.execInternal<TOutput>(path, hydratedInput);
+    const caller: CallerContext = options.onRef ? { onRef: options.onRef } : {};
+    const { path, input: hydratedInput } = await this.prepareRef(refOrPath, input, caller);
+    return this.execInternal<TOutput>(path, hydratedInput, caller);
   }
 
   /**
@@ -469,12 +484,14 @@ export class Client<TContext = {}> {
    */
   execStream<TOutput = unknown>(
     refOrPath: AnyProcedureRef | ProcedurePath,
-    input?: unknown
+    input?: unknown,
+    options: ExecOptions = {}
   ): AsyncIterable<TOutput> {
     const self = this;
+    const caller: CallerContext = options.onRef ? { onRef: options.onRef } : {};
     return (async function* () {
-      const { path, input: hydratedInput } = await self.prepareRef(refOrPath, input);
-      yield* self.execStreamInternal<TOutput>(path, hydratedInput);
+      const { path, input: hydratedInput } = await self.prepareRef(refOrPath, input, caller);
+      yield* self.execStreamInternal<TOutput>(path, hydratedInput, caller);
     })();
   }
 
@@ -483,7 +500,8 @@ export class Client<TContext = {}> {
    */
   private async prepareRef(
     refOrPath: AnyProcedureRef | ProcedurePath,
-    input: unknown
+    input: unknown,
+    caller: CallerContext = {}
   ): Promise<{ path: ProcedurePath; input: unknown }> {
     // Normalize to ProcedureRef
     let ref: ProcedureRef;
@@ -510,7 +528,7 @@ export class Client<TContext = {}> {
 
     // Create executor function for hydration
     const executor = async <TIn, TOut>(path: ProcedurePath, inp: TIn): Promise<TOut> => {
-      return this.execInternal<TOut>(path, inp);
+      return this.execInternal<TOut>(path, inp, caller);
     };
 
     // A procedure that takes its input raw (control flow, the `runs-refs` and `raw-input` tags,
@@ -522,7 +540,7 @@ export class Client<TContext = {}> {
     const rawInput = rawInputRule(this.procedureRegistry);
     const hydratedInput = rawInput(ref.path)
       ? ref.input
-      : await hydrateInput(ref.input, executor, { rawInput });
+      : await hydrateInput(ref.input, executor, { rawInput, onRef: caller.onRef });
 
     return { path: ref.path, input: hydratedInput };
   }
@@ -538,7 +556,12 @@ export class Client<TContext = {}> {
     // The nested calls get the metadata and the signal of the invocation (an interceptor can
     // change them), and name it as their parent
     const client = (invocation: Invocation): ProcedureClient => {
-      const nested: CallerContext = { metadata: invocation.metadata, signal: invocation.signal, parent: invocation };
+      const nested: CallerContext = {
+        metadata: invocation.metadata,
+        signal: invocation.signal,
+        parent: invocation,
+        onRef: caller.onRef,
+      };
       return {
         call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, nested),
         stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, nested),
@@ -552,6 +575,7 @@ export class Client<TContext = {}> {
       bus: this.bus,
       interceptors: this.interceptors,
       parent: caller.parent,
+      onRef: caller.onRef,
     };
   }
 

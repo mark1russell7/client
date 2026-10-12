@@ -75,6 +75,7 @@ export async function coreCatch(
     // `try`: a nested ref that throws is an error of the `try` step (deep dive DATA-22).
     const hydratedTryInput = await hydrateInput(tryInput, executor, {
       contextStack: ["catch"],
+      onRef: ctx.onRef,
       scope,
     });
 
@@ -117,6 +118,7 @@ export async function coreCatch(
       // Hydrate handler input (a failure here is a failure of the handler)
       const hydratedHandlerInput = await hydrateInput(handlerInput, executor, {
         contextStack: ["catch"],
+        onRef: ctx.onRef,
         scope,
       });
 

@@ -59,6 +59,12 @@ describe.skipIf(!built)("mark: commands of the client packages", () => {
     ok(["git", "status", "--cwd", repo]);
   });
 
+  it("runs a core procedure that is not control flow (docs review DOC-6)", () => {
+    const run = mark(["--format", "json", "client", "add", "--a", "2", "--b", "3"]);
+    expect(run.exitCode, `${run.stdout}\n${run.stderr}`).toBe(0);
+    expect(json<number>(run)).toBe(5);
+  });
+
   it("lists and reads procedures", () => {
     const list = mark(["--format", "json", "procedure", "list", "--namespace", "fs"]);
     expect(list.exitCode).toBe(0);

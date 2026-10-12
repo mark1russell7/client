@@ -26,6 +26,7 @@ import { pathToKey } from "./types.js";
 import type { ProcedureRegistry } from "./registry.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
 import { nestedCallRefusal } from "./policy.js";
+import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import type { EventBus } from "../events/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
@@ -73,6 +74,11 @@ export type ProcedureOutput<T = unknown> =
   | { readonly kind: "stream"; readonly items: AsyncGenerator<T, void, undefined> };
 
 export interface InvokeOptions {
+  /**
+   * The hydration observer of the program (see `HydrateOptions.onRef`). It goes to the context
+   * (`ctx.onRef`) and to the nested calls, so the hydrations of this program report to it.
+   */
+  onRef?: ((event: HydrationEvent) => void) | undefined;
   /** The nested calls of `ctx.client` find their procedures here. The default is `PROCEDURE_REGISTRY`. */
   registry?: ProcedureRegistry | undefined;
   metadata?: Record<string, unknown> | undefined;
@@ -284,7 +290,10 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
         path,
       );
     }
-    data = parsed.data;
+    // A parse makes a new object, without the hidden scope of a raw input (`withScope()`). The
+    // scope goes onto the parsed data, so a runner with a Zod schema can read the names of the
+    // caller (docs review DOC-10: before, each runner needed its own workaround).
+    data = parsed.data === input ? input : withScope(parsed.data, scopeOf(input));
   }
 
   // The handler starts here, before the first await (the site's trace depends on it)
@@ -369,6 +378,7 @@ export function createProcedureContext(
   };
   if (options.signal) context.signal = options.signal;
   if (options.repository) context.repository = options.repository;
+  if (options.onRef) context.onRef = options.onRef;
   // Every context has a bus. With a signal, the waits of the handler on the bus end when the
   // invocation aborts, so a stream handler that waits on ctx.bus.stream() can finish. (Before,
   // no host set ctx.bus: deep dive CORE-15.)

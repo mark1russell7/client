@@ -121,6 +121,8 @@ The rules:
 // { "$proc": ["client", "add"], "input": { "a": 1, "b": 2 }, "$when": "$never" }
 ```
 
+A deferred call is data also in a list and as a step of `client.chain`. A `$never` step of a chain gives the step itself as its result. A list that has a deferred call is not an implicit chain (section 7).
+
 A runner is a procedure that hydrates a deferred call itself and gives a context name. Two runners exist. `core.catch` (`client-lib`) gives `"catch"`, and `dag.traverse` gives `"dag.traverse"`. A `$name` is not a context name. A deferred call is data at all depths. The test is "a ref deferred to a name is data at every depth" in `ref.hydrate.test.ts`.
 
 ## 6. `$literal`: data that looks like a call
@@ -153,7 +155,7 @@ An array of calls can operate as one `client.chain`. Then the result is the chai
 
 The exact rule is in `hydrateValue()` in `ref.ts`. An array is an implicit chain when all of these conditions are true:
 
-1. The array has one item or more, and each item is a call.
+1. The array has one item or more, and each item is a call that starts during this hydration. A `$never` call, a `$parent` call or a call that waits for a context name makes the array a list.
 2. The array is a value where a hydration starts (a "hydration root"), or it is in the plain objects and arrays of that value.
 3. The array is not in the input of a call. The input of a call does not make an implicit chain.
 4. The array is not the steps of an implicit chain.
@@ -187,7 +189,7 @@ The control-flow procedures get their input raw. They start their operands thems
 
 | Procedure | Operands | Order | Result |
 |---|---|---|---|
-| `client.chain` | `steps` | One at a time. A step that is a call gets `$name` and `$last` (section 4). | `{ results, final }` |
+| `client.chain` | `steps` | One at a time. A step that is a call gets `$name` and `$last` (section 4). With `passThrough: true`, a step that has no `input` gets the result of the step before. The first step gets `initialInput`. | `{ results, final }` |
 | `client.parallel` | `tasks` | At the same time, with `concurrency`. A failure goes into `errors`, unless `failFast` is true. | `{ results, allSucceeded, errors }` |
 | `client.conditional` | `condition`, then `then` or `else` | Only the selected branch starts. | the value of the branch |
 | `client.tryCatch` | `try`, then `catch` after an error | `catch` can read `{ "$ref": "error" }`. | `{ success, value, error? }` |
@@ -221,7 +223,7 @@ Details:
 
 - **The truth of a condition.** `client.conditional` reads the `value` field of an object: `{ "value": 0 }` is false. For other values, the JavaScript rules apply.
 - **Items.** `client.map` and `client.reduce` hydrate each item of an `items` array separately. An item that is a call gives its result. An item that is an array of calls is an implicit chain. When `items` is a call or a `$ref`, its result must be an array.
-- **Without `fn`.** `client.map` gives the hydrated items. `client.reduce` gives `initial` as it is (section 11).
+- **Without `fn`.** `client.map` gives the hydrated items. `client.reduce` gives the hydrated `initial`: a call in it starts.
 - **The parent context.** `chain`, `parallel`, `conditional`, `and` and `or` add the `cwd` and `node` fields of their input to the input of each operand call.
 - **A branch that is an array.** A branch of `conditional` or an operand of `tryCatch` that is an array of calls is a chain. The test is `analysis.test.ts` of the site.
 
@@ -230,7 +232,7 @@ Details:
 Hydration gives a procedure its input raw when the registry has the procedure, and one of these conditions is true:
 
 - It is a control-flow procedure (section 8). The full path must agree, thus a user procedure `foo.map` takes ordinary input.
-- Its metadata has the tag `runs-refs`: it starts the refs of its input. Examples are `client.eval`, `procedure.define`, `dag.traverse` and `core.catch`.
+- Its metadata has the tag `runs-refs`: it starts the refs of its input. Examples are `client.eval`, `procedure.define`, `dag.traverse` and `core.catch`. `client.eval` hydrates the input of its call like `exec()`, in the scope of the caller: the calls and the `$ref` values of that input start.
 - Its metadata has the tag `raw-input`: it takes refs as data and does not start them. Examples are `client.export` and `client.stringifyJson`.
 
 The registry of the caller decides (`rawInputRule()`). For a path that the registry does not have, only the control-flow paths take raw input. A raw input carries the scope of the caller, so nested control flow can read the outer names. The tests are "CORE-5" in `core/semantics.test.ts`.
@@ -270,10 +272,7 @@ These points are not decided. Each point gives the behavior at the time of commi
 
 - **The root of a defined body.** `client.exec()` hydrates the input of its root call as a hydration root. A defined body hydrates the aggregation itself, so the input of its root call is the input of a call. Thus an array of calls in that input is a chain with `exec()`, and a list of results in a body.
 - **`$when` at the root.** `client.exec()` starts a root call that has `$when`. A body whose root has `$when: "$never"` gives the call as data.
-- **`$when` on a chain step.** `client.chain` starts each step that is a call. A step with `$when: "$never"` or a context name starts too. An implicit chain is a chain, thus an array of `$never` calls starts. This breaks the rule of section 5.
-- **`client.eval`.** It takes raw input (`runs-refs`). Then it gives the raw input of the evaluated call to that call. The calls and the `$ref` values in that input do not start.
-- **`client.reduce` without `fn`.** It gives `initial` raw: a call in `initial` does not start. `client.map` without `fn` hydrates its items.
-- **`passThrough` and `initialInput` of `client.chain`.** The input type of `client.chain` has these fields, but the procedure ignores them.
+- **A context name on a chain step.** A step of `client.chain` with `$when: "$parent"` or a context name starts: the chain is the procedure that gets the step. Only a `$never` step is data.
 - **Parallel hydration.** A program cannot set `parallel: true`. Only `client.parallel` starts refs at the same time.
 - **The scope and a remote call.** A scope does not go over a transport. A control-flow procedure on a different host cannot read the names of the caller.
 - **`$name` as a context.** A `$name` does not make a context for `$when`. Only the runners give context names (`"catch"` and `"dag.traverse"`).
@@ -297,3 +296,7 @@ The deep dive of October 2026 replaced three `$ref` interpreters with one. These
 | `client.conditional` gave a branch that was not one call as raw data. Nothing in it started. | Each operand is hydrated as a program. | one interpreter |
 | An implicit chain started its calls at the same time, then `client.chain` got their results. | `client.chain` gets the calls and starts them in order. | architecture review 3.4 |
 | `client.range` from `1e17` to `2e17` did not stop. | A range has 1 000 000 items at most, with finite bounds. | SITE-6 |
+| An array of `$never` calls was an implicit chain, and its calls started. A `$never` step of `client.chain` started. | A deferred call is data in a list and as a chain step. | DOC-1 |
+| `client.eval` gave the raw input to its call. `add` with a nested call gave `"[object Object]1"`. | `client.eval` hydrates the input of its call like `exec()`. | DOC-2 |
+| `client.reduce` without `fn` gave `initial` raw. `client.chain` ignored `passThrough` and `initialInput`. | `initial` is hydrated, and `passThrough` operates. | DOC-4 |
+| `procedure.list` and `procedure.get` gave only the defined procedures, or the whole registry when `client-procedure` was loaded. | One implementation for the whole registry, with `runtime: true` for the defined procedures. | DOC-6 |

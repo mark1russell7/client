@@ -8,7 +8,18 @@
 
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
-import { parseProcedureJson, stringifyProcedureJson, isAnyProcedureRef, RUNS_REFS_TAG, RAW_INPUT_TAG } from "../ref.js";
+import {
+  parseProcedureJson,
+  stringifyProcedureJson,
+  isAnyProcedureRef,
+  isOutputRef,
+  isPlainObject,
+  resolveOutputRef,
+  scopeOf,
+  RUNS_REFS_TAG,
+  RAW_INPUT_TAG,
+} from "../ref.js";
+import { callOperand } from "./operands.js";
 import { PROCEDURE_REGISTRY } from "../registry.js";
 
 // =============================================================================
@@ -155,22 +166,38 @@ const evalProcedure: EvalProcedure = defineProcedure({
     // The call goes through ctx.client, so it gets input validation, its own context and the
     // expose rule of a server. Before, eval called the handler from the global registry directly,
     // with the context of eval.
-    if (Array.isArray(input.procedure) && input.procedure.every((p) => typeof p === "string")) {
-      return ctx.client.call(input.procedure as string[], input.input);
+    //
+    // eval takes its input raw (runs-refs). It evaluates its call like exec(): the calls and the
+    // $ref values of the call's input run in the scope of the caller, and a procedure that takes
+    // raw input (control flow) gets it raw. (Docs review DOC-2: before, eval gave the raw input
+    // to the call, so `add` with a nested call gave "[object Object]1".)
+    const scope = scopeOf(input);
+    let procedure = input.procedure;
+    // The procedure can be a $ref to a ref that an earlier step made (data of the scope)
+    if (isOutputRef(procedure) && scope) {
+      procedure = resolveOutputRef(procedure.$ref, scope);
     }
 
-    if (isAnyProcedureRef(input.procedure)) {
-      const procRef = input.procedure as { path?: string[]; $proc?: string[]; input?: Record<string, unknown> };
-      const refPath = procRef.path ?? procRef.$proc;
-      const refInput = procRef.input ?? {};
+    if (Array.isArray(procedure) && procedure.every((p) => typeof p === "string")) {
+      return callOperand({ $proc: procedure as string[], input: input.input }, ctx, { scope });
+    }
 
+    if (isAnyProcedureRef(procedure)) {
+      const procRef = procedure as { path?: string[]; $proc?: string[]; input?: unknown };
+      const refPath = procRef.path ?? procRef.$proc;
       if (!refPath) {
         throw new Error("Invalid procedure reference: missing path");
       }
-
-      // Merge input from ref with provided input
-      const finalInput = { ...refInput, ...(input.input as Record<string, unknown> ?? {}) };
-      return ctx.client.call(refPath, finalInput);
+      // The input of eval goes over the input of the ref, for objects
+      const refInput = procRef.input;
+      const extra = input.input;
+      const finalInput =
+        extra === undefined
+          ? refInput
+          : isPlainObject(refInput) && isPlainObject(extra)
+            ? { ...refInput, ...extra }
+            : extra;
+      return callOperand({ $proc: refPath, input: finalInput }, ctx, { scope });
     }
 
     throw new Error("Invalid procedure reference");

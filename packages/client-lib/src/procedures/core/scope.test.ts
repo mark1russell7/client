@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { Client, LocalTransport, PROCEDURE_REGISTRY, createRefScope, scopeOf, withScope } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY, createRefScope, invokeProcedure, outputValue, withScope } from "@mark1russell7/client";
 import "../../register.js";
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
@@ -51,16 +51,18 @@ describe("runner scope", () => {
     expect(final.error).toMatch(/Unknown \$ref name "missing"/);
   });
 
-  it("the input schemas of core.catch and dag.traverse keep the scope that the caller gives", () => {
+  it("keeps the scope that the caller gives through the Zod validation of invokeProcedure", async () => {
+    // The core keeps the scope across input validation (docs review DOC-10), so the runners use
+    // their plain Zod schemas
     const scope = createRefScope();
-    for (const [path, input] of [
-      [["core", "catch"], { try: { $proc: ["client", "identity"], input: {} } }],
-      [["dag", "traverse"], { visit: ["client", "identity"] }],
-    ] as const) {
-      const procedure = PROCEDURE_REGISTRY.get([...path]);
-      const result = procedure!.input.safeParse(withScope({ ...input }, scope));
-      expect(result.success).toBe(true);
-      expect(scopeOf(result.success ? result.data : undefined)).toBe(scope);
-    }
+    scope.outputs.set("outer", 7);
+    const procedure = PROCEDURE_REGISTRY.get(["core", "catch"])!;
+    const output = await invokeProcedure(
+      procedure,
+      withScope({ try: { $proc: ["client", "identity"], input: { value: { $ref: "outer" } }, $when: "catch" } }, scope),
+      { registry: PROCEDURE_REGISTRY },
+    );
+    const result = (await outputValue(output)) as { success: boolean; result: unknown };
+    expect(result).toMatchObject({ success: true, result: 7 });
   });
 });

@@ -35,7 +35,9 @@ import type {
   AnyProcedure,
   ProcedureRegistryLike,
 } from "./types.js";
-import { anySchema } from "./core/schemas.js";
+import { z } from "zod";
+import { anySchema, zodAdapter } from "./core/schemas.js";
+import { keyToPath, pathToKey } from "./types.js";
 import {
   createRefScope,
   hydrateInput,
@@ -123,6 +125,7 @@ function createAggregationHandler(
     return hydrateInput(aggregation, (path, value) => ctx.client.call(path, value), {
       scope,
       rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY),
+      onRef: ctx.onRef,
     });
   };
 }
@@ -279,50 +282,127 @@ export const defineProcedureProcedure: Procedure<
 // Additional Meta-Procedures
 // =============================================================================
 
+/** The description of one procedure, for `procedure.list` and `procedure.get`. */
+export interface ProcedureDescription {
+  /** The path of the procedure */
+  path: ProcedurePath;
+  /** The path as a dotted key */
+  key: string;
+  /** The description of the metadata */
+  description: string | undefined;
+  /** The tags of the metadata */
+  tags: string[] | undefined;
+  /** True when the procedure has a handler (it can run) */
+  hasHandler: boolean;
+  /** True for a procedure that `procedure.define` made */
+  runtime: boolean;
+  /** The whole metadata (`procedure.list` gives it with `includeMetadata`) */
+  metadata?: ProcedureMetadata | undefined;
+}
+
+function describeProcedure(procedure: AnyProcedure, withMetadata: boolean): ProcedureDescription {
+  const meta = procedure.metadata as ProcedureMetadata | undefined;
+  const description: ProcedureDescription = {
+    path: procedure.path,
+    key: pathToKey(procedure.path),
+    description: meta?.description,
+    tags: meta?.tags,
+    hasHandler: !!procedure.handler,
+    runtime: isRuntimeDefined(procedure),
+  };
+  if (withMetadata) description.metadata = meta;
+  return description;
+}
+
+/** The input of `procedure.list` */
+export interface ProcedureListInput {
+  namespace?: string | undefined;
+  includeMetadata?: boolean | undefined;
+  runtime?: boolean | undefined;
+}
+
+/** The input of `procedure.get` */
+export interface ProcedureGetInput {
+  path: string[] | string;
+}
+
+const listInputSchema: z.ZodType<ProcedureListInput> = z.object({
+  /** Only the procedures under this first path segment */
+  namespace: z.string().optional().describe("Only the procedures under this first path segment"),
+  /** The whole metadata of each procedure */
+  includeMetadata: z.boolean().optional().describe("Give the whole metadata of each procedure"),
+  /** Only the procedures that procedure.define made */
+  runtime: z.boolean().optional().describe("Only the procedures that procedure.define made"),
+});
+
+const getInputSchema: z.ZodType<ProcedureGetInput> = z.object({
+  /** The path, as an array or a dotted key */
+  path: z.union([z.array(z.string()), z.string()]).describe("The path, as an array or a dotted key"),
+});
+
 /**
- * Get a runtime-defined procedure by path.
+ * Describe one procedure of the caller's registry.
+ *
+ * Docs review DOC-6: the core version gave only runtime-defined procedures, and client-procedure
+ * replaced it with a version for the whole registry, so the result depended on the imports of
+ * the host. This is the one implementation: any procedure, with `runtime` for a defined one (its
+ * metadata holds the aggregation).
  */
 export const getProcedureProcedure: Procedure<
-  { path: ProcedurePath },
-  AnyProcedure | null,
+  ProcedureGetInput,
+  { found: false } | (ProcedureDescription & { found: true; hasInputSchema: boolean; hasOutputSchema: boolean }),
   ProcedureMetadata
 > = defineProcedure({
   path: ["procedure", "get"],
-  input: anySchema as any,
+  input: zodAdapter(getInputSchema),
   output: anySchema as any,
   metadata: {
-    description: "Get a runtime-defined procedure by path",
+    description: "Describe a procedure by path or key",
     tags: ["core", "meta"],
+    args: ["path"],
+    output: "json",
   },
-  handler: async (input: { path: ProcedurePath }, ctx?: ProcedureContext): Promise<AnyProcedure | null> => {
-    return getRuntimeProcedure(input.path, ctx?.registry ?? PROCEDURE_REGISTRY) ?? null;
+  handler: async (input: ProcedureGetInput, ctx?: ProcedureContext) => {
+    const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
+    const procedure = (ctx?.registry ?? PROCEDURE_REGISTRY).get(path);
+    if (!procedure) {
+      return { found: false as const };
+    }
+    return {
+      found: true as const,
+      ...describeProcedure(procedure, true),
+      hasInputSchema: !!procedure.input,
+      hasOutputSchema: !!procedure.output,
+    };
   },
 });
 
 /**
- * List all runtime-defined procedures.
+ * List the procedures of the caller's registry: all of them, the procedures under a namespace,
+ * or (`runtime: true`) only the procedures that `procedure.define` made. See `getProcedureProcedure`
+ * for DOC-6.
  */
 export const listProceduresProcedure: Procedure<
-  Record<string, never>,
-  { procedures: Array<{ path: ProcedurePath; metadata: ProcedureMetadata }> },
+  ProcedureListInput,
+  { procedures: ProcedureDescription[]; count: number },
   ProcedureMetadata
 > = defineProcedure({
   path: ["procedure", "list"],
-  input: anySchema as any,
+  input: zodAdapter(listInputSchema),
   output: anySchema as any,
   metadata: {
-    description: "List all runtime-defined procedures",
+    description: "List the registered procedures",
     tags: ["core", "meta"],
+    args: [],
+    shorts: { namespace: "n", includeMetadata: "m" },
+    output: "json",
   },
-  handler: async (
-    _input: Record<string, never>,
-    ctx?: ProcedureContext
-  ): Promise<{ procedures: Array<{ path: ProcedurePath; metadata: ProcedureMetadata }> }> => {
-    const procedures = getAllRuntimeProcedures(ctx?.registry ?? PROCEDURE_REGISTRY).map(proc => ({
-      path: proc.path,
-      metadata: proc.metadata,
-    }));
-    return { procedures };
+  handler: async (input: ProcedureListInput, ctx?: ProcedureContext) => {
+    let all = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
+    if (input.runtime) all = all.filter(isRuntimeDefined);
+    if (input.namespace) all = all.filter((procedure) => procedure.path[0] === input.namespace);
+    const procedures = all.map((procedure) => describeProcedure(procedure, input.includeMetadata ?? false));
+    return { procedures, count: procedures.length };
   },
 });
 
