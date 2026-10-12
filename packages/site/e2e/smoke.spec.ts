@@ -213,6 +213,72 @@ test.describe("the new pages", () => {
   });
 });
 
+test.describe("the command palette, the journey and the gallery", () => {
+  test("Ctrl+K opens the palette, a fuzzy query finds a procedure, Enter opens it, Escape gives the focus back", async ({ page }) => {
+    await open(page, "");
+    await page.keyboard.press("Control+k");
+    const input = page.getByRole("combobox", { name: /Search the pages/ });
+    await expect(input).toBeFocused();
+    await input.fill("gst");
+    await expect(page.getByRole("option").first()).toContainText("git.status");
+    await expect(page.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/catalog\/git\.status\/$/);
+    await expect(page.locator("h1")).toHaveText("git.status");
+
+    // The button opens it too, and Escape closes it and gives the focus back to the button
+    const button = page.getByRole("button", { name: /Search/ });
+    await button.click();
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option").nth(1)).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toHaveCount(0);
+    await expect(button).toBeFocused();
+  });
+
+  test("the journey records the steps of a real call, and the controls move through them", async ({ page }) => {
+    await open(page, "architecture/");
+    const counter = page.locator(".journey-counter");
+    await expect(counter).toContainText(/Step \d+ of \d+/);
+    await page.getByRole("button", { name: "Last step" }).click();
+    await expect(page.locator(".journey-received li.got")).toHaveCount(3);
+    await expect(page.locator(".journey-title")).toContainText("The app has 3 items");
+    await page.getByRole("button", { name: "First step" }).click();
+    await page.getByRole("button", { name: "Next step" }).click();
+    await expect(counter).toContainText("Step 2 of");
+    // Another host: the MCP journey sends progress notifications
+    await page.getByRole("radio", { name: "MCP" }).click();
+    await expect(page.getByRole("radio", { name: "MCP" })).toHaveAttribute("aria-checked", "true");
+    await page.locator(".journey-list summary").click();
+    await expect(page.locator(".journey-list")).toContainText("as a progress notification");
+  });
+
+  test("with reduced motion the journey shows the whole path and does not play", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await open(page, "architecture/");
+    await expect(page.locator(".journey-received li.got")).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "Play again" })).toBeVisible();
+  });
+
+  test("the gallery loads an example, and gives the focus back to its button", async ({ page }) => {
+    await open(page, "composer/?example=nested");
+    const button = page.getByRole("button", { name: /Gallery/ });
+    await button.click();
+    const dialog = page.getByRole("dialog", { name: "Example gallery" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: /A reusable procedure/ }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/example=define/);
+    await expect(page.locator(".status-ok")).toBeVisible();
+    await expect(button).toBeFocused();
+    // Escape closes it too
+    await button.click();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Example gallery" })).toHaveCount(0);
+  });
+});
+
 test.describe("the layout", () => {
   test("no page scrolls sideways at 375 px", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
@@ -262,6 +328,19 @@ test.describe("accessibility", () => {
       await page.getByRole("button", { name: "A slow stream" }).click();
       await page.waitForTimeout(1500);
       await check("the lab with a scenario");
+      // The open command palette, the gallery dialog, and the journey at its last step
+      await open(page, "");
+      await page.keyboard.press("Control+k");
+      await page.getByRole("combobox", { name: /Search the pages/ }).fill("chain");
+      await check("the command palette");
+      await page.keyboard.press("Escape");
+      await open(page, "composer/?example=chain");
+      await page.getByRole("button", { name: /Gallery/ }).click();
+      await check("the gallery");
+      await page.keyboard.press("Escape");
+      await open(page, "architecture/");
+      await page.getByRole("button", { name: "Last step" }).click();
+      await check("the journey");
       expect(problems).toEqual([]);
     });
   }
