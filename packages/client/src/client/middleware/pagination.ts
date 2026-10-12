@@ -124,11 +124,12 @@ export function createPaginationMiddleware(
           offset = Math.max(0, offset);
         }
 
-        // Update message metadata
+        // Update message metadata, with the state as one object (PaginationContext)
         context.message.metadata = {
           ...metadata,
           [offsetKey]: offset,
           [limitKey]: limit,
+          pagination: { offset, limit },
         };
       } else {
         // Page-based pagination
@@ -138,17 +139,19 @@ export function createPaginationMiddleware(
           page = Math.max(1, page);
         }
 
-        // Update message metadata
+        // Update message metadata, with the state as one object (PaginationContext)
         context.message.metadata = {
           ...metadata,
           [pageKey]: page,
           [limitKey]: limit,
+          pagination: { page, limit },
         };
 
         // Optionally compute offset for backends that need it
         const computedOffset = (page - 1) * limit;
         if (metadata["includeOffset"]) {
           context.message.metadata[offsetKey] = computedOffset;
+          context.message.metadata["pagination"] = { page, offset: computedOffset, limit };
         }
       }
 

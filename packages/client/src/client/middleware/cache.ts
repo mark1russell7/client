@@ -7,7 +7,7 @@
 
 import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
-import { compose, lruMap, ttlMap, hashMap } from "@mark1russell7/client-collections";
+import { lruMap, hashMap } from "@mark1russell7/client-collections";
 import type { MapLike } from "@mark1russell7/client-collections";
 
 /**
@@ -22,7 +22,7 @@ export interface CacheOptions {
   methods: readonly string[] | ((method: Method) => boolean);
 
   /**
-   * Time-to-live for cache entries in milliseconds.
+   * Time-to-live for cache entries in milliseconds. A call can give its own: `cache: { ttl }`.
    * @default 60000 (1 minute)
    */
   ttl?: number;
@@ -150,6 +150,23 @@ function copyItem<T>(item: ResponseItem<T>): ResponseItem<T> | undefined {
   }
 }
 
+/** A stored response and the time at which it expires. */
+interface CacheEntry {
+  items: ResponseItem<unknown>[];
+  expiresAt: number;
+}
+
+/** The overrides of one call: `cache: { ttl, bypass, refresh }` in its context. */
+function cacheOverrides(value: unknown): { ttl?: number; bypass?: boolean; refresh?: boolean } {
+  if (typeof value !== "object" || value === null) return {};
+  const { ttl, bypass, refresh } = value as Record<string, unknown>;
+  return {
+    ...(typeof ttl === "number" && ttl >= 0 ? { ttl } : {}),
+    ...(bypass === true ? { bypass: true } : {}),
+    ...(refresh === true ? { refresh: true } : {}),
+  };
+}
+
 /**
  * Default should cache predicate - only cache successful responses.
  */
@@ -161,9 +178,13 @@ function defaultShouldCache(item: ResponseItem<unknown>): boolean {
  * Create cache middleware with LRU eviction and TTL expiration.
  *
  * Uses the collections framework for automatic memory management:
- * - LRU eviction when capacity is reached
- * - Background TTL cleanup for expired entries
- * - Bounded memory usage
+ * - LRU eviction when capacity is reached (bounded memory)
+ * - Each entry has its own expiry time, so a call can give its own TTL
+ *
+ * Each call can give overrides in its context (`route()` overrides, or `withContext`):
+ * `cache: { ttl }` for the entry that it stores, `cache: { bypass: true }` to skip the cache, and
+ * `cache: { refresh: true }` to fetch and replace the stored response. After the call, the
+ * context has `cache.hit` (CacheContext).
  *
  * Features:
  * - Protocol-agnostic: Works with HTTP, gRPC, WebSocket, local
@@ -195,20 +216,16 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
     shouldCache = defaultShouldCache,
   } = options;
 
-  // Create cache using collections framework with LRU + TTL composition
-  // This provides automatic eviction and expiration
-  const cache: MapLike<string, ResponseItem<unknown>[]> = compose(
-    lruMap({
-      capacity,
-      onEvict: () => {
-        stats.evictions++;
-      },
-    }),
-    ttlMap({
-      ttl,
-      checkInterval: Math.min(ttl, 30000), // Check every 30s or TTL, whichever is shorter
-    }),
-  )(hashMap<string, ResponseItem<unknown>[]>());
+  // An LRU map bounds the memory. Each entry keeps its own expiry time, so a call can give its
+  // own TTL: before, one TTL map expired every entry after the TTL of the middleware.
+  // (The type of a behavior asks for its own output type as input: the function takes any map.)
+  const lru = lruMap<string, CacheEntry>({
+    capacity,
+    onEvict: () => {
+      stats.evictions++;
+    },
+  }) as unknown as (next: MapLike<string, CacheEntry>) => MapLike<string, CacheEntry>;
+  const cache: MapLike<string, CacheEntry> = lru(hashMap<string, CacheEntry>());
 
   // Track cache statistics
   const stats = {
@@ -250,20 +267,37 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
         return;
       }
 
-      // Generate cache key
-      const cacheKey = keyGenerator(context.message.method, context.message.payload, context.message.metadata);
+      const metadata = context.message.metadata;
+      const overrides = cacheOverrides(metadata["cache"]);
+      // The state for the outer middlewares (CacheContext). The key is not written: it holds the
+      // payload, and the metadata of a retry travels in a header.
+      const setState = (hit: boolean): void => {
+        metadata["cache"] = { ...overrides, hit };
+      };
 
-      // Check cache - use has() to avoid throwing "Key not found" error
-      if (cache.has(cacheKey)) {
+      if (overrides.bypass) {
+        yield* next(context);
+        setState(false);
+        return;
+      }
+
+      // Generate cache key
+      const cacheKey = keyGenerator(context.message.method, context.message.payload, metadata);
+
+      // Check cache - use has() to avoid throwing "Key not found" error. A refresh skips the read.
+      if (!overrides.refresh && cache.has(cacheKey)) {
         const cached = cache.get(cacheKey);
-        if (cached) {
+        if (cached && cached.expiresAt > Date.now()) {
           // Cache hit - yield a copy: a caller that changes its result does not change the cache
           stats.hits++;
-          for (const item of cached) {
+          setState(true);
+          for (const item of cached.items) {
             yield (copyItem(item) ?? item) as ResponseItem<TRes>;
           }
           return;
         }
+        // Expired
+        cache.delete(cacheKey);
       }
 
       // Cache miss - fetch and store. Only a response of one item is cached: a stream is never
@@ -277,10 +311,11 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
         if (count === 1) first = item;
         yield item;
       }
+      setState(false);
 
       if (count === 1 && first && shouldCache(first)) {
         const copy = copyItem(first);
-        if (copy) cache.set(cacheKey, [copy as ResponseItem<unknown>]);
+        if (copy) cache.set(cacheKey, { items: [copy as ResponseItem<unknown>], expiresAt: Date.now() + (overrides.ttl ?? ttl) });
       }
     };
   };
