@@ -37,7 +37,7 @@ Dependencies marked *(general)* are separate repositories, referenced with `gith
 | `@mark1russell7/client-vite` | `packages/client-vite` | Vite dev server management procedures | `vite.*` (4) | `client`, `client-shell` |
 | `@mark1russell7/client-vitest` | `packages/client-vitest` | — | `vitest.*` (5) | `client`, `client-shell` |
 | `@mark1russell7/documentation` | `packages/documentation` | — | — | — |
-| `@mark1russell7/impl-mcp-dev` | `packages/impl-mcp-dev` | Ready-to-use MCP server exposing the procedure ecosystem to Claude | — | `bundle-mcp`, `client`, `client-mcp` |
+| `@mark1russell7/mcp-dev-tools` | `packages/impl-mcp-dev` | Ready-to-use MCP server exposing the procedure ecosystem to Claude | — | `bundle-mcp`, `client`, `client-mcp` |
 | `@mark1russell7/cli` | `packages/mark` | Mark CLI - Development workflow automation | — | `client`, `client-cli`, `client-lib`, `client-pnpm`, `client-procedure`, `client-server`, `client-shell`, `client-vitest` |
 | `@mark1russell7/mcp` | `packages/mcp` | Core MCP types and utilities for procedure-to-tool mapping | — | — |
 | `@mark1russell7/server` | `packages/server` | General procedure server - run any procedure packages via HTTP/WebSocket | — | `client`, `client-server` |

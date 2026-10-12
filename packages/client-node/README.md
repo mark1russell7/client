@@ -1,5 +1,7 @@
 # @mark1russell7/client-node
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-node?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-node)
+
 Node.js process management procedures for the client ecosystem. Provides procedures for running scripts, spawning long-running processes, and managing process lifecycles.
 
 ## Architecture Overview

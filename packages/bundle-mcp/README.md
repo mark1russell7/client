@@ -1,5 +1,11 @@
 # @mark1russell7/bundle-mcp
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/bundle-mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/bundle-mcp)
+
+```sh
+npm install @mark1russell7/bundle-mcp
+```
+
 `bundle-mcp` sets the tools that Claude gets from the MCP server (`impl-mcp-dev`). It imports the procedure packages, and it exports two lists that select the tools.
 
 ## The tools

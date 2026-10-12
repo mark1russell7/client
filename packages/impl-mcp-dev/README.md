@@ -1,10 +1,22 @@
-# @mark1russell7/impl-mcp-dev
+# @mark1russell7/mcp-dev-tools
 
-`impl-mcp-dev` is the MCP server that gives procedures to Claude as tools. Claude Code (or Claude Desktop) starts it over stdio. By default it loads `bundle-mcp`, which selects 62 tools.
+[![npm](https://img.shields.io/npm/v/@mark1russell7/mcp-dev-tools?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/mcp-dev-tools)
+
+`mcp-dev-tools` is the MCP server that gives procedures to Claude as tools. Its folder in the monorepo is `packages/impl-mcp-dev`. Claude Code (or Claude Desktop) starts it over stdio. By default it loads `bundle-mcp`, which selects 62 tools.
 
 ## Set up Claude Code
 
-Build the monorepo first (`pnpm install`, then `pnpm build`). Then add the server to the MCP configuration of Claude Code, with the path of your clone:
+Add the server to the MCP configuration of Claude Code. `npx` gets the package from npm:
+
+```json
+{
+  "mcpServers": {
+    "dev-tools": { "command": "npx", "args": ["-y", "@mark1russell7/mcp-dev-tools"] }
+  }
+}
+```
+
+From a clone of the monorepo, build it first (`pnpm install`, then `pnpm build`). Then give the path of the server file:
 
 ```json
 {
@@ -17,7 +29,7 @@ Build the monorepo first (`pnpm install`, then `pnpm build`). Then add the serve
 }
 ```
 
-The package also has the bin `mcp-server`, which starts the same file. The packages are not on npm, so `npx @mark1russell7/impl-mcp-dev` does not work.
+The package has the bin `mcp-dev-tools`, which starts the same file.
 
 Claude Code starts the server once for each session. After a rebuild, restart the MCP server (or the session) to get the changes.
 

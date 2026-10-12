@@ -1,5 +1,11 @@
 # @mark1russell7/client-cue
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-cue?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-cue)
+
+```sh
+npm install @mark1russell7/client-cue
+```
+
 `client-cue` gives the commands of `cue-config` as procedures. `cue-config` is the configuration generator of the general package `cue`: it writes `package.json`, `tsconfig.json` and `.gitignore` from a list of features in `dependencies.json`.
 
 | Procedure | Input | Function |

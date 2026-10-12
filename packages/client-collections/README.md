@@ -1,5 +1,7 @@
 # @mark1russell7/client-collections
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-collections?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-collections)
+
 A comprehensive, transport-agnostic collections framework for TypeScript. Provides unified abstractions for data structures with pluggable storage backends, enabling seamless switching between local and remote storage.
 
 ## Architecture Overview

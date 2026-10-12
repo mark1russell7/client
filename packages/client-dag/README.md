@@ -1,5 +1,11 @@
 # @mark1russell7/client-dag
 
+[![npm](https://img.shields.io/npm/v/@mark1russell7/client-dag?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-dag)
+
+```sh
+npm install @mark1russell7/client-dag
+```
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
