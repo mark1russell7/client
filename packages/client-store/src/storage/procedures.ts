@@ -14,10 +14,10 @@
  * CORE-16, DATA-10.)
  */
 
-import { defineProcedure } from "../define.js";
-import type { AnyProcedure, ProcedureContext, ProcedurePath } from "../types.js";
-import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "../registry.js";
-import { pathToKey, keyToPath } from "../types.js";
+import { defineProcedure } from "@mark1russell7/client";
+import type { AnyProcedure, ProcedureContext, ProcedurePath } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@mark1russell7/client";
+import { pathToKey, keyToPath } from "@mark1russell7/client";
 import type { SyncDirection, HandlerReference, SerializedProcedure } from "./types.js";
 import { deserializeProcedure, deserializeProcedureSync } from "./serialization.js";
 import { getProcedureStore, type SyncedProcedureRegistry } from "./synced-registry.js";

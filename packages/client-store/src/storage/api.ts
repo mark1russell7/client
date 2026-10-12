@@ -8,9 +8,9 @@
  */
 
 import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
-import type { Client } from "../../client/client.js";
-import type { Method } from "../../client/types.js";
-import type { CallOptions } from "../../client/context.js";
+import type { Client } from "@mark1russell7/client";
+import type { Method } from "@mark1russell7/client";
+import type { CallOptions } from "@mark1russell7/client/client";
 
 /**
  * API storage configuration options.

@@ -4,13 +4,13 @@
  * Factory functions for creating storage-backed procedure registries.
  */
 
-import type { Client } from "../../client/client.js";
+import type { Client } from "@mark1russell7/client";
 import type { CollectionStorage } from "@mark1russell7/client-collections";
 import { InMemoryStorage } from "@mark1russell7/client-collections";
 import { ApiStorage } from "./api.js";
 import { HybridStorage } from "./hybrid.js";
 import type { HybridStorageOptions } from "./hybrid.js";
-import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../registry.js";
+import { ProcedureRegistry, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import type { SerializedProcedure, SyncedRegistryOptions, HandlerLoader } from "./types.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";
 import { getSerializedKey } from "./serialization.js";

@@ -33,6 +33,12 @@ export {
 } from "./serialization.js";
 export type { SerializeOptions, DeserializeOptions } from "./serialization.js";
 
+// The collection storages that need a Client (before: "@mark1russell7/client/collections")
+export { ApiStorage } from "./api.js";
+export type { ApiStorageOptions } from "./api.js";
+export { HybridStorage } from "./hybrid.js";
+export type { HybridStorageOptions } from "./hybrid.js";
+
 // Adapter
 export { ProcedureStorageAdapter } from "./adapter.js";
 export type { ProcedureStorageAdapterOptions } from "./adapter.js";

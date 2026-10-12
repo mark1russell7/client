@@ -18,7 +18,7 @@ import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
 import { InvocationError, invokeProcedure, type Interceptor } from "../procedures/invoke.js";
-import type { CollectionStorage } from "@mark1russell7/client-collections";
+import type { CollectionStorage } from "../procedures/collection/storage.js";
 
 // =============================================================================
 // Types

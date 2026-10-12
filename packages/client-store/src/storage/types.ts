@@ -5,7 +5,7 @@
  * Enables procedure registry to be backed by CollectionStorage.
  */
 
-import type { ProcedurePath, ProcedureMetadata } from "../types.js";
+import type { ProcedurePath, ProcedureMetadata } from "@mark1russell7/client";
 
 // =============================================================================
 // Serialized Procedure

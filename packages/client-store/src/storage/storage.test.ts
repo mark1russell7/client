@@ -5,15 +5,15 @@
 
 import { describe, it, expect } from "vitest";
 import { InMemoryStorage, type CollectionStorage } from "@mark1russell7/client-collections";
-import { Client } from "../../client/client.js";
-import { LocalTransport } from "../../adapters/local/client/transport.js";
-import type { Message, ResponseItem, Transport } from "../../client/types.js";
-import { createCollectionProcedures } from "../collection/procedures.js";
-import { invokeProcedure, outputValue } from "../invoke.js";
-import { ProcedureRegistry } from "../registry.js";
-import { defineProcedure } from "../define.js";
-import { outputSchema } from "../core/schemas.js";
-import type { AnyProcedure, RepositoryProvider } from "../types.js";
+import { Client } from "@mark1russell7/client";
+import { LocalTransport } from "@mark1russell7/client";
+import type { Message, ResponseItem, Transport } from "@mark1russell7/client";
+import { createCollectionProcedures } from "@mark1russell7/client";
+import { invokeProcedure, outputValue } from "@mark1russell7/client";
+import { ProcedureRegistry } from "@mark1russell7/client";
+import { defineProcedure } from "@mark1russell7/client";
+import { outputSchema } from "@mark1russell7/client";
+import type { AnyProcedure, RepositoryProvider } from "@mark1russell7/client";
 import { ApiStorage } from "./api.js";
 import { HybridStorage } from "./hybrid.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";

@@ -66,10 +66,6 @@
     "./server": {
       "types": "./dist/server/index.d.ts",
       "import": "./dist/server/index.js"
-    },
-    "./collections": {
-      "types": "./dist/collections.d.ts",
-      "import": "./dist/collections.js"
     }
   },
   "bin": {
@@ -104,17 +100,16 @@
     "watch": "tsc -b --watch"
   },
   "dependencies": {
-    "@mark1russell7/client-collections": "workspace:*",
     "ws": "^8.18.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "vitest": "^5.0.3",
     "@types/express": "^5.0.0",
-    "@types/ws": "^8.18.1"
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0"

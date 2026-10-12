@@ -7,7 +7,7 @@
 
 import type { ZodErrorLike } from "../client/validation/types.js";
 import type { ProcedureSchema } from "./schema.js";
-import type { CollectionStorage } from "@mark1russell7/client-collections";
+import type { CollectionStorage } from "./collection/storage.js";
 import type { EventBus } from "../events/types.js";
 import type { HydrationEvent } from "./ref.js";
 

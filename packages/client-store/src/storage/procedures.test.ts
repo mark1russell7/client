@@ -5,11 +5,11 @@
 
 import { describe, it, expect, afterEach } from "vitest";
 import { InMemoryStorage } from "@mark1russell7/client-collections";
-import { PROCEDURE_REGISTRY } from "../registry.js";
-import { invokeProcedure, outputValue } from "../invoke.js";
-import { defineProcedure } from "../define.js";
-import { outputSchema } from "../core/schemas.js";
-import type { AnyProcedure, ProcedurePath } from "../types.js";
+import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { invokeProcedure, outputValue } from "@mark1russell7/client";
+import { defineProcedure } from "@mark1russell7/client";
+import { outputSchema } from "@mark1russell7/client";
+import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
 import {
   procedureRegisterProcedure,
   procedureStoreProcedure,

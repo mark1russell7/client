@@ -6,8 +6,8 @@
  */
 
 import type { CollectionStorage } from "@mark1russell7/client-collections";
-import type { AnyProcedure, ProcedurePath } from "../types.js";
-import { pathToKey } from "../types.js";
+import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
+import { pathToKey } from "@mark1russell7/client";
 import type { SerializedProcedure, HandlerLoader } from "./types.js";
 import {
   serializeProcedure,

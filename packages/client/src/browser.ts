@@ -7,8 +7,8 @@
  * re-exports this module and adds the server transports.
  *
  * Collections (maps, caches, collection storage) are in @mark1russell7/client-collections.
- * The "@mark1russell7/client/collections" entry point re-exports them together with the
- * storage backends that need a Client (ApiStorage, HybridStorage).
+ * The program store, the storage backends that need a Client (ApiStorage, HybridStorage) and the
+ * synced registry are in @mark1russell7/client-store (roadmap 3.2).
  */
 
 // ============================================================================
@@ -191,31 +191,6 @@ export {
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
   isRuntimeDefined,
-  // Storage-backed registry
-  serializeProcedure,
-  deserializeProcedure,
-  deserializeProcedureSync,
-  getProcedureKey,
-  getSerializedKey,
-  serializeProcedures,
-  deserializeProcedures,
-  createDynamicHandlerLoader,
-  ProcedureStorageAdapter,
-  SyncedProcedureRegistry,
-  getProcedureStore,
-  ProcedureStoreError,
-  createSyncedRegistry,
-  createMemorySyncedRegistry,
-  createApiSyncedRegistry,
-  createHybridSyncedRegistry,
-  createCustomSyncedRegistry,
-  procedureRegisterProcedure,
-  procedureStoreProcedure,
-  procedureLoadProcedure,
-  procedureSyncProcedure,
-  procedureRemoteProcedure,
-  procedureStorageModule,
-  procedureStorageProcedures,
 } from "./procedures/index.js";
 
 export type {
@@ -228,6 +203,8 @@ export type {
   ProcedureResult,
   ProcedureError,
   RepositoryProvider,
+  CollectionStorage,
+  StorageMetadata,
   ProcedureModule,
   RegistrationOptions,
   ProcedureRegistryLike,
@@ -250,21 +227,6 @@ export type {
   ContinueDecision,
   OutputRef,
   RefScope,
-  // Storage-backed registry types
-  SerializedProcedure,
-  HandlerReference,
-  HandlerLoader,
-  SyncDirection,
-  SyncConflict,
-  SyncResult,
-  SyncStatus,
-  SyncedRegistryOptions,
-  ProcedureStorageConfig,
-  SerializeOptions,
-  DeserializeOptions,
-  ProcedureStorageAdapterOptions,
-  SyncedRegistrationOptions,
-  CreateSyncedRegistryConfig,
   // Schema types
   ZodLikeSchema,
   // Meta-procedure types
