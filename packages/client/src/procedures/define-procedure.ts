@@ -43,6 +43,7 @@ import {
   hydrateInput,
   isAnyProcedureRef,
   markDataDriven,
+  prepareRootCall,
   rawInputRule,
   RUNS_REFS_TAG,
 } from "./ref.js";
@@ -169,12 +170,14 @@ const DeleteOutputSchema = z.looseObject({
 /**
  * Create a handler that executes an aggregation definition.
  *
- * The body runs as `exec()` runs a ref, with the same interpreter (`hydrateInput`). The scope of
- * the body has one name, `input`: the input of the procedure. So `{ $ref: "input.dir" }` reads a
+ * The body runs exactly as `exec()` runs the same program: `prepareRootCall()` gives the path
+ * and the input of the root call (a `$when` on the root call does not apply, a list of calls in
+ * the root input is an implicit chain), then the body starts the root call. The scope of the
+ * body has one name, `input`: the input of the procedure. So `{ $ref: "input.dir" }` reads a
  * field of the input, and `$last`, the step names, `item`, `acc` and `index` keep their meaning
  * inside the body. (Deep dive CORE-4: before, a first pass replaced every `$ref` with a field of
- * the input, so `$last` and the step names became undefined, and nested refs of a root that is
- * not control flow never ran.)
+ * the input. Docs review DOC-3: before, the body hydrated its root call as a nested ref, so a
+ * root `$when` applied and a list in the root input stayed a list.)
  */
 function createAggregationHandler(
   aggregation: AggregationDefinition
@@ -185,11 +188,14 @@ function createAggregationHandler(
     }
     const scope = createRefScope();
     scope.outputs.set("input", input);
-    return hydrateInput(aggregation, (path, value) => ctx.client.call(path, value), {
-      scope,
-      rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY),
-      onRef: ctx.onRef,
-    });
+    const executor = <TIn, TOut>(path: ProcedurePath, value: TIn): Promise<TOut> => ctx.client.call<TIn, TOut>(path, value);
+    const options = { scope, rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY), onRef: ctx.onRef };
+    if (isAnyProcedureRef(aggregation)) {
+      const root = await prepareRootCall(aggregation, executor, options);
+      return ctx.client.call(root.path, root.input);
+    }
+    // A body that is not one call (an older stored program): hydrate it as a root value
+    return hydrateInput(aggregation, executor, options);
   };
 }
 

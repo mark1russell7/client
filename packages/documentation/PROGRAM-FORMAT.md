@@ -258,6 +258,7 @@ After this program, `client.exec(["math", "double"], { x: 21 })` gives `42`. A b
 The rules (tests: "procedure.define through a client" in `define-procedure.test.ts`):
 
 - The aggregation must be a call.
+- The body operates exactly as `client.exec()` operates the same program. The root call starts, also when it has `$when`. The input of the root call is a hydration root: an array of calls in that input is a chain (section 7). The function `prepareRootCall()` gives this behavior to `exec()` and to the body.
 - A name without `input.` does not read an input field. `{ "$ref": "x" }` is an unknown name. Write `{ "$ref": "input.x" }`.
 - `procedure.define` takes raw input (`runs-refs`). Nothing in the body starts at definition time.
 - The new procedure goes into the registry of the caller. Its input and its output accept any value.
@@ -270,8 +271,8 @@ The rules (tests: "procedure.define through a client" in `define-procedure.test.
 
 These points are not decided. Each point gives the behavior at the time of commit `5c16b25`.
 
-- **The root of a defined body.** `client.exec()` hydrates the input of its root call as a hydration root. A defined body hydrates the aggregation itself, so the input of its root call is the input of a call. Thus an array of calls in that input is a chain with `exec()`, and a list of results in a body.
-- **`$when` at the root.** `client.exec()` starts a root call that has `$when`. A body whose root has `$when: "$never"` gives the call as data.
+The owner decided the root of a defined body in October 2026 (docs review DOC-3): a body operates as `client.exec()` operates (section 10). Before, a body hydrated the aggregation itself. Thus an array of calls in the input of its root call was a list of results. A root with `$when: "$never"` gave the call as data.
+
 - **A context name on a chain step.** A step of `client.chain` with `$when: "$parent"` or a context name starts: the chain is the procedure that gets the step. Only a `$never` step is data.
 - **Parallel hydration.** A program cannot set `parallel: true`. Only `client.parallel` starts refs at the same time.
 - **The scope and a remote call.** A scope does not go over a transport. A control-flow procedure on a different host cannot read the names of the caller.
@@ -300,3 +301,4 @@ The deep dive of October 2026 replaced three `$ref` interpreters with one. These
 | `client.eval` gave the raw input to its call. `add` with a nested call gave `"[object Object]1"`. | `client.eval` hydrates the input of its call like `exec()`. | DOC-2 |
 | `client.reduce` without `fn` gave `initial` raw. `client.chain` ignored `passThrough` and `initialInput`. | `initial` is hydrated, and `passThrough` operates. | DOC-4 |
 | `procedure.list` and `procedure.get` gave only the defined procedures, or the whole registry when `client-procedure` was loaded. | One implementation for the whole registry, with `runtime: true` for the defined procedures. | DOC-6 |
+| A defined body hydrated its root call as a nested call. A root `$when` applied, and an array of calls in the root input was a list of results. | A body operates as `client.exec()` operates the same program. | DOC-3 |

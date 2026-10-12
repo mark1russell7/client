@@ -90,6 +90,7 @@ export {
   normalizeRef,
   // Hydration
   hydrateInput,
+  prepareRootCall,
   observeHydration,
   isControlFlowPath,
   isDataDriven,
