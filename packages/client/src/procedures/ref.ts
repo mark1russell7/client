@@ -783,7 +783,8 @@ interface HydrateContext {
  *   gets that ref later. The immediate refs of its input run now, unless the procedure takes its
  *   input raw. A named ref runs now only when `contextStack` has the name.
  * - A `$ref` object gives a value from the scope. `{ $literal: value }` gives the value unchanged.
- * - An array whose items are all refs, outside the input of a ref, runs as one `client.chain`.
+ * - An array whose items are all refs that run now, outside the input of a ref, runs as one
+ *   `client.chain`. An array with a deferred ref is a list.
  * - Values that are not plain data (`Date`, `Map`, typed arrays, class instances) stay unchanged.
  *   A subtree without refs stays the same object.
  *
@@ -916,10 +917,15 @@ async function hydrateValue<T>(
 
   // Handle arrays
   if (Array.isArray(value)) {
-    // Check if this is an array of procedure refs (implicit chain)
-    // Only treat as implicit chain if ALL elements are procedure refs
-    // Skip if we're already inside an implicit chain to prevent infinite recursion
-    if (!ctx.skipImplicitChain && value.length > 0 && value.every((item) => isAnyProcedureRef(item))) {
+    // An array of procedure refs that all run now is an implicit chain. A deferred ref ($never,
+    // $parent, a context name that the runner did not give) is data, so a list with one is a list
+    // (docs review DOC-1: before, a list of only $never refs ran as a chain). Inside an implicit
+    // chain, the steps do not make another one.
+    if (
+      !ctx.skipImplicitChain &&
+      value.length > 0 &&
+      value.every((item) => isAnyProcedureRef(item) && shouldExecuteRef(item, ctx.contextStack, false))
+    ) {
       // client.chain runs the steps in order: they reach it raw. (Before, hydration ran the steps
       // all at once, and client.chain got their results: deep dive, architecture review 3.4.)
       const implicitChain: ProcedureRefJson = { $proc: ["client", "chain"], input: { steps: value } };
