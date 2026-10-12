@@ -276,6 +276,10 @@ export type {
   MetricsInterceptor,
 } from "./procedures/interceptors.js";
 
+// The policy of a host (roadmap 2.3): one builder for the MCP server, the server CLI and mark
+export { hostPolicy, procedureServerOptions, exposePatterns, surfaceRule } from "./server/host-policy.js";
+export type { HostPolicy, HostPolicyOptions, ToolSurface } from "./server/host-policy.js";
+
 // ============================================================================
 // Nested Route API - Batch calls with per-call middleware overrides
 // ============================================================================

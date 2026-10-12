@@ -10,13 +10,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { ProcedurePath } from "@mark1russell7/client";
+import { surfaceRule, type ProcedurePath, type ToolSurface } from "@mark1russell7/client";
 
-/** The tools of a server: the namespaces, less the excluded procedure keys. */
-export interface ToolSurface {
-  namespaces: readonly string[];
-  exclude?: readonly string[] | undefined;
-}
+/** The tools of a server: the namespaces, less the excluded procedure keys (the core type). */
+export type { ToolSurface };
 
 /** The exports of a bundle's `register.js` that describe its tools. */
 export interface BundleSurfaceModule {
@@ -24,11 +21,9 @@ export interface BundleSurfaceModule {
   mcpExclude?: readonly string[];
 }
 
-/** The expose rule of a tool surface. */
+/** The expose rule of a tool surface: `surfaceRule()` of the core host policy (roadmap 2.3). */
 export function exposeRule(surface: ToolSurface): (path: ProcedurePath) => boolean {
-  const namespaces = new Set(surface.namespaces);
-  const excluded = new Set(surface.exclude ?? []);
-  return (path) => namespaces.has(path[0] ?? "") && !excluded.has(path.join("."));
+  return surfaceRule(surface);
 }
 
 /**

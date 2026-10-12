@@ -13,6 +13,9 @@ import {
   rpcServerUrlStrategy,
   defaultServerUrlStrategy,
   defaultUrlPattern,
+  procedureServerOptions,
+  type BrowserGuardOptions,
+  type HostPolicy,
   type Method,
 } from "@mark1russell7/client";
 import type { Request } from "express";
@@ -54,6 +57,12 @@ export interface PeerOptions {
   registry?: ProcedureRegistry;
   /** The procedures that the peer serves (see `exposeRule`). Without it, the peer serves every procedure. */
   expose?: ((path: ProcedurePath) => boolean) | undefined;
+  /**
+   * The policy of the host (`hostPolicy()` of the core, roadmap 2.3): the expose rule, the call
+   * rule, the interceptors (a time limit), the token of each network transport that has none of
+   * its own, and the browser checks. `expose` above, when given, wins over the policy's.
+   */
+  policy?: HostPolicy | undefined;
 }
 
 export interface PeerEndpoint {
@@ -87,13 +96,24 @@ class PeerImpl implements Peer {
   private registry: ProcedureRegistry;
   private startTime: number = Date.now();
 
+  /** The browser checks of the policy (an origin rule here replaces the peer's own rule). */
+  private browser: BrowserGuardOptions;
+
   constructor(options: PeerOptions) {
     this.id = options.id;
-    this.transports = options.transports;
+    const policy = options.policy;
+    // The policy's token goes to each network transport that has none of its own
+    this.transports = options.transports.map((transport) =>
+      transport.type === "local" || policy?.token === undefined || transport.token !== undefined
+        ? transport
+        : { ...transport, token: policy.token }
+    );
     this.registry = options.registry ?? PROCEDURE_REGISTRY;
+    this.browser = policy?.browser ?? {};
 
     // Create procedure server
     this.server = new ProcedureServer({
+      ...(policy ? procedureServerOptions(policy, this.registry) : {}),
       autoRegister: options.autoRegister ?? true,
       registry: this.registry,
       ...(options.expose ? { expose: options.expose } : {}),
@@ -204,8 +224,9 @@ class PeerImpl implements Peer {
       urlStrategy,
       // The transport's browser checks follow the peer's rule: loopback origins and the listed
       // ones (the token is required in any case). The RESTful strategy calls by GET.
-      allowedOrigins: (origin) => originAllowed(origin, config.corsOrigins),
-      allowGet: config.urlStrategy === "rest",
+      allowedOrigins: this.browser.allowedOrigins ?? ((origin) => originAllowed(origin, config.corsOrigins)),
+      ...(this.browser.allowedHosts ? { allowedHosts: this.browser.allowedHosts } : {}),
+      allowGet: this.browser.allowGet ?? config.urlStrategy === "rest",
     });
 
     this.server.addTransport(httpTransport);
@@ -248,7 +269,8 @@ class PeerImpl implements Peer {
     const wsTransport = new WebSocketServerTransport(this.server, {
       server: httpServer,
       path,
-      allowedOrigins: (origin) => originAllowed(origin, config.origins),
+      allowedOrigins: this.browser.allowedOrigins ?? ((origin) => originAllowed(origin, config.origins)),
+      ...(this.browser.allowedHosts ? { allowedHosts: this.browser.allowedHosts } : {}),
       // Host, origin and token checks: before, any web page could open a connection and call
       // procedures (cross-site WebSocket hijacking, deep dive TRN-1)
       authenticate: (req) => {

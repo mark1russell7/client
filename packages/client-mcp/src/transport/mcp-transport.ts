@@ -97,7 +97,12 @@ export class McpServerTransport implements ServerTransport {
       },
       ...options,
     };
-    this.registry = options.registry ?? PROCEDURE_REGISTRY;
+    // The registry of the server, when it has one (a ProcedureServer with an explicit registry):
+    // before, the tools came from the global registry, also when the server served another one
+    this.registry =
+      options.registry ??
+      (server as { getRegistry?: () => ProcedureRegistry }).getRegistry?.() ??
+      PROCEDURE_REGISTRY;
 
     // Create MCP server with capabilities. The tool list follows the registry: when it changes,
     // the server sends notifications/tools/list_changed (deep dive roadmap 0.4)
