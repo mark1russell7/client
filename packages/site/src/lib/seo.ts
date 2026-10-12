@@ -74,8 +74,8 @@ function fixedPages(): PageMeta[] {
     ),
     page(
       "architecture",
-      `Architecture map of ${packages.length} TypeScript packages`,
-      "How the packages of the client monorepo depend on each other: the core, the tool wrappers, the bundles, the CLI, the servers and the MCP server.",
+      `Architecture: one call's journey, ${packages.length} packages`,
+      "Follow one streaming call through the real middlewares, transport, server and interceptors, over HTTP, WebSocket or MCP. Then the map of the packages.",
     ),
     page(
       "lab",
