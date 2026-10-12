@@ -197,8 +197,8 @@ The documentation fork checked each document against the code and ran each examp
 | 1.3 A build-time manifest and a thin `mark` path | done | `978175a` | `mark --help` went from 1127 ms to 164 ms, and a warm-server call from 1170 ms to 352 ms. |
 | 2.1 Standard Schema, real schemas for exposed procedures | done | `580a72a`, `8306c1e`, `830af9c`, `b223979`, `448141d` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. Every tool has a real input schema. Every procedure has a real output schema (`448141d` for the 100 core procedures and the 20 core tools), and the MCP server sends structured output for each tool with an object result. |
 | 2.2 `commandProcedure()` and the wrapper migration | done | `6638311` | As `runCommand`. |
-| 2.3 One `host` package | open | | |
-| 3.1 Modules without side effects | open | | |
+| 2.3 One `host` package | done | `115d438`, `78758c1`, `9c3875a` | One host policy (`hostPolicy()`: expose rule, `strictCalls`, token, browser checks, interceptors) for the three hosts. `mark serve` and `mark mcp` make `mark` the one bin. The `server` and `mcp-dev-tools` bins stay as aliases, and `impl-mcp-dev/dist/server.js` serves the same 62 tools. |
+| 3.1 Modules without side effects | done | `b38edf1`, `0bc8c08` | Each package has a side-effect-free `./module` entry, and `createRegistry(...modules)` builds a registry. The hosts build their own registries. Owner decision P2 stays: importing a package root still registers it. |
 | 3.2 A program store | done | `0fe2fbc`, `6567e2d` | The new package `client-store`: `ProgramStore` (memory, JSON file, collection storage). `procedure.store`/`load`/`sync` store programs, and a loaded program is data-driven again. |
 | 3.3 The collections rebuild (P8) | done | `52a5f68`, `0fe2fbc` | The contract tests and the defects are done. The core no longer depends on `client-collections`: it depends only on `ws` and `zod`. |
 | 3.4 A slimmer core | done | `0fe2fbc`, `1303677` | Storage moved to `client-store`, components to `client-splay`. The `dist` of `client` is 12% smaller, and the browser entry has 157 exports, not 193. |
