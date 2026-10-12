@@ -1,16 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-mongo",
-  "version": "1.0.0",
-  "description": "MongoDB client wrapper with client procedures - local or RPC access",
-  "license": "MIT",
-  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
-  "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "vitest": "^5.0.3"
+  "version": "0.1.0",
+  "description": "MongoDB as typed procedures: documents, collections, indexes, aggregation and database info, with a lazy connection and safe update and delete targets.",
+  "keywords": [
+    "mongodb",
+    "mongo",
+    "database",
+    "crud",
+    "aggregation",
+    "procedures",
+    "rpc"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-mongo"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,8 +42,29 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -39,26 +72,8 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "keywords": [
-    "mongodb",
-    "client",
-    "procedures",
-    "rpc",
-    "database"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/mark1russell7/client-mongo.git"
-  },
-  "engines": {
-    "node": ">=22"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/documentation",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,6 +16,10 @@
     "dist",
     "src"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -22,13 +27,9 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
-  "sideEffects": false,
   "devDependencies": {
     "typescript": "^7.0.2",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

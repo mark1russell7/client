@@ -1,8 +1,25 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-vite",
-  "version": "0.0.1",
-  "description": "Vite dev server management procedures",
+  "version": "0.1.0",
+  "description": "Vite as procedures: dev server, build, preview and stop, with no shell and managed processes.",
+  "keywords": [
+    "vite",
+    "build",
+    "dev-server",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-vite"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,8 +35,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -27,10 +59,6 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-shell": "workspace:*",
@@ -45,8 +73,5 @@
   },
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

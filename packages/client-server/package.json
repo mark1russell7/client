@@ -1,17 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-server",
-  "version": "1.0.0",
-  "description": "Transport-agnostic peer for bidirectional RPC - exposes procedures and generates manifests",
-  "license": "MIT",
-  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
-  "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "vitest": "^5.0.3",
-    "@types/express": "^5.0.6"
+  "version": "0.1.0",
+  "description": "Serve procedures: HTTP and WebSocket peers with token authentication, browser checks, an expose list, server.create, status and stop, and manifests.",
+  "keywords": [
+    "server",
+    "rpc",
+    "http",
+    "websocket",
+    "peer",
+    "authentication",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-server"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -31,8 +42,30 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3",
+    "@types/express": "^5.0.6"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -40,27 +73,8 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "keywords": [
-    "server",
-    "client",
-    "procedures",
-    "rpc",
-    "bidirectional",
-    "peer"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/mark1russell7/client-server.git"
-  },
-  "engines": {
-    "node": ">=22"
   },
   "dependencies": {
     "@mark1russell7/client": "workspace:*",

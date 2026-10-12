@@ -1,7 +1,25 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-procedure",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Procedure scaffolding and management: procedure.new writes typed procedure files, plus get, list, define and the procedure store.",
+  "keywords": [
+    "scaffolding",
+    "codegen",
+    "generator",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-procedure"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,8 +31,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -22,25 +55,17 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
   },
-  "description": "Procedure scaffolding procedures - procedure.new",
   "dependencies": {
     "zod": "^3.24.0",
     "@mark1russell7/client": "workspace:*"
   },
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

@@ -1,8 +1,34 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-collections",
-  "version": "0.0.1",
-  "description": "Collections framework with storage abstraction - ArrayList, HashMap, LRU, TTL, and more",
+  "version": "0.1.0",
+  "description": "Collections for TypeScript: ArrayList, LinkedList, ArrayDeque, HashMap, LinkedHashMap, TreeMap (red-black), PriorityQueue, LRU and TTL maps, async queues, channels and collectors, tested with fast-check.",
+  "keywords": [
+    "collections",
+    "data-structures",
+    "hashmap",
+    "treemap",
+    "red-black-tree",
+    "priority-queue",
+    "lru-cache",
+    "ttl-cache",
+    "deque",
+    "linked-list",
+    "async-queue",
+    "channel",
+    "typescript"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-collections"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,8 +40,20 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -23,15 +61,11 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": false,
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3",
     "fast-check": "^4.10.2"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

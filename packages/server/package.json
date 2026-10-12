@@ -1,24 +1,54 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/server",
-  "version": "1.0.0",
-  "description": "General procedure server - run any procedure packages via HTTP/WebSocket",
+  "version": "0.1.0",
+  "description": "A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list.",
+  "keywords": [
+    "server",
+    "rpc",
+    "http",
+    "websocket",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/server"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "server": "./dist/cli.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "server": "./dist/cli.js"
+  },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -27,7 +57,6 @@
     "test:watch": "vitest",
     "start": "node dist/cli.js"
   },
-  "sideEffects": false,
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-server": "workspace:*"
@@ -37,8 +66,5 @@
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

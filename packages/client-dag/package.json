@@ -1,7 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-dag",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit.",
+  "keywords": [
+    "dag",
+    "graph",
+    "topological-sort",
+    "dependency-graph",
+    "cycle-detection",
+    "traversal",
+    "concurrency"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-dag"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,8 +34,20 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -23,15 +56,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "sideEffects": false,
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
-  },
-  "description": "Generic DAG algorithms for dependency management",
-  "engines": {
-    "node": ">=22"
   }
 }

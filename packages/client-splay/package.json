@@ -1,10 +1,26 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-splay",
-  "version": "1.0.0",
-  "description": "Bridge between splay and client - component rendering via procedures",
+  "version": "0.1.0",
+  "description": "Render procedure results with splay: a bridge between the client procedures and the splay recursive renderer, with stream helpers.",
+  "keywords": [
+    "splay",
+    "rendering",
+    "components",
+    "streams",
+    "procedures"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-splay"
+  },
   "license": "MIT",
-  "author": "Mark Russell <marktheprogrammer17@gmail.com>",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,8 +32,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -25,10 +56,6 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "client": {
     "procedures": "./dist/register.js"
   },
@@ -41,20 +68,5 @@
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/splay": "github:mark1russell7/splay#main"
-  },
-  "keywords": [],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/mark1russell7/client-splay.git"
-  },
-  "bugs": {
-    "url": "https://github.com/mark1russell7/client-splay/issues"
-  },
-  "homepage": "https://github.com/mark1russell7/client-splay#readme",
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }

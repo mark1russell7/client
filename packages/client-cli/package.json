@@ -1,8 +1,26 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/client-cli",
-  "version": "1.0.0",
-  "description": "CLI execution wrapper - exposes cli.exec procedure for running CLI commands",
+  "version": "0.1.0",
+  "description": "Run any mark CLI command as a procedure (cli.run) with a safe argv mapping: no shell, typed flags and captured output.",
+  "keywords": [
+    "cli",
+    "mark",
+    "procedures",
+    "automation",
+    "argv"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-cli"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,8 +35,23 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
   ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
@@ -37,21 +70,7 @@
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
     "vitest": "^5.0.3"
   },
-  "keywords": [
-    "cli",
-    "exec",
-    "shell",
-    "wrapper"
-  ],
-  "license": "MIT",
-  "sideEffects": [
-    "./dist/index.js",
-    "./dist/register.js"
-  ],
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }
