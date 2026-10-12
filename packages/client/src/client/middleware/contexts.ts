@@ -25,10 +25,10 @@
  */
 export interface RetryContext {
   retry: {
-    /** Current attempt number (0-indexed) */
-    attempt: number;
-    /** Maximum number of attempts configured */
-    maxAttempts: number;
+    /** Current attempt number (0-indexed). The middleware writes it: a call does not give it. */
+    attempt?: number;
+    /** Maximum number of attempts: an override of a call, then the value that the middleware uses */
+    maxAttempts?: number;
     /** An override of the base delay, in milliseconds */
     delay?: number;
     /** An override of the factor of the delay from one attempt to the next */
