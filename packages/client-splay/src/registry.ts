@@ -6,7 +6,7 @@
  * for component resolution and execution.
  */
 
-import type { ComponentOutput, Size } from "@mark1russell7/client/components";
+import type { ComponentOutput, Size } from "./components/index.js";
 import type {
   Registry,
   ComponentRenderer,

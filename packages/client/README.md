@@ -3,9 +3,11 @@
 [![npm version](https://img.shields.io/npm/v/@mark1russell7/client.svg)](https://www.npmjs.com/package/@mark1russell7/client)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
 
-**Universal protocol-agnostic RPC client/server with middleware composition, type-safe procedures, components, and rich collections framework.**
+**Universal protocol-agnostic RPC client/server with middleware composition, type-safe procedures, streaming and procedure-as-data.**
+
+The core depends on no other package of the repository. The procedure components are in [`@mark1russell7/client-splay`](../client-splay), the data structures in [`@mark1russell7/client-collections`](../client-collections), and the program store with the storage layer in [`@mark1russell7/client-store`](../client-store).
 
 ## Table of Contents
 
@@ -24,8 +26,7 @@
 - **Universal Client/Server**: Protocol-agnostic RPC supporting HTTP, WebSocket, gRPC, and local transports
 - **Type-Safe Procedures**: Schema-validated procedures with auto-discovery and registry management
 - **Middleware System**: Composable middleware for retry, cache, timeout, circuit breaker, rate limiting, auth, tracing, and validation
-- **Collections Framework**: Java-inspired data structures (HashMap, TreeMap, PriorityQueue, etc.) with behaviors (LRU, TTL, bounded, synchronized)
-- **Component System**: Serializable UI descriptors for SSR and wire transport
+- **Procedure-as-Data**: JSON programs of calls, references and control flow ([PROGRAM-FORMAT.md](../documentation/PROGRAM-FORMAT.md))
 - **Event Bus**: Pub/sub messaging with async iteration support
 - **Error System**: 70+ error codes with rich metadata and recovery suggestions
 
@@ -45,7 +46,6 @@ npm install github:mark1russell7/client#main
 graph TB
     subgraph "Application Layer"
         Procedures[Procedure System<br/>Type-safe RPC definitions]
-        Components[Component System<br/>Serializable UI descriptors]
         Events[Event Bus<br/>Pub/sub messaging]
     end
 
@@ -62,16 +62,8 @@ graph TB
         Mock[Mock Transport<br/>Testing]
     end
 
-    subgraph "Collections Framework"
-        Lists[Lists<br/>ArrayList, LinkedList]
-        Maps[Maps<br/>HashMap, TreeMap, LinkedHashMap]
-        Queues[Queues<br/>ArrayDeque, PriorityQueue]
-        Behaviors[Behaviors<br/>LRU, TTL, Bounded, Evented]
-    end
-
     Procedures --> Client
     Procedures --> Server
-    Components --> Procedures
     Events -.-> Client
 
     Client --> Middleware
@@ -81,12 +73,6 @@ graph TB
     Middleware --> Local
     Middleware --> Mock
 
-    Collections -.-> Client
-    Collections -.-> Server
-
-    Lists --> Behaviors
-    Maps --> Behaviors
-    Queues --> Behaviors
 ```
 
 ### Data Flow
@@ -147,19 +133,11 @@ A host controls which procedures its callers reach, also through nested calls. S
 - A procedure of code declares its nested calls in `metadata.calls`. With `strictCalls`, a procedure that declares nothing calls only exposed procedures.
 - Interceptors run around each invocation and its nested calls: `timeoutInterceptor`, `tracingInterceptor`, `metricsInterceptor`.
 
-### 5. Collections Framework
+### 5. Related Packages
 
-Java-inspired data structures with:
-- Interface-based design (`List`, `Map`, `Set`, `Queue`)
-- Composable behaviors (LRU, TTL, bounded, synchronized)
-- Middleware-style composition
-
-### 6. Component System
-
-Serializable UI descriptors for:
-- Server-side rendering
-- Wire transport (JSON-compatible)
-- Type-safe component factories
+- `@mark1russell7/client-collections`: data structures (`List`, `Map`, `Set`, `Queue`) and composable behaviors (LRU, TTL, bounded, evented).
+- `@mark1russell7/client-splay`: the procedure components, serializable UI descriptors (`defineComponent`, `simpleComponent`, `streamingComponent`).
+- `@mark1russell7/client-store`: the program store (`procedure.store`, `load`, `sync`), `ApiStorage`, `HybridStorage` and the synced registry.
 
 ## Quick Start
 
@@ -199,21 +177,6 @@ const getUserProcedure = defineProcedure({
 });
 
 registerProcedures([getUserProcedure]);
-```
-
-### Components
-
-```typescript
-import { defineComponent, nullOutput, fragment } from "client";
-
-const UserCard = defineComponent({
-  type: "user-card",
-  factory: async (ctx) => ({
-    type: "user-card",
-    props: { name: ctx.data.name, avatar: ctx.data.avatar },
-    children: [],
-  }),
-});
 ```
 
 ## API Reference
@@ -485,124 +448,9 @@ const result = await client.exec(procedureRef)
 const hydrated = await hydrateInput(input, executor)
 ```
 
-### Components
+### Components, Collections and the Program Store
 
-```typescript
-defineComponent<TInput>(def: ComponentDefinition): RegisteredComponent
-
-interface ComponentDefinition<TInput> {
-  type: string;
-  namespace?: string;
-  input: ZodSchema<TInput>;
-  factory: ComponentFactory<TInput> | StreamingComponentFactory<TInput>;
-  metadata?: ComponentMetadata;
-}
-
-// Simple component
-simpleComponent("button", (ctx) => ({
-  type: "button",
-  props: { label: ctx.data.label }
-}))
-
-// Streaming component
-streamingComponent("feed", async function* (ctx) {
-  for await (const item of ctx.data.items) {
-    yield { type: "feed-item", props: { item } }
-  }
-})
-
-// Register bundle
-registerBundle({
-  namespace: "ui",
-  components: [buttonComponent, cardComponent]
-})
-```
-
-### Collections
-
-#### List
-```typescript
-const list = arrayList<T>()      // ArrayList
-const list = linkedList<T>()     // LinkedList
-
-// Methods
-list.add(item)
-list.get(index)
-list.set(index, item)
-list.remove(index)
-list.size()
-list.isEmpty()
-list.clear()
-list[Symbol.iterator]()
-```
-
-#### Map
-```typescript
-const map = hashMap<K, V>()           // HashMap
-const map = linkedHashMap<K, V>()     // LinkedHashMap
-const map = treeMap<K, V>(compareFn)  // TreeMap
-
-// Methods
-map.set(key, value)
-map.get(key)
-map.has(key)
-map.delete(key)
-map.size()
-map.clear()
-map.keys()
-map.values()
-map.entries()
-```
-
-#### Set
-```typescript
-const set = hashSet<T>()          // HashSet
-const set = treeSet<T>(compareFn) // TreeSet
-
-// Methods
-set.add(item)
-set.has(item)
-set.delete(item)
-set.size()
-set.clear()
-set[Symbol.iterator]()
-```
-
-#### Queue
-```typescript
-const queue = arrayDeque<T>()              // ArrayDeque
-const queue = priorityQueue<T>(compareFn)  // PriorityQueue
-
-// Methods
-queue.enqueue(item)
-queue.dequeue()
-queue.peek()
-queue.size()
-queue.isEmpty()
-```
-
-#### Behaviors
-```typescript
-// LRU
-const cache = lruMap({ capacity: 100 })(hashMap<K, V>())
-
-// TTL
-const temp = ttlMap({ ttl: 60000 })(hashMap<K, V>())
-
-// Bounded
-const limited = boundedList({ capacity: 50 })(arrayList<T>())
-
-// Evented
-const logged = eventedMap()(hashMap<K, V>())
-logged.on("set", ({ key, value }) => console.log(key, value))
-
-// Composed
-const advancedCache = compose(
-  lruMap({ capacity: 100 }),
-  ttlMap({ ttl: 60000 }),
-  eventedMap()
-)(hashMap<K, V>())
-```
+They are not in the core. See the README of `@mark1russell7/client-splay` (components), `@mark1russell7/client-collections` (data structures) and `@mark1russell7/client-store` (the program store and the storage layer).
 
 ### Event Bus
 
@@ -712,13 +560,11 @@ ERROR_REGISTRY.list(): string[]
 import { Client, HttpTransport, ... } from "@mark1russell7/client";
 import { defineProcedure, PROCEDURE_REGISTRY, ... } from "@mark1russell7/client";
 import { EventBus, createEventBus, ... } from "@mark1russell7/client";
-import { HashMap, ArrayList, ... } from "@mark1russell7/client";
 
 // OR use subpath exports
 import { Client } from "@mark1russell7/client/client";
 import { ... } from "@mark1russell7/client/procedures";
 import { ... } from "@mark1russell7/client/events";
-import { ... } from "@mark1russell7/client/components";
 ```
 
 ## Procedure Auto-Discovery
@@ -780,65 +626,6 @@ for await (const event of bus.stream("user:*")) {
   console.log(event);
 }
 ```
-
-## Components
-
-Serializable UI descriptors for server-side rendering:
-
-```typescript
-interface ComponentOutput {
-  type: string;                    // Component type
-  props: Record<string, unknown>;  // Props
-  children?: ComponentOutput[];    // Nested children
-  key?: string | number;           // React key
-}
-
-// Special outputs
-nullOutput();                      // { type: "__null__" }
-fragment([child1, child2]);        // { type: "__fragment__", children: [...] }
-```
-
-## Collections
-
-Java-inspired data structures with composable behaviors:
-
-```typescript
-import { arrayList, hashMap, compose, lruMap, ttlMap, eventedList } from "client";
-
-// Basic
-const list = arrayList<number>();
-const map = hashMap<string, User>();
-
-// Composed with behaviors
-const cache = compose(
-  lruMap({ capacity: 100 }),
-  ttlMap({ ttl: 60000 })
-)(hashMap<string, Data>());
-
-// Evented
-const log = eventedList<Event>()(arrayList<Event>());
-log.on("add", ({ item }) => console.log(item));
-```
-
-### Collection Types
-
-| Type | Implementations |
-|------|-----------------|
-| List | `ArrayList`, `LinkedList` |
-| Map | `HashMap`, `LinkedHashMap`, `TreeMap` |
-| Set | `HashSet`, `TreeSet` |
-| Queue | `ArrayDeque`, `PriorityQueue` |
-
-### Behaviors
-
-| Behavior | Description |
-|----------|-------------|
-| `bounded` | Capacity limits |
-| `lru` | Least Recently Used eviction |
-| `ttl` | Time-to-live expiration |
-| `evented` | Event emission |
-| `safe` | Option/Result error handling |
-| `synchronized` | Thread safety |
 
 ## Server
 
@@ -945,41 +732,6 @@ console.log(result.users.list.data);  // [{ id: "1", ... }, ...]
 console.log(result.orders.list.data); // [{ id: "ord_1", ... }, ...]
 ```
 
-### Collections with Behaviors
-```typescript
-// Build an LRU cache with TTL and eventing
-const cache = compose(
-  lruMap({ capacity: 100 }),
-  ttlMap({ ttl: 60000 }),
-  eventedMap()
-)(hashMap<string, Data>());
-
-cache.on("evict", ({ key, value }) => {
-  console.log(`Evicted: ${key}`);
-});
-
-cache.set("key1", data);
-const value = cache.get("key1");
-```
-
-### Streaming Components
-```typescript
-const feedComponent = streamingComponent("feed", async function* (ctx) {
-  const items = await fetchFeedItems(ctx.data.userId);
-
-  for await (const item of items) {
-    yield {
-      type: "feed-item",
-      props: {
-        id: item.id,
-        content: item.content,
-        timestamp: item.createdAt,
-      },
-    };
-  }
-});
-```
-
 ### WebSocket Bidirectional RPC
 ```typescript
 // Client
@@ -1060,11 +812,9 @@ const result = await client.call(["procedure", "new"], {
 
 ## Requirements
 
-- **Node.js**: >= 20
-- **TypeScript**: >= 5.0
-- **Dependencies**: `ws` ^8.18.3
+- **Node.js**: >= 22
+- **Dependencies**: `ws` ^8.18.3, `zod` ^4
 - **Peer Dependencies** (optional):
-  - `zod` ^3.0.0 (for validation)
   - `express` ^4.0.0 || ^5.0.0 (for HTTP server)
 
 ## License

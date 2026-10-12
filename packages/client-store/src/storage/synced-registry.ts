@@ -6,9 +6,9 @@
  */
 
 import type { CollectionStorage } from "@mark1russell7/client-collections";
-import { ProcedureRegistry } from "../registry.js";
-import type { AnyProcedure, ProcedurePath, RegistrationOptions } from "../types.js";
-import { pathToKey } from "../types.js";
+import { ProcedureRegistry } from "@mark1russell7/client";
+import type { AnyProcedure, ProcedurePath, RegistrationOptions } from "@mark1russell7/client";
+import { pathToKey } from "@mark1russell7/client";
 import type {
   SerializedProcedure,
   SyncedRegistryOptions,

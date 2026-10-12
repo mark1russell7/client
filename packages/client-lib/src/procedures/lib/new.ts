@@ -194,7 +194,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     pkgJson["dependencies"] = {
       ...((pkgJson["dependencies"] as Record<string, string> | undefined) ?? {}),
       "@mark1russell7/client": "workspace:*",
-      zod: "^3.24.0",
+      zod: "^4.6.5",
     };
     await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
       ["fs", "write"],

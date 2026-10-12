@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { defineComponent, simpleComponent, registerBundle } from "client/components";
+ * import { defineComponent, simpleComponent, registerBundle } from "@mark1russell7/client-splay";
  *
  * // Define a component
  * const userCard = defineComponent({

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { defineComponent, componentToProcedure } from "./define.js";
 import { isStreamingFactory } from "./types.js";
-import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
-import type { ProcedureContext } from "../procedures/types.js";
+import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import type { ProcedureContext } from "@mark1russell7/client";
 import type { ComponentOutput } from "./types.js";
 
 // defineComponent registers into the global registry: use names no other test uses

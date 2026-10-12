@@ -88,10 +88,11 @@
     "@mark1russell7/client-snapshot": "workspace:*",
     "@mark1russell7/client-splay": "workspace:*",
     "@mark1russell7/client-sqlite": "workspace:*",
+    "@mark1russell7/client-store": "workspace:*",
     "@mark1russell7/client-vite": "workspace:*",
-    "typescript": "^7.0.2",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
-    "vitest": "^5.0.3",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   }
 }

@@ -5,7 +5,7 @@
  * yield multiple outputs over time (live updates, progressive rendering).
  */
 
-import type { ComponentOutput } from "@mark1russell7/client/components";
+import type { ComponentOutput } from "./components/index.js";
 import type {
   StreamingRegistry,
   StreamingComponentRenderer,

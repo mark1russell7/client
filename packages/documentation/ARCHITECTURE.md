@@ -12,14 +12,16 @@ A program is JSON that names procedures and their inputs. [PROGRAM-FORMAT.md](./
 
 | Layer | Packages | Role |
 |---|---|---|
-| Core | `client` | Procedures, the registry, `invokeProcedure()`, the program interpreter, `Client`, the transports and the servers |
+| Core | `client` | Procedures, the registry, `invokeProcedure()`, the program interpreter, `Client`, the transports, the middleware, the event bus and the servers. The core depends on no other package of the repository: its cache has its own LRU map, and it declares the `CollectionStorage` interface itself. |
 | Support libraries | `client-collections`, `client-dag` | Data structures and graph algorithms. They register no procedures. |
+| Program store | `client-store` | The program store (`procedure.store`, `load`, `sync`): programs of `procedure.define` in memory, in a JSON file or in a collection storage. Also the storage layer that left the core: `ApiStorage`, `HybridStorage`, the synced registry and the dynamic handler loader. |
 | Command wrappers | `client-shell`, `client-git`, `client-docker`, `client-pnpm`, `client-node`, `client-vite`, `client-vitest`, `client-cue`, `client-cli` | Each package wraps one tool. All of them start programs through `runCommand()` of `client-shell`. |
-| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-splay` | Files, storage and databases as procedures |
+| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot` | Files, storage and databases as procedures |
+| User interface libraries | `client-splay` | Rendering of data with `splay`, and the procedure components (serializable UI descriptors) |
 | Workspace tools | `client-lib`, `client-procedure` | `lib.*` (scan, new, audit, rename) and `procedure.new` |
 | Bundles | `bundle-dev`, `bundle-mcp` | Sets of packages. `bundle-mcp` also gives the tool list of the MCP server. |
 | Hosts | `mark`, `client-server`, `server`, `client-mcp`, `mcp`, `impl-mcp-dev` | The CLI, the peer server and the MCP server |
-| User interface | `site` | The website, with the Composer |
+| Website | `site` | The website, with the Composer |
 | Repository tool | `cli` | The template commands of the repository (`pnpm package`, `pnpm template`) |
 
 [PACKAGES.md](./PACKAGES.md) lists each package with its procedures and dependencies. [PROCEDURES.md](./PROCEDURES.md) lists each procedure. A script makes both files from the built packages.

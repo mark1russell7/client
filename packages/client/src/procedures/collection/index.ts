@@ -46,3 +46,6 @@ export type {
 
 // Procedures
 export { createCollectionProcedures } from "./procedures.js";
+
+// The storage interface of the core (the shape of client-collections' CollectionStorage)
+export type { CollectionStorage, StorageMetadata } from "./storage.js";

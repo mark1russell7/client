@@ -7,8 +7,8 @@
  * re-exports this module and adds the server transports.
  *
  * Collections (maps, caches, collection storage) are in @mark1russell7/client-collections.
- * The "@mark1russell7/client/collections" entry point re-exports them together with the
- * storage backends that need a Client (ApiStorage, HybridStorage).
+ * The program store, the storage backends that need a Client (ApiStorage, HybridStorage) and the
+ * synced registry are in @mark1russell7/client-store (roadmap 3.2).
  */
 
 // ============================================================================
@@ -191,31 +191,7 @@ export {
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
   isRuntimeDefined,
-  // Storage-backed registry
-  serializeProcedure,
-  deserializeProcedure,
-  deserializeProcedureSync,
-  getProcedureKey,
-  getSerializedKey,
-  serializeProcedures,
-  deserializeProcedures,
-  createDynamicHandlerLoader,
-  ProcedureStorageAdapter,
-  SyncedProcedureRegistry,
-  getProcedureStore,
-  ProcedureStoreError,
-  createSyncedRegistry,
-  createMemorySyncedRegistry,
-  createApiSyncedRegistry,
-  createHybridSyncedRegistry,
-  createCustomSyncedRegistry,
-  procedureRegisterProcedure,
-  procedureStoreProcedure,
-  procedureLoadProcedure,
-  procedureSyncProcedure,
-  procedureRemoteProcedure,
-  procedureStorageModule,
-  procedureStorageProcedures,
+  runtimeProgramOf,
 } from "./procedures/index.js";
 
 export type {
@@ -228,6 +204,8 @@ export type {
   ProcedureResult,
   ProcedureError,
   RepositoryProvider,
+  CollectionStorage,
+  StorageMetadata,
   ProcedureModule,
   RegistrationOptions,
   ProcedureRegistryLike,
@@ -250,21 +228,6 @@ export type {
   ContinueDecision,
   OutputRef,
   RefScope,
-  // Storage-backed registry types
-  SerializedProcedure,
-  HandlerReference,
-  HandlerLoader,
-  SyncDirection,
-  SyncConflict,
-  SyncResult,
-  SyncStatus,
-  SyncedRegistryOptions,
-  ProcedureStorageConfig,
-  SerializeOptions,
-  DeserializeOptions,
-  ProcedureStorageAdapterOptions,
-  SyncedRegistrationOptions,
-  CreateSyncedRegistryConfig,
   // Schema types
   ZodLikeSchema,
   // Meta-procedure types
@@ -284,6 +247,7 @@ export {
   outputItems,
   streamOutput,
   InvocationError,
+  isAsyncIterable,
 } from "./procedures/invoke.js";
 export type {
   InvokeOptions,
@@ -360,44 +324,9 @@ export type {
 } from "./events/index.js";
 
 // ============================================================================
-// Components - Serializable UI descriptors via procedures
+// Components (serializable UI descriptors) moved to @mark1russell7/client-splay, the UI package
+// of the ecosystem (roadmap 3.4).
 // ============================================================================
-export type {
-  ComponentOutput,
-  FragmentOutput,
-  NullOutput,
-  AnyComponentOutput,
-  Size,
-  ComponentContext,
-  ComponentFactory,
-  StreamingComponentFactory,
-  AnyComponentFactory,
-  ComponentMetadata,
-  ComponentDefinition,
-  AnyComponentDefinition,
-  RegisteredComponent,
-  ComponentBundle,
-  InferComponentInput,
-  IsStreamingComponent,
-  ComponentInput,
-} from "./components/index.js";
-
-export {
-  nullOutput,
-  fragment,
-  isFragment,
-  isNullOutput,
-  isStreamingFactory,
-  defineComponent,
-  componentToProcedure,
-  registerBundle,
-  createBundle,
-  simpleComponent,
-  namespacedComponent,
-  streamingComponent,
-  componentInputSchema,
-  componentOutputSchema,
-} from "./components/index.js";
 
 // ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both

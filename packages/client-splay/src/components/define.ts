@@ -5,10 +5,10 @@
  * Components are procedures with special handling for UI rendering.
  */
 
-import type { ZodLike } from "../client/validation/types.js";
-import type { Procedure, ProcedurePath, ProcedureContext } from "../procedures/types.js";
-import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "../procedures/registry.js";
-import { invokeProcedure, isAsyncIterable } from "../procedures/invoke.js";
+import type { ZodLike } from "@mark1russell7/client/client";
+import type { Procedure, ProcedurePath, ProcedureContext } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@mark1russell7/client";
+import { invokeProcedure, isAsyncIterable } from "@mark1russell7/client";
 import type {
   ComponentDefinition,
   ComponentContext,

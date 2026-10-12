@@ -7,8 +7,7 @@
 
 import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
-import { lruMap, hashMap } from "@mark1russell7/client-collections";
-import type { MapLike } from "@mark1russell7/client-collections";
+import { LruMap } from "./lru.js";
 
 /**
  * Cache middleware options.
@@ -177,8 +176,8 @@ function defaultShouldCache(item: ResponseItem<unknown>): boolean {
 /**
  * Create cache middleware with LRU eviction and TTL expiration.
  *
- * Uses the collections framework for automatic memory management:
- * - LRU eviction when capacity is reached (bounded memory)
+ * Memory management:
+ * - LRU eviction when capacity is reached (bounded memory, a small map of the core)
  * - Each entry has its own expiry time, so a call can give its own TTL
  *
  * Each call can give overrides in its context (`route()` overrides, or `withContext`):
@@ -218,12 +217,9 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
 
   // An LRU map bounds the memory. Each entry keeps its own expiry time, so a call can give its
   // own TTL: before, one TTL map expired every entry after the TTL of the middleware.
-  const cache: MapLike<string, CacheEntry> = lruMap<string, CacheEntry>({
-    capacity,
-    onEvict: () => {
-      stats.evictions++;
-    },
-  })(hashMap<string, CacheEntry>());
+  const cache = new LruMap<string, CacheEntry>(capacity, () => {
+    stats.evictions++;
+  });
 
   // Track cache statistics
   const stats = {

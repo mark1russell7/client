@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/client-store",
+  "version": "0.1.0",
+  "description": "A program store for procedure-as-data: save the programs that procedure.define makes, load them back after a restart, in memory, a JSON file or a remote collection storage.",
+  "keywords": [
+    "program-store",
+    "procedures",
+    "json-programs",
+    "persistence",
+    "registry",
+    "rpc"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/client-store"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "@mark1russell7/client": "workspace:*",
+    "@mark1russell7/client-collections": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^22.0.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "vitest": "^5.0.3"
+  }
+}

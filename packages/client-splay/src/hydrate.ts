@@ -10,7 +10,7 @@
  * 3. Client hydrates to React/Vue/Svelte components
  */
 
-import type { ComponentOutput } from "@mark1russell7/client/components";
+import type { ComponentOutput } from "./components/index.js";
 import type { ComponentMap, HydrateOptions } from "./types.js";
 
 // Portable console access (works in Node and browser)

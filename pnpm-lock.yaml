@@ -289,9 +289,6 @@ importers:
 
   packages/client:
     dependencies:
-      '@mark1russell7/client-collections':
-        specifier: workspace:*
-        version: link:../client-collections
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -832,6 +829,31 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/client-store:
+    dependencies:
+      '@mark1russell7/client':
+        specifier: workspace:*
+        version: link:../client
+      '@mark1russell7/client-collections':
+        specifier: workspace:*
+        version: link:../client-collections
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: github:mark1russell7/cue#main
+        version: https://codeload.github.com/mark1russell7/cue/tar.gz/01454a6f49e745268264795d4e77e0bb374e96cc
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/client-vite:
     dependencies:
       '@mark1russell7/client':
@@ -1006,6 +1028,9 @@ importers:
       '@mark1russell7/client-sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
+      '@mark1russell7/client-store':
+        specifier: workspace:*
+        version: link:../client-store
       '@mark1russell7/client-vite':
         specifier: workspace:*
         version: link:../client-vite
@@ -1143,6 +1168,9 @@ importers:
       '@mark1russell7/client-sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
+      '@mark1russell7/client-store':
+        specifier: workspace:*
+        version: link:../client-store
       '@mark1russell7/client-vite':
         specifier: workspace:*
         version: link:../client-vite
@@ -1803,6 +1831,12 @@ packages:
   '@manypkg/tools@2.1.2':
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/01454a6f49e745268264795d4e77e0bb374e96cc':
+    resolution: {gitHosted: true, integrity: sha512-xuYoZiX7Aza7OPPo39v2VlrADdIp+0uo+OlaJr9UPxiZTClYSMjbvNO+SBjIHIp6FiTL0/RbSl+HocaZ+h3o4w==, tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/01454a6f49e745268264795d4e77e0bb374e96cc}
+    version: 1.0.0
+    engines: {node: '>=25.0.0', npm: '>=11.0.0'}
+    hasBin: true
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/f2bb6026e14fcfb782eef3e02771ce983d4bff55':
     resolution: {gitHosted: true, integrity: sha512-Gwipz/SuOqJpOOEWbGPrj4dF2q515xjIC7bk+4YXdr0TVpEpZXux9jCYXWaR+0ihzkBsw7Y7CYQrkbr9FMyypA==, tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/f2bb6026e14fcfb782eef3e02771ce983d4bff55}
@@ -3987,6 +4021,8 @@ snapshots:
       jju: 1.4.0
       tinyglobby: 0.2.17
       yaml: 2.9.1
+
+  '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/01454a6f49e745268264795d4e77e0bb374e96cc': {}
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/f2bb6026e14fcfb782eef3e02771ce983d4bff55': {}
 

@@ -45,6 +45,7 @@ export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 
 // Collection procedures
 export { createCollectionProcedures } from "./collection/index.js";
+export type { CollectionStorage, StorageMetadata } from "./collection/index.js";
 
 // Manual registration helpers
 export {
@@ -178,6 +179,7 @@ export {
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
   isRuntimeDefined,
+  runtimeProgramOf,
 } from "./define-procedure.js";
 export type {
   AggregationDefinition,
@@ -185,60 +187,14 @@ export type {
   DefineProcedureOutput,
 } from "./define-procedure.js";
 
-// Storage-backed registry
-export {
-  // Types
-  type SerializedProcedure,
-  type HandlerReference,
-  type HandlerLoader,
-  type SyncDirection,
-  type SyncConflict,
-  type SyncResult,
-  type SyncStatus,
-  type SyncedRegistryOptions,
-  type ProcedureStorageConfig,
-  type SerializeOptions,
-  type DeserializeOptions,
-  type ProcedureStorageAdapterOptions,
-  type SyncedRegistrationOptions,
-  type CreateSyncedRegistryConfig,
-  // Serialization
-  serializeProcedure,
-  deserializeProcedure,
-  deserializeProcedureSync,
-  getProcedureKey,
-  getSerializedKey,
-  serializeProcedures,
-  deserializeProcedures,
-  createDynamicHandlerLoader,
-  // Adapter
-  ProcedureStorageAdapter,
-  // Synced Registry
-  SyncedProcedureRegistry,
-  getProcedureStore,
-  // Factory
-  createSyncedRegistry,
-  createMemorySyncedRegistry,
-  createApiSyncedRegistry,
-  createHybridSyncedRegistry,
-  createCustomSyncedRegistry,
-  // Procedures
-  procedureRegisterProcedure,
-  procedureStoreProcedure,
-  procedureLoadProcedure,
-  procedureSyncProcedure,
-  procedureRemoteProcedure,
-  procedureStorageModule,
-  procedureStorageProcedures,
-  ProcedureStoreError,
-} from "./storage/index.js";
+// The storage layer, the synced registry and the procedure.store/load/sync/remote/register
+// procedures moved to @mark1russell7/client-store (roadmap 3.2): the program store.
 
 // =============================================================================
 // Auto-register core procedures
 // =============================================================================
 
 import { coreProcedures as _coreProcedures } from "./core/index.js";
-import { procedureStorageProcedures as _storageProcedures } from "./storage/index.js";
 import { metaProcedures as _metaProcedures } from "./define-procedure.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
 
@@ -246,12 +202,6 @@ import { PROCEDURE_REGISTRY } from "./registry.js";
 // This ensures client.* procedures are available without explicit registration
 try {
   for (const proc of _coreProcedures) {
-    if (!PROCEDURE_REGISTRY.has(proc.path)) {
-      PROCEDURE_REGISTRY.register(proc);
-    }
-  }
-  // Also register storage procedures
-  for (const proc of _storageProcedures) {
     if (!PROCEDURE_REGISTRY.has(proc.path)) {
       PROCEDURE_REGISTRY.register(proc);
     }
