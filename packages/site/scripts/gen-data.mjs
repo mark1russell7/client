@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
+import { readStatusData } from "./status-data.mjs";
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(SITE, "..");
@@ -237,6 +238,17 @@ const commit = process.env["SITE_COMMIT"] || git("rev-parse", "HEAD");
 const build = { commit, date: (commit && git("show", "-s", "--format=%cI", commit)) || new Date().toISOString() };
 
 // ---------------------------------------------------------------------------
+// The status board: the status documents of packages/documentation
+// ---------------------------------------------------------------------------
+
+let status;
+try {
+  status = readStatusData(PACKAGES, SITE);
+} catch (error) {
+  fail(`the status board cannot read a status document. ${error?.message ?? error}`);
+}
+
+// ---------------------------------------------------------------------------
 // Output
 // ---------------------------------------------------------------------------
 
@@ -249,11 +261,13 @@ const write = (name, data) => {
 };
 write("packages", packages.sort((a, b) => a.level - b.level || a.dir.localeCompare(b.dir)));
 write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build });
+write("status", status);
 
 log(
   `site data: ${packages.length} packages, ${procedures.length} procedures ` +
     `(${procedures.filter((p) => p.cli).length} in the CLI, ${procedures.filter((p) => p.mcp).length} MCP tools, ` +
-    `${procedures.filter((p) => p.browser).length} in the browser)` +
+    `${procedures.filter((p) => p.browser).length} in the browser), ` +
+    `${status.findings.length} findings and ${status.roadmap.length} roadmap items on the status board` +
     (failed.length ? `, ${failed.length} packages failed to load: ${failed.map((f) => f.package).join(", ")}` : ""),
 );
 process.exit(0);

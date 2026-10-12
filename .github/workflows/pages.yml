@@ -36,6 +36,9 @@ jobs:
         with:
           # The commit that CI tested. A manual run builds the selected branch.
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # The whole history: the status board of the site links each commit hash of the status
+          # documents to its repository, and git tells which hashes are commits of this one
+          fetch-depth: 0
           persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@v6
