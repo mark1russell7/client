@@ -3,12 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>client: procedures as data</title>
-    <meta
-      name="description"
-      content="The client ecosystem: one procedure registry for the CLI, the MCP server, HTTP and WebSocket. Compose procedures as data and run them in the browser."
-    />
+    <title>Typed procedures as data for TypeScript: CLI, HTTP and MCP | client</title>
+    <meta name="description" content="One typed procedure registry for your code, a CLI, HTTP, WebSocket and Claude Code (MCP). Compose calls as JSON, with streaming and a visual composer." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f6f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e1220" media="(prefers-color-scheme: dark)" />
+    <meta name="author" content="Mark Russell" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/icon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <script>
       // The theme of the reader: the selection in the header, else the system preference
       try {
@@ -18,6 +22,7 @@
     </script>
   </head>
   <body>
+    <noscript>This site runs the client library in your browser, so it needs JavaScript. The text of each page is readable without it.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

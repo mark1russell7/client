@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { packages, procedureByKey, procedures, type JsonSchema, type ProcedureInfo } from "../data";
 import { encodeProgram, newCall } from "../lib/program";
-import { href, writeHash, type Route } from "../lib/router";
+import { href, writeUrl, type Route } from "../lib/router";
 
 function typeText(schema: JsonSchema | undefined): string {
   if (!schema) return "";
@@ -214,7 +214,7 @@ export function Catalog({ route }: { route: Route }): ReactElement {
   // The filters change the URL without a new history entry
   useEffect(() => {
     if (route.rest) return;
-    writeHash(href("catalog", undefined, queryOf(filters)), "replace");
+    writeUrl(href("catalog", undefined, queryOf(filters)), "replace");
   }, [filters, route.rest]);
 
   const groups = useMemo(() => {

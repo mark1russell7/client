@@ -6,8 +6,9 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { InlineMarkdown } from "../components/InlineMarkdown";
-import { status, type CommitLink, type Finding, type FindingStatus, type RoadmapItem, type Severity } from "../data";
-import { href, writeHash, type Route } from "../lib/router";
+import type { CommitLink, Finding, FindingStatus, RoadmapItem, Severity } from "../data";
+import { status } from "../data/status";
+import { href, writeUrl, type Route } from "../lib/router";
 
 // ---------------------------------------------------------------------------
 // Statuses and severities
@@ -275,7 +276,7 @@ export function Status({ route }: { route: Route }): ReactElement {
 
   // The filters change the URL without a new history entry
   useEffect(() => {
-    writeHash(href("status", undefined, queryOf(filters)), "replace");
+    writeUrl(href("status", undefined, queryOf(filters)), "replace");
   }, [filters]);
 
   const shown = useMemo(() => {

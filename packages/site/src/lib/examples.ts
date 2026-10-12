@@ -116,3 +116,16 @@ export const examples: Example[] = [
 ];
 
 export const firstExample: Example = examples[0]!;
+
+/**
+ * The program of the live panel of the home page: the sum of the squares of 1 to 5, in four
+ * named steps. `map` gives `{ results }`, so the sum reads `squares.results`.
+ */
+export const heroProgram: Json = call("chain", {
+  steps: [
+    call("range", { start: 1, end: 6 }, { $name: "numbers" }),
+    call("map", { items: ref("numbers"), fn: call("multiply", { a: ref("item"), b: ref("item") }) }, { $name: "squares" }),
+    call("sum", { values: ref("squares.results") }, { $name: "total" }),
+    call("template", { template: "The sum of the squares is {{total}}", values: { total: ref("total") } }),
+  ],
+});
