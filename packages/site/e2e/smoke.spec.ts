@@ -18,39 +18,46 @@ import { examples } from "../src/lib/examples";
 const run = promisify(execFile);
 
 const PAGES = [
-  "#/",
-  "#/composer?example=chain",
-  "#/composer?example=pipeline",
-  "#/catalog",
-  "#/catalog/client.chain",
-  "#/architecture",
-  "#/architecture/client",
-  "#/claude",
-  "#/status",
-  "#/status?status=open",
-  "#/lab",
+  "",
+  "composer/?example=chain",
+  "composer/?example=pipeline",
+  "catalog/",
+  "catalog/client.chain/",
+  "architecture/",
+  "architecture/client/",
+  "claude/",
+  "status/",
+  "status/?status=open",
+  "lab/",
+  "catalog/git.status/",
+  "no-such-page/",
 ];
 
 function encode(program: unknown): string {
   return Buffer.from(JSON.stringify(program)).toString("base64url");
 }
 
-async function open(page: Page, hash: string): Promise<void> {
-  await page.goto(hash);
+/**
+ * This function opens a page and waits for the live app. A prerendered page shows the HTML of the
+ * build first, and the app renders next to it, hidden, until it is ready (lib/prerender-handoff.ts).
+ */
+async function open(page: Page, path: string): Promise<void> {
+  await page.goto(path);
+  await page.waitForFunction(() => document.querySelector("[data-prerendered]") === null, null, { timeout: 15_000 });
   await expect(page.locator("main")).toBeVisible();
 }
 
 test.describe("the Composer", () => {
   for (const example of examples) {
     test(`the example "${example.id}" runs`, async ({ page }) => {
-      await open(page, `#/composer?example=${example.id}`);
+      await open(page, `composer/?example=${example.id}`);
       await expect(page.locator(".status-ok")).toBeVisible();
       await expect(page.locator(".trace-row").first()).toBeVisible();
     });
   }
 
   test("a share link round-trips, and it waits for Run", async ({ page, context }) => {
-    await open(page, "#/composer?example=nested");
+    await open(page, "composer/?example=nested");
     await expect(page.locator(".status-ok")).toBeVisible();
     await page.getByRole("textbox", { name: "b", exact: true }).last().fill("-6");
     await expect(page).toHaveURL(/\?p=/);
@@ -67,7 +74,7 @@ test.describe("the Composer", () => {
   });
 
   test("undo, redo and the Back button", async ({ page }) => {
-    await open(page, "#/composer?example=nested");
+    await open(page, "composer/?example=nested");
     const field = page.getByRole("textbox", { name: "b", exact: true }).last();
     await field.fill("10");
     await expect(page.locator(".result-value")).toHaveText("22");
@@ -80,7 +87,7 @@ test.describe("the Composer", () => {
   });
 
   test("the TypeScript tab gives code that runs with Node", async ({ page }) => {
-    await open(page, "#/composer?example=map");
+    await open(page, "composer/?example=map");
     await expect(page.locator(".status-ok")).toBeVisible();
     const result: unknown = JSON.parse((await page.locator(".result-value").textContent()) ?? "null");
     await page.getByRole("tab", { name: "TypeScript" }).click();
@@ -96,12 +103,13 @@ test.describe("the Composer", () => {
   test("hostile links do not break the page", async ({ page }) => {
     let deep: unknown = 1;
     for (let index = 0; index < 3000; index++) deep = [deep];
-    await open(page, `#/composer?p=${encode({ $proc: ["client", "identity"], input: { value: deep } })}`);
+    await open(page, `composer/?p=${encode({ $proc: ["client", "identity"], input: { value: deep } })}`);
     await expect(page.getByRole("status").filter({ hasText: "levels" })).toBeVisible();
 
-    await open(page, "#/composer?p=not-a-program!!");
+    await open(page, "composer/?p=not-a-program!!");
     await expect(page.getByRole("status").filter({ hasText: "not a program" })).toBeVisible();
 
+    // Through the old hash form: the page reads the path, and no server sees the bad escape
     await open(page, "#/catalog/%E0%A4");
     await expect(page.locator("h1")).toBeVisible();
 
@@ -115,7 +123,7 @@ test.describe("the Composer", () => {
         fn: { $proc: ["client", "add"], input: { a: { $ref: "item" }, b: 1 } },
       },
     };
-    await open(page, `#/composer?p=${encode(long)}`);
+    await open(page, `composer/?p=${encode(long)}`);
     await page.getByRole("button", { name: "▶ Run" }).click();
     await page.getByRole("button", { name: "■ Stop" }).click();
     await expect(page.locator(".status-line")).toContainText("stopped");
@@ -124,7 +132,7 @@ test.describe("the Composer", () => {
 
 test.describe("the keyboard", () => {
   test("the trace is a tree that the arrow keys move in", async ({ page }) => {
-    await open(page, "#/composer?example=chain");
+    await open(page, "composer/?example=chain");
     const first = page.getByRole("treeitem").first();
     await expect(first).toBeVisible();
     await first.focus();
@@ -138,7 +146,7 @@ test.describe("the keyboard", () => {
   });
 
   test("an empty slot reaches its controls", async ({ page }) => {
-    await open(page, `#/composer?p=${encode({ $proc: ["client", "add"], input: { a: null, b: 2 } })}`);
+    await open(page, `composer/?p=${encode({ $proc: ["client", "add"], input: { a: null, b: 2 } })}`);
     const empty = page.getByRole("button", { name: /^a: null/ });
     await empty.focus();
     await page.keyboard.press("Tab");
@@ -152,7 +160,7 @@ test.describe("the keyboard", () => {
   });
 
   test("the removal of a list item keeps the focus in the list", async ({ page }) => {
-    await open(page, `#/composer?p=${encode({ $proc: ["client", "sum"], input: { values: [1, 2, 3] } })}`);
+    await open(page, `composer/?p=${encode({ $proc: ["client", "sum"], input: { values: [1, 2, 3] } })}`);
     await page.getByRole("button", { name: "Remove item 0 of values" }).click();
     await expect(page.getByRole("textbox", { name: "values item 0" })).toBeFocused();
   });
@@ -160,14 +168,14 @@ test.describe("the keyboard", () => {
 
 test.describe("the new pages", () => {
   test("the trace shows a call that ran for an input under the call that got its result", async ({ page }) => {
-    await open(page, "#/composer?example=nested");
+    await open(page, "composer/?example=nested");
     await expect(page.locator(".status-ok")).toBeVisible();
     const inner = page.getByRole("treeitem", { name: /^multiply, an input/ });
     await expect(inner).toHaveAttribute("aria-level", "2");
   });
 
   test("the graph view shows the calls, and the keyboard moves in it", async ({ page }) => {
-    await open(page, "#/composer?example=chain");
+    await open(page, "composer/?example=chain");
     await page.getByRole("tab", { name: "Graph" }).click();
     const tree = page.getByRole("tree", { name: /The program as a graph/ });
     await expect(tree.getByRole("treeitem")).toHaveCount(4);
@@ -182,7 +190,7 @@ test.describe("the new pages", () => {
   });
 
   test("the status board filters the findings, and a link keeps the filters", async ({ page }) => {
-    await open(page, "#/status");
+    await open(page, "status/");
     const count = page.locator("p", { hasText: /of \d+ findings/ });
     await expect(count).toBeVisible();
     const openChip = page.getByRole("group", { name: "Status", exact: true }).getByRole("button", { name: "Open", exact: true });
@@ -195,7 +203,7 @@ test.describe("the new pages", () => {
   });
 
   test("the middleware lab runs a scenario through the real middlewares", async ({ page }) => {
-    await open(page, "#/lab");
+    await open(page, "lab/");
     await page.getByRole("button", { name: "A hot key" }).click();
     // Six requests with one key: the server answers the first one, and the cache the others
     const totals = page.locator(".lab-totals");
@@ -239,7 +247,7 @@ test.describe("accessibility", () => {
         await check(hash);
       }
       // The Composer with its states: a problem list, insert choices, an open call of the trace
-      await open(page, `#/composer?p=${encode({ $proc: ["client", "add"], input: { a: { $ref: "nope" }, b: { $proc: ["client", "multiply"], input: { a: 2, b: 3 } } } })}`);
+      await open(page, `composer/?p=${encode({ $proc: ["client", "add"], input: { a: { $ref: "nope" }, b: { $proc: ["client", "multiply"], input: { a: 2, b: 3 } } } })}`);
       await page.getByRole("button", { name: "▶ Run" }).click();
       await page.getByRole("treeitem").first().click();
       await page.getByRole("button", { name: /Call of client\.multiply/ }).click();
@@ -250,7 +258,7 @@ test.describe("accessibility", () => {
       await page.getByRole("tab", { name: "Graph" }).click();
       await page.getByRole("treeitem").first().click();
       await check("the graph view");
-      await open(page, "#/lab");
+      await open(page, "lab/");
       await page.getByRole("button", { name: "A slow stream" }).click();
       await page.waitForTimeout(1500);
       await check("the lab with a scenario");

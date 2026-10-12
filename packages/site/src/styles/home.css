@@ -1,0 +1,519 @@
+/* The home page and the "not found" page. Ink on graph paper: hairlines, no shadows. */
+
+/* ---- Hero ---- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: var(--space-7);
+  align-items: start;
+  padding: var(--space-5) 0 var(--space-6);
+}
+
+.hero-text {
+  padding-top: var(--space-4);
+  min-width: 0;
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.hero-eyebrow::before {
+  content: "";
+  width: 1.75rem;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-accent);
+}
+
+.hero h1 {
+  font-size: clamp(2.1rem, 4.6vw, 3.4rem);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin-bottom: var(--space-4);
+  text-wrap: balance;
+}
+
+.hero-accent {
+  display: block;
+  color: var(--color-accent);
+}
+
+.hero .lead {
+  font-size: var(--text-lg);
+  color: var(--color-ink-secondary);
+  text-wrap: pretty;
+}
+
+.hero .lead code {
+  font-size: 0.9em;
+}
+
+.hero-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.hero-actions a {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.hero-actions a.primary {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.hero-actions a.primary:hover {
+  background: var(--color-accent-strong);
+}
+
+.hero-actions a.secondary {
+  border: 1px solid var(--color-control-border);
+  color: var(--color-ink);
+}
+
+.hero-actions a.secondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong);
+}
+
+.hero-actions a.text-link {
+  padding-inline: var(--space-1);
+  align-self: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---- Install command ---- */
+
+.install {
+  margin-top: var(--space-5);
+  max-width: 40rem;
+}
+
+.install-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.install-prompt {
+  color: var(--color-ink-muted);
+  font-family: var(--font-mono);
+}
+
+.install-command {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+/* A phone has no room for the command on one line: it wraps, and it never scrolls sideways */
+@media (max-width: 480px) {
+  .install-command {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.install-note {
+  margin: var(--space-2) 0 0;
+}
+
+.small-button {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* ---- The live panel ---- */
+
+.live-hero {
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: calc(var(--radius) * 2);
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-position: -1px -1px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.live-hero-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-surface);
+}
+
+.live-hero-title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink-secondary);
+}
+
+.live-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--status-good);
+  flex: none;
+}
+
+.live-dot.running {
+  background: var(--color-accent);
+  animation: live-pulse 1s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.hero-code {
+  margin: var(--space-3) var(--space-3) 0;
+  padding: var(--space-3);
+  max-height: 12.5rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.tok-key {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.hero-trace {
+  list-style: none;
+  margin: var(--space-3);
+  padding: var(--space-1) 0;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.hero-call {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  min-height: 1.75rem;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  border-left: 3px solid transparent;
+  transition: opacity 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+/* A call that has not started: muted ink (an opacity would fail the contrast rules) */
+.hero-call.pending {
+  color: var(--color-ink-muted);
+}
+
+.hero-call.pending .hero-call-key {
+  font-weight: 400;
+}
+
+.hero-call.active {
+  background: var(--color-accent-wash);
+  border-left-color: var(--color-accent);
+}
+
+.hero-call-key {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hero-call-input {
+  color: var(--color-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-call-output {
+  color: var(--color-accent-strong);
+  font-weight: 700;
+  white-space: nowrap;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-call.active .hero-call-output {
+  color: var(--color-ink-muted);
+  font-weight: 400;
+}
+
+.live-hero-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot.running {
+    animation: none;
+  }
+
+  .hero-call {
+    transition: none;
+  }
+}
+
+/* ---- Numbers ---- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: var(--space-4) 0 var(--space-2);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--color-rule);
+}
+
+.stat strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.stat span {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.stats-note {
+  margin-bottom: var(--space-6);
+}
+
+/* ---- How it works ---- */
+
+/* Each step is a row: its text, then its code at the side, so the code has room for its lines */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.step-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  grid-template-rows: auto 1fr;
+  gap: var(--space-2) var(--space-5);
+  align-items: start;
+}
+
+.step-body h3,
+.step-body p {
+  grid-column: 1;
+}
+
+.step-body pre.code {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.step-number {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-accent-wash);
+  color: var(--color-accent-strong);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.step h3 {
+  margin-top: var(--space-1);
+}
+
+.step pre.code {
+  font-size: var(--text-xs);
+}
+
+/* ---- Hosts, cards ---- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.hosts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: var(--space-3);
+}
+
+.host {
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+/* The code wraps at its spaces, not inside a word */
+.host code {
+  font-size: var(--text-xs);
+  color: var(--color-accent-strong);
+  overflow-wrap: break-word;
+}
+
+/* ---- The usage of a procedure (the catalog) ---- */
+
+.usage-label {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+/* ---- Not found ---- */
+
+.not-found {
+  max-width: var(--measure);
+  padding-block: var(--space-8);
+}
+
+.not-found .eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.page-loading {
+  min-height: 60vh;
+  padding: var(--space-6) 0;
+}
+
+/* ---- Narrow screens ---- */
+
+@media (max-width: 1000px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .step-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .step-body pre.code {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stat:nth-child(4) {
+    border-left: none;
+  }
+
+  .stat:nth-child(n + 4) {
+    border-top: 1px solid var(--color-rule);
+  }
+}
+
+@media (max-width: 560px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat:nth-child(odd) {
+    border-left: none;
+  }
+
+  .stat:nth-child(4) {
+    border-left: 1px solid var(--color-rule);
+  }
+
+  .stat:nth-child(n + 3) {
+    border-top: 1px solid var(--color-rule);
+  }
+
+  .hero-call {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hero-call-input {
+    display: none;
+  }
+
+  .hero-call-output {
+    max-width: 9rem;
+  }
+}

@@ -23,7 +23,7 @@ import {
   type Json,
   type Location,
 } from "../lib/program";
-import { href, isOwnEntry, writeHash, type Route } from "../lib/router";
+import { currentUrl, href, isOwnEntry, writeUrl, type Route } from "../lib/router";
 import { ProgramRunner } from "../lib/runner";
 import { runProgram, type RunResult } from "../lib/runtime";
 
@@ -112,7 +112,7 @@ function fromRoute(route: Route): FromRoute {
   return { kind: "example", example };
 }
 
-function hashOf(program: Json, example: string | null): string {
+function urlOf(program: Json, example: string | null): string {
   return example ? href("composer", undefined, { example }) : href("composer", undefined, { p: encodeProgram(program) });
 }
 
@@ -269,7 +269,8 @@ function ResultPanel({
           This program comes from a link. Read it first, then press Run. After the first run, Live runs it after each change.
         </p>
       ) : null}
-      <div aria-live="polite" className="run-status">
+      {/* data-loading: a run is in progress, or Live runs the program soon. The build saves the page after the run (lib/readiness.ts) */}
+      <div aria-live="polite" className="run-status" data-loading={running || (live && armed && result === null) ? "" : undefined}>
         {running ? (
           <p className="muted small">
             Running… {progress > 0 ? `${progress.toLocaleString("en")} calls` : ""}
@@ -363,7 +364,7 @@ export function Composer({ route }: { route: Route }): ReactElement {
   const [armed, setArmed] = useState(initial.kind !== "link" || isOwnEntry());
   const [notice, setNotice] = useState<string | null>(initial.kind === "invalid" ? `The link does not hold a valid program. ${initial.reason} The Composer shows an example.` : null);
   const [choices, setChoices] = useState<{ location: Location; name: string; list: InsertChoice[] } | null>(null);
-  const lastHash = useRef(window.location.hash);
+  const lastUrl = useRef(currentUrl());
   const pendingFocus = useRef<string | null>(null);
   const runner = useRef<ProgramRunner | null>(null);
   const runCount = useRef(0);
@@ -374,8 +375,8 @@ export function Composer({ route }: { route: Route }): ReactElement {
 
   // The route changed: the Back button, a pasted link, a link of the page (deep dive SITE-5)
   useEffect(() => {
-    if (window.location.hash === lastHash.current) return;
-    lastHash.current = window.location.hash;
+    if (currentUrl() === lastUrl.current) return;
+    lastUrl.current = currentUrl();
     const next = fromRoute(route);
     setSelected(null);
     setChoices(null);
@@ -399,8 +400,8 @@ export function Composer({ route }: { route: Route }): ReactElement {
   // The URL follows the program: a new entry for an edit, so the Back button undoes it
   useEffect(() => {
     if (!state.write) return;
-    writeHash(hashOf(state.present, state.example), state.write);
-    lastHash.current = window.location.hash;
+    writeUrl(urlOf(state.present, state.example), state.write);
+    lastUrl.current = currentUrl();
   }, [state]);
 
   // A selection that is not in the program any more goes away (deep dive SITE-3)
@@ -572,7 +573,7 @@ export function Composer({ route }: { route: Route }): ReactElement {
   };
 
   const example = examples.find((candidate) => candidate.id === state.example);
-  const shareLink = (): string => `${window.location.origin}${window.location.pathname}${href("composer", undefined, { p: encodeProgram(present.current) })}`;
+  const shareLink = (): string => `${window.location.origin}${href("composer", undefined, { p: encodeProgram(present.current) })}`;
   const problems = [
     ...(analysis.rootProblem ? [{ key: "root", text: analysis.rootProblem, location: [] as Location }] : []),
     ...analysis.unknownCalls.map((use) => ({ key: `call:${locationKey(use.location)}`, text: `The procedure ${use.key} is not in the catalog.`, location: use.location })),

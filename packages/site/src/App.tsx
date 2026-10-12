@@ -1,14 +1,28 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactElement } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { build, failedPackages } from "./data";
-import { href, useRoute } from "./lib/router";
+import { href, interceptLinks, routePath, useRoute } from "./lib/router";
+import { metaOf, NOT_FOUND_META } from "./lib/seo";
+import { NotFound } from "./pages/NotFound";
 import { Home } from "./pages/Home";
-import { Composer } from "./pages/Composer";
-import { Catalog } from "./pages/Catalog";
-import { Architecture } from "./pages/Architecture";
-import { Claude } from "./pages/Claude";
-import { Status } from "./pages/Status";
-import { Lab } from "./pages/Lab";
+
+// Each page other than the home page loads with its own code, so the first page loads less.
+// The prerender waits for the code of the page (the fallback has data-loading).
+const Composer = lazy(() => import("./pages/Composer").then((module) => ({ default: module.Composer })));
+const Catalog = lazy(() => import("./pages/Catalog").then((module) => ({ default: module.Catalog })));
+const Architecture = lazy(() => import("./pages/Architecture").then((module) => ({ default: module.Architecture })));
+const Claude = lazy(() => import("./pages/Claude").then((module) => ({ default: module.Claude })));
+const Status = lazy(() => import("./pages/Status").then((module) => ({ default: module.Status })));
+const Lab = lazy(() => import("./pages/Lab").then((module) => ({ default: module.Lab })));
+
+/** The page while its code loads. */
+function PageLoading(): ReactElement {
+  return (
+    <div className="page-loading" data-loading="" aria-busy="true">
+      <p className="muted small">Loading the page…</p>
+    </div>
+  );
+}
 
 const NAV: Array<{ page: string; label: string }> = [
   { page: "composer", label: "Composer" },
@@ -88,15 +102,28 @@ function Footer(): ReactElement {
   );
 }
 
+/** This function sets the content of a meta element of the head, when the element exists. */
+function setMeta(selector: string, attribute: string, value: string): void {
+  document.head.querySelector(selector)?.setAttribute(attribute, value);
+}
+
 export function App(): ReactElement {
   const route = useRoute();
+  const meta = useMemo(() => metaOf(route), [route.page, route.rest]);
+  // The router follows the links of the site with no reload
+  useEffect(() => interceptLinks(), []);
+  // The title and the description of the page, as the build writes them in its HTML file
   useEffect(() => {
-    const label = NAV.find((item) => item.page === route.page)?.label;
-    document.title = label ? `${label} · client` : "client: procedures as data";
-  }, [route.page]);
+    const current = meta ?? NOT_FOUND_META;
+    document.title = current.title;
+    setMeta('meta[name="description"]', "content", current.description);
+  }, [meta]);
 
   let page: ReactElement;
-  switch (route.page) {
+  switch (meta === null ? "" : route.page) {
+    case "":
+      page = meta === null ? <NotFound path={routePath(route)} /> : <Home />;
+      break;
     case "composer":
       page = <Composer route={route} />;
       break;
@@ -149,7 +176,9 @@ export function App(): ReactElement {
         </div>
       </header>
       <main id="main" tabIndex={-1} className={["composer", "architecture", "status", "lab"].includes(route.page) ? "main wide" : "main"}>
-        <ErrorBoundary resetKey={`${route.page}/${route.rest}?${route.query.toString()}`}>{page}</ErrorBoundary>
+        <ErrorBoundary resetKey={`${route.page}/${route.rest}?${route.query.toString()}`}>
+          <Suspense fallback={<PageLoading />}>{page}</Suspense>
+        </ErrorBoundary>
       </main>
       <Footer />
     </div>

@@ -4,7 +4,6 @@
 
 import catalogJson from "./generated/catalog.js";
 import packagesJson from "./generated/packages.js";
-import statusJson from "./generated/status.js";
 
 /** An input field of a core procedure, read from its TypeScript input type. */
 export interface Field {
@@ -75,11 +74,21 @@ export interface BuildInfo {
   date: string | null;
 }
 
+/** The measured numbers of the home page (`scripts/site-metrics.mjs`). */
+export interface SiteMetrics {
+  /** The tests (`it`/`test` calls) in the test files of the packages. */
+  tests: number;
+  testFiles: number;
+  /** The library on npm: the latest version, or null when it is not published. */
+  npm: { name: string; version: string | null };
+}
+
 interface Catalog {
   procedures: ProcedureInfo[];
   mcpTools: string[];
   failed: LoadFailure[];
   build: BuildInfo;
+  metrics?: SiteMetrics;
 }
 
 const catalog = catalogJson as unknown as Catalog;
@@ -89,6 +98,7 @@ export const packages: PackageInfo[] = packagesJson as unknown as PackageInfo[];
 export const mcpTools: string[] = catalog.mcpTools;
 export const failedPackages: LoadFailure[] = catalog.failed ?? [];
 export const build: BuildInfo = catalog.build ?? { commit: null, date: null };
+export const metrics: SiteMetrics = catalog.metrics ?? { tests: 0, testFiles: 0, npm: { name: "@mark1russell7/client", version: null } };
 
 const byKey = new Map(procedures.map((procedure) => [procedure.key, procedure]));
 
@@ -159,7 +169,6 @@ export interface StatusData {
   sources: { deepDive: string; july: string };
 }
 
-export const status: StatusData = statusJson as unknown as StatusData;
 
 /** The category of a core procedure, from its tags: "control-flow", "math", "string" and so on. */
 export function categoryOf(procedure: ProcedureInfo): string {

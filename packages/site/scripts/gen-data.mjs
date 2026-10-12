@@ -24,6 +24,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
 import { readStatusData } from "./status-data.mjs";
+import { countTests, npmVersion } from "./site-metrics.mjs";
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(SITE, "..");
@@ -260,14 +261,20 @@ const write = (name, data) => {
   writeFileSync(join(OUT, `${name}.d.ts`), "declare const data: unknown;\nexport default data;\n");
 };
 write("packages", packages.sort((a, b) => a.level - b.level || a.dir.localeCompare(b.dir)));
-write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build });
+// The measured numbers of the home page (scripts/site-metrics.mjs)
+const tests = countTests(PACKAGES);
+const npm = { name: "@mark1russell7/client", version: await npmVersion("@mark1russell7/client") };
+const metrics = { tests: tests.tests, testFiles: tests.files, npm };
+
+write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });
 write("status", status);
 
 log(
   `site data: ${packages.length} packages, ${procedures.length} procedures ` +
     `(${procedures.filter((p) => p.cli).length} in the CLI, ${procedures.filter((p) => p.mcp).length} MCP tools, ` +
     `${procedures.filter((p) => p.browser).length} in the browser), ` +
-    `${status.findings.length} findings and ${status.roadmap.length} roadmap items on the status board` +
+    `${status.findings.length} findings and ${status.roadmap.length} roadmap items on the status board, ` +
+    `${metrics.tests} tests in ${metrics.testFiles} files, npm: ${npm.version ?? "not published"}` +
     (failed.length ? `, ${failed.length} packages failed to load: ${failed.map((f) => f.package).join(", ")}` : ""),
 );
 process.exit(0);

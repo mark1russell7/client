@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { examples } from "./examples";
+import { examples, heroProgram } from "./examples";
 import { MAX_TRACE_CALLS, runProgram } from "./runtime";
 import { countCalls } from "./program";
 
@@ -27,6 +27,24 @@ describe("the examples of the Composer", () => {
 
   it("have an expected result each", () => {
     expect(Object.keys(expected).sort()).toEqual(examples.map((example) => example.id).sort());
+  });
+
+  it("the program of the home page runs: the sum of the squares of 1 to 5", async () => {
+    const result = await runProgram(heroProgram);
+    expect(result.error).toBeUndefined();
+    expect(result.value).toMatchObject({ final: "The sum of the squares is 55" });
+    expect(result.calls.map((call) => call.key)).toEqual([
+      "client.chain",
+      "client.range",
+      "client.map",
+      "client.multiply",
+      "client.multiply",
+      "client.multiply",
+      "client.multiply",
+      "client.multiply",
+      "client.sum",
+      "client.template",
+    ]);
   });
 });
 

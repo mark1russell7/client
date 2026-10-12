@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { packages, procedureByKey, procedures, type JsonSchema, type ProcedureInfo } from "../data";
 import { encodeProgram, newCall } from "../lib/program";
-import { href, writeHash, type Route } from "../lib/router";
+import { href, writeUrl, type Route } from "../lib/router";
+import { exampleInput, usageCode } from "../lib/usage";
+import { compactJson } from "../lib/json-text";
 
 function typeText(schema: JsonSchema | undefined): string {
   if (!schema) return "";
@@ -97,6 +99,33 @@ function cliCommand(procedure: ProcedureInfo): string {
   return ["mark", ...procedure.path, ...flags].join(" ");
 }
 
+/** How to call the procedure: from TypeScript, from the CLI and as data. */
+function Usage({ procedure, packageName }: { procedure: ProcedureInfo; packageName: string }): ReactElement {
+  const input = exampleInput(procedure);
+  const code = usageCode(procedure, packageName);
+  return (
+    <section aria-labelledby="usage-title">
+      <h2 id="usage-title">Use it</h2>
+      <h3 className="usage-label">In TypeScript</h3>
+      <pre className="code" tabIndex={0} aria-label={`Call ${procedure.key} from TypeScript`}>
+        {code}
+      </pre>
+      {procedure.cli ? (
+        <>
+          <h3 className="usage-label">From the command line</h3>
+          <pre className="code" tabIndex={0} aria-label={`Call ${procedure.key} with the mark CLI`}>
+            {`$ ${cliCommand(procedure)}`}
+          </pre>
+        </>
+      ) : null}
+      <h3 className="usage-label">As data, in a program</h3>
+      <pre className="code" tabIndex={0} aria-label={`${procedure.key} as a procedure call in JSON`}>
+        {compactJson({ $proc: procedure.path, input }, 72)}
+      </pre>
+    </section>
+  );
+}
+
 function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
   const pkg = packages.find((candidate) => candidate.dir === procedure.package);
   return (
@@ -154,6 +183,7 @@ function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
           </a>
         </p>
       ) : null}
+      <Usage procedure={procedure} packageName={pkg?.name ?? procedure.package} />
       <h2>Input</h2>
       <SchemaTable schema={procedure.input} fields={procedure.fields} />
       <h2>Output</h2>
@@ -214,7 +244,7 @@ export function Catalog({ route }: { route: Route }): ReactElement {
   // The filters change the URL without a new history entry
   useEffect(() => {
     if (route.rest) return;
-    writeHash(href("catalog", undefined, queryOf(filters)), "replace");
+    writeUrl(href("catalog", undefined, queryOf(filters)), "replace");
   }, [filters, route.rest]);
 
   const groups = useMemo(() => {
