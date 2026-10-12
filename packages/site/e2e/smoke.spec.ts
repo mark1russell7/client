@@ -30,6 +30,9 @@ const PAGES = [
   "status/?status=open",
   "lab/",
   "catalog/git.status/",
+  "docs/",
+  "docs/program-format/",
+  "docs/packages/client-git/",
   "no-such-page/",
 ];
 
