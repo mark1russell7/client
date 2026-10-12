@@ -8,6 +8,7 @@ import { analyzeProgram } from "../lib/analysis";
 import { formatValue, specialValues } from "../lib/display";
 import { insertChoices, shortName, wrapInChain, type InsertChoice } from "../lib/edits";
 import { examples, firstExample, type Example } from "../lib/examples";
+import { ExampleGallery, GalleryDialog } from "../components/ExampleGallery";
 import {
   canSetAt,
   countCalls,
@@ -362,6 +363,8 @@ export function Composer({ route }: { route: Route }): ReactElement {
   // A program from a link of another person does not run before the reader presses Run.
   // An entry that the Composer wrote (a reload, the Back button) runs (deep dive SITE-6).
   const [armed, setArmed] = useState(initial.kind !== "link" || isOwnEntry());
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const galleryButton = useRef<HTMLButtonElement | null>(null);
   const [notice, setNotice] = useState<string | null>(initial.kind === "invalid" ? `The link does not hold a valid program. ${initial.reason} The Composer shows an example.` : null);
   const [choices, setChoices] = useState<{ location: Location; name: string; list: InsertChoice[] } | null>(null);
   const lastUrl = useRef(currentUrl());
@@ -617,6 +620,16 @@ export function Composer({ route }: { route: Route }): ReactElement {
               ))}
             </select>
           </label>
+          <button
+            type="button"
+            ref={galleryButton}
+            aria-haspopup="dialog"
+            aria-expanded={galleryOpen}
+            onClick={() => setGalleryOpen((open) => !open)}
+            title="Show a card for each example"
+          >
+            ▦ Gallery
+          </button>
           <button type="button" onClick={() => edit(() => null)} title="Start with an empty program">
             New
           </button>
@@ -634,6 +647,23 @@ export function Composer({ route }: { route: Route }): ReactElement {
           </label>
           <CopyButton text={shareLink} label="Copy link" />
         </div>
+        {galleryOpen ? (
+          <div onClick={(event) => event.stopPropagation()}>
+            <GalleryDialog
+              examples={examples}
+              current={state.example}
+              onLoad={(id) => {
+                loadExample(id);
+                setGalleryOpen(false);
+                galleryButton.current?.focus();
+              }}
+              onClose={() => {
+                setGalleryOpen(false);
+                galleryButton.current?.focus();
+              }}
+            />
+          </div>
+        ) : null}
         {example ? <p className="example-summary">{example.summary}</p> : null}
         {notice ? (
           <p className="hint" role="status">
@@ -689,6 +719,10 @@ export function Composer({ route }: { route: Route }): ReactElement {
               <div className="empty-program">
                 <p>The program is empty. Drag a procedure here, click one in the list, or type a name.</p>
                 <Slot value={program} location={[]} ctx={ctx} type={undefined} label="the program" />
+                <div className="gallery-start" onClick={(event) => event.stopPropagation()}>
+                  <h3 className="small">Or start from an example</h3>
+                  <ExampleGallery examples={examples} current={null} onLoad={loadExample} layout="list" />
+                </div>
               </div>
             ) : (
               <Slot value={program} location={[]} ctx={ctx} type={undefined} label="the program" />

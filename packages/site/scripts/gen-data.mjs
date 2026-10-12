@@ -189,7 +189,8 @@ function schemaOf(schema, io = "input") {
 }
 
 const coreFields = readCoreFields(PACKAGES);
-const browserKeys = new Set(client.allCoreProcedures.map((proc) => proc.path.join(".")));
+// The Composer's runtime (src/lib/runtime.ts) has the core procedures and procedure.define/get/list/delete
+const browserKeys = new Set([...client.allCoreProcedures, ...client.metaProcedures].map((proc) => proc.path.join(".")));
 const all = new Map();
 for (const proc of [...registry.getAll(), ...client.allCoreProcedures]) {
   const key = proc.path.join(".");

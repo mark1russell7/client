@@ -61,6 +61,31 @@ interface Walker {
   known: (key: string) => boolean;
 }
 
+/**
+ * True when a `$ref` name reads a name of the scope. A dotted name reads a field of a named
+ * result: `squares.results` reads `results` of `squares`, so only its first part must be in scope.
+ */
+function inScope(name: string, scope: string[]): boolean {
+  if (scope.includes(name)) return true;
+  const dot = name.indexOf(".");
+  return dot > 0 && scope.includes(name.slice(0, dot));
+}
+
+/** The keys of the procedures that the program defines with `procedure.define` (a literal path). */
+function definedKeys(value: Json | undefined, keys: Set<string> = new Set()): Set<string> {
+  if (value === null || value === undefined || typeof value !== "object") return keys;
+  if (Array.isArray(value)) {
+    for (const item of value) definedKeys(item, keys);
+    return keys;
+  }
+  if (isProcRef(value) && keyOf(value) === "procedure.define" && isPlainObject(value.input)) {
+    const path = value.input["path"];
+    if (Array.isArray(path) && path.length > 0 && path.every((segment) => typeof segment === "string")) keys.add(path.join("."));
+  }
+  for (const item of Object.values(value)) definedKeys(item as Json, keys);
+  return keys;
+}
+
 function withNames(scope: string[], names: string[]): string[] {
   return names.length === 0 ? scope : [...new Set([...scope, ...names])];
 }
@@ -75,7 +100,7 @@ function walkValue(w: Walker, value: Json | undefined, location: Location, fresh
     const use: RefUse = { location, name: value.$ref, scope };
     w.analysis.refs.push(use);
     w.analysis.scopeAt.set(locationKey(location), scope);
-    if (!scope.includes(value.$ref)) w.analysis.unknownRefs.push(use);
+    if (!inScope(value.$ref, scope)) w.analysis.unknownRefs.push(use);
     return;
   }
   if (isProcRef(value)) {
@@ -129,6 +154,15 @@ function walkCall(w: Walker, ref: ProcRef, location: Location, direct: boolean, 
   const inputLocation = [...location, "input"];
   const input = isPlainObject(ref.input) ? ref.input : undefined;
   const flow = controlFlowName(ref);
+  // procedure.define takes its input raw: the body runs when the new procedure is called, with
+  // the input of that call in scope as `input` (PROGRAM-FORMAT.md)
+  if (keyOf(ref) === "procedure.define" && input) {
+    for (const [key, value] of Object.entries(input)) {
+      if (key === "aggregation") walkValue(w, value, [...inputLocation, key], true, withNames(scope, ["input"]));
+      else walkRaw(w, value, [...inputLocation, key], scope);
+    }
+    return;
+  }
   if (!flow || !input) {
     walkValue(w, ref.input, inputLocation, direct, scope);
     return;
@@ -177,10 +211,13 @@ function walkCall(w: Walker, ref: ProcRef, location: Location, direct: boolean, 
       operand("then");
       operand("else");
       break;
-    case "tryCatch":
+    case "tryCatch": {
       operand("try");
-      operand("catch");
+      // The catch branch reads the message of the error as `error`
+      handled.add("catch");
+      walkOperand(w, input["catch"], at("catch"), withNames(scope, ["error"]));
       break;
+    }
     case "and":
     case "or":
       operands("values");
@@ -218,7 +255,9 @@ export function analyzeProgram(program: Json, known: (key: string) => boolean = 
     scopeAt: new Map(),
     rootProblem: null,
   };
-  const w: Walker = { analysis, known };
+  // A procedure that the program defines is known to the steps after it
+  const defined = definedKeys(program);
+  const w: Walker = { analysis, known: (key) => known(key) || defined.has(key) };
   if (program === null) return analysis;
   if (isProcRef(program)) {
     walkCall(w, program, [], true, []);

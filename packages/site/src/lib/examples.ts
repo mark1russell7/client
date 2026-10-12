@@ -113,6 +113,49 @@ export const examples: Example[] = [
       ],
     }),
   },
+  {
+    id: "records",
+    title: "Map over records",
+    summary: "map gives each record to fn as item. A $ref such as item.name reads one field of it.",
+    program: call("map", {
+      items: users,
+      fn: call("template", {
+        template: "{{name}} is {{age}}",
+        values: { name: ref("item.name"), age: ref("item.age") },
+      }),
+    }),
+  },
+  {
+    id: "fallback",
+    title: "A fallback with the error",
+    summary: "The division throws. tryCatch gives the error message to the catch branch as error.",
+    program: call("tryCatch", {
+      try: call("divide", { a: 10, b: 0 }),
+      catch: call("template", { template: "It failed: {{error}}", values: { error: ref("error") } }),
+    }),
+  },
+  {
+    id: "define",
+    title: "A reusable procedure",
+    summary: "procedure.define makes demo.double from a program. The next step calls it. The body reads its input as input.x.",
+    program: call("chain", {
+      steps: [
+        { $proc: ["procedure", "define"], input: { path: ["demo", "double"], aggregation: call("multiply", { a: ref("input.x"), b: 2 }) } },
+        { $proc: ["demo", "double"], input: { x: 21 } },
+      ],
+    }),
+  },
+  {
+    id: "fanout",
+    title: "Parallel, then join",
+    summary: "Two tasks run at the same time. The next step joins their results with $ref names.results.",
+    program: call("chain", {
+      steps: [
+        call("parallel", { tasks: [call("toUpper", { value: "ada" }), call("toUpper", { value: "grace" })] }, { $name: "names" }),
+        call("join", { values: ref("names.results"), separator: " and " }),
+      ],
+    }),
+  },
 ];
 
 export const firstExample: Example = examples[0]!;

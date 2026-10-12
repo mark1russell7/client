@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactElement } from "react";
 import { packages, type PackageInfo } from "../data";
 import { href, type Route } from "../lib/router";
+import { Journey } from "../components/Journey";
 
 const NODE_WIDTH = 176;
 const NODE_HEIGHT = 44;
@@ -160,6 +161,12 @@ export function Architecture({ route }: { route: Route }): ReactElement {
   return (
     <>
       <h1>Architecture</h1>
+      <p>
+        First, the path of one call through the layers, recorded from the real code. Then the map of the{" "}
+        {packages.length} packages that hold those layers.
+      </p>
+      <Journey />
+      <h2 id="packages">The packages</h2>
       <p>
         The {packages.length} packages of the workspace and their dependencies, generated from each{" "}
         <code>package.json</code>. A column is a level: a package uses only packages to its left. Point at a package, or

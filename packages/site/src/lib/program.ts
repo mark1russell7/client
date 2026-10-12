@@ -190,9 +190,34 @@ export function parseProgram(text: string): { ok: true; program: Json } | { ok: 
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
+/**
+ * The procedures that keep their input as data: their input is plain JSON in the code, not
+ * `proc()` builders. (procedure.define stores the program of its body. A builder object there is
+ * not a `$proc` call, so the define failed.)
+ */
+const RAW_INPUT = new Set(["procedure.define", "client.export", "client.stringifyJson"]);
+
+/** A JSON value as a TypeScript literal, with the indent of the code. */
+function tsJson(value: Json, indent: string): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    const inner = indent + "  ";
+    return `[\n${value.map((item) => inner + tsJson(item, inner)).join(",\n")},\n${indent}]`;
+  }
+  if (isPlainObject(value)) {
+    const entries = Object.entries(value);
+    if (entries.length === 0) return "{}";
+    const inner = indent + "  ";
+    const lines = entries.map(([key, item]) => `${inner}${IDENTIFIER.test(key) ? key : JSON.stringify(key)}: ${tsJson(item, inner)}`);
+    return `{\n${lines.join(",\n")},\n${indent}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function tsValue(value: Json, indent: string, nested: boolean): string {
   if (isProcRef(value)) {
-    const input = value.input === undefined ? "" : `.input(${tsValue(value.input, indent, true)})`;
+    const raw = RAW_INPUT.has(keyOf(value));
+    const input = value.input === undefined ? "" : `.input(${raw ? tsJson(value.input, indent) : tsValue(value.input, indent, true)})`;
     const name = value.$name ? `.name(${JSON.stringify(value.$name)})` : "";
     const when = value.$when ? `.when(${JSON.stringify(value.$when)})` : "";
     return `proc(${JSON.stringify(value.$proc)})${input}${name}${when}${nested ? ".ref" : ".build()"}`;

@@ -161,3 +161,32 @@ describe("other findings", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe("the examples of the gallery have no problem", () => {
+  it("reads a field of a named result with a dotted $ref (squares.results)", () => {
+    const program = call("chain", {
+      steps: [call("range", { start: 1, end: 3 }, { $name: "numbers" }), call("sum", { values: ref("numbers.results") })],
+    });
+    expect(analyzeProgram(program).unknownRefs).toEqual([]);
+  });
+
+  it("knows a procedure that procedure.define makes, and gives its body input in scope", () => {
+    const program = call("chain", {
+      steps: [
+        { $proc: ["procedure", "define"], input: { path: ["demo", "double"], aggregation: call("multiply", { a: ref("input.x"), b: 2 }) } },
+        { $proc: ["demo", "double"], input: { x: 21 } },
+      ],
+    });
+    const analysis = analyzeProgram(program, (key) => key.startsWith("client.") || key === "procedure.define");
+    expect(analysis.unknownCalls).toEqual([]);
+    expect(analysis.unknownRefs).toEqual([]);
+  });
+
+  it("gives the catch branch of tryCatch the error in scope", () => {
+    const program = call("tryCatch", { try: add(1, 1), catch: call("template", { template: "{{e}}", values: { e: ref("error") } }) });
+    expect(analyzeProgram(program).unknownRefs).toEqual([]);
+    // Only the catch branch: the try branch has no error
+    const wrong = call("tryCatch", { try: call("identity", { value: ref("error") }), catch: 0 });
+    expect(analyzeProgram(wrong).unknownRefs.map((use) => use.name)).toEqual(["error"]);
+  });
+});

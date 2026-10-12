@@ -17,6 +17,7 @@ import {
   PROCEDURE_REGISTRY,
   ProcedureRegistry,
   allCoreProcedures,
+  metaProcedures,
   observeHydration,
   type AnyProcedure,
   type HydrationEvent,
@@ -97,8 +98,10 @@ export async function runProgram(program: Json, onCall?: (count: number) => void
     });
   });
 
+  // The core procedures, and procedure.define/get/list/delete: a program can define a procedure
+  // in this registry and call it in a later step
   const registry = new ProcedureRegistry();
-  for (const procedure of allCoreProcedures) {
+  for (const procedure of [...allCoreProcedures, ...metaProcedures]) {
     registry.register(traced(procedure));
   }
 

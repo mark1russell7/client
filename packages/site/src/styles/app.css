@@ -201,15 +201,32 @@ p {
 /* A medium screen: the header keeps one row with the six pages */
 @media (max-width: 1180px) and (min-width: 721px) {
   .site-header {
-    gap: var(--space-3);
+    gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
+    flex-wrap: nowrap;
+  }
+
+  /* The links fit from about 740 px. Below that the list scrolls inside itself: no link is cut */
+  .site-header nav {
+    flex-wrap: nowrap;
+    min-width: 0;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
 
   .site-header nav a {
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1) 0.35rem;
+    font-size: var(--text-sm);
+    white-space: nowrap;
   }
 
-  .header-end .github-link {
+  .header-end {
+    gap: var(--space-1);
+  }
+
+  .header-end .github-link,
+  .theme-label {
     display: none;
   }
 }
