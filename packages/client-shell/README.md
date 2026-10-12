@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 
 > Generic shell command execution procedures - the foundation layer for all CLI wrapper packages in the Mark ecosystem.
 
@@ -161,13 +161,13 @@ graph TB
 ## Quick Start
 
 ```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-shell/register"; // Auto-registers procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-shell"; // registers its procedures // Auto-registers procedures
 
-const client = new Client({ /* transport */ });
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Run a command with arguments
-const result = await client.call(["shell", "run"], {
+const result = await client.exec(["shell", "run"], {
   command: "git",
   args: ["status", "--short"],
   cwd: "/path/to/repo",
@@ -217,7 +217,7 @@ interface ShellRunOutput {
 
 **Example:**
 ```typescript
-await client.call(["shell", "run"], {
+await client.exec(["shell", "run"], {
   command: "npm",
   args: ["install", "--save-dev", "typescript"],
   cwd: "/my/project",
@@ -254,7 +254,7 @@ interface ShellExecOutput {
 
 **Example:**
 ```typescript
-await client.call(["shell", "exec"], {
+await client.exec(["shell", "exec"], {
   command: "git log --oneline | head -5",
   cwd: "/my/repo",
 });
@@ -279,7 +279,7 @@ interface ShellWhichOutput {
 
 **Example:**
 ```typescript
-const { path, found } = await client.call(["shell", "which"], {
+const { path, found } = await client.exec(["shell", "which"], {
   command: "node",
 });
 // { path: "/usr/local/bin/node", found: true }
@@ -313,7 +313,7 @@ export async function gitStatus(input: GitStatusInput, ctx: ProcedureContext) {
 
 ```typescript
 async function ensureGitAvailable() {
-  const { found } = await client.call(["shell", "which"], { command: "git" });
+  const { found } = await client.exec(["shell", "which"], { command: "git" });
   if (!found) {
     throw new Error("Git is not installed or not in PATH");
   }
@@ -324,7 +324,7 @@ async function ensureGitAvailable() {
 
 ```typescript
 // Using shell.exec for pipes
-const result = await client.call(["shell", "exec"], {
+const result = await client.exec(["shell", "exec"], {
   command: "cat package.json | jq '.dependencies'",
   cwd: "/my/project",
 });
@@ -404,7 +404,7 @@ Claude: [Uses shell.run with command: "npm", args: ["install"]]
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 22
 - **Dependencies:**
   - `@mark1russell7/client` (peer dependency)
   - `zod` ^3.24.0

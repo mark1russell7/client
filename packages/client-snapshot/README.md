@@ -115,19 +115,20 @@ This package depends on:
 - **AWS Credentials**: Configured for S3 access (via environment or AWS CLI)
 - **Git**: For repository state capture
 - **pnpm** (optional): For full dependency restoration
-- **Node.js >=20**: Required for all operations
+- **Node.js >= 22**: Required for all operations
 
 ## Usage
 
 ### Creating Snapshots
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-snapshot"; // registers its procedures
 
-const client = new Client(/* ... */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Create a lightweight snapshot (Git repos only)
-const result = await client.call(["snapshot", "create"], {
+const result = await client.exec(["snapshot", "create"], {
   name: "feature-auth-impl",
   preset: "light",
   bucket: "my-snapshots",
@@ -176,21 +177,21 @@ Choose the right preset for your needs:
 
 ```typescript
 // Light: ~500MB - Git repos only (fast, good for code snapshots)
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: "quick-checkpoint",
   preset: "light",
   bucket: "my-snapshots",
 });
 
 // Medium: ~2GB - Git + node_modules (good for reproducible builds)
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: "stable-state",
   preset: "medium",
   bucket: "my-snapshots",
 });
 
 // Heavy: ~10GB+ - Everything including pnpm store (full recovery)
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: "complete-backup",
   preset: "heavy",
   bucket: "my-snapshots",
@@ -201,7 +202,7 @@ await client.call(["snapshot", "create"], {
 
 ```typescript
 // List all snapshots
-const list = await client.call(["snapshot", "list"], {
+const list = await client.exec(["snapshot", "list"], {
   bucket: "my-snapshots",
 });
 
@@ -222,7 +223,7 @@ console.log(list);
 // }
 
 // Filter by prefix
-const filtered = await client.call(["snapshot", "list"], {
+const filtered = await client.exec(["snapshot", "list"], {
   bucket: "my-snapshots",
   prefix: "feature-",
   maxResults: 10,
@@ -233,7 +234,7 @@ const filtered = await client.call(["snapshot", "list"], {
 
 ```typescript
 // Restore to original locations
-const restore = await client.call(["snapshot", "restore"], {
+const restore = await client.exec(["snapshot", "restore"], {
   id: "feature-auth-impl-1234567890-abc123",
   bucket: "my-snapshots",
   overwrite: false, // Safety: don't overwrite existing files
@@ -252,7 +253,7 @@ console.log(restore);
 // }
 
 // Restore to different location
-await client.call(["snapshot", "restore"], {
+await client.exec(["snapshot", "restore"], {
   id: "feature-auth-impl-1234567890-abc123",
   bucket: "my-snapshots",
   targetPath: "/tmp/restored",
@@ -264,7 +265,7 @@ await client.call(["snapshot", "restore"], {
 
 ```typescript
 // Diff current state vs snapshot
-const diff = await client.call(["snapshot", "diff"], {
+const diff = await client.exec(["snapshot", "diff"], {
   id: "feature-auth-impl-1234567890-abc123",
   bucket: "my-snapshots",
 });
@@ -295,7 +296,7 @@ console.log(diff);
 // }
 
 // Check specific paths only
-const partialDiff = await client.call(["snapshot", "diff"], {
+const partialDiff = await client.exec(["snapshot", "diff"], {
   id: "snapshot-id",
   bucket: "my-snapshots",
   paths: ["/path/to/specific/repo"],
@@ -306,7 +307,7 @@ const partialDiff = await client.call(["snapshot", "diff"], {
 
 ```typescript
 // Delete a snapshot
-const deleted = await client.call(["snapshot", "delete"], {
+const deleted = await client.exec(["snapshot", "delete"], {
   id: "old-snapshot-1234567890-xyz789",
   bucket: "my-snapshots",
 });
@@ -523,7 +524,7 @@ type SnapshotPreset = "light" | "medium" | "heavy";
 
 ```typescript
 // Before starting risky refactor
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: `before-refactor-${Date.now()}`,
   preset: "medium",
   bucket: "team-snapshots",
@@ -531,7 +532,7 @@ await client.call(["snapshot", "create"], {
 });
 
 // After refactor, compare
-const diff = await client.call(["snapshot", "diff"], {
+const diff = await client.exec(["snapshot", "diff"], {
   id: "snapshot-id",
   bucket: "team-snapshots",
 });
@@ -545,14 +546,14 @@ if (diff.summary.totalFilesChanged > 100) {
 
 ```typescript
 // In CI pipeline - capture exact build state
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: `build-${process.env.CI_COMMIT_SHA}`,
   preset: "medium",
   bucket: "ci-snapshots",
 });
 
 // Later - restore exact build environment
-await client.call(["snapshot", "restore"], {
+await client.exec(["snapshot", "restore"], {
   id: `build-${commitSha}`,
   bucket: "ci-snapshots",
   targetPath: "/tmp/build",
@@ -563,7 +564,7 @@ await client.call(["snapshot", "restore"], {
 
 ```typescript
 // Developer creates snapshot
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: "onboarding-2025-01",
   preset: "heavy",
   bucket: "team-snapshots",
@@ -571,7 +572,7 @@ await client.call(["snapshot", "create"], {
 });
 
 // New team member restores
-await client.call(["snapshot", "restore"], {
+await client.exec(["snapshot", "restore"], {
   id: "onboarding-2025-01-...",
   bucket: "team-snapshots",
   targetPath: "/home/newdev/workspace",
@@ -582,14 +583,14 @@ await client.call(["snapshot", "restore"], {
 
 ```typescript
 // Daily backup
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: `daily-${new Date().toISOString().split('T')[0]}`,
   preset: "heavy",
   bucket: "backups",
 });
 
 // After disaster - full restore
-await client.call(["snapshot", "restore"], {
+await client.exec(["snapshot", "restore"], {
   id: "daily-2025-01-14-...",
   bucket: "backups",
   overwrite: true,
@@ -602,7 +603,7 @@ await client.call(["snapshot", "restore"], {
 
 ```typescript
 // Snapshot specific repositories only
-await client.call(["snapshot", "create"], {
+await client.exec(["snapshot", "create"], {
   name: "critical-services",
   preset: "medium",
   bucket: "my-snapshots",
@@ -618,7 +619,7 @@ await client.call(["snapshot", "create"], {
 
 ```typescript
 // List and delete old snapshots
-const list = await client.call(["snapshot", "list"], {
+const list = await client.exec(["snapshot", "list"], {
   bucket: "my-snapshots",
   prefix: "daily-",
   maxResults: 100,
@@ -630,7 +631,7 @@ const toDelete = list.snapshots
   .slice(7);
 
 for (const snapshot of toDelete) {
-  await client.call(["snapshot", "delete"], {
+  await client.exec(["snapshot", "delete"], {
     id: snapshot.id,
     bucket: "my-snapshots",
   });
@@ -641,7 +642,7 @@ for (const snapshot of toDelete) {
 
 ```typescript
 // Check what would change before restore
-const diff = await client.call(["snapshot", "diff"], {
+const diff = await client.exec(["snapshot", "diff"], {
   id: "snapshot-id",
   bucket: "my-snapshots",
 });
@@ -654,7 +655,7 @@ if (!diff.summary.isMatch) {
   const confirmed = await askUserConfirmation();
 
   if (confirmed) {
-    await client.call(["snapshot", "restore"], {
+    await client.exec(["snapshot", "restore"], {
       id: "snapshot-id",
       bucket: "my-snapshots",
       overwrite: true,
@@ -678,7 +679,7 @@ if (!diff.summary.isMatch) {
 
 ```typescript
 try {
-  await client.call(["snapshot", "create"], {
+  await client.exec(["snapshot", "create"], {
     name: "my-snapshot",
     preset: "medium",
     bucket: "my-snapshots",
@@ -701,10 +702,10 @@ try {
 ### With bundle-dev
 
 ```typescript
-import "@mark1russell7/bundle-dev/register.js";
+import "@mark1russell7/bundle-dev"; // registers its procedures
 
 // snapshot.* procedures available
-await client.call(["snapshot", "create"], { ... });
+await client.exec(["snapshot", "create"], { ... });
 ```
 
 ### With client-s3

@@ -86,7 +86,7 @@ node packages/mark/dist/cli.js --help
 
 ### Prerequisites
 
-- Node.js >= 25.0.0
+- Node.js >= 22.0.0
 - pnpm (the version of the workspace `packageManager` field)
 
 ## Execution Flow

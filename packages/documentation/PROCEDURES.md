@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 155 across 26 namespaces. Loaded 20 package register(s).
+**Total procedures:** 157 across 26 namespaces. Loaded 20 package register(s).
 
 ## Namespaces
 
@@ -33,7 +33,7 @@
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
-- [`vitest.*`](#vitest) — 3 procedure(s)
+- [`vitest.*`](#vitest) — 5 procedure(s)
 
 ---
 
@@ -319,6 +319,8 @@
 | Procedure | Description |
 |-----------|-------------|
 | `vitest.coverage` | Run vitest once with coverage, and check a minimum line coverage (no shell) |
+| `vitest.list` | List the vitest watch processes of this host |
 | `vitest.run` | Run vitest tests once (no shell; uses the project's own vitest) |
+| `vitest.stop` | Stop a vitest watch process (all of them without an id) |
 | `vitest.watch` | Start vitest in watch mode (no shell; uses the project's own vitest) |
 

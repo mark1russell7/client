@@ -238,14 +238,13 @@ for (const proc of result.processes) {
 
 ## Ready Pattern Detection
 
-When spawning servers, use `readyPattern` to wait until the server is ready:
+To wait until a server is ready, give `ready.pattern` (and optionally `ready.timeout` in milliseconds):
 
 ```typescript
-// The spawn will resolve when "Server listening" appears in stdout
+// The spawn resolves when "Server listening on port" appears in stdout
 const result = await client.exec(["node", "spawn"], {
   script: "./server.js",
-  readyPattern: "Server listening on port",
-  readyTimeout: 30000
+  ready: { pattern: "Server listening on port", timeout: 30000 },
 });
 ```
 
@@ -271,16 +270,16 @@ Promise resolves with { processId, pid }
 ## Integration Example
 
 ```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-node/register";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-node"; // registers its procedures
 
-const client = new Client({ transport });
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Start a dev server
 const server = await client.exec(["node", "spawn"], {
   script: "./server.js",
   args: ["--port", "3000"],
-  readyPattern: "listening on",
+  ready: { pattern: "listening on" },
   env: { NODE_ENV: "development" }
 });
 
@@ -320,7 +319,7 @@ try {
 Import the register module to auto-register all procedures:
 
 ```typescript
-import "@mark1russell7/client-node/register";
+import "@mark1russell7/client-node"; // registers its procedures
 ```
 
 Or register manually:

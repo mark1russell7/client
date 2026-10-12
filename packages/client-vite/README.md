@@ -1,389 +1,48 @@
 # @mark1russell7/client-vite
 
-Vite development server management procedures for the client ecosystem. Start, stop, build, and preview Vite applications programmatically.
+`client-vite` starts Vite as procedures: a development server, a build, a preview server, and the stop of a server.
 
-## Architecture Overview
+| Procedure | Input | Output |
+|---|---|---|
+| `vite.dev` | `cwd`, `port`, `host`, `open` | `{ serverId, url, pid }` |
+| `vite.build` | `cwd`, `outDir`, `mode` | `{ success, outDir }` |
+| `vite.preview` | `cwd`, `port` | `{ serverId, url, pid }` |
+| `vite.stop` | `serverId` | `{ success }` |
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Client Application                              │
-│                                                                              │
-│   await client.exec(["vite", "dev"], { port: 3000, open: true })            │
-│   await client.exec(["vite", "build"], { mode: "production" })              │
-│   await client.exec(["vite", "preview"], { port: 4173 })                    │
-│   await client.exec(["vite", "stop"], { serverId: "abc123" })               │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Procedure Registry                                 │
-│                                                                              │
-│   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌─────────────┐ │
-│   │   vite.dev    │  │  vite.build   │  │ vite.preview  │  │  vite.stop  │ │
-│   │               │  │               │  │               │  │             │ │
-│   │ Start dev     │  │ Production    │  │ Preview       │  │ Stop        │ │
-│   │ server        │  │ build         │  │ build         │  │ server      │ │
-│   └───────┬───────┘  └───────┬───────┘  └───────┬───────┘  └──────┬──────┘ │
-│           │                  │                  │                 │        │
-└───────────┼──────────────────┼──────────────────┼─────────────────┼────────┘
-            │                  │                  │                 │
-            ▼                  ▼                  ▼                 ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          ServerManager (Singleton)                           │
-│                                                                              │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │                        Active Servers Map                            │   │
-│   │                                                                      │   │
-│   │   serverId: "dev-123"  ──►  { type: "dev", url, port, pid }         │   │
-│   │   serverId: "prev-456" ──►  { type: "preview", url, port, pid }     │   │
-│   │                                                                      │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Vite Process                                    │
-│                                                                              │
-│   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
-│   │   vite dev      │  │   vite build    │  │  vite preview   │            │
-│   │   (HMR Server)  │  │   (Bundle)      │  │  (Static)       │            │
-│   └─────────────────┘  └─────────────────┘  └─────────────────┘            │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+All input fields are optional, except `serverId`. Without `cwd`, a procedure uses the current folder.
 
-## Installation
-
-```bash
-pnpm add @mark1russell7/client-vite
-```
-
-## Procedures
-
-### vite.dev
-
-Start Vite development server with hot module replacement (HMR).
+## Use
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-vite"; // registers vite.*
 
-const result = await client.exec<{
-  serverId: string;
-  url: string;
-  port: number;
-}>(["vite", "dev"], {
-  cwd: "/path/to/project",
-  port: 3000,
-  host: "localhost",
-  open: true,
-  mode: "development"
-});
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
-console.log(`Dev server running at ${result.url}`);
-console.log(`Server ID: ${result.serverId}`);
+const server = await client.exec(["vite", "dev"], { cwd: "/path/to/app", port: 5173 });
+console.log(server.url); // for example http://localhost:5173/
+
+await client.exec(["vite", "stop"], { serverId: server.serverId });
+
+const build = await client.exec(["vite", "build"], { cwd: "/path/to/app", mode: "production" });
+console.log(build.outDir); // the absolute path of the output folder
 ```
 
-**Input Schema:**
+From the command line:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cwd` | `string` | No | Project directory |
-| `port` | `number` | No | Port number (default: 5173) |
-| `host` | `string` | No | Host to bind (default: localhost) |
-| `open` | `boolean` | No | Open browser automatically |
-| `mode` | `string` | No | Vite mode (development/production) |
-| `config` | `string` | No | Path to vite.config.ts |
-
-**Output Schema:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `serverId` | `string` | Server identifier for stopping |
-| `url` | `string` | Full URL where server is running |
-| `port` | `number` | Port number assigned |
-
-### vite.build
-
-Run production build.
-
-```typescript
-const result = await client.exec<{
-  success: boolean;
-  outDir: string;
-  duration: number;
-}>(["vite", "build"], {
-  cwd: "/path/to/project",
-  mode: "production",
-  outDir: "dist",
-  minify: true,
-  sourcemap: true
-});
-
-console.log(`Build completed in ${result.duration}ms`);
-console.log(`Output: ${result.outDir}`);
+```sh
+node packages/mark/dist/cli.js vite build --cwd packages/site
 ```
 
-**Input Schema:**
+## How it works
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cwd` | `string` | No | Project directory |
-| `mode` | `string` | No | Build mode |
-| `outDir` | `string` | No | Output directory |
-| `minify` | `boolean` | No | Enable minification |
-| `sourcemap` | `boolean` | No | Generate sourcemaps |
-| `config` | `string` | No | Path to vite.config.ts |
+- The procedures start the Vite of the project: they find `vite` from `cwd`, and they start its bin with Node. They use no shell and no `npx`, so a value cannot start a command, and nothing is downloaded (deep dive WRP-8). A project without Vite gets an error that tells you to add it.
+- A value of `host`, `mode` or `outDir` that starts with `-` is an error.
+- `vite.dev` and `vite.preview` wait until Vite prints its local URL, for 30 seconds at most. A server that does not get ready stops, and the procedure fails.
+- The servers are records of the process registry of `client-shell` (group `vite`). `vite.stop` stops the server and the processes that it started. The servers stop when the host process stops.
+- `vite.build` waits for the end of the build. A failed build is an error with the output of Vite.
 
-**Output Schema:**
+## Related packages
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `success` | `boolean` | Whether build succeeded |
-| `outDir` | `string` | Absolute path to output |
-| `duration` | `number` | Build time in milliseconds |
-
-### vite.preview
-
-Preview production build locally.
-
-```typescript
-const result = await client.exec<{
-  serverId: string;
-  url: string;
-  port: number;
-}>(["vite", "preview"], {
-  cwd: "/path/to/project",
-  port: 4173,
-  open: true
-});
-
-console.log(`Preview server at ${result.url}`);
-```
-
-**Input Schema:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cwd` | `string` | No | Project directory |
-| `port` | `number` | No | Port number (default: 4173) |
-| `host` | `string` | No | Host to bind |
-| `open` | `boolean` | No | Open browser automatically |
-
-**Output Schema:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `serverId` | `string` | Server identifier for stopping |
-| `url` | `string` | Full URL where preview is running |
-| `port` | `number` | Port number assigned |
-
-### vite.stop
-
-Stop a running dev or preview server, with the processes that it started (for example esbuild). Each server is a record of the process registry of `client-shell`, and it ends with the host.
-
-```typescript
-const result = await client.exec<{
-  success: boolean;
-}>(["vite", "stop"], {
-  serverId: "dev-abc123"
-});
-
-if (result.success) {
-  console.log("Server stopped successfully");
-}
-```
-
-**Input Schema:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `serverId` | `string` | Yes | Server ID from dev/preview |
-
-**Output Schema:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `success` | `boolean` | Whether stop succeeded |
-
-## Development Workflow
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Development Workflow                                │
-│                                                                              │
-│                              ┌──────────┐                                   │
-│                              │  Start   │                                   │
-│                              └────┬─────┘                                   │
-│                                   │                                         │
-│                                   ▼                                         │
-│                         ┌─────────────────┐                                 │
-│                         │   vite.dev      │                                 │
-│                         │   (HMR Server)  │                                 │
-│                         └────────┬────────┘                                 │
-│                                  │                                          │
-│              ┌───────────────────┼───────────────────┐                      │
-│              │                   │                   │                      │
-│              ▼                   ▼                   ▼                      │
-│      ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│      │ Edit Source  │    │  View in     │    │    Ready     │              │
-│      │    Files     │───►│   Browser    │    │  to Build?   │              │
-│      └──────────────┘    └──────────────┘    └───────┬──────┘              │
-│              │                   ▲                   │                      │
-│              │    HMR Update     │                   │ Yes                  │
-│              └───────────────────┘                   │                      │
-│                                                      ▼                      │
-│                                            ┌─────────────────┐              │
-│                                            │   vite.stop     │              │
-│                                            │   (Dev Server)  │              │
-│                                            └────────┬────────┘              │
-│                                                     │                       │
-│                                                     ▼                       │
-│                                            ┌─────────────────┐              │
-│                                            │   vite.build    │              │
-│                                            │  (Production)   │              │
-│                                            └────────┬────────┘              │
-│                                                     │                       │
-│                                                     ▼                       │
-│                                            ┌─────────────────┐              │
-│                                            │  vite.preview   │              │
-│                                            │   (Test Build)  │              │
-│                                            └────────┬────────┘              │
-│                                                     │                       │
-│                                                     ▼                       │
-│                                            ┌─────────────────┐              │
-│                                            │    Deploy       │              │
-│                                            └─────────────────┘              │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-## Full Example
-
-```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-vite/register";
-
-const client = new Client({ transport });
-
-async function developmentCycle() {
-  // 1. Start dev server
-  console.log("Starting dev server...");
-  const dev = await client.exec(["vite", "dev"], {
-    cwd: "./my-app",
-    port: 3000,
-    open: true
-  });
-  console.log(`Dev server running at ${dev.url}`);
-
-  // ... development happens ...
-
-  // 2. Stop dev server
-  console.log("Stopping dev server...");
-  await client.exec(["vite", "stop"], { serverId: dev.serverId });
-
-  // 3. Build for production
-  console.log("Building for production...");
-  const build = await client.exec(["vite", "build"], {
-    cwd: "./my-app",
-    mode: "production",
-    minify: true,
-    sourcemap: true
-  });
-  console.log(`Build completed in ${build.duration}ms`);
-
-  // 4. Preview the build
-  console.log("Starting preview server...");
-  const preview = await client.exec(["vite", "preview"], {
-    cwd: "./my-app",
-    port: 4173,
-    open: true
-  });
-  console.log(`Preview at ${preview.url}`);
-
-  // 5. Stop preview when done
-  await client.exec(["vite", "stop"], { serverId: preview.serverId });
-}
-```
-
-## Port Assignment
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Port Assignment                           │
-│                                                                  │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
-│   │  Requested  │────►│   Check     │────►│  Assigned   │       │
-│   │    Port     │     │ Available?  │     │    Port     │       │
-│   └─────────────┘     └──────┬──────┘     └─────────────┘       │
-│                              │                                   │
-│                              │ No                                │
-│                              ▼                                   │
-│                       ┌─────────────┐                            │
-│                       │  Try Next   │                            │
-│                       │   Port      │                            │
-│                       └──────┬──────┘                            │
-│                              │                                   │
-│                              └─────────── (repeat until found)   │
-│                                                                  │
-│   Default Ports:                                                 │
-│   • vite dev:     5173                                          │
-│   • vite preview: 4173                                          │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Server Types
-
-| Type | Command | Default Port | Purpose |
-|------|---------|--------------|---------|
-| `dev` | `vite dev` | 5173 | Development with HMR |
-| `preview` | `vite preview` | 4173 | Preview production build |
-
-## Integration with Other Packages
-
-### With client-node (for complete dev environment)
-
-```typescript
-// Start backend
-const backend = await client.exec(["node", "spawn"], {
-  script: "./server/index.js",
-  readyPattern: "API listening on"
-});
-
-// Start frontend
-const frontend = await client.exec(["vite", "dev"], {
-  port: 3000
-});
-
-// Cleanup
-await client.exec(["vite", "stop"], { serverId: frontend.serverId });
-await client.exec(["node", "kill"], { processId: backend.processId });
-```
-
-## Auto-Registration
-
-Import the register module to auto-register all procedures:
-
-```typescript
-import "@mark1russell7/client-vite/register";
-```
-
-Or register manually:
-
-```typescript
-import { registerViteProcedures } from "@mark1russell7/client-vite";
-
-registerViteProcedures();
-```
-
-## Related Packages
-
-- `@mark1russell7/client` - Core client framework
-- `@mark1russell7/client-node` - Node.js process management
-- `@mark1russell7/client-shell` - Shell command execution
-
-## License
-
-MIT
+- `client-shell`: the process registry and `runCommand()`.
+- `client-node`: Node processes as procedures.

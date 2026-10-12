@@ -112,7 +112,7 @@ npm install @mark1russell7/client-fs
 Read file contents as a string.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["fs", "read"],
   {
     path: "./config.json",
@@ -146,7 +146,7 @@ interface ReadOutput {
 Write content to a file.
 
 ```typescript
-await client.call(
+await client.exec(
   ["fs", "write"],
   {
     path: "./output.txt",
@@ -179,7 +179,7 @@ interface WriteOutput {
 Check if a path exists and get its type.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["fs", "exists"],
   { path: "./my-file.txt" }
 );
@@ -208,7 +208,7 @@ type ExistsOutput =
 Get file or directory statistics.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["fs", "stat"],
   { path: "./my-directory" }
 );
@@ -249,13 +249,13 @@ Remove a file or directory.
 
 ```typescript
 // Remove file
-await client.call(
+await client.exec(
   ["fs", "rm"],
   { path: "./old-file.txt" }
 );
 
 // Remove directory recursively
-await client.call(
+await client.exec(
   ["fs", "rm"],
   {
     path: "./old-directory",
@@ -289,7 +289,7 @@ interface RmOutput {
 Create a directory.
 
 ```typescript
-await client.call(
+await client.exec(
   ["fs", "mkdir"],
   {
     path: "./new/nested/directory",
@@ -319,7 +319,7 @@ interface MkdirOutput {
 List directory contents.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["fs", "readdir"],
   {
     path: "./src",
@@ -366,7 +366,7 @@ Copy a file or directory.
 
 ```typescript
 // Copy file
-await client.call(
+await client.exec(
   ["fs", "copy"],
   {
     src: "./source.txt",
@@ -376,7 +376,7 @@ await client.call(
 );
 
 // Copy directory recursively
-await client.call(
+await client.exec(
   ["fs", "copy"],
   {
     src: "./src-dir",
@@ -409,7 +409,7 @@ interface CopyOutput {
 Move or rename a file or directory.
 
 ```typescript
-await client.call(
+await client.exec(
   ["fs", "move"],
   {
     src: "./old-name.txt",
@@ -443,7 +443,7 @@ interface MoveOutput {
 Find files matching a glob pattern using the Node.js `fs.glob` API (`node:fs/promises`, requires Node >= 22).
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["fs", "glob"],
   {
     pattern: "src/**/*.{ts,tsx}",
@@ -499,7 +499,7 @@ interface GlobOutput {
 Read and parse a JSON file.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["fs", "read.json"],
   { path: "./package.json" }
 );
@@ -531,7 +531,7 @@ interface PackageJson {
   dependencies: Record<string, string>;
 }
 
-const result = await client.call(
+const result = await client.exec(
   ["fs", "read.json"],
   { path: "./package.json" }
 );
@@ -545,18 +545,19 @@ console.log(pkg.name, pkg.version);
 ### Basic File Operations
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-fs"; // registers its procedures
 
-const client = new Client(/* config */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Read a file
-const { content } = await client.call(
+const { content } = await client.exec(
   ["fs", "read"],
   { path: "./README.md" }
 );
 
 // Write to a file
-await client.call(
+await client.exec(
   ["fs", "write"],
   {
     path: "./output.txt",
@@ -566,7 +567,7 @@ await client.call(
 );
 
 // Append to a file
-await client.call(
+await client.exec(
   ["fs", "write"],
   {
     path: "./log.txt",
@@ -576,14 +577,14 @@ await client.call(
 );
 
 // Check if file exists
-const exists = await client.call(
+const exists = await client.exec(
   ["fs", "exists"],
   { path: "./config.json" }
 );
 
 if (exists.exists) {
   // Get file stats
-  const stats = await client.call(
+  const stats = await client.exec(
     ["fs", "stat"],
     { path: "./config.json" }
   );
@@ -595,7 +596,7 @@ if (exists.exists) {
 
 ```typescript
 // Create nested directories
-await client.call(
+await client.exec(
   ["fs", "mkdir"],
   {
     path: "./build/assets/images",
@@ -604,7 +605,7 @@ await client.call(
 );
 
 // List directory contents
-const { entries } = await client.call(
+const { entries } = await client.exec(
   ["fs", "readdir"],
   {
     path: "./src",
@@ -621,7 +622,7 @@ entries.forEach(entry => {
 });
 
 // Recursive directory listing
-const { entries: allFiles } = await client.call(
+const { entries: allFiles } = await client.exec(
   ["fs", "readdir"],
   {
     path: "./src",
@@ -636,7 +637,7 @@ console.log(`Total items: ${allFiles.length}`);
 
 ```typescript
 // Backup a file
-await client.call(
+await client.exec(
   ["fs", "copy"],
   {
     src: "./important-data.json",
@@ -645,7 +646,7 @@ await client.call(
 );
 
 // Copy entire directory
-await client.call(
+await client.exec(
   ["fs", "copy"],
   {
     src: "./templates",
@@ -656,7 +657,7 @@ await client.call(
 );
 
 // Rename a file
-await client.call(
+await client.exec(
   ["fs", "move"],
   {
     src: "./old-name.txt",
@@ -665,7 +666,7 @@ await client.call(
 );
 
 // Move to different directory
-await client.call(
+await client.exec(
   ["fs", "move"],
   {
     src: "./temp/file.txt",
@@ -679,7 +680,7 @@ await client.call(
 
 ```typescript
 // Find all TypeScript files
-const { matches: tsFiles } = await client.call(
+const { matches: tsFiles } = await client.exec(
   ["fs", "glob"],
   {
     pattern: "**/*.ts",
@@ -691,7 +692,7 @@ const { matches: tsFiles } = await client.call(
 console.log(`Found ${tsFiles.length} TypeScript files`);
 
 // Find test files
-const { matches: testFiles } = await client.call(
+const { matches: testFiles } = await client.exec(
   ["fs", "glob"],
   {
     pattern: "**/*.{test,spec}.{ts,js}",
@@ -700,7 +701,7 @@ const { matches: testFiles } = await client.call(
 );
 
 // Find config files
-const { matches: configs } = await client.call(
+const { matches: configs } = await client.exec(
   ["fs", "glob"],
   {
     pattern: "**/*.config.{js,ts,json}",
@@ -713,7 +714,7 @@ const { matches: configs } = await client.call(
 
 ```typescript
 // Read package.json
-const { data: pkg } = await client.call(
+const { data: pkg } = await client.exec(
   ["fs", "read.json"],
   { path: "./package.json" }
 );
@@ -721,7 +722,7 @@ const { data: pkg } = await client.call(
 console.log(`Package: ${pkg.name}@${pkg.version}`);
 
 // Read tsconfig.json
-const { data: tsconfig } = await client.call(
+const { data: tsconfig } = await client.exec(
   ["fs", "read.json"],
   { path: "./tsconfig.json" }
 );
@@ -729,14 +730,14 @@ const { data: tsconfig } = await client.call(
 console.log("Compiler options:", tsconfig.compilerOptions);
 
 // Read and modify JSON
-const { data: config } = await client.call(
+const { data: config } = await client.exec(
   ["fs", "read.json"],
   { path: "./config.json" }
 );
 
 config.lastUpdated = new Date().toISOString();
 
-await client.call(
+await client.exec(
   ["fs", "write"],
   {
     path: "./config.json",
@@ -749,7 +750,7 @@ await client.call(
 
 ```typescript
 // Clean build directory
-await client.call(
+await client.exec(
   ["fs", "rm"],
   {
     path: "./dist",
@@ -759,13 +760,13 @@ await client.call(
 );
 
 // Create build directory
-await client.call(
+await client.exec(
   ["fs", "mkdir"],
   { path: "./dist" }
 );
 
 // Find all source files
-const { matches: sourceFiles } = await client.call(
+const { matches: sourceFiles } = await client.exec(
   ["fs", "glob"],
   {
     pattern: "src/**/*.ts",
@@ -775,7 +776,7 @@ const { matches: sourceFiles } = await client.call(
 
 // Process each file...
 for (const file of sourceFiles) {
-  const { content } = await client.call(
+  const { content } = await client.exec(
     ["fs", "read"],
     { path: file }
   );
@@ -783,7 +784,7 @@ for (const file of sourceFiles) {
   // Transform content...
   const transformed = content.replace(/\.ts$/, ".js");
 
-  await client.call(
+  await client.exec(
     ["fs", "write"],
     {
       path: file.replace("src/", "dist/").replace(".ts", ".js"),
@@ -793,7 +794,7 @@ for (const file of sourceFiles) {
 }
 
 // Copy assets
-await client.call(
+await client.exec(
   ["fs", "copy"],
   {
     src: "./public",
@@ -811,9 +812,9 @@ await client.call(
 
 ```typescript
 // In bundle-dev/src/register.ts
-import "@mark1russell7/client-fs/register.js";
-import "@mark1russell7/client-shell/register.js";
-import "@mark1russell7/client-cli/register.js";
+import "@mark1russell7/client-fs"; // registers its procedures
+import "@mark1russell7/client-shell"; // registers its procedures
+import "@mark1russell7/client-cli"; // registers its procedures
 ```
 
 ## Dependencies

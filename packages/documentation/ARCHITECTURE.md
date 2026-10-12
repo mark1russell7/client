@@ -1,604 +1,105 @@
-# Mark Ecosystem Architecture
-
-> **Written before the monorepo move (October 2026). Read it as history.**
-> The client packages now live in one repository: `~/git/client`, one folder per package in `packages/`.
-> `lib.install`, `lib.pull`, `lib.refresh`, the ecosystem manifest and several dead packages were removed.
-> For the current state, see the repository [README](../../README.md), [PACKAGES.md](./PACKAGES.md) and
-> [PROCEDURES.md](./PROCEDURES.md) (both generated), and [DECISIONS-2026-10.md](./DECISIONS-2026-10.md).
-
-> Comprehensive architecture documentation for the Mark procedure ecosystem.
-
-> **Accuracy note (July 2026):** This document was corrected against the code during the
-> [July 2026 audit](./AUDIT-2026-07.md). The bundle composition, dependency matrix, and
-> procedure counts below now reflect the actual `register.ts` / `package.json` contents.
-> For known gaps between docs and code across the whole ecosystem, see
-> [AUDIT-2026-07.md](./AUDIT-2026-07.md) and [BUGS-2026-07.md](./BUGS-2026-07.md).
-
-## Table of Contents
-
-- [System Overview](#system-overview)
-- [Package Dependency Graph](#package-dependency-graph)
-- [Data Flow](#data-flow)
-- [Procedure System](#procedure-system)
-- [Transport Layer](#transport-layer)
-- [MCP Integration](#mcp-integration)
-- [Bundle Composition](#bundle-composition)
-
----
-
-## System Overview
-
-The Mark ecosystem is organized into **layers** with clear responsibilities:
-
-```mermaid
-graph TB
-    subgraph "Layer 1: Entry Points"
-        CLI[CLI<br/>mark lib new, mark procedure new]
-        MCP[MCP Server<br/>impl-mcp-dev]
-        HTTP[HTTP Server<br/>server package]
-        Direct[Direct Import<br/>Programmatic use]
-    end
-
-    subgraph "Layer 2: Bundles"
-        BundleDev[bundle-dev<br/>All procedures]
-        BundleMCP[bundle-mcp<br/>AI-optimized]
-    end
-
-    subgraph "Layer 3: Client Packages"
-        ClientFS[client-fs]
-        ClientGit[client-git]
-        ClientShell[client-shell]
-        ClientDocker[client-docker]
-        ClientMongo[client-mongo]
-        ClientLib[client-lib]
-        ClientMore[...]
-    end
-
-    subgraph "Layer 4: Core Framework"
-        Client[client<br/>RPC + Procedures]
-        Cue[cue<br/>Config Gen]
-        Logger[logger]
-    end
-
-    CLI --> BundleDev
-    MCP --> BundleMCP
-    HTTP --> BundleDev
-    Direct --> ClientFS
-    Direct --> ClientGit
-
-    BundleDev --> ClientShell
-    BundleDev --> ClientFS
-    BundleDev --> ClientLib
-    BundleDev --> ClientGit
-
-    BundleMCP --> ClientDocker
-    BundleMCP --> ClientMongo
-    BundleMCP --> ClientLib
-
-    ClientFS --> Client
-    ClientGit --> Client
-    ClientShell --> Client
-    ClientDocker --> Client
-    ClientMongo --> Client
-    ClientLib --> Client
-    ClientMore --> Client
-
-    ClientLib --> Cue
-```
-
-### ASCII Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           LAYER 1: ENTRY POINTS                              │
-│                                                                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │    CLI      │  │ MCP Server  │  │ HTTP Server │  │   Direct    │        │
-│  │  mark ...   │  │  (Claude)   │  │  REST API   │  │   Import    │        │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
-└─────────┼────────────────┼────────────────┼────────────────┼────────────────┘
-          │                │                │                │
-          ▼                ▼                ▼                ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           LAYER 2: BUNDLES                                   │
-│                                                                              │
-│  ┌─────────────────────────────────┐  ┌─────────────────────────────────┐  │
-│  │          bundle-dev             │  │          bundle-mcp             │  │
-│  │                                 │  │                                 │  │
-│  │  Dev workflow (8 pkgs)          │  │  Curated for AI (11 pkgs)       │  │
-│  │  • shell, fs, cli, pnpm         │  │  • cli, lib, procedure, cue     │  │
-│  │  • lib, git, dag                │  │  • docker, snapshot, mongo      │  │
-│  │  • procedure                    │  │  • sqlite, s3, vitest, test     │  │
-│  └────────────────┬────────────────┘  └────────────────┬────────────────┘  │
-└───────────────────┼────────────────────────────────────┼────────────────────┘
-                    │                                    │
-                    ▼                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        LAYER 3: CLIENT PACKAGES                              │
-│                                                                              │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │
-│  │client-fs│ │client-  │ │client-  │ │client-  │ │client-  │ │client-  │  │
-│  │         │ │  git    │ │ shell   │ │ docker  │ │  mongo  │ │  lib    │  │
-│  │ fs.read │ │git.clone│ │shell.run│ │docker.ps│ │mongo.*  │ │lib.scan │  │
-│  │fs.write │ │git.pull │ │shell.   │ │docker.  │ │         │ │lib.new  │  │
-│  │ fs.list │ │git.push │ │  exec   │ │  build  │ │         │ │lib.     │  │
-│  │  ...    │ │  ...    │ │  ...    │ │  ...    │ │         │ │ refresh │  │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘  │
-│       │          │          │          │          │          │           │
-│       └──────────┴──────────┴──────────┴──────────┴──────────┘           │
-│                                    │                                       │
-└────────────────────────────────────┼───────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         LAYER 4: CORE FRAMEWORK                              │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        @mark1russell7/client                         │   │
-│  │                                                                       │   │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
-│  │  │ Procedure System│  │   Client Core   │  │   Middleware    │      │   │
-│  │  │                 │  │                 │  │                 │      │   │
-│  │  │ • Registry      │  │ • Client class  │  │ • Retry         │      │   │
-│  │  │ • Definition    │  │ • call()        │  │ • Cache         │      │   │
-│  │  │ • Validation    │  │ • stream()      │  │ • Timeout       │      │   │
-│  │  │ • Execution     │  │ • exec()        │  │ • Auth          │      │   │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
-│  │                                                                       │   │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
-│  │  │   Transports    │  │   Collections   │  │   Components    │      │   │
-│  │  │                 │  │                 │  │                 │      │   │
-│  │  │ • HTTP          │  │ • HashMap       │  │ • SSR support   │      │   │
-│  │  │ • WebSocket     │  │ • ArrayList     │  │ • Type-safe     │      │   │
-│  │  │ • Local         │  │ • PriorityQueue │  │ • Serializable  │      │   │
-│  │  │ • Mock          │  │ • LRU/TTL       │  │                 │      │   │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐         │
-│  │       cue        │  │      logger      │  │    ecosystem     │         │
-│  │ Config generation│  │ Structured logs  │  │ Package manifest │         │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘         │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Package Dependency Graph
-
-### Core Dependencies
-
-```mermaid
-graph LR
-    subgraph "Foundation"
-        Logger[logger]
-        Cue[cue]
-    end
-
-    subgraph "Core"
-        Client[client]
-    end
-
-    subgraph "Low-Level Clients"
-        Shell[client-shell]
-        FS[client-fs]
-        Git[client-git]
-        DAG[client-dag]
-    end
-
-    subgraph "High-Level Clients"
-        Pnpm[client-pnpm]
-        Docker[client-docker]
-        Lib[client-lib]
-        CLI[client-cli]
-    end
-
-    Shell --> Client
-    FS --> Client
-    Git --> Client
-    DAG --> Client
-
-    Pnpm --> Shell
-    Docker --> Shell
-    CLI --> Shell
-    Lib --> Shell
-    Lib --> Git
-    Lib --> FS
-    Lib --> DAG
-    Lib --> Pnpm
-```
-
-### Full Dependency Matrix
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         DEPENDENCY MATRIX                                    │
-├────────────────────┬────────────────────────────────────────────────────────┤
-│ Package            │ Depends On                                              │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ client             │ ws                                                      │
-│ cue                │ (standalone)                                            │
-│ logger             │ (standalone)                                            │
-│ ecosystem          │ (standalone - manifest only)                            │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ client-shell       │ client                                                  │
-│ client-fs          │ client                                                  │
-│ client-git         │ client                                                  │
-│ client-dag         │ client                                                  │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ client-pnpm        │ client, client-shell                                   │
-│ client-docker      │ client, client-shell                                   │
-│ client-cli         │ client, client-shell                                   │
-│ client-test        │ client, client-shell                                   │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ client-lib         │ client, client-shell, client-git, client-fs,           │
-│                    │ client-dag, client-pnpm                                │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ client-mongo       │ client, mongodb                                        │
-│ client-sqlite      │ client, sql.js                                         │
-│ client-s3          │ client, @aws-sdk/client-s3                            │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ bundle-dev         │ dev-tier client-* pkg                                  │
-│ bundle-mcp         │ curated client-* packages                              │
-├────────────────────┼────────────────────────────────────────────────────────┤
-│ mcp                │ client, zod                                            │
-│ client-mcp         │ client, mcp, @modelcontextprotocol/sdk                │
-│ impl-mcp-dev       │ client, client-mcp, bundle-mcp                        │
-└────────────────────┴────────────────────────────────────────────────────────┘
-```
-
----
-
-## Data Flow
-
-### Procedure Call Flow
-
-```mermaid
-sequenceDiagram
-    participant App as Application
-    participant Client as Client
-    participant Registry as PROCEDURE_REGISTRY
-    participant Handler as Procedure Handler
-    participant External as External Service
-
-    App->>Client: call(["fs", "read"], { path: "..." })
-    Client->>Registry: lookup(["fs", "read"])
-    Registry-->>Client: Procedure definition
-    Client->>Client: Validate input (Zod)
-    Client->>Handler: Execute handler(input, ctx)
-    Handler->>External: fs.readFile(path)
-    External-->>Handler: file content
-    Handler-->>Client: { content: "..." }
-    Client->>Client: Validate output (Zod)
-    Client-->>App: Result
-```
-
-### ASCII Version
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         PROCEDURE CALL FLOW                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-  Application                Client                Registry              Handler
-      │                         │                     │                     │
-      │  call(["fs","read"])    │                     │                     │
-      │────────────────────────▶│                     │                     │
-      │                         │                     │                     │
-      │                         │  lookup(path)       │                     │
-      │                         │────────────────────▶│                     │
-      │                         │                     │                     │
-      │                         │◀────────────────────│                     │
-      │                         │   Procedure def     │                     │
-      │                         │                     │                     │
-      │                         │  Validate input     │                     │
-      │                         │◀─────────┐          │                     │
-      │                         │          │          │                     │
-      │                         │──────────┘          │                     │
-      │                         │                     │                     │
-      │                         │  Execute handler    │                     │
-      │                         │────────────────────────────────────────────▶
-      │                         │                     │                     │
-      │                         │◀────────────────────────────────────────────
-      │                         │   Result            │                     │
-      │                         │                     │                     │
-      │                         │  Validate output    │                     │
-      │                         │◀─────────┐          │                     │
-      │                         │          │          │                     │
-      │                         │──────────┘          │                     │
-      │                         │                     │                     │
-      │◀────────────────────────│                     │                     │
-      │   Typed result          │                     │                     │
-      │                         │                     │                     │
-```
-
----
-
-## Procedure System
-
-### Procedure Definition
-
-```mermaid
-graph TB
-    subgraph "Procedure Definition"
-        Path[path: string[]]
-        Input[input: ZodSchema]
-        Output[output: ZodSchema]
-        Handler[handler: Function]
-        Meta[metadata: Object]
-    end
-
-    subgraph "Registration"
-        Registry[PROCEDURE_REGISTRY]
-        AutoReg[Auto-registration<br/>via import]
-    end
-
-    subgraph "Execution"
-        Client[Client.call()]
-        Validation[Schema Validation]
-        Execution[Handler Execution]
-    end
-
-    Path --> Registry
-    Input --> Registry
-    Output --> Registry
-    Handler --> Registry
-    Meta --> Registry
-    AutoReg --> Registry
-
-    Registry --> Client
-    Client --> Validation
-    Validation --> Execution
-```
-
-### Procedure Lifecycle
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        PROCEDURE LIFECYCLE                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-1. DEFINITION
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  const readFile = createProcedure()                                    │
-   │    .path(["fs", "read"])                                               │
-   │    .input(z.object({ path: z.string() }))                              │
-   │    .output(z.object({ content: z.string() }))                          │
-   │    .handler(async (input) => { ... })                                  │
-   │    .build();                                                           │
-   └────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-2. REGISTRATION
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  registerProcedures([readFile]);                                       │
-   │  // or auto-register via import side-effect                            │
-   │  import "@mark1russell7/client-fs/register.js";                       │
-   └────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-3. DISCOVERY
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  PROCEDURE_REGISTRY.list() → [{ path: ["fs", "read"], ... }, ...]     │
-   │  PROCEDURE_REGISTRY.get(["fs", "read"]) → Procedure                   │
-   └────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-4. EXECUTION
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  const result = await client.call(["fs", "read"], { path: "/etc" });  │
-   │  // Input validated → Handler executed → Output validated → Returned   │
-   └────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Transport Layer
-
-### Transport Architecture
-
-```mermaid
-graph TB
-    subgraph "Client Side"
-        Client[Client]
-        MW[Middleware Chain]
-    end
-
-    subgraph "Transports"
-        HTTP[HTTP Transport]
-        WS[WebSocket Transport]
-        Local[Local Transport]
-        MCP[MCP Transport]
-    end
-
-    subgraph "Server Side"
-        Server[Server]
-        Handler[Handlers]
-    end
-
-    Client --> MW
-    MW --> HTTP
-    MW --> WS
-    MW --> Local
-    MW --> MCP
-
-    HTTP --> Server
-    WS --> Server
-    Local --> Server
-
-    Server --> Handler
-```
-
-### Transport Comparison
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        TRANSPORT COMPARISON                                  │
-├─────────────┬───────────┬───────────┬───────────┬───────────────────────────┤
-│ Transport   │ Protocol  │ Streaming │ Use Case  │ Notes                      │
-├─────────────┼───────────┼───────────┼───────────┼───────────────────────────┤
-│ HTTP        │ HTTP/1.1  │ No        │ REST API  │ Standard request/response │
-│ WebSocket   │ WS        │ Yes       │ Real-time │ Bidirectional streaming   │
-│ Local       │ In-process│ Yes       │ Testing   │ No network overhead       │
-│ MCP (stdio) │ stdio     │ No        │ Claude    │ Model Context Protocol    │
-└─────────────┴───────────┴───────────┴───────────┴───────────────────────────┘
-```
-
----
-
-## MCP Integration
-
-### MCP Architecture
-
-```mermaid
-graph TB
-    subgraph "Claude Desktop/Code"
-        Claude[Claude AI]
-    end
-
-    subgraph "MCP Protocol"
-        Stdio[stdio transport]
-    end
-
-    subgraph "impl-mcp-dev"
-        Server[MCP Server]
-        Convert[proceduresToMcpTools]
-    end
-
-    subgraph "Procedure Registry"
-        Registry[PROCEDURE_REGISTRY]
-        Procs[Registered Procedures]
-    end
-
-    subgraph "Bundles"
-        Bundle[bundle-mcp]
-        Clients[client-*]
-    end
-
-    Claude <-->|MCP Protocol| Stdio
-    Stdio <--> Server
-    Server --> Convert
-    Convert --> Registry
-    Registry --> Procs
-    Bundle --> Clients
-    Clients --> Procs
-```
-
-### MCP Flow
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            MCP FLOW                                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-1. STARTUP
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  Claude starts MCP server via stdio                                    │
-   │                                                                         │
-   │  claude_desktop_config.json:                                           │
-   │  {                                                                      │
-   │    "mcpServers": {                                                      │
-   │      "dev-tools": {                                                     │
-   │        "command": "node",                                               │
-   │        "args": ["/path/to/impl-mcp-dev/dist/server.js"]               │
-   │      }                                                                  │
-   │    }                                                                    │
-   │  }                                                                      │
-   └────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-2. TOOL DISCOVERY
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  Claude → ListToolsRequest                                             │
-   │                                                                         │
-   │  Server:                                                                │
-   │  1. import "@mark1russell7/bundle-mcp/register.js"                    │
-   │  2. procedures = PROCEDURE_REGISTRY.list()                             │
-   │  3. tools = proceduresToMcpTools(procedures)                           │
-   │                                                                         │
-   │  Server → ListToolsResponse: [{ name: "docker.ps", ... }, ...]        │
-   └────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-3. TOOL EXECUTION
-   ┌────────────────────────────────────────────────────────────────────────┐
-   │  Claude → CallToolRequest: { name: "docker.ps", arguments: {} }       │
-   │                                                                         │
-   │  Server:                                                                │
-   │  1. procedure = PROCEDURE_REGISTRY.get(["docker", "ps"])              │
-   │  2. result = await procedure.handler({}, ctx)                          │
-   │                                                                         │
-   │  Server → CallToolResponse: { content: [{ type: "text", ... }] }      │
-   └────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Bundle Composition
-
-### Bundle Architecture
-
-```mermaid
-graph LR
-    subgraph "bundle-dev (Full)"
-        Dev_FS[client-fs]
-        Dev_Git[client-git]
-        Dev_Shell[client-shell]
-        Dev_Pnpm[client-pnpm]
-        Dev_Docker[client-docker]
-        Dev_Mongo[client-mongo]
-        Dev_Lib[client-lib]
-        Dev_More[...]
-    end
-
-    subgraph "bundle-mcp (Curated)"
-        MCP_Docker[client-docker]
-        MCP_Mongo[client-mongo]
-        MCP_Lib[client-lib]
-        MCP_CLI[client-cli]
-        MCP_More[...]
-    end
-
-    style Dev_FS fill:#f97316,color:#fff
-    style Dev_Git fill:#f97316,color:#fff
-    style Dev_Shell fill:#f97316,color:#fff
-    style Dev_Pnpm fill:#f97316,color:#fff
-```
-
-### Bundle Comparison Table
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        BUNDLE COMPARISON                                     │
-├─────────────────────────────────┬─────────────────────┬─────────────────────┤
-│ Package Category                │ bundle-dev          │ bundle-mcp          │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Low-level FS/Git/Shell/PNPM     │ ✓ Included          │ ✗ Excluded          │
-│ (fs.*, git.*, shell.*, pnpm.*)  │                     │ (Claude has shell)  │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Ecosystem Management            │ ✓ Included          │ ✓ Included          │
-│ (lib.*, cli.*, procedure.*)     │                     │                     │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Infrastructure                  │ ✗ Excluded          │ ✓ Included          │
-│ (docker.*, snapshot.*)          │                     │                     │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Databases                       │ ✗ Excluded          │ ✓ Included          │
-│ (mongo.*, db.*, s3.*)           │                     │                     │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Testing                         │ ✗ Excluded          │ ✓ Included          │
-│ (vitest.*, test.*)              │                     │                     │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Total Procedures                │ ~100+               │ ~50+                │
-├─────────────────────────────────┼─────────────────────┼─────────────────────┤
-│ Primary Use Case                │ CLI / Development   │ MCP / AI Integration│
-└─────────────────────────────────┴─────────────────────┴─────────────────────┘
-```
-
----
-
-## See Also
-
-- [README](./README.md) - Ecosystem overview
-- [Procedures](./PROCEDURES.md) - Complete procedure catalog
-- [Onboarding](./ONBOARDING.md) - Getting started guide
-- [Packages](./PACKAGES.md) - Detailed package descriptions
+# Architecture
+
+This document describes the client ecosystem as it is in the monorepo, after the deep dive of October 2026. The [July 2026 version](./history/ARCHITECTURE-2026-07.md) is history. The roadmap and the open items are in [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md).
+
+## The idea
+
+The ecosystem is a set of procedures. Each procedure has a path, for example `git.commit` or `fs.read`, an input schema, an output schema and a handler. A package registers its procedures in a registry. A host serves the registry: the `mark` CLI, an HTTP or WebSocket server, the MCP server for Claude, or the Composer of the site.
+
+A program is JSON that names procedures and their inputs. [PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md) specifies it.
+
+## The layers
+
+| Layer | Packages | Role |
+|---|---|---|
+| Core | `client` | Procedures, the registry, `invokeProcedure()`, the program interpreter, `Client`, the transports and the servers |
+| Support libraries | `client-collections`, `client-dag` | Data structures and graph algorithms. They register no procedures. |
+| Command wrappers | `client-shell`, `client-git`, `client-docker`, `client-pnpm`, `client-node`, `client-vite`, `client-vitest`, `client-cue`, `client-cli` | Each package wraps one tool. All of them start programs through `runCommand()` of `client-shell`. |
+| Data and services | `client-fs`, `client-s3`, `client-mongo`, `client-sqlite`, `client-snapshot`, `client-splay` | Files, storage and databases as procedures |
+| Workspace tools | `client-lib`, `client-procedure` | `lib.*` (scan, new, audit, rename) and `procedure.new` |
+| Bundles | `bundle-dev`, `bundle-mcp` | Sets of packages. `bundle-mcp` also gives the tool list of the MCP server. |
+| Hosts | `mark`, `client-server`, `server`, `client-mcp`, `mcp`, `impl-mcp-dev` | The CLI, the peer server and the MCP server |
+| User interface | `site` | The website, with the Composer |
+| Repository tool | `cli` | The template commands of the repository (`pnpm package`, `pnpm template`) |
+
+[PACKAGES.md](./PACKAGES.md) lists each package with its procedures and dependencies. [PROCEDURES.md](./PROCEDURES.md) lists each procedure. A script makes both files from the built packages.
+
+## A procedure
+
+A procedure is an object with these fields (`packages/client/src/procedures/types.ts`):
+
+- `path`: an array of strings, for example `["git", "commit"]`. The registry refuses the segments `__proto__`, `constructor`, `prototype` and empty segments.
+- `input` and `output`: schemas with `safeParse()`. Most packages use Zod through `zodAdapter()`. `outputSchema<T>()` accepts any value.
+- `handler(input, ctx)`: gives one value, or it is an async generator that yields values (a stream).
+- `metadata`: a description, tags and CLI metadata. The tags `runs-refs` and `raw-input` change how a program gives input to the procedure ([PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md), section 9).
+
+A package registers its procedures when it is imported: its `src/register.ts` gives them to `registerProcedures()`, and its root `index.ts` imports `register.js`. The `client.procedures` field of `package.json` tells `mark` which packages to load. The core registers its control-flow procedures and its meta procedures when it is imported. The other 85 core procedures (math, string, array and more) are in `allCoreProcedures`, and a host registers them if it needs them.
+
+## One invocation path
+
+Every host starts a procedure with `invokeProcedure()` in [`packages/client/src/procedures/invoke.ts`](../client/src/procedures/invoke.ts). The function does these steps:
+
+1. It refuses a procedure without a handler (`NO_HANDLER`) and an aborted signal (`ABORTED`).
+2. It validates the input with the input schema (`VALIDATION_ERROR`).
+3. It makes the context: `ctx.client` for nested calls, `ctx.registry`, `ctx.metadata`, `ctx.signal` and `ctx.bus`.
+4. It starts the handler.
+5. When the handler gives a value, it validates the value (`OUTPUT_VALIDATION_ERROR`). When the handler gives an async iterable, the result is a stream. The function validates each item when the reader takes it.
+
+`invokePath()` finds a procedure in a registry first (`NOT_FOUND`). `outputValue()` gives one value: the value, or the last item of a stream. `outputItems()` gives each item.
+
+Each nested call of `ctx.client` goes through `invokePath()` with the same options: the same registry, metadata, signal and `expose` rule. A data-driven procedure can use only the exposed procedures (`NOT_EXPOSED`). The section "Security" explains this rule.
+
+## The client
+
+`Client` ([`packages/client/src/client/client.ts`](../client/src/client/client.ts)) has two ways to start a procedure:
+
+- `call(method, input)` and `stream(method, input)` send a method to a transport. A method is `{ service, operation }`. `pathToMethod()` makes it from a path: the last segment is the operation, and the other segments joined with dots are the service. `call()` gives the last item of a stream.
+- `exec(program)` and `execStream(program)` start a program in this process. They hydrate the input first ([PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md)). A path that the local registry does not have goes to the transport.
+
+`route()` and `routeStream()` start a tree of calls in one request, with a batch strategy. The client middlewares wrap the transport: `auth`, `cache` (opt-in for each method), `circuit-breaker`, `pagination`, `rate-limit`, `retry`, `timeout` and `tracing` (`packages/client/src/client/middleware/`). They apply to `call()` and `stream()`, not to procedures in the same process.
+
+The transports are `LocalTransport` (a registry in this process), `HttpTransport` and `WebSocketTransport`. The server side has `HttpServerTransport` and `WebSocketServerTransport`. `ProcedureServer` connects a registry to the server transports. It looks up the live registry for each request, so a procedure that is registered later is served.
+
+## The hosts
+
+| Host | Package | How it starts procedures |
+|---|---|---|
+| `mark`, local mode | `mark` | It imports each package with `client.procedures`, parses the command line against the procedure's schema, and starts the procedure with `LocalTransport`. |
+| `mark`, warm mode | `mark`, `client-server` | `mark --server` starts a peer server on `127.0.0.1` and writes a lockfile in `~/.mark/servers/`. A later `mark` command in the same folder, from the same build, sends the command to that server over HTTP. |
+| `server` | `server`, `client-server` | A standalone HTTP and WebSocket server for the procedure packages that it loads. |
+| The MCP server | `impl-mcp-dev`, `client-mcp`, `bundle-mcp` | Claude Code starts it over stdio. `ProcedureServer` with an `expose` rule, and `McpServerTransport`. |
+| The Composer | `site` | It starts programs in a Web Worker of the browser, with `LocalTransport` and the core procedures. |
+
+The warm mode removes the start time of Node for a command. The CLI still imports the packages before it looks for a server (roadmap item 1.3).
+
+## Streaming
+
+A procedure whose handler is an async generator is a stream. Each host gives the items as they come:
+
+- `Client.stream()` and `execStream()` yield each item. `call()` and `exec()` give the last item.
+- Over HTTP, a client that sends `Accept: application/x-ndjson` gets one JSON line for each item. A different client gets the last item as JSON. The server waits for `drain`, so a slow reader slows the procedure.
+- Over WebSocket, the server sends one frame for each item. The client gives credit for 64 items at a time, and a `cancel` message stops the stream.
+- Over MCP, a tool result holds the items, and each item sends a progress notification when Claude Code asks for progress.
+- When the reader stops or the signal aborts, the generator gets `return()`.
+
+## Security
+
+A registry often has `shell.*`, which starts any program. These rules protect it:
+
+- **The tool list of Claude.** `bundle-mcp` exports `mcpNamespaces` and `mcpExclude`. The MCP server exposes only those procedures as tools: 62 tools in October 2026, pinned by `packages/impl-mcp-dev/tools.snapshot.txt`. `shell.*` and `cli.*` are not tools.
+- **Data-driven procedures.** A procedure that starts procedures from data is data-driven: the control-flow procedures, the `runs-refs` procedures and the procedures of `procedure.define`. With an `expose` rule, such a procedure can use only exposed procedures. Thus `client.chain` cannot reach `shell.exec`. A procedure of code still uses its dependencies: `docker.run` uses `shell.run`.
+- **No shell strings.** The command wrappers give an argument list to `runCommand()` or `shell.run`. They refuse values that start with `-` where the tool reads them as options.
+- **Browser checks.** `HttpServerTransport` and `WebSocketServerTransport` examine each request ([`server/browser-guard.ts`](../client/src/server/browser-guard.ts)). On a loopback address, the `Host` name must be a loopback name. An `Origin` must be the origin of the server or a permitted origin (`allowedOrigins`). A call by GET needs `allowGet`, and a body must be JSON.
+- **The warm-server token.** `mark --server` makes a random token and writes it in its lockfile, which only the user can read. Each request must send it. `mark` uses a server only when its health endpoint gives the peer id of the lockfile.
+- **The standalone `server`.** It binds to `127.0.0.1` by default and has the browser checks. It has no token and no `expose` rule. Bind it to a different address only on a network that you trust.
+
+## The program interpreter
+
+`hydrateInput()` in `ref.ts` is the one interpreter of programs. `exec()`, the control-flow procedures and `procedure.define` use it. [PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md) gives its rules, its examples and its open questions.
+
+## Where to read next
+
+- [ONBOARDING.md](./ONBOARDING.md): how to build, test and add a package or a procedure.
+- [PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md): the program format.
+- [deep-dive-2026-10/architecture-review.md](./deep-dive-2026-10/architecture-review.md): the target architecture and the roadmap.
+- [ARCHITECTURE-PROPOSALS-2026-10.md](./ARCHITECTURE-PROPOSALS-2026-10.md): the proposals P1 to P8.

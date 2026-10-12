@@ -1,460 +1,124 @@
-# Mark Ecosystem Onboarding Guide
+# Onboarding
 
-> **Written before the monorepo move (October 2026). Read it as history.**
-> The client packages now live in one repository: `~/git/client`, one folder per package in `packages/`.
-> `lib.install`, `lib.pull`, `lib.refresh`, the ecosystem manifest and several dead packages were removed.
-> For the current state, see the repository [README](../../README.md), [PACKAGES.md](./PACKAGES.md) and
-> [PROCEDURES.md](./PROCEDURES.md) (both generated), and [DECISIONS-2026-10.md](./DECISIONS-2026-10.md).
+This guide tells you how to build the monorepo, start procedures, and add a package or a procedure. The [July 2026 version](./history/ONBOARDING-2026-07.md) is history. For the design, read [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-> Step-by-step guide for first-time users to install, configure, and use the Mark ecosystem.
+## What you need
 
-> **⚠️ Accuracy note (July 2026):** The `mark procedure new` command form below has been
-> corrected to `procedure new <name> --path <dir>`. Some package counts and Node-version
-> prerequisites elsewhere in this guide are still stale — see [AUDIT-2026-07.md](./AUDIT-2026-07.md).
+- Node 22 or later. CI tests Node 22, 24 and 26.
+- pnpm 12. The root `package.json` sets the version in `packageManager`.
+- Git.
+- The CUE binary (`cue`), for `lib new` and `cue-config`. CI uses CUE v0.15.1. Get it from <https://cuelang.org/docs/install/>.
 
-## Table of Contents
+## Build and test
 
-- [Prerequisites](#prerequisites)
-- [Installation Options](#installation-options)
-- [Option A: Full Ecosystem Install](#option-a-full-ecosystem-install)
-- [Option B: Single Package Install](#option-b-single-package-install)
-- [Option C: MCP Integration Only](#option-c-mcp-integration-only)
-- [Using the CLI](#using-the-cli)
-- [Using with Claude](#using-with-claude)
-- [Troubleshooting](#troubleshooting)
+Do these steps in the root folder of the repository:
 
----
+1. Install the dependencies: `pnpm install`
+2. Build all packages in the sequence of their dependencies: `pnpm build`
+3. Start the tests: `pnpm test`
+4. Examine the types: `pnpm typecheck`
+5. Examine the prose: `pnpm lint:ste`
 
-## Prerequisites
+A package reads the types of its dependencies from their `dist/` folders. Thus, build again after a change, before you test a dependent package. Git ignores `dist/`.
 
-### Required
+These checks run in CI too:
 
-- **Node.js** >= 20 (LTS recommended)
-- **pnpm** >= 8.0 (recommended) or npm >= 9.0
-- **Git** >= 2.30
+- The types of the test files: `node .github/scripts/typecheck-tests.mjs`. The presets of `cue` exclude the test files from `pnpm typecheck`.
+- The package audit: `node packages/mark/dist/cli.js lib audit`.
+- The browser smoke test of the site: `pnpm --filter @mark1russell7/site test:e2e`. It needs Playwright and Chromium.
 
-### Optional (for specific features)
+The end-to-end tests of `mark` are not in CI: `pnpm --filter @mark1russell7/cli test:e2e`.
 
-- **Docker** - For docker.* procedures and docker-* packages
-- **MongoDB** - For mongo.* procedures (or use docker-mongo)
-- **Claude Desktop/Code** - For MCP integration
+For one package, use a filter: `pnpm --filter @mark1russell7/client-git test`.
 
-### Verify Prerequisites
+## Start procedures with `mark`
 
-```bash
-# Check Node.js version
-node --version  # Should be >= 20
+The `mark` CLI is `packages/mark`. After the build, start it with Node:
 
-# Check pnpm version
-pnpm --version  # Should be >= 8
-
-# Check Git version
-git --version   # Should be >= 2.30
+```sh
+node packages/mark/dist/cli.js --help
+node packages/mark/dist/cli.js git status
+node packages/mark/dist/cli.js git commit -m "A message"
+node packages/mark/dist/cli.js fs read README.md
 ```
 
----
+The words after `cli.js` are the path of a procedure, then its arguments. The flags are the fields of its input. `--help` after a path shows the arguments and the flags. The exit code is 1 for an error, for `success: false` and for a non-zero `exitCode` (the `mark` README gives the rules).
 
-## Installation Options
+To start a program as JSON, use `--json`. [PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md) gives the format.
 
-Choose the option that fits your use case:
-
-| Option | Use Case | Time |
-|--------|----------|------|
-| **A: Full Ecosystem** | Develop ecosystem packages, contribute | ~10 min |
-| **B: Single Package** | Use specific procedures in your project | ~2 min |
-| **C: MCP Integration** | Use with Claude Desktop/Code | ~5 min |
-
----
-
-## Option A: Full Ecosystem Install
-
-For developers who want to work with the entire ecosystem.
-
-### Step 1: Create Base Directory
-
-```bash
-mkdir -p ~/git
-cd ~/git
+```sh
+node packages/mark/dist/cli.js --json '{"$proc":["client","chain"],"input":{"steps":[{"$proc":["client","identity"],"input":{"value":2},"$name":"x"},{"$ref":"x"}]}}'
 ```
 
-### Step 2: Clone Core Packages
+`mark` registers the control-flow procedures of the core, but not the other core procedures (`client.add`, the string and array procedures). The Composer of the site (<https://mark1russell7.github.io/client/>) has all of them.
 
-```bash
-# Clone ecosystem manifest
-git clone https://github.com/mark1russell7/ecosystem.git
+### Warm mode
 
-# Clone CLI
-git clone https://github.com/mark1russell7/cli.git
+Each `mark` command starts Node and loads all packages. A warm server keeps them loaded:
 
-# Clone core client
-git clone https://github.com/mark1russell7/client.git
+```sh
+node packages/mark/dist/cli.js --server          # start a server for this folder
+node packages/mark/dist/cli.js git status        # this command goes to the server
+node packages/mark/dist/cli.js server status
+node packages/mark/dist/cli.js server stop
 ```
 
-### Step 3: Build CLI
+`mark` uses the server only for commands in the same folder, from the same build of `mark`. The server listens on `127.0.0.1`. Each request must send the token of its lockfile in `~/.mark/servers/`. Use `--local` to start a command in the CLI process.
 
-```bash
-cd ~/git/cli
-pnpm install
-pnpm build
-```
+## Claude Code and the MCP server
 
-### Step 4: Install All Packages
-
-```bash
-# This clones and builds all 40+ packages in dependency order
-node ~/git/cli/dist/index.js lib install
-```
-
-This command:
-1. Reads `ecosystem.manifest.json`
-2. Clones missing packages from GitHub
-3. Builds packages in topological order (respecting dependencies)
-4. Takes ~5-10 minutes on first run
-
-### Step 5: Verify Installation
-
-```bash
-# List all installed packages
-node ~/git/cli/dist/index.js lib scan
-
-# Expected output: List of 40+ packages with their paths
-```
-
-### Directory Structure After Install
-
-```
-~/git/
-├── ecosystem/          # Ecosystem manifest
-├── cli/                # CLI tool
-├── client/             # Core RPC framework
-├── cue/                # Config generation
-├── logger/             # Structured logging
-├── client-fs/          # File system procedures
-├── client-git/         # Git procedures
-├── client-shell/       # Shell procedures
-├── client-docker/      # Docker procedures
-├── client-mongo/       # MongoDB procedures
-├── client-lib/         # Ecosystem management
-├── bundle-dev/         # Full procedure bundle
-├── bundle-mcp/         # MCP-optimized bundle
-├── impl-mcp-dev/       # MCP server
-└── ... (30+ more)
-```
-
----
-
-## Option B: Single Package Install
-
-For using specific procedures in your own project.
-
-### Install a Client Package
-
-```bash
-# In your project directory
-npm install github:mark1russell7/client#main
-npm install github:mark1russell7/client-fs#main
-```
-
-### Use in Your Code
-
-```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-fs/register.js";
-
-const client = new Client({ /* transport config */ });
-
-// Now you can use fs.* procedures
-const result = await client.call(["fs", "read"], { path: "/etc/hosts" });
-console.log(result.content);
-```
-
-### Available Packages
-
-See [PACKAGES.md](./PACKAGES.md) for complete list.
-
----
-
-## Option C: MCP Integration Only
-
-For using the ecosystem with Claude Desktop or Claude Code.
-
-### Step 1: Clone Required Packages
-
-```bash
-mkdir -p ~/git
-cd ~/git
-
-# Clone the MCP server
-git clone https://github.com/mark1russell7/impl-mcp-dev.git
-
-# Clone bundle-mcp (will pull dependencies)
-git clone https://github.com/mark1russell7/bundle-mcp.git
-```
-
-### Step 2: Install and Build
-
-```bash
-cd ~/git/impl-mcp-dev
-pnpm install
-pnpm build
-```
-
-### Step 3: Configure Claude Desktop
-
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+`packages/impl-mcp-dev` is the MCP server that gives procedures to Claude as tools. Claude Code starts it over stdio. Use this configuration, with your path:
 
 ```json
 {
   "mcpServers": {
     "dev-tools": {
       "command": "node",
-      "args": ["C:/Users/YOUR_USERNAME/git/impl-mcp-dev/dist/server.js"],
-      "env": {
-        "MCP_BUNDLES": "@mark1russell7/bundle-mcp"
-      }
+      "args": ["/path/to/client/packages/impl-mcp-dev/dist/server.js"]
     }
   }
 }
 ```
 
-Replace `YOUR_USERNAME` with your actual username. Use forward slashes even on Windows.
+The tools come from `bundle-mcp` (`mcpNamespaces` and `mcpExclude`). `packages/impl-mcp-dev/tools.snapshot.txt` lists them, and a test compares the server with the list. Claude Code starts the server once for each session. Thus, after a rebuild, restart the MCP server to get the changes.
 
-### Step 4: Configure Claude Code
+## Add a package
 
-Add to `~/.claude.json`:
+Use the scaffold of `mark`. Do not write `package.json` or `tsconfig.json` yourself.
 
-```json
-{
-  "projects": {
-    "C:/Users/YOUR_USERNAME/git": {
-      "mcpServers": {
-        "dev-tools": {
-          "type": "stdio",
-          "command": "node",
-          "args": ["C:/Users/YOUR_USERNAME/git/impl-mcp-dev/dist/server.js"],
-          "env": {
-            "MCP_BUNDLES": "@mark1russell7/bundle-mcp",
-            "MONGODB_URI": "mongodb://localhost:27017"
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-### Step 5: Restart Claude
-
-- **Claude Desktop**: Quit and reopen
-- **Claude Code**: Run `/mcp` to see connected servers
-
-### Step 6: Verify Connection
-
-In Claude, you should see the MCP tools available. Try:
-- Ask Claude to "list docker containers" (uses `docker.ps`)
-- Ask Claude to "run vitest" (uses `vitest.run`)
-
----
-
-## Using the CLI
-
-### Basic Commands
-
-```bash
-# Alias for convenience (add to ~/.bashrc or ~/.zshrc)
-alias mark="node ~/git/cli/dist/index.js"
-
-# Scan ecosystem
-mark lib scan
-
-# Create new package
-mark lib new my-package
-
-# Refresh package (install + build)
-mark lib refresh
-
-# Refresh all packages
-mark lib refresh --all
-
-# Create new procedure (name is the procedure path; --path targets the package dir)
-mark procedure new fs.custom --path ~/git/my-package
-```
-
-### Common Workflows
-
-#### Create a New Package
-
-```bash
-# Create package with standard template
-mark lib new my-new-package
-
-# This creates:
-# ~/git/my-new-package/
-# ├── src/
-# │   └── index.ts
-# ├── package.json
-# ├── tsconfig.json
-# └── dependencies.json
-```
-
-#### Add a Procedure to Your Package
-
-```bash
-# Create fs.custom procedure in my-new-package
-mark procedure new fs.custom --path ~/git/my-new-package
-
-# This creates:
-# ~/git/my-new-package/src/procedures/fs/custom.ts
-# ~/git/my-new-package/src/procedures/fs/index.ts
-# ~/git/my-new-package/src/register.ts
-```
-
-#### Build and Test Changes
-
-```bash
-# Build single package
-cd ~/git/my-new-package
-pnpm build
-
-# Or use refresh (install + build)
-mark lib refresh
-
-# Build all packages
-mark lib refresh --all
-```
-
----
-
-## Using with Claude
-
-### Available Tools via MCP
-
-When using `bundle-mcp`, Claude has access to:
-
-| Tool | Description | Example Use |
-|------|-------------|-------------|
-| `docker.ps` | List containers | "List running Docker containers" |
-| `docker.logs` | Get container logs | "Show logs for container xyz" |
-| `mongo.documents.find` | Query MongoDB | "Find all users in the database" |
-| `vitest.run` | Run tests | "Run the tests" |
-| `lib.scan` | List packages | "What packages are in the ecosystem?" |
-| `lib.refresh` | Rebuild packages | "Rebuild all packages" |
-
-### Example Conversations
-
-**Running Tests:**
-```
-You: Run the tests for client-fs
-Claude: [Uses vitest.run tool with cwd: ~/git/client-fs]
-```
-
-**Database Query:**
-```
-You: Find all documents in the users collection
-Claude: [Uses mongo.documents.find tool with collection: "users"]
-```
-
-**Docker Management:**
-```
-You: Start the MongoDB container
-Claude: [Uses docker.compose.up tool]
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### "Module not found" Error
-
-```bash
-# Ensure package is built
-cd ~/git/PACKAGE_NAME
-pnpm build
-
-# Or rebuild all
-node ~/git/cli/dist/index.js lib refresh --all
-```
-
-#### "Procedure not found: shell.exec"
-
-Some packages depend on `client-shell`. Ensure it's imported:
-
-```typescript
-// In your register.ts
-import "@mark1russell7/client-shell";  // Must be first!
-import { registerProcedures } from "@mark1russell7/client";
-// ... rest of imports
-```
-
-#### MCP Server Not Connecting
-
-1. Check path in config uses forward slashes
-2. Ensure impl-mcp-dev is built: `cd ~/git/impl-mcp-dev && pnpm build`
-3. Check Claude Code with `/mcp` command
-4. Restart Claude after config changes
-
-#### pnpm Install Errors
-
-```bash
-# Clear cache and reinstall
-rm -rf node_modules pnpm-lock.yaml
+```sh
+node packages/mark/dist/cli.js lib new my-package
 pnpm install
+pnpm build
 ```
 
-#### Git Clone Authentication
+The command makes `packages/my-package` with the `cue-config` files, `src/register.ts`, `src/types.ts`, the `client.procedures` field and a `workspace:*` dependency on `client`.
 
-Ensure SSH keys are configured for GitHub:
-```bash
-ssh -T git@github.com
-# Should show: "Hi username! You've successfully authenticated..."
+The site depends on each package that registers procedures. Thus, add the new package to the `devDependencies` of `packages/site`. The site build fails with a message that gives the package to add.
+
+To change the configuration of a package, use `cue-config` in its folder. For example, `npx cue-config add node`, then `npx cue-config generate`.
+
+## Add a procedure
+
+```sh
+node packages/mark/dist/cli.js procedure new myThing --path packages/my-package
 ```
 
-### Getting Help
+The command writes the procedure file, adds the types to `src/types.ts`, and adds the registration to `src/register.ts`. Then write the handler and its tests, and build.
 
-- Check individual package READMEs for specific issues
-- Open issues at: https://github.com/mark1russell7/ecosystem/issues
+A procedure that starts programs gives an argument list to `runCommand()` (`@mark1russell7/client-shell/command`) or to `shell.run`. Do not make a shell string.
 
----
+## Rules of the repository
 
-## Next Steps
+- Write prose in ASD-STE100 Simplified Technical English. `pnpm lint:ste` examines the files of `ste.config.json`.
+- Do not commit `dist/`.
+- Do not change the old repositories in `~/git/_legacy`. They are archived.
+- A package of this repository uses another one with `workspace:*`. A general package (`cue`, `logger`, `splay`, `splay-react`, `docker-sqlite`, `docker-mongo`) is in its own repository, with a `github:` specifier.
+- To change the tools of Claude, change `bundle-mcp` and `tools.snapshot.txt` in one commit.
 
-After installation:
+## Where to read next
 
-1. **Explore Procedures**: See [PROCEDURES.md](./PROCEDURES.md) for complete catalog
-2. **Understand Architecture**: Read [ARCHITECTURE.md](./ARCHITECTURE.md)
-3. **Create Your Own Packages**: Use `mark lib new` and `mark procedure new`
-4. **Contribute**: Submit PRs to improve documentation or add features
-
----
-
-## Quick Reference Card
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         QUICK REFERENCE                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ INSTALL ECOSYSTEM                                                           │
-│   cd ~/git && git clone https://github.com/mark1russell7/cli.git           │
-│   cd cli && pnpm install && pnpm build                                      │
-│   node dist/index.js lib install                                            │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ CREATE PACKAGE                                                               │
-│   node ~/git/cli/dist/index.js lib new PACKAGE_NAME                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ CREATE PROCEDURE                                                             │
-│   node ~/git/cli/dist/index.js procedure new fs.myproc --path DIR          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ BUILD ALL                                                                    │
-│   node ~/git/cli/dist/index.js lib refresh --all                           │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ MCP CONFIG (Claude Desktop)                                                  │
-│   %APPDATA%\Claude\claude_desktop_config.json (Windows)                     │
-│   ~/Library/Application Support/Claude/... (macOS)                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ MCP CONFIG (Claude Code)                                                     │
-│   ~/.claude.json                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+- [ARCHITECTURE.md](./ARCHITECTURE.md): the layers, the hosts, streaming and security.
+- [PROGRAM-FORMAT.md](./PROGRAM-FORMAT.md): the program format.
+- [PACKAGES.md](./PACKAGES.md) and [PROCEDURES.md](./PROCEDURES.md): the packages and the procedures, made from the built packages.
+- [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md): the status of each known defect.

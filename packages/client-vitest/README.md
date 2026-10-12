@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 [![Vitest](https://img.shields.io/badge/Vitest-3.x-6E9F18.svg)](https://vitest.dev/)
 
 > Vitest-specific test procedures. Run and watch tests with full coverage reporting.
@@ -143,20 +143,20 @@ graph BT
 ## Quick Start
 
 ```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-vitest/register";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-vitest"; // registers its procedures
 
-const client = new Client({ /* transport */ });
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Run all tests
-const result = await client.call(["vitest", "run"], {
+const result = await client.exec(["vitest", "run"], {
   cwd: "/path/to/project",
 });
 
 console.log(`Passed: ${result.passed}, Failed: ${result.failed}`);
 
 // Run with coverage
-const coverage = await client.call(["vitest", "run"], {
+const coverage = await client.exec(["vitest", "run"], {
   coverage: true,
 });
 
@@ -227,14 +227,14 @@ interface VitestRunOutput {
 **Example:**
 ```typescript
 // Run specific tests
-const result = await client.call(["vitest", "run"], {
+const result = await client.exec(["vitest", "run"], {
   include: ["src/**/*.test.ts"],
   exclude: ["**/*.e2e.test.ts"],
   reporter: "verbose",
 });
 
 // Run with coverage threshold check
-const coverage = await client.call(["vitest", "run"], {
+const coverage = await client.exec(["vitest", "run"], {
   coverage: true,
 });
 
@@ -266,15 +266,15 @@ interface VitestWatchOutput {
 **Example:**
 ```typescript
 // Start watch mode
-const { id } = await client.call(["vitest", "watch"], {
+const { id } = await client.exec(["vitest", "watch"], {
   include: ["src/**/*.test.ts"],
 });
 
 // The end of the output of each watch process
-const { processes } = await client.call(["vitest", "list"], { output: true });
+const { processes } = await client.exec(["vitest", "list"], { output: true });
 
 // Stop the watch process and the processes that it started
-await client.call(["vitest", "stop"], { id });
+await client.exec(["vitest", "stop"], { id });
 ```
 
 ---
@@ -284,7 +284,7 @@ await client.call(["vitest", "stop"], { id });
 ### Enabling Coverage
 
 ```typescript
-const result = await client.call(["vitest", "run"], {
+const result = await client.exec(["vitest", "run"], {
   coverage: true,
 });
 ```
@@ -369,7 +369,7 @@ When using the MCP server, Claude can:
 
 ```typescript
 // Run tests across all packages in dependency order
-await client.call(["dag", "traverse"], {
+await client.exec(["dag", "traverse"], {
   visit: ["vitest", "run"],
   concurrency: 2,
 });
@@ -379,7 +379,7 @@ await client.call(["dag", "traverse"], {
 
 ```typescript
 // CI script example
-const result = await client.call(["vitest", "run"], {
+const result = await client.exec(["vitest", "run"], {
   coverage: true,
   reporter: "junit",
 });
@@ -422,7 +422,7 @@ graph TB
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 22
 - **Vitest** >= 3.0 (peer dependency)
 - **Dependencies:**
   - `@mark1russell7/client`

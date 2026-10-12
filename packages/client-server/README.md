@@ -154,12 +154,13 @@ await peer.stop();
 ### Using Server Procedures
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-server"; // registers its procedures
 
-const client = new Client(/* ... */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Create a server
-const result = await client.call(["server", "create"], {
+const result = await client.exec(["server", "create"], {
   transports: [
     { type: "http", port: 3000 },
     { type: "websocket", port: 3001 },
@@ -284,19 +285,19 @@ const jsonString = generateJsonString({ namespace: ["git"] });
 
 ```typescript
 // Connect to remote server
-await client.call(["server", "connect"], {
+await client.exec(["server", "connect"], {
   address: "http://localhost:3000/api",
   transport: "http",
   timeout: 10000,
 });
 
 // Disconnect from server
-await client.call(["server", "disconnect"], {
+await client.exec(["server", "disconnect"], {
   connectionId: "conn-1234567890-xyz789",
 });
 
 // Generate manifest
-const manifest = await client.call(["manifest", "generate"], {
+const manifest = await client.exec(["manifest", "generate"], {
   formats: ["json", "typescript"],
   namespace: ["git"],
   outputDir: "./generated",
@@ -590,10 +591,10 @@ Configure CORS for HTTP transport:
 The `bundle-dev` package includes `client-server` for development workflows:
 
 ```typescript
-import "@mark1russell7/bundle-dev/register.js";
+import "@mark1russell7/bundle-dev"; // registers its procedures
 
 // server.* procedures are now available
-await client.call(["server", "create"], { ... });
+await client.exec(["server", "create"], { ... });
 ```
 
 ### With client packages
@@ -602,7 +603,7 @@ Combine with other client packages for complete functionality:
 
 ```typescript
 // Start a server that exposes git procedures
-import "@mark1russell7/client-git/register.js";
+import "@mark1russell7/client-git"; // registers its procedures
 import { createPeer } from "@mark1russell7/client-server";
 
 const peer = await createPeer({

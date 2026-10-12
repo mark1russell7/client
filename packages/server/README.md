@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 
 > General procedure server - run any procedure packages via HTTP or WebSocket transports.
 
@@ -248,7 +248,7 @@ The server CLI uses `server.create` procedure internally:
 
 ```typescript
 // What the CLI does internally:
-await client.call(["server", "create"], {
+await client.exec(["server", "create"], {
   transports: [{ type: "http", port: 3000, cors: true }],
   autoRegister: true,
 });
@@ -287,7 +287,7 @@ graph BT
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 22
 - **Dependencies:**
   - `@mark1russell7/client`
   - `@mark1russell7/client-server`

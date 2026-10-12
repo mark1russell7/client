@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 
 > Generic DAG (Directed Acyclic Graph) utilities for dependency ordering and parallel execution. Powers the ecosystem's build system.
 
@@ -376,7 +376,7 @@ graph LR
 
 ### Package Build Order
 
-Build packages in dependency order (used by `lib.refresh`):
+Build packages in dependency order (`dag.traverse` of `client-lib` does this):
 
 ```typescript
 const packages = [
@@ -441,7 +441,7 @@ await executeDAG(dag, async (mod) => {
 graph TB
     subgraph "client-lib"
         Scan[lib.scan<br/>Discover packages]
-        Refresh[lib.refresh<br/>Build all]
+        Traverse[dag.traverse<br/>Visit in dependency order]
     end
 
     subgraph "client-dag"
@@ -457,7 +457,7 @@ graph TB
 
     Scan --> Build
     Build --> Execute
-    Refresh --> Execute
+    Traverse --> Execute
     Execute --> P1
     Execute --> P2
     Execute --> P3
@@ -469,7 +469,7 @@ The `dag.traverse` procedure in `client-lib` wraps this functionality:
 
 ```typescript
 // Via procedure
-await client.call(["dag", "traverse"], {
+await client.exec(["dag", "traverse"], {
   visit: ["pnpm", "install"],
   concurrency: 4,
 });
@@ -483,9 +483,8 @@ await executeDAG(dag, processor);
 
 ## Requirements
 
-- **Node.js** >= 20
-- **Dependencies:**
-  - `@mark1russell7/client`
+- **Node.js** >= 22
+- **Dependencies:** none
 
 ---
 

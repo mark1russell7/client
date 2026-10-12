@@ -157,7 +157,7 @@ resetS3Client();
 Upload content to an S3 bucket.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "upload"],
   {
     bucket: "my-bucket",
@@ -202,7 +202,7 @@ interface S3UploadOutput {
 Download content from an S3 bucket.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "download"],
   {
     bucket: "my-bucket",
@@ -244,7 +244,7 @@ interface S3DownloadOutput {
 List objects in an S3 bucket.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "list"],
   {
     bucket: "my-bucket",
@@ -303,7 +303,7 @@ automatically. Use this when a bucket/prefix may contain more than 1000 keys —
 is no longer truncated and returns the aggregated contents.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "listAll"],
   {
     bucket: "my-bucket",
@@ -345,7 +345,7 @@ interface S3ListAllOutput {
 Delete an object from an S3 bucket.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "delete"],
   {
     bucket: "my-bucket",
@@ -384,7 +384,7 @@ For large files (>5MB), use multipart upload:
 Initialize a multipart upload.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "multipart", "init"],
   {
     bucket: "my-bucket",
@@ -424,7 +424,7 @@ interface S3MultipartInitOutput {
 Upload a part in a multipart upload.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "multipart", "upload"],
   {
     bucket: "my-bucket",
@@ -463,7 +463,7 @@ interface S3MultipartUploadOutput {
 Complete a multipart upload by assembling parts.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "multipart", "complete"],
   {
     bucket: "my-bucket",
@@ -509,7 +509,7 @@ interface S3MultipartCompleteOutput {
 Abort a multipart upload and clean up parts.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["s3", "multipart", "abort"],
   {
     bucket: "my-bucket",
@@ -542,12 +542,13 @@ interface S3MultipartAbortOutput {
 ### Basic Upload and Download
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-s3"; // registers its procedures
 
-const client = new Client(/* config */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Upload text content
-await client.call(
+await client.exec(
   ["s3", "upload"],
   {
     bucket: "my-bucket",
@@ -561,7 +562,7 @@ await client.call(
 const fileBuffer = await fs.promises.readFile("./image.png");
 const base64Content = fileBuffer.toString("base64");
 
-await client.call(
+await client.exec(
   ["s3", "upload"],
   {
     bucket: "my-bucket",
@@ -577,7 +578,7 @@ await client.call(
 );
 
 // Download text content
-const { body } = await client.call(
+const { body } = await client.exec(
   ["s3", "download"],
   {
     bucket: "my-bucket",
@@ -589,7 +590,7 @@ const { body } = await client.call(
 const config = JSON.parse(body);
 
 // Download binary content (returns base64)
-const { body: imageBase64 } = await client.call(
+const { body: imageBase64 } = await client.exec(
   ["s3", "download"],
   {
     bucket: "my-bucket",
@@ -604,7 +605,7 @@ const imageBuffer = Buffer.from(imageBase64, "base64");
 
 ```typescript
 // List all objects in a prefix
-const { contents } = await client.call(
+const { contents } = await client.exec(
   ["s3", "list"],
   {
     bucket: "my-bucket",
@@ -618,7 +619,7 @@ console.log(`Found ${contents.length} objects`);
 // List with pagination
 let continuationToken: string | undefined;
 do {
-  const result = await client.call(
+  const result = await client.exec(
     ["s3", "list"],
     {
       bucket: "my-bucket",
@@ -637,7 +638,7 @@ do {
 
 // Delete objects
 for (const obj of contents) {
-  await client.call(
+  await client.exec(
     ["s3", "delete"],
     {
       bucket: "my-bucket",
@@ -651,7 +652,7 @@ for (const obj of contents) {
 
 ```typescript
 // List "folders" in a bucket
-const { contents, commonPrefixes } = await client.call(
+const { contents, commonPrefixes } = await client.exec(
   ["s3", "list"],
   {
     bucket: "my-bucket",
@@ -677,7 +678,7 @@ commonPrefixes.forEach(prefix => {
 const PART_SIZE = 5 * 1024 * 1024;  // 5MB parts
 
 // 1. Initialize upload
-const { uploadId } = await client.call(
+const { uploadId } = await client.exec(
   ["s3", "multipart", "init"],
   {
     bucket: "my-bucket",
@@ -696,7 +697,7 @@ try {
     const partData = file.slice(i, Math.min(i + PART_SIZE, file.length));
     const base64Part = partData.toString("base64");
 
-    const { etag } = await client.call(
+    const { etag } = await client.exec(
       ["s3", "multipart", "upload"],
       {
         bucket: "my-bucket",
@@ -712,7 +713,7 @@ try {
   }
 
   // 3. Complete upload
-  const result = await client.call(
+  const result = await client.exec(
     ["s3", "multipart", "complete"],
     {
       bucket: "my-bucket",
@@ -726,7 +727,7 @@ try {
 
 } catch (error) {
   // 4. Abort on error
-  await client.call(
+  await client.exec(
     ["s3", "multipart", "abort"],
     {
       bucket: "my-bucket",
@@ -750,7 +751,7 @@ for (const file of files) {
   const content = await fs.promises.readFile(file);
   const s3Key = file.replace("./data/", "backups/");
 
-  await client.call(
+  await client.exec(
     ["s3", "upload"],
     {
       bucket: "my-backup-bucket",
@@ -780,7 +781,7 @@ export AWS_REGION=us-east-1
 
 ```typescript
 // Works the same way with MinIO/LocalStack
-await client.call(
+await client.exec(
   ["s3", "upload"],
   {
     bucket: "test-bucket",
@@ -799,8 +800,8 @@ await client.call(
 ```typescript
 // In bundle-data/src/register.ts
 import "@mark1russell7/client-s3/register.js";
-import "@mark1russell7/client-mongo/register.js";
-import "@mark1russell7/client-fs/register.js";
+import "@mark1russell7/client-mongo"; // registers its procedures
+import "@mark1russell7/client-fs"; // registers its procedures
 ```
 
 ## Dependencies

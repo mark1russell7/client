@@ -105,13 +105,13 @@ The scaffolded code compiles with the strict options of the workspace. A name wh
 ## Quick Start
 
 ```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-procedure/register";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-procedure"; // registers its procedures
 
-const client = new Client({ /* transport */ });
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Scaffold a new procedure
-const result = await client.call(["procedure", "new"], {
+const result = await client.exec(["procedure", "new"], {
   name: "user.create",
   description: "Create a new user account",
 });
@@ -155,7 +155,7 @@ interface ProcedureNewOutput {
 
 **Example:**
 ```typescript
-const result = await client.call(["procedure", "new"], {
+const result = await client.exec(["procedure", "new"], {
   name: "user.create",
   description: "Create a new user",
   path: "/path/to/package",
@@ -243,91 +243,74 @@ If `src/register.ts` has no `registerProcedures([...])` or `registerAll([...])` 
 
 #### `procedure.list`
 
-List all registered procedures in the runtime registry.
+List the procedures of the registry, with an optional namespace filter.
 
 ```typescript
 interface ProcedureListInput {
-  namespace?: string;    // Filter by namespace
-  pattern?: string;      // Filter by path pattern
+  namespace?: string;         // Only the procedures of this first path segment
+  includeMetadata?: boolean;  // Default: false
 }
 
 interface ProcedureListOutput {
   procedures: Array<{
     path: string[];
-    metadata?: Record<string, unknown>;
+    key: string;              // "git.commit"
+    description?: string;
+    tags?: string[];
+    hasHandler: boolean;
   }>;
   count: number;
 }
 ```
 
-**Example:**
 ```typescript
-const { procedures } = await client.call(["procedure", "list"], {
-  namespace: "git",
-});
-// {
-//   procedures: [
-//     { path: ["git", "add"], metadata: { description: "..." } },
-//     { path: ["git", "commit"], metadata: { description: "..." } },
-//     ...
-//   ],
-//   count: 15
-// }
+const { procedures, count } = await client.exec(["procedure", "list"], { namespace: "git" });
 ```
 
 #### `procedure.get`
 
-Get metadata for a specific procedure.
+Get the metadata of one procedure.
 
 ```typescript
 interface ProcedureGetInput {
-  path: string[];        // Procedure path
+  path: string[] | string;    // ["git", "commit"] or "git.commit"
 }
 
 interface ProcedureGetOutput {
-  procedure: {
-    path: string[];
-    metadata?: Record<string, unknown>;
-    hasHandler: boolean;
-  } | null;
+  found: boolean;
+  path?: string[];
+  metadata?: Record<string, unknown>;
+  hasHandler?: boolean;
+  hasInputSchema?: boolean;
+  hasOutputSchema?: boolean;
 }
-```
-
-**Example:**
-```typescript
-const { procedure } = await client.call(["procedure", "get"], {
-  path: ["git", "commit"],
-});
 ```
 
 #### `procedure.export`
 
-Export procedure definitions as JSON (for serialization/storage).
+Export the path and the metadata of one procedure as a call (`$proc`).
 
 ```typescript
 interface ProcedureExportInput {
-  paths?: string[][];    // Specific procedures to export (defaults to all)
-  includeHandlers?: boolean;  // Include handler code (default: false)
+  path: string[] | string;
 }
 
 interface ProcedureExportOutput {
-  procedures: Array<{
-    path: string[];
-    input: object;       // JSON schema
-    output: object;      // JSON schema
-    metadata?: object;
-    handler?: string;    // Handler code (if includeHandlers=true)
-  }>;
+  success: boolean;
+  definition?: { $proc: string[]; metadata?: Record<string, unknown> };
+  error?: string;             // When the procedure does not exist
 }
 ```
+
+> [!NOTE]
+> The core package `client` also has `procedure.list` and `procedure.get`, for the procedures that `procedure.define` made. `client-procedure` registers its own versions with `override: true`. Thus the result depends on whether the host imports `client-procedure`: `mark` and the MCP server do.
 
 ## Examples
 
 ### Scaffold a Nested Procedure
 
 ```typescript
-// Create a deeply nested procedure
-const result = await client.call(["procedure", "new"], {
+const result = await client.exec(["procedure", "new"], {
   name: "api.users.permissions.grant",
   description: "Grant permission to a user",
 });
@@ -339,49 +322,13 @@ const result = await client.call(["procedure", "new"], {
 ### Dry Run Mode
 
 ```typescript
-// Preview what would be created without actually creating files
-const preview = await client.call(["procedure", "new"], {
+// The plan of the scaffold, without a change of a file
+const preview = await client.exec(["procedure", "new"], {
   name: "product.update",
   dryRun: true,
 });
 
 console.log(preview.operations);
-// [
-//   "Would create directory: /project/src/procedures/product",
-//   "Would create procedure file: /project/src/procedures/product/update.ts",
-//   "Would create/update index: /project/src/procedures/product/index.ts",
-//   "Would append types to: /project/src/types.ts",
-//   ...
-// ]
-```
-
-### List Procedures by Namespace
-
-```typescript
-// List all git procedures
-const { procedures } = await client.call(["procedure", "list"], {
-  namespace: "git",
-});
-
-for (const proc of procedures) {
-  console.log(proc.path.join("."), "-", proc.metadata?.description);
-}
-// git.add - Stage files for commit
-// git.commit - Create a new commit
-// git.push - Push commits to remote
-// ...
-```
-
-### Export Procedures for Storage
-
-```typescript
-// Export all procedures as JSON
-const { procedures } = await client.call(["procedure", "export"], {
-  includeHandlers: false,  // Exclude handler code
-});
-
-// Save to file or send to API
-await fs.writeFile("procedures.json", JSON.stringify(procedures, null, 2));
 ```
 
 ## Integration
@@ -392,12 +339,12 @@ The `procedure.new` command is also available via the Mark CLI:
 
 ```bash
 # Scaffold a new procedure
-node cli/dist/index.js procedure new user.create
+node packages/mark/dist/cli.js procedure new user.create --path packages/my-package
 
 # With options
-node cli/dist/index.js procedure new user.update \
+node packages/mark/dist/cli.js procedure new user.update \
   --description "Update user information" \
-  --path /path/to/package \
+  --path packages/my-package \
   --dry-run
 ```
 
@@ -405,8 +352,8 @@ node cli/dist/index.js procedure new user.update \
 
 1. **Create package structure**:
 ```bash
-node cli/dist/index.js lib new my-client-package
-cd my-client-package
+node packages/mark/dist/cli.js lib new my-client-package
+pnpm install
 ```
 
 2. **Scaffold procedures**:
@@ -442,10 +389,10 @@ Two names can give the same identifiers (`a.b.c` and `a.bC` both give `aBC`). Th
 
 ## Requirements
 
-- **Node.js**: >= 20
+- **Node.js**: >= 22
 - **TypeScript**: >= 5.0
 - **Dependencies**:
-  - `@mark1russell7/client` (peer)
+  - `@mark1russell7/client` (`workspace:*`)
   - `zod` ^3.24.0
 
 ## License

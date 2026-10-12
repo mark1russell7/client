@@ -65,24 +65,24 @@ yarn add @mark1russell7/client-pnpm
 ## Quick Start
 
 ```typescript
-import { Client } from "@mark1russell7/client";
-import "@mark1russell7/client-pnpm/register.js";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-pnpm"; // registers its procedures
 
-const client = new Client();
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Install all dependencies
-await client.call(["pnpm", "install"], {
+await client.exec(["pnpm", "install"], {
   cwd: "/path/to/project",
 });
 
 // Add a dev dependency
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["typescript", "@types/node"],
   dev: true,
 });
 
 // Run a script
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "build",
 });
 ```
@@ -136,19 +136,19 @@ interface PnpmCommandOutput {
 **Examples:**
 ```typescript
 // Install all from lockfile (CI mode)
-await client.call(["pnpm", "install"], {
+await client.exec(["pnpm", "install"], {
   frozen: true,
   cwd: "/my/project",
 });
 
 // Install specific packages
-await client.call(["pnpm", "install"], {
+await client.exec(["pnpm", "install"], {
   packages: ["lodash", "zod"],
   dev: true,
 });
 
 // Install all dependencies
-await client.call(["pnpm", "install"], {});
+await client.exec(["pnpm", "install"], {});
 ```
 
 #### `pnpm.add`
@@ -179,24 +179,24 @@ interface PnpmAddInput {
 **Examples:**
 ```typescript
 // Add production dependencies
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["express", "cors"],
 });
 
 // Add dev dependencies
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["vitest", "@vitest/coverage-v8", "typescript"],
   dev: true,
 });
 
 // Add global tool
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["typescript"],
   global: true,
 });
 
 // Add with version
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["react@18", "react-dom@18"],
 });
 ```
@@ -226,12 +226,12 @@ interface PnpmRemoveInput {
 **Examples:**
 ```typescript
 // Remove packages
-await client.call(["pnpm", "remove"], {
+await client.exec(["pnpm", "remove"], {
   packages: ["old-package", "unused-lib"],
 });
 
 // Remove global package
-await client.call(["pnpm", "remove"], {
+await client.exec(["pnpm", "remove"], {
   packages: ["typescript"],
   global: true,
 });
@@ -262,18 +262,18 @@ interface PnpmLinkInput {
 **Examples:**
 ```typescript
 // Link current directory globally
-await client.call(["pnpm", "link"], {
+await client.exec(["pnpm", "link"], {
   global: true,
   cwd: "/path/to/my-package",
 });
 
 // Link a local package into current project
-await client.call(["pnpm", "link"], {
+await client.exec(["pnpm", "link"], {
   path: "../my-local-package",
 });
 
 // Link from global to current project
-await client.call(["pnpm", "link"], {
+await client.exec(["pnpm", "link"], {
   path: "my-global-package",
   global: true,
 });
@@ -304,18 +304,18 @@ interface PnpmRunInput {
 **Examples:**
 ```typescript
 // Run build script
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "build",
 });
 
 // Run test with arguments
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "test",
   args: ["--coverage", "--watch"],
 });
 
 // Run custom script in specific directory
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "deploy",
   cwd: "/path/to/project",
   timeout: 600000, // 10 minutes
@@ -348,7 +348,7 @@ interface PnpmStorePathOutput {
 
 **Example:**
 ```typescript
-const store = await client.call(["pnpm", "store", "path"], {});
+const store = await client.exec(["pnpm", "store", "path"], {});
 console.log(`PNPM store: ${store.path}`);
 console.log(`Exists: ${store.exists}`);
 console.log(`Platform: ${store.platform}`);
@@ -371,7 +371,7 @@ console.log(`Platform: ${store.platform}`);
 
 ```typescript
 // Frozen install for reproducible builds
-const install = await client.call(["pnpm", "install"], {
+const install = await client.exec(["pnpm", "install"], {
   frozen: true,
   cwd: "./project",
 });
@@ -381,13 +381,13 @@ if (!install.success) {
 }
 
 // Run tests
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "test",
   args: ["--coverage"],
 });
 
 // Build
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "build",
 });
 ```
@@ -396,22 +396,22 @@ await client.call(["pnpm", "run"], {
 
 ```typescript
 // Add dependencies
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["react", "react-dom"],
 });
 
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["@types/react", "@types/react-dom", "vite"],
   dev: true,
 });
 
 // Link local packages
-await client.call(["pnpm", "link"], {
+await client.exec(["pnpm", "link"], {
   path: "../shared-components",
 });
 
 // Start dev server
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "dev",
 });
 ```
@@ -420,18 +420,18 @@ await client.call(["pnpm", "run"], {
 
 ```typescript
 // Install all workspace packages
-await client.call(["pnpm", "install"], {
+await client.exec(["pnpm", "install"], {
   cwd: "/monorepo/root",
 });
 
 // Add dependency to specific package
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["lodash"],
   cwd: "/monorepo/root/packages/utils",
 });
 
 // Build all packages in dependency order
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "build",
   args: ["--recursive"],
   cwd: "/monorepo/root",
@@ -442,19 +442,19 @@ await client.call(["pnpm", "run"], {
 
 ```typescript
 // Install global tool
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["typescript", "ts-node"],
   global: true,
 });
 
 // Link package globally for testing
-await client.call(["pnpm", "link"], {
+await client.exec(["pnpm", "link"], {
   global: true,
   cwd: "/path/to/my-cli-tool",
 });
 
 // Remove global package
-await client.call(["pnpm", "remove"], {
+await client.exec(["pnpm", "remove"], {
   packages: ["old-cli"],
   global: true,
 });
@@ -464,7 +464,7 @@ await client.call(["pnpm", "remove"], {
 
 ```typescript
 // Get store path for backup/restore
-const store = await client.call(["pnpm", "store", "path"], {});
+const store = await client.exec(["pnpm", "store", "path"], {});
 console.log(`Backing up store: ${store.path}`);
 
 // Could be used to:
@@ -592,7 +592,7 @@ graph LR
 
 ```typescript
 // bundle-dev/src/register.ts
-import "@mark1russell7/client-pnpm/register.js";
+import "@mark1russell7/client-pnpm"; // registers its procedures
 
 // client-lib uses pnpm procedures for package management
 import { pnpmInstall, pnpmRun } from "@mark1russell7/client-pnpm";
@@ -633,16 +633,17 @@ This pattern is also used by:
 
 ### Direct Function Imports
 
+The handlers start pnpm through `ctx.client.call(["shell", "run"], ...)`, so they need a procedure context. A `Client` is not a procedure context. Start the procedures through a client:
+
 ```typescript
-import { pnpmInstall, pnpmAdd, pnpmRun } from "@mark1russell7/client-pnpm";
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-pnpm"; // registers pnpm.* and shell.*
 
-const client = new Client();
-const ctx = { client };
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
-await pnpmInstall({ frozen: true }, ctx);
-await pnpmAdd({ packages: ["lodash"] }, ctx);
-await pnpmRun({ script: "build" }, ctx);
+await client.exec(["pnpm", "install"], { frozen: true });
+await client.exec(["pnpm", "add"], { packages: ["lodash"] });
+await client.exec(["pnpm", "run"], { script: "build" });
 ```
 
 ### Custom Registration
@@ -665,7 +666,7 @@ registerProcedures([customInstallProcedure]);
 
 ```typescript
 try {
-  const result = await client.call(["pnpm", "install"], {
+  const result = await client.exec(["pnpm", "install"], {
     frozen: true,
   });
 
@@ -709,12 +710,12 @@ npm install -g pnpm
 If you get lockfile errors:
 ```typescript
 // Update lockfile
-await client.call(["pnpm", "install"], {
+await client.exec(["pnpm", "install"], {
   // Don't use frozen: true
 });
 
 // Or delete lockfile and reinstall
-await client.call(["pnpm", "install"], {});
+await client.exec(["pnpm", "install"], {});
 ```
 
 ### Permission Errors
@@ -728,7 +729,7 @@ ls -la node_modules
 
 Check store path and permissions:
 ```typescript
-const store = await client.call(["pnpm", "store", "path"], {});
+const store = await client.exec(["pnpm", "store", "path"], {});
 console.log(`Store: ${store.path}, Exists: ${store.exists}`);
 ```
 
@@ -740,12 +741,12 @@ PNPM workspaces are supported through the `cwd` parameter:
 
 ```typescript
 // Install all workspace packages
-await client.call(["pnpm", "install"], {
+await client.exec(["pnpm", "install"], {
   cwd: "/workspace/root",
 });
 
 // Add to specific workspace package
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: ["lodash"],
   cwd: "/workspace/root/packages/utils",
 });
@@ -756,7 +757,7 @@ await client.call(["pnpm", "add"], {
 Pass arguments to pnpm scripts:
 
 ```typescript
-await client.call(["pnpm", "run"], {
+await client.exec(["pnpm", "run"], {
   script: "test",
   args: ["--", "--coverage", "--watch"],
 });
@@ -768,7 +769,7 @@ await client.call(["pnpm", "run"], {
 Use standard pnpm version syntax:
 
 ```typescript
-await client.call(["pnpm", "add"], {
+await client.exec(["pnpm", "add"], {
   packages: [
     "react@^18.0.0",
     "lodash@latest",

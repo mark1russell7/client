@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-purple.svg)](https://modelcontextprotocol.io/)
 
 > MCP server transport for the procedure system. Exposes procedures as MCP tools for Claude integration.
@@ -151,7 +151,7 @@ import { ProcedureServer, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import { McpServerTransport } from "@mark1russell7/client-mcp";
 
 // Load procedures (via side-effect imports)
-import "@mark1russell7/bundle-dev/register.js";
+import "@mark1russell7/bundle-dev"; // registers its procedures
 
 // Create procedure server
 const server = new ProcedureServer({
@@ -352,7 +352,7 @@ graph TB
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 22
 - **Dependencies:**
   - `@mark1russell7/client`
   - `@mark1russell7/mcp`

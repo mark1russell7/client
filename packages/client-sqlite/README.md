@@ -147,7 +147,7 @@ const DEFAULT_DB_PATH = join(homedir(), "logs", "cli", "cli.db");
 You can override this path in each procedure call:
 
 ```typescript
-await client.call(
+await client.exec(
   ["db", "query"],
   {
     sql: "SELECT * FROM logs",
@@ -165,7 +165,7 @@ await client.call(
 Execute a SQL SELECT query and return rows.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["db", "query"],
   {
     sql: "SELECT * FROM logs WHERE level = ? ORDER BY timestamp DESC",
@@ -196,7 +196,7 @@ interface DbQueryOutput<T = Record<string, unknown>> {
 
 **Example:**
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["db", "query"],
   {
     sql: `
@@ -217,7 +217,7 @@ const result = await client.call(
 Execute a SQL statement (INSERT, UPDATE, DELETE) and return the number of affected rows.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["db", "execute"],
   {
     sql: "DELETE FROM logs WHERE timestamp < ?",
@@ -247,7 +247,7 @@ interface DbExecuteOutput {
 **Examples:**
 ```typescript
 // INSERT
-await client.call(
+await client.exec(
   ["db", "execute"],
   {
     sql: "INSERT INTO users (name, email) VALUES (?, ?)",
@@ -256,7 +256,7 @@ await client.call(
 );
 
 // UPDATE
-await client.call(
+await client.exec(
   ["db", "execute"],
   {
     sql: "UPDATE users SET active = ? WHERE id = ?",
@@ -265,7 +265,7 @@ await client.call(
 );
 
 // DELETE
-await client.call(
+await client.exec(
   ["db", "execute"],
   {
     sql: "DELETE FROM users WHERE active = ?",
@@ -281,7 +281,7 @@ await client.call(
 Store a structured log entry in the database. Automatically creates the logs table on first use.
 
 ```typescript
-await client.call(
+await client.exec(
   ["logs", "store"],
   {
     level: "error",
@@ -348,7 +348,7 @@ CREATE INDEX idx_logs_command ON logs(command);
 Query log entries with filtering, pagination, and sorting.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["logs", "query"],
   {
     sessionId: "session-123",
@@ -397,7 +397,7 @@ interface LogEntry {
 **Examples:**
 ```typescript
 // Get all errors from a session
-const { logs } = await client.call(
+const { logs } = await client.exec(
   ["logs", "query"],
   {
     sessionId: "session-123",
@@ -406,7 +406,7 @@ const { logs } = await client.call(
 );
 
 // Get recent warnings and errors
-const { logs } = await client.call(
+const { logs } = await client.exec(
   ["logs", "query"],
   {
     level: ["warn", "error"],
@@ -416,7 +416,7 @@ const { logs } = await client.call(
 );
 
 // Paginated query
-const { logs } = await client.call(
+const { logs } = await client.exec(
   ["logs", "query"],
   {
     command: "lib.build",
@@ -431,12 +431,13 @@ const { logs } = await client.call(
 ### Basic Database Operations
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import "@mark1russell7/client-sqlite"; // registers its procedures
 
-const client = new Client(/* config */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Create a table
-await client.call(
+await client.exec(
   ["db", "execute"],
   {
     sql: `
@@ -453,7 +454,7 @@ await client.call(
 );
 
 // Insert data
-await client.call(
+await client.exec(
   ["db", "execute"],
   {
     sql: "INSERT INTO users (name, email) VALUES (?, ?)",
@@ -463,7 +464,7 @@ await client.call(
 );
 
 // Query data
-const result = await client.call(
+const result = await client.exec(
   ["db", "query"],
   {
     sql: "SELECT * FROM users WHERE active = ? ORDER BY created_at DESC",
@@ -479,7 +480,7 @@ console.log(result.rows);
 
 ```typescript
 // Log an info message
-await client.call(
+await client.exec(
   ["logs", "store"],
   {
     level: "info",
@@ -495,7 +496,7 @@ try {
   // Some operation
   throw new Error("Connection timeout");
 } catch (error) {
-  await client.call(
+  await client.exec(
     ["logs", "store"],
     {
       level: "error",
@@ -513,7 +514,7 @@ try {
 }
 
 // Query logs by session
-const { logs } = await client.call(
+const { logs } = await client.exec(
   ["logs", "query"],
   {
     sessionId: "build-2024-03-15",
@@ -650,8 +651,8 @@ result.rows.forEach(user => {
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@mark1russell7/client-sqlite/register.js";
-import "@mark1russell7/client-mongo/register.js";
+import "@mark1russell7/client-sqlite"; // registers its procedures
+import "@mark1russell7/client-mongo"; // registers its procedures
 import "@mark1russell7/client-s3/register.js";
 ```
 

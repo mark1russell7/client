@@ -181,7 +181,7 @@ configure({ uri: "mongodb://localhost:27017", database: "myapp" });
 Each procedure reads `collection` and `database` from its input. An MCP tool call can set them. The call metadata is the fallback, for the clients that set it.
 
 ```typescript
-await client.call(["mongo", "documents", "count"], { collection: "users", query: { active: true } });
+await client.exec(["mongo", "documents", "count"], { collection: "users", query: { active: true } });
 ```
 
 ## API Reference
@@ -265,7 +265,7 @@ Test database connectivity and measure latency.
 
 ```typescript
 // Via RPC
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "database", "ping"],
   { timeout: 5000 }
 );
@@ -294,7 +294,7 @@ interface PingOutput {
 Get database information and statistics.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "database", "info"],
   { includeStats: true }
 );
@@ -325,7 +325,7 @@ interface DatabaseInfo {
 List all collections in the database.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "collections", "list"],
   { filter: "user" }
 );
@@ -350,7 +350,7 @@ interface ListCollectionsOutput {
 Create a new collection.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "collections", "create"],
   {
     name: "logs",
@@ -391,7 +391,7 @@ interface CreateCollectionOutput {
 Drop a collection.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "collections", "drop"],
   { name: "old_collection" }
 );
@@ -416,7 +416,7 @@ interface DropCollectionOutput {
 Get collection statistics.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "collections", "stats"],
   {},
   { metadata: { collection: "users" } }
@@ -449,7 +449,7 @@ interface CollectionStats {
 Find documents with pagination, filtering, sorting, and projection.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "find"],
   {
     query: { status: "active", age: { $gte: 18 } },
@@ -498,7 +498,7 @@ interface PaginationOutput {
 Get a single document by ID.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "get"],
   { id: "507f1f77bcf86cd799439011" },
   { metadata: { collection: "users" } }
@@ -525,7 +525,7 @@ Insert one or more documents.
 
 ```typescript
 // Insert single document
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "insert"],
   {
     documents: {
@@ -538,7 +538,7 @@ const result = await client.call(
 );
 
 // Insert multiple documents
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "insert"],
   {
     documents: [
@@ -573,7 +573,7 @@ A write needs exactly one of `id` or `filter`. An unknown field is an error: `qu
 
 ```typescript
 // Update one document by ID
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "update"],
   {
     collection: "users",
@@ -584,7 +584,7 @@ const result = await client.call(
 );
 
 // Update multiple documents
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "update"],
   {
     collection: "users",
@@ -631,13 +631,13 @@ Delete one document by `id`, or the documents that match a `filter`. The rules o
 
 ```typescript
 // Delete one document by ID
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "delete"],
   { collection: "users", id: "..." }
 );
 
 // Delete multiple documents
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "delete"],
   {
     collection: "users",
@@ -673,7 +673,7 @@ interface DeleteOutput {
 Count documents matching a query.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "count"],
   { query: { status: "active" } },
   { metadata: { collection: "users" } }
@@ -699,7 +699,7 @@ interface CountOutput {
 Execute an aggregation pipeline.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "aggregate"],
   {
     pipeline: [
@@ -745,7 +745,7 @@ interface AggregateOutput {
 List all indexes on a collection.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "indexes", "list"],
   {},
   { metadata: { collection: "users" } }
@@ -781,7 +781,7 @@ Create an index on a collection.
 
 ```typescript
 // Simple index
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "indexes", "create"],
   {
     keys: { email: 1 },
@@ -791,7 +791,7 @@ const result = await client.call(
 );
 
 // Compound index
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "indexes", "create"],
   {
     keys: { status: 1, createdAt: -1 },
@@ -801,7 +801,7 @@ const result = await client.call(
 );
 
 // Text index
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "indexes", "create"],
   {
     keys: { title: "text", description: "text" }
@@ -838,7 +838,7 @@ interface CreateIndexOutput {
 Drop an index from a collection.
 
 ```typescript
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "indexes", "drop"],
   { name: "email_1" },
   { metadata: { collection: "users" } }
@@ -1017,7 +1017,7 @@ function getBaseMeta(metadata: Record<string, unknown>): BaseMeta;
 ### Basic CRUD Operations
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import { connect } from "@mark1russell7/client-mongo";
 
 // Connect to MongoDB
@@ -1026,10 +1026,10 @@ await connect({
   database: "myapp"
 });
 
-const client = new Client(/* config */);
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Create a user
-const insertResult = await client.call(
+const insertResult = await client.exec(
   ["mongo", "documents", "insert"],
   {
     documents: {
@@ -1044,7 +1044,7 @@ const insertResult = await client.call(
 );
 
 // Find active users
-const findResult = await client.call(
+const findResult = await client.exec(
   ["mongo", "documents", "find"],
   {
     query: { status: "active" },
@@ -1058,7 +1058,7 @@ console.log(findResult.documents);
 console.log(findResult.pagination);
 
 // Update a user
-await client.call(
+await client.exec(
   ["mongo", "documents", "update"],
   {
     filter: { email: "alice@example.com" },
@@ -1068,7 +1068,7 @@ await client.call(
 );
 
 // Delete inactive users
-await client.call(
+await client.exec(
   ["mongo", "documents", "delete"],
   {
     filter: { status: "inactive" },
@@ -1082,7 +1082,7 @@ await client.call(
 
 ```typescript
 // Group users by country and count
-const result = await client.call(
+const result = await client.exec(
   ["mongo", "documents", "aggregate"],
   {
     pipeline: [
@@ -1107,7 +1107,7 @@ console.log(result.results);
 
 ```typescript
 // Create unique email index
-await client.call(
+await client.exec(
   ["mongo", "indexes", "create"],
   {
     keys: { email: 1 },
@@ -1117,7 +1117,7 @@ await client.call(
 );
 
 // Create compound index
-await client.call(
+await client.exec(
   ["mongo", "indexes", "create"],
   {
     keys: { status: 1, createdAt: -1 },
@@ -1127,7 +1127,7 @@ await client.call(
 );
 
 // List all indexes
-const indexes = await client.call(
+const indexes = await client.exec(
   ["mongo", "indexes", "list"],
   {},
   { metadata: { collection: "users" } }
@@ -1136,7 +1136,7 @@ const indexes = await client.call(
 console.log(indexes.indexes);
 
 // Drop an index
-await client.call(
+await client.exec(
   ["mongo", "indexes", "drop"],
   { name: "status_created_idx" },
   { metadata: { collection: "users" } }
@@ -1147,7 +1147,7 @@ await client.call(
 
 ```typescript
 // Create capped collection for logs
-await client.call(
+await client.exec(
   ["mongo", "collections", "create"],
   {
     name: "logs",
@@ -1160,7 +1160,7 @@ await client.call(
 );
 
 // List all collections
-const collections = await client.call(
+const collections = await client.exec(
   ["mongo", "collections", "list"],
   { filter: "user" }  // Filter collections containing "user"
 );
@@ -1168,7 +1168,7 @@ const collections = await client.call(
 console.log(collections.collections);
 
 // Get collection stats
-const stats = await client.call(
+const stats = await client.exec(
   ["mongo", "collections", "stats"],
   {},
   { metadata: { collection: "users" } }
@@ -1205,14 +1205,14 @@ const insertResult = await insertProcedure.handler(
 
 ```typescript
 // Default database
-await client.call(
+await client.exec(
   ["mongo", "documents", "find"],
   { query: {} },
   { metadata: { collection: "users" } }
 );
 
 // Override database in metadata
-await client.call(
+await client.exec(
   ["mongo", "documents", "find"],
   { query: {} },
   { metadata: { database: "analytics", collection: "events" } }
@@ -1227,8 +1227,8 @@ await client.call(
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@mark1russell7/client-mongo/register.js";
-import "@mark1russell7/client-sqlite/register.js";
+import "@mark1russell7/client-mongo"; // registers its procedures
+import "@mark1russell7/client-sqlite"; // registers its procedures
 import "@mark1russell7/client-s3/register.js";
 ```
 
