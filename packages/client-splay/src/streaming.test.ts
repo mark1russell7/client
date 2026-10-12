@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ComponentOutput } from "@mark1russell7/client/components";
+import type { ComponentOutput } from "./components/index.js";
 import { debounceStream, mergeStreams, throttleStream } from "./streaming.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

@@ -8,9 +8,9 @@
  * produces output based on data, size, and path context.
  */
 
-import type { ZodLike } from "../client/validation/types.js";
-import type { ProcedureMetadata, ProcedurePath } from "../procedures/types.js";
-import type { EventBus } from "../events/types.js";
+import type { ZodLike } from "@mark1russell7/client/client";
+import type { ProcedureMetadata, ProcedurePath } from "@mark1russell7/client";
+import type { IEventBus as EventBus } from "@mark1russell7/client";
 
 // =============================================================================
 // Component Output (Serializable Descriptor)

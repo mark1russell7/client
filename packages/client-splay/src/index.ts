@@ -103,30 +103,9 @@ export {
 } from "./hydrate.js";
 
 // =============================================================================
-// Re-exports from client
+// Components
 // =============================================================================
 
-// Re-export component types that users will need
-export type {
-  ComponentOutput,
-  FragmentOutput,
-  NullOutput,
-  AnyComponentOutput,
-  Size,
-  ComponentContext,
-  ComponentFactory,
-  StreamingComponentFactory,
-  ComponentDefinition,
-  ComponentBundle,
-} from "@mark1russell7/client/components";
-
-// Re-export component helpers
-export {
-  nullOutput,
-  fragment,
-  isFragment,
-  isNullOutput,
-  defineComponent,
-  simpleComponent,
-  streamingComponent,
-} from "@mark1russell7/client/components";
+// The components: serializable UI descriptors made by procedures. They moved here from
+// "@mark1russell7/client/components" (roadmap 3.4: this is the UI package of the ecosystem).
+export * from "./components/index.js";

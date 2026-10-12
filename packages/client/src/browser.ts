@@ -247,6 +247,7 @@ export {
   outputItems,
   streamOutput,
   InvocationError,
+  isAsyncIterable,
 } from "./procedures/invoke.js";
 export type {
   InvokeOptions,
@@ -323,44 +324,9 @@ export type {
 } from "./events/index.js";
 
 // ============================================================================
-// Components - Serializable UI descriptors via procedures
+// Components (serializable UI descriptors) moved to @mark1russell7/client-splay, the UI package
+// of the ecosystem (roadmap 3.4).
 // ============================================================================
-export type {
-  ComponentOutput,
-  FragmentOutput,
-  NullOutput,
-  AnyComponentOutput,
-  Size,
-  ComponentContext,
-  ComponentFactory,
-  StreamingComponentFactory,
-  AnyComponentFactory,
-  ComponentMetadata,
-  ComponentDefinition,
-  AnyComponentDefinition,
-  RegisteredComponent,
-  ComponentBundle,
-  InferComponentInput,
-  IsStreamingComponent,
-  ComponentInput,
-} from "./components/index.js";
-
-export {
-  nullOutput,
-  fragment,
-  isFragment,
-  isNullOutput,
-  isStreamingFactory,
-  defineComponent,
-  componentToProcedure,
-  registerBundle,
-  createBundle,
-  simpleComponent,
-  namespacedComponent,
-  streamingComponent,
-  componentInputSchema,
-  componentOutputSchema,
-} from "./components/index.js";
 
 // ============================================================================
 // Note: The unified middleware system (./middleware) is a foundation used by both
