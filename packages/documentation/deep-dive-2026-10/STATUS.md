@@ -181,6 +181,7 @@ The documentation fork checked each document against the code and ran each examp
 | NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 29 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.mjs` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
 | NPM-2 | | open | | The general packages `cue` 1.0.0, `splay` 0.1.0 and `docker-sqlite` 0.1.0 are ready, but the npm login has expired: the owner runs `npm login`, then the bootstrap stages every package for one approval. |
 | NPM-3 | low | decision | | The bins `client` (the announce and discover tool) and `server` have generic names. Rename them before the first publish, or keep them. |
+| NPM-4 | low | decision | | `client-vitest/write-register.cjs`, `write-files.cjs` and `write-types.cjs` are one-time generator scripts from the creation of the package. They are not published, but a run overwrites the current source with old code. Recommendation: delete them. |
 
 ## Architecture roadmap
 
@@ -193,10 +194,10 @@ The documentation fork checked each document against the code and ran each examp
 | 1.1 Program Format v1 and one evaluator | done | `8a9e7c7`, `88edf02` | One interpreter, and `documentation/PROGRAM-FORMAT.md`. Its section 11 lists the open points. |
 | 1.2 Interceptors in `invokeProcedure` | done | `9e20de8` | Timeout, tracing and metrics interceptors. Nested calls inherit the chain. The MCP server limits each tool call. |
 | 1.3 A build-time manifest and a thin `mark` path | done | `978175a` | `mark --help` went from 1127 ms to 164 ms, and a warm-server call from 1170 ms to 352 ms. |
-| 2.1 Standard Schema, real schemas for exposed procedures | partly | `580a72a`, `99633da`, `8306c1e` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. The 62 tools and the 100 core procedures have real input schemas. Real output schemas exist only for `db.*`. |
+| 2.1 Standard Schema, real schemas for exposed procedures | partly | `580a72a`, `8306c1e`, `830af9c`, `b223979` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. Every tool has a real input schema. The 42 tools outside `packages/client` and every procedure of the `client-*` packages have real output schemas, and the MCP server sends structured output. The 20 core tools are in progress. |
 | 2.2 `commandProcedure()` and the wrapper migration | done | `6638311` | As `runCommand`. |
 | 2.3 One `host` package | open | | |
 | 3.1 Modules without side effects | open | | |
-| 3.2 A program store | open | | |
-| 3.3 The collections rebuild (P8) | partly | `52a5f68` | The contract tests and the defects are done. Core still depends on `client-collections`. |
-| 3.4 A slimmer core | open | | |
+| 3.2 A program store | done | `0fe2fbc`, `6567e2d` | The new package `client-store`: `ProgramStore` (memory, JSON file, collection storage). `procedure.store`/`load`/`sync` store programs, and a loaded program is data-driven again. |
+| 3.3 The collections rebuild (P8) | done | `52a5f68`, `0fe2fbc` | The contract tests and the defects are done. The core no longer depends on `client-collections`: it depends only on `ws` and `zod`. |
+| 3.4 A slimmer core | done | `0fe2fbc`, `1303677` | Storage moved to `client-store`, components to `client-splay`. The `dist` of `client` is 12% smaller, and the browser entry has 157 exports, not 193. |
