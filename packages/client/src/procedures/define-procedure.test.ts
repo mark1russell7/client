@@ -319,17 +319,16 @@ describe("procedure.define meta-procedure", () => {
         ctx
       );
 
-      expect(result).not.toBeNull();
-      expect(result?.path).toEqual(["test", "findable"]);
+      expect(result).toMatchObject({ found: true, path: ["test", "findable"], runtime: true });
     });
 
-    it("returns null for non-existent path", async () => {
+    it("returns found: false for a path that does not exist", async () => {
       const result = await getProcedureProcedure.handler!(
         { path: ["does", "not", "exist"] },
         ctx
       );
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ found: false });
     });
   });
 
@@ -677,7 +676,7 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     expect(registry.get(["test", "local"])).toBeDefined();
     expect(PROCEDURE_REGISTRY.get(["test", "local"])).toBeUndefined();
     expect(isDataDriven(registry.get(["test", "local"])!)).toBe(true);
-    const listed = await client.exec<{ procedures: Array<{ path: string[] }> }>(["procedure", "list"], {});
+    const listed = await client.exec<{ procedures: Array<{ path: string[] }> }>(["procedure", "list"], { runtime: true });
     expect(listed.procedures.map((p) => p.path.join("."))).toEqual(["test.local"]);
   });
 
@@ -709,7 +708,41 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
     await expect(define(client, ["test", "__proto__"], add(1, 1))).rejects.toThrow(/__proto__/);
     await expect(define(client, ["test", "noBody"], { not: "a ref" })).rejects.toThrow(/aggregation/);
     expect(registry.getAll().filter((p) => p.path[0] === "test")).toEqual([]);
-    const listed = await client.exec<{ procedures: unknown[] }>(["procedure", "list"], {});
+    const listed = await client.exec<{ procedures: unknown[] }>(["procedure", "list"], { runtime: true });
     expect(listed.procedures).toEqual([]);
+  });
+
+  // Docs review DOC-6: client-procedure replaced these two with versions for the whole registry.
+  // Now one implementation does both, on the caller's registry.
+  it("DOC-6: procedure.list gives every procedure, and runtime: true only the defined ones", async () => {
+    const { client } = makeClient();
+    await define(client, ["test", "listed"], add(1, 1));
+    type Listed = { procedures: Array<{ key: string; runtime: boolean; hasHandler: boolean }>; count: number };
+    const all = await client.exec<Listed>(["procedure", "list"], {});
+    expect(all.procedures.find((p) => p.key === "client.add")).toMatchObject({ runtime: false, hasHandler: true });
+    expect(all.procedures.find((p) => p.key === "test.listed")).toMatchObject({ runtime: true });
+    expect(all.count).toBe(all.procedures.length);
+    const client2 = await client.exec<Listed>(["procedure", "list"], { namespace: "test" });
+    expect(client2.procedures.map((p) => p.key)).toEqual(["test.listed"]);
+    const runtime = await client.exec<Listed>(["procedure", "list"], { runtime: true });
+    expect(runtime.procedures.map((p) => p.key)).toEqual(["test.listed"]);
+  });
+
+  it("DOC-6: procedure.get describes any procedure, with a path or a key", async () => {
+    const { client } = makeClient();
+    await define(client, ["test", "got"], add(1, 1));
+    expect(await client.exec(["procedure", "get"], { path: ["client", "add"] })).toMatchObject({
+      found: true,
+      key: "client.add",
+      runtime: false,
+      hasHandler: true,
+    });
+    const defined = await client.exec<{ found: boolean; runtime: boolean; metadata: { aggregation?: unknown } }>(
+      ["procedure", "get"],
+      { path: "test.got" },
+    );
+    expect(defined).toMatchObject({ found: true, runtime: true });
+    expect(defined.metadata.aggregation).toEqual(add(1, 1));
+    expect(await client.exec(["procedure", "get"], { path: ["no", "such"] })).toEqual({ found: false });
   });
 });
