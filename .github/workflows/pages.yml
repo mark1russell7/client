@@ -80,3 +80,22 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Tell the IndexNow search engines (Bing and others) about the pages of the new deploy. A
+  # failure here does not fail the deploy.
+  indexnow:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/site/scripts
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node packages/site/scripts/indexnow.mjs "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
