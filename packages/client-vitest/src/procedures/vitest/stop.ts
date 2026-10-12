@@ -4,7 +4,7 @@
  * Stop a vitest watch process
  */
 
-import { processes } from "@mark1russell7/client-shell/command";
+import { processes } from "@procedures/shell/command";
 import type { VitestStopInput, VitestStopOutput } from "../../types.js";
 import { VITEST_GROUP } from "./watch.js";
 

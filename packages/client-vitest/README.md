@@ -1,9 +1,9 @@
-# @mark1russell7/client-vitest
+# @procedures/vitest
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-vitest?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-vitest)
+[![npm](https://img.shields.io/npm/v/@procedures/vitest?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/vitest)
 
 ```sh
-npm install @mark1russell7/client-vitest
+npm install @procedures/vitest
 ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -149,8 +149,8 @@ graph BT
 ## Quick Start
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-vitest"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/vitest"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -431,8 +431,8 @@ graph TB
 - **Node.js** >= 22
 - **Vitest** >= 3.0 (peer dependency)
 - **Dependencies:**
-  - `@mark1russell7/client`
-  - `@mark1russell7/client-shell`
+  - `@procedures/client`
+  - `@procedures/shell`
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-mongo",
+  "name": "@procedures/mongo",
   "version": "0.1.0",
   "description": "MongoDB as typed procedures: documents, collections, indexes, aggregation and database info, with a lazy connection and safe update and delete targets.",
   "keywords": [
@@ -80,8 +80,8 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-collections": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/collections": "workspace:*",
     "mongodb": "^7.0.0",
     "zod": "^4.6.5"
   }

@@ -5,10 +5,10 @@
  * Enables procedure persistence and sync across backends.
  */
 
-import type { CollectionStorage } from "@mark1russell7/client-collections";
-import { ProcedureRegistry } from "@mark1russell7/client";
-import type { AnyProcedure, ProcedurePath, RegistrationOptions } from "@mark1russell7/client";
-import { pathToKey } from "@mark1russell7/client";
+import type { CollectionStorage } from "@procedures/collections";
+import { ProcedureRegistry } from "@procedures/client";
+import type { AnyProcedure, ProcedurePath, RegistrationOptions } from "@procedures/client";
+import { pathToKey } from "@procedures/client";
 import type {
   SerializedProcedure,
   SyncedRegistryOptions,

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@procedures/client";
 import "./register.js";
 
 async function run(key: string, input: unknown): Promise<unknown> {

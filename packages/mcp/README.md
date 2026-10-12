@@ -1,6 +1,6 @@
-# @mark1russell7/mcp
+# @procedures/mcp
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/mcp)
+[![npm](https://img.shields.io/npm/v/@procedures/mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/mcp)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -40,7 +40,7 @@
 ## Installation
 
 ```bash
-npm install @mark1russell7/mcp
+npm install @procedures/mcp
 ```
 
 ---
@@ -133,8 +133,8 @@ graph TB
 ## Quick Start
 
 ```typescript
-import { proceduresToMcpTools, zodToJsonSchema } from "@mark1russell7/mcp";
-import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { proceduresToMcpTools, zodToJsonSchema } from "@procedures/mcp";
+import { PROCEDURE_REGISTRY } from "@procedures/client";
 
 // Convert all registered procedures to MCP tools
 const tools = proceduresToMcpTools(PROCEDURE_REGISTRY.getAll());
@@ -172,7 +172,7 @@ function zodToJsonSchema(schema: ZodType): JsonSchema;
 **Example:**
 ```typescript
 import { z } from "zod";
-import { zodToJsonSchema } from "@mark1russell7/mcp";
+import { zodToJsonSchema } from "@procedures/mcp";
 
 const schema = z.object({
   path: z.string().describe("File path"),
@@ -284,7 +284,7 @@ graph TB
 
 **Usage:**
 ```typescript
-import { proceduresToMcpTools, type McpToolFilter } from "@mark1russell7/mcp";
+import { proceduresToMcpTools, type McpToolFilter } from "@procedures/mcp";
 
 const filter: McpToolFilter = {
   includeTags: ["fs", "git"],      // Only the procedures with these tags
@@ -303,8 +303,8 @@ const tools = proceduresToMcpTools(procedures, filter);
 ### With client-mcp
 
 ```typescript
-import { McpServerTransport } from "@mark1russell7/client-mcp";
-import { proceduresToMcpTools } from "@mark1russell7/mcp";
+import { McpServerTransport } from "@procedures/mcp-server";
+import { proceduresToMcpTools } from "@procedures/mcp";
 
 // client-mcp uses mcp internally
 const transport = new McpServerTransport(server, {
@@ -350,7 +350,7 @@ graph BT
 
 - **Node.js** >= 22
 - **Dependencies:**
-  - `@mark1russell7/client`
+  - `@procedures/client`
   - `zod`
 
 ---

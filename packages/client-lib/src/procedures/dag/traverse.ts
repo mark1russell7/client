@@ -35,8 +35,8 @@
 
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { ProcedureContext, ProcedurePath } from "@mark1russell7/client";
-import { isAnyProcedureRef, hydrateInput, scopeOf } from "@mark1russell7/client";
+import type { ProcedureContext, ProcedurePath } from "@procedures/client";
+import { isAnyProcedureRef, hydrateInput, scopeOf } from "@procedures/client";
 import type {
   DAGNode,
   DagTraverseInput,

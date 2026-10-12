@@ -4,7 +4,7 @@
  * Procedure Registration for Node.js process management
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import { nodeRun } from "./procedures/node/run.js";
 import { nodeSpawn } from "./procedures/node/spawn.js";
 import { nodeKill } from "./procedures/node/kill.js";
@@ -93,7 +93,7 @@ const nodeStatusProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const nodeModule: ProcedureModule = defineModule("@mark1russell7/client-node", [
+export const nodeModule: ProcedureModule = defineModule("@procedures/node", [
     nodeRunProcedure,
     nodeSpawnProcedure,
     nodeKillProcedure,

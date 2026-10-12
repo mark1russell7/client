@@ -8,7 +8,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer } from "node:net";
 import { request } from "node:http";
-import { ProcedureRegistry, defineProcedure, outputSchema } from "@mark1russell7/client";
+import { ProcedureRegistry, defineProcedure, outputSchema } from "@procedures/client";
 import { createPeer, type Peer } from "./index.js";
 import { hostAllowed, hostName, originAllowed, tokenMatches } from "./security.js";
 

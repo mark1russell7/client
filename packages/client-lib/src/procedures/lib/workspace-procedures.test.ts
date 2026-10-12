@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { libScan } from "./scan.js";
 import { libAudit } from "./audit.js";
 import { libNew } from "./new.js";
@@ -158,7 +158,7 @@ describe("workspace lib procedures", () => {
 
     it("skips packages/cli, the repository tool of the template", async () => {
       mkdirSync(join(root, "packages", "cli", "src"), { recursive: true });
-      writeJson(join(root, "packages", "cli", "package.json"), { name: "@mark1russell7/repo-cli" });
+      writeJson(join(root, "packages", "cli", "package.json"), { name: "@procedures/repo-cli" });
 
       const result = await libAudit({ rootPath: root, fix: false }, fakeContext());
 
@@ -171,14 +171,14 @@ describe("workspace lib procedures", () => {
       const result = await libNew({ name: "demo", preset: "lib", rootPath: root, dryRun: true }, fakeContext());
 
       expect(result.success).toBe(true);
-      expect(result.packageName).toBe("@mark1russell7/demo");
+      expect(result.packageName).toBe("@procedures/demo");
       expect(result.packagePath).toBe(join(root, "packages", "demo"));
       expect(result.created).toContain(join(root, "packages", "demo", "src", "register.ts"));
       expect(existsSync(join(root, "packages", "demo"))).toBe(false);
     });
 
     it("refuses a package folder that exists", async () => {
-      makePackage(root, "demo", { name: "@mark1russell7/demo" });
+      makePackage(root, "demo", { name: "@procedures/demo" });
 
       const result = await libNew({ name: "demo", preset: "lib", rootPath: root, dryRun: false }, fakeContext());
 

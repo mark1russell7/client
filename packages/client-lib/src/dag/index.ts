@@ -1,7 +1,7 @@
 /**
  * DAG utilities.
  *
- * The generic DAG algorithms are re-exported from @mark1russell7/client-dag; only buildDAGNodes
+ * The generic DAG algorithms are re-exported from @procedures/dag; only buildDAGNodes
  * (which builds the ecosystem package graph) is domain-specific and stays local. This package
  * previously vendored a verbatim copy of the generic algorithms — deduplicated here. The nodes
  * carry an `id` (mirroring `name`) so they satisfy client-dag's generic `DAGNode` contract.
@@ -18,6 +18,6 @@ export {
   filterDAGFromRoot,
   getAncestors,
   getDescendants,
-} from "@mark1russell7/client-dag";
+} from "@procedures/dag";
 
 export { buildDAGNodes } from "./builder.js";

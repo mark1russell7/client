@@ -4,7 +4,7 @@
  * Procedure Registration for Vite dev server management
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import { viteDev } from "./procedures/vite/dev.js";
 import { viteBuild } from "./procedures/vite/build.js";
 import { vitePreview } from "./procedures/vite/preview.js";
@@ -84,7 +84,7 @@ const viteStopProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const viteModule: ProcedureModule = defineModule("@mark1russell7/client-vite", [
+export const viteModule: ProcedureModule = defineModule("@procedures/vite", [
     viteDevProcedure,
     viteBuildProcedure,
     vitePreviewProcedure,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-playground",
+  "name": "@procedures/playground",
   "version": "0.1.0",
   "description": "A typed fluent API to write procedure programs in TypeScript (proc, ref, run) with autocomplete, then run them with the client.",
   "keywords": [
@@ -54,7 +54,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*"
+    "@procedures/client": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

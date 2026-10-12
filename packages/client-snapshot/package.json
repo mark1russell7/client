@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-snapshot",
+  "name": "@procedures/snapshot",
   "version": "0.1.0",
   "description": "Snapshot and restore development environments with S3: git state, packages and files, with streamed archives and a safe restore.",
   "keywords": [
@@ -65,12 +65,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-fs": "workspace:*",
-    "@mark1russell7/client-git": "workspace:*",
-    "@mark1russell7/client-pnpm": "workspace:*",
-    "@mark1russell7/client-s3": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/fs": "workspace:*",
+    "@procedures/git": "workspace:*",
+    "@procedures/pnpm": "workspace:*",
+    "@procedures/s3": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "tar": "^7.5.0",
     "zod": "^4.6.5"
   },

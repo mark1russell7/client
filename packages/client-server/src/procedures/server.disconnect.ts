@@ -3,7 +3,7 @@
  * Disconnects from a remote peer
  */
 
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerDisconnectOutputSchema } from "../output-schemas.js";
 import { serverDisconnectInputSchema } from "../input-schemas.js";

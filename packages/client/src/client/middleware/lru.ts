@@ -4,7 +4,7 @@
  * A JavaScript `Map` keeps its keys in the order of insertion. A read moves its key to the end,
  * so the first key is always the least recently used one. A write that goes over the capacity
  * removes the first key. The core has this small map itself, so it does not depend on
- * `@mark1russell7/client-collections` (roadmap 3.3: before, the cache composed `lruMap` and
+ * `@procedures/collections` (roadmap 3.3: before, the cache composed `lruMap` and
  * `hashMap` of that package).
  */
 export class LruMap<K, V> {

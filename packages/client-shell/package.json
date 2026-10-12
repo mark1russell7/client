@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-shell",
+  "name": "@procedures/shell",
   "version": "0.1.0",
   "description": "Safe command execution for TypeScript: shell.run with argv and no shell, shell.stream line streaming with backpressure, process-tree kill, timeouts and output caps.",
   "keywords": [
@@ -72,7 +72,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
+    "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
   "client": {

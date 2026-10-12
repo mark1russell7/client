@@ -8,7 +8,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { ObjectId } from "mongodb";
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 import "../register.js";
 import { setDefaultConnection } from "../connection.js";
 import { FakeServer, fakeConnection } from "../../test/fake-mongo.js";

@@ -7,7 +7,7 @@
  */
 
 import { print } from "./print.js";
-import type { Method, AnyProcedure } from "@mark1russell7/client";
+import type { Method, AnyProcedure } from "@procedures/client";
 import { realpathSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +30,7 @@ const VERSION = "1.0.0";
  * run in this process: the help and a call to the CLI server do not need it.
  */
 async function pathToMethod(path: string[]): Promise<Method> {
-  const { pathToMethod: corePathToMethod } = await import("@mark1russell7/client");
+  const { pathToMethod: corePathToMethod } = await import("@procedures/client");
   return corePathToMethod(path);
 }
 
@@ -147,7 +147,7 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
  * CLI execution context, created once and reused
  */
 export interface CliContext {
-  client: InstanceType<typeof import("@mark1russell7/client").Client>;
+  client: InstanceType<typeof import("@procedures/client").Client>;
   procedures: AnyProcedure[];
   verbose: boolean;
 }
@@ -173,7 +173,7 @@ export interface ExecuteOptions {
  * This is the expensive part (~4s). Call once, reuse many times.
  */
 export async function initCli(verbose = false): Promise<CliContext> {
-  const clientModule = await import("@mark1russell7/client");
+  const clientModule = await import("@procedures/client");
   const { Client, LocalTransport } = clientModule;
 
   // A registry of its own, from the module of each package (roadmap 3.1): not the global one
@@ -424,7 +424,7 @@ It has a registry of its own, from the modules of its bundles, and the host poli
 server: only the tools of the bundles, strict nested calls, and a time limit for each call.
 
 Options:
-  --bundles <list>      Comma-separated bundles (default: MCP_BUNDLES, or @mark1russell7/bundle-mcp)
+  --bundles <list>      Comma-separated bundles (default: MCP_BUNDLES, or @procedures/bundle-mcp)
   --tool-timeout <ms>   The time limit of each tool call (default: MCP_TOOL_TIMEOUT_MS, or 600000)
   --debug               Write debug lines to stderr
   -h, --help            Show this help
@@ -436,7 +436,7 @@ Options:
  * writes nothing to stdout, and the server sends console.log to stderr.
  */
 async function startMcp(args: string[]): Promise<void> {
-  const { loadConfig, startDevToolsServer } = await import("@mark1russell7/mcp-dev-tools");
+  const { loadConfig, startDevToolsServer } = await import("@procedures/mcp-dev-tools");
   const config = loadConfig();
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
@@ -519,7 +519,7 @@ async function run(argv: string[]): Promise<void> {
   // `mark mcp <procedure>` still runs an mcp.* procedure (`mark mcp serve`, `mark mcp listTools`).
   const [command, ...commandArgs] = leading.rest;
   if (command === "serve") {
-    const { runServer } = await import("@mark1russell7/server");
+    const { runServer } = await import("@procedures/server");
     // A --procedures package resolves from the current folder, then from mark, which depends on
     // every procedure package of the workspace
     const markDir = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -588,7 +588,7 @@ function isEntryPoint(): boolean {
   }
 }
 
-// Importing @mark1russell7/cli does not run the CLI (deep dive CLI-17)
+// Importing @procedures/mark does not run the CLI (deep dive CLI-17)
 if (isEntryPoint()) {
   await main(process.argv.slice(2));
 }

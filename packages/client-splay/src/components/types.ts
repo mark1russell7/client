@@ -8,9 +8,9 @@
  * produces output based on data, size, and path context.
  */
 
-import type { ZodLike } from "@mark1russell7/client/client";
-import type { ProcedureMetadata, ProcedurePath } from "@mark1russell7/client";
-import type { IEventBus as EventBus } from "@mark1russell7/client";
+import type { ZodLike } from "@procedures/client/client";
+import type { ProcedureMetadata, ProcedurePath } from "@procedures/client";
+import type { IEventBus as EventBus } from "@procedures/client";
 
 // =============================================================================
 // Component Output (Serializable Descriptor)

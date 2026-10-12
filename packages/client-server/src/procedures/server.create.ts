@@ -3,7 +3,7 @@
  * Creates a transport-agnostic peer that exposes procedures
  */
 
-import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCreateOutputSchema } from "../output-schemas.js";
 import { serverCreateInputSchema } from "../input-schemas.js";

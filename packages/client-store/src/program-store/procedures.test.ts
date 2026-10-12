@@ -15,7 +15,7 @@ import {
   isDataDriven,
   metaProcedures,
   runtimeProgramOf,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import { programStoreProcedures } from "./procedures.js";
 import { attachProgramStore, getProgramStore } from "./attach.js";
 import { FileProgramStore } from "./file.js";

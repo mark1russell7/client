@@ -1,11 +1,11 @@
 /**
- * @mark1russell7/client-docker
+ * @procedures/docker
  *
  * Wraps Docker CLI commands as procedures using client-shell.
  *
  * @example
  * ```typescript
- * import { Client } from "@mark1russell7/client";
+ * import { Client } from "@procedures/client";
  *
  * // Run a container
  * await client.call(["docker", "run"], {

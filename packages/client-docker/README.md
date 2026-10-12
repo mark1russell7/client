@@ -1,6 +1,6 @@
-# @mark1russell7/client-docker
+# @procedures/docker
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-docker.svg)](https://www.npmjs.com/package/@mark1russell7/client-docker)
+[![npm version](https://img.shields.io/npm/v/@procedures/docker.svg)](https://www.npmjs.com/package/@procedures/docker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Docker container management as procedures using client-shell
@@ -95,20 +95,20 @@ sequenceDiagram
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-docker
+npm install @procedures/docker
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add @mark1russell7/client-docker
+pnpm add @procedures/docker
 ```
 
 ### Dependencies
 
 This package depends on:
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/client-shell` - Shell execution for CLI commands
+- `@procedures/client` - Core client/procedure system
+- `@procedures/shell` - Shell execution for CLI commands
 - `zod` - Schema validation and type inference
 
 ### System Requirements
@@ -121,8 +121,8 @@ This package depends on:
 ### Basic Container Operations
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-docker"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/docker"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -530,7 +530,7 @@ import {
   DockerBuildInput,
   DockerBuildInputSchema,
   // ... etc
-} from "@mark1russell7/client-docker";
+} from "@procedures/docker";
 
 // Validate input
 const parsed = DockerRunInputSchema.parse({
@@ -563,7 +563,7 @@ export interface DockerCommandOutput {
 The `bundle-dev` package includes `client-docker` for development workflows:
 
 ```typescript
-import "@mark1russell7/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev"; // registers its procedures
 
 // docker.* procedures are now available
 await client.exec(["docker", "run"], { ... });
@@ -747,7 +747,7 @@ MIT
 
 ## Related Packages
 
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/client-shell` - Shell command execution
-- `@mark1russell7/bundle-dev` - Development bundle
-- `@mark1russell7/client-fs` - Filesystem operations
+- `@procedures/client` - Core client/procedure system
+- `@procedures/shell` - Shell command execution
+- `@procedures/bundle-dev` - Development bundle
+- `@procedures/fs` - Filesystem operations

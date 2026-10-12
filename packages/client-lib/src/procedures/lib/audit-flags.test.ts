@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@mark1russell7/client";
+import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@procedures/client";
 import { findFlagNotices } from "./audit.js";
 
 function procedure(path: string[], schema: z.ZodTypeAny, shorts: Record<string, string>): AnyProcedure {

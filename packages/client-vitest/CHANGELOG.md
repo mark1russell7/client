@@ -1,4 +1,4 @@
-# @mark1russell7/client-vitest
+# @procedures/vitest
 
 ## 0.1.0
 

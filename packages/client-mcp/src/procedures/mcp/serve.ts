@@ -6,7 +6,7 @@
  * Which procedures are tools is a security decision. Before, `mcp.serve` exposed every
  * procedure of the registry, `shell.exec` too (deep dive, architecture review 3.2). Now the tools
  * come from `namespaces`/`exclude`, or from the `mcpNamespaces`/`mcpExclude` of the bundles
- * (default: `@mark1russell7/bundle-mcp`, resolved from the current folder). Without a list,
+ * (default: `@procedures/bundle-mcp`, resolved from the current folder). Without a list,
  * nothing is exposed. The nested calls follow the call policy (`strictCalls`), and each tool call
  * has a time limit.
  */
@@ -19,13 +19,13 @@ import {
   timeoutInterceptor,
   type AnyProcedure,
   type ProcedurePath,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import { McpServerTransport } from "../../transport/mcp-transport.js";
 import type { McpServerTransportOptions } from "../../types.js";
 import { exposeRule, importBundles, mergeSurfaces } from "../../surface.js";
 
 /** The default bundle of the tool surface. */
-export const DEFAULT_SERVE_BUNDLE = "@mark1russell7/bundle-mcp";
+export const DEFAULT_SERVE_BUNDLE = "@procedures/bundle-mcp";
 
 const McpServeInputSchema = z.object({
   /**

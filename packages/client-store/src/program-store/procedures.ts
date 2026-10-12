@@ -26,7 +26,7 @@ import {
   type AnyProcedure,
   type ProcedureContext,
   type ProcedurePath,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import { ProcedureStoreError } from "../errors.js";
 import { callerRegistry, getProgramStore, requireProgramStore } from "./attach.js";
 import type { ProgramStore, StoredProgram } from "./types.js";

@@ -1,13 +1,13 @@
-# @mark1russell7/client-git
+# @procedures/git
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-git.svg)](https://www.npmjs.com/package/@mark1russell7/client-git)
+[![npm version](https://img.shields.io/npm/v/@procedures/git.svg)](https://www.npmjs.com/package/@procedures/git)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Git operations as RPC procedures - `git.add`, `git.commit`, `git.push`, `git.status`, and 22 more git commands exposed as type-safe procedures.
 
 ## Overview
 
-`@mark1russell7/client-git` exposes comprehensive Git functionality as RPC procedures through the client system. It provides 26 procedures covering all major Git operations including repository state management, staging, commits, branching, remote operations, stashing, and repository predicates.
+`@procedures/git` exposes comprehensive Git functionality as RPC procedures through the client system. It provides 26 procedures covering all major Git operations including repository state management, staging, commits, branching, remote operations, stashing, and repository predicates.
 
 This package wraps Git commands directly (not through `client-shell`), providing structured input/output with full type safety via Zod schemas.
 
@@ -15,7 +15,7 @@ This package wraps Git commands directly (not through `client-shell`), providing
 
 ```mermaid
 graph TB
-    A[client-git] -->|depends on| B[@mark1russell7/client]
+    A[client-git] -->|depends on| B[@procedures/client]
     A -->|validates with| C[zod]
 
     D[Application] -->|calls| E[git.* procedures]
@@ -60,20 +60,20 @@ graph LR
 
 ```bash
 # Using pnpm (recommended)
-pnpm add @mark1russell7/client-git
+pnpm add @procedures/git
 
 # Using npm
-npm install @mark1russell7/client-git
+npm install @procedures/git
 
 # Using yarn
-yarn add @mark1russell7/client-git
+yarn add @procedures/git
 ```
 
 ## Quick Start
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-git"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/git"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -949,7 +949,7 @@ await client.exec(["git", "fetch"], {
 
 ```mermaid
 graph LR
-    A[@mark1russell7/client-git] --> B[@mark1russell7/client]
+    A[@procedures/git] --> B[@procedures/client]
     A --> C[zod]
 
     B -.->|provides| D[Client & Procedure System]
@@ -960,7 +960,7 @@ graph LR
     style C fill:#fff4e1
 ```
 
-- **`@mark1russell7/client`** - Core client library providing the procedure system
+- **`@procedures/client`** - Core client library providing the procedure system
 - **`zod`** - Schema validation library
 
 ## Integration with Ecosystem
@@ -969,10 +969,10 @@ graph LR
 
 ```typescript
 // bundle-dev/src/register.ts
-import "@mark1russell7/client-git"; // registers its procedures
+import "@procedures/git"; // registers its procedures
 
 // client-lib uses git procedures internally
-import { gitStatus, gitAdd, gitCommit } from "@mark1russell7/client-git";
+import { gitStatus, gitAdd, gitCommit } from "@procedures/git";
 ```
 
 ### Usage in client-lib
@@ -1032,7 +1032,7 @@ pnpm clean
 The handlers start git themselves. Their context is optional: it gives only the abort `signal`.
 
 ```typescript
-import { gitStatus, gitCommit, gitPush } from "@mark1russell7/client-git";
+import { gitStatus, gitCommit, gitPush } from "@procedures/git";
 
 const status = await gitStatus({ cwd: "./repo" });
 await gitCommit({ message: "feat: new feature", cwd: "./repo" });
@@ -1042,8 +1042,8 @@ await gitPush({ remote: "origin", cwd: "./repo" }, { signal: AbortSignal.timeout
 ### Custom Registration
 
 ```typescript
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
-import { gitStatus, GitStatusInputSchema } from "@mark1russell7/client-git";
+import { createProcedure, registerProcedures } from "@procedures/client";
+import { gitStatus, GitStatusInputSchema } from "@procedures/git";
 
 // Register under custom namespace
 const customStatusProcedure = createProcedure()
@@ -1109,7 +1109,7 @@ MIT
 
 ## Related Packages
 
-- [@mark1russell7/client](https://github.com/mark1russell7/client) - Core client library
-- [@mark1russell7/client-lib](https://github.com/mark1russell7/client-lib) - Library management (uses git procedures)
-- [@mark1russell7/client-pnpm](https://github.com/mark1russell7/client-pnpm) - PNPM wrapper
-- [@mark1russell7/bundle-dev](https://github.com/mark1russell7/bundle-dev) - Development bundle
+- [@procedures/client](https://github.com/mark1russell7/client) - Core client library
+- [@procedures/lib](https://github.com/mark1russell7/client-lib) - Library management (uses git procedures)
+- [@procedures/pnpm](https://github.com/mark1russell7/client-pnpm) - PNPM wrapper
+- [@procedures/bundle-dev](https://github.com/mark1russell7/bundle-dev) - Development bundle

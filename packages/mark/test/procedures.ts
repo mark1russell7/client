@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@mark1russell7/client";
+import { createProcedure, outputSchema, zodAdapter, type AnyProcedure } from "@procedures/client";
 import type { CLIMeta } from "../src/parse.js";
 
 function procedure(

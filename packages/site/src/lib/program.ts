@@ -255,7 +255,7 @@ export function callKeys(program: Json): Set<string> {
 }
 
 /**
- * The program as TypeScript with the `proc()` builder of `@mark1russell7/client`. The code runs
+ * The program as TypeScript with the `proc()` builder of `@procedures/client`. The code runs
  * as it is: it registers the core procedures, and it imports the package of each other
  * procedure. `packageOf` gives the npm name of the package that defines a procedure key.
  */
@@ -264,10 +264,10 @@ export function toTypeScript(program: Json, packageOf: (key: string) => string |
   const packages = new Set<string>();
   for (const key of callKeys(program)) {
     const name = packageOf(key);
-    if (name && name !== "@mark1russell7/client") packages.add(name);
+    if (name && name !== "@procedures/client") packages.add(name);
   }
   return [
-    `import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures, proc } from "@mark1russell7/client";`,
+    `import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures, proc } from "@procedures/client";`,
     ...[...packages].sort().map((name) => `import "${name}"; // registers its procedures`),
     ``,
     `// The core procedures (client.*) are not in the registry by default`,

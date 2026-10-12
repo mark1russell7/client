@@ -24,7 +24,7 @@ function parsePort(value: string): number {
  * Parse command line arguments into server configuration.
  *
  * Usage:
- *   procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
+ *   procedure-server --procedures @procedures/mongo/register --port 3000
  *   procedure-server --procedures pkg1,pkg2 --transport http,websocket
  *
  * An unknown option, an option with no value, an invalid port and an unknown transport are
@@ -148,7 +148,7 @@ USAGE:
 
 OPTIONS:
   --procedures, -p <pkgs>   Comma-separated procedure packages to load
-                            Example: @mark1russell7/client-mongo/register
+                            Example: @procedures/mongo/register
 
   --transport, -t <types>   Comma-separated transports: http, websocket, local
                             Default: http
@@ -182,12 +182,12 @@ OPTIONS:
 
 EXAMPLES:
   # Start MongoDB procedure server
-  procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
+  procedure-server --procedures @procedures/mongo/register --port 3000
 
   # Start with multiple procedure packages
-  procedure-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register
+  procedure-server -p @procedures/fs/register,@procedures/git/register
 
   # Start with both HTTP and WebSocket
-  procedure-server -p @mark1russell7/client-mongo/register -t http,websocket
+  procedure-server -p @procedures/mongo/register -t http,websocket
 `);
 }

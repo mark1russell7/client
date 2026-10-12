@@ -1,4 +1,4 @@
-# @mark1russell7/client-snapshot
+# @procedures/snapshot
 
 ## 0.1.0
 

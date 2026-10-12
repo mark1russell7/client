@@ -1,4 +1,4 @@
-# @mark1russell7/mcp
+# @procedures/mcp
 
 ## 0.1.0
 

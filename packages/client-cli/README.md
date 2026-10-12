@@ -1,9 +1,9 @@
-# @mark1russell7/client-cli
+# @procedures/cli-run
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-cli?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-cli)
+[![npm](https://img.shields.io/npm/v/@procedures/cli-run?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/cli-run)
 
 ```sh
-npm install @mark1russell7/client-cli
+npm install @procedures/cli-run
 ```
 
 `client-cli` gives one procedure, `cli.run`. It starts a command of the `mark` CLI in a new Node process and gives its output. Thus a program can use any `mark` command.
@@ -13,8 +13,8 @@ npm install @mark1russell7/client-cli
 ## Use
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-cli"; // registers cli.run and shell.*
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/cli-run"; // registers cli.run and shell.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

@@ -1,4 +1,4 @@
-# @mark1russell7/client-procedure
+# @procedures/procedure
 
 ## 0.1.0
 

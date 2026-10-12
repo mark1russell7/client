@@ -25,7 +25,7 @@ const byName = new Map(packages.map((p) => [p.json.name, p]));
 
 function deps(json, kind) {
   return Object.entries(json[kind] ?? {})
-    .filter(([name]) => name.startsWith("@mark1russell7/"))
+    .filter(([name]) => name.startsWith("@procedures/") || name.startsWith("@mark1russell7/"))
     .map(([name, spec]) => ({ name, workspace: String(spec).startsWith("workspace:") }));
 }
 
@@ -49,10 +49,10 @@ const core = await import(pathToFileURL(join(PACKAGES, "client", "dist", "index.
 const registry = core.PROCEDURE_REGISTRY;
 const keyOf = (proc) => proc.path.join(".");
 const seen = new Set(registry.getAll().map(keyOf));
-const owned = new Map([["@mark1russell7/client", [...seen]]]);
+const owned = new Map([["@procedures/client", [...seen]]]);
 
 for (const pkg of order) {
-  if (pkg.json.name === "@mark1russell7/client") continue;
+  if (pkg.json.name === "@procedures/client") continue;
   const register = join(PACKAGES, pkg.folder, "dist", "register.js");
   if (!existsSync(register)) continue;
   try {
@@ -85,11 +85,11 @@ out += "> **Generated file — do not hand-edit.** Produced by `packages/documen
 out += "> from the workspace's package.json files and the live procedure registry.\n";
 out += "> Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.\n\n";
 out += `**Packages:** ${packages.length}. **Procedures:** ${seen.size}. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).\n\n`;
-out += "Dependencies marked *(general)* are separate repositories, referenced with `github:` specifiers.\n\n";
+out += "Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.\n\n";
 out += "| Package | Folder | Description | Procedures | Depends on |\n|---|---|---|---|---|\n";
 for (const pkg of [...packages].sort((a, b) => a.folder.localeCompare(b.folder))) {
   const depList = deps(pkg.json, "dependencies")
-    .map((d) => (d.workspace ? `\`${d.name.replace("@mark1russell7/", "")}\`` : `\`${d.name.replace("@mark1russell7/", "")}\` *(general)*`))
+    .map((d) => (d.workspace ? `\`${d.name.replace(/^@[^/]+\//, "")}\`` : `\`${d.name}\` *(general)*`))
     .join(", ") || "—";
   out += `| \`${pkg.json.name}\` | \`packages/${pkg.folder}\` | ${esc(pkg.json.description) || "—"} | ${procedureSummary(pkg.json.name)} | ${depList} |\n`;
 }

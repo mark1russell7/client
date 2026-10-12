@@ -5,8 +5,8 @@
  * makes the help text. Validation is delegated to the procedure's schema.
  */
 
-import { CLI_GLOBAL_FLAGS } from "@mark1russell7/client-lib/cli-flags";
-import { jsonSchemaOf, type ProcedureSchema } from "@mark1russell7/client";
+import { CLI_GLOBAL_FLAGS } from "@procedures/lib/cli-flags";
+import { jsonSchemaOf, type ProcedureSchema } from "@procedures/client";
 
 /**
  * CLI metadata that can be attached to procedures via .meta()

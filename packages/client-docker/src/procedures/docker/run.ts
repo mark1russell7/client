@@ -4,7 +4,7 @@
  * Run a Docker container.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { dockerArg, runDocker, words } from "./shared.js";
 import type { DockerRunInput, DockerCommandOutput } from "../../types.js";
 

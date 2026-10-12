@@ -50,7 +50,7 @@ jobs:
       # The build of the site renders each page in Chromium (an HTML file for each page, and its
       # Open Graph image), and the smoke test uses it too
       - name: Install Chromium for Playwright
-        run: pnpm --filter @mark1russell7/site exec playwright install --with-deps chromium
+        run: pnpm --filter @procedures/site exec playwright install --with-deps chromium
       # The data of the site comes from the dist/ of every package. The site depends on each
       # package that registers procedures, so `pnpm build` builds the site last.
       # SITE_PRERENDER=1: the deploy has the prerendered pages, or the build fails.
@@ -60,7 +60,7 @@ jobs:
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
           SITE_PRERENDER: "1"
       - name: Browser smoke test of the built site
-        run: pnpm --filter @mark1russell7/site test:e2e
+        run: pnpm --filter @procedures/site test:e2e
         env:
           SITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v5

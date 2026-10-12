@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { dockerComposeUp } from "../src/procedures/docker/up.js";
 import { dockerComposeDown } from "../src/procedures/docker/down.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 /**
  * The command line of the first shell call. The procedures call shell.run with an argument

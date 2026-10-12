@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/client-lib
+ * @procedures/lib
  *
  * Library management procedures for the workspace - scan, new, audit, rename.
  */
@@ -53,5 +53,5 @@ export {
   getPackageNameFromRef,
 } from "./git/index.js";
 
-// The global flags of the mark CLI (also at "@mark1russell7/client-lib/cli-flags", with no side effects)
+// The global flags of the mark CLI (also at "@procedures/lib/cli-flags", with no side effects)
 export { CLI_GLOBAL_FLAGS, findGlobalFlag, type CliGlobalFlag } from "./cli-flags.js";

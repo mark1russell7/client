@@ -12,14 +12,14 @@ import {
   type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { ServerTransport, Server, ProcedureRegistry } from "@mark1russell7/client";
-import { PROCEDURE_REGISTRY, pathToMethod } from "@mark1russell7/client";
+import type { ServerTransport, Server, ProcedureRegistry } from "@procedures/client";
+import { PROCEDURE_REGISTRY, pathToMethod } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
   decodePath,
   type McpTool,
-} from "@mark1russell7/mcp";
+} from "@procedures/mcp";
 import type { McpServerTransportOptions, McpServerTransportState } from "../types.js";
 import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";

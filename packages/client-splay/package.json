@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-splay",
+  "name": "@procedures/splay",
   "version": "0.1.0",
   "description": "Render procedure results with splay: a bridge between the client procedures and the splay recursive renderer, with stream helpers.",
   "keywords": [
@@ -70,7 +70,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
+    "@procedures/client": "workspace:*",
     "@mark1russell7/splay": "^0.1.0"
   }
 }

@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 import "./register.js";
 import type { VitestRunOutput } from "./types.js";
 

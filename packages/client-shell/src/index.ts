@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/client-shell
+ * @procedures/shell
  *
  * Generic shell command execution procedures.
  *
@@ -10,11 +10,11 @@
  * - shell.stream - Run command with args and stream each output line
  *
  * The command helpers (`runCommand`, `streamCommand`, `processes`) are also available without
- * the registration of the procedures, from `@mark1russell7/client-shell/command`.
+ * the registration of the procedures, from `@procedures/shell/command`.
  *
  * @example
  * ```typescript
- * import { Client } from "@mark1russell7/client";
+ * import { Client } from "@procedures/client";
  *
  * const result = await client.call(["shell", "run"], {
  *   command: "git",

@@ -4,9 +4,10 @@ This document tells how the packages of the monorepo go to npm. The first releas
 
 ## The packages
 
-- The 29 public packages have one version together. The `fixed` group of `.changeset/config.json` names each one.
+- The npm scope of the packages is `@procedures`. The npm name can differ from the folder (the root README has the table). Until 2026-10-12 the scope was `@mark1russell7`. `scripts/lib/old-names.mjs` maps each old name to its new name.
+- The 30 public packages have one version together. The `fixed` group of `.changeset/config.json` names each one.
 - `site`, `documentation` and the repository tool (`packages/cli`) are private. They are not published.
-- The MCP server of `packages/impl-mcp-dev` is published as `@mark1russell7/mcp-dev-tools`, with the bin `mcp-dev-tools`.
+- The MCP server of `packages/impl-mcp-dev` is published as `@procedures/mcp-dev-tools`, with the bin `mcp-dev-tools`.
 - Three packages use general packages from other repositories: `client-cue` uses `@mark1russell7/cue`, `client-splay` uses `@mark1russell7/splay`, and `client-sqlite` uses `@mark1russell7/docker-sqlite`.
 
 ## The package check
@@ -76,6 +77,17 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 - Each run in the GitHub environment `npm` waits for the approval of the owner. The environment exists already.
 - In the settings of the repository, turn on `Allow GitHub Actions to create and approve pull requests`. The release workflow opens the version pull request.
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package on npmjs.com.
+
+### 6. Point the old packages to the new names
+
+22 packages went to npm as `@mark1russell7/*` 0.1.0 before the scope change. After the `@procedures` packages are on npm, start this command in a terminal. For each old package on npm, it starts `npm deprecate` with the new name, and npm opens the browser for the 2FA:
+
+```sh
+node scripts/npm-bootstrap.mjs --deprecate-old --dry-run
+node scripts/npm-bootstrap.mjs --deprecate-old
+```
+
+A user who installs an old package sees "Moved to `@procedures/<name>`". The old versions stay on npm, so nothing breaks.
 
 ## A release
 

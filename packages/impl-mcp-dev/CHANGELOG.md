@@ -1,4 +1,4 @@
-# @mark1russell7/mcp-dev-tools
+# @procedures/mcp-dev-tools
 
 ## 0.1.0
 

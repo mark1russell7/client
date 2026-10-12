@@ -132,7 +132,7 @@ export function render(data, size, path, registry?): ComponentOutput;
 
 ---
 
-### 3. `@mark1russell7/client-splay` (Procedure Bridge)
+### 3. `@procedures/splay` (Procedure Bridge)
 
 **Location**: `C:\Users\markt\git\client-splay`
 
@@ -147,7 +147,7 @@ export function createClientRegistry(call: ProcedureCaller, options?): Registry;
 export function createReactHydrate(React, options): (descriptor: ComponentOutput) => ReactNode;
 
 // Component definition helpers (re-exported from client)
-export { defineComponent, simpleComponent, streamingComponent } from "@mark1russell7/client";
+export { defineComponent, simpleComponent, streamingComponent } from "@procedures/client";
 ```
 
 **Status**: ✅ Exists (may need updates after splay-react refactor)
@@ -184,7 +184,7 @@ export interface SplayReactProcedures {
 
 ---
 
-### 5. `@mark1russell7/client-server` (Peer System)
+### 5. `@procedures/peer` (Peer System)
 
 **Location**: `C:\Users\markt\git\client-server`
 
@@ -226,7 +226,7 @@ client-server/
 
 ---
 
-### 6. `@mark1russell7/client-mongo` (MongoDB Procedures)
+### 6. `@procedures/mongo` (MongoDB Procedures)
 
 **Location**: `C:\Users\markt\git\client-mongo`
 
@@ -264,7 +264,7 @@ export type ProcedureOutput<P extends readonly string[]> = /* mapped type */;
 
 ---
 
-### 7. `@mark1russell7/client` (Core Client)
+### 7. `@procedures/client` (Core Client)
 
 **Location**: `C:\Users\markt\git\client`
 
@@ -276,7 +276,7 @@ export function createTypedCaller<T extends ProcedureNamespace>(
 ): TypedCaller<T>;
 
 // Usage:
-import type { MongoProcedures } from "@mark1russell7/client-mongo";
+import type { MongoProcedures } from "@procedures/mongo";
 const call = createTypedCaller<MongoProcedures>(client.call.bind(client));
 const result = await call(["mongo", "documents", "find"], { query: {} });
 // Full autocomplete on path, input typed, result typed!
@@ -329,8 +329,8 @@ export interface MongoProcedures {
 
 // 2. Consumer creates typed caller
 // app/src/index.ts
-import type { MongoProcedures } from "@mark1russell7/client-mongo";
-import { createTypedCaller, Client, HttpTransport } from "@mark1russell7/client";
+import type { MongoProcedures } from "@procedures/mongo";
+import { createTypedCaller, Client, HttpTransport } from "@procedures/client";
 
 const client = new Client(new HttpTransport({ baseUrl: "http://server:3000" }));
 const call = createTypedCaller<MongoProcedures>(client.call.bind(client));

@@ -1,6 +1,6 @@
 /**
  * The engine of the middleware lab. It runs the real client middlewares of
- * `@mark1russell7/client` (cache, timeout, retry, circuit breaker, rate limit) around a server
+ * `@procedures/client` (cache, timeout, retry, circuit breaker, rate limit) around a server
  * that it simulates, with faults: latency, errors, a dead peer, a slow stream.
  *
  * A probe around each middleware reports where a request is: it enters a layer, the layer
@@ -25,7 +25,7 @@ import {
   type Message,
   type ResponseItem,
   type Transport,
-} from "@mark1russell7/client/client";
+} from "@procedures/client/client";
 
 // ---------------------------------------------------------------------------
 // Layers and settings

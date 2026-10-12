@@ -27,7 +27,7 @@ const HOSTS: Array<{ name: string; how: string; detail: string }> = [
   { name: "Browser", how: "this site", detail: "The Composer and this page run the real client in your browser." },
 ];
 
-const DEFINE = `import { defineProcedure } from "@mark1russell7/client";
+const DEFINE = `import { defineProcedure } from "@procedures/client";
 import { z } from "zod";
 
 export const add = defineProcedure({

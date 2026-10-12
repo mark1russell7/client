@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/bundle-dev",
+  "name": "@procedures/bundle-dev",
   "version": "0.1.0",
   "description": "One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding.",
   "keywords": [
@@ -66,15 +66,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-cli": "workspace:*",
-    "@mark1russell7/client-pnpm": "workspace:*",
-    "@mark1russell7/client-lib": "workspace:*",
-    "@mark1russell7/client-git": "workspace:*",
-    "@mark1russell7/client-dag": "workspace:*",
-    "@mark1russell7/client-fs": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
-    "@mark1russell7/client-procedure": "workspace:*"
+    "@procedures/client": "workspace:*",
+    "@procedures/cli-run": "workspace:*",
+    "@procedures/pnpm": "workspace:*",
+    "@procedures/lib": "workspace:*",
+    "@procedures/git": "workspace:*",
+    "@procedures/dag": "workspace:*",
+    "@procedures/fs": "workspace:*",
+    "@procedures/shell": "workspace:*",
+    "@procedures/procedure": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

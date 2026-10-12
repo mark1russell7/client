@@ -12,7 +12,7 @@ import { docRoutes } from "../data/doc-routes";
 /** The name of the site, as the header shows it. */
 export const SITE_NAME = "client";
 /** The name of the library on GitHub and npm. */
-export const LIBRARY_NAME = "@mark1russell7/client";
+export const LIBRARY_NAME = "@procedures/client";
 export const REPOSITORY_URL = "https://github.com/mark1russell7/client";
 /** The published address of the site. The build can take another one from SITE_URL. */
 export const SITE_URL = "https://mark1russell7.github.io/client/";

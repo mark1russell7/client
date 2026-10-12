@@ -10,7 +10,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@procedures/client";
 import "./index.js";
 import type { LibScanOutput } from "./types.js";
 

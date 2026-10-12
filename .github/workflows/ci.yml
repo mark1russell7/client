@@ -48,6 +48,9 @@ jobs:
       - run: pnpm test
       # The writing rules (ASD-STE100) of the README files and the doc comments
       - run: pnpm lint:ste
+      # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
+      - name: Check the package scope
+        run: node scripts/check-scope.mjs
       # Each package against the template of `lib new`. The step reads the JSON result, because
       # `mark` exits with 0 also for `success: false` (deep dive CLI-8).
       - name: Audit the packages
@@ -99,13 +102,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Chromium first: the site build prerenders each page in it, so the tests see the real HTML
       - name: Install Chromium for Playwright
-        run: pnpm --filter @mark1russell7/site exec playwright install --with-deps chromium
+        run: pnpm --filter @procedures/site exec playwright install --with-deps chromium
       - run: pnpm build
         env:
           SITE_PRERENDER: "1"
       # The examples run, share links round-trip, no page scrolls sideways at 375 px, axe-core,
       # the keyboard, and the code of the TypeScript tab runs with Node
-      - run: pnpm --filter @mark1russell7/site test:e2e
+      - run: pnpm --filter @procedures/site test:e2e
       - if: failure()
         uses: actions/upload-artifact@v7
         with:

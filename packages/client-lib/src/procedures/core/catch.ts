@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { ProcedureContext, ProcedurePath } from "@mark1russell7/client";
+import type { ProcedureContext, ProcedurePath } from "@procedures/client";
 import {
   isAnyProcedureRef,
   normalizeRef,
@@ -33,7 +33,7 @@ import {
   scopeOf,
   type StepResultInfo,
   type ContinueDecision,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import type { CoreCatchInput, CoreCatchOutput } from "../../types.js";
 
 /**

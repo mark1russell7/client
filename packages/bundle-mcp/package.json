@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/bundle-mcp",
+  "name": "@procedures/bundle-mcp",
   "version": "0.1.0",
   "description": "The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes.",
   "keywords": [
@@ -66,14 +66,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-lib": "workspace:*",
-    "@mark1russell7/client-procedure": "workspace:*",
-    "@mark1russell7/client-cue": "workspace:*",
-    "@mark1russell7/client-docker": "workspace:*",
-    "@mark1russell7/client-mongo": "workspace:*",
-    "@mark1russell7/client-sqlite": "workspace:*",
-    "@mark1russell7/client-vitest": "workspace:*"
+    "@procedures/client": "workspace:*",
+    "@procedures/lib": "workspace:*",
+    "@procedures/procedure": "workspace:*",
+    "@procedures/cue": "workspace:*",
+    "@procedures/docker": "workspace:*",
+    "@procedures/mongo": "workspace:*",
+    "@procedures/sqlite": "workspace:*",
+    "@procedures/vitest": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
-import { PROCEDURE_REGISTRY, hiddenReach, pathToKey, type AnyProcedure } from "@mark1russell7/client";
-import { exposeRule, mergeSurfaces } from "@mark1russell7/client-mcp";
+import { PROCEDURE_REGISTRY, hiddenReach, pathToKey, type AnyProcedure } from "@procedures/client";
+import { exposeRule, mergeSurfaces } from "@procedures/mcp-server";
 import { createDevToolsHost, type DevToolsHost } from "./host.js";
 
 const keys = (procedures: readonly AnyProcedure[]): string[] => procedures.map((procedure) => pathToKey(procedure.path)).sort();
@@ -17,14 +17,14 @@ let globalExpose: (path: string[]) => boolean;
 
 beforeAll(async () => {
   host = await createDevToolsHost({
-    bundles: ["@mark1russell7/bundle-mcp"],
+    bundles: ["@procedures/bundle-mcp"],
     serverName: "test",
     serverVersion: "0",
     debug: false,
     toolTimeoutMs: 0,
   });
   // The old way: import the bundle, which registers in the global registry
-  const bundle = await import("@mark1russell7/bundle-mcp/register.js");
+  const bundle = await import("@procedures/bundle-mcp/register.js");
   globalProcedures = PROCEDURE_REGISTRY.getAll();
   globalExpose = exposeRule(mergeSurfaces([bundle])!);
 });

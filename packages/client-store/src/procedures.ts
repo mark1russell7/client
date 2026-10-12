@@ -3,7 +3,7 @@
  * the program store (procedure.store, load, sync and remote).
  */
 
-import type { AnyProcedure } from "@mark1russell7/client";
+import type { AnyProcedure } from "@procedures/client";
 import { procedureRegisterProcedure } from "./storage/procedures.js";
 import { programStoreProcedures } from "./program-store/procedures.js";
 

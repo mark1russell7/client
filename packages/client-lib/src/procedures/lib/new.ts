@@ -11,7 +11,7 @@
  */
 
 import { join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { LibNewInput, LibNewOutput } from "../../types.js";
 import { packagesDir, resolveWorkspaceRoot } from "../../workspace.js";
 
@@ -47,7 +47,7 @@ function registerTs(name: string): string {
  * Scaffold a procedure with: mark procedure new <name> --path packages/${name}
  */
 
-import { registerProcedures } from "@mark1russell7/client";
+import { registerProcedures } from "@procedures/client";
 
 export function register(): void {
   registerProcedures([]);
@@ -84,7 +84,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
   const operations: string[] = [];
   const created: string[] = [];
   const errors: string[] = [];
-  const packageName = `@mark1russell7/${input.name}`;
+  const packageName = `@procedures/${input.name}`;
 
   let rootPath: string;
   try {
@@ -193,7 +193,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     pkgJson["client"] = { procedures: "./dist/register.js" };
     pkgJson["dependencies"] = {
       ...((pkgJson["dependencies"] as Record<string, string> | undefined) ?? {}),
-      "@mark1russell7/client": "workspace:*",
+      "@procedures/client": "workspace:*",
       zod: "^4.6.5",
     };
     await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(

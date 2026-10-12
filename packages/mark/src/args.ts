@@ -16,7 +16,7 @@
  *   An argument that no field takes is an error.
  */
 
-import { findGlobalFlag, type CliGlobalFlag } from "@mark1russell7/client-lib/cli-flags";
+import { findGlobalFlag, type CliGlobalFlag } from "@procedures/lib/cli-flags";
 import {
   convertValue,
   fieldsOf,

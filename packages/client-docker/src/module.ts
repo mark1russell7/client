@@ -8,8 +8,8 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
-import shellModule from "@mark1russell7/client-shell/module";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import shellModule from "@procedures/shell/module";
 import {
   dockerRun,
   dockerBuild,
@@ -48,7 +48,7 @@ import {
   DockerCommandOutputSchema,
   DockerLogsOutputSchema,
 } from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 // =============================================================================
 // Procedures
@@ -221,7 +221,7 @@ const dockerComposeDownProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const dockerModule: ProcedureModule = defineModule("@mark1russell7/client-docker", [
+export const dockerModule: ProcedureModule = defineModule("@procedures/docker", [
     dockerRunProcedure,
     dockerBuildProcedure,
     dockerPullProcedure,

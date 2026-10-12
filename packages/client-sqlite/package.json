@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-sqlite",
+  "name": "@procedures/sqlite",
   "version": "0.1.0",
   "description": "SQLite procedures with sql.js and no native build: db.query, db.execute and structured logs (logs.store, logs.query), safe for concurrent writes.",
   "keywords": [
@@ -64,7 +64,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
+    "@procedures/client": "workspace:*",
     "@mark1russell7/docker-sqlite": "^0.1.0",
     "zod": "^4.6.5"
   },

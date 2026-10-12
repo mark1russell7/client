@@ -5,7 +5,7 @@
 
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerStatusOutputSchema } from "../output-schemas.js";
 import { serverStatusInputSchema } from "../input-schemas.js";

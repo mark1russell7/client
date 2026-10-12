@@ -15,13 +15,18 @@
 // Steps 4 and 5 need the 2FA of the owner. Start them in a terminal: npm opens the browser to
 // confirm (or give --otp <code>, which is valid for a short time).
 //
-// Options: --dry-run, --approve, --trust, --otp <code>, --only <name,name> (a part of the packages).
+// After the scope change (2026-10-12), --deprecate-old marks each old @mark1russell7 package that
+// is on npm as deprecated, with the name of its @procedures package (also with the 2FA).
+//
+// Options: --dry-run, --approve, --trust, --deprecate-old, --otp <code>,
+//          --only <name,name> (a part of the packages).
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gitDependencies, publicPackages, root, run } from "./lib/workspace.mjs";
+import { NEW_SCOPE, OLD_SCOPE, OLD_TO_NEW } from "./lib/old-names.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(name);
@@ -32,6 +37,7 @@ const value = (name) => {
 const dryRun = flag("--dry-run");
 const trust = flag("--trust");
 const approve = flag("--approve");
+const deprecateOld = flag("--deprecate-old");
 const otp = value("--otp");
 const only = value("--only")?.split(",").map((s) => s.trim());
 
@@ -69,6 +75,34 @@ if (!dryRun) {
     console.error("npm has no valid login. Start `npm login` first.");
     process.exit(1);
   }
+}
+
+// --deprecate-old: point each old @mark1russell7 package on npm to its @procedures package
+if (deprecateOld) {
+  const pairs = Object.entries(OLD_TO_NEW).filter(([, to]) => !only || only.includes(`${NEW_SCOPE}${to}`));
+  const failures = [];
+  let count = 0;
+  for (const [from, to] of pairs) {
+    const oldName = `${OLD_SCOPE}${from}`;
+    let versions;
+    try {
+      versions = run("npm", ["view", oldName, "versions", "--json"], root, true).trim();
+    } catch {
+      continue; // not on npm: the private packages, and names that were never published
+    }
+    if (!versions) continue;
+    const message = `Moved to ${NEW_SCOPE}${to}: npm install ${NEW_SCOPE}${to}`;
+    console.log(`npm deprecate "${oldName}@*" "${message}"`);
+    count++;
+    if (dryRun) continue;
+    if (interactive(["deprecate", `${oldName}@*`, message, ...(otp ? ["--otp", otp] : [])]) !== 0) failures.push(oldName);
+  }
+  if (failures.length > 0) {
+    console.error(`\n${failures.length} deprecations failed: ${failures.join(", ")}. Start the command again.`);
+    process.exit(1);
+  }
+  console.log(dryRun ? `\nThe dry run printed ${count} deprecations.` : `\n${count} old packages point to their new names.`);
+  process.exit(0);
 }
 
 // --approve: approve each staged version of these packages

@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { type AnyProcedure, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { type AnyProcedure, defineModule, type ProcedureModule } from "@procedures/client";
 
 // Import all procedures
 import { pingProcedure } from "./procedures/database.ping.js";
@@ -57,6 +57,6 @@ export const procedures: readonly AnyProcedure[] = [
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const mongoModule: ProcedureModule = defineModule("@mark1russell7/client-mongo", [...procedures]);
+export const mongoModule: ProcedureModule = defineModule("@procedures/mongo", [...procedures]);
 
 export default mongoModule;

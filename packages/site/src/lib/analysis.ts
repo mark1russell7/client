@@ -1,6 +1,6 @@
 /**
  * A static analysis of a program, for the hints of the Composer. It follows the rules of the
- * core (`hydrateInput` and the control-flow procedures of `@mark1russell7/client`):
+ * core (`hydrateInput` and the control-flow procedures of `@procedures/client`):
  *
  * - A list of only calls runs as an implicit chain where the core hydrates a value with a
  *   fresh context: in the input of a call that runs directly (the root call, an operand of a

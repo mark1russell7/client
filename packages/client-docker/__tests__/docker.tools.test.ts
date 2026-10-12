@@ -12,8 +12,8 @@ import { describe, it, expect } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { runCommand } from "@mark1russell7/client-shell/command";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import { runCommand } from "@procedures/shell/command";
 // The package's own registration, as in the MCP server (it registers client-shell too)
 import "../src/register.js";
 import type { DockerCommandOutput } from "../src/types.js";

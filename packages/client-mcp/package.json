@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-mcp",
+  "name": "@procedures/mcp-server",
   "version": "0.1.0",
   "description": "Model Context Protocol server transport: serve typed procedures as MCP tools to Claude and other MCP clients, with streaming progress, list_changed and an expose policy.",
   "keywords": [
@@ -68,17 +68,17 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@mark1russell7/mcp": "workspace:*"
+    "@procedures/mcp": "workspace:*"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "workspace:^"
+    "@procedures/client": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3",
-    "@mark1russell7/client": "workspace:*",
+    "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   }
 }

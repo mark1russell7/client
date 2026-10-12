@@ -5,7 +5,7 @@
  * and transport adapters.
  *
  * This entry point is for Node. It exports the browser-safe entry point
- * ("@mark1russell7/client/browser") and the server transports, which use `http` and `ws`.
+ * ("@procedures/client/browser") and the server transports, which use `http` and `ws`.
  */
 
 export * from "./browser.js";

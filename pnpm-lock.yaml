@@ -190,31 +190,31 @@ importers:
 
   packages/bundle-dev:
     dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mark1russell7/client-cli':
+      '@procedures/cli-run':
         specifier: workspace:*
         version: link:../client-cli
-      '@mark1russell7/client-dag':
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/dag':
         specifier: workspace:*
         version: link:../client-dag
-      '@mark1russell7/client-fs':
+      '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
-      '@mark1russell7/client-git':
+      '@procedures/git':
         specifier: workspace:*
         version: link:../client-git
-      '@mark1russell7/client-lib':
+      '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib
-      '@mark1russell7/client-pnpm':
+      '@procedures/pnpm':
         specifier: workspace:*
         version: link:../client-pnpm
-      '@mark1russell7/client-procedure':
+      '@procedures/procedure':
         specifier: workspace:*
         version: link:../client-procedure
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
     devDependencies:
@@ -230,28 +230,28 @@ importers:
 
   packages/bundle-mcp:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-cue':
+      '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue
-      '@mark1russell7/client-docker':
+      '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
-      '@mark1russell7/client-lib':
+      '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib
-      '@mark1russell7/client-mongo':
+      '@procedures/mongo':
         specifier: workspace:*
         version: link:../client-mongo
-      '@mark1russell7/client-procedure':
+      '@procedures/procedure':
         specifier: workspace:*
         version: link:../client-procedure
-      '@mark1russell7/client-sqlite':
+      '@procedures/sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
-      '@mark1russell7/client-vitest':
+      '@procedures/vitest':
         specifier: workspace:*
         version: link:../client-vitest
     devDependencies:
@@ -320,10 +320,10 @@ importers:
 
   packages/client-cli:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       zod:
@@ -363,18 +363,18 @@ importers:
 
   packages/client-cue:
     dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mark1russell7/client-fs':
-        specifier: workspace:*
-        version: link:../client-fs
-      '@mark1russell7/client-shell':
-        specifier: workspace:*
-        version: link:../client-shell
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -406,10 +406,10 @@ importers:
 
   packages/client-docker:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       zod:
@@ -431,7 +431,7 @@ importers:
 
   packages/client-fs:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
@@ -453,10 +453,10 @@ importers:
 
   packages/client-git:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       zod:
@@ -478,22 +478,22 @@ importers:
 
   packages/client-lib:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-dag':
+      '@procedures/dag':
         specifier: workspace:*
         version: link:../client-dag
-      '@mark1russell7/client-fs':
+      '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
-      '@mark1russell7/client-git':
+      '@procedures/git':
         specifier: workspace:*
         version: link:../client-git
-      '@mark1russell7/client-pnpm':
+      '@procedures/pnpm':
         specifier: workspace:*
         version: link:../client-pnpm
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       ts-morph:
@@ -518,19 +518,19 @@ importers:
 
   packages/client-mcp:
     dependencies:
-      '@mark1russell7/mcp':
-        specifier: workspace:*
-        version: link:../mcp
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.32.1(supports-color@7.2.0)(zod@4.6.5)
-    devDependencies:
-      '@mark1russell7/client':
+      '@procedures/mcp':
         specifier: workspace:*
-        version: link:../client
+        version: link:../mcp
+    devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -546,10 +546,10 @@ importers:
 
   packages/client-mongo:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-collections':
+      '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
       mongodb:
@@ -574,10 +574,10 @@ importers:
 
   packages/client-node:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       zod:
@@ -599,7 +599,7 @@ importers:
 
   packages/client-playground:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
     devDependencies:
@@ -618,10 +618,10 @@ importers:
 
   packages/client-pnpm:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       zod:
@@ -643,7 +643,7 @@ importers:
 
   packages/client-procedure:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
@@ -668,7 +668,7 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.705.0
         version: 3.1147.0
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
@@ -690,7 +690,7 @@ importers:
 
   packages/client-server:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
@@ -719,7 +719,7 @@ importers:
 
   packages/client-shell:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
       zod:
@@ -741,22 +741,22 @@ importers:
 
   packages/client-snapshot:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-fs':
+      '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
-      '@mark1russell7/client-git':
+      '@procedures/git':
         specifier: workspace:*
         version: link:../client-git
-      '@mark1russell7/client-pnpm':
+      '@procedures/pnpm':
         specifier: workspace:*
         version: link:../client-pnpm
-      '@mark1russell7/client-s3':
+      '@procedures/s3':
         specifier: workspace:*
         version: link:../client-s3
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       tar:
@@ -784,12 +784,12 @@ importers:
 
   packages/client-splay:
     dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
       '@mark1russell7/splay':
         specifier: ^0.1.0
         version: 0.1.0
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
@@ -806,12 +806,12 @@ importers:
 
   packages/client-sqlite:
     dependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
       '@mark1russell7/docker-sqlite':
         specifier: ^0.1.0
         version: 0.1.0
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -831,10 +831,10 @@ importers:
 
   packages/client-store:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-collections':
+      '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
       zod:
@@ -856,10 +856,10 @@ importers:
 
   packages/client-vite:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       zod:
@@ -884,10 +884,10 @@ importers:
 
   packages/client-vitest:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-shell':
+      '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
       '@vitest/coverage-v8':
@@ -924,13 +924,13 @@ importers:
 
   packages/impl-mcp-dev:
     dependencies:
-      '@mark1russell7/bundle-mcp':
+      '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-mcp':
+      '@procedures/mcp-server':
         specifier: workspace:*
         version: link:../client-mcp
     devDependencies:
@@ -952,36 +952,36 @@ importers:
       '@clack/prompts':
         specifier: ^0.7.0
         version: 0.7.0
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
-      '@mark1russell7/client-cli':
+      '@procedures/cli-run':
         specifier: workspace:*
         version: link:../client-cli
-      '@mark1russell7/client-lib':
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib
-      '@mark1russell7/client-pnpm':
-        specifier: workspace:*
-        version: link:../client-pnpm
-      '@mark1russell7/client-procedure':
-        specifier: workspace:*
-        version: link:../client-procedure
-      '@mark1russell7/client-server':
-        specifier: workspace:*
-        version: link:../client-server
-      '@mark1russell7/client-shell':
-        specifier: workspace:*
-        version: link:../client-shell
-      '@mark1russell7/client-vitest':
-        specifier: workspace:*
-        version: link:../client-vitest
-      '@mark1russell7/mcp-dev-tools':
+      '@procedures/mcp-dev-tools':
         specifier: workspace:*
         version: link:../impl-mcp-dev
-      '@mark1russell7/server':
+      '@procedures/peer':
+        specifier: workspace:*
+        version: link:../client-server
+      '@procedures/pnpm':
+        specifier: workspace:*
+        version: link:../client-pnpm
+      '@procedures/procedure':
+        specifier: workspace:*
+        version: link:../client-procedure
+      '@procedures/server':
         specifier: workspace:*
         version: link:../server
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
+      '@procedures/vitest':
+        specifier: workspace:*
+        version: link:../client-vitest
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -998,51 +998,51 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@mark1russell7/bundle-dev':
-        specifier: workspace:*
-        version: link:../bundle-dev
-      '@mark1russell7/bundle-mcp':
-        specifier: workspace:*
-        version: link:../bundle-mcp
-      '@mark1russell7/client-cue':
-        specifier: workspace:*
-        version: link:../client-cue
-      '@mark1russell7/client-docker':
-        specifier: workspace:*
-        version: link:../client-docker
-      '@mark1russell7/client-fs':
-        specifier: workspace:*
-        version: link:../client-fs
-      '@mark1russell7/client-git':
-        specifier: workspace:*
-        version: link:../client-git
-      '@mark1russell7/client-mongo':
-        specifier: workspace:*
-        version: link:../client-mongo
-      '@mark1russell7/client-node':
-        specifier: workspace:*
-        version: link:../client-node
-      '@mark1russell7/client-s3':
-        specifier: workspace:*
-        version: link:../client-s3
-      '@mark1russell7/client-snapshot':
-        specifier: workspace:*
-        version: link:../client-snapshot
-      '@mark1russell7/client-splay':
-        specifier: workspace:*
-        version: link:../client-splay
-      '@mark1russell7/client-sqlite':
-        specifier: workspace:*
-        version: link:../client-sqlite
-      '@mark1russell7/client-store':
-        specifier: workspace:*
-        version: link:../client-store
-      '@mark1russell7/client-vite':
-        specifier: workspace:*
-        version: link:../client-vite
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/bundle-dev':
+        specifier: workspace:*
+        version: link:../bundle-dev
+      '@procedures/bundle-mcp':
+        specifier: workspace:*
+        version: link:../bundle-mcp
+      '@procedures/cue':
+        specifier: workspace:*
+        version: link:../client-cue
+      '@procedures/docker':
+        specifier: workspace:*
+        version: link:../client-docker
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
+      '@procedures/git':
+        specifier: workspace:*
+        version: link:../client-git
+      '@procedures/mongo':
+        specifier: workspace:*
+        version: link:../client-mongo
+      '@procedures/node':
+        specifier: workspace:*
+        version: link:../client-node
+      '@procedures/s3':
+        specifier: workspace:*
+        version: link:../client-s3
+      '@procedures/snapshot':
+        specifier: workspace:*
+        version: link:../client-snapshot
+      '@procedures/splay':
+        specifier: workspace:*
+        version: link:../client-splay
+      '@procedures/sqlite':
+        specifier: workspace:*
+        version: link:../client-sqlite
+      '@procedures/store':
+        specifier: workspace:*
+        version: link:../client-store
+      '@procedures/vite':
+        specifier: workspace:*
+        version: link:../client-vite
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1055,12 +1055,12 @@ importers:
 
   packages/mcp:
     devDependencies:
-      '@mark1russell7/client':
-        specifier: workspace:*
-        version: link:../client
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1073,10 +1073,10 @@ importers:
 
   packages/server:
     dependencies:
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
-      '@mark1russell7/client-server':
+      '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
     devDependencies:
@@ -1101,7 +1101,7 @@ importers:
       '@fontsource-variable/atkinson-hyperlegible-next':
         specifier: ^5.3.0
         version: 5.3.0
-      '@mark1russell7/client':
+      '@procedures/client':
         specifier: workspace:*
         version: link:../client
       react:
@@ -1114,84 +1114,84 @@ importers:
       '@axe-core/playwright':
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.64.0)
-      '@mark1russell7/bundle-dev':
-        specifier: workspace:*
-        version: link:../bundle-dev
-      '@mark1russell7/bundle-mcp':
-        specifier: workspace:*
-        version: link:../bundle-mcp
-      '@mark1russell7/client-cli':
-        specifier: workspace:*
-        version: link:../client-cli
-      '@mark1russell7/client-collections':
-        specifier: workspace:*
-        version: link:../client-collections
-      '@mark1russell7/client-cue':
-        specifier: workspace:*
-        version: link:../client-cue
-      '@mark1russell7/client-docker':
-        specifier: workspace:*
-        version: link:../client-docker
-      '@mark1russell7/client-fs':
-        specifier: workspace:*
-        version: link:../client-fs
-      '@mark1russell7/client-git':
-        specifier: workspace:*
-        version: link:../client-git
-      '@mark1russell7/client-lib':
-        specifier: workspace:*
-        version: link:../client-lib
-      '@mark1russell7/client-mcp':
-        specifier: workspace:*
-        version: link:../client-mcp
-      '@mark1russell7/client-mongo':
-        specifier: workspace:*
-        version: link:../client-mongo
-      '@mark1russell7/client-node':
-        specifier: workspace:*
-        version: link:../client-node
-      '@mark1russell7/client-pnpm':
-        specifier: workspace:*
-        version: link:../client-pnpm
-      '@mark1russell7/client-procedure':
-        specifier: workspace:*
-        version: link:../client-procedure
-      '@mark1russell7/client-s3':
-        specifier: workspace:*
-        version: link:../client-s3
-      '@mark1russell7/client-server':
-        specifier: workspace:*
-        version: link:../client-server
-      '@mark1russell7/client-shell':
-        specifier: workspace:*
-        version: link:../client-shell
-      '@mark1russell7/client-snapshot':
-        specifier: workspace:*
-        version: link:../client-snapshot
-      '@mark1russell7/client-splay':
-        specifier: workspace:*
-        version: link:../client-splay
-      '@mark1russell7/client-sqlite':
-        specifier: workspace:*
-        version: link:../client-sqlite
-      '@mark1russell7/client-store':
-        specifier: workspace:*
-        version: link:../client-store
-      '@mark1russell7/client-vite':
-        specifier: workspace:*
-        version: link:../client-vite
-      '@mark1russell7/client-vitest':
-        specifier: workspace:*
-        version: link:../client-vitest
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
-      '@mark1russell7/mcp':
-        specifier: workspace:*
-        version: link:../mcp
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
+      '@procedures/bundle-dev':
+        specifier: workspace:*
+        version: link:../bundle-dev
+      '@procedures/bundle-mcp':
+        specifier: workspace:*
+        version: link:../bundle-mcp
+      '@procedures/cli-run':
+        specifier: workspace:*
+        version: link:../client-cli
+      '@procedures/collections':
+        specifier: workspace:*
+        version: link:../client-collections
+      '@procedures/cue':
+        specifier: workspace:*
+        version: link:../client-cue
+      '@procedures/docker':
+        specifier: workspace:*
+        version: link:../client-docker
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
+      '@procedures/git':
+        specifier: workspace:*
+        version: link:../client-git
+      '@procedures/lib':
+        specifier: workspace:*
+        version: link:../client-lib
+      '@procedures/mcp':
+        specifier: workspace:*
+        version: link:../mcp
+      '@procedures/mcp-server':
+        specifier: workspace:*
+        version: link:../client-mcp
+      '@procedures/mongo':
+        specifier: workspace:*
+        version: link:../client-mongo
+      '@procedures/node':
+        specifier: workspace:*
+        version: link:../client-node
+      '@procedures/peer':
+        specifier: workspace:*
+        version: link:../client-server
+      '@procedures/pnpm':
+        specifier: workspace:*
+        version: link:../client-pnpm
+      '@procedures/procedure':
+        specifier: workspace:*
+        version: link:../client-procedure
+      '@procedures/s3':
+        specifier: workspace:*
+        version: link:../client-s3
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
+      '@procedures/snapshot':
+        specifier: workspace:*
+        version: link:../client-snapshot
+      '@procedures/splay':
+        specifier: workspace:*
+        version: link:../client-splay
+      '@procedures/sqlite':
+        specifier: workspace:*
+        version: link:../client-sqlite
+      '@procedures/store':
+        specifier: workspace:*
+        version: link:../client-store
+      '@procedures/vite':
+        specifier: workspace:*
+        version: link:../client-vite
+      '@procedures/vitest':
+        specifier: workspace:*
+        version: link:../client-vitest
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5

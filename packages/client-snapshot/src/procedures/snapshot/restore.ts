@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } f
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import * as tar from "tar";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type {
   SnapshotRestoreInput,
   SnapshotRestoreOutput,

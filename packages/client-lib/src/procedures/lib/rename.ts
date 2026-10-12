@@ -12,7 +12,7 @@
  * ```typescript
  * await client.call(["lib", "rename"], {
  *   oldName: "client",
- *   newName: "@mark1russell7/client",
+ *   newName: "@procedures/client",
  *   dryRun: true, // Preview changes without applying
  * });
  * ```
@@ -21,7 +21,7 @@
  */
 
 import { Project, SyntaxKind } from "ts-morph";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { LibRenameInput, LibRenameOutput, RenameChange } from "../../types.js";
 import { resolveWorkspaceRoot } from "../../workspace.js";
 
@@ -124,11 +124,10 @@ async function updatePackageJsonDependencies(
       if (deps && oldName in deps) {
         const oldValue = deps[oldName]!;
         let newValue = oldValue;
-        if (oldValue.includes(`github:mark1russell7/${oldName.replace("@mark1russell7/", "")}`)) {
-          newValue = oldValue.replace(
-            `github:mark1russell7/${oldName.replace("@mark1russell7/", "")}`,
-            `github:mark1russell7/${newName.replace("@mark1russell7/", "")}`
-          );
+        // The repository of a git dependency has the name of the package without its scope
+        const bare = (name: string): string => name.replace(/^@[^/]+\//, "");
+        if (oldValue.includes(`github:mark1russell7/${bare(oldName)}`)) {
+          newValue = oldValue.replace(`github:mark1russell7/${bare(oldName)}`, `github:mark1russell7/${bare(newName)}`);
         }
 
         if (!dryRun) {

@@ -9,7 +9,7 @@ import type {
   DAGExecutionOptions as DagExecutionOptions,
   NodeResult as DagNodeResult,
   DAGResult as DagResult,
-} from "@mark1russell7/client-dag";
+} from "@procedures/dag";
 
 // =============================================================================
 // lib.scan Types
@@ -33,7 +33,7 @@ export interface PackageInfo {
   gitRemote?: string | undefined;
   /** Current branch of the workspace repository */
   currentBranch?: string | undefined;
-  /** @mark1russell7 dependencies (package names): workspace links and github: references */
+  /** The ecosystem dependencies (@procedures/* and @mark1russell7/*): workspace links and github: references */
   mark1russell7Deps: string[];
 }
 
@@ -48,7 +48,7 @@ export interface LibScanOutput {
 // DAG Types (ecosystem-specific)
 // =============================================================================
 
-// DAGNode extends @mark1russell7/client-dag's base node (which supplies `id`, `dependencies`, and
+// DAGNode extends @procedures/dag's base node (which supplies `id`, `dependencies`, and
 // `level`, and keys nodes by id), adding the ecosystem-specific fields. The generic DAG algorithms
 // (buildLeveledDAG/executeDAG/...) come from client-dag; only buildDAGNodes is local, and it sets
 // `id` = `name`. This deduplicates a previously vendored copy. See documentation/BUGS-2026-07.md.
@@ -161,8 +161,8 @@ export const LibNewInputSchema: z.ZodObject<{
   rootPath: z.ZodOptional<z.ZodString>;
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
-  /** Package name (without @mark1russell7/ prefix) */
-  name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens").describe("Package name (without @mark1russell7/ prefix)"),
+  /** Package name (without the @procedures/ scope) */
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/, "Name must be lowercase alphanumeric with hyphens").describe("Package name (without the @procedures/ scope)"),
   /** Feature preset to use */
   preset: z.string().regex(/^[a-z][a-z0-9-]*$/, "Preset must be lowercase alphanumeric with hyphens").default("lib").describe("Feature preset to use"),
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
@@ -176,7 +176,7 @@ export type LibNewInput = z.infer<typeof LibNewInputSchema>;
 export interface LibNewOutput {
   /** Whether creation succeeded */
   success: boolean;
-  /** Full package name (@mark1russell7/...) */
+  /** Full package name (@procedures/...) */
   packageName: string;
   /** Path to created package */
   packagePath: string;
@@ -406,7 +406,7 @@ export const LibScanOutputSchema: z.ZodType<LibScanOutput> = z.looseObject({
         repoPath: z.string().describe("The absolute path of the package folder"),
         gitRemote: z.string().optional().describe("The git remote URL of the workspace repository"),
         currentBranch: z.string().optional().describe("The current branch of the workspace repository"),
-        mark1russell7Deps: z.array(z.string()).describe("The @mark1russell7 dependencies of the package"),
+        mark1russell7Deps: z.array(z.string()).describe("The ecosystem dependencies of the package (@procedures/* and @mark1russell7/*)"),
       })
     )
     .describe("The workspace packages, by name"),
@@ -442,7 +442,7 @@ export const LibRenameOutputSchema: z.ZodType<LibRenameOutput> = z.looseObject({
 
 export const LibNewOutputSchema: z.ZodType<LibNewOutput> = z.looseObject({
   success: z.boolean().describe("True when the package was made"),
-  packageName: z.string().describe("The full package name (@mark1russell7/...)"),
+  packageName: z.string().describe("The full package name (@procedures/...)"),
   packagePath: z.string().describe("The folder of the new package"),
   created: z.array(z.string()).describe("The files that the call made"),
   operations: z.array(z.string()).describe("The steps that the call ran"),

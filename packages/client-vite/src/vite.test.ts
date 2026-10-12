@@ -10,7 +10,7 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { processes } from "@mark1russell7/client-shell/command";
+import { processes } from "@procedures/shell/command";
 import { viteBuild } from "./procedures/vite/build.js";
 import { viteDev } from "./procedures/vite/dev.js";
 import { vitePreview } from "./procedures/vite/preview.js";

@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -375,7 +375,7 @@ const logsQueryProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const sqliteModule: ProcedureModule = defineModule("@mark1russell7/client-sqlite", [
+export const sqliteModule: ProcedureModule = defineModule("@procedures/sqlite", [
     dbQueryProcedure,
     dbExecuteProcedure,
     logsStoreProcedure,

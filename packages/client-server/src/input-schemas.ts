@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod";
-import { zodAdapter, type ZodLikeSchema } from "@mark1russell7/client";
+import { zodAdapter, type ZodLikeSchema } from "@procedures/client";
 import type {
   ManifestGenerateInput,
   ServerConnectInput,

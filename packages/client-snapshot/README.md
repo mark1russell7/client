@@ -1,6 +1,6 @@
-# @mark1russell7/client-snapshot
+# @procedures/snapshot
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-snapshot.svg)](https://www.npmjs.com/package/@mark1russell7/client-snapshot)
+[![npm version](https://img.shields.io/npm/v/@procedures/snapshot.svg)](https://www.npmjs.com/package/@procedures/snapshot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Environment snapshot/restore procedures for testing and recovery
@@ -90,23 +90,23 @@ sequenceDiagram
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-snapshot
+npm install @procedures/snapshot
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add @mark1russell7/client-snapshot
+pnpm add @procedures/snapshot
 ```
 
 ### Dependencies
 
 This package depends on:
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/client-s3` - S3 storage operations
-- `@mark1russell7/client-git` - Git repository operations
-- `@mark1russell7/client-pnpm` - Package manager operations
-- `@mark1russell7/client-fs` - Filesystem operations
+- `@procedures/client` - Core client/procedure system
+- `@procedures/s3` - S3 storage operations
+- `@procedures/git` - Git repository operations
+- `@procedures/pnpm` - Package manager operations
+- `@procedures/fs` - Filesystem operations
 - `zod` - Schema validation
 - `tar` - Archive creation and extraction
 
@@ -122,8 +122,8 @@ This package depends on:
 ### Creating Snapshots
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-snapshot"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/snapshot"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -702,7 +702,7 @@ try {
 ### With bundle-dev
 
 ```typescript
-import "@mark1russell7/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev"; // registers its procedures
 
 // snapshot.* procedures available
 await client.exec(["snapshot", "create"], { ... });
@@ -730,9 +730,9 @@ MIT
 
 ## Related Packages
 
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/client-s3` - S3 storage operations
-- `@mark1russell7/client-git` - Git repository operations
-- `@mark1russell7/client-pnpm` - Package manager operations
-- `@mark1russell7/client-fs` - Filesystem operations
-- `@mark1russell7/bundle-dev` - Development bundle
+- `@procedures/client` - Core client/procedure system
+- `@procedures/s3` - S3 storage operations
+- `@procedures/git` - Git repository operations
+- `@procedures/pnpm` - Package manager operations
+- `@procedures/fs` - Filesystem operations
+- `@procedures/bundle-dev` - Development bundle

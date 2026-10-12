@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/repo-cli",
+  "name": "@procedures/repo-cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",

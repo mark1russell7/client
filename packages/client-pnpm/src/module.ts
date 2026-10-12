@@ -7,8 +7,8 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
-import shellModule from "@mark1russell7/client-shell/module";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import shellModule from "@procedures/shell/module";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import {
   PnpmInstallInputSchema,
@@ -28,7 +28,7 @@ import {
   PnpmCommandOutputSchema,
   PnpmStorePathOutputSchema,
 } from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 // =============================================================================
 // Procedures
@@ -130,7 +130,7 @@ const pnpmStorePathProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const pnpmModule: ProcedureModule = defineModule("@mark1russell7/client-pnpm", [
+export const pnpmModule: ProcedureModule = defineModule("@procedures/pnpm", [
     pnpmInstallProcedure,
     pnpmAddProcedure,
     pnpmRemoveProcedure,

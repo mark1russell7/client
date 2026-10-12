@@ -4,7 +4,7 @@
  * Start services with docker compose.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { dockerArg, runDocker } from "./shared.js";
 import type { DockerComposeUpInput, DockerCommandOutput } from "../../types.js";
 

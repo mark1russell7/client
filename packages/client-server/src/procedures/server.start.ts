@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerStartOutputSchema } from "../output-schemas.js";
 import { serverStartInputSchema } from "../input-schemas.js";
@@ -66,7 +66,7 @@ function findCliPath(): string {
 
   // Try to find the mark CLI in node_modules or as a direct path
   const candidates = [
-    path.join(process.cwd(), "node_modules", "@mark1russell7", "cli", "dist", "cli.js"),
+    path.join(process.cwd(), "node_modules", "@procedures", "mark", "dist", "cli.js"),
     path.join(process.cwd(), "node_modules", ".bin", "mark"),
     // Check parent directories for monorepo setups
     path.join(process.cwd(), "..", "cli", "dist", "cli.js"),

@@ -3,7 +3,7 @@
  * Delete documents matching a filter
  */
 
-import { createProcedure, type Procedure, type ProcedureContext, zodAdapter } from "@mark1russell7/client";
+import { createProcedure, type Procedure, type ProcedureContext, zodAdapter } from "@procedures/client";
 import { collectionFor } from "../scope.js";
 import { described, scopeFields, targetFields } from "./input-schemas.js";
 import { z } from "zod";

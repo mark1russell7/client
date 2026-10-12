@@ -25,7 +25,7 @@ import {
   type AnyProcedure,
   type ProcedureModule,
   type ProcedureRegistry,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 
 // =============================================================================
 // Types
@@ -125,7 +125,7 @@ export function discoverFromEcosystem(root: string | null = findWorkspaceRoot())
 }
 
 /**
- * This function registers the core procedures of `@mark1russell7/client` that its import does not
+ * This function registers the core procedures of `@procedures/client` that its import does not
  * register: the math, string, array, object, comparison, type and meta procedures (`client.add`
  * and the others). The import registers only the control-flow procedures. (Docs review DOC-6:
  * before, `mark client add` was an unknown command.) A procedure that is registered already stays.
@@ -201,7 +201,7 @@ export function listEcosystemProcedurePackages(): Array<{ name: string; path: st
 }
 
 /** The core procedures that `mark` serves: all of them, also the ones that the core import does not register. */
-const allCoreModule: ProcedureModule = defineModule("@mark1russell7/client (all core procedures)", allCoreProcedures);
+const allCoreModule: ProcedureModule = defineModule("@procedures/client (all core procedures)", allCoreProcedures);
 
 /** The registry of `mark` and the names of the packages that it holds. */
 export interface EcosystemRegistry {

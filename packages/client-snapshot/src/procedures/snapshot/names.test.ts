@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { assertSnapshotName, isExcluded } from "./names.js";
 import { snapshotRestore } from "./restore.js";
 

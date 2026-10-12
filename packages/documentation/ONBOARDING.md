@@ -25,11 +25,11 @@ These checks run in CI too:
 
 - The types of the test files: `node .github/scripts/typecheck-tests.mjs`. The presets of `cue` exclude the test files from `pnpm typecheck`.
 - The package audit: `node packages/mark/dist/cli.js lib audit`.
-- The browser smoke test of the site: `pnpm --filter @mark1russell7/site test:e2e`. It needs Playwright and Chromium.
+- The browser smoke test of the site: `pnpm --filter @procedures/site test:e2e`. It needs Playwright and Chromium.
 
-The end-to-end tests of `mark` are not in CI: `pnpm --filter @mark1russell7/cli test:e2e`.
+The end-to-end tests of `mark` are not in CI: `pnpm --filter @procedures/mark test:e2e`.
 
-For one package, use a filter: `pnpm --filter @mark1russell7/client-git test`.
+For one package, use a filter: `pnpm --filter @procedures/git test`.
 
 ## Start procedures with `mark`
 
@@ -106,7 +106,7 @@ node packages/mark/dist/cli.js procedure new myThing --path packages/my-package
 
 The command writes the procedure file, adds the types to `src/types.ts`, and adds the registration to `src/register.ts`. Then write the handler and its tests, and build.
 
-A procedure that starts programs gives an argument list to `runCommand()` (`@mark1russell7/client-shell/command`) or to `shell.run`. Do not make a shell string.
+A procedure that starts programs gives an argument list to `runCommand()` (`@procedures/shell/command`) or to `shell.run`. Do not make a shell string.
 
 ## Rules of the repository
 

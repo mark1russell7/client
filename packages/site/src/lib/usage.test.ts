@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /**
  * The "Use it" code of a procedure page runs: the test writes the code of core procedures to
- * files and runs them with Node against the built `@mark1russell7/client`.
+ * files and runs them with Node against the built `@procedures/client`.
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -26,7 +26,7 @@ describe("the usage of a procedure", () => {
       const procedure = procedureByKey(key);
       expect(procedure).toBeDefined();
       const file = join(folder, `${key}.mjs`);
-      writeFileSync(file, usageCode(procedure!, "@mark1russell7/client"));
+      writeFileSync(file, usageCode(procedure!, "@procedures/client"));
       const { stdout } = await run(process.execPath, [file], { timeout: 30_000 });
       expect(() => JSON.parse(stdout)).not.toThrow();
     });
@@ -37,8 +37,8 @@ describe("the usage of a procedure", () => {
   });
 
   it("imports the package of another procedure", () => {
-    const code = usageCode(procedureByKey("git.status")!, "@mark1russell7/client-git");
-    expect(code).toContain('import "@mark1russell7/client-git";');
+    const code = usageCode(procedureByKey("git.status")!, "@procedures/git");
+    expect(code).toContain('import "@procedures/git";');
     expect(code).toContain('client.exec(["git","status"], {})');
   });
 });

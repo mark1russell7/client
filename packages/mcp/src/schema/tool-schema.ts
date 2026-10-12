@@ -6,12 +6,12 @@
  * `zod-to-json-schema`, and a schema without zod 3 fields got an empty object schema.
  */
 
-import { jsonSchemaOf, type ProcedureSchema } from "@mark1russell7/client";
+import { jsonSchemaOf, type ProcedureSchema } from "@procedures/client";
 import type { JsonSchema } from "../types.js";
 
 /**
  * A schema of a procedure.
- * @deprecated Use `ProcedureSchema` of `@mark1russell7/client`.
+ * @deprecated Use `ProcedureSchema` of `@procedures/client`.
  */
 export interface SchemaLike {
   parse?(data: unknown): unknown;
@@ -50,7 +50,7 @@ export function toolInputSchema(schema: ProcedureSchema | unknown): JsonSchema {
 /**
  * The input JSON Schema of a tool.
  * @deprecated Use `toolInputSchema` (the schema need not be zod), or `jsonSchemaOf` of
- * `@mark1russell7/client` for the JSON Schema of any input or output.
+ * `@procedures/client` for the JSON Schema of any input or output.
  */
 export function zodToJsonSchema(schema: SchemaLike | unknown, _options?: ZodToJsonSchemaOptions): JsonSchema {
   return toolInputSchema(schema);

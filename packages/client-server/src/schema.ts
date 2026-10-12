@@ -7,9 +7,9 @@
 /**
  * Wrap a Zod schema for use with client procedures
  */
-export { zodAdapter as wrapSchema } from "@mark1russell7/client";
+export { zodAdapter as wrapSchema } from "@procedures/client";
 
 /**
  * Create a pass-through schema for type T (no validation)
  */
-export { outputSchema as schema } from "@mark1russell7/client";
+export { outputSchema as schema } from "@procedures/client";

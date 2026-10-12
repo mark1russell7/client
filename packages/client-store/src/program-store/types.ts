@@ -7,7 +7,7 @@
  * a server with an expose rule lets call only the exposed procedures.
  */
 
-import type { AggregationDefinition, ProcedurePath } from "@mark1russell7/client";
+import type { AggregationDefinition, ProcedurePath } from "@procedures/client";
 
 /** One stored program. */
 export interface StoredProgram {

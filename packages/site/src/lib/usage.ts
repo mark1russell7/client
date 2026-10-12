@@ -51,7 +51,7 @@ function inputCode(input: Record<string, unknown>): string {
 export function usageCode(procedure: Pick<ProcedureInfo, "path" | "package" | "input" | "fields">, packageName: string): string {
   const core = procedure.package === "client";
   return [
-    `import { Client, LocalTransport, PROCEDURE_REGISTRY${core ? ", allCoreProcedures" : ""} } from "@mark1russell7/client";`,
+    `import { Client, LocalTransport, PROCEDURE_REGISTRY${core ? ", allCoreProcedures" : ""} } from "@procedures/client";`,
     ...(core
       ? ["", "for (const procedure of allCoreProcedures) {", "  if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);", "}"]
       : [`import "${packageName}"; // registers its procedures`]),

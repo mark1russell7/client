@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-cue",
+  "name": "@procedures/cue",
   "version": "0.1.0",
   "description": "cue-config as procedures: generate package.json, tsconfig.json and .gitignore from CUE feature presets, add and remove features, and validate projects.",
   "keywords": [
@@ -66,9 +66,9 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-fs": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/fs": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "@mark1russell7/cue": "^1.0.0",
     "zod": "^4.6.5"
   },

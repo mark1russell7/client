@@ -12,8 +12,8 @@
  * - Offline operation queue
  */
 
-import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
-import { InMemoryStorage } from "@mark1russell7/client-collections";
+import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
+import { InMemoryStorage } from "@procedures/collections";
 
 /**
  * Conflict resolution strategy.

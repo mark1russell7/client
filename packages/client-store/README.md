@@ -1,18 +1,18 @@
-# @mark1russell7/client-store
+# @procedures/store
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-store?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-store)
+[![npm](https://img.shields.io/npm/v/@procedures/store?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/store)
 
 The program store of the [client](https://github.com/mark1russell7/client) ecosystem. A program is procedure-as-data: the aggregation that `procedure.define` turns into a procedure. The store keeps programs after the process ends, and `procedure.load` defines them again.
 
 ```sh
-npm install @mark1russell7/client @mark1russell7/client-store
+npm install @procedures/client @procedures/store
 ```
 
 ## Example
 
 ```ts
-import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } from "@mark1russell7/client";
-import { attachProgramStore, FileProgramStore } from "@mark1russell7/client-store";
+import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } from "@procedures/client";
+import { attachProgramStore, FileProgramStore } from "@procedures/store";
 
 PROCEDURE_REGISTRY.registerAll(allCoreProcedures, { override: true });
 attachProgramStore(PROCEDURE_REGISTRY, new FileProgramStore("./programs.json"));
@@ -36,7 +36,7 @@ console.log(await client.exec(["math", "addTen"], { x: 5 })); // 15
 |---|---|
 | `MemoryProgramStore` | In the memory of the process |
 | `FileProgramStore` | In one JSON file. A lock file and an atomic rename keep the programs of two processes. |
-| `CollectionProgramStore` | In a collection storage: `InMemoryStorage` of `@mark1russell7/client-collections`, `ApiStorage` (the collection procedures of a server) or `HybridStorage` (a local cache with a remote copy) |
+| `CollectionProgramStore` | In a collection storage: `InMemoryStorage` of `@procedures/collections`, `ApiStorage` (the collection procedures of a server) or `HybridStorage` (a local cache with a remote copy) |
 
 A host gives a registry its store with `attachProgramStore(registry, store)`. The procedures use the store of the caller's registry:
 
@@ -53,9 +53,9 @@ A loaded program is a runtime-defined procedure, so it is data-driven: a server 
 
 ## The storage layer
 
-These parts moved here from `@mark1russell7/client` (roadmap 3.2):
+These parts moved here from `@procedures/client` (roadmap 3.2):
 
-- `ApiStorage` and `HybridStorage`, the collection storages that need a `Client`. Before, they were in `@mark1russell7/client/collections`.
+- `ApiStorage` and `HybridStorage`, the collection storages that need a `Client`. Before, they were in `@procedures/client/collections`.
 - The synced registry (`createSyncedRegistry()`, `SyncedProcedureRegistry`), the serialization of procedures, and the dynamic handler loader with an allowlist (`createDynamicHandlerLoader`).
 - `procedure.register`, which registers a procedure from a handler reference.
 

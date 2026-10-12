@@ -435,7 +435,7 @@ export class ProcedureRegistry {
  * This ensures there's only ONE registry across all module loads,
  * regardless of ESM/CJS interop issues or multiple import paths.
  */
-const REGISTRY_KEY = Symbol.for("@mark1russell7/client/PROCEDURE_REGISTRY");
+const REGISTRY_KEY = Symbol.for("@procedures/client/PROCEDURE_REGISTRY");
 
 /**
  * Get or create the global registry singleton.

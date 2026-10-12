@@ -5,11 +5,11 @@
  * Enables procedure-as-data patterns, remote registration, and persistence.
  */
 
-import { defineProcedure, PROCEDURE_REGISTRY, pathToKey, keyToPath } from "@mark1russell7/client";
-import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
+import { defineProcedure, PROCEDURE_REGISTRY, pathToKey, keyToPath } from "@procedures/client";
+import type { AnyProcedure, ProcedurePath } from "@procedures/client";
 import { z } from "zod";
 
-// procedure.list and procedure.get are core procedures (`@mark1russell7/client`, in
+// procedure.list and procedure.get are core procedures (`@procedures/client`, in
 // define-procedure.ts). This package gave its own versions for the whole registry and replaced
 // the core ones, so the results depended on the imports of the host (docs review DOC-6). The core
 // versions now list and describe the whole registry of the caller, with a `runtime` flag.

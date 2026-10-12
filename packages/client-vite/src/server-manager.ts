@@ -6,7 +6,7 @@
  * reads the output of each server, and the servers end when the host ends.
  */
 
-import { processes } from "@mark1russell7/client-shell/command";
+import { processes } from "@procedures/shell/command";
 import { resolveViteCli } from "./vite-cli.js";
 
 /** The group of the vite servers in the process registry. */

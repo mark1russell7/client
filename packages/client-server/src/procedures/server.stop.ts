@@ -3,7 +3,7 @@
  * Stops the running CLI server daemon
  */
 
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerStopOutputSchema } from "../output-schemas.js";
 import { serverStopInputSchema } from "../input-schemas.js";

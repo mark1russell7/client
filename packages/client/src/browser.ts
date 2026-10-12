@@ -3,18 +3,18 @@
  *
  * This module exports everything of the package except the Node server transports
  * (`HttpServerTransport` and `WebSocketServerTransport`, which use `http` and `ws`).
- * A browser bundle imports "@mark1russell7/client/browser". The root entry point
+ * A browser bundle imports "@procedures/client/browser". The root entry point
  * re-exports this module and adds the server transports.
  *
- * Collections (maps, caches, collection storage) are in @mark1russell7/client-collections.
+ * Collections (maps, caches, collection storage) are in @procedures/collections.
  * The program store, the storage backends that need a Client (ApiStorage, HybridStorage) and the
- * synced registry are in @mark1russell7/client-store (roadmap 3.2).
+ * synced registry are in @procedures/store (roadmap 3.2).
  */
 
 // ============================================================================
 // Universal Client (protocol-agnostic RPC)
 // Core client and transports
-// Import client middleware explicitly: import { createRetryMiddleware } from "@mark1russell7/client/client"
+// Import client middleware explicitly: import { createRetryMiddleware } from "@procedures/client/client"
 // ============================================================================
 export { Client, ClientError } from "./client/index.js";
 export {
@@ -336,7 +336,7 @@ export type {
 } from "./events/index.js";
 
 // ============================================================================
-// Components (serializable UI descriptors) moved to @mark1russell7/client-splay, the UI package
+// Components (serializable UI descriptors) moved to @procedures/splay, the UI package
 // of the ecosystem (roadmap 3.4).
 // ============================================================================
 

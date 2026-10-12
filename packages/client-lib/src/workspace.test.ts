@@ -75,32 +75,32 @@ describe("isEcosystemDependencySpec", () => {
 });
 
 describe("extractEcosystemDeps", () => {
-  it("collects @mark1russell7 links from all dependency fields without duplicates", () => {
+  it("collects @procedures and @mark1russell7 links from all dependency fields without duplicates", () => {
     const deps = extractEcosystemDeps({
       dependencies: {
-        "@mark1russell7/client": "workspace:*",
+        "@procedures/client": "workspace:*",
         "@mark1russell7/logger": "github:mark1russell7/logger#main",
         zod: "^3.24.0",
       },
       devDependencies: {
-        "@mark1russell7/client": "workspace:*",
+        "@procedures/client": "workspace:*",
         "@mark1russell7/cue": "github:mark1russell7/cue#main",
         typescript: "^5.9.3",
       },
       peerDependencies: {
-        "@mark1russell7/client-shell": "workspace:*",
+        "@procedures/shell": "workspace:*",
       },
     });
 
     expect(deps.sort()).toEqual([
-      "@mark1russell7/client",
-      "@mark1russell7/client-shell",
       "@mark1russell7/cue",
       "@mark1russell7/logger",
+      "@procedures/client",
+      "@procedures/shell",
     ]);
   });
 
-  it("ignores @mark1russell7 packages that come from the registry", () => {
+  it("ignores ecosystem packages that come from the registry", () => {
     expect(extractEcosystemDeps({ dependencies: { "@mark1russell7/x": "^1.0.0" } })).toEqual([]);
   });
 });

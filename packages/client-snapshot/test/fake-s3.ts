@@ -6,7 +6,7 @@
  */
 
 import { writeFileSync } from "node:fs";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 interface StoredObject {
   body: Buffer;

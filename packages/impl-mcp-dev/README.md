@@ -1,6 +1,6 @@
-# @mark1russell7/mcp-dev-tools
+# @procedures/mcp-dev-tools
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/mcp-dev-tools?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/mcp-dev-tools)
+[![npm](https://img.shields.io/npm/v/@procedures/mcp-dev-tools?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/mcp-dev-tools)
 
 `mcp-dev-tools` is the MCP server that gives procedures to Claude as tools. Its folder in the monorepo is `packages/impl-mcp-dev`. Claude Code (or Claude Desktop) starts it over stdio. By default it loads `bundle-mcp`, which selects 62 tools.
 
@@ -11,7 +11,7 @@ Add the server to the MCP configuration of Claude Code. `npx` gets the package f
 ```json
 {
   "mcpServers": {
-    "dev-tools": { "command": "npx", "args": ["-y", "@mark1russell7/mcp-dev-tools"] }
+    "dev-tools": { "command": "npx", "args": ["-y", "@procedures/mcp-dev-tools"] }
   }
 }
 ```
@@ -37,7 +37,7 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 
 | Environment variable | Default | Function |
 |---|---|---|
-| `MCP_BUNDLES` | `@mark1russell7/bundle-mcp` | The bundles to load, separated by commas. The server imports `<bundle>/register.js` for each one. |
+| `MCP_BUNDLES` | `@procedures/bundle-mcp` | The bundles to load, separated by commas. The server imports `<bundle>/register.js` for each one. |
 | `MCP_SERVER_NAME` | `impl-mcp-dev` | The server name in the MCP handshake |
 | `MCP_SERVER_VERSION` | `1.0.0` | The server version in the MCP handshake |
 | `MCP_DEBUG` | `false` | With `true`, the server writes debug lines to stderr |
@@ -50,7 +50,7 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 4. `McpServerTransport` gives the exposed procedures as tools over stdio. It tells Claude when the list of tools changes.
 
 > [!WARNING]
-> A bundle without `mcpNamespaces` exposes every registered procedure, `shell.exec` too. `bundle-dev` has no `mcpNamespaces`. Thus `MCP_BUNDLES=@mark1russell7/bundle-dev` gives Claude shell access through this server.
+> A bundle without `mcpNamespaces` exposes every registered procedure, `shell.exec` too. `bundle-dev` has no `mcpNamespaces`. Thus `MCP_BUNDLES=@procedures/bundle-dev` gives Claude shell access through this server.
 
 The server sends `console.log` output to stderr, because stdout carries the MCP protocol.
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/server",
+  "name": "@procedures/server",
   "version": "0.1.0",
   "description": "A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list.",
   "keywords": [
@@ -58,8 +58,8 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-server": "workspace:*"
+    "@procedures/client": "workspace:*",
+    "@procedures/peer": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/mcp",
+  "name": "@procedures/mcp",
   "version": "0.1.0",
   "description": "Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers.",
   "keywords": [
@@ -54,13 +54,13 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@mark1russell7/client": "workspace:^"
+    "@procedures/client": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3",
-    "@mark1russell7/client": "workspace:*"
+    "@procedures/client": "workspace:*"
   }
 }

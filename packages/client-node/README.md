@@ -1,6 +1,6 @@
-# @mark1russell7/client-node
+# @procedures/node
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-node?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-node)
+[![npm](https://img.shields.io/npm/v/@procedures/node?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/node)
 
 Node.js process management procedures for the client ecosystem. Provides procedures for running scripts, spawning long-running processes, and managing process lifecycles.
 
@@ -57,7 +57,7 @@ Node.js process management procedures for the client ecosystem. Provides procedu
 ## Installation
 
 ```bash
-pnpm add @mark1russell7/client-node
+pnpm add @procedures/node
 ```
 
 ## Procedures
@@ -67,7 +67,7 @@ pnpm add @mark1russell7/client-node
 Run a Node.js script to completion and return the output.
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client } from "@procedures/client";
 
 const result = await client.exec<{
   stdout: string;
@@ -272,8 +272,8 @@ Promise resolves with { processId, pid }
 ## Integration Example
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-node"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/node"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -321,22 +321,22 @@ try {
 Import the register module to auto-register all procedures:
 
 ```typescript
-import "@mark1russell7/client-node"; // registers its procedures
+import "@procedures/node"; // registers its procedures
 ```
 
 Or register manually:
 
 ```typescript
-import { registerNodeProcedures } from "@mark1russell7/client-node";
+import { registerNodeProcedures } from "@procedures/node";
 
 registerNodeProcedures();
 ```
 
 ## Related Packages
 
-- `@mark1russell7/client` - Core client framework
-- `@mark1russell7/client-shell` - Shell command execution
-- `@mark1russell7/client-vite` - Vite dev server management
+- `@procedures/client` - Core client framework
+- `@procedures/shell` - Shell command execution
+- `@procedures/vite` - Vite dev server management
 
 ## License
 

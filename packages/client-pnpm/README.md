@@ -1,13 +1,13 @@
-# @mark1russell7/client-pnpm
+# @procedures/pnpm
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-pnpm.svg)](https://www.npmjs.com/package/@mark1russell7/client-pnpm)
+[![npm version](https://img.shields.io/npm/v/@procedures/pnpm.svg)](https://www.npmjs.com/package/@procedures/pnpm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > PNPM package manager wrapper - exposes `pnpm.install`, `pnpm.add`, `pnpm.remove`, `pnpm.link`, `pnpm.run`, and `pnpm.store.path` as type-safe RPC procedures.
 
 ## Overview
 
-`@mark1russell7/client-pnpm` wraps pnpm package manager commands as RPC procedures through the client system. It provides 6 procedures for package management operations including installation, adding/removing packages, linking local packages, running scripts, and accessing the pnpm store.
+`@procedures/pnpm` wraps pnpm package manager commands as RPC procedures through the client system. It provides 6 procedures for package management operations including installation, adding/removing packages, linking local packages, running scripts, and accessing the pnpm store.
 
 This package follows the **CLI Wrapper Pattern** using `client-shell` for command execution with full type safety via Zod schemas.
 
@@ -16,7 +16,7 @@ This package follows the **CLI Wrapper Pattern** using `client-shell` for comman
 ```mermaid
 graph TB
     A[client-pnpm] -->|uses| B[client-shell]
-    A -->|depends on| C[@mark1russell7/client]
+    A -->|depends on| C[@procedures/client]
     A -->|validates with| D[zod]
 
     E[Application] -->|calls| F[pnpm.* procedures]
@@ -53,20 +53,20 @@ graph LR
 
 ```bash
 # Using pnpm (recommended)
-pnpm add @mark1russell7/client-pnpm
+pnpm add @procedures/pnpm
 
 # Using npm
-npm install @mark1russell7/client-pnpm
+npm install @procedures/pnpm
 
 # Using yarn
-yarn add @mark1russell7/client-pnpm
+yarn add @procedures/pnpm
 ```
 
 ## Quick Start
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-pnpm"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/pnpm"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -496,7 +496,7 @@ import {
   type PnpmStorePathInput,
   type PnpmCommandOutput,
   type PnpmStorePathOutput,
-} from "@mark1russell7/client-pnpm";
+} from "@procedures/pnpm";
 ```
 
 ## Functions
@@ -568,8 +568,8 @@ pnpm clean
 
 ```mermaid
 graph LR
-    A[@mark1russell7/client-pnpm] --> B[@mark1russell7/client]
-    A --> C[@mark1russell7/client-shell]
+    A[@procedures/pnpm] --> B[@procedures/client]
+    A --> C[@procedures/shell]
     A --> D[zod]
 
     B -.->|provides| E[Client & Procedure System]
@@ -582,8 +582,8 @@ graph LR
     style D fill:#fff4e1
 ```
 
-- **`@mark1russell7/client`** - Core client library providing the procedure system
-- **`@mark1russell7/client-shell`** - Generic shell execution wrapper
+- **`@procedures/client`** - Core client library providing the procedure system
+- **`@procedures/shell`** - Generic shell execution wrapper
 - **`zod`** - Schema validation library
 
 ## Integration with Ecosystem
@@ -592,10 +592,10 @@ graph LR
 
 ```typescript
 // bundle-dev/src/register.ts
-import "@mark1russell7/client-pnpm"; // registers its procedures
+import "@procedures/pnpm"; // registers its procedures
 
 // client-lib uses pnpm procedures for package management
-import { pnpmInstall, pnpmRun } from "@mark1russell7/client-pnpm";
+import { pnpmInstall, pnpmRun } from "@procedures/pnpm";
 ```
 
 ### Usage in client-lib
@@ -636,8 +636,8 @@ This pattern is also used by:
 The handlers start pnpm through `ctx.client.call(["shell", "run"], ...)`, so they need a procedure context. A `Client` is not a procedure context. Start the procedures through a client:
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-pnpm"; // registers pnpm.* and shell.*
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/pnpm"; // registers pnpm.* and shell.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -649,8 +649,8 @@ await client.exec(["pnpm", "run"], { script: "build" });
 ### Custom Registration
 
 ```typescript
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
-import { pnpmInstall, PnpmInstallInputSchema } from "@mark1russell7/client-pnpm";
+import { createProcedure, registerProcedures } from "@procedures/client";
+import { pnpmInstall, PnpmInstallInputSchema } from "@procedures/pnpm";
 
 // Register under custom namespace
 const customInstallProcedure = createProcedure()
@@ -785,9 +785,9 @@ MIT
 
 ## Related Packages
 
-- [@mark1russell7/client](https://github.com/mark1russell7/client) - Core client library
-- [@mark1russell7/client-shell](https://github.com/mark1russell7/client-shell) - Shell execution wrapper
-- [@mark1russell7/client-lib](https://github.com/mark1russell7/client-lib) - Library management (uses pnpm procedures)
-- [@mark1russell7/client-cli](https://github.com/mark1russell7/client-cli) - CLI wrapper
-- [@mark1russell7/client-git](https://github.com/mark1russell7/client-git) - Git operations wrapper
-- [@mark1russell7/bundle-dev](https://github.com/mark1russell7/bundle-dev) - Development bundle
+- [@procedures/client](https://github.com/mark1russell7/client) - Core client library
+- [@procedures/shell](https://github.com/mark1russell7/client-shell) - Shell execution wrapper
+- [@procedures/lib](https://github.com/mark1russell7/client-lib) - Library management (uses pnpm procedures)
+- [@procedures/cli-run](https://github.com/mark1russell7/client-cli) - CLI wrapper
+- [@procedures/git](https://github.com/mark1russell7/client-git) - Git operations wrapper
+- [@procedures/bundle-dev](https://github.com/mark1russell7/bundle-dev) - Development bundle

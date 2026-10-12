@@ -3,8 +3,8 @@
  *
  * The core procedures of a collection (`collections.<name>.<operation>`), the repository of a
  * procedure context and the collections of a `ProcedureServer` use a storage through this
- * interface. It has the shape of `CollectionStorage` of `@mark1russell7/client-collections`, so
- * each backend of that package (`InMemoryStorage`) and of `@mark1russell7/client-store`
+ * interface. It has the shape of `CollectionStorage` of `@procedures/collections`, so
+ * each backend of that package (`InMemoryStorage`) and of `@procedures/store`
  * (`ApiStorage`, `HybridStorage`) fits it. The core declares it itself, so it does not depend on
  * the collections package (roadmap 3.3).
  *

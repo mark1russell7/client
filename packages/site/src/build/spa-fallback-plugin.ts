@@ -35,7 +35,7 @@ async function launchChromium(): Promise<Browser> {
     throw new Error(
       [
         "The site build renders each page in Chromium, but Chromium did not start.",
-        'Install it with "pnpm --filter @mark1russell7/site exec playwright install chromium", or set SITE_PRERENDER=0 to build without prerendered pages.',
+        'Install it with "pnpm --filter @procedures/site exec playwright install chromium", or set SITE_PRERENDER=0 to build without prerendered pages.',
         error instanceof Error ? error.message : String(error),
       ].join("\n"),
     );

@@ -7,11 +7,11 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
-import shellModule from "@mark1russell7/client-shell/module";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import shellModule from "@procedures/shell/module";
 import { cliRun } from "./procedures/cli/index.js";
 import { CliRunInputSchema, CliRunOutputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 // =============================================================================
 // cli.run Procedure
@@ -40,7 +40,7 @@ const cliRunProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const cliModule: ProcedureModule = defineModule("@mark1russell7/client-cli", [
+export const cliModule: ProcedureModule = defineModule("@procedures/cli-run", [
     cliRunProcedure,
   ], [shellModule]);
 

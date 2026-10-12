@@ -5,7 +5,7 @@
  * Enables procedure registry to be backed by CollectionStorage.
  */
 
-import type { ProcedurePath, ProcedureMetadata } from "@mark1russell7/client";
+import type { ProcedurePath, ProcedureMetadata } from "@procedures/client";
 
 // =============================================================================
 // Serialized Procedure
@@ -16,7 +16,7 @@ import type { ProcedurePath, ProcedureMetadata } from "@mark1russell7/client";
  * Handlers cannot be serialized directly, so we store a reference.
  */
 export interface HandlerReference {
-  /** Module name or path (e.g., "@mark1russell7/client-cli") */
+  /** Module name or path (e.g., "@procedures/cli-run") */
   module: string;
 
   /** Named export from the module (e.g., "libScanHandler") */

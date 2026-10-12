@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-lib",
+  "name": "@procedures/lib",
   "version": "0.1.0",
   "description": "Workspace procedures for pnpm monorepos: scan the packages, scaffold a new package, audit packages against a template, rename across the workspace, and program runners.",
   "keywords": [
@@ -72,12 +72,12 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-dag": "workspace:*",
-    "@mark1russell7/client-fs": "workspace:*",
-    "@mark1russell7/client-git": "workspace:*",
-    "@mark1russell7/client-pnpm": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/dag": "workspace:*",
+    "@procedures/fs": "workspace:*",
+    "@procedures/git": "workspace:*",
+    "@procedures/pnpm": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "ts-morph": "^24.0.0",
     "zod": "^4.6.5"
   },

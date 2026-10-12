@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY } from "@procedures/client";
 import { mcpNamespaces, mcpExclude } from "./index.js";
 
 describe("the root of bundle-mcp", () => {

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { coreCatch } from "./catch.js";
 import type { CoreCatchInput } from "../../types.js";
 

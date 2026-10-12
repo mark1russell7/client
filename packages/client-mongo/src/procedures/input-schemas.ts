@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod";
-import { jsonSchemaOf, zodAdapter, type ZodLikeSchema } from "@mark1russell7/client";
+import { jsonSchemaOf, zodAdapter, type ZodLikeSchema } from "@procedures/client";
 
 /** The fields that select the database and the collection. */
 export function scopeFields(): { collection: z.ZodOptional<z.ZodString>; database: z.ZodOptional<z.ZodString> } {

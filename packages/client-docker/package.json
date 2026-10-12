@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-docker",
+  "name": "@procedures/docker",
   "version": "0.1.0",
   "description": "Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, stop, rm, compose up and down, run with argv and no shell injection.",
   "keywords": [
@@ -68,8 +68,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

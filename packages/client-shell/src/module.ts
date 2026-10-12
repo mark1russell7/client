@@ -4,7 +4,7 @@
  * Procedure Registration for shell operations
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
@@ -92,7 +92,7 @@ const shellStreamProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const shellModule: ProcedureModule = defineModule("@mark1russell7/client-shell", [
+export const shellModule: ProcedureModule = defineModule("@procedures/shell", [
     shellRunProcedure,
     shellExecProcedure,
     shellWhichProcedure,

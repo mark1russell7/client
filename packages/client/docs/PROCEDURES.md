@@ -20,7 +20,7 @@ The procedure aggregation language enables:
 Every procedure can be referenced by its path:
 
 ```typescript
-import { proc, fromJson, toJson } from "@mark1russell7/client";
+import { proc, fromJson, toJson } from "@procedures/client";
 
 // Imperative (TypeScript)
 const ref = proc(["client", "add"]).input({ a: 5, b: 3 });
@@ -42,12 +42,12 @@ Procedures are organized hierarchically by path:
 
 | Prefix | Package | Description |
 |--------|---------|-------------|
-| `client.*` | @mark1russell7/client | Core operations (control flow, math, etc.) |
-| `fs.*` | @mark1russell7/client-fs | Filesystem operations |
-| `git.*` | @mark1russell7/client-git | Git operations |
-| `lib.*` | @mark1russell7/client-cli | Library management |
-| `config.*` | @mark1russell7/client-cli | Configuration management |
-| `procedure.*` | @mark1russell7/client-cli | Procedure scaffolding |
+| `client.*` | @procedures/client | Core operations (control flow, math, etc.) |
+| `fs.*` | @procedures/fs | Filesystem operations |
+| `git.*` | @procedures/git | Git operations |
+| `lib.*` | @procedures/cli-run | Library management |
+| `config.*` | @procedures/cli-run | Configuration management |
+| `procedure.*` | @procedures/cli-run | Procedure scaffolding |
 
 ---
 
@@ -228,7 +228,7 @@ await client.call(["client", "tryCatch"], {
 
 ## Filesystem Procedures (`fs.*`)
 
-Install: `@mark1russell7/client-fs`
+Install: `@procedures/fs`
 
 | Procedure | Input | Output | Description |
 |-----------|-------|--------|-------------|
@@ -248,7 +248,7 @@ Install: `@mark1russell7/client-fs`
 
 ## Git Procedures (`git.*`)
 
-Install: `@mark1russell7/client-git`
+Install: `@procedures/git`
 
 | Procedure | Input | Output | Description |
 |-----------|-------|--------|-------------|
@@ -282,7 +282,7 @@ This creates:
 ### Manual Definition
 
 ```typescript
-import { createProcedure, registerProcedures } from "@mark1russell7/client";
+import { createProcedure, registerProcedures } from "@procedures/client";
 import { z } from "zod";
 
 // Define input schema
@@ -374,7 +374,7 @@ All procedures can be serialized to JSON using the `$proc` key:
 Procedures can execute remotely via the client transport:
 
 ```typescript
-import { createClient } from "@mark1russell7/client";
+import { createClient } from "@procedures/client";
 
 // Client connects to remote server
 const client = createClient({

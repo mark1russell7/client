@@ -4,7 +4,7 @@
  * Stop running container(s).
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { dockerArg, runDocker } from "./shared.js";
 import type { DockerStopInput, DockerCommandOutput } from "../../types.js";
 

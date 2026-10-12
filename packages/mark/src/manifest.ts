@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { jsonSchemaOf, type AnyProcedure } from "@mark1russell7/client";
+import { jsonSchemaOf, type AnyProcedure } from "@procedures/client";
 import { discoverFromEcosystem, findWorkspaceRoot } from "./ecosystem.js";
 import { extractSchemaFields, resultFieldsOfSchema, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
 

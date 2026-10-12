@@ -1,1 +1,1 @@
-export { outputSchema as schema } from "@mark1russell7/client";
+export { outputSchema as schema } from "@procedures/client";

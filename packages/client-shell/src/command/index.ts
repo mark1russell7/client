@@ -1,5 +1,5 @@
 /**
- * `@mark1russell7/client-shell/command`: the helpers that start programs (roadmap 2.2).
+ * `@procedures/shell/command`: the helpers that start programs (roadmap 2.2).
  *
  * Each wrapper package starts its program through these helpers:
  * - an argument list, never a shell string;

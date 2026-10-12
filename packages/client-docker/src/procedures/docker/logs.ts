@@ -7,7 +7,7 @@
  * timeout or a cancel.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { dockerArg, runDocker } from "./shared.js";
 import type { DockerLogsInput, DockerCommandOutput, DockerLogItem } from "../../types.js";
 

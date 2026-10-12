@@ -1,6 +1,6 @@
-# @mark1russell7/client-mcp
+# @procedures/mcp-server
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-mcp)
+[![npm](https://img.shields.io/npm/v/@procedures/mcp-server?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/mcp-server)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -38,7 +38,7 @@
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-mcp
+npm install @procedures/mcp-server
 ```
 
 ---
@@ -149,11 +149,11 @@ graph LR
 ## Quick Start
 
 ```typescript
-import { ProcedureServer, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { McpServerTransport } from "@mark1russell7/client-mcp";
+import { ProcedureServer, PROCEDURE_REGISTRY } from "@procedures/client";
+import { McpServerTransport } from "@procedures/mcp-server";
 
 // Load procedures (via side-effect imports)
-import "@mark1russell7/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev"; // registers its procedures
 
 // Create procedure server
 const server = new ProcedureServer({
@@ -280,7 +280,7 @@ graph TB
   "mcpServers": {
     "my-server": {
       "command": "npx",
-      "args": ["-y", "@mark1russell7/mcp-dev-tools"]
+      "args": ["-y", "@procedures/mcp-dev-tools"]
     }
   }
 }
@@ -295,7 +295,7 @@ graph TB
       "command": "node",
       "args": ["C:/Users/me/git/client/packages/impl-mcp-dev/dist/server.js"],
       "env": {
-        "MCP_BUNDLES": "@mark1russell7/bundle-mcp",
+        "MCP_BUNDLES": "@procedures/bundle-mcp",
         "MCP_DEBUG": "true"
       }
     }
@@ -356,8 +356,8 @@ graph TB
 
 - **Node.js** >= 22
 - **Dependencies:**
-  - `@mark1russell7/client`
-  - `@mark1russell7/mcp`
+  - `@procedures/client`
+  - `@procedures/mcp`
   - `@modelcontextprotocol/sdk`
 
 ---

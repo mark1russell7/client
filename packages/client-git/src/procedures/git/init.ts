@@ -5,7 +5,7 @@
  */
 
 import { join, resolve } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { git } from "./run.js";
 import type { GitInitInput, GitInitOutput } from "../../types.js";
 

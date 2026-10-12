@@ -10,8 +10,8 @@
 
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
-import { runCommand, type CommandResult } from "@mark1russell7/client-shell/command";
+import type { ProcedureContext } from "@procedures/client";
+import { runCommand, type CommandResult } from "@procedures/shell/command";
 import type { FeaturesManifest, DependenciesJson } from "./types.js";
 
 // Constants

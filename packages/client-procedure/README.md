@@ -1,6 +1,6 @@
-# @mark1russell7/client-procedure
+# @procedures/procedure
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-procedure.svg)](https://www.npmjs.com/package/@mark1russell7/client-procedure)
+[![npm version](https://img.shields.io/npm/v/@procedures/procedure.svg)](https://www.npmjs.com/package/@procedures/procedure)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 
@@ -18,7 +18,7 @@
 
 ## Overview
 
-`@mark1russell7/client-procedure` provides utilities for creating and managing procedures:
+`@procedures/procedure` provides utilities for creating and managing procedures:
 
 - **procedure.new**: Scaffold new procedures with types and registration boilerplate
 - **procedure.list**: List all registered procedures in the runtime registry
@@ -34,7 +34,7 @@ npm install github:mark1russell7/client-procedure#main
 ```
 
 **Dependencies:**
-- `@mark1russell7/client` (peer dependency)
+- `@procedures/client` (peer dependency)
 - `zod` ^3.24.0
 
 ## Architecture
@@ -105,8 +105,8 @@ The scaffolded code compiles with the strict options of the workspace. A name wh
 ## Quick Start
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-procedure"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/procedure"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -217,7 +217,7 @@ export { userCreate } from "./create.js";
 
 4. **Registration** (added to `src/register.ts`: the imports, the definition, and the item of the `registerProcedures([...])` array):
 ```typescript
-import { createProcedure, outputSchema, registerProcedures, zodAdapter } from "@mark1russell7/client";
+import { createProcedure, outputSchema, registerProcedures, zodAdapter } from "@procedures/client";
 import { userCreate } from "./procedures/user/create.js";
 import { UserCreateInputSchema, type UserCreateInput, type UserCreateOutput } from "./types.js";
 
@@ -392,7 +392,7 @@ Two names can give the same identifiers (`a.b.c` and `a.bC` both give `aBC`). Th
 - **Node.js**: >= 22
 - **TypeScript**: >= 5.0
 - **Dependencies**:
-  - `@mark1russell7/client` (`workspace:*`)
+  - `@procedures/client` (`workspace:*`)
   - `zod` ^3.24.0
 
 ## License
@@ -401,6 +401,6 @@ MIT
 
 ## See Also
 
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/cli` - CLI that uses procedure.new for scaffolding
+- `@procedures/client` - Core client/procedure system
+- `@procedures/mark` - CLI that uses procedure.new for scaffolding
 - Package scaffolding guide in ecosystem documentation

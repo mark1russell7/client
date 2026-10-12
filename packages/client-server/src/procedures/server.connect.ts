@@ -3,7 +3,7 @@
  * Connects to a remote peer for bidirectional RPC
  */
 
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerConnectOutputSchema } from "../output-schemas.js";
 import { serverConnectInputSchema } from "../input-schemas.js";

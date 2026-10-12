@@ -6,7 +6,7 @@
  */
 
 import { resolve } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { CueInitInput, CueInitOutput } from "../../types.js";
 import {
   loadFeatures,

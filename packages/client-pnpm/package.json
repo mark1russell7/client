@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-pnpm",
+  "name": "@procedures/pnpm",
   "version": "0.1.0",
   "description": "pnpm commands as typed procedures: install, add, remove, run and link, run with argv and option-injection guards.",
   "keywords": [
@@ -63,8 +63,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

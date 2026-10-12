@@ -1,9 +1,9 @@
-# @mark1russell7/cli
+# @procedures/mark
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/cli?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/cli)
+[![npm](https://img.shields.io/npm/v/@procedures/mark?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/mark)
 
 ```sh
-npm install --global @mark1russell7/cli
+npm install --global @procedures/mark
 ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -12,7 +12,7 @@ npm install --global @mark1russell7/cli
 
 ## Overview
 
-`@mark1russell7/cli` is a dynamic, extensible CLI that automatically discovers and executes procedures from ecosystem packages. It provides a unified interface for development workflows, package management, and automation tasks across the `@mark1russell7` ecosystem.
+`@procedures/mark` is a dynamic, extensible CLI that automatically discovers and executes procedures from ecosystem packages. It provides a unified interface for development workflows, package management, and automation tasks across the `@mark1russell7` ecosystem.
 
 ### Key Features
 
@@ -136,7 +136,7 @@ mark --server [--port N] [--host H] [--transport http|websocket|both]
 mark -i
 ```
 
-The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@mark1russell7/cli` runs nothing.
+The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@procedures/mark` runs nothing.
 
 #### The hosts
 
@@ -149,7 +149,7 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@mark
 | `mark serve` | The procedure server | The options of the `procedure-server` command. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
 | `mark mcp` | The dev-tools MCP server, over stdio | The server of Claude Code's MCP configuration. stdout holds only protocol lines, and `mark mcp --help` writes to stderr. |
 
-`mark mcp <procedure>` runs an `mcp.*` procedure (for example `mark mcp listTools`), not the server. Each host gets its policy from `hostPolicy()` of `@mark1russell7/client`.
+`mark mcp <procedure>` runs an `mcp.*` procedure (for example `mark mcp listTools`), not the server. Each host gets its policy from `hostPolicy()` of `@procedures/client`.
 
 #### Global Options
 
@@ -215,7 +215,7 @@ mark --verbose lib new my-pkg
 Main CLI entry point.
 
 ```typescript
-import { run } from "@mark1russell7/cli";
+import { run } from "@procedures/mark";
 
 // Execute CLI programmatically
 await run(["lib", "new", "my-package"]);
@@ -226,7 +226,7 @@ await run(["lib", "new", "my-package"]);
 Parse CLI arguments based on procedure metadata. With the schema, each value is converted by the type of its field. `parseCommandLine(argv, procedures)` splits a whole command line: the global flags, the path and the input.
 
 ```typescript
-import { parseFromSchema } from "@mark1russell7/cli";
+import { parseFromSchema } from "@procedures/mark";
 
 const params = {
   array: ["my-package"],
@@ -247,7 +247,7 @@ const input = parseFromSchema(params, meta);
 Generate help text for a procedure.
 
 ```typescript
-import { generateHelp } from "@mark1russell7/cli";
+import { generateHelp } from "@procedures/mark";
 
 const help = generateHelp(
   ["lib", "new"],
@@ -267,7 +267,7 @@ console.log(help);
 Format and print procedure results.
 
 ```typescript
-import { formatOutput } from "@mark1russell7/cli";
+import { formatOutput } from "@procedures/mark";
 
 // print: an object with info, error, success, warning, table and spin (see format.ts)
 formatOutput(print, { message: "Success!" }, "text");
@@ -381,7 +381,7 @@ A package that does not load gives one warning line. A package that is not built
 **Example package.json:**
 ```json
 {
-  "name": "@mark1russell7/client-lib",
+  "name": "@procedures/lib",
   "client": {
     "procedures": "./dist/register.js"
   }
@@ -390,7 +390,7 @@ A package that does not load gives one warning line. A package that is not built
 
 **Example register.js:**
 ```typescript
-import { defineProcedure } from "@mark1russell7/client";
+import { defineProcedure } from "@procedures/client";
 import { z } from "zod";
 
 const libNew = defineProcedure({
@@ -417,7 +417,7 @@ const libNew = defineProcedure({
 |--------|------|-------------|
 | Workspace | `<root>/pnpm-workspace.yaml`, `<root>/packages/*` | The packages that `mark` examines |
 | Package Metadata | `<pkg>/package.json` | Contains `client.procedures` path |
-| Procedure Registry | `PROCEDURE_REGISTRY` | Global registry from `@mark1russell7/client` |
+| Procedure Registry | `PROCEDURE_REGISTRY` | Global registry from `@procedures/client` |
 
 ## Argument Parsing
 
@@ -529,7 +529,7 @@ mark lib scan --format json
 ```json
 {
   "rootPath": "/path/to/client",
-  "packages": { "@mark1russell7/client-lib": { "name": "@mark1russell7/client-lib" } }
+  "packages": { "@procedures/lib": { "name": "@procedures/lib" } }
 }
 ```
 
@@ -681,14 +681,14 @@ export HOME=/custom/path
 ### Building
 
 ```bash
-pnpm --filter @mark1russell7/cli build
+pnpm --filter @procedures/mark build
 ```
 
 ### Testing
 
 ```bash
-pnpm --filter @mark1russell7/cli test       # unit tests (src/**/*.test.ts)
-pnpm --filter @mark1russell7/cli test:e2e   # end-to-end tests: they run dist/bin.js as a process
+pnpm --filter @procedures/mark test       # unit tests (src/**/*.test.ts)
+pnpm --filter @procedures/mark test:e2e   # end-to-end tests: they run dist/bin.js as a process
 ```
 
 The end-to-end tests use a temporary home folder and a temporary workspace. They do not change the repository and do not use a running CLI server.
@@ -762,7 +762,7 @@ Unknown command: mark foo bar
 ### Import Error
 
 ```
-mark: the procedures of @mark1russell7/client-foo did not load: <message>
+mark: the procedures of @procedures/foo did not load: <message>
 ```
 
 **Solution:**
@@ -782,8 +782,8 @@ mark: the procedures of @mark1russell7/client-foo did not load: <message>
 
 The CLI depends on:
 
-- `@mark1russell7/client` - Client library and procedure system
-- `@mark1russell7/client-*` - Various procedure packages
+- `@procedures/client` - Client library and procedure system
+- `@procedures/*` - Various procedure packages
 - `chalk`, `ora`, `cli-table3` - Terminal output
 - `zod` - Schema validation
 

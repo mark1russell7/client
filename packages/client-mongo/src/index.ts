@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/client-mongo
+ * @procedures/mongo
  *
  * MongoDB client wrapper with client procedures for RPC access.
  * Use locally with direct MongoDB connection or remotely via client.call().
@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * // Local usage: the first call connects (MONGODB_URI, or configure())
- * import { configure } from "@mark1russell7/client-mongo";
+ * import { configure } from "@procedures/mongo";
  *
  * configure({ uri: "mongodb://localhost:27017", database: "myapp" });
  *

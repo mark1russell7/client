@@ -7,7 +7,7 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { gitText } from "./commands.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type {
   SnapshotDiffInput,
   SnapshotDiffOutput,

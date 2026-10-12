@@ -4,7 +4,7 @@
  * List available snapshots in S3 bucket.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type {
   SnapshotListInput,
   SnapshotListOutput,

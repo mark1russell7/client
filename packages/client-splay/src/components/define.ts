@@ -5,10 +5,10 @@
  * Components are procedures with special handling for UI rendering.
  */
 
-import type { ZodLike } from "@mark1russell7/client/client";
-import type { Procedure, ProcedurePath, ProcedureContext } from "@mark1russell7/client";
-import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@mark1russell7/client";
-import { invokeProcedure, isAsyncIterable } from "@mark1russell7/client";
+import type { ZodLike } from "@procedures/client/client";
+import type { Procedure, ProcedurePath, ProcedureContext } from "@procedures/client";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@procedures/client";
+import { invokeProcedure, isAsyncIterable } from "@procedures/client";
 import type {
   ComponentDefinition,
   ComponentContext,

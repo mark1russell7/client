@@ -1,6 +1,6 @@
-# @mark1russell7/client-fs
+# @procedures/fs
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-fs?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-fs)
+[![npm](https://img.shields.io/npm/v/@procedures/fs?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/fs)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -25,7 +25,7 @@ The package auto-registers 11 procedures:
 ```mermaid
 graph TB
     subgraph "Client Ecosystem"
-        Client["@mark1russell7/client"]
+        Client["@procedures/client"]
         Registry["Procedure Registry"]
     end
 
@@ -74,8 +74,8 @@ graph TB
 ```mermaid
 graph LR
     App["Your Application"]
-    ClientFs["@mark1russell7/client-fs"]
-    Client["@mark1russell7/client"]
+    ClientFs["@procedures/fs"]
+    Client["@procedures/client"]
     Zod["zod"]
     NodeModules["node:fs/promises<br/>(glob: Node >= 22)"]
 
@@ -93,14 +93,14 @@ graph LR
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-fs
+npm install @procedures/fs
 ```
 
 ### Peer Dependencies
 
 ```json
 {
-  "@mark1russell7/client": "github:mark1russell7/client#main",
+  "@procedures/client": "github:mark1russell7/client#main",
   "zod": "^3.24.0"
 }
 ```
@@ -547,8 +547,8 @@ console.log(pkg.name, pkg.version);
 ### Basic File Operations
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-fs"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/fs"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -814,16 +814,16 @@ await client.exec(
 
 ```typescript
 // In bundle-dev/src/register.ts
-import "@mark1russell7/client-fs"; // registers its procedures
-import "@mark1russell7/client-shell"; // registers its procedures
-import "@mark1russell7/client-cli"; // registers its procedures
+import "@procedures/fs"; // registers its procedures
+import "@procedures/shell"; // registers its procedures
+import "@procedures/cli-run"; // registers its procedures
 ```
 
 ## Dependencies
 
 ### Runtime Dependencies
 
-- **@mark1russell7/client** - Core client procedure system
+- **@procedures/client** - Core client procedure system
 - **zod** (^3.24.0) - Runtime type validation
 
 ### Implicit Dependencies

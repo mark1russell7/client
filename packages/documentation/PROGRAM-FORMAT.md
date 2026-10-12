@@ -9,7 +9,7 @@ The interpreter is one function: `hydrateInput()` in [`packages/client/src/proce
 Each example is a program for `client.exec()`. Use the setup below. By default, the core registers only its control-flow procedures. Thus the setup registers all core procedures:
 
 ```ts
-import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } from "@procedures/client";
 
 for (const procedure of allCoreProcedures) {
   if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);

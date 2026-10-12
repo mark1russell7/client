@@ -1,6 +1,6 @@
-# @mark1russell7/server
+# @procedures/server
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/server?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/server)
+[![npm](https://img.shields.io/npm/v/@procedures/server?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/server)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -36,7 +36,7 @@
 ## Installation
 
 ```bash
-npm install -g @mark1russell7/server
+npm install -g @procedures/server
 ```
 
 ---
@@ -135,13 +135,13 @@ graph LR
 
 ```bash
 # Start MongoDB procedure server
-procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
+procedure-server --procedures @procedures/mongo/register --port 3000
 
 # Start with multiple procedure packages
-procedure-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register
+procedure-server -p @procedures/fs/register,@procedures/git/register
 
 # Start with multiple transports
-procedure-server -p @mark1russell7/client-mongo/register -t http,websocket
+procedure-server -p @procedures/mongo/register -t http,websocket
 ```
 
 ---
@@ -167,7 +167,7 @@ procedure-server -p @mark1russell7/client-mongo/register -t http,websocket
 
 `mark serve` takes the same options and starts the same server.
 
-The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@mark1russell7/client`.
+The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@procedures/client`.
 
 ### Transport Configuration
 
@@ -197,13 +197,13 @@ graph TB
 ### MongoDB Server
 
 ```bash
-procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
+procedure-server --procedures @procedures/mongo/register --port 3000
 ```
 
 **Output:**
 ```
 Starting procedure server...
-  Loading: @mark1russell7/client-mongo/register
+  Loading: @procedures/mongo/register
 
 Server started!
   Server ID: server-1703694523456
@@ -218,7 +218,7 @@ Press Ctrl+C to stop the server.
 ### Multi-Package Server
 
 ```bash
-procedure-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register \
+procedure-server -p @procedures/fs/register,@procedures/git/register \
        -t http,websocket \
        --port 3000
 ```
@@ -248,7 +248,7 @@ The `server` package replaces domain-specific server packages:
 npx @mark1russell7/server-mongo
 
 # NEW (general)
-npx procedure-server --procedures @mark1russell7/client-mongo/register
+npx procedure-server --procedures @procedures/mongo/register
 ```
 
 ### With client-server
@@ -298,8 +298,8 @@ graph BT
 
 - **Node.js** >= 22
 - **Dependencies:**
-  - `@mark1russell7/client`
-  - `@mark1russell7/client-server`
+  - `@procedures/client`
+  - `@procedures/peer`
   - One or more procedure packages
 
 ---

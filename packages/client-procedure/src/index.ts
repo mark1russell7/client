@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/client-procedure
+ * @procedures/procedure
  *
  * Procedure scaffolding procedures - procedure.new
  */
