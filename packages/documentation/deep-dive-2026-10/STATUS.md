@@ -161,16 +161,24 @@ The documentation fork checked each document against the code and ran each examp
 
 | ID | Severity | Status | Commit | Note |
 |---|---|---|---|---|
-| DOC-1 | medium | open | | A list of only `$never` calls runs as an implicit chain: chain steps ignore `$when`. |
-| DOC-2 | medium | open | | `client.eval` does not run the nested calls or `$ref` values inside the call that it evaluates. |
-| DOC-3 | low | decision | | `exec()` and a defined body treat the root differently (lists in the root input, a root `$when`). See PROGRAM-FORMAT.md section 11. |
-| DOC-4 | low | open | | `client.reduce` without `fn` returns `initial` without running it. `client.chain` ignores its `passThrough` and `initialInput` fields. |
-| DOC-5 | medium | open | | The `client-lib` root does not register `client-fs`, so `lib.scan` alone finds no packages. Over MCP, `lib.scan` and `lib.audit` call `git.*`, which the bundle does not register. |
-| DOC-6 | low | open | | The `bundle-mcp` root registers nothing. `client-procedure` replaces the core `procedure.list` and `procedure.get`. `mark` does not register the 84 core procedures that are not control flow. |
+| DOC-1 | medium | fixed | `d45d8ce`, `73e7278` | An array is an implicit chain only when every call in it runs now. A deferred call is data, also as a chain step. The Composer follows the same rule. |
+| DOC-2 | medium | fixed | `d45d8ce` | `client.eval` evaluates its call like `exec()`, in the scope of the caller. |
+| DOC-3 | low | decision | | `exec()` and a defined body treat the root differently (lists in the root input, a root `$when`). Recommendation: a defined body behaves exactly like `exec()`, because the Composer and the CLI teach the `exec()` rules. See PROGRAM-FORMAT.md section 11. |
+| DOC-4 | low | fixed | `d45d8ce` | `reduce` runs a call in `initial`. `chain` implements `passThrough` and `initialInput`. |
+| DOC-5 | medium | fixed | `50e831f` | `client-lib` registers `client-fs` and `client-git`. The reachability snapshot has the four `lib` to `git` edges. The tool list is unchanged. |
+| DOC-6 | low | fixed | `50e831f`, `6cd398f`, `8b6ff5d` | The `bundle-mcp` root registers its packages. One `procedure.list`/`get` in core (`get` gives `{ found: false }`, not `null`). `mark client add --a 2 --b 3` prints 5. |
 | DOC-7 | low | fixed | `2069d8f` | `cli.run` sent `--key value` and dropped `false` booleans. |
 | DOC-8 | medium | fixed | `d0430e4` | The standalone `server` had no token and no expose rule. |
 | DOC-9 | low | fixed | `314c18f` | The `engines` fields disagreed. |
-| DOC-10 | low | open | | A runner that validates with Zod loses the scope of its input. `observeHydration()` sees every hydration of the process. |
+| DOC-10 | low | fixed | `3b4f87a` | `invokeProcedure` keeps the scope through validation. `exec` takes an `onRef` for one program. |
+
+## Release on npm
+
+| ID | Severity | Status | Commit | Note |
+|---|---|---|---|---|
+| NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 29 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.mjs` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
+| NPM-2 | | open | | The general packages `cue` 1.0.0, `splay` 0.1.0 and `docker-sqlite` 0.1.0 are ready, but the npm login has expired: the owner runs `npm login`, then the bootstrap stages every package for one approval. |
+| NPM-3 | low | decision | | The bins `client` (the announce and discover tool) and `server` have generic names. Rename them before the first publish, or keep them. |
 
 ## Architecture roadmap
 
