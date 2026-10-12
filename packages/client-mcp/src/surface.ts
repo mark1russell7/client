@@ -7,8 +7,8 @@
  * (`impl-mcp-dev`) and `mcp.serve` build their expose rule from these lists.
  */
 
-import { createRequire } from "node:module";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ProcedurePath } from "@mark1russell7/client";
 
@@ -49,6 +49,33 @@ export function mergeSurfaces(modules: readonly BundleSurfaceModule[]): ToolSurf
 }
 
 /**
+ * The file URL of a bundle's `register.js`, found in the `node_modules` folders from `from`
+ * upward. The bundle's `exports` map gives the file. (`require.resolve` cannot do it: a bundle
+ * exports `register.js` for `import` only.)
+ */
+export function resolveBundleRegister(bundle: string, from: string): string {
+  let dir = resolve(from);
+  for (;;) {
+    const folder = join(dir, "node_modules", ...bundle.split("/"));
+    const manifestPath = join(folder, "package.json");
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { exports?: Record<string, unknown> };
+      const entry = manifest.exports?.["./register.js"];
+      const target =
+        typeof entry === "string"
+          ? entry
+          : ((entry as { import?: string; default?: string } | undefined)?.import ??
+            (entry as { default?: string } | undefined)?.default ??
+            "./dist/register.js");
+      return pathToFileURL(join(folder, target)).href;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) throw new Error(`Cannot find ${bundle} from ${from}`);
+    dir = parent;
+  }
+}
+
+/**
  * This function imports the `register.js` of each bundle, which registers its procedures, and
  * returns the modules. With `from`, a bundle resolves from that folder (a project), not from
  * this package.
@@ -56,8 +83,7 @@ export function mergeSurfaces(modules: readonly BundleSurfaceModule[]): ToolSurf
 export async function importBundles(bundles: readonly string[], from?: string): Promise<BundleSurfaceModule[]> {
   const modules: BundleSurfaceModule[] = [];
   for (const bundle of bundles) {
-    const specifier = `${bundle}/register.js`;
-    const target = from ? pathToFileURL(createRequire(join(from, "package.json")).resolve(specifier)).href : specifier;
+    const target = from ? resolveBundleRegister(bundle, from) : `${bundle}/register.js`;
     modules.push((await import(target)) as BundleSurfaceModule);
   }
   return modules;
