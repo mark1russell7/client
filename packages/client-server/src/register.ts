@@ -1,45 +1,16 @@
 /**
- * Procedure Registration
- *
- * Registers server procedures with the client system.
- * This file is referenced by package.json's client.procedures field.
+ * Importing this file registers the procedures of @mark1russell7/client-server in the global registry
+ * (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as data
+ * are in `module.ts`, which registers nothing: a host with its own registry uses that one.
  */
 
-import { registerProcedures, type AnyProcedure } from "@mark1russell7/client";
+import { registerProcedures } from "@mark1russell7/client";
+import { serverModule } from "./module.js";
 
-// Import all procedures
-import { serverCreateProcedure } from "./procedures/server.create.js";
-import { serverConnectProcedure } from "./procedures/server.connect.js";
-import { serverDisconnectProcedure } from "./procedures/server.disconnect.js";
-import { manifestGenerateProcedure } from "./procedures/manifest.generate.js";
-import { discoveryAnnounceProcedure } from "./discovery/index.js";
-import { serverStartProcedure } from "./procedures/server.start.js";
-import { serverStopProcedure } from "./procedures/server.stop.js";
-import { serverStatusProcedure } from "./procedures/server.status.js";
-import { serverCallProcedure } from "./procedures/server.call.js";
-import { serverConnectionsProcedure } from "./procedures/server.connections.js";
+export * from "./module.js";
 
-/**
- * All server procedures
- */
-export const procedures: readonly AnyProcedure[] = [
-  serverCreateProcedure,
-  serverConnectProcedure,
-  serverDisconnectProcedure,
-  manifestGenerateProcedure,
-  discoveryAnnounceProcedure,
-  serverStartProcedure,
-  serverStopProcedure,
-  serverStatusProcedure,
-  serverCallProcedure,
-  serverConnectionsProcedure,
-];
-
-/**
- * Register all server procedures with the client system
- */
 export function registerServerProcedures(): void {
-  registerProcedures([...procedures]);
+  registerProcedures(serverModule.procedures);
 }
 
 // Auto-register when this module is loaded

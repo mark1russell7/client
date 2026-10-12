@@ -1,50 +1,18 @@
 /**
- * Procedure Registration for procedure operations
- *
- * This is the canonical home for procedure.* procedures.
- * client-cli no longer registers these to avoid duplicates.
+ * Importing this file registers the procedures of @mark1russell7/client-procedure in the global
+ * registry (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as
+ * data are in `module.ts`, which registers nothing: a host with its own registry uses that one.
  */
 
-import { createProcedure, PROCEDURE_REGISTRY, zodAdapter } from "@mark1russell7/client";
-import { procedureNew } from "./procedures/procedure/index.js";
-import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
-import {
-  ProcedureNewInputSchema,
-  type ProcedureNewInput,
-  type ProcedureNewOutput,
-  ProcedureNewOutputSchema,
-} from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { procedureModule } from "./module.js";
 
-// procedure.new procedure
-const procedureNewProcedure = createProcedure()
-  .path(["procedure", "new"])
-  .input(zodAdapter<ProcedureNewInput>(ProcedureNewInputSchema))
-  .output(zodAdapter<ProcedureNewOutput>(ProcedureNewOutputSchema))
-  .meta({
-    description: "Scaffold a new procedure with types and registration boilerplate",
-    calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
-    args: ["name"],
-    shorts: { namespace: "n", description: "d", path: "p", dryRun: "D" },
-    output: "text",
-  })
-  .handler(async (input: ProcedureNewInput, ctx: ProcedureContext): Promise<ProcedureNewOutput> => {
-    return procedureNew(input, ctx);
-  })
-  .build();
+export * from "./module.js";
 
 export function registerProcedureProcedures(): void {
   // Override makes the registration idempotent. procedure.list and procedure.get are the core
   // ones: this package does not replace them (docs review DOC-6).
-  PROCEDURE_REGISTRY.registerAll(
-    [
-      // procedure.new
-      procedureNewProcedure,
-      // procedure.export (from registry.ts)
-      ...procedureRegistryProcedures,
-    ],
-    { override: true }
-  );
+  PROCEDURE_REGISTRY.registerAll(procedureModule.procedures, { override: true });
 }
 
 // Auto-register

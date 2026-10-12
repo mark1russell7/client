@@ -1,17 +1,17 @@
 /**
- * Procedure registration for client-store
- *
- * The procedures of the store: `procedure.register` and the program store procedures
- * `procedure.store`, `load`, `sync` and `remote`. The core registered the older versions of them
- * before they moved here (roadmap 3.2).
+ * Importing this file registers the procedures of @mark1russell7/client-store in the global
+ * registry (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as
+ * data are in `module.ts`, which registers nothing: a host with its own registry uses that one.
  */
 
 import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { procedureStorageProcedures } from "./procedures.js";
+import { storeModule } from "./module.js";
+
+export * from "./module.js";
 
 export function register(): void {
   // Override makes the registration idempotent (two copies of the package in one process)
-  PROCEDURE_REGISTRY.registerAll(procedureStorageProcedures, { override: true });
+  PROCEDURE_REGISTRY.registerAll(storeModule.procedures, { override: true });
 }
 
 // Auto-register

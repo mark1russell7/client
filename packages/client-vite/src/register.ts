@@ -1,91 +1,17 @@
 /**
- * Procedure Registration for Vite dev server management
+ * Importing this file registers the procedures of @mark1russell7/client-vite in the global registry
+ * (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as data
+ * are in `module.ts`, which registers nothing: a host with its own registry uses that one.
  */
 
-import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
-import { viteDev } from "./procedures/vite/dev.js";
-import { viteBuild } from "./procedures/vite/build.js";
-import { vitePreview } from "./procedures/vite/preview.js";
-import { viteStop } from "./procedures/vite/stop.js";
-import {
-  ViteDevInputSchema,
-  ViteBuildInputSchema,
-  VitePreviewInputSchema,
-  ViteStopInputSchema,
-  type ViteDevInput,
-  type ViteDevOutput,
-  type ViteBuildInput,
-  type ViteBuildOutput,
-  type VitePreviewInput,
-  type VitePreviewOutput,
-  type ViteStopInput,
-  type ViteStopOutput,
-  ViteDevOutputSchema,
-  ViteBuildOutputSchema,
-  VitePreviewOutputSchema,
-  ViteStopOutputSchema,
-} from "./types.js";
+import { registerProcedures } from "@mark1russell7/client";
+import { viteModule } from "./module.js";
 
-const viteDevProcedure = createProcedure()
-  .path(["vite", "dev"])
-  .input(zodAdapter<ViteDevInput>(ViteDevInputSchema))
-  .output(zodAdapter<ViteDevOutput>(ViteDevOutputSchema))
-  .meta({
-    description: "Start Vite dev server",
-    args: ["cwd"],
-    shorts: { port: "p", host: "h" },
-    output: "json",
-  })
-  .handler(async (input: ViteDevInput): Promise<ViteDevOutput> => viteDev(input))
-  .build();
-
-const viteBuildProcedure = createProcedure()
-  .path(["vite", "build"])
-  .input(zodAdapter<ViteBuildInput>(ViteBuildInputSchema))
-  .output(zodAdapter<ViteBuildOutput>(ViteBuildOutputSchema))
-  .meta({
-    description: "Build for production",
-    args: ["cwd"],
-    shorts: { outDir: "o", mode: "m" },
-    output: "json",
-  })
-  .handler(async (input: ViteBuildInput, ctx): Promise<ViteBuildOutput> => viteBuild(input, ctx))
-  .build();
-
-const vitePreviewProcedure = createProcedure()
-  .path(["vite", "preview"])
-  .input(zodAdapter<VitePreviewInput>(VitePreviewInputSchema))
-  .output(zodAdapter<VitePreviewOutput>(VitePreviewOutputSchema))
-  .meta({
-    description: "Preview production build",
-    args: ["cwd"],
-    shorts: { port: "p" },
-    output: "json",
-  })
-  .handler(async (input: VitePreviewInput): Promise<VitePreviewOutput> => vitePreview(input))
-  .build();
-
-const viteStopProcedure = createProcedure()
-  .path(["vite", "stop"])
-  .input(zodAdapter<ViteStopInput>(ViteStopInputSchema))
-  .output(zodAdapter<ViteStopOutput>(ViteStopOutputSchema))
-  .meta({
-    description: "Stop a running Vite server",
-    args: ["serverId"],
-    shorts: {},
-    output: "json",
-  })
-  .handler(async (input: ViteStopInput): Promise<ViteStopOutput> => viteStop(input))
-  .build();
+export * from "./module.js";
 
 export function registerViteProcedures(): void {
-  registerProcedures([
-    viteDevProcedure,
-    viteBuildProcedure,
-    vitePreviewProcedure,
-    viteStopProcedure,
-  ]);
+  registerProcedures(viteModule.procedures);
 }
 
-// Auto-register
+// Auto-register when this module is loaded
 registerViteProcedures();

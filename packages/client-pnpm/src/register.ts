@@ -1,140 +1,20 @@
 /**
- * Procedure Registration for pnpm operations
- *
- * Provides pnpm.install, pnpm.add, pnpm.remove, pnpm.link, pnpm.run procedures.
+ * Importing this file registers the procedures of @mark1russell7/client-pnpm in the global registry
+ * (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as data
+ * are in `module.ts`, which registers nothing: a host with its own registry uses that one.
  */
 
 // Import shell dependency to ensure shell.exec is registered
 import "@mark1russell7/client-shell";
 
-import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
-import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
-import {
-  PnpmInstallInputSchema,
-  PnpmAddInputSchema,
-  PnpmRemoveInputSchema,
-  PnpmLinkInputSchema,
-  PnpmRunInputSchema,
-  type PnpmInstallInput,
-  type PnpmAddInput,
-  type PnpmRemoveInput,
-  type PnpmLinkInput,
-  type PnpmRunInput,
-  type PnpmCommandOutput,
-  PnpmStorePathInputSchema,
-  type PnpmStorePathInput,
-  type PnpmStorePathOutput,
-  PnpmCommandOutputSchema,
-  PnpmStorePathOutputSchema,
-} from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import { registerProcedures } from "@mark1russell7/client";
+import { pnpmModule } from "./module.js";
 
-// =============================================================================
-// Procedures
-// =============================================================================
-
-const pnpmInstallProcedure = createProcedure()
-  .path(["pnpm", "install"])
-  .input(zodAdapter<PnpmInstallInput>(PnpmInstallInputSchema))
-  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
-  .meta({
-    description: "Install packages using pnpm",
-    shorts: { cwd: "C", dev: "D", frozen: "F" },
-    output: "json",
-  })
-  .handler(async (input: PnpmInstallInput, ctx: ProcedureContext): Promise<PnpmCommandOutput> => {
-    return pnpmInstall(input, ctx);
-  })
-  .build();
-
-const pnpmAddProcedure = createProcedure()
-  .path(["pnpm", "add"])
-  .input(zodAdapter<PnpmAddInput>(PnpmAddInputSchema))
-  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
-  .meta({
-    description: "Add packages using pnpm",
-    args: ["packages"],
-    shorts: { cwd: "C", dev: "D", global: "g" },
-    output: "json",
-  })
-  .handler(async (input: PnpmAddInput, ctx: ProcedureContext): Promise<PnpmCommandOutput> => {
-    return pnpmAdd(input, ctx);
-  })
-  .build();
-
-const pnpmRemoveProcedure = createProcedure()
-  .path(["pnpm", "remove"])
-  .input(zodAdapter<PnpmRemoveInput>(PnpmRemoveInputSchema))
-  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
-  .meta({
-    description: "Remove packages using pnpm",
-    args: ["packages"],
-    shorts: { cwd: "C", global: "g" },
-    output: "json",
-  })
-  .handler(async (input: PnpmRemoveInput, ctx: ProcedureContext): Promise<PnpmCommandOutput> => {
-    return pnpmRemove(input, ctx);
-  })
-  .build();
-
-const pnpmLinkProcedure = createProcedure()
-  .path(["pnpm", "link"])
-  .input(zodAdapter<PnpmLinkInput>(PnpmLinkInputSchema))
-  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
-  .meta({
-    description: "Link packages using pnpm",
-    shorts: { cwd: "C", global: "g" },
-    output: "json",
-  })
-  .handler(async (input: PnpmLinkInput, ctx: ProcedureContext): Promise<PnpmCommandOutput> => {
-    return pnpmLink(input, ctx);
-  })
-  .build();
-
-const pnpmRunProcedure = createProcedure()
-  .path(["pnpm", "run"])
-  .input(zodAdapter<PnpmRunInput>(PnpmRunInputSchema))
-  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
-  .meta({
-    description: "Run package scripts using pnpm",
-    args: ["script"],
-    shorts: { cwd: "C" },
-    output: "json",
-  })
-  .handler(async (input: PnpmRunInput, ctx: ProcedureContext): Promise<PnpmCommandOutput> => {
-    return pnpmRun(input, ctx);
-  })
-  .build();
-
-const pnpmStorePathProcedure = createProcedure()
-  .path(["pnpm", "store", "path"])
-  .input(zodAdapter<PnpmStorePathInput>(PnpmStorePathInputSchema))
-  .output(zodAdapter<PnpmStorePathOutput>(PnpmStorePathOutputSchema))
-  .meta({
-    description: "Get pnpm store path for snapshot/restore",
-    args: [],
-    shorts: { cwd: "C" },
-    output: "json",
-  })
-  .handler(async (input: PnpmStorePathInput): Promise<PnpmStorePathOutput> => {
-    return pnpmStorePath(input);
-  })
-  .build();
-
-// =============================================================================
-// Registration
-// =============================================================================
+export * from "./module.js";
 
 export function registerPnpmProcedures(): void {
-  registerProcedures([
-    pnpmInstallProcedure,
-    pnpmAddProcedure,
-    pnpmRemoveProcedure,
-    pnpmLinkProcedure,
-    pnpmRunProcedure,
-    pnpmStorePathProcedure,
-  ]);
+  registerProcedures(pnpmModule.procedures);
 }
 
-// Auto-register
+// Auto-register when this module is loaded
 registerPnpmProcedures();
