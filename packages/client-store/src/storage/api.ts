@@ -7,10 +7,10 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
-import type { Client } from "@mark1russell7/client";
-import type { Method } from "@mark1russell7/client";
-import type { CallOptions } from "@mark1russell7/client/client";
+import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
+import type { Client } from "@procedures/client";
+import type { Method } from "@procedures/client";
+import type { CallOptions } from "@procedures/client/client";
 
 /**
  * API storage configuration options.

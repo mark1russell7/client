@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { fsProcedures } from "@mark1russell7/client-fs";
+ * import { fsProcedures } from "@procedures/fs";
  *
  * // Or use via client.call
  * await client.call(["fs", "read"], { path: "./file.txt" });

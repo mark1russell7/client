@@ -5,9 +5,9 @@
  * storage operations with serialization/deserialization.
  */
 
-import type { CollectionStorage } from "@mark1russell7/client-collections";
-import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
-import { pathToKey } from "@mark1russell7/client";
+import type { CollectionStorage } from "@procedures/collections";
+import type { AnyProcedure, ProcedurePath } from "@procedures/client";
+import { pathToKey } from "@procedures/client";
 import type { SerializedProcedure, HandlerLoader } from "./types.js";
 import {
   serializeProcedure,

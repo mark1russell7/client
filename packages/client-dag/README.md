@@ -1,9 +1,9 @@
-# @mark1russell7/client-dag
+# @procedures/dag
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-dag?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-dag)
+[![npm](https://img.shields.io/npm/v/@procedures/dag?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/dag)
 
 ```sh
-npm install @mark1russell7/client-dag
+npm install @procedures/dag
 ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -201,7 +201,7 @@ import {
   executeDAG,
   type DAGNode,
   type NodeProcessor,
-} from "@mark1russell7/client-dag";
+} from "@procedures/dag";
 
 // Define nodes
 const nodes: DAGNode[] = [
@@ -303,7 +303,7 @@ type NodeProcessor<TNode extends DAGNode = DAGNode> = (
 Build a leveled DAG using Kahn's algorithm.
 
 ```typescript
-import { buildDAG } from "@mark1russell7/client-dag";
+import { buildDAG } from "@procedures/dag";
 
 const nodes = [
   { id: "a", dependencies: ["b", "c"] },
@@ -337,7 +337,7 @@ buildDAG(cyclic); // Error: Cycle detected
 Execute nodes level by level with configurable parallelism.
 
 ```typescript
-import { executeDAG } from "@mark1russell7/client-dag";
+import { executeDAG } from "@procedures/dag";
 
 const result = await executeDAG(dag, processor, {
   concurrency: 4,        // Process up to 4 nodes in parallel per level

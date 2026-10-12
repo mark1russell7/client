@@ -1,4 +1,4 @@
-# @mark1russell7/client-git
+# @procedures/git
 
 ## 0.1.0
 

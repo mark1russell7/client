@@ -10,7 +10,7 @@ import { join, basename, dirname, resolve } from "node:path";
 import { tmpdir, hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import * as tar from "tar";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { assertSnapshotName, isExcluded } from "./names.js";
 import { readPart, sha256File } from "./archive-io.js";
 import { gitText, pnpmVersion } from "./commands.js";

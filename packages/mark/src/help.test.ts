@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { zodAdapter } from "@mark1russell7/client";
+import { zodAdapter } from "@procedures/client";
 import { generateHelp, resultFieldsOfSchema } from "./parse.js";
 
 describe("the help of a command", () => {

@@ -94,8 +94,8 @@ The client middlewares (retry, cache, auth, circuit breaker, rate limit) wrap `t
 `hostPolicy()` (`server/host-policy.ts`) builds the policy of a host from one set of options: `expose` (patterns, a tool surface or a function), `exclude`, `strictCalls`, `timeoutMs`, more `interceptors`, and the `token` and `browser` checks of the network transports. `procedureServerOptions(policy, registry)` gives it to a `ProcedureServer`, and `createPeer({ policy })` of `client-server` gives it to a peer.
 
 ```ts
-import { ProcedureServer, createRegistry, hostPolicy, procedureServerOptions } from "@mark1russell7/client";
-import bundleMcpModule from "@mark1russell7/bundle-mcp/module";
+import { ProcedureServer, createRegistry, hostPolicy, procedureServerOptions } from "@procedures/client";
+import bundleMcpModule from "@procedures/bundle-mcp/module";
 
 const policy = hostPolicy({ expose: { namespaces: ["docker"] }, strictCalls: true, timeoutMs: 60_000 });
 const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(bundleMcpModule)));

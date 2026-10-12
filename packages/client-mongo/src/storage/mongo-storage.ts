@@ -6,7 +6,7 @@
  */
 
 import type { Collection, Document, Filter } from "mongodb";
-import type { CollectionStorage, StorageMetadata } from "@mark1russell7/client-collections";
+import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
 import { ensureConnection } from "../connection.js";
 
 /**

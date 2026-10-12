@@ -3,7 +3,7 @@
  *
  * The page shows how one call goes through the layers of the ecosystem and how its items come
  * back. Nothing here is a drawing of an imagined flow: the journey runs the real parts of
- * `@mark1russell7/client` and records each step when it happens.
+ * `@procedures/client` and records each step when it happens.
  *
  * - The app calls a streaming procedure, `shop.receipt`, through a `Client` with the real retry
  *   and timeout middlewares (for MCP, Claude Code is the client).
@@ -29,7 +29,7 @@ import {
   tracingInterceptor,
   type Interceptor,
   type ProcedureContext,
-} from "@mark1russell7/client/browser";
+} from "@procedures/client/browser";
 import {
   Client,
   createRetryMiddleware,
@@ -40,7 +40,7 @@ import {
   type Message,
   type ResponseItem,
   type Transport,
-} from "@mark1russell7/client/client";
+} from "@procedures/client/client";
 
 import { lanesOf, type Host, type Journey, type JourneyStep } from "./journey-info";
 

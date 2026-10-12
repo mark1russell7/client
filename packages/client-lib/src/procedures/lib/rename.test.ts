@@ -9,8 +9,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-fs";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/fs";
 import "../../register.js";
 import type { LibRenameOutput } from "../../types.js";
 

@@ -432,7 +432,7 @@ export class Client<TContext = {}> {
    *
    * @example
    * ```typescript
-   * import { proc } from "@mark1russell7/client";
+   * import { proc } from "@procedures/client";
    *
    * // Using proc() builder
    * const result = await client.exec(

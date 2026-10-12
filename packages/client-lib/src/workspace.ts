@@ -79,8 +79,19 @@ export function isEcosystemDependencySpec(spec: string): boolean {
 }
 
 /**
- * Collect the names of the @mark1russell7 packages that a package.json depends on
- * (dependencies, devDependencies and peerDependencies), without duplicates.
+ * The npm scopes of the ecosystem: `@procedures` for the packages of this workspace, and
+ * `@mark1russell7` for the general packages (cue, splay, docker-sqlite and the others).
+ */
+export const ECOSYSTEM_SCOPES: readonly string[] = ["@procedures/", "@mark1russell7/"];
+
+/** True for the name of a package of the ecosystem scopes. */
+export function isEcosystemPackageName(name: string): boolean {
+  return ECOSYSTEM_SCOPES.some((scope) => name.startsWith(scope));
+}
+
+/**
+ * Collect the names of the ecosystem packages (`@procedures/*` and `@mark1russell7/*`) that a
+ * package.json depends on (dependencies, devDependencies and peerDependencies), without duplicates.
  */
 export function extractEcosystemDeps(pkg: {
   dependencies?: Record<string, string> | undefined;
@@ -90,7 +101,7 @@ export function extractEcosystemDeps(pkg: {
   const names = new Set<string>();
   for (const deps of [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies]) {
     for (const [name, spec] of Object.entries(deps ?? {})) {
-      if (name.startsWith("@mark1russell7/") && isEcosystemDependencySpec(spec)) {
+      if (isEcosystemPackageName(name) && isEcosystemDependencySpec(spec)) {
         names.add(name);
       }
     }

@@ -12,9 +12,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { ProcedureContext } from "@mark1russell7/client";
-import { libNew } from "@mark1russell7/client-lib";
-import { procedureNew } from "@mark1russell7/client-procedure";
+import type { ProcedureContext } from "@procedures/client";
+import { libNew } from "@procedures/lib";
+import { procedureNew } from "@procedures/procedure";
 
 const markModules = realpathSync(fileURLToPath(new URL("../node_modules", import.meta.url)));
 
@@ -89,7 +89,7 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
     const created = await libNew({ name: "demo", preset: "lib", rootPath: root, dryRun: false }, ctx);
     expect(created.errors).toEqual([]);
     packageDir = created.packagePath;
-    // The package resolves its imports (@mark1russell7/client, zod, the tsconfig presets) from mark
+    // The package resolves its imports (@procedures/client, zod, the tsconfig presets) from mark
     link(markModules, join(packageDir, "node_modules"));
   }, 120000);
 

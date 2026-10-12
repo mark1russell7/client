@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/server
+ * @procedures/server
  *
  * General procedure server - run any procedure packages via HTTP/WebSocket. Importing this entry
  * starts nothing: `runServer(argv)` is the CLI (`server` and `mark serve`), and `startServer()`

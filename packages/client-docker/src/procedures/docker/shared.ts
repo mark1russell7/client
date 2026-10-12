@@ -7,7 +7,7 @@
  * (documentation/deep-dive-2026-10/wrappers.md, WRP-1).
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { DockerCommandOutput } from "../../types.js";
 
 /**

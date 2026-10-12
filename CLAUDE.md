@@ -14,16 +14,18 @@ Write all prose of this repository in the style of ASD-STE100 Simplified Technic
 
 ## Repository structure
 
-- Each folder in `packages/` is one package. The packages keep the names of their old repositories.
-- The folder `packages/mark` holds `@mark1russell7/cli`, the `mark` CLI. The folder `packages/cli` holds the repository tool.
+- Each folder in `packages/` is one package. The folders keep the names of their old repositories.
+- The npm scope of the packages is `@procedures`. The npm name can differ from the folder: `packages/client-shell` holds `@procedures/shell`. The root README has the table of names.
+- The folder `packages/mark` holds `@procedures/mark`, the `mark` CLI. The folder `packages/cli` holds the repository tool.
+- `scripts/check-scope.mjs` fails when a file names a package of this repository with the old scope `@mark1russell7`.
 - The old repositories are archived. Do not change them. Make all changes in this repository.
 - Git ignores `dist/`. Do not commit build output.
 
 ## Dependencies
 
 - A package uses another package of this repository with `workspace:*`.
-- The general packages are in other repositories: `cue`, `logger`, `splay`, `splay-react`, `docker-sqlite` and `docker-mongo`.
-- A package of this repository can use a general package with a `github:` specifier.
+- The general packages are in other repositories, with the npm scope `@mark1russell7`: `cue`, `logger`, `splay`, `splay-react`, `docker-sqlite` and `docker-mongo`.
+- A package of this repository uses a general package with its npm version (for example `"@mark1russell7/cue": "^1.0.0"`). A `github:` specifier blocks the npm release.
 - A general package must not use a package of this repository.
 
 ## Commands

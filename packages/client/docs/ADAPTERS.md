@@ -98,7 +98,7 @@ postOnlyStrategy(method)
 
 ```typescript
 import express from "express";
-import { HttpServerTransport } from "@mark1russell7/client";
+import { HttpServerTransport } from "@procedures/client";
 
 const app = express();
 // A body parser is optional: without one, the transport reads the JSON body itself.

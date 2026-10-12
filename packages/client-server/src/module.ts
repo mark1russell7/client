@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { type AnyProcedure, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { type AnyProcedure, defineModule, type ProcedureModule } from "@procedures/client";
 
 // Import all procedures
 import { serverCreateProcedure } from "./procedures/server.create.js";
@@ -41,6 +41,6 @@ export const procedures: readonly AnyProcedure[] = [
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const serverModule: ProcedureModule = defineModule("@mark1russell7/client-server", [...procedures]);
+export const serverModule: ProcedureModule = defineModule("@procedures/peer", [...procedures]);
 
 export default serverModule;

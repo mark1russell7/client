@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/client-dag
+ * @procedures/dag
  *
  * Generic DAG (Directed Acyclic Graph) algorithms for dependency management.
  *
@@ -17,7 +17,7 @@
  *   buildLeveledDAG,
  *   executeDAG,
  *   createProcessor
- * } from "@mark1russell7/client-dag";
+ * } from "@procedures/dag";
  *
  * // Create nodes
  * const nodes = buildNodeMap([

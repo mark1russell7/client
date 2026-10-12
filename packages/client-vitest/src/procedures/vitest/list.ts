@@ -4,7 +4,7 @@
  * List the vitest watch processes
  */
 
-import { processes } from "@mark1russell7/client-shell/command";
+import { processes } from "@procedures/shell/command";
 import type { VitestListInput, VitestListOutput, VitestProcessInfo } from "../../types.js";
 import { VITEST_GROUP } from "./watch.js";
 

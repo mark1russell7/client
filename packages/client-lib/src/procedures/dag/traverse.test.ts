@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { DagTraverseInputSchema } from "../../types.js";
 import { callsGit, dagTraverse, keyedLock, repositoryRoot } from "./traverse.js";
 

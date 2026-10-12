@@ -47,7 +47,7 @@ export interface StreamingProcedureCaller {
  * @example
  * ```typescript
  * import { stream } from "client";
- * import { createStreamingRegistry } from "@mark1russell7/client-splay";
+ * import { createStreamingRegistry } from "@procedures/splay";
  *
  * const registry = createStreamingRegistry(stream, {
  *   namespace: "live",

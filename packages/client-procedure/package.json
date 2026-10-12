@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-procedure",
+  "name": "@procedures/procedure",
   "version": "0.1.0",
   "description": "Procedure scaffolding and management: procedure.new writes typed procedure files, plus get, list, define and the procedure store.",
   "keywords": [
@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "zod": "^4.6.5",
-    "@mark1russell7/client": "workspace:*"
+    "@procedures/client": "workspace:*"
   },
   "client": {
     "procedures": "./dist/register.js"

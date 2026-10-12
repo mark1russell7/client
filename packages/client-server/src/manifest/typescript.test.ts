@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { jsonSchemaOf } from "@mark1russell7/client";
+import { jsonSchemaOf } from "@procedures/client";
 import { generateTypeScript, jsonSchemaToTs } from "./typescript.js";
 
 describe("jsonSchemaToTs", () => {

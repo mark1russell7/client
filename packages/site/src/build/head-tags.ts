@@ -12,7 +12,7 @@ export interface SiteFacts {
   url: string;
   /** The name of the site ("client"). */
   name: string;
-  /** The name of the library ("@mark1russell7/client"). */
+  /** The name of the library ("@procedures/client"). */
   libraryName: string;
   softwareDescription: string;
   repository: string;

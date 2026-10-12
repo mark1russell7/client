@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule } from "@procedures/client";
 import { procedureNew } from "./procedures/procedure/index.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
@@ -16,7 +16,7 @@ import {
   type ProcedureNewOutput,
   ProcedureNewOutputSchema,
 } from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 // procedure.new procedure
 const procedureNewProcedure = createProcedure()
@@ -40,7 +40,7 @@ const procedureNewProcedure = createProcedure()
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  * `procedure.new` calls `fs.*`: the host gives them (this package does not depend on client-fs).
  */
-export const procedureModule: ProcedureModule = defineModule("@mark1russell7/client-procedure", [
+export const procedureModule: ProcedureModule = defineModule("@procedures/procedure", [
   // procedure.new
   procedureNewProcedure as AnyProcedure,
   // procedure.export (from registry.ts)

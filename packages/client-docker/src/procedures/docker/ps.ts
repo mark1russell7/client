@@ -4,7 +4,7 @@
  * List containers.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { runDocker } from "./shared.js";
 import type { DockerPsInput, DockerCommandOutput } from "../../types.js";
 

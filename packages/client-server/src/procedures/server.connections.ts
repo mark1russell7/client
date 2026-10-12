@@ -3,7 +3,7 @@
  * List all outbound connections to remote peers
  */
 
-import { createProcedure, type Procedure } from "@mark1russell7/client";
+import { createProcedure, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerConnectionsOutputSchema } from "../output-schemas.js";
 import { serverConnectionsInputSchema } from "../input-schemas.js";

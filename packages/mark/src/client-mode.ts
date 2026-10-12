@@ -40,11 +40,11 @@ export async function tryClientMode(
     return null;
   }
 
-  let client: InstanceType<typeof import("@mark1russell7/client").Client>;
+  let client: InstanceType<typeof import("@procedures/client").Client>;
   let method: { service: string; operation: string };
   try {
     // Dynamic import client
-    const clientModule = await import("@mark1russell7/client");
+    const clientModule = await import("@procedures/client");
     const { Client, HttpTransport } = clientModule;
 
     // Connect to server

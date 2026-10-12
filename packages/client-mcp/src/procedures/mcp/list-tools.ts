@@ -5,8 +5,8 @@
  */
 
 import { z } from "zod";
-import { defineProcedure, PROCEDURE_REGISTRY, type AnyProcedure } from "@mark1russell7/client";
-import { proceduresToMcpTools, type McpToolFilter } from "@mark1russell7/mcp";
+import { defineProcedure, PROCEDURE_REGISTRY, type AnyProcedure } from "@procedures/client";
+import { proceduresToMcpTools, type McpToolFilter } from "@procedures/mcp";
 
 const McpListToolsInputSchema = z.object({
   /** Only include procedures with these tags */

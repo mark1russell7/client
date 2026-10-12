@@ -1,6 +1,6 @@
-# @mark1russell7/client-vitest
+# @procedures/vitest
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-vitest.svg)](https://www.npmjs.com/package/@mark1russell7/client-vitest)
+[![npm version](https://img.shields.io/npm/v/@procedures/vitest.svg)](https://www.npmjs.com/package/@procedures/vitest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Vitest-specific test procedures with direct Node.js integration - run and watch tests with structured output.
@@ -22,14 +22,14 @@ Vitest-specific test procedures with direct Node.js integration - run and watch 
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-vitest
+npm install @procedures/vitest
 ```
 
 ### Dependencies
 
 - `vitest` - Test runner
 - `@vitest/coverage-v8` - Coverage provider
-- `@mark1russell7/client` - Client RPC system
+- `@procedures/client` - Client RPC system
 - `zod` - Schema validation
 
 ## Architecture
@@ -107,7 +107,7 @@ sequenceDiagram
 ### Basic Test Execution
 
 ```typescript
-import { Client } from "@mark1russell7/client";
+import { Client } from "@procedures/client";
 
 const client = new Client();
 
@@ -253,7 +253,7 @@ import type {
   VitestRunOutput,
   VitestWatchInput,
   VitestWatchOutput,
-} from "@mark1russell7/client-vitest";
+} from "@procedures/vitest";
 ```
 
 #### Schemas
@@ -264,7 +264,7 @@ import {
   VitestRunOutputSchema,
   VitestWatchInputSchema,
   VitestWatchOutputSchema,
-} from "@mark1russell7/client-vitest";
+} from "@procedures/vitest";
 
 // Validate input
 const validated = VitestRunInputSchema.parse({
@@ -507,7 +507,7 @@ MIT - Mark Russell
 
 ## Related Packages
 
-- `@mark1russell7/client` - Client RPC system
+- `@procedures/client` - Client RPC system
 - `@mark1russell7/client-test` - Generic test execution
 - `vitest` - Test runner
 - `@vitest/coverage-v8` - Coverage provider

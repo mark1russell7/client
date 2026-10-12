@@ -1,9 +1,9 @@
-# @mark1russell7/client-vite
+# @procedures/vite
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-vite?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-vite)
+[![npm](https://img.shields.io/npm/v/@procedures/vite?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/vite)
 
 ```sh
-npm install @mark1russell7/client-vite
+npm install @procedures/vite
 ```
 
 `client-vite` starts Vite as procedures: a development server, a build, a preview server, and the stop of a server.
@@ -20,8 +20,8 @@ All input fields are optional, except `serverId`. Without `cwd`, a procedure use
 ## Use
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-vite"; // registers vite.*
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/vite"; // registers vite.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

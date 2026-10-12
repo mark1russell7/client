@@ -6,7 +6,7 @@
  * process started detached and the procedure forgot it: nothing could stop it.
  */
 
-import { processes } from "@mark1russell7/client-shell/command";
+import { processes } from "@procedures/shell/command";
 import type { VitestWatchInput, VitestWatchOutput } from "../../types.js";
 import { resolveVitestCli } from "../../vitest-cli.js";
 

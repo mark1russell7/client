@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/client-cue
+ * @procedures/cue
  *
  * CUE configuration procedures for the client ecosystem.
  */

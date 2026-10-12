@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-store",
+  "name": "@procedures/store",
   "version": "0.1.0",
   "description": "A program store for procedure-as-data: save the programs that procedure.define makes, load them back after a restart, in memory, a JSON file or a remote collection storage.",
   "keywords": [
@@ -69,8 +69,8 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-collections": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/collections": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

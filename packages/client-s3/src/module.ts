@@ -7,7 +7,7 @@
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import {
   s3Upload,
   s3Download,
@@ -196,7 +196,7 @@ const s3MultipartAbortProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const s3Module: ProcedureModule = defineModule("@mark1russell7/client-s3", [
+export const s3Module: ProcedureModule = defineModule("@procedures/s3", [
     s3UploadProcedure,
     s3DownloadProcedure,
     s3ListProcedure,

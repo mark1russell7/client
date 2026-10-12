@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { InMemoryStorage } from "@mark1russell7/client-collections";
-import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@mark1russell7/client";
-import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
+import { InMemoryStorage } from "@procedures/collections";
+import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@procedures/client";
+import type { AnyProcedure, ProcedurePath } from "@procedures/client";
 import { procedureRegisterProcedure } from "./procedures.js";
 import { SyncedProcedureRegistry, getProcedureStore } from "./synced-registry.js";
 import type { HandlerLoader, SerializedProcedure } from "./types.js";

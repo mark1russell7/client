@@ -1,6 +1,6 @@
-# @mark1russell7/client-dag
+# @procedures/dag
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-dag.svg)](https://www.npmjs.com/package/@mark1russell7/client-dag)
+[![npm version](https://img.shields.io/npm/v/@procedures/dag.svg)](https://www.npmjs.com/package/@procedures/dag)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Generic DAG (Directed Acyclic Graph) algorithms for dependency management, topological sorting, and parallel execution.
@@ -23,7 +23,7 @@ Generic DAG (Directed Acyclic Graph) algorithms for dependency management, topol
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-dag
+npm install @procedures/dag
 ```
 
 ### Dependencies
@@ -170,7 +170,7 @@ import {
   buildNodeMap,
   buildLeveledDAG,
   type DAGNode
-} from "@mark1russell7/client-dag";
+} from "@procedures/dag";
 
 // Method 1: Manual node creation
 const nodes: DAGNode[] = [
@@ -205,7 +205,7 @@ console.log(dag.levels);
 ### Parallel Execution
 
 ```typescript
-import { executeDAG, createProcessor } from "@mark1russell7/client-dag";
+import { executeDAG, createProcessor } from "@procedures/dag";
 
 // Simple processor
 const processor = createProcessor(async (node) => {
@@ -278,7 +278,7 @@ await executeDAG(dag, processor);
 ### Graph Filtering
 
 ```typescript
-import { filterDAGFromRoot, getAncestors, getDescendants } from "@mark1russell7/client-dag";
+import { filterDAGFromRoot, getAncestors, getDescendants } from "@procedures/dag";
 
 // Filter to only nodes needed for a specific target
 const appOnlyNodes = filterDAGFromRoot(nodeMap, "app");
@@ -296,7 +296,7 @@ console.log(coreDependents); // Set { "lib-a", "lib-b", "app" }
 ### Visualization
 
 ```typescript
-import { visualizeDAG } from "@mark1russell7/client-dag";
+import { visualizeDAG } from "@procedures/dag";
 
 const output = visualizeDAG(dag);
 console.log(output);
@@ -313,7 +313,7 @@ console.log(output);
 ### Sequential Execution
 
 ```typescript
-import { executeDAGSequential } from "@mark1russell7/client-dag";
+import { executeDAGSequential } from "@procedures/dag";
 
 // Execute one node at a time (concurrency: 1)
 const result = await executeDAGSequential(dag, processor, {
@@ -515,7 +515,7 @@ const processor = createProcessor(async (node) => {
 ### Example 1: Monorepo Package Build
 
 ```typescript
-import { buildLeveledDAG, executeDAG, createProcessor } from "@mark1russell7/client-dag";
+import { buildLeveledDAG, executeDAG, createProcessor } from "@procedures/dag";
 
 const packages = [
   { id: "app", dependencies: ["ui", "api-client"] },
@@ -731,6 +731,6 @@ MIT - Mark Russell
 
 ## Related Packages
 
-- `@mark1russell7/client-lib` - Uses DAG for package builds
+- `@procedures/lib` - Uses DAG for package builds
 - `@mark1russell7/test` - Testing utilities
 - `@mark1russell7/cue` - Build configuration

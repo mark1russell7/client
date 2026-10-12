@@ -10,7 +10,7 @@ import { routeFiles, routeHtml, type StaticRoute } from "./static-routes";
 const site: SiteFacts = {
   url: "https://example.github.io/client/",
   name: "client",
-  libraryName: "@mark1russell7/client",
+  libraryName: "@procedures/client",
   softwareDescription: "Typed procedures as data.",
   repository: "https://github.com/mark1russell7/client",
   license: "MIT",
@@ -96,7 +96,7 @@ describe("the files for crawlers", () => {
 
   it("links each page in llms.txt", () => {
     const text = llmsTxt([home, procedure, { ...procedure, path: "lab", heading: "Lab", section: "Lab" }], site);
-    expect(text).toContain("# @mark1russell7/client");
+    expect(text).toContain("# @procedures/client");
     expect(text).toContain("- [Lab](https://example.github.io/client/lab/)");
     expect(text).toContain("## Procedures\n\n- [git.status: Get git status](https://example.github.io/client/catalog/git.status/): Get git status.");
   });

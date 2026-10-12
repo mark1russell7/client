@@ -1,9 +1,9 @@
-# @mark1russell7/client-lib
+# @procedures/lib
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-lib?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-lib)
+[![npm](https://img.shields.io/npm/v/@procedures/lib?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/lib)
 
 ```sh
-npm install @mark1russell7/client-lib
+npm install @procedures/lib
 ```
 
 `client-lib` gives the procedures that manage the packages of the monorepo, and two runners of programs.
@@ -23,9 +23,9 @@ Until October 2026, `client-lib` also had `lib.install`, `lib.pull` and `lib.ref
 ## Use
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-lib"; // registers its procedures
-import "@mark1russell7/client-fs"; // lib.* reads and writes files through fs.*
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/lib"; // registers its procedures
+import "@procedures/fs"; // lib.* reads and writes files through fs.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -41,7 +41,7 @@ From the command line:
 node packages/mark/dist/cli.js lib scan
 node packages/mark/dist/cli.js lib new my-package
 node packages/mark/dist/cli.js lib audit
-node packages/mark/dist/cli.js lib rename @mark1russell7/old-name @mark1russell7/new-name --dry-run
+node packages/mark/dist/cli.js lib rename @procedures/old-name @procedures/new-name --dry-run
 ```
 
 ## The workspace root
@@ -50,7 +50,7 @@ Each procedure takes an optional `rootPath`. Without it, the root is the pnpm wo
 
 ## `lib.scan`
 
-Input: `rootPath`. The output has `packages`, a record by package name, and `warnings`. Each package gives `name`, `repoPath`, `mark1russell7Deps` (its dependencies with the `@mark1russell7/` scope), `currentBranch` and `gitRemote`.
+Input: `rootPath`. The output has `packages`, a record by package name, and `warnings`. Each package gives `name`, `repoPath`, `mark1russell7Deps` (its dependencies in the ecosystem scopes `@procedures/` and `@mark1russell7/`), `currentBranch` and `gitRemote`.
 
 ## `lib.new`
 
@@ -94,7 +94,7 @@ All packages of the monorepo are in one git repository. Concurrent `git add` com
 ```typescript
 await client.exec(["dag", "traverse"], {
   visit: { $proc: ["pnpm", "run"], input: { script: "build" }, $when: "$parent" },
-  root: "@mark1russell7/client-fs",
+  root: "@procedures/fs",
 });
 ```
 

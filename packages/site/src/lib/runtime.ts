@@ -1,7 +1,7 @@
 /**
  * The runtime of the Composer: it runs a program with the real client.
  *
- * The program goes to `client.exec()` of `@mark1russell7/client`, the same function that
+ * The program goes to `client.exec()` of `@procedures/client`, the same function that
  * the `mark` CLI and the servers use. A traced registry wraps each core procedure, so each
  * call records its input, its output, its time and its parent call. The Composer starts this
  * runtime in a Web Worker (`run-worker.ts`), so a long program cannot stop the page.
@@ -23,7 +23,7 @@ import {
   type HydrationEvent,
   type ProcedureContext,
   type ProcedurePath,
-} from "@mark1russell7/client/browser";
+} from "@procedures/client/browser";
 import { snapshot } from "./display";
 import type { Json } from "./program";
 

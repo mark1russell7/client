@@ -7,8 +7,8 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
-import fsModule from "@mark1russell7/client-fs/module";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import fsModule from "@procedures/fs/module";
 import { cueInit } from "./procedures/cue/init.js";
 import { cueAdd } from "./procedures/cue/add.js";
 import { cueRemove } from "./procedures/cue/remove.js";
@@ -129,7 +129,7 @@ const cueValidateProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const cueModule: ProcedureModule = defineModule("@mark1russell7/client-cue", [
+export const cueModule: ProcedureModule = defineModule("@procedures/cue", [
     cueInitProcedure,
     cueAddProcedure,
     cueRemoveProcedure,

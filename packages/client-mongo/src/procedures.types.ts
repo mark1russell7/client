@@ -6,8 +6,8 @@
  *
  * @example
  * ```typescript
- * import type { MongoProcedures } from "@mark1russell7/client-mongo";
- * import { createTypedCaller } from "@mark1russell7/client";
+ * import type { MongoProcedures } from "@procedures/mongo";
+ * import { createTypedCaller } from "@procedures/client";
  *
  * const call = createTypedCaller<MongoProcedures>(client.call);
  *

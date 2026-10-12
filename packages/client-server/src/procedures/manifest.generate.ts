@@ -3,7 +3,7 @@
  * Generates procedure manifests in various formats
  */
 
-import { createProcedure, jsonSchemaOf, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { createProcedure, jsonSchemaOf, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ManifestGenerateOutputSchema } from "../output-schemas.js";
 import { manifestGenerateInputSchema } from "../input-schemas.js";

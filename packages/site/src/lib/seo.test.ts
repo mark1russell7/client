@@ -24,7 +24,7 @@ describe("the meta data of the pages", () => {
     expect(paths).toContain("docs/program-format");
     expect(paths).toContain("docs/packages/client-git");
     expect(metaOf({ page: "docs", rest: "program-format" })?.title).toMatch(/^Program format: .+ \| client$/);
-    expect(metaOf({ page: "docs", rest: "packages/client-git" })?.title).toMatch(/^@mark1russell7\/client-git: .+ \| client$/);
+    expect(metaOf({ page: "docs", rest: "packages/client-git" })?.title).toMatch(/^@procedures\/git: .+ \| client$/);
     expect(metaOf({ page: "docs", rest: "packages/no-such-package" })).toBeNull();
   });
 

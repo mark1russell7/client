@@ -1,4 +1,4 @@
-# @mark1russell7/client-shell
+# @procedures/shell
 
 ## 0.1.0
 

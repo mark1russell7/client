@@ -14,7 +14,7 @@
  */
 
 import { join } from "node:path";
-import { PROCEDURE_REGISTRY, type ProcedureContext } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, type ProcedureContext } from "@procedures/client";
 import type { ProcedureNewInput, ProcedureNewOutput } from "../../types.js";
 
 interface FsExistsOutput { exists: boolean; path: string; }
@@ -299,7 +299,7 @@ const REGISTER_TEMPLATE = `/**
  * Scaffold a procedure with: mark procedure new <name> --path <this package>
  */
 
-import { registerProcedures } from "@mark1russell7/client";
+import { registerProcedures } from "@procedures/client";
 
 export function register(): void {
   registerProcedures([]);
@@ -319,7 +319,7 @@ export function registerSource(source: string, layout: ProcedureLayout, descript
   if (withArray === undefined) {
     return undefined;
   }
-  let updated = ensureNamedImports(withArray, "@mark1russell7/client", ["createProcedure", "zodAdapter"]);
+  let updated = ensureNamedImports(withArray, "@procedures/client", ["createProcedure", "zodAdapter"]);
   updated = addImports(updated, [
     `import { ${camelName} } from "${importPath}";\n`,
     `import { ${pascalName}InputSchema, ${pascalName}OutputSchema, type ${pascalName}Input, type ${pascalName}Output } from "./types.js";\n`,

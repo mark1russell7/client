@@ -3,7 +3,7 @@
  * Call a procedure on a remote peer through an outbound connection
  */
 
-import { createProcedure, pathToMethod, type Procedure } from "@mark1russell7/client";
+import { createProcedure, pathToMethod, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCallOutputSchema } from "../output-schemas.js";
 import { serverCallInputSchema } from "../input-schemas.js";
@@ -61,7 +61,7 @@ export const serverCallProcedure: Procedure<
 
     // Resolve connection: by ID, or create one-shot from address
     let connectionId: string;
-    let client: import("@mark1russell7/client").Client;
+    let client: import("@procedures/client").Client;
 
     if (input.connectionId) {
       const connection = getConnection(input.connectionId);

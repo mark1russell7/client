@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
 import { gitCommit } from "./procedures/git/commit.js";
@@ -536,7 +536,7 @@ const gitStashImportProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const gitModule: ProcedureModule = defineModule("@mark1russell7/client-git", [
+export const gitModule: ProcedureModule = defineModule("@procedures/git", [
     gitStatusProcedure,
     gitAddProcedure,
     gitCommitProcedure,

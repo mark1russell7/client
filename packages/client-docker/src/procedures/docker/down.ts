@@ -4,7 +4,7 @@
  * Stop services with docker compose.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { runDocker } from "./shared.js";
 import type { DockerComposeDownInput, DockerCommandOutput } from "../../types.js";
 

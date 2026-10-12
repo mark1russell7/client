@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-node",
+  "name": "@procedures/node",
   "version": "0.1.0",
   "description": "Node.js process procedures: run scripts, spawn and manage long-running processes, with output caps and process-tree cleanup.",
   "keywords": [
@@ -65,8 +65,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

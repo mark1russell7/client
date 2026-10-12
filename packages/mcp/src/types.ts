@@ -5,7 +5,7 @@
  * Extends MCP SDK types with procedure-specific metadata.
  */
 
-import type { ProcedurePath } from "@mark1russell7/client";
+import type { ProcedurePath } from "@procedures/client";
 
 /**
  * JSON Schema type for MCP tool inputSchema.

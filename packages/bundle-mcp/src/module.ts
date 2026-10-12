@@ -20,14 +20,14 @@
  * `bundleMcpModules`. `register.ts` imports the packages for the global registry.
  */
 
-import { defineModule, type ProcedureModule } from "@mark1russell7/client";
-import libModule from "@mark1russell7/client-lib/module";
-import procedureModule from "@mark1russell7/client-procedure/module";
-import cueModule from "@mark1russell7/client-cue/module";
-import dockerModule from "@mark1russell7/client-docker/module";
-import mongoModule from "@mark1russell7/client-mongo/module";
-import sqliteModule from "@mark1russell7/client-sqlite/module";
-import vitestModule from "@mark1russell7/client-vitest/module";
+import { defineModule, type ProcedureModule } from "@procedures/client";
+import libModule from "@procedures/lib/module";
+import procedureModule from "@procedures/procedure/module";
+import cueModule from "@procedures/cue/module";
+import dockerModule from "@procedures/docker/module";
+import mongoModule from "@procedures/mongo/module";
+import sqliteModule from "@procedures/sqlite/module";
+import vitestModule from "@procedures/vitest/module";
 
 /**
  * The modules of the bundle, for `createRegistry()`. The modules that they require (the file,
@@ -48,7 +48,7 @@ export const bundleMcpModules: readonly ProcedureModule[] = [
 ];
 
 /** The bundle as one module: no procedures of its own, and the modules above as requirements. */
-export const bundleMcpModule: ProcedureModule = defineModule("@mark1russell7/bundle-mcp", [], bundleMcpModules);
+export const bundleMcpModule: ProcedureModule = defineModule("@procedures/bundle-mcp", [], bundleMcpModules);
 
 export default bundleMcpModule;
 
@@ -73,7 +73,7 @@ export const mcpNamespaces: readonly string[] = [
  * Procedures of the exposed namespaces that are not tools all the same:
  * - `vitest.watch` starts a long-running process. `vitest.stop` and `vitest.list` manage these
  *   processes. A tool call does not leave a process running, so the three stay out (deep dive WRP-4);
- * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@mark1russell7/client-store`
+ * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@procedures/store`
  *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
  *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
  *   a registry that has a store, and `procedure.register` with no store declares a procedure

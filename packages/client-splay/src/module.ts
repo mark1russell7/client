@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, outputSchema, defineModule, type AnyProcedure, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, outputSchema, defineModule, type AnyProcedure, type ProcedureModule } from "@procedures/client";
 
 // =============================================================================
 // Types
@@ -45,7 +45,7 @@ const infoProcedure = createProcedure()
   .output(bridgeInfoSchema)
   .meta({ description: "Get client-splay bridge information" })
   .handler(() => ({
-    name: "@mark1russell7/client-splay",
+    name: "@procedures/splay",
     version: "1.0.0",
     description: "Bridge between splay and client",
   }))
@@ -73,7 +73,7 @@ const healthProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const splayModule: ProcedureModule = defineModule("@mark1russell7/client-splay", [
+export const splayModule: ProcedureModule = defineModule("@procedures/splay", [
   infoProcedure as AnyProcedure,
   healthProcedure as AnyProcedure,
 ]);

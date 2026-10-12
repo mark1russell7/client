@@ -3,7 +3,7 @@
  * The TypeScript tab gives code that runs (deep dive SITE-2). Before, the code made
  * `new Client(new LocalTransport())` without the core procedures, so 7 of 8 examples threw
  * "No handler registered". This test writes the code of each example to a file, runs it with
- * Node against the built `@mark1russell7/client`, and compares its output with the result of the
+ * Node against the built `@procedures/client`, and compares its output with the result of the
  * Composer runtime.
  */
 
@@ -19,7 +19,7 @@ import { toTypeScript } from "./program";
 
 const run = promisify(execFile);
 
-// A folder in the site package, so Node finds @mark1russell7/client in its node_modules
+// A folder in the site package, so Node finds @procedures/client in its node_modules
 const folder = fileURLToPath(new URL("../../node_modules/.cache/typescript-tab", import.meta.url));
 
 beforeAll(() => {
@@ -42,9 +42,9 @@ describe("the TypeScript tab", () => {
 
   it("imports the package of a procedure that is not in the core", () => {
     const code = toTypeScript({ $proc: ["git", "status"], input: {} }, (key) =>
-      key.startsWith("git.") ? "@mark1russell7/client-git" : undefined,
+      key.startsWith("git.") ? "@procedures/git" : undefined,
     );
-    expect(code).toContain('import "@mark1russell7/client-git";');
+    expect(code).toContain('import "@procedures/git";');
     expect(code).toContain("PROCEDURE_REGISTRY.register(procedure)");
   });
 });

@@ -1,11 +1,11 @@
 /**
- * @mark1russell7/client-pnpm
+ * @procedures/pnpm
  *
  * Wraps pnpm commands as procedures using client-shell.
  *
  * @example
  * ```typescript
- * import { Client } from "@mark1russell7/client";
+ * import { Client } from "@procedures/client";
  *
  * // Install dependencies
  * await client.call(["pnpm", "install"], {});

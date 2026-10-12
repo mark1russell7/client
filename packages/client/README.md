@@ -1,13 +1,13 @@
-# @mark1russell7/client
+# @procedures/client
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client.svg)](https://www.npmjs.com/package/@mark1russell7/client)
+[![npm version](https://img.shields.io/npm/v/@procedures/client.svg)](https://www.npmjs.com/package/@procedures/client)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
 
 **Universal protocol-agnostic RPC client/server with middleware composition, type-safe procedures, streaming and procedure-as-data.**
 
-The core depends on no other package of the repository. The procedure components are in [`@mark1russell7/client-splay`](../client-splay), the data structures in [`@mark1russell7/client-collections`](../client-collections), and the program store with the storage layer in [`@mark1russell7/client-store`](../client-store).
+The core depends on no other package of the repository. The procedure components are in [`@procedures/splay`](../client-splay), the data structures in [`@procedures/collections`](../client-collections), and the program store with the storage layer in [`@procedures/store`](../client-store).
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ The core depends on no other package of the repository. The procedure components
 
 ## Overview
 
-`@mark1russell7/client` is the foundational package of the Mark ecosystem, providing a complete RPC framework with:
+`@procedures/client` is the foundational package of the Mark ecosystem, providing a complete RPC framework with:
 
 - **Universal Client/Server**: Protocol-agnostic RPC supporting HTTP, WebSocket, gRPC, and local transports
 - **Type-Safe Procedures**: Schema-validated procedures with auto-discovery and registry management
@@ -135,16 +135,16 @@ A host controls which procedures its callers reach, also through nested calls. S
 
 ### 5. Related Packages
 
-- `@mark1russell7/client-collections`: data structures (`List`, `Map`, `Set`, `Queue`) and composable behaviors (LRU, TTL, bounded, evented).
-- `@mark1russell7/client-splay`: the procedure components, serializable UI descriptors (`defineComponent`, `simpleComponent`, `streamingComponent`).
-- `@mark1russell7/client-store`: the program store (`procedure.store`, `load`, `sync`), `ApiStorage`, `HybridStorage` and the synced registry.
+- `@procedures/collections`: data structures (`List`, `Map`, `Set`, `Queue`) and composable behaviors (LRU, TTL, bounded, evented).
+- `@procedures/splay`: the procedure components, serializable UI descriptors (`defineComponent`, `simpleComponent`, `streamingComponent`).
+- `@procedures/store`: the program store (`procedure.store`, `load`, `sync`), `ApiStorage`, `HybridStorage` and the synced registry.
 
 ## Quick Start
 
 ### Client
 
 ```typescript
-import { Client, HttpTransport } from "@mark1russell7/client";
+import { Client, HttpTransport } from "@procedures/client";
 
 const client = new Client({
   transport: new HttpTransport({ baseUrl: "https://api.example.com" })
@@ -450,7 +450,7 @@ const hydrated = await hydrateInput(input, executor)
 
 ### Components, Collections and the Program Store
 
-They are not in the core. See the README of `@mark1russell7/client-splay` (components), `@mark1russell7/client-collections` (data structures) and `@mark1russell7/client-store` (the program store and the storage layer).
+They are not in the core. See the README of `@procedures/splay` (components), `@procedures/collections` (data structures) and `@procedures/store` (the program store and the storage layer).
 
 ### Event Bus
 
@@ -557,14 +557,14 @@ ERROR_REGISTRY.list(): string[]
 ## Subpath Exports
 
 ```typescript
-import { Client, HttpTransport, ... } from "@mark1russell7/client";
-import { defineProcedure, PROCEDURE_REGISTRY, ... } from "@mark1russell7/client";
-import { EventBus, createEventBus, ... } from "@mark1russell7/client";
+import { Client, HttpTransport, ... } from "@procedures/client";
+import { defineProcedure, PROCEDURE_REGISTRY, ... } from "@procedures/client";
+import { EventBus, createEventBus, ... } from "@procedures/client";
 
 // OR use subpath exports
-import { Client } from "@mark1russell7/client/client";
-import { ... } from "@mark1russell7/client/procedures";
-import { ... } from "@mark1russell7/client/events";
+import { Client } from "@procedures/client/client";
+import { ... } from "@procedures/client/procedures";
+import { ... } from "@procedures/client/events";
 ```
 
 ## Procedure Auto-Discovery
@@ -787,9 +787,9 @@ const result = await client.call(["connection", "call"], {
 ```
 
 ### Shell Execution
-Use with `@mark1russell7/client-shell`:
+Use with `@procedures/shell`:
 ```typescript
-import "@mark1russell7/client-shell/register";
+import "@procedures/shell/register";
 
 const result = await client.call(["shell", "run"], {
   command: "git",
@@ -800,9 +800,9 @@ console.log(result.stdout);
 ```
 
 ### Procedure Scaffolding
-Use with `@mark1russell7/client-procedure`:
+Use with `@procedures/procedure`:
 ```typescript
-import "@mark1russell7/client-procedure/register";
+import "@procedures/procedure/register";
 
 const result = await client.call(["procedure", "new"], {
   name: "user.create",
@@ -828,6 +828,6 @@ This package is part of the Mark ecosystem. See the main repository for contribu
 ## See Also
 
 - `@mark1russell7/client-connection` - Connection management for bidirectional RPC
-- `@mark1russell7/client-shell` - Shell command execution procedures
-- `@mark1russell7/client-procedure` - Procedure scaffolding utilities
-- `@mark1russell7/bundle-dev` - Development bundle with all client packages
+- `@procedures/shell` - Shell command execution procedures
+- `@procedures/procedure` - Procedure scaffolding utilities
+- `@procedures/bundle-dev` - Development bundle with all client packages

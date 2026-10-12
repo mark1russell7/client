@@ -17,7 +17,7 @@
  *
  * @example
  * ```typescript
- * import { proc } from "@mark1russell7/client";
+ * import { proc } from "@procedures/client";
  *
  * // Sequential execution
  * const pipeline = proc(["client", "chain"]).input({

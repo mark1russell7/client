@@ -1,4 +1,4 @@
-# @mark1russell7/client-sqlite
+# @procedures/sqlite
 
 ## 0.1.0
 

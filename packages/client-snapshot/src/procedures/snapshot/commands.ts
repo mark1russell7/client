@@ -6,8 +6,8 @@
  * ignored the signal, and passed the command line to a shell.
  */
 
-import { runCommand } from "@mark1russell7/client-shell/command";
-import { resolvePnpm } from "@mark1russell7/client-pnpm";
+import { runCommand } from "@procedures/shell/command";
+import { resolvePnpm } from "@procedures/pnpm";
 
 /** The longest time of one git or pnpm query, in milliseconds. */
 const QUERY_TIMEOUT_MS = 30_000;

@@ -1,4 +1,4 @@
-# @mark1russell7/client-cue
+# @procedures/cue
 
 ## 0.1.0
 

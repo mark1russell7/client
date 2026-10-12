@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROCEDURE_REGISTRY, pathToKey, type ProcedureRegistry } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, pathToKey, type ProcedureRegistry } from "@procedures/client";
 import { discoverFromEcosystem, loadEcosystemProcedures, loadEcosystemRegistry } from "./ecosystem.js";
 import { MANIFEST_VERSION, commandsOf, computeFingerprint, readFreshManifest, type Manifest } from "./manifest.js";
 
@@ -45,7 +45,7 @@ describe("the manifest of mark", () => {
 
   it("is current after the build, and has the commands of the registry", async () => {
     const manifest = readFreshManifest();
-    expect(manifest, "dist/manifest.json is missing or stale: build mark (pnpm --filter @mark1russell7/cli build)").not.toBeNull();
+    expect(manifest, "dist/manifest.json is missing or stale: build mark (pnpm --filter @procedures/mark build)").not.toBeNull();
     const expected = JSON.parse(JSON.stringify(await commandsOf(registry.getAll())));
     expect(manifest!.commands).toEqual(expected);
   }, 120000);

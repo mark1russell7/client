@@ -1,4 +1,4 @@
-# @mark1russell7/client-dag
+# @procedures/dag
 
 ## 0.1.0
 

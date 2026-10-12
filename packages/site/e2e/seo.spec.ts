@@ -85,7 +85,7 @@ test.describe("the static pages", () => {
     expect(locations.length).toBeGreaterThan(250);
     expect(locations.some((location) => location.endsWith("/catalog/client.chain/"))).toBe(true);
     const llms = await (await request.get("llms.txt")).text();
-    expect(llms).toContain("# @mark1russell7/client");
+    expect(llms).toContain("# @procedures/client");
     expect(llms).toContain("## Procedures");
     expect(llms).toMatch(/\[client\.chain: [^\]]+\]\(https?:\/\/[^)]+\/catalog\/client\.chain\/\)/);
   });

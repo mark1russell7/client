@@ -6,13 +6,13 @@
  * before they moved here (roadmap 3.2).
  */
 
-import { defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { defineModule, type ProcedureModule } from "@procedures/client";
 import { procedureStorageProcedures } from "./procedures.js";
 
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const storeModule: ProcedureModule = defineModule("@mark1russell7/client-store", procedureStorageProcedures);
+export const storeModule: ProcedureModule = defineModule("@procedures/store", procedureStorageProcedures);
 
 export default storeModule;

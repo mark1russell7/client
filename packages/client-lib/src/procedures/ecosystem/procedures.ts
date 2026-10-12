@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { libScan } from "../lib/scan.js";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -223,11 +223,11 @@ async function discoverPackageProcedures(
     // Query the global registry for procedures from this package
     // We identify procedures by checking if they're in a namespace that
     // matches the package pattern (e.g., client-fs -> fs.*)
-    const { PROCEDURE_REGISTRY } = await import("@mark1russell7/client");
+    const { PROCEDURE_REGISTRY } = await import("@procedures/client");
     const allProcs = PROCEDURE_REGISTRY.getAll();
 
-    // Extract namespace from package name (e.g., @mark1russell7/client-fs -> fs)
-    const match = packageName.match(/@mark1russell7\/client-(\w+)/);
+    // Extract namespace from package name (e.g., @procedures/fs -> fs)
+    const match = packageName.match(/^@procedures\/(\w+)/) ?? packageName.match(/@mark1russell7\/client-(\w+)/);
     const expectedNamespace = match ? match[1] : null;
 
     const procedures: ProcedureInfo[] = [];
@@ -249,7 +249,7 @@ async function discoverPackageProcedures(
           description,
           tags,
         });
-      } else if (packageName === "@mark1russell7/client-lib" && proc.path[0] === "lib") {
+      } else if (packageName === "@procedures/lib" && proc.path[0] === "lib") {
         procedures.push({
           path: proc.path,
           key: proc.path.join("."),
@@ -258,7 +258,7 @@ async function discoverPackageProcedures(
           description,
           tags,
         });
-      } else if (packageName === "@mark1russell7/client-cli" &&
+      } else if (packageName === "@procedures/cli-run" &&
                  (proc.path[0] === "procedure" || proc.path[0] === "dag")) {
         procedures.push({
           path: proc.path,
@@ -304,7 +304,7 @@ export async function ecosystemProcedures(
 
   for (const [name, info] of Object.entries(scanResult.packages)) {
     // Only process client-* packages (they have procedures)
-    if (name.includes("/client-") || name === "@mark1russell7/client") {
+    if (name.includes("/client-") || name === "@procedures/client") {
       const result = await discoverPackageProcedures(name, info.repoPath, ctx);
       packageResults.push(result);
     }

@@ -1,6 +1,6 @@
-# @mark1russell7/client-sqlite
+# @procedures/sqlite
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-sqlite?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-sqlite)
+[![npm](https://img.shields.io/npm/v/@procedures/sqlite?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/sqlite)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -25,7 +25,7 @@ The package auto-registers 4 procedures:
 ```mermaid
 graph TB
     subgraph "Client Ecosystem"
-        Client["@mark1russell7/client"]
+        Client["@procedures/client"]
         Registry["Procedure Registry"]
     end
 
@@ -81,8 +81,8 @@ graph TB
 ```mermaid
 graph LR
     App["Your Application"]
-    ClientSqlite["@mark1russell7/client-sqlite"]
-    Client["@mark1russell7/client"]
+    ClientSqlite["@procedures/sqlite"]
+    Client["@procedures/client"]
     DockerSqlite["@mark1russell7/docker-sqlite"]
     SqlJs["sql.js"]
 
@@ -123,14 +123,14 @@ sequenceDiagram
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-sqlite
+npm install @procedures/sqlite
 ```
 
 ### Peer Dependencies
 
 ```json
 {
-  "@mark1russell7/client": "github:mark1russell7/client#main",
+  "@procedures/client": "github:mark1russell7/client#main",
   "@mark1russell7/docker-sqlite": "github:mark1russell7/docker-sqlite#main"
 }
 ```
@@ -433,8 +433,8 @@ const { logs } = await client.exec(
 ### Basic Database Operations
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-sqlite"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/sqlite"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -544,7 +544,7 @@ import {
   lastInsertRowId,
   runMigrations,
   createMigration
-} from "@mark1russell7/client-sqlite";
+} from "@procedures/sqlite";
 
 // Managed connection with automatic cleanup
 await withConnection({ dbPath: "./data/app.db" }, (db) => {
@@ -579,7 +579,7 @@ import {
   getMigrationStatus,
   rollbackMigration,
   type Migration
-} from "@mark1russell7/client-sqlite";
+} from "@procedures/sqlite";
 
 const migrations: Migration[] = [
   {
@@ -653,16 +653,16 @@ result.rows.forEach(user => {
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@mark1russell7/client-sqlite"; // registers its procedures
-import "@mark1russell7/client-mongo"; // registers its procedures
-import "@mark1russell7/client-s3/register.js";
+import "@procedures/sqlite"; // registers its procedures
+import "@procedures/mongo"; // registers its procedures
+import "@procedures/s3/register.js";
 ```
 
 ## Dependencies
 
 ### Runtime Dependencies
 
-- **@mark1russell7/client** - Core client procedure system
+- **@procedures/client** - Core client procedure system
 - **@mark1russell7/docker-sqlite** - SQLite connection and query utilities
 
 ### Development Dependencies

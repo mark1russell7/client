@@ -9,7 +9,7 @@
  * callers of `client-server`.
  */
 
-import { exposePatterns, type ProcedurePath } from "@mark1russell7/client";
+import { exposePatterns, type ProcedurePath } from "@procedures/client";
 
 /** This function gives the rule of `ProcedureServer` for a list of patterns. */
 export function exposeRule(patterns: readonly string[]): (path: ProcedurePath) => boolean {

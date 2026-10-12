@@ -124,9 +124,9 @@ for (const name of names) {
     throw new Error("import " + name + ": " + error.message);
   }
 }
-await import("@mark1russell7/client/browser");
+await import("@procedures/client/browser");
 
-const { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } = await import("@mark1russell7/client");
+const { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } = await import("@procedures/client");
 for (const procedure of allCoreProcedures) {
   if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);
 }

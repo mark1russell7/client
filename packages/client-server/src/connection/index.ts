@@ -12,7 +12,7 @@ import {
   defaultUrlPattern,
   postOnlyStrategy,
   type HttpTransportOptions,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import type {
   TransportType,
   PeerConnection,

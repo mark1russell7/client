@@ -6,7 +6,7 @@
  * or the global registry). Without a store, they fail with the code NOT_CONFIGURED.
  */
 
-import { PROCEDURE_REGISTRY, type ProcedureContext, type ProcedureRegistryLike } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, type ProcedureContext, type ProcedureRegistryLike } from "@procedures/client";
 import type { ProgramStore } from "./types.js";
 import { ProcedureStoreError } from "../storage/procedures.js";
 

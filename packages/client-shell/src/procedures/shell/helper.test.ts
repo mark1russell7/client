@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 import "../../register.js";
 import type { ShellRunOutput, ShellExecOutput, ShellStreamItem } from "../../types.js";
 

@@ -1,6 +1,6 @@
-# @mark1russell7/client-mongo
+# @procedures/mongo
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-mongo.svg)](https://www.npmjs.com/package/@mark1russell7/client-mongo)
+[![npm version](https://img.shields.io/npm/v/@procedures/mongo.svg)](https://www.npmjs.com/package/@procedures/mongo)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
@@ -24,7 +24,7 @@ The package follows the client procedure pattern, auto-registering 16 procedures
 ```mermaid
 graph TB
     subgraph "Client Ecosystem"
-        Client["@mark1russell7/client"]
+        Client["@procedures/client"]
         Registry["Procedure Registry"]
     end
 
@@ -82,8 +82,8 @@ graph TB
 ```mermaid
 graph LR
     App["Your Application"]
-    ClientMongo["@mark1russell7/client-mongo"]
-    Client["@mark1russell7/client"]
+    ClientMongo["@procedures/mongo"]
+    Client["@procedures/client"]
     MongoDB["mongodb"]
 
     App --> ClientMongo
@@ -122,14 +122,14 @@ sequenceDiagram
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-mongo
+npm install @procedures/mongo
 ```
 
 ### Peer Dependencies
 
 ```json
 {
-  "@mark1russell7/client": "github:mark1russell7/client#main",
+  "@procedures/client": "github:mark1russell7/client#main",
   "mongodb": "^7.0.0"
 }
 ```
@@ -149,7 +149,7 @@ MONGODB_DATABASE=myapp
 ### Programmatic Configuration
 
 ```typescript
-import { connect } from "@mark1russell7/client-mongo";
+import { connect } from "@procedures/mongo";
 
 // Using environment variables
 await connect();
@@ -171,7 +171,7 @@ await connect({
 A host does not have to call `connect()`. When there is no open connection, the first procedure call connects with the options of `configure()`, or with the environment variables. Concurrent first calls share one attempt.
 
 ```typescript
-import { configure } from "@mark1russell7/client-mongo";
+import { configure } from "@procedures/mongo";
 
 configure({ uri: "mongodb://localhost:27017", database: "myapp" });
 ```
@@ -271,7 +271,7 @@ const result = await client.exec(
 );
 
 // Direct import
-import { pingProcedure } from "@mark1russell7/client-mongo";
+import { pingProcedure } from "@procedures/mongo";
 ```
 
 **Input:**
@@ -985,8 +985,8 @@ interface BulkWriteResult {
 For compile-time autocomplete, use the `MongoProcedures` type:
 
 ```typescript
-import type { MongoProcedures } from "@mark1russell7/client-mongo";
-import { createTypedCaller } from "@mark1russell7/client";
+import type { MongoProcedures } from "@procedures/mongo";
+import { createTypedCaller } from "@procedures/client";
 
 const call = createTypedCaller<MongoProcedures>(client.call);
 
@@ -1017,8 +1017,8 @@ function getBaseMeta(metadata: Record<string, unknown>): BaseMeta;
 ### Basic CRUD Operations
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { connect } from "@mark1russell7/client-mongo";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import { connect } from "@procedures/mongo";
 
 // Connect to MongoDB
 await connect({
@@ -1185,7 +1185,7 @@ import {
   findProcedure,
   insertProcedure,
   requireCollection
-} from "@mark1russell7/client-mongo";
+} from "@procedures/mongo";
 
 await connect({ database: "myapp" });
 
@@ -1227,15 +1227,15 @@ await client.exec(
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@mark1russell7/client-mongo"; // registers its procedures
-import "@mark1russell7/client-sqlite"; // registers its procedures
-import "@mark1russell7/client-s3/register.js";
+import "@procedures/mongo"; // registers its procedures
+import "@procedures/sqlite"; // registers its procedures
+import "@procedures/s3/register.js";
 ```
 
 ### Type-Safe Calling
 
 ```typescript
-import type { MongoProcedures } from "@mark1russell7/client-mongo";
+import type { MongoProcedures } from "@procedures/mongo";
 
 type AllProcedures = MongoProcedures & OtherProcedures;
 
@@ -1246,7 +1246,7 @@ const call = createTypedCaller<AllProcedures>(client.call);
 
 ### Runtime Dependencies
 
-- **@mark1russell7/client** - Core client procedure system
+- **@procedures/client** - Core client procedure system
 - **mongodb** (^7.0.0) - Official MongoDB Node.js driver
 
 ### Development Dependencies

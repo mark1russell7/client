@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { dockerLogs, type DockerLogItem } from "../src/procedures/docker/logs.js";
 
 const isAsyncIterable = (value: unknown): boolean =>

@@ -91,8 +91,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
 
   // The host policy of the core (roadmap 2.3): the token of each transport. The server of mark
   // serves every procedure of the workspace to its one user, so it has no expose list.
-  const { hostPolicy } = await import("@mark1russell7/client");
-  const { createPeer } = await import("@mark1russell7/client-server");
+  const { hostPolicy } = await import("@procedures/client");
+  const { createPeer } = await import("@procedures/peer");
   const peer = await createPeer({
     id: `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     transports,

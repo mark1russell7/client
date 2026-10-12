@@ -241,7 +241,7 @@ export function createServerMiddleware(): ServerMiddleware {
 ### Collection Middleware (Behavior)
 
 ```typescript
-import type { Middleware, MapLike } from "@mark1russell7/client-collections";
+import type { Middleware, MapLike } from "@procedures/collections";
 
 export function createMyBehavior<K, V>(
   options: MyOptions
@@ -348,7 +348,7 @@ const stateMiddleware: ClientMiddleware = (next) => async function* (context) {
 The collections framework uses the same middleware pattern:
 
 ```typescript
-import { compose, lruMap, ttlMap, boundedList, eventedList, hashMap, arrayList } from "@mark1russell7/client-collections";
+import { compose, lruMap, ttlMap, boundedList, eventedList, hashMap, arrayList } from "@procedures/collections";
 
 // Map with LRU + TTL
 const cache = compose(

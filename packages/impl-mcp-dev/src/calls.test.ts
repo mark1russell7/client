@@ -31,9 +31,9 @@ import {
   pathToKey,
   type Interceptor,
   type ProcedureOutput,
-} from "@mark1russell7/client";
-import { exposeRule, mergeSurfaces } from "@mark1russell7/client-mcp";
-import * as bundle from "@mark1russell7/bundle-mcp/register.js";
+} from "@procedures/client";
+import { exposeRule, mergeSurfaces } from "@procedures/mcp-server";
+import * as bundle from "@procedures/bundle-mcp/register.js";
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 

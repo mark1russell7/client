@@ -1,6 +1,6 @@
-# @mark1russell7/client-playground
+# @procedures/playground
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-playground?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-playground)
+[![npm](https://img.shields.io/npm/v/@procedures/playground?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/playground)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D25.0.0-brightgreen)](https://nodejs.org)
@@ -83,19 +83,19 @@ sequenceDiagram
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-playground
+npm install @procedures/playground
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add @mark1russell7/client-playground
+pnpm add @procedures/playground
 ```
 
 ### Dependencies
 
 This package depends on:
-- `@mark1russell7/client` - Core client/procedure system (dynamically imported)
+- `@procedures/client` - Core client/procedure system (dynamically imported)
 
 ### Runtime Requirements
 
@@ -110,7 +110,7 @@ Create a playground file:
 
 ```typescript
 // my-workflow.play.ts
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 // Execute a simple procedure
 run(
@@ -141,7 +141,7 @@ Output:
 The `proc()` builder provides a fluent interface:
 
 ```typescript
-import { proc } from "@mark1russell7/client-playground";
+import { proc } from "@procedures/playground";
 
 // Simple procedure reference
 const gitStatus = proc(["git", "status"])
@@ -166,7 +166,7 @@ const conditionalAdd = proc(["git", "add"])
 Reference outputs from named stages:
 
 ```typescript
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 run(
   proc(["dag", "traverse"]).input({
@@ -198,7 +198,7 @@ ref("install.packages")  // Deep property access
 ### Complex Workflows
 
 ```typescript
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 // Multi-step build and deploy workflow
 run(
@@ -242,7 +242,7 @@ run(
 ### Running Without Printing
 
 ```typescript
-import { run } from "@mark1russell7/client-playground";
+import { run } from "@procedures/playground";
 
 // Get result without printing
 const result = await run(
@@ -412,7 +412,7 @@ interface OutputRef {
 
 ```typescript
 // git-workflow.play.ts
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 run(
   proc(["dag", "traverse"]).input({
@@ -441,7 +441,7 @@ run(
 
 ```typescript
 // build.play.ts
-import { proc, run } from "@mark1russell7/client-playground";
+import { proc, run } from "@procedures/playground";
 
 run(
   proc(["dag", "traverse"]).input({
@@ -459,7 +459,7 @@ run(
 
 ```typescript
 // deploy.play.ts
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 run(
   proc(["dag", "traverse"]).input({
@@ -491,7 +491,7 @@ run(
 
 ```typescript
 // test-procedures.play.ts
-import { proc, run } from "@mark1russell7/client-playground";
+import { proc, run } from "@procedures/playground";
 
 // Test git status
 console.log("=== Testing git.status ===");
@@ -510,7 +510,7 @@ await run(proc(["shell", "exec"]).input({ command: "echo 'Hello from playground!
 
 ```typescript
 // conditional.play.ts
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 run(
   proc(["dag", "traverse"]).input({
@@ -542,7 +542,7 @@ Quickly test procedure calls without setting up a full client:
 
 ```typescript
 // test-docker.play.ts
-import { proc, run } from "@mark1russell7/client-playground";
+import { proc, run } from "@procedures/playground";
 
 await run(proc(["docker", "ps"]).input({ all: true }).ref);
 ```
@@ -557,7 +557,7 @@ Prototype multi-step workflows before integrating into apps:
 
 ```typescript
 // prototype-workflow.play.ts
-import { proc, ref, run } from "@mark1russell7/client-playground";
+import { proc, ref, run } from "@procedures/playground";
 
 // Test the entire workflow
 run(proc(["dag", "traverse"]).input({ visit: [...] }).ref);
@@ -587,7 +587,7 @@ Automate common development tasks:
 ```typescript
 // setup.play.ts
 // Run: npx tsx setup.play.ts
-import { proc, run } from "@mark1russell7/client-playground";
+import { proc, run } from "@procedures/playground";
 
 run(proc(["dag", "traverse"]).input({
   visit: [
@@ -604,8 +604,8 @@ run(proc(["dag", "traverse"]).input({
 ### Custom Transport
 
 ```typescript
-import { run } from "@mark1russell7/client-playground";
-import { LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { run } from "@procedures/playground";
+import { LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 
 // run() uses LocalTransport internally
 // The registry is synced automatically
@@ -614,7 +614,7 @@ import { LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
 ### Error Handling
 
 ```typescript
-import { proc, run } from "@mark1russell7/client-playground";
+import { proc, run } from "@procedures/playground";
 
 try {
   const result = await run(
@@ -629,8 +629,8 @@ try {
 ### TypeScript Integration
 
 ```typescript
-import { proc, run } from "@mark1russell7/client-playground";
-import type { GitStatusOutput } from "@mark1russell7/client-git";
+import { proc, run } from "@procedures/playground";
+import type { GitStatusOutput } from "@procedures/git";
 
 // Typed result
 const status = await run<GitStatusOutput>(
@@ -655,12 +655,12 @@ console.log(`Clean: ${status.clean}`);
 
 ```typescript
 // Direct client - more boilerplate
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 const result = await client.exec(["git", "status"], { cwd: "." });
 
 // Playground - concise
-import { proc, run } from "@mark1russell7/client-playground";
+import { proc, run } from "@procedures/playground";
 const result = await run(proc(["git", "status"]).input({ cwd: "." }).ref);
 ```
 
@@ -690,6 +690,6 @@ MIT
 
 ## Related Packages
 
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/bundle-dev` - Development bundle with procedures
+- `@procedures/client` - Core client/procedure system
+- `@procedures/bundle-dev` - Development bundle with procedures
 - All `client-*` packages - Provide procedures to use in playground

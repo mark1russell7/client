@@ -4,7 +4,7 @@
  * Add packages using pnpm.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { pnpmArg, runPnpm } from "./shared.js";
 import type { PnpmAddInput, PnpmCommandOutput } from "../../types.js";
 

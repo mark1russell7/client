@@ -11,9 +11,9 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { PROCEDURE_REGISTRY, jsonSchemaOf, pathToKey } from "@mark1russell7/client";
-import { exposeRule, mergeSurfaces, procedureToMcpTool } from "@mark1russell7/client-mcp";
-import * as bundle from "@mark1russell7/bundle-mcp/register.js";
+import { PROCEDURE_REGISTRY, jsonSchemaOf, pathToKey } from "@procedures/client";
+import { exposeRule, mergeSurfaces, procedureToMcpTool } from "@procedures/mcp-server";
+import * as bundle from "@procedures/bundle-mcp/register.js";
 
 const surface = mergeSurfaces([bundle]);
 const expose = exposeRule(surface!);

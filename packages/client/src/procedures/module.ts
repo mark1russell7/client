@@ -7,8 +7,8 @@
  * package exports its procedures as data, and importing it registers nothing.
  *
  * ```ts
- * import { createRegistry, Client, LocalTransport } from "@mark1russell7/client";
- * import gitModule from "@mark1russell7/client-git/module";
+ * import { createRegistry, Client, LocalTransport } from "@procedures/client";
+ * import gitModule from "@procedures/git/module";
  *
  * const registry = createRegistry(gitModule);
  * const client = new Client(new LocalTransport({ registry })).useRegistry(registry);
@@ -24,13 +24,13 @@ import { metaProcedures as definitionProcedures } from "./define-procedure.js";
 import type { AnyProcedure, ProcedureModule, RegistrationOptions } from "./types.js";
 
 /**
- * The procedures that `@mark1russell7/client` registers in the global registry when it is
+ * The procedures that `@procedures/client` registers in the global registry when it is
  * imported: the control flow (`client.chain`, `client.map` and the others) and
  * `procedure.define`/`get`/`list`/`delete`. `createRegistry()` always registers this module, so an
  * explicit registry has what the global registry has.
  */
 export const clientModule: ProcedureModule = {
-  name: "@mark1russell7/client",
+  name: "@procedures/client",
   procedures: [...coreProcedures, ...definitionProcedures],
 };
 
@@ -100,7 +100,7 @@ export function registerModules(
 
 /**
  * A new registry with the procedures of `clientModule` (what the global registry has after
- * `import "@mark1russell7/client"`) and of each module, with their required modules.
+ * `import "@procedures/client"`) and of each module, with their required modules.
  */
 export function createRegistry(...modules: ModuleInput[]): ProcedureRegistry {
   return registerModules(new ProcedureRegistry(), [clientModule, ...modules]);

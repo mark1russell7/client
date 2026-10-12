@@ -5,8 +5,8 @@
  * Enables storage and transmission of procedure definitions.
  */
 
-import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
-import { pathToKey } from "@mark1russell7/client";
+import type { AnyProcedure, ProcedurePath } from "@procedures/client";
+import { pathToKey } from "@procedures/client";
 import type { SerializedProcedure, HandlerReference, HandlerLoader } from "./types.js";
 
 // =============================================================================
@@ -56,7 +56,7 @@ export interface SerializeOptions {
  * ```typescript
  * const serialized = serializeProcedure(myProcedure, {
  *   handlerRef: {
- *     module: "@mark1russell7/client-cli",
+ *     module: "@procedures/cli-run",
  *     export: "libScanHandler",
  *   },
  * });
@@ -244,14 +244,14 @@ export async function deserializeProcedures(
  * `./x`, `/x`, a drive letter). Before, it imported any module that a record named: a record
  * with `node:child_process` ran a shell command (BUGS-2026-07 M11, deep dive CORE-7, DATA-11).
  *
- * @param allowedModules - Module names the loader may import, such as "@mark1russell7/client-git"
+ * @param allowedModules - Module names the loader may import, such as "@procedures/git"
  * @returns Handler loader that uses import() to load allowed modules
  *
  * @example
  * ```typescript
- * const loader = createDynamicHandlerLoader(["@mark1russell7/client-*"]);
+ * const loader = createDynamicHandlerLoader(["@procedures/*"]);
  * const handler = await loader.load({
- *   module: "@mark1russell7/client-cli",
+ *   module: "@procedures/cli-run",
  *   export: "libScanHandler",
  * });
  * ```

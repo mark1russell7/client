@@ -190,7 +190,7 @@ function Segments({ page }: { page: DocPage }): ReactElement {
   );
 }
 
-/** A package name that can break after its scope: "@mark1russell7/" then "client-git". */
+/** A package name that can break after its scope: "@procedures/" then "git". */
 function PackageName({ name }: { name: string }): ReactElement {
   const slash = name.indexOf("/");
   if (slash < 0) return <>{name}</>;

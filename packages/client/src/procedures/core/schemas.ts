@@ -26,7 +26,7 @@ export interface ZodLikeSchema<T> extends ZodLike<T> {
 function passThrough<T>(): StandardSchemaV1.Props<unknown, T> {
   return {
     version: 1,
-    vendor: "@mark1russell7/client",
+    vendor: "@procedures/client",
     validate: (value: unknown) => ({ value: value as T }),
   };
 }
@@ -90,7 +90,7 @@ export function zodAdapter<T>(schema: { parse: (data: unknown) => T }): ZodLikeS
     _output: undefined as unknown as T,
     "~standard": {
       version: 1,
-      vendor: "@mark1russell7/client",
+      vendor: "@procedures/client",
       validate: (value: unknown) => {
         const result = safeParse(value);
         return result.success

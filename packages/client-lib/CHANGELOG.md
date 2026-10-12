@@ -1,4 +1,4 @@
-# @mark1russell7/client-lib
+# @procedures/lib
 
 ## 0.1.0
 

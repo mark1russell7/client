@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/mcp-dev-tools",
+  "name": "@procedures/mcp-dev-tools",
   "version": "0.1.0",
   "description": "A ready-to-use MCP server for Claude Code and Claude Desktop: 62 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy.",
   "keywords": [
@@ -60,9 +60,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/bundle-mcp": "workspace:*",
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-mcp": "workspace:*"
+    "@procedures/bundle-mcp": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/mcp-server": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

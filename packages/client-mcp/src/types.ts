@@ -5,8 +5,8 @@
  */
 
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { ProcedureRegistry } from "@mark1russell7/client";
-import type { McpServerInfo, McpToolFilter } from "@mark1russell7/mcp";
+import type { ProcedureRegistry } from "@procedures/client";
+import type { McpServerInfo, McpToolFilter } from "@procedures/mcp";
 
 /**
  * SSE transport configuration options.

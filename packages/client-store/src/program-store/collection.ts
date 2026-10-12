@@ -4,7 +4,7 @@
  * a remote copy). The key of each record is the key of the program.
  */
 
-import type { CollectionStorage } from "@mark1russell7/client";
+import type { CollectionStorage } from "@procedures/client";
 import { byKey, checkStoredProgram, keyMatches, type ProgramStore, type StoredProgram } from "./types.js";
 
 export class CollectionProgramStore implements ProgramStore {

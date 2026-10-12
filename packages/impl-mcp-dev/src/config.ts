@@ -21,7 +21,7 @@ export interface McpServerConfig {
  * Load configuration from environment variables.
  *
  * Environment variables:
- * - MCP_BUNDLES: Comma-separated list of bundles (default: "@mark1russell7/bundle-mcp")
+ * - MCP_BUNDLES: Comma-separated list of bundles (default: "@procedures/bundle-mcp")
  * - MCP_SERVER_NAME: Server name (default: "impl-mcp-dev")
  * - MCP_SERVER_VERSION: Server version (default: "1.0.0")
  * - MCP_DEBUG: Enable debug logging (default: "false")
@@ -38,7 +38,7 @@ export function parseTimeout(value: string | undefined): number {
 }
 
 export function loadConfig(): McpServerConfig {
-  const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@mark1russell7/bundle-mcp";
+  const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@procedures/bundle-mcp";
   const bundles = bundlesEnv.split(",").map((b) => b.trim()).filter(Boolean);
 
   return {

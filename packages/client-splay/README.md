@@ -1,9 +1,9 @@
-# @mark1russell7/client-splay
+# @procedures/splay
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-splay?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-splay)
+[![npm](https://img.shields.io/npm/v/@procedures/splay?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/splay)
 
 ```sh
-npm install @mark1russell7/client-splay
+npm install @procedures/splay
 ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -144,7 +144,7 @@ graph TB
 ## Quick Start
 
 ```typescript
-import { createClientRegistry, createReactHydrate } from "@mark1russell7/client-splay";
+import { createClientRegistry, createReactHydrate } from "@procedures/splay";
 import { call } from "client";
 
 // 1. Create registry backed by client procedures
@@ -368,7 +368,7 @@ import {
   // Helpers
   nullOutput, fragment, isFragment, isNullOutput,
   defineComponent, simpleComponent, streamingComponent,
-} from "@mark1russell7/client-splay";
+} from "@procedures/splay";
 ```
 
 ### Package Hierarchy
@@ -399,7 +399,7 @@ graph BT
 
 - **Node.js** >= 25
 - **Dependencies:**
-  - `@mark1russell7/client`
+  - `@procedures/client`
   - `@mark1russell7/splay`
 
 ---

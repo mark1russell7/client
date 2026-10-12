@@ -34,7 +34,7 @@ const log = (globalThis as unknown as { console: ConsoleType }).console;
  * @example React:
  * ```typescript
  * import { createElement } from "react";
- * import { createHydrate } from "@mark1russell7/client-splay";
+ * import { createHydrate } from "@procedures/splay";
  *
  * const hydrate = createHydrate({
  *   components: {
@@ -158,7 +158,7 @@ interface ReactLike {
  * @example
  * ```typescript
  * import * as React from "react";
- * import { createReactHydrate } from "@mark1russell7/client-splay";
+ * import { createReactHydrate } from "@procedures/splay";
  *
  * const hydrate = createReactHydrate(React, {
  *   components: {

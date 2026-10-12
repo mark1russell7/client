@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { Client, LocalTransport, PROCEDURE_REGISTRY, createRefScope, invokeProcedure, outputValue, withScope } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY, createRefScope, invokeProcedure, outputValue, withScope } from "@procedures/client";
 import "../../register.js";
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));

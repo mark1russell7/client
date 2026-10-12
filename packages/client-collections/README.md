@@ -1,6 +1,6 @@
-# @mark1russell7/client-collections
+# @procedures/collections
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-collections?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-collections)
+[![npm](https://img.shields.io/npm/v/@procedures/collections?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/collections)
 
 A comprehensive, transport-agnostic collections framework for TypeScript. Provides unified abstractions for data structures with pluggable storage backends, enabling seamless switching between local and remote storage.
 
@@ -54,7 +54,7 @@ const active = await storage.find(u => u.status === "active");
 Behaviors can be stacked to add functionality:
 
 ```typescript
-import { ArrayList, withBounded, withLRU, withEvented } from "@mark1russell7/client-collections";
+import { ArrayList, withBounded, withLRU, withEvented } from "@procedures/collections";
 
 // Create a bounded, LRU-evicting, event-emitting list
 const list = withEvented(
@@ -71,7 +71,7 @@ list.on("evict", (item) => console.log("Evicted:", item));
 ## Installation
 
 ```bash
-pnpm add @mark1russell7/client-collections
+pnpm add @procedures/collections
 ```
 
 ## Core Interfaces
@@ -112,7 +112,7 @@ interface CollectionStorage<T> {
 Fast, in-memory storage using JavaScript Map:
 
 ```typescript
-import { MemoryStorage } from "@mark1russell7/client-collections";
+import { MemoryStorage } from "@procedures/collections";
 
 const storage = new MemoryStorage<User>();
 await storage.set("user-1", { name: "Alice", age: 30 });
@@ -124,8 +124,8 @@ const user = await storage.get("user-1");
 Remote storage via RPC client:
 
 ```typescript
-import { ApiStorage } from "@mark1russell7/client-collections";
-import { Client } from "@mark1russell7/client";
+import { ApiStorage } from "@procedures/collections";
+import { Client } from "@procedures/client";
 
 const client = new Client({ transport });
 const storage = new ApiStorage<User>(client, {
@@ -143,7 +143,7 @@ const storage = new ApiStorage<User>(client, {
 Local cache with remote synchronization:
 
 ```typescript
-import { HybridStorage, MemoryStorage, ApiStorage } from "@mark1russell7/client-collections";
+import { HybridStorage, MemoryStorage, ApiStorage } from "@procedures/collections";
 
 const hybrid = new HybridStorage<User>({
   local: new MemoryStorage<User>(),
@@ -158,7 +158,7 @@ const hybrid = new HybridStorage<User>({
 ### Lists
 
 ```typescript
-import { ArrayList, LinkedList } from "@mark1russell7/client-collections";
+import { ArrayList, LinkedList } from "@procedures/collections";
 
 const arrayList = new ArrayList<number>();   // O(1) random access
 const linkedList = new LinkedList<number>(); // O(1) insertions
@@ -167,7 +167,7 @@ const linkedList = new LinkedList<number>(); // O(1) insertions
 ### Maps
 
 ```typescript
-import { HashMap, TreeMap, LinkedHashMap } from "@mark1russell7/client-collections";
+import { HashMap, TreeMap, LinkedHashMap } from "@procedures/collections";
 
 const hashMap = new HashMap<string, User>();       // O(1) access
 const treeMap = new TreeMap<string, User>();       // Sorted keys
@@ -177,7 +177,7 @@ const linkedHashMap = new LinkedHashMap<string, User>(); // Insertion order
 ### Sets
 
 ```typescript
-import { HashSet, TreeSet } from "@mark1russell7/client-collections";
+import { HashSet, TreeSet } from "@procedures/collections";
 
 const hashSet = new HashSet<string>();  // O(1) membership
 const treeSet = new TreeSet<number>();  // Sorted, O(log n)
@@ -186,7 +186,7 @@ const treeSet = new TreeSet<number>();  // Sorted, O(log n)
 ### Queues
 
 ```typescript
-import { PriorityQueue, ArrayDeque } from "@mark1russell7/client-collections";
+import { PriorityQueue, ArrayDeque } from "@procedures/collections";
 
 const pq = new PriorityQueue<Task>((a, b) => a.priority - b.priority);
 const deque = new ArrayDeque<Message>(); // Double-ended queue
@@ -197,7 +197,7 @@ const deque = new ArrayDeque<Message>(); // Double-ended queue
 ### Bounded Collections
 
 ```typescript
-import { withBounded } from "@mark1russell7/client-collections";
+import { withBounded } from "@procedures/collections";
 
 const bounded = withBounded(new ArrayList<Log>(), {
   maxSize: 10000,
@@ -208,7 +208,7 @@ const bounded = withBounded(new ArrayList<Log>(), {
 ### LRU Cache
 
 ```typescript
-import { withLRU } from "@mark1russell7/client-collections";
+import { withLRU } from "@procedures/collections";
 
 const lru = withLRU(new HashMap<string, Session>(), {
   maxSize: 1000,
@@ -219,7 +219,7 @@ const lru = withLRU(new HashMap<string, Session>(), {
 ### TTL (Time-To-Live)
 
 ```typescript
-import { withTTL } from "@mark1russell7/client-collections";
+import { withTTL } from "@procedures/collections";
 
 const ttl = withTTL(new HashMap<string, Token>(), {
   defaultTTL: 300000, // 5 minutes
@@ -230,7 +230,7 @@ const ttl = withTTL(new HashMap<string, Token>(), {
 ### Event Emission
 
 ```typescript
-import { withEvented } from "@mark1russell7/client-collections";
+import { withEvented } from "@procedures/collections";
 
 const evented = withEvented(new ArrayList<Order>());
 
@@ -242,7 +242,7 @@ evented.on("clear", () => audit.log("orders_cleared"));
 ### Thread Safety (Synchronized)
 
 ```typescript
-import { withSynchronized } from "@mark1russell7/client-collections";
+import { withSynchronized } from "@procedures/collections";
 
 const sync = withSynchronized(new HashMap<string, Counter>());
 // All operations are automatically locked
@@ -253,7 +253,7 @@ const sync = withSynchronized(new HashMap<string, Counter>());
 ### AsyncQueue
 
 ```typescript
-import { AsyncQueue } from "@mark1russell7/client-collections";
+import { AsyncQueue } from "@procedures/collections";
 
 const queue = new AsyncQueue<Job>();
 
@@ -267,7 +267,7 @@ const job = await queue.dequeue();
 ### Channels (Go-style)
 
 ```typescript
-import { Channel } from "@mark1russell7/client-collections";
+import { Channel } from "@procedures/collections";
 
 const ch = new Channel<Message>(10); // Buffered channel
 
@@ -286,7 +286,7 @@ ch.close();
 ### Iteration
 
 ```typescript
-import { iter } from "@mark1russell7/client-collections";
+import { iter } from "@procedures/collections";
 
 const result = iter([1, 2, 3, 4, 5])
   .filter(n => n % 2 === 0)
@@ -299,7 +299,7 @@ const result = iter([1, 2, 3, 4, 5])
 ### Collectors
 
 ```typescript
-import { collect, toMap, groupBy, partition } from "@mark1russell7/client-collections";
+import { collect, toMap, groupBy, partition } from "@procedures/collections";
 
 const users = [/* ... */];
 
@@ -360,8 +360,8 @@ const [admins, others] = collect(users, partition(u => u.isAdmin));
 The `client-mongo` package provides `MongoStorage<T>` implementing `CollectionStorage<T>`:
 
 ```typescript
-import { MongoStorage } from "@mark1russell7/client-mongo";
-import { HybridStorage, MemoryStorage } from "@mark1russell7/client-collections";
+import { MongoStorage } from "@procedures/mongo";
+import { HybridStorage, MemoryStorage } from "@procedures/collections";
 
 // MongoDB-backed storage
 const mongoStorage = new MongoStorage<User>({ collection: "users" });

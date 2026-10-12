@@ -9,7 +9,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCommand } from "@mark1russell7/client-shell/command";
+import { runCommand } from "@procedures/shell/command";
 import type { VitestCoverageInput, VitestRunInput, VitestRunOutput } from "../../types.js";
 import { resolveVitestCli } from "../../vitest-cli.js";
 

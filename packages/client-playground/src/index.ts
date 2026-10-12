@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * // my-agg.play.ts
- * import { proc, ref, run } from "@mark1russell7/client-playground";
+ * import { proc, ref, run } from "@procedures/playground";
  *
  * run(
  *   proc(["dag", "traverse"]).input({
@@ -26,7 +26,7 @@
  * Run with: `npx tsx my-agg.play.ts`
  */
 
-import type { ProcedurePath, ProcedureRefJson } from "@mark1russell7/client";
+import type { ProcedurePath, ProcedureRefJson } from "@procedures/client";
 
 // =============================================================================
 // Output Reference
@@ -187,7 +187,7 @@ export async function run<T = unknown>(
 
   // Dynamic import to avoid bundling all of client
   const { Client, LocalTransport, PROCEDURE_REGISTRY } = await import(
-    "@mark1russell7/client"
+    "@procedures/client"
   );
 
   // The transport runs each procedure of the registry through invokeProcedure()
@@ -216,4 +216,4 @@ export async function run<T = unknown>(
 // Convenience Exports
 // =============================================================================
 
-export type { ProcedurePath, ProcedureRefJson } from "@mark1russell7/client";
+export type { ProcedurePath, ProcedureRefJson } from "@procedures/client";

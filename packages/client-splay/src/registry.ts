@@ -40,7 +40,7 @@ export interface ProcedureCaller {
  * @example
  * ```typescript
  * import { call } from "client";
- * import { createClientRegistry } from "@mark1russell7/client-splay";
+ * import { createClientRegistry } from "@procedures/splay";
  *
  * const registry = createClientRegistry(call, {
  *   namespace: "ui",

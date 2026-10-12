@@ -199,7 +199,7 @@ export type {
 } from "./define-procedure.js";
 
 // The storage layer, the synced registry and the procedure.store/load/sync/remote/register
-// procedures moved to @mark1russell7/client-store (roadmap 3.2): the program store.
+// procedures moved to @procedures/store (roadmap 3.2): the program store.
 
 // =============================================================================
 // Auto-register core procedures

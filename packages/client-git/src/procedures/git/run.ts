@@ -6,7 +6,7 @@
  * not stop git. Now each call is async, the signal kills git, and the output has a limit.
  */
 
-import { runCommand } from "@mark1russell7/client-shell/command";
+import { runCommand } from "@procedures/shell/command";
 import { GIT_MAX_BUFFER } from "./args.js";
 
 /** The part of the procedure context that the git procedures read. */

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 import "./register.js";
 import type { DbExecuteOutput, DbQueryOutput, LogsQueryOutput, LogsStoreOutput } from "./types.js";
 

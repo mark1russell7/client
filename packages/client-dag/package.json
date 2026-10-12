@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-dag",
+  "name": "@procedures/dag",
   "version": "0.1.0",
   "description": "Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit.",
   "keywords": [

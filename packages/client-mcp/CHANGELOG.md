@@ -1,4 +1,4 @@
-# @mark1russell7/client-mcp
+# @procedures/mcp-server
 
 ## 0.1.0
 

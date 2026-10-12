@@ -273,7 +273,7 @@ const write = (name, data) => {
 write("packages", packages.sort((a, b) => a.level - b.level || a.dir.localeCompare(b.dir)));
 // The measured numbers of the home page (scripts/site-metrics.mjs)
 const tests = countTests(PACKAGES);
-const npm = { name: "@mark1russell7/client", version: await npmVersion("@mark1russell7/client") };
+const npm = { name: "@procedures/client", version: await npmVersion("@procedures/client") };
 const metrics = { tests: tests.tests, testFiles: tests.files, npm };
 
 write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });

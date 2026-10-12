@@ -1,6 +1,6 @@
-# @mark1russell7/client-s3
+# @procedures/s3
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-s3?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-s3)
+[![npm](https://img.shields.io/npm/v/@procedures/s3?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/s3)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -26,7 +26,7 @@ The package auto-registers 9 procedures:
 ```mermaid
 graph TB
     subgraph "Client Ecosystem"
-        Client["@mark1russell7/client"]
+        Client["@procedures/client"]
         Registry["Procedure Registry"]
     end
 
@@ -78,8 +78,8 @@ graph TB
 ```mermaid
 graph LR
     App["Your Application"]
-    ClientS3["@mark1russell7/client-s3"]
-    Client["@mark1russell7/client"]
+    ClientS3["@procedures/s3"]
+    Client["@procedures/client"]
     Zod["zod"]
     AWSSDK["@aws-sdk/client-s3"]
 
@@ -97,14 +97,14 @@ graph LR
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-s3
+npm install @procedures/s3
 ```
 
 ### Peer Dependencies
 
 ```json
 {
-  "@mark1russell7/client": "github:mark1russell7/client#main",
+  "@procedures/client": "github:mark1russell7/client#main",
   "@aws-sdk/client-s3": "^3.705.0",
   "zod": "^3.24.0"
 }
@@ -137,7 +137,7 @@ hardcode credentials in your code.
 The package uses a singleton S3Client that's automatically configured from environment variables:
 
 ```typescript
-import { getS3Config, getS3Client, resetS3Client } from "@mark1russell7/client-s3";
+import { getS3Config, getS3Client, resetS3Client } from "@procedures/s3";
 
 // Get current config (from environment)
 const config = getS3Config();
@@ -544,8 +544,8 @@ interface S3MultipartAbortOutput {
 ### Basic Upload and Download
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-s3"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/s3"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -801,16 +801,16 @@ await client.exec(
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@mark1russell7/client-s3/register.js";
-import "@mark1russell7/client-mongo"; // registers its procedures
-import "@mark1russell7/client-fs"; // registers its procedures
+import "@procedures/s3/register.js";
+import "@procedures/mongo"; // registers its procedures
+import "@procedures/fs"; // registers its procedures
 ```
 
 ## Dependencies
 
 ### Runtime Dependencies
 
-- **@mark1russell7/client** - Core client procedure system
+- **@procedures/client** - Core client procedure system
 - **@aws-sdk/client-s3** (^3.705.0) - AWS SDK for S3
 - **zod** (^3.24.0) - Runtime type validation
 

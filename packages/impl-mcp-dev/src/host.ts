@@ -21,8 +21,8 @@ import {
   type ProcedureModule,
   type ProcedureRegistry,
   type ToolSurface,
-} from "@mark1russell7/client";
-import { McpServerTransport, mergeSurfaces, type BundleSurfaceModule } from "@mark1russell7/client-mcp";
+} from "@procedures/client";
+import { McpServerTransport, mergeSurfaces, type BundleSurfaceModule } from "@procedures/mcp-server";
 import { loadConfig, type McpServerConfig } from "./config.js";
 
 /** The exports of a bundle's `module` entry: its module and the lists of its tools. */

@@ -1,11 +1,11 @@
 /**
- * @mark1russell7/client-cli
+ * @procedures/cli-run
  *
  * Wraps the mark CLI as procedures using client-shell.
  *
  * @example
  * ```typescript
- * import { Client } from "@mark1russell7/client";
+ * import { Client } from "@procedures/client";
  *
  * // Equivalent to: mark lib new my-package
  * const result = await client.call(["cli", "run"], {

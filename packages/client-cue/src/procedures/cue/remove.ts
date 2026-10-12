@@ -5,7 +5,7 @@
  * Uses ctx.client.call() for file system operations (dogfooding).
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { CueRemoveInput, CueRemoveOutput } from "../../types.js";
 import { loadDependencies, saveDependencies } from "../../shared.js";
 

@@ -1,9 +1,9 @@
-# @mark1russell7/bundle-mcp
+# @procedures/bundle-mcp
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/bundle-mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/bundle-mcp)
+[![npm](https://img.shields.io/npm/v/@procedures/bundle-mcp?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/bundle-mcp)
 
 ```sh
-npm install @mark1russell7/bundle-mcp
+npm install @procedures/bundle-mcp
 ```
 
 `bundle-mcp` sets the tools that Claude gets from the MCP server (`impl-mcp-dev`). It imports the procedure packages, and it exports two lists that select the tools.
@@ -48,10 +48,10 @@ A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedur
 
 ## Use
 
-The MCP server imports `@mark1russell7/bundle-mcp/register.js`. That import registers the procedures and gives the two lists. The root import `@mark1russell7/bundle-mcp` registers nothing.
+The MCP server imports `@procedures/bundle-mcp/register.js`. That import registers the procedures and gives the two lists. The root import `@procedures/bundle-mcp` registers nothing.
 
 ```typescript
-import { mcpNamespaces, mcpExclude } from "@mark1russell7/bundle-mcp/register.js";
+import { mcpNamespaces, mcpExclude } from "@procedures/bundle-mcp/register.js";
 
 const exposed = (path: string[]): boolean =>
   mcpNamespaces.includes(path[0] ?? "") && !mcpExclude.includes(path.join("."));

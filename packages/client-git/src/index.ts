@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import "@mark1russell7/client-git";
+ * import "@procedures/git";
  *
  * // Use via client.call
  * await client.call(["git", "status"], { cwd: "./repo" });

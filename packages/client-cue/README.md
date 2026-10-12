@@ -1,9 +1,9 @@
-# @mark1russell7/client-cue
+# @procedures/cue
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-cue?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-cue)
+[![npm](https://img.shields.io/npm/v/@procedures/cue?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/cue)
 
 ```sh
-npm install @mark1russell7/client-cue
+npm install @procedures/cue
 ```
 
 `client-cue` gives the commands of `cue-config` as procedures. `cue-config` is the configuration generator of the general package `cue`: it writes `package.json`, `tsconfig.json` and `.gitignore` from a list of features in `dependencies.json`.
@@ -21,8 +21,8 @@ All five procedures are tools of the MCP server.
 ## Use
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-cue"; // registers cue.* and fs.*
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/cue"; // registers cue.* and fs.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

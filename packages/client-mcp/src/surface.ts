@@ -1,7 +1,7 @@
 /**
  * The tool surface of an MCP server: which procedures are tools.
  *
- * A bundle (for example `@mark1russell7/bundle-mcp`) registers procedures when it is imported.
+ * A bundle (for example `@procedures/bundle-mcp`) registers procedures when it is imported.
  * Its `register.js` exports `mcpNamespaces` (the first path segments of the tools) and
  * `mcpExclude` (procedure keys of those namespaces that are not tools). The dev-tools server
  * (`impl-mcp-dev`) and `mcp.serve` build their expose rule from these lists.
@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { surfaceRule, type ProcedurePath, type ToolSurface } from "@mark1russell7/client";
+import { surfaceRule, type ProcedurePath, type ToolSurface } from "@procedures/client";
 
 /** The tools of a server: the namespaces, less the excluded procedure keys (the core type). */
 export type { ToolSurface };

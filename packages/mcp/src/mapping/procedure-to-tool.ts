@@ -4,7 +4,7 @@
  * Converts procedures from PROCEDURE_REGISTRY to MCP tool definitions.
  */
 
-import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
+import type { AnyProcedure, ProcedurePath } from "@procedures/client";
 import type { McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";

@@ -5,7 +5,7 @@
  * MCP tool names should be valid identifiers (alphanumeric with dots/underscores).
  */
 
-import type { ProcedurePath } from "@mark1russell7/client";
+import type { ProcedurePath } from "@procedures/client";
 
 /**
  * Encode a procedure path to an MCP tool name.

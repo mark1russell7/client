@@ -22,7 +22,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 - `scripts/gen-data.mjs` reads the workspace: each `package.json`, and the procedures of each built package. It writes `src/data/generated/`. Git ignores that folder.
 - The site depends on each package that registers procedures, so `pnpm -r build` builds them first. The script stops with an error when a package is not built or does not load. `SITE_ALLOW_LOAD_FAILURES=1` lets a local build continue, and the footer then names the packages that did not load.
 - `scripts/core-fields.mjs` reads the input fields of the core procedures from their TypeScript source. Their runtime schemas do not list fields.
-- The Composer imports `@mark1russell7/client/browser`. That entry point has no Node server code.
+- The Composer imports `@procedures/client/browser`. That entry point has no Node server code.
 
 ## Commands
 
@@ -30,10 +30,10 @@ From the root of the repository:
 
 ```bash
 pnpm build                                    # build every package: the data reads their dist/
-pnpm --filter @mark1russell7/site dev         # the site with hot reload
-pnpm --filter @mark1russell7/site test        # the unit tests: the program model, the runtime, the TypeScript tab
-pnpm --filter @mark1russell7/site test:e2e    # the browser smoke test (Playwright) against the built site
-SITE_BASE=/ pnpm --filter @mark1russell7/site build
+pnpm --filter @procedures/site dev         # the site with hot reload
+pnpm --filter @procedures/site test        # the unit tests: the program model, the runtime, the TypeScript tab
+pnpm --filter @procedures/site test:e2e    # the browser smoke test (Playwright) against the built site
+SITE_BASE=/ pnpm --filter @procedures/site build
 ```
 
-The browser test needs Chromium: start `pnpm --filter @mark1russell7/site exec playwright install chromium` once.
+The browser test needs Chromium: start `pnpm --filter @procedures/site exec playwright install chromium` once.

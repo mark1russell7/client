@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
-import { ProcedureRegistry, ProcedureServer, defineProcedure, outputSchema } from "@mark1russell7/client";
+import { ProcedureRegistry, ProcedureServer, defineProcedure, outputSchema } from "@procedures/client";
 import { McpServerTransport } from "./mcp-transport.js";
 
 function echo(path: string[], tag: string) {

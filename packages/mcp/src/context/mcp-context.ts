@@ -4,7 +4,7 @@
  * Extended procedure context types when called via MCP transport.
  */
 
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { McpTransportType } from "../types.js";
 
 /**

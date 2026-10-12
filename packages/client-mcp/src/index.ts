@@ -37,7 +37,7 @@ export type {
   McpToolFilter,
   McpServerInfo,
   McpTransportType,
-} from "@mark1russell7/mcp";
+} from "@procedures/mcp";
 
 // Re-export mapping utilities
 export {
@@ -45,4 +45,4 @@ export {
   procedureToMcpTool,
   encodePath,
   decodePath,
-} from "@mark1russell7/mcp";
+} from "@procedures/mcp";

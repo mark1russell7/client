@@ -17,9 +17,9 @@ import {
   type BrowserGuardOptions,
   type HostPolicy,
   type Method,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import type { Request } from "express";
-import type { ProcedurePath } from "@mark1russell7/client";
+import type { ProcedurePath } from "@procedures/client";
 import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
 import { bearerToken, hostAllowed, originAllowed, tokenMatches } from "./security.js";
 

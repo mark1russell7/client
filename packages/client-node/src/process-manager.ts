@@ -9,7 +9,7 @@
  * - the registry removes old exit records, and `cleanup` removes the rest.
  */
 
-import { processes, type ManagedProcessInfo } from "@mark1russell7/client-shell/command";
+import { processes, type ManagedProcessInfo } from "@procedures/shell/command";
 import type { ProcessInfo } from "./types.js";
 
 /** The group of the node processes in the process registry. */

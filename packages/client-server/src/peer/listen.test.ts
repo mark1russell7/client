@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createServer, type Server } from "node:net";
-import { ProcedureRegistry } from "@mark1russell7/client";
+import { ProcedureRegistry } from "@procedures/client";
 import { createPeer } from "./index.js";
 
 /** A server on a free loopback port */

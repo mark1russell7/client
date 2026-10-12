@@ -1,6 +1,6 @@
-# @mark1russell7/client-server
+# @procedures/peer
 
-[![npm version](https://img.shields.io/npm/v/@mark1russell7/client-server.svg)](https://www.npmjs.com/package/@mark1russell7/client-server)
+[![npm version](https://img.shields.io/npm/v/@procedures/peer.svg)](https://www.npmjs.com/package/@procedures/peer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org)
 
@@ -92,19 +92,19 @@ graph TD
 ## Installation
 
 ```bash
-npm install @mark1russell7/client-server
+npm install @procedures/peer
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add @mark1russell7/client-server
+pnpm add @procedures/peer
 ```
 
 ### Dependencies
 
 This package depends on:
-- `@mark1russell7/client` - Core client/procedure system
+- `@procedures/client` - Core client/procedure system
 - `zod` - Schema validation
 - `zod-to-json-schema` - JSON schema generation
 - `express` (optional) - HTTP server for HTTP transport
@@ -114,7 +114,7 @@ This package depends on:
 ### Creating a Server Peer
 
 ```typescript
-import { createPeer } from "@mark1russell7/client-server";
+import { createPeer } from "@procedures/peer";
 
 // Create a peer with HTTP and WebSocket transports
 const peer = await createPeer({
@@ -154,8 +154,8 @@ await peer.stop();
 ### Using Server Procedures
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-server"; // registers its procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/peer"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -182,7 +182,7 @@ console.log(result);
 ### Connecting to Remote Peers
 
 ```typescript
-import { connect } from "@mark1russell7/client-server";
+import { connect } from "@procedures/peer";
 
 // Connect to a remote peer
 const connection = await connect({
@@ -218,7 +218,7 @@ await connection.disconnect();
 The discovery system automatically exchanges procedure manifests when peers connect:
 
 ```typescript
-import { discoveryAnnounceProcedure, getProcedureInfos, watchProcedures } from "@mark1russell7/client-server";
+import { discoveryAnnounceProcedure, getProcedureInfos, watchProcedures } from "@procedures/peer";
 
 // Get all registered procedures
 const procedures = getProcedureInfos();
@@ -243,7 +243,7 @@ unwatch();
 Generate TypeScript declarations or JSON manifests from registered procedures:
 
 ```typescript
-import { generateTypeScript, generateJson, generateJsonString } from "@mark1russell7/client-server";
+import { generateTypeScript, generateJson, generateJsonString } from "@procedures/peer";
 
 // Generate TypeScript declaration
 const tsDeclaration = generateTypeScript({
@@ -591,7 +591,7 @@ Configure CORS for HTTP transport:
 The `bundle-dev` package includes `client-server` for development workflows:
 
 ```typescript
-import "@mark1russell7/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev"; // registers its procedures
 
 // server.* procedures are now available
 await client.exec(["server", "create"], { ... });
@@ -603,8 +603,8 @@ Combine with other client packages for complete functionality:
 
 ```typescript
 // Start a server that exposes git procedures
-import "@mark1russell7/client-git"; // registers its procedures
-import { createPeer } from "@mark1russell7/client-server";
+import "@procedures/git"; // registers its procedures
+import { createPeer } from "@procedures/peer";
 
 const peer = await createPeer({
   id: "git-server",
@@ -621,7 +621,7 @@ await peer.start();
 
 ```typescript
 import express from "express";
-import { createPeer } from "@mark1russell7/client-server";
+import { createPeer } from "@procedures/peer";
 
 // Use existing Express app
 const app = express();
@@ -649,7 +649,7 @@ await peer.start();
 Run multiple peers in the same process:
 
 ```typescript
-import { createPeer } from "@mark1russell7/client-server";
+import { createPeer } from "@procedures/peer";
 
 const publicPeer = await createPeer({
   id: "public-api",
@@ -670,7 +670,7 @@ await privatePeer.start();
 Generate manifests for specific namespaces:
 
 ```typescript
-import { generateJson } from "@mark1russell7/client-server";
+import { generateJson } from "@procedures/peer";
 
 // Only git procedures
 const gitManifest = generateJson({ namespace: ["git"] });
@@ -682,7 +682,7 @@ const fsManifest = generateJson({ namespace: ["fs"] });
 ## Error Handling
 
 ```typescript
-import { connect } from "@mark1russell7/client-server";
+import { connect } from "@procedures/peer";
 
 try {
   const connection = await connect({
@@ -720,7 +720,7 @@ https://github.com/mark1russell7/client-server
 
 ## Related Packages
 
-- `@mark1russell7/client` - Core client/procedure system
-- `@mark1russell7/bundle-dev` - Development bundle including server procedures
-- `@mark1russell7/client-git` - Git procedure implementations
-- `@mark1russell7/client-fs` - Filesystem procedure implementations
+- `@procedures/client` - Core client/procedure system
+- `@procedures/bundle-dev` - Development bundle including server procedures
+- `@procedures/git` - Git procedure implementations
+- `@procedures/fs` - Filesystem procedure implementations

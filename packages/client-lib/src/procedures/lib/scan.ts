@@ -7,7 +7,7 @@
  */
 
 import { join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { LibScanInput, LibScanOutput, PackageInfo } from "../../types.js";
 import { extractEcosystemDeps, packagesDir, resolveWorkspaceRoot } from "../../workspace.js";
 

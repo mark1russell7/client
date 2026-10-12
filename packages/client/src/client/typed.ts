@@ -6,8 +6,8 @@
  *
  * @example
  * ```typescript
- * import { createTypedCaller } from "@mark1russell7/client";
- * import type { MongoProcedures, ProcedureInput, ProcedureOutput } from "@mark1russell7/client-mongo";
+ * import { createTypedCaller } from "@procedures/client";
+ * import type { MongoProcedures, ProcedureInput, ProcedureOutput } from "@procedures/mongo";
  *
  * // Create typed caller
  * const call = createTypedCaller<MongoProcedures>(client.call.bind(client));
@@ -108,7 +108,7 @@ export interface TypedCaller<T extends ProcedureNamespace> {
  *
  * @example
  * ```typescript
- * import type { MongoProcedures } from "@mark1russell7/client-mongo";
+ * import type { MongoProcedures } from "@procedures/mongo";
  *
  * const typedCall = createTypedCaller<MongoProcedures>(client.call.bind(client));
  *

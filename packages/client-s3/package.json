@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-s3",
+  "name": "@procedures/s3",
   "version": "0.1.0",
   "description": "AWS S3 as typed procedures: upload, download with safe part files, list, delete and multipart uploads.",
   "keywords": [
@@ -65,7 +65,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.705.0",
-    "@mark1russell7/client": "workspace:*",
+    "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

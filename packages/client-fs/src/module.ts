@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
 import { exists } from "./procedures/fs/exists.js";
@@ -221,7 +221,7 @@ const fsReadJsonProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const fsModule: ProcedureModule = defineModule("@mark1russell7/client-fs", [
+export const fsModule: ProcedureModule = defineModule("@procedures/fs", [
     fsReadProcedure,
     fsWriteProcedure,
     fsExistsProcedure,

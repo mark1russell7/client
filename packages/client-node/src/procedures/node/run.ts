@@ -9,7 +9,7 @@
  * killed only the direct child.
  */
 
-import { runCommand } from "@mark1russell7/client-shell/command";
+import { runCommand } from "@procedures/shell/command";
 import type { NodeRunInput, NodeRunOutput } from "../../types.js";
 
 /** The end of the output that a timeout error shows. */

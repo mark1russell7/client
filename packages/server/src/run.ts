@@ -21,9 +21,9 @@ import {
   type HostPolicy,
   type ProcedureModule,
   type ProcedureRegistry,
-} from "@mark1russell7/client";
-import { createPeer, type Peer, type PeerEndpoint } from "@mark1russell7/client-server";
-import serverModule from "@mark1russell7/client-server/module";
+} from "@procedures/client";
+import { createPeer, type Peer, type PeerEndpoint } from "@procedures/peer";
+import serverModule from "@procedures/peer/module";
 import { parseConfig } from "./config.js";
 import type { ServerConfig } from "./types.js";
 

@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { Client, LocalTransport, PROCEDURE_REGISTRY, jsonSchemaOf } from "@mark1russell7/client";
+import { Client, LocalTransport, PROCEDURE_REGISTRY, jsonSchemaOf } from "@procedures/client";
 import { procedures } from "../register.js";
 import { setDefaultConnection } from "../connection.js";
 import { FakeServer, fakeConnection } from "../../test/fake-mongo.js";

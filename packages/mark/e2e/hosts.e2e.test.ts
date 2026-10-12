@@ -51,7 +51,7 @@ describe.skipIf(!built)("mark mcp", () => {
 describe.skipIf(!built)("mark serve", () => {
   it("serves the procedures of a package from mark's folder, with the token and the expose list", async () => {
     const port = await freePort();
-    const child = spawn(process.execPath, [BIN, "serve", "--port", String(port), "--token", "t", "--procedures", "@mark1russell7/client-fs", "--expose", "fs.exists"], {
+    const child = spawn(process.execPath, [BIN, "serve", "--port", String(port), "--token", "t", "--procedures", "@procedures/fs", "--expose", "fs.exists"], {
       windowsHide: true,
     });
     try {

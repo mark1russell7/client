@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { Client, LocalTransport, ProcedureRegistry, type AnyProcedure } from "@mark1russell7/client";
+import { Client, LocalTransport, ProcedureRegistry, type AnyProcedure } from "@procedures/client";
 import { executeArgs, type CliContext } from "./cli.js";
 import type { Asker, Terminal } from "./ask.js";
 import { testProcedures } from "../test/procedures.js";

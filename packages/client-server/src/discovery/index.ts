@@ -9,7 +9,7 @@ import {
   createProcedure,
   type Procedure,
   PROCEDURE_REGISTRY,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import { schema } from "../schema.js";
 import type {
   ProcedureInfo,

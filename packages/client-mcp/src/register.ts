@@ -4,7 +4,7 @@
  * which registers nothing: a host with its own registry uses that one.
  */
 
-import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY } from "@procedures/client";
 import { mcpModule } from "./module.js";
 
 export * from "./module.js";

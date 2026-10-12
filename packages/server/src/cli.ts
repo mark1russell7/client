@@ -7,7 +7,7 @@
  * policy of the core (roadmap 2.3). `mark serve` starts the same server.
  *
  * Usage:
- *   procedure-server --procedures @mark1russell7/client-mongo --port 3000
+ *   procedure-server --procedures @procedures/mongo --port 3000
  */
 
 import { runServer } from "./run.js";

@@ -1,4 +1,4 @@
-# @mark1russell7/client-server
+# @procedures/peer
 
 ## 0.1.0
 

@@ -7,7 +7,7 @@
  */
 
 import type { Collection, Db, Document } from "mongodb";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import { ensureConnection } from "./connection.js";
 
 /** The input fields that select the database and the collection. */

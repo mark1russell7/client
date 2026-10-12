@@ -5,18 +5,18 @@
  */
 
 // Core orchestration
-import "@mark1russell7/client-lib";
-import "@mark1russell7/client-procedure";
-import "@mark1russell7/client-cue";
+import "@procedures/lib";
+import "@procedures/procedure";
+import "@procedures/cue";
 
 // Infrastructure
-import "@mark1russell7/client-docker";
+import "@procedures/docker";
 
 // Databases
-import "@mark1russell7/client-mongo";
-import "@mark1russell7/client-sqlite";
+import "@procedures/mongo";
+import "@procedures/sqlite";
 
 // Testing
-import "@mark1russell7/client-vitest";
+import "@procedures/vitest";
 
 export * from "./module.js";

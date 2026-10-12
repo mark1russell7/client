@@ -1,9 +1,9 @@
-# @mark1russell7/client-shell
+# @procedures/shell
 
-[![npm](https://img.shields.io/npm/v/@mark1russell7/client-shell?color=2346c4&label=npm)](https://www.npmjs.com/package/@mark1russell7/client-shell)
+[![npm](https://img.shields.io/npm/v/@procedures/shell?color=2346c4&label=npm)](https://www.npmjs.com/package/@procedures/shell)
 
 ```sh
-npm install @mark1russell7/client-shell
+npm install @procedures/shell
 ```
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -43,7 +43,7 @@ This package is the **foundation** for all CLI wrapper packages.
 
 ### Command helpers
 
-The wrapper packages start their programs with the helpers of `@mark1russell7/client-shell/command`. This entry point registers no procedures.
+The wrapper packages start their programs with the helpers of `@procedures/shell/command`. This entry point registers no procedures.
 
 | Helper | What it does |
 |---|---|
@@ -62,7 +62,7 @@ The rules of the helpers:
 - When the host ends, the helpers kill each child that still runs.
 
 ```typescript
-import { runCommand } from "@mark1russell7/client-shell/command";
+import { runCommand } from "@procedures/shell/command";
 
 const result = await runCommand("git", { args: ["status", "--porcelain"], cwd, signal: ctx.signal });
 ```
@@ -167,8 +167,8 @@ graph TB
 ## Quick Start
 
 ```typescript
-import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import "@mark1russell7/client-shell"; // registers its procedures // Auto-registers procedures
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/shell"; // registers its procedures // Auto-registers procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -412,7 +412,7 @@ Claude: [Uses shell.run with command: "npm", args: ["install"]]
 
 - **Node.js** >= 22
 - **Dependencies:**
-  - `@mark1russell7/client` (peer dependency)
+  - `@procedures/client` (peer dependency)
   - `zod` ^3.24.0
 
 ---

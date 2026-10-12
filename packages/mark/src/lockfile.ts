@@ -17,7 +17,7 @@ import {
   removeLockfileForPort,
   writeLockfile as writeSharedLockfile,
   type LockfileData,
-} from "@mark1russell7/client-server/lockfile";
+} from "@procedures/peer/lockfile";
 
 export type { LockfileData };
 export { checkServer, findServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort };

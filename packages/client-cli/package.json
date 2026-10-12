@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-cli",
+  "name": "@procedures/cli-run",
   "version": "0.1.0",
   "description": "Run any mark CLI command as a procedure (cli.run) with a safe argv mapping: no shell, typed flags and captured output.",
   "keywords": [
@@ -64,8 +64,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
-    "@mark1russell7/client-shell": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

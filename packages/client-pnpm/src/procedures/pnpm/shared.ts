@@ -11,7 +11,7 @@
 
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 import type { PnpmCommandOutput } from "../../types.js";
 
 /** A value that pnpm reads as an argument (a package, a script, a path): it must not start with "-". */

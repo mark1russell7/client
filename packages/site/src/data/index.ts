@@ -98,7 +98,7 @@ export const packages: PackageInfo[] = packagesJson as unknown as PackageInfo[];
 export const mcpTools: string[] = catalog.mcpTools;
 export const failedPackages: LoadFailure[] = catalog.failed ?? [];
 export const build: BuildInfo = catalog.build ?? { commit: null, date: null };
-export const metrics: SiteMetrics = catalog.metrics ?? { tests: 0, testFiles: 0, npm: { name: "@mark1russell7/client", version: null } };
+export const metrics: SiteMetrics = catalog.metrics ?? { tests: 0, testFiles: 0, npm: { name: "@procedures/client", version: null } };
 
 const byKey = new Map(procedures.map((procedure) => [procedure.key, procedure]));
 

@@ -9,10 +9,10 @@
  * (../program-store/procedures.ts, roadmap 3.2).
  */
 
-import { defineProcedure } from "@mark1russell7/client";
-import type { AnyProcedure, ProcedureContext, ProcedurePath } from "@mark1russell7/client";
-import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@mark1russell7/client";
-import { pathToKey } from "@mark1russell7/client";
+import { defineProcedure } from "@procedures/client";
+import type { AnyProcedure, ProcedureContext, ProcedurePath } from "@procedures/client";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@procedures/client";
+import { pathToKey } from "@procedures/client";
 import type { HandlerReference, SerializedProcedure } from "./types.js";
 import { deserializeProcedure, deserializeProcedureSync } from "./serialization.js";
 import { getProcedureStore, type SyncedProcedureRegistry } from "./synced-registry.js";

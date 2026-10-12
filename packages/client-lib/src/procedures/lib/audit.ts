@@ -6,7 +6,7 @@
  */
 
 import { basename, join } from "node:path";
-import { PROCEDURE_REGISTRY, type AnyProcedure, type ProcedureContext } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import type {
   FlagNotice,
   LibAuditInput,

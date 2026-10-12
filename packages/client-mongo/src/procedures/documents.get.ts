@@ -8,7 +8,7 @@ import {
   type Procedure,
   type ProcedureContext,
   zodAdapter,
-} from "@mark1russell7/client";
+} from "@procedures/client";
 import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
 import { described, idTypeField, scopeFields } from "./input-schemas.js";
 import { z } from "zod";

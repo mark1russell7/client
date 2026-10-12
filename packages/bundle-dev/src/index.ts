@@ -1,5 +1,5 @@
 /**
- * @mark1russell7/bundle-dev
+ * @procedures/bundle-dev
  *
  * Dev workflow bundle - aggregates client packages for development.
  *
@@ -16,7 +16,7 @@
  * @example
  * ```typescript
  * // Import the bundle to register all procedures
- * import "@mark1russell7/bundle-dev/register.js";
+ * import "@procedures/bundle-dev/register.js";
  *
  * // Now all procedures are available
  * await client.call(["pnpm", "install"], {});

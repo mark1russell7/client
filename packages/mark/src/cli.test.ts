@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { Client, LocalTransport, ProcedureRegistry } from "@mark1russell7/client";
+import { Client, LocalTransport, ProcedureRegistry } from "@procedures/client";
 import { executeArgs, type CliContext } from "./cli.js";
 import { failureOf } from "./failure.js";
 import { lineReader, runLines, tokenize } from "./repl.js";

@@ -1,7 +1,7 @@
 // The measured numbers of the home page, made at build time:
 // - the tests of the repository: each `it("…")` and `test("…")` in the test files of the packages;
 // - the npm state of the library: the install command of the home page names npm only when
-//   @mark1russell7/client is on the registry (else it shows the clone of the repository).
+//   @procedures/client is on the registry (else it shows the clone of the repository).
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";

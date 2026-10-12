@@ -2,7 +2,7 @@
  * Module (no side effects): the vitest procedures as data, for `createRegistry()`.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
 import {
   VitestCoverageInputSchema,
   VitestListInputSchema,
@@ -93,7 +93,7 @@ const vitestListProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const vitestModule: ProcedureModule = defineModule("@mark1russell7/client-vitest", [
+export const vitestModule: ProcedureModule = defineModule("@procedures/vitest", [
   vitestRunProcedure,
   vitestCoverageProcedure,
   vitestWatchProcedure,

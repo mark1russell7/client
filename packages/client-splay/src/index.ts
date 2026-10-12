@@ -14,7 +14,7 @@
  * import {
  *   createClientRegistry,
  *   createReactHydrate,
- * } from "@mark1russell7/client-splay";
+ * } from "@procedures/splay";
  *
  * // Create a registry backed by client procedures
  * const registry = createClientRegistry(call, {
@@ -107,5 +107,5 @@ export {
 // =============================================================================
 
 // The components: serializable UI descriptors made by procedures. They moved here from
-// "@mark1russell7/client/components" (roadmap 3.4: this is the UI package of the ecosystem).
+// "@procedures/client/components" (roadmap 3.4: this is the UI package of the ecosystem).
 export * from "./components/index.js";

@@ -7,9 +7,9 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, RUNS_REFS_TAG, defineModule, type ProcedureModule } from "@mark1russell7/client";
-import gitModule from "@mark1russell7/client-git/module";
-import fsModule from "@mark1russell7/client-fs/module";
+import { createProcedure, zodAdapter, RUNS_REFS_TAG, defineModule, type ProcedureModule } from "@procedures/client";
+import gitModule from "@procedures/git/module";
+import fsModule from "@procedures/fs/module";
 import {
   libScan,
   libRename,
@@ -51,7 +51,7 @@ import {
   DagTraverseOutputSchema,
   CoreCatchOutputSchema,
 } from "./types.js";
-import type { ProcedureContext } from "@mark1russell7/client";
+import type { ProcedureContext } from "@procedures/client";
 
 // =============================================================================
 // lib.* Procedures
@@ -190,7 +190,7 @@ const coreCatchProcedure = createProcedure()
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
-export const libModule: ProcedureModule = defineModule("@mark1russell7/client-lib", [
+export const libModule: ProcedureModule = defineModule("@procedures/lib", [
     // lib.* procedures (canonical home)
     libScanProcedure,
     libRenameProcedure,

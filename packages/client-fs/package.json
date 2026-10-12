@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@mark1russell7/client-fs",
+  "name": "@procedures/fs",
   "version": "0.1.0",
   "description": "File system procedures: read, write, copy, move, glob, exists, mkdir and JSON read and write, callable in process, over RPC or from Claude through MCP.",
   "keywords": [
@@ -65,7 +65,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/client": "workspace:*",
+    "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

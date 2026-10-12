@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { InMemoryStorage } from "@mark1russell7/client-collections";
+import { InMemoryStorage } from "@procedures/collections";
 import { MemoryProgramStore } from "./memory.js";
 import { FileProgramStore } from "./file.js";
 import { CollectionProgramStore } from "./collection.js";
