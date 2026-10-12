@@ -8,11 +8,13 @@ import { Catalog } from "./pages/Catalog";
 import { Architecture } from "./pages/Architecture";
 import { Claude } from "./pages/Claude";
 import { Status } from "./pages/Status";
+import { Lab } from "./pages/Lab";
 
 const NAV: Array<{ page: string; label: string }> = [
   { page: "composer", label: "Composer" },
   { page: "catalog", label: "Procedures" },
   { page: "architecture", label: "Architecture" },
+  { page: "lab", label: "Lab" },
   { page: "claude", label: "What Claude sees" },
   { page: "status", label: "Status" },
 ];
@@ -109,6 +111,9 @@ export function App(): ReactElement {
       break;
     case "status":
       page = <Status route={route} />;
+      break;
+    case "lab":
+      page = <Lab />;
       break;
     default:
       page = <Home />;
