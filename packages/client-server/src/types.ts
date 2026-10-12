@@ -51,6 +51,8 @@ export interface ServerCreateInput {
   autoRegister?: boolean | undefined;
   /** A secret that every request must carry (each transport that has no token of its own gets this one) */
   token?: string | undefined;
+  /** The procedures to serve: exact keys (`git.status`) or prefixes (`git.*`). Default: every procedure */
+  expose?: string[] | undefined;
 }
 
 export interface ServerCreateOutput {

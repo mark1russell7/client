@@ -38,6 +38,8 @@ export function parseConfig(argv: string[]): ServerConfig {
   let basePath: string | undefined;
   let cors: boolean | undefined;
   let verbose = false;
+  let serverToken: string | null | undefined;
+  const expose: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]!;
@@ -86,6 +88,16 @@ export function parseConfig(argv: string[]): ServerConfig {
       case "--base-path":
         basePath = value();
         break;
+      case "--token":
+        serverToken = value();
+        break;
+      case "--no-token":
+        serverToken = null;
+        break;
+      case "--expose":
+      case "-e":
+        expose.push(...value().split(",").map((p) => p.trim()).filter((p) => p.length > 0));
+        break;
       case "--verbose":
       case "-v":
         verbose = true;
@@ -124,7 +136,7 @@ export function parseConfig(argv: string[]): ServerConfig {
     return { type };
   });
 
-  return { procedures, transports, verbose };
+  return { procedures, transports, verbose, token: serverToken, expose };
 }
 
 function printHelp(): void {
@@ -153,6 +165,16 @@ OPTIONS:
 
   --cors                    Enable CORS
   --no-cors                 Disable CORS (default)
+
+  --token <secret>          The token that every request must send
+                            (Authorization: Bearer <token>, or ?token= for
+                            WebSocket). Default: SERVER_TOKEN, or a random
+                            token that the server prints at start
+  --no-token                Serve without a token (only for a trusted host)
+
+  --expose, -e <patterns>   Comma-separated procedures to serve: exact keys
+                            (git.status) or prefixes (git.*)
+                            Default: every loaded procedure
 
   --verbose, -v             Verbose output
 

@@ -12,7 +12,19 @@ describe("parseConfig", () => {
       procedures: [],
       transports: [{ type: "http", port: 3000, host: "127.0.0.1", basePath: "/api" }],
       verbose: false,
+      token: undefined,
+      expose: [],
     });
+  });
+
+  it("reads the token and the procedures to serve", () => {
+    expect(parseConfig(["--token", "s3cret"]).token).toBe("s3cret");
+    expect(parseConfig(["--no-token"]).token).toBeNull();
+    expect(parseConfig(["--expose", "git.*,mongo.documents.find", "-e", "fs.read"]).expose).toEqual([
+      "git.*",
+      "mongo.documents.find",
+      "fs.read",
+    ]);
   });
 
   it("reads the options in any order", () => {

@@ -8,6 +8,7 @@ import { schema } from "../schema.js";
 import { serverCreateInputSchema } from "../input-schemas.js";
 import type { ServerCreateInput, ServerCreateOutput } from "../types.js";
 import { createPeer, type Peer } from "../peer/index.js";
+import { exposeRule } from "../expose.js";
 
 // Use pass-through schemas for simplicity (validation happens at Zod level if needed)
 const serverCreateOutputSchema = schema<ServerCreateOutput>();
@@ -43,6 +44,7 @@ export const serverCreateProcedure: Procedure<
       transports,
       autoRegister,
       registry: PROCEDURE_REGISTRY,
+      ...(input.expose ? { expose: exposeRule(input.expose) } : {}),
     });
 
     // Start the peer

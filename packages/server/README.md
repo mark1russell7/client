@@ -153,10 +153,13 @@ server -p @mark1russell7/client-mongo/register -t http,websocket
 | `--procedures` | `-p` | - | Comma-separated procedure packages to load |
 | `--transport` | `-t` | `http` | Transports: http, websocket, local |
 | `--port` | - | `3000` | Port for the primary transport |
-| `--host` | - | `0.0.0.0` | Host to bind to |
+| `--host` | - | `127.0.0.1` | Host to bind to. `0.0.0.0` serves every loaded procedure to the network |
 | `--base-path` | - | `/api` | Base path for HTTP transport |
-| `--cors` | - | `true` | Enable CORS |
+| `--cors` | - | off | Enable CORS |
 | `--no-cors` | - | - | Disable CORS |
+| `--token` | - | `SERVER_TOKEN`, or a random token that the server prints | The token that every request sends: `Authorization: Bearer <token>`, or `?token=` for WebSocket |
+| `--no-token` | - | - | Serve without a token (only on a trusted host) |
+| `--expose` | `-e` | every loaded procedure | Comma-separated procedures to serve: exact keys (`git.status`) or prefixes (`git.*`) |
 | `--verbose` | `-v` | - | Verbose output |
 | `--help` | `-h` | - | Show help |
 

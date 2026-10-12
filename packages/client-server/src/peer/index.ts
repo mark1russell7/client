@@ -16,6 +16,7 @@ import {
   type Method,
 } from "@mark1russell7/client";
 import type { Request } from "express";
+import type { ProcedurePath } from "@mark1russell7/client";
 import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
 import { bearerToken, hostAllowed, originAllowed, tokenMatches } from "./security.js";
 
@@ -51,6 +52,8 @@ export interface PeerOptions {
   autoRegister?: boolean;
   /** Procedure registry to use */
   registry?: ProcedureRegistry;
+  /** The procedures that the peer serves (see `exposeRule`). Without it, the peer serves every procedure. */
+  expose?: ((path: ProcedurePath) => boolean) | undefined;
 }
 
 export interface PeerEndpoint {
@@ -93,6 +96,7 @@ class PeerImpl implements Peer {
     this.server = new ProcedureServer({
       autoRegister: options.autoRegister ?? true,
       registry: this.registry,
+      ...(options.expose ? { expose: options.expose } : {}),
     });
   }
 

@@ -52,6 +52,10 @@ export const serverCreateInputSchema: ZodLikeSchema<ServerCreateInput> = zodAdap
       .describe("The transports to start (default: HTTP on port 3000)"),
     autoRegister: z.boolean().optional().describe("Serve every procedure of the registry (default: true)"),
     token: z.string().min(1).optional().describe("A secret that every request must send"),
+    expose: z
+      .array(z.string().min(1))
+      .optional()
+      .describe("The procedures to serve: exact keys (git.status) or prefixes (git.*). Default: every procedure"),
   })
 );
 

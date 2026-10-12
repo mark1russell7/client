@@ -28,6 +28,7 @@ export type {
 
 // Peer
 export { createPeer, type Peer, type PeerOptions, type PeerEndpoint } from "./peer/index.js";
+export { exposeRule } from "./expose.js";
 
 // Procedures
 export {
