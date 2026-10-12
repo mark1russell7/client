@@ -733,7 +733,8 @@ const hydrationObservers = new Set<(event: HydrationEvent) => void>();
  * This function adds an observer of every hydration in this process (or worker), and gives the
  * function that removes it. A host that does not call `hydrateInput` itself (the Composer of
  * the site runs `client.exec()`) uses it for its trace. The observer gets the events of all
- * concurrent hydrations: use it where one program runs at a time.
+ * concurrent hydrations: use it where one program runs at a time. For the events of one program,
+ * give `onRef` to that program: `client.exec(ref, input, { onRef })` (docs review DOC-10).
  */
 export function observeHydration(observer: (event: HydrationEvent) => void): () => void {
   hydrationObservers.add(observer);

@@ -8,6 +8,7 @@
 import type { ZodLike, ZodErrorLike } from "../client/validation/types.js";
 import type { CollectionStorage } from "@mark1russell7/client-collections";
 import type { EventBus } from "../events/types.js";
+import type { HydrationEvent } from "./ref.js";
 
 // =============================================================================
 // Procedure Path
@@ -163,6 +164,13 @@ export interface ProcedureContext {
    * not set, such a procedure uses `PROCEDURE_REGISTRY`.
    */
   registry?: ProcedureRegistryLike;
+
+  /**
+   * The hydration observer of the program that runs this procedure (`client.exec(ref, input,
+   * { onRef })`). A procedure that hydrates refs itself (control flow, a runner) gives it to
+   * `hydrateInput`, so a trace sees the events of its own program only.
+   */
+  onRef?: ((event: HydrationEvent) => void) | undefined;
 }
 
 /**

@@ -15,6 +15,7 @@ import { defineProcedure } from "../define.js";
 import { outputSchema } from "./schemas.js";
 import { ProcedureRegistry } from "../registry.js";
 import { allCoreProcedures } from "./index.js";
+import { observeHydration } from "../ref.js";
 
 const stubTransport = { send: async function* () {} } as unknown as ConstructorParameters<typeof Client>[0];
 
@@ -108,6 +109,32 @@ describe("DOC-2: client.eval evaluates like exec()", () => {
     });
     expect(result).toBe(2);
     expect(calls).toEqual(["else"]);
+  });
+});
+
+describe("DOC-10: the hydration observer of one program", () => {
+  it("exec(ref, input, { onRef }) reports the events of its own program, also inside control flow", async () => {
+    const { client } = makeClient();
+    const a: string[] = [];
+    const b: string[] = [];
+    const all: string[] = [];
+    const stop = observeHydration((event) => all.push(event.path.join(".")));
+    try {
+      await Promise.all([
+        client.exec(identity(value("a", 1)), undefined, { onRef: (event) => a.push(event.path.join(".")) }),
+        client.exec(
+          { $proc: ["client", "conditional"], input: { condition: true, then: { x: add(3, 4) } } },
+          undefined,
+          { onRef: (event) => b.push(event.path.join(".")) },
+        ),
+      ]);
+    } finally {
+      stop();
+    }
+    expect(a).toEqual(["test.value"]);
+    expect(b).toEqual(["client.add"]);
+    // The process-wide observer still sees every program
+    expect(all.sort()).toEqual(["client.add", "test.value"]);
   });
 });
 

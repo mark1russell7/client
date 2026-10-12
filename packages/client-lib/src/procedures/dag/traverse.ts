@@ -216,6 +216,7 @@ export async function dagTraverse(
       // Push "dag.traverse" onto context stack so refs with $when: "dag.traverse" execute
       const hydratedInput = await hydrateInput(visitInput, executor, {
         contextStack: ["dag.traverse"],
+        onRef: ctx.onRef,
         // The names of the chain around this procedure: a `$ref` in the visit can read them
         scope: scopeOf(input),
       });

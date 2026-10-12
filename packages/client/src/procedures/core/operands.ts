@@ -57,7 +57,7 @@ export function substituteRefs(value: unknown, scope: RefScope): unknown {
  * in `scope` and runs its nested refs, as `exec()` does for an input.
  */
 export async function hydrateOperand(value: unknown, ctx: ProcedureContext, scope?: RefScope): Promise<unknown> {
-  return hydrateInput(value, (path, input) => ctx.client.call(path, input), { scope, rawInput: rawRule(ctx) });
+  return hydrateInput(value, (path, input) => ctx.client.call(path, input), { scope, rawInput: rawRule(ctx), onRef: ctx.onRef });
 }
 
 /**

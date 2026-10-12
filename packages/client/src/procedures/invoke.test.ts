@@ -15,6 +15,7 @@ import { outputSchema, zodAdapter } from "./core/schemas.js";
 import { coreProcedures } from "./core/index.js";
 import { InvocationError, invokeProcedure, invokePath, outputItems, outputValue } from "./invoke.js";
 import type { ProcedureContext } from "./types.js";
+import { createRefScope, scopeOf, withScope } from "./ref.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -302,5 +303,25 @@ describe("route() output configs (H8)", () => {
     })) as unknown as { test: { failAfterOne: { success: boolean } } };
     expect(errors).toEqual(["broke after one"]);
     expect(response.test.failAfterOne.success).toBe(false);
+  });
+});
+
+describe("the scope of a raw input survives input validation (docs review DOC-10)", () => {
+  it("a procedure with a Zod schema gets the scope of its input", async () => {
+    const scope = createRefScope();
+    scope.outputs.set("outer", 42);
+    let seen: unknown;
+    const procedure = defineProcedure({
+      path: ["test", "runner"],
+      input: zodAdapter<{ x: number }>(z.object({ x: z.number() })),
+      output: outputSchema<unknown>(),
+      handler: (input: { x: number }) => {
+        seen = scopeOf(input)?.outputs.get("outer");
+        return input.x;
+      },
+    });
+    const value = await outputValue(await invokeProcedure(procedure, withScope({ x: 1 }, scope)));
+    expect(value).toBe(1);
+    expect(seen).toBe(42);
   });
 });

@@ -123,6 +123,7 @@ function createAggregationHandler(
     return hydrateInput(aggregation, (path, value) => ctx.client.call(path, value), {
       scope,
       rawInput: rawInputRule(ctx.registry ?? PROCEDURE_REGISTRY),
+      onRef: ctx.onRef,
     });
   };
 }
