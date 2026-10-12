@@ -8,8 +8,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { discoverFromEcosystem, loadEcosystemProcedures } from "./ecosystem.js";
+import { PROCEDURE_REGISTRY, pathToKey, type ProcedureRegistry } from "@mark1russell7/client";
+import { discoverFromEcosystem, loadEcosystemProcedures, loadEcosystemRegistry } from "./ecosystem.js";
 import { MANIFEST_VERSION, commandsOf, computeFingerprint, readFreshManifest, type Manifest } from "./manifest.js";
 
 const markDir = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,10 +18,21 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
+let registry: ProcedureRegistry;
+
 describe("the manifest of mark", () => {
   beforeAll(async () => {
+    // The registry of mark (roadmap 3.1) first: it imports the module entries, which register
+    // nothing. Then the old global loading, for the comparison below.
+    registry = (await loadEcosystemRegistry(false, false)).registry;
     await loadEcosystemProcedures(false, false);
   }, 120000);
+
+  it("has the procedures that the old global loading gave", () => {
+    const keys = (all: ReturnType<ProcedureRegistry["getAll"]>) => all.map((procedure) => pathToKey(procedure.path)).sort();
+    expect(registry).not.toBe(PROCEDURE_REGISTRY);
+    expect(keys(registry.getAll())).toEqual(keys(PROCEDURE_REGISTRY.getAll()));
+  });
 
   it("mark depends on each package that has procedures, so the build of mark comes after them", () => {
     const pkg = JSON.parse(readFileSync(join(markDir, "package.json"), "utf8")) as Record<string, Record<string, string>>;
@@ -35,7 +46,7 @@ describe("the manifest of mark", () => {
   it("is current after the build, and has the commands of the registry", async () => {
     const manifest = readFreshManifest();
     expect(manifest, "dist/manifest.json is missing or stale: build mark (pnpm --filter @mark1russell7/cli build)").not.toBeNull();
-    const expected = JSON.parse(JSON.stringify(await commandsOf(PROCEDURE_REGISTRY.getAll())));
+    const expected = JSON.parse(JSON.stringify(await commandsOf(registry.getAll())));
     expect(manifest!.commands).toEqual(expected);
   }, 120000);
 

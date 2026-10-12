@@ -7,5 +7,5 @@
  */
 
 export { parseConfig } from "./config.js";
-export { runServer, startServer, loadProcedureModule, type RunningServer } from "./run.js";
+export { runServer, startServer, loadProcedureModule, type RunningServer, type ServerRunOptions } from "./run.js";
 export type { ServerConfig, TransportConfig, ServerCreateResult } from "./types.js";

@@ -15,7 +15,17 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { PROCEDURE_REGISTRY, allCoreProcedures } from "@mark1russell7/client";
+import {
+  PROCEDURE_REGISTRY,
+  allCoreProcedures,
+  createRegistry,
+  defineModule,
+  pathToKey,
+  registerModules,
+  type AnyProcedure,
+  type ProcedureModule,
+  type ProcedureRegistry,
+} from "@mark1russell7/client";
 
 // =============================================================================
 // Types
@@ -26,12 +36,26 @@ interface PackageJson {
   client?: {
     procedures?: string;
   };
+  exports?: Record<string, unknown>;
 }
 
 interface DiscoveredPackage {
   name: string;
   path: string;
   proceduresPath: string;
+  /** The file of the side-effect-free `./module` entry, when the package has one (roadmap 3.1) */
+  modulePath?: string | undefined;
+}
+
+/** The file of the `./module` export of a package, relative to the package folder. */
+function moduleEntryOf(packageJson: PackageJson): string | undefined {
+  const entry = packageJson.exports?.["./module"];
+  if (typeof entry === "string") return entry;
+  if (entry && typeof entry === "object") {
+    const target = (entry as { import?: unknown; default?: unknown }).import ?? (entry as { default?: unknown }).default;
+    return typeof target === "string" ? target : undefined;
+  }
+  return undefined;
 }
 
 // =============================================================================
@@ -92,6 +116,7 @@ export function discoverFromEcosystem(root: string | null = findWorkspaceRoot())
         name: packageJson.name,
         path: packageDir,
         proceduresPath: packageJson.client.procedures,
+        modulePath: moduleEntryOf(packageJson),
       });
     }
   }
@@ -173,4 +198,61 @@ export function listEcosystemProcedurePackages(): Array<{ name: string; path: st
     name: pkg.name,
     path: pkg.path,
   }));
+}
+
+/** The core procedures that `mark` serves: all of them, also the ones that the core import does not register. */
+const allCoreModule: ProcedureModule = defineModule("@mark1russell7/client (all core procedures)", allCoreProcedures);
+
+/** The registry of `mark` and the names of the packages that it holds. */
+export interface EcosystemRegistry {
+  registry: ProcedureRegistry;
+  loaded: string[];
+}
+
+/**
+ * The module of a package: its `./module` entry (it registers nothing), or else the procedures
+ * that importing its procedures file adds to the global registry (a package of the old kind).
+ */
+async function moduleOfPackage(pkg: DiscoveredPackage): Promise<ProcedureModule | undefined> {
+  if (pkg.modulePath) {
+    const file = path.join(pkg.path, pkg.modulePath);
+    if (fs.existsSync(file)) {
+      const exports = (await import(pathToFileURL(file).href)) as { default?: ProcedureModule };
+      if (exports.default && Array.isArray(exports.default.procedures)) return exports.default;
+    }
+  }
+  const proceduresFile = path.join(pkg.path, pkg.proceduresPath);
+  if (!fs.existsSync(proceduresFile)) return undefined;
+  const before = new Set(PROCEDURE_REGISTRY.getAll().map((procedure) => pathToKey(procedure.path)));
+  await import(pathToFileURL(proceduresFile).href);
+  const added: AnyProcedure[] = PROCEDURE_REGISTRY.getAll().filter((procedure) => !before.has(pathToKey(procedure.path)));
+  return { name: pkg.name, procedures: added };
+}
+
+/**
+ * The registry of `mark` (roadmap 3.1): a registry of its own, built from the module of each
+ * workspace package that declares `client.procedures`, with all the core procedures. The global
+ * registry does not change for a package with a module entry. A package that fails to load gives
+ * one warning line on stderr, as with `loadEcosystemProcedures()`.
+ */
+export async function loadEcosystemRegistry(verbose = false, warn = true): Promise<EcosystemRegistry> {
+  const registry = createRegistry(allCoreModule);
+  const loaded: string[] = [];
+  for (const pkg of discoverFromEcosystem()) {
+    try {
+      const module = await moduleOfPackage(pkg);
+      if (!module) {
+        if (verbose) console.warn(`Procedures file not found (build the package): ${path.join(pkg.path, pkg.proceduresPath)}`);
+        continue;
+      }
+      registerModules(registry, [module]);
+      loaded.push(pkg.name);
+      if (verbose) console.log(`Loaded procedures from: ${pkg.name}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+      if (warn) console.warn(`mark: the procedures of ${pkg.name} did not load: ${message}`);
+      if (verbose && error instanceof Error && error.stack) console.warn(error.stack);
+    }
+  }
+  return { registry, loaded };
 }

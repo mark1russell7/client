@@ -2,11 +2,12 @@
  * CLI Server Mode
  *
  * Runs the CLI as a persistent server, exposing all ecosystem procedures
- * via HTTP. Uses server.create procedure internally (dogfooding).
+ * via HTTP. The server has the registry of mark (the module of each package, roadmap 3.1) and
+ * the host policy of the core (roadmap 2.3): the token in the lockfile.
  */
 
 import { print } from "./print.js";
-import { loadEcosystemProcedures } from "./ecosystem.js";
+import { loadEcosystemRegistry } from "./ecosystem.js";
 import { randomBytes } from "node:crypto";
 import { writeLockfile, removeLockfileForPort, getLockfilePath, currentBuild } from "./lockfile.js";
 
@@ -68,28 +69,16 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
 
   print.info("Starting CLI server mode...");
 
-  // Load all ecosystem procedures
+  // The registry of mark (roadmap 3.1): the module of each workspace package, with the server
+  // procedures (client-server is in the workspace)
   if (verbose) {
     print.info("Loading ecosystem procedures...");
   }
-  await loadEcosystemProcedures(verbose);
-
-  // Dynamic imports
-  const clientModule = await import("@mark1russell7/client");
-  const { Client, LocalTransport, PROCEDURE_REGISTRY } = clientModule;
-
-  // Note: Server procedures are already loaded via loadEcosystemProcedures above
-  // since client-server is in the ecosystem. No need to call registerServerProcedures().
-
-  // Create local transport and sync registry
-  // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1)
-  const transport = new LocalTransport({ registry: PROCEDURE_REGISTRY });
-  const client = new Client({ transport });
+  const { registry } = await loadEcosystemRegistry(verbose);
 
   // Build transport config
   const transports = buildTransports(options);
 
-  // DOGFOOD: Use server.create procedure
   // Every request must send this token. Only the lockfile (readable by this user) holds it.
   const token = randomBytes(32).toString("hex");
   const host = options.host ?? "127.0.0.1";
@@ -100,17 +89,22 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
     print.warning("A WebSocket-only server takes no `mark` commands: `mark` sends its commands over HTTP.");
   }
 
-  const result = await client.call<
-    { transports: typeof transports; autoRegister: boolean; token: string },
-    ServerCreateResult
-  >(
-    { service: "server", operation: "create" },
-    {
-      transports,
-      autoRegister: true,
-      token,
-    }
-  );
+  // The host policy of the core (roadmap 2.3): the token of each transport. The server of mark
+  // serves every procedure of the workspace to its one user, so it has no expose list.
+  const { hostPolicy } = await import("@mark1russell7/client");
+  const { createPeer } = await import("@mark1russell7/client-server");
+  const peer = await createPeer({
+    id: `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    transports,
+    registry,
+    policy: hostPolicy({ token }),
+  });
+  await peer.start();
+  const result: ServerCreateResult = {
+    serverId: peer.id,
+    endpoints: peer.getEndpoints(),
+    procedureCount: peer.getServer().procedureCount,
+  };
 
   // Write lockfile for client discovery. A client uses this server only from the same folder,
   // with the same build of mark, and when the health endpoint answers with this peer id.

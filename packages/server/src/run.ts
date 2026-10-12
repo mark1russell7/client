@@ -9,6 +9,9 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   PROCEDURE_REGISTRY,
   createRegistry,
@@ -24,26 +27,78 @@ import serverModule from "@mark1russell7/client-server/module";
 import { parseConfig } from "./config.js";
 import type { ServerConfig } from "./types.js";
 
-/** A package name without a final `/register` or `/register.js` (the form of the old examples). */
-function packageBase(spec: string): string {
-  return spec.replace(/\/register(\.js)?$/, "");
+/** A package name and the subpath after it: "@a/b/register" gives ["@a/b", "./register"]. */
+function splitSpec(spec: string): { name: string; subpath: string } {
+  const parts = spec.split("/");
+  const count = spec.startsWith("@") ? 2 : 1;
+  const name = parts.slice(0, count).join("/");
+  const rest = parts.slice(count).join("/");
+  return { name, subpath: rest ? `./${rest}` : "." };
+}
+
+/**
+ * The file of an export of a package (`subpath`: "." or "./module"), from the `node_modules`
+ * folders above `from`. Undefined when no folder has the package or the export.
+ */
+function resolveExport(name: string, subpath: string, from: string): string | undefined {
+  let dir = resolve(from);
+  for (;;) {
+    const folder = join(dir, "node_modules", ...name.split("/"));
+    const manifestPath = join(folder, "package.json");
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { exports?: Record<string, unknown>; main?: string };
+      const entry = manifest.exports?.[subpath] ?? manifest.exports?.[`${subpath}.js`];
+      const target =
+        typeof entry === "string"
+          ? entry
+          : ((entry as { import?: string; default?: string } | undefined)?.import ?? (entry as { default?: string } | undefined)?.default);
+      if (target) return join(folder, target);
+      if (subpath === "." && manifest.main) return join(folder, manifest.main);
+      return undefined;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+}
+
+/** The URL to import for a package export, from the first folder that has it; else the bare specifier. */
+function importTarget(name: string, subpath: string, folders: readonly string[]): string | undefined {
+  for (const from of folders) {
+    const file = resolveExport(name, subpath, from);
+    if (file && existsSync(file)) return pathToFileURL(file).href;
+  }
+  return undefined;
 }
 
 /**
  * The module of a procedure package: its `module` entry, or else the procedures that importing
- * the package adds to the global registry.
+ * the package adds to the global registry. A package resolves from the folders of `resolveFrom`
+ * (the current folder by default), then from this package. "pkg/register" (the form of the old
+ * examples) gives the module of "pkg". A file URL or a path is imported as it is.
  */
-export async function loadProcedureModule(spec: string): Promise<ProcedureModule> {
-  try {
-    const exports = (await import(`${packageBase(spec)}/module`)) as { default?: ProcedureModule };
-    if (exports.default && Array.isArray(exports.default.procedures)) return exports.default;
-  } catch {
-    // No module entry: the package registers on import
+export async function loadProcedureModule(spec: string, resolveFrom: readonly string[] = [process.cwd()]): Promise<ProcedureModule> {
+  const isFile = spec.startsWith("file:") || spec.startsWith(".") || isAbsolute(spec);
+  if (!isFile) {
+    const { name, subpath } = splitSpec(spec);
+    const moduleUrl = importTarget(name, "./module", resolveFrom);
+    try {
+      const exports = (await import(moduleUrl ?? `${name}/module`)) as { default?: ProcedureModule };
+      if (exports.default && Array.isArray(exports.default.procedures)) return exports.default;
+    } catch {
+      // No module entry: the package registers on import
+    }
+    return importedModule(spec, importTarget(name, subpath, resolveFrom) ?? spec);
   }
+  return importedModule(spec, spec.startsWith("file:") ? spec : pathToFileURL(resolve(spec)).href);
+}
+
+/** The procedures that importing `target` adds to the global registry, as a module. */
+async function importedModule(name: string, target: string): Promise<ProcedureModule> {
   const before = new Set(PROCEDURE_REGISTRY.getAll().map((procedure) => pathToKey(procedure.path)));
-  await import(spec);
+  await import(target);
   const added: AnyProcedure[] = PROCEDURE_REGISTRY.getAll().filter((procedure) => !before.has(pathToKey(procedure.path)));
-  return { name: spec, procedures: added };
+  return { name, procedures: added };
 }
 
 /** The server that `runServer()` started. */
@@ -66,13 +121,23 @@ function tokenOf(config: ServerConfig): { token: string | undefined; generated: 
   return { token: randomBytes(24).toString("hex"), generated: true };
 }
 
+/** The options of `startServer()` and `runServer()`. */
+export interface ServerRunOptions {
+  /** The folders that a `--procedures` package resolves from, first to last (default: the current folder). */
+  resolveFrom?: readonly string[] | undefined;
+}
+
 /** This function starts the server of a configuration. It returns when the transports listen. */
-export async function startServer(config: ServerConfig, log: (line: string) => void = console.log): Promise<RunningServer> {
+export async function startServer(
+  config: ServerConfig,
+  log: (line: string) => void = console.log,
+  options: ServerRunOptions = {}
+): Promise<RunningServer> {
   const modules: ProcedureModule[] = [serverModule];
   for (const spec of config.procedures) {
     if (config.verbose) log(`  Loading: ${spec}`);
     try {
-      modules.push(await loadProcedureModule(spec));
+      modules.push(await loadProcedureModule(spec, options.resolveFrom ?? [process.cwd()]));
     } catch (error) {
       throw new Error(`Failed to load procedure package ${spec}: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -101,7 +166,7 @@ export async function startServer(config: ServerConfig, log: (line: string) => v
  * The `server` CLI: parse the options, start the server, print where it listens, and keep the
  * process alive until a signal. `mark serve` calls it with its own arguments.
  */
-export async function runServer(argv: string[]): Promise<void> {
+export async function runServer(argv: string[], options: ServerRunOptions = {}): Promise<void> {
   const config = parseConfig(argv);
   console.log("Starting procedure server...");
   if (config.verbose) {
@@ -109,7 +174,7 @@ export async function runServer(argv: string[]): Promise<void> {
     console.log("  Transports:", config.transports.map((t) => t.type).join(", "));
   }
 
-  const running = await startServer(config);
+  const running = await startServer(config, console.log, options);
 
   console.log("\nServer started!");
   console.log(`  Server ID: ${running.peer.id}`);
