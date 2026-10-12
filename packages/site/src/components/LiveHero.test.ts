@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { compactJson, replayEvents } from "./LiveHero";
+import { replayEvents } from "./LiveHero";
+import { compactJson } from "../lib/json-text";
 import type { TraceCall } from "../lib/runtime";
 
 describe("the live panel of the home page", () => {

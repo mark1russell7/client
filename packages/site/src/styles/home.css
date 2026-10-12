@@ -431,6 +431,14 @@
   overflow-wrap: break-word;
 }
 
+/* ---- The usage of a procedure (the catalog) ---- */
+
+.usage-label {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
 /* ---- Not found ---- */
 
 .not-found {
