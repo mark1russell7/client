@@ -57,14 +57,5 @@ export {
 } from "./factory.js";
 export type { CreateSyncedRegistryConfig } from "./factory.js";
 
-// Procedures
-export {
-  procedureRegisterProcedure,
-  procedureStoreProcedure,
-  procedureLoadProcedure,
-  procedureSyncProcedure,
-  procedureRemoteProcedure,
-  procedureStorageModule,
-  procedureStorageProcedures,
-  ProcedureStoreError,
-} from "./procedures.js";
+// procedure.register (the other store procedures are in ../program-store)
+export { procedureRegisterProcedure } from "./procedures.js";

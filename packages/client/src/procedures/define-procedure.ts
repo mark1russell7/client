@@ -153,15 +153,25 @@ function createAggregationHandler(
 // =============================================================================
 
 /**
- * The handlers that `procedure.define` made. The registry is the only store of the procedures:
- * a procedure is runtime-defined when its handler is in this set. (Before, a separate map kept
- * them, and `procedure.delete` removed only the map entry: deep dive CORE-3.)
+ * The handlers that `procedure.define` made, with the program (the aggregation) of each. The
+ * registry is the only store of the procedures: a procedure is runtime-defined when its handler
+ * is a key here. (Before, a separate map kept them, and `procedure.delete` removed only the map
+ * entry: deep dive CORE-3.) The program is kept here, not only in the metadata: a caller that
+ * gives its own metadata to `procedure.define` replaces the metadata.
  */
-const RUNTIME_HANDLERS = new WeakSet<object>();
+const RUNTIME_PROGRAMS = new WeakMap<object, AggregationDefinition>();
 
 /** True for a procedure that `procedure.define` made. */
 export function isRuntimeDefined(procedure: { handler?: unknown }): boolean {
-  return typeof procedure.handler === "function" && RUNTIME_HANDLERS.has(procedure.handler);
+  return typeof procedure.handler === "function" && RUNTIME_PROGRAMS.has(procedure.handler);
+}
+
+/**
+ * The program (the aggregation) of a procedure that `procedure.define` made, or undefined for a
+ * code procedure. A program store saves it and defines it again after a restart (roadmap 3.2).
+ */
+export function runtimeProgramOf(procedure: { handler?: unknown }): AggregationDefinition | undefined {
+  return typeof procedure.handler === "function" ? RUNTIME_PROGRAMS.get(procedure.handler) : undefined;
 }
 
 type RegistryOf = Pick<ProcedureRegistryLike, "get" | "getAll" | "unregister">;
@@ -280,7 +290,7 @@ export const defineProcedureProcedure: Procedure<
 
     // Its behavior comes from data: a server with an expose rule lets it call only exposed procedures
     markDataDriven(procedure);
-    RUNTIME_HANDLERS.add(procedure.handler!);
+    RUNTIME_PROGRAMS.set(procedure.handler!, aggregation);
 
     // Validate the procedure
     validateProcedure(procedure);

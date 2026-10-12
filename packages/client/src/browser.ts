@@ -191,6 +191,7 @@ export {
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
   isRuntimeDefined,
+  runtimeProgramOf,
 } from "./procedures/index.js";
 
 export type {

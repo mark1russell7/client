@@ -179,6 +179,7 @@ export {
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
   isRuntimeDefined,
+  runtimeProgramOf,
 } from "./define-procedure.js";
 export type {
   AggregationDefinition,

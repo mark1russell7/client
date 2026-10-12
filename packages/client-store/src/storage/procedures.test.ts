@@ -1,22 +1,15 @@
 /**
- * The storage procedures report only what they did (deep dive CORE-16, DATA-10). Without a
- * store they fail with NOT_CONFIGURED. With a store they work on it.
+ * procedure.register reports only what it did (deep dive CORE-16, DATA-10). With `persist` and
+ * no synced registry it fails with NOT_CONFIGURED, and it never stores a procedure with no
+ * handler. The procedures of the program store have their own tests
+ * (../program-store/procedures.test.ts).
  */
 
 import { describe, it, expect, afterEach } from "vitest";
 import { InMemoryStorage } from "@mark1russell7/client-collections";
-import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { invokeProcedure, outputValue } from "@mark1russell7/client";
-import { defineProcedure } from "@mark1russell7/client";
-import { outputSchema } from "@mark1russell7/client";
+import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@mark1russell7/client";
 import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
-import {
-  procedureRegisterProcedure,
-  procedureStoreProcedure,
-  procedureLoadProcedure,
-  procedureSyncProcedure,
-  procedureRemoteProcedure,
-} from "./procedures.js";
+import { procedureRegisterProcedure } from "./procedures.js";
 import { SyncedProcedureRegistry, getProcedureStore } from "./synced-registry.js";
 import type { HandlerLoader, SerializedProcedure } from "./types.js";
 
@@ -29,26 +22,16 @@ afterEach(() => {
   for (const path of added.splice(0)) PROCEDURE_REGISTRY.unregister(path);
 });
 
-describe("without a store", () => {
-  it("store, load, sync and register with persist fail with NOT_CONFIGURED", async () => {
+describe("procedure.register without a synced registry", () => {
+  it("fails with NOT_CONFIGURED for persist, and registers nothing", async () => {
     expect(getProcedureStore(PROCEDURE_REGISTRY)).toBeUndefined();
-    await expect(run(procedureStoreProcedure, { path: ["procedure", "list"] })).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
-    await expect(run(procedureLoadProcedure, { all: true })).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
-    await expect(run(procedureSyncProcedure, {})).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
     await expect(
       run(procedureRegisterProcedure, { path: ["cb16", "persisted"], persist: true, handlerRef: { module: "m", export: "e" } })
     ).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
     expect(PROCEDURE_REGISTRY.has(["cb16", "persisted"])).toBe(false);
   });
 
-  it("remote status says that there is no store, and connect is not implemented", async () => {
-    await expect(run(procedureRemoteProcedure, { action: "status" })).resolves.toMatchObject({ connected: false });
-    await expect(run(procedureRemoteProcedure, { action: "connect", endpoint: "http://x" })).rejects.toMatchObject({
-      code: "NOT_IMPLEMENTED",
-    });
-  });
-
-  it("register with no persist declares a procedure with no handler, and says so", async () => {
+  it("with no persist declares a procedure with no handler, and says so", async () => {
     added.push(["cb16", "declared"]);
     const result = await run(procedureRegisterProcedure, { path: ["cb16", "declared"] });
     expect(result).toMatchObject({ success: true, hasHandler: false });
@@ -56,53 +39,17 @@ describe("without a store", () => {
   });
 });
 
-describe("with a store", () => {
+describe("procedure.register with a synced registry", () => {
   const loader: HandlerLoader = {
     load: async (ref) => (ref.module === "@cb16/handlers" ? async () => `loaded ${ref.export}` : undefined),
   };
 
-  async function withStore(test: (store: SyncedProcedureRegistry) => Promise<void>): Promise<void> {
+  it("stores a procedure only with a handler that the loader allows", async () => {
     const store = new SyncedProcedureRegistry(PROCEDURE_REGISTRY, new InMemoryStorage<SerializedProcedure>(), {
       writeStrategy: "write-back",
       handlerLoader: loader,
     });
     try {
-      await test(store);
-    } finally {
-      await store.close();
-    }
-    expect(getProcedureStore(PROCEDURE_REGISTRY)).toBeUndefined();
-  }
-
-  it("store writes the record", async () => {
-    await withStore(async (store) => {
-      added.push(["cb16", "stored"]);
-      PROCEDURE_REGISTRY.register(
-        defineProcedure({ path: ["cb16", "stored"], input: outputSchema(), output: outputSchema(), handler: async () => 1 })
-      );
-      const result = await run(procedureStoreProcedure, { path: "cb16.stored", handlerRef: { module: "@cb16/handlers", export: "x" } });
-      expect(result).toMatchObject({ stored: true });
-      expect((await store.getAdapter().getRaw(["cb16", "stored"]))?.handlerRef).toEqual({ module: "@cb16/handlers", export: "x" });
-    });
-  });
-
-  it("load adds the stored records to the registry, with their handlers", async () => {
-    await withStore(async (store) => {
-      added.push(["cb16", "loaded"]);
-      await store.getAdapter().getStorage().set("cb16.loaded", {
-        path: ["cb16", "loaded"],
-        metadata: {},
-        handlerRef: { module: "@cb16/handlers", export: "y" },
-        storedAt: Date.now(),
-      });
-      const result = await run(procedureLoadProcedure, { prefix: ["cb16"] });
-      expect(result).toMatchObject({ loaded: 1, paths: [["cb16", "loaded"]] });
-      expect(await outputValue(await invokeProcedure(PROCEDURE_REGISTRY.get(["cb16", "loaded"])!, {}))).toBe("loaded y");
-    });
-  });
-
-  it("register with persist stores a procedure only with a handler", async () => {
-    await withStore(async (store) => {
       added.push(["cb16", "persisted"]);
       await expect(run(procedureRegisterProcedure, { path: ["cb16", "nohandler"], persist: true })).rejects.toMatchObject({
         code: "NO_HANDLER",
@@ -117,14 +64,10 @@ describe("with a store", () => {
       expect(result).toMatchObject({ success: true, hasHandler: true });
       await store.flushPending();
       expect(await store.getAdapter().has(["cb16", "persisted"])).toBe(true);
-    });
-  });
-
-  it("sync pushes the registry", async () => {
-    await withStore(async (store) => {
-      const result = await run(procedureSyncProcedure, { direction: "push" });
-      expect(result.pushed).toBe(PROCEDURE_REGISTRY.size);
-      expect(await store.getAdapter().size()).toBe(PROCEDURE_REGISTRY.size);
-    });
+      expect(await outputValue(await invokeProcedure(PROCEDURE_REGISTRY.get(["cb16", "persisted"])!, {}))).toBe("loaded z");
+    } finally {
+      await store.close();
+    }
+    expect(getProcedureStore(PROCEDURE_REGISTRY)).toBeUndefined();
   });
 });

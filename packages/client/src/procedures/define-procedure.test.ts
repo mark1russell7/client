@@ -12,6 +12,7 @@ import {
   hasRuntimeProcedure,
   getAllRuntimeProcedures,
   clearRuntimeProcedures,
+  runtimeProgramOf,
 } from "./define-procedure.js";
 import type { ProcedureContext } from "./types.js";
 import type { AggregationDefinition } from "./define-procedure.js";
@@ -637,6 +638,20 @@ describe("procedure.define through a client (deep dive 2026-10)", () => {
 
   const add = (a: unknown, b: unknown) => ({ $proc: ["client", "add"], input: { a, b } });
   const multiply = (a: unknown, b: unknown) => ({ $proc: ["client", "multiply"], input: { a, b } });
+
+  it("records the program of each defined procedure, also when the caller gives its own metadata (roadmap 3.2)", async () => {
+    const { client, registry } = makeClient();
+    const body = add({ $ref: "input.a" }, 1);
+    await client.exec({
+      $proc: ["procedure", "define"],
+      input: { path: ["test", "withMeta"], aggregation: body, metadata: { description: "Add one" } },
+    });
+    const procedure = registry.get(["test", "withMeta"])!;
+    expect(runtimeProgramOf(procedure)).toEqual(body);
+    expect(procedure.metadata.description).toBe("Add one");
+    // A code procedure has no program
+    expect(runtimeProgramOf(registry.get(["client", "add"])!)).toBeUndefined();
+  });
 
   it("CORE-4: a three-step pipeline keeps $last and the step names", async () => {
     const { client } = makeClient();
