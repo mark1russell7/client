@@ -5,6 +5,11 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
+// The lib procedures call fs.* and git.* (their `calls` below). Importing those packages registers
+// them, so client-lib works alone. (Docs review DOC-5: before, lib.scan alone found no packages,
+// and over MCP its git calls failed with NOT_FOUND.)
+import "@mark1russell7/client-fs";
+import "@mark1russell7/client-git";
 import { createProcedure, registerProcedures, zodAdapter, outputSchema, RUNS_REFS_TAG } from "@mark1russell7/client";
 import {
   libScan,

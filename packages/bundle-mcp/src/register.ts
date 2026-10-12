@@ -3,11 +3,13 @@
  *
  * Importing a client package registers its procedures. The MCP server exposes only the
  * namespaces in `mcpNamespaces`. Claude has fs.*, git.* and pnpm.* through its own shell, so
- * they are not here.
+ * they are not tools.
  *
- * shell.* is registered, because docker.* runs its commands through shell.exec. But it is not a
- * tool, and a data-driven procedure (client.chain, eval, a procedure that procedure.define made)
- * cannot call it: the server lets such a procedure call only the exposed procedures.
+ * shell.*, fs.* and git.* are registered all the same: docker.* runs its commands through
+ * shell.run, and lib.* reads files and the repository (client-lib registers client-fs and
+ * client-git). They are not tools. A code procedure calls them only when its `metadata.calls`
+ * names them, and a data-driven procedure (client.chain, eval, a procedure that procedure.define
+ * made) cannot call them: the server lets such a procedure call only the exposed procedures.
  * snapshot.*, s3.* and test.* are not in the bundle: snapshot.restore and s3.delete change data,
  * and vitest.* runs the tests. See documentation/BUGS-2026-07.md (H18) and
  * ARCHITECTURE-PROPOSALS-2026-10.md (P2).
