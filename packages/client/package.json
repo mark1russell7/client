@@ -105,7 +105,8 @@
   },
   "dependencies": {
     "@mark1russell7/client-collections": "workspace:*",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
@@ -116,14 +117,10 @@
     "@types/ws": "^8.18.1"
   },
   "peerDependencies": {
-    "express": "^4.0.0 || ^5.0.0",
-    "zod": "^3.0.0"
+    "express": "^4.0.0 || ^5.0.0"
   },
   "peerDependenciesMeta": {
     "express": {
-      "optional": true
-    },
-    "zod": {
       "optional": true
     }
   }

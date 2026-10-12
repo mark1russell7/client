@@ -285,12 +285,12 @@ const ProcRefSchema: z.ZodObject<{
 });
 
 export const DagTraverseInputSchema: z.ZodObject<{
-  visit: z.ZodUnion<[z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
+  visit: z.ZodUnion<readonly [z.ZodArray<z.ZodString>, typeof ProcRefSchema]>;
   filter: z.ZodOptional<z.ZodArray<z.ZodString>>;
   root: z.ZodOptional<z.ZodString>;
   rootPath: z.ZodOptional<z.ZodString>;
   concurrency: z.ZodDefault<z.ZodNumber>;
-  serialize: z.ZodDefault<z.ZodEnum<["auto", "repository", "none"]>>;
+  serialize: z.ZodDefault<z.ZodEnum<{ auto: "auto"; repository: "repository"; none: "none" }>>;
   continueOnError: z.ZodDefault<z.ZodBoolean>;
   dryRun: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({

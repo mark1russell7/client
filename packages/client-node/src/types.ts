@@ -23,7 +23,7 @@ export const NodeRunInputSchema: z.ZodObject<{
   /** Working directory */
   cwd: z.string().optional(),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   /** Timeout in milliseconds. At the timeout, the script and its child processes are killed. */
   timeout: z.number().optional(),
   /** The most bytes kept of each output stream (default: 64 MiB). The procedure keeps the first bytes. */
@@ -64,7 +64,7 @@ export const NodeSpawnInputSchema: z.ZodObject<{
   /** Working directory */
   cwd: z.string().optional(),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   /** Ready pattern - wait for this in stdout before returning */
   ready: z
     .object({

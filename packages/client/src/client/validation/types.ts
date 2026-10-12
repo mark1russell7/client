@@ -21,11 +21,13 @@ export interface ZodLike<T = unknown> {
 }
 
 /**
- * Generic Zod error interface.
+ * Generic Zod error interface. Zod 4 gives `issues` (zod 3 gave `errors` too), so both are
+ * optional: a reader uses `message`, or `validateSchema()` of the core.
  */
 export interface ZodErrorLike {
   message: string;
-  errors: Array<{ path: (string | number)[]; message: string }>;
+  errors?: ReadonlyArray<{ path?: ReadonlyArray<PropertyKey>; message: string }> | undefined;
+  issues?: ReadonlyArray<{ path?: ReadonlyArray<PropertyKey>; message: string }> | undefined;
 }
 
 /**
@@ -141,8 +143,8 @@ export class ValidationError extends Error {
    * Get formatted validation error details.
    */
   get details(): string {
-    const errors = this.zodError.errors
-      .map((e) => `  - ${e.path.join(".")}: ${e.message}`)
+    const errors = (this.zodError.issues ?? this.zodError.errors ?? [])
+      .map((e) => `  - ${(e.path ?? []).map(String).join(".")}: ${e.message}`)
       .join("\n");
     return `${this.phase} validation failed for ${this.method.service}.${this.method.operation}:\n${errors}`;
   }

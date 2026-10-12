@@ -75,7 +75,7 @@
     "@mark1russell7/client-pnpm": "workspace:*",
     "@mark1russell7/client-shell": "workspace:*",
     "ts-morph": "^24.0.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.5"
   },
   "client": {
     "procedures": "./dist/register.js"

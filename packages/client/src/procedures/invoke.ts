@@ -23,6 +23,7 @@ import type {
   RepositoryProvider,
 } from "./types.js";
 import { pathToKey } from "./types.js";
+import { validateSchema } from "./schema.js";
 import type { ProcedureRegistry } from "./registry.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
 import { nestedCallRefusal } from "./policy.js";
@@ -159,16 +160,17 @@ export function isAsyncIterable(value: unknown): value is AsyncIterable<unknown>
   );
 }
 
-function validateOutput(procedure: AnyProcedure, output: unknown): unknown {
-  const result = procedure.output.safeParse(output);
-  if (!result.success) {
+/** The output (or one stream item), validated by the output schema of the procedure. */
+async function validateOutput(procedure: AnyProcedure, output: unknown): Promise<unknown> {
+  const result = await validateSchema(procedure.output, output);
+  if (!result.ok) {
     throw new InvocationError(
       "OUTPUT_VALIDATION_ERROR",
-      `Output validation failed for ${pathToKey(procedure.path)}: ${result.error.message}`,
+      `Output validation failed for ${pathToKey(procedure.path)}: ${result.message}`,
       procedure.path,
     );
   }
-  return result.data;
+  return result.value;
 }
 
 /** The next item, or an abort error when the signal aborts first. */
@@ -217,7 +219,7 @@ async function* validatedItems(
         done = true;
         return;
       }
-      yield validateOutput(procedure, step.value);
+      yield await validateOutput(procedure, step.value);
     }
   } finally {
     if (!done) {
@@ -282,18 +284,20 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
 
   let data: unknown = input;
   if (!options.inputValidated) {
-    const parsed = procedure.input.safeParse(input);
-    if (!parsed.success) {
+    // A synchronous schema gives its result at once, so the handler starts before an await
+    let parsed = validateSchema(procedure.input, input);
+    if (parsed instanceof Promise) parsed = await parsed;
+    if (!parsed.ok) {
       throw new InvocationError(
         "VALIDATION_ERROR",
-        `Input validation failed for ${pathToKey(path)}: ${parsed.error.message}`,
+        `Input validation failed for ${pathToKey(path)}: ${parsed.message}`,
         path,
       );
     }
     // A parse makes a new object, without the hidden scope of a raw input (`withScope()`). The
     // scope goes onto the parsed data, so a runner with a Zod schema can read the names of the
     // caller (docs review DOC-10: before, each runner needed its own workaround).
-    data = parsed.data === input ? input : withScope(parsed.data, scopeOf(input));
+    data = parsed.value === input ? input : withScope(parsed.value, scopeOf(input));
   }
 
   // The handler starts here, before the first await (the site's trace depends on it)
@@ -301,7 +305,7 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
   if (isAsyncIterable(result)) {
     return { kind: "stream", items: validatedItems(procedure, result, options.signal) as AsyncGenerator<TOutput, void, undefined> };
   }
-  return { kind: "value", value: validateOutput(procedure, result) as TOutput };
+  return { kind: "value", value: (await validateOutput(procedure, result)) as TOutput };
 }
 
 /** This function finds the procedure at a path in the registry of the options, then runs it. */

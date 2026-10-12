@@ -13,7 +13,7 @@ import { z } from "zod";
 
 export type SnapshotPreset = "light" | "medium" | "heavy";
 
-export const SnapshotPresetSchema: z.ZodEnum<["light", "medium", "heavy"]> = z.enum(["light", "medium", "heavy"]);
+export const SnapshotPresetSchema: z.ZodEnum<{ light: "light"; medium: "medium"; heavy: "heavy" }> = z.enum(["light", "medium", "heavy"]);
 
 /**
  * Preset descriptions:
@@ -89,7 +89,7 @@ export interface SnapshotMetadata {
 
 export const SnapshotCreateInputSchema: z.ZodObject<{
   name: z.ZodString;
-  preset: z.ZodDefault<z.ZodEnum<["light", "medium", "heavy"]>>;
+  preset: z.ZodDefault<z.ZodEnum<{ light: "light"; medium: "medium"; heavy: "heavy" }>>;
   bucket: z.ZodString;
   paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
   description: z.ZodOptional<z.ZodString>;

@@ -64,13 +64,19 @@
  * | `defineStub`      | Client-side type stubs         | Procedure (no handler) |
  */
 
-import type { ZodLike } from "../client/validation/types.js";
+import { isStandardSchema, type ProcedureSchema } from "./schema.js";
+
 import type {
   Procedure,
   ProcedurePath,
   ProcedureMetadata,
   ProcedureHandler,
 } from "./types.js";
+
+/** True for a schema that the core can validate with: a Standard Schema or a `ZodLike`. */
+function isProcedureSchema(schema: unknown): schema is ProcedureSchema {
+  return isStandardSchema(schema) || typeof (schema as { safeParse?: unknown } | undefined)?.safeParse === "function";
+}
 
 // =============================================================================
 // Definition Input Types
@@ -88,11 +94,11 @@ export interface ProcedureDefinition<
   /** Path in the route tree (e.g., ['collections', 'users', 'get']) */
   path: ProcedurePath;
 
-  /** Input validation schema (Zod-compatible) */
-  input: ZodLike<TInput>;
+  /** Input validation schema: a Standard Schema (zod 4, valibot, arktype) or a `ZodLike` */
+  input: ProcedureSchema<TInput>;
 
-  /** Output validation schema (Zod-compatible) */
-  output: ZodLike<TOutput>;
+  /** Output validation schema: a Standard Schema or a `ZodLike` */
+  output: ProcedureSchema<TOutput>;
 
   /** Procedure metadata */
   metadata?: TMeta;
@@ -107,8 +113,8 @@ export interface ProcedureDefinition<
  */
 export interface ProcedureStub<TInput, TOutput> {
   path: ProcedurePath;
-  input: ZodLike<TInput>;
-  output: ZodLike<TOutput>;
+  input: ProcedureSchema<TInput>;
+  output: ProcedureSchema<TOutput>;
   metadata?: ProcedureMetadata;
 }
 
@@ -208,8 +214,8 @@ export class ProcedureBuilder<
   TMeta extends ProcedureMetadata = ProcedureMetadata
 > {
   private _path: ProcedurePath = [];
-  private _input?: ZodLike<TInput>;
-  private _output?: ZodLike<TOutput>;
+  private _input?: ProcedureSchema<TInput>;
+  private _output?: ProcedureSchema<TOutput>;
   private _metadata: TMeta = {} as TMeta;
   private _handler?: ProcedureHandler<TInput, TOutput>;
 
@@ -224,18 +230,18 @@ export class ProcedureBuilder<
   /**
    * Set the input schema.
    */
-  input<T>(schema: ZodLike<T>): ProcedureBuilder<T, TOutput, TMeta> {
+  input<T>(schema: ProcedureSchema<T>): ProcedureBuilder<T, TOutput, TMeta> {
     const builder = this as unknown as ProcedureBuilder<T, TOutput, TMeta>;
-    builder._input = schema as unknown as ZodLike<T>;
+    builder._input = schema;
     return builder;
   }
 
   /**
    * Set the output schema.
    */
-  output<T>(schema: ZodLike<T>): ProcedureBuilder<TInput, T, TMeta> {
+  output<T>(schema: ProcedureSchema<T>): ProcedureBuilder<TInput, T, TMeta> {
     const builder = this as unknown as ProcedureBuilder<TInput, T, TMeta>;
-    builder._output = schema as unknown as ZodLike<T>;
+    builder._output = schema;
     return builder;
   }
 
@@ -371,11 +377,11 @@ export function validateProcedure(procedure: Procedure<unknown, unknown, Procedu
     }
   }
 
-  if (!procedure.input || typeof procedure.input.parse !== "function") {
-    throw new Error("Input schema must have a parse method");
+  if (!isProcedureSchema(procedure.input)) {
+    throw new Error("Input schema must be a Standard Schema (zod 4, valibot, arktype) or have a safeParse method");
   }
 
-  if (!procedure.output || typeof procedure.output.parse !== "function") {
-    throw new Error("Output schema must have a parse method");
+  if (!isProcedureSchema(procedure.output)) {
+    throw new Error("Output schema must be a Standard Schema (zod 4, valibot, arktype) or have a safeParse method");
   }
 }

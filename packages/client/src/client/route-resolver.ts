@@ -10,6 +10,7 @@ import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { Route, RouteNode } from "./call-types.js";
 import type { OutputConfig } from "./consumption.js";
 import { flattenRoute } from "./call-types.js";
+import { validateSchema } from "../procedures/schema.js";
 
 // =============================================================================
 // Resolution Types
@@ -28,6 +29,12 @@ export interface ResolvedRoute {
 
   /** How the caller reads the output: sponge (the default), stream or handlers (the `out` of the leaf) */
   outputConfig: OutputConfig;
+
+  /**
+   * True when the resolver validated the input. A schema that validates asynchronously cannot
+   * be checked by the synchronous resolver: the invocation validates that input.
+   */
+  inputValidated?: boolean;
 }
 
 /**
@@ -127,14 +134,14 @@ export class RouteResolver {
       // (with schema defaults), as in exec() and on the server - not the raw leaf, which for
       // an { in, out } leaf is the whole wrapper (BUGS-2026-07 H31).
       let handlerInput: unknown = input;
-      if (options.validateInput !== false) {
-        const validationResult = procedure.input.safeParse(input);
-
-        if (!validationResult.success) {
+      let inputValidated = false;
+      const validationResult = options.validateInput !== false ? validateSchema(procedure.input, input) : undefined;
+      if (validationResult && !(validationResult instanceof Promise)) {
+        if (!validationResult.ok) {
           errors.push({
             path,
             type: "validation_error",
-            message: `Input validation failed: ${validationResult.error.message}`,
+            message: `Input validation failed: ${validationResult.message}`,
           });
 
           if (!options.continueOnError) {
@@ -143,7 +150,8 @@ export class RouteResolver {
           }
           continue;
         }
-        handlerInput = validationResult.data;
+        handlerInput = validationResult.value;
+        inputValidated = true;
       }
 
       resolved.push({
@@ -151,6 +159,7 @@ export class RouteResolver {
         procedure,
         input: handlerInput,
         outputConfig,
+        inputValidated,
       });
     }
 
@@ -206,12 +215,13 @@ export class RouteResolver {
         continue;
       }
 
-      const validationResult = procedure.input.safeParse(input);
-      if (!validationResult.success) {
+      const validationResult = validateSchema(procedure.input, input);
+      // An asynchronous schema is checked when the procedure runs
+      if (!(validationResult instanceof Promise) && !validationResult.ok) {
         errors.push({
           path,
           type: "validation_error",
-          message: `Input validation failed: ${validationResult.error.message}`,
+          message: `Input validation failed: ${validationResult.message}`,
         });
       }
     }

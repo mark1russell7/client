@@ -48,7 +48,7 @@ export const DockerRunInputSchema: z.ZodObject<{
   /** Volume mappings (e.g., ["/host:/container"]) */
   volumes: z.array(z.string()).optional(),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   /** Run in detached mode */
   detach: z.boolean().optional(),
   /** Automatically remove container when it exits */
@@ -83,7 +83,7 @@ export const DockerBuildInputSchema: z.ZodObject<{
   /** Dockerfile path (relative to context) */
   dockerfile: z.string().optional(),
   /** Build arguments */
-  buildArgs: z.record(z.string()).optional(),
+  buildArgs: z.record(z.string(), z.string()).optional(),
   /** Do not use cache when building */
   noCache: z.boolean().optional(),
   /** Working directory */
@@ -141,7 +141,7 @@ export const DockerExecInputSchema: z.ZodObject<{
   /** Working directory inside container */
   workdir: z.string().optional(),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   /** Working directory (host) */
   cwd: z.string().optional(),
   /** Timeout in milliseconds */
@@ -289,7 +289,7 @@ export const DockerComposeDownInputSchema: z.ZodObject<{
   file: z.ZodOptional<z.ZodString>;
   volumes: z.ZodOptional<z.ZodBoolean>;
   removeOrphans: z.ZodOptional<z.ZodBoolean>;
-  rmi: z.ZodOptional<z.ZodEnum<["all", "local"]>>;
+  rmi: z.ZodOptional<z.ZodEnum<{ all: "all"; local: "local" }>>;
   cwd: z.ZodOptional<z.ZodString>;
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({

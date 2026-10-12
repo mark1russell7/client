@@ -6,6 +6,7 @@
  */
 
 import { CLI_GLOBAL_FLAGS } from "@mark1russell7/client-lib/cli-flags";
+import { jsonSchemaOf, type ProcedureSchema } from "@mark1russell7/client";
 
 /**
  * CLI metadata that can be attached to procedures via .meta()
@@ -59,29 +60,6 @@ export interface FieldType {
 }
 
 /**
- * Zod-like schema shape for introspection (Zod 3)
- */
-interface ZodNode {
-  _def?: {
-    typeName?: string;
-    description?: string;
-    shape?: () => Record<string, ZodNode>;
-    innerType?: ZodNode;
-    schema?: ZodNode;
-    type?: ZodNode;
-    in?: ZodNode;
-    getter?: () => ZodNode;
-    defaultValue?: () => unknown;
-    values?: readonly string[] | Record<string, string | number>;
-    value?: unknown;
-    valueType?: ZodNode;
-    options?: readonly ZodNode[] | Map<unknown, ZodNode>;
-  };
-  shape?: Record<string, ZodNode>;
-  description?: string;
-}
-
-/**
  * Extracted schema field info for help generation
  */
 export interface SchemaFieldInfo {
@@ -96,125 +74,112 @@ export interface SchemaFieldInfo {
   enumValues: readonly string[] | undefined;
 }
 
-/** The wrappers that do not change what the CLI must give */
-const WRAPPERS = new Set([
-  "ZodOptional",
-  "ZodNullable",
-  "ZodDefault",
-  "ZodEffects",
-  "ZodBranded",
-  "ZodCatch",
-  "ZodReadonly",
-  "ZodPipeline",
-  "ZodLazy",
-]);
+/**
+ * A JSON Schema node, as `jsonSchemaOf()` of the core gives it (draft-07).
+ */
+interface JsonNode {
+  type?: string | string[];
+  description?: string;
+  default?: unknown;
+  enum?: unknown[];
+  const?: unknown;
+  format?: string;
+  items?: JsonNode | JsonNode[];
+  properties?: Record<string, JsonNode>;
+  required?: string[];
+  additionalProperties?: boolean | JsonNode;
+  anyOf?: JsonNode[];
+  oneOf?: JsonNode[];
+  allOf?: JsonNode[];
+}
 
-interface Unwrapped {
-  node: ZodNode;
-  required: boolean;
-  defaultValue: unknown;
-  description: string | undefined;
+/** True for the JSON Schema of `null` (a nullable field is `anyOf: [T, null]`). */
+function isNull(node: JsonNode): boolean {
+  return node.type === "null" || (node.const === null && node.type === undefined);
+}
+
+/** The members of a union, without `null` (a nullable value is the type itself on the CLI). */
+function unionMembers(node: JsonNode): JsonNode[] | undefined {
+  const members = node.anyOf ?? node.oneOf;
+  return members?.filter((member) => !isNull(member));
 }
 
 /**
- * Remove the wrappers (optional, default, refinements, ...) around a schema
+ * The CLI type of a JSON Schema node.
  */
-function unwrap(node: ZodNode): Unwrapped {
-  let current = node;
-  let required = true;
-  let defaultValue: unknown;
-  let description = node._def?.description ?? node.description;
-
-  for (let depth = 0; depth < 32; depth++) {
-    const def = current._def;
-    const typeName = def?.typeName;
-    if (!def || !typeName || !WRAPPERS.has(typeName)) {
-      break;
-    }
-    let next: ZodNode | undefined;
-    switch (typeName) {
-      case "ZodOptional":
-        required = false;
-        next = def.innerType;
-        break;
-      case "ZodDefault":
-        required = false;
-        defaultValue = def.defaultValue?.();
-        next = def.innerType;
-        break;
-      case "ZodCatch":
-        required = false;
-        next = def.innerType;
-        break;
-      case "ZodEffects":
-        next = def.schema;
-        break;
-      case "ZodBranded":
-        next = def.type;
-        break;
-      case "ZodPipeline":
-        next = def.in;
-        break;
-      case "ZodLazy":
-        next = def.getter?.();
-        break;
-      default:
-        next = def.innerType;
-    }
-    if (!next) {
-      break;
-    }
-    current = next;
-    description ??= current._def?.description ?? current.description;
-  }
-
-  return { node: current, required, defaultValue, description };
-}
-
-/**
- * The CLI type of a schema
- */
-export function fieldTypeOf(schema: unknown): FieldType {
-  if (!schema || typeof schema !== "object") {
+function fieldTypeOfJson(node: JsonNode | undefined): FieldType {
+  if (!node || typeof node !== "object") {
     return { kind: "any" };
   }
-  const { node } = unwrap(schema as ZodNode);
-  const def = node._def;
-  switch (def?.typeName) {
-    case "ZodString":
-      return { kind: "string" };
-    case "ZodNumber":
-      return { kind: "number" };
-    case "ZodBigInt":
-      return { kind: "bigint" };
-    case "ZodBoolean":
-      return { kind: "boolean" };
-    case "ZodDate":
-      return { kind: "date" };
-    case "ZodEnum":
-      return { kind: "enum", values: Array.isArray(def.values) ? def.values : [] };
-    case "ZodNativeEnum": {
-      const values = Object.values((def.values ?? {}) as Record<string, string | number>);
-      return values.every((value) => typeof value === "string")
-        ? { kind: "enum", values: values as string[] }
-        : { kind: "any" };
+  const members = unionMembers(node);
+  if (members) {
+    if (members.length === 1) return fieldTypeOfJson(members[0]);
+    // A union of string constants is an enum on the CLI
+    if (members.length > 1 && members.every((member) => typeof member.const === "string")) {
+      return { kind: "enum", values: members.map((member) => member.const as string) };
     }
-    case "ZodLiteral":
-      return { kind: "literal", literal: def.value };
-    case "ZodArray":
-      return { kind: "array", item: fieldTypeOf(def.type) };
-    case "ZodRecord":
-      return { kind: "record", value: fieldTypeOf(def.valueType) };
-    case "ZodObject":
+    return { kind: "union", options: members.map((member) => fieldTypeOfJson(member)) };
+  }
+  if (node.allOf?.length === 1) {
+    return fieldTypeOfJson(node.allOf[0]);
+  }
+  if (Array.isArray(node.enum)) {
+    return node.enum.every((value) => typeof value === "string")
+      ? { kind: "enum", values: node.enum as string[] }
+      : { kind: "any" };
+  }
+  if ("const" in node && node.const !== undefined) {
+    return { kind: "literal", literal: node.const };
+  }
+  const types = Array.isArray(node.type) ? node.type.filter((type) => type !== "null") : node.type ? [node.type] : [];
+  if (types.length > 1) {
+    return { kind: "union", options: types.map((type) => fieldTypeOfJson({ ...node, type })) };
+  }
+  switch (types[0]) {
+    case "string":
+      return node.format === "date-time" || node.format === "date" ? { kind: "date" } : { kind: "string" };
+    case "number":
+    case "integer":
+      return { kind: "number" };
+    case "boolean":
+      return { kind: "boolean" };
+    case "array":
+      return { kind: "array", item: fieldTypeOfJson(Array.isArray(node.items) ? undefined : node.items) };
+    case "object": {
+      const extra = node.additionalProperties;
+      const hasFields = node.properties && Object.keys(node.properties).length > 0;
+      if (!hasFields && extra && typeof extra === "object") {
+        return { kind: "record", value: fieldTypeOfJson(extra) };
+      }
       return { kind: "object" };
-    case "ZodUnion":
-    case "ZodDiscriminatedUnion": {
-      const options = def.options instanceof Map ? [...def.options.values()] : [...(def.options ?? [])];
-      return { kind: "union", options: options.map((option) => fieldTypeOf(option)) };
     }
     default:
       return { kind: "any" };
   }
+}
+
+/**
+ * The JSON Schema of a procedure schema (or a JSON Schema itself, as the manifest stores it).
+ */
+function asJsonSchema(schema: unknown): JsonNode | undefined {
+  if (!schema || typeof schema !== "object") {
+    return undefined;
+  }
+  // A JSON Schema already (from the manifest): it has no validator
+  const props = schema as Record<string, unknown>;
+  if (!("~standard" in props) && typeof props["safeParse"] !== "function" && typeof props["parse"] !== "function") {
+    return schema as JsonNode;
+  }
+  return jsonSchemaOf(schema as ProcedureSchema) as JsonNode | undefined;
+}
+
+/**
+ * The CLI type of a schema: a procedure schema (a Standard Schema such as zod 4) or its JSON
+ * Schema. The type comes from the JSON Schema, so every schema library works. (Before, the
+ * parser read the private fields of zod 3.)
+ */
+export function fieldTypeOf(schema: unknown): FieldType {
+  return fieldTypeOfJson(asJsonSchema(schema));
 }
 
 /**
@@ -239,50 +204,31 @@ function typeName(type: FieldType): string {
 }
 
 /**
- * The object shape of a schema, if it has one
- */
-function shapeOf(schema: unknown): Record<string, ZodNode> | undefined {
-  if (!schema || typeof schema !== "object") {
-    return undefined;
-  }
-  const outer = schema as ZodNode;
-  if (outer.shape && typeof outer.shape === "object") {
-    return outer.shape;
-  }
-  const { node } = unwrap(outer);
-  if (node._def?.shape) {
-    return node._def.shape();
-  }
-  if (node.shape && typeof node.shape === "object") {
-    return node.shape;
-  }
-  return undefined;
-}
-
-/**
- * Extract field information from a Zod-like schema. A schema that is not an object (or has no
- * readable shape) gives no fields: the CLI then passes its flags through.
+ * Extract field information from a schema: a procedure schema or its JSON Schema. A schema that
+ * is not an object (or that has no JSON Schema) gives no fields: the CLI then passes its flags
+ * through.
  */
 export function extractSchemaFields(schema: unknown): SchemaFieldInfo[] {
-  const shape = shapeOf(schema);
-  if (!shape) {
+  const json = asJsonSchema(schema);
+  const object = json && !json.properties ? unionMembers(json)?.find((member) => member.properties) : json;
+  if (!object?.properties) {
     return [];
   }
-
+  const required = new Set(object.required ?? []);
   const fields: SchemaFieldInfo[] = [];
-  for (const [name, field] of Object.entries(shape)) {
+  for (const [name, field] of Object.entries(object.properties)) {
     if (!field || typeof field !== "object") {
       continue;
     }
-    const unwrapped = unwrap(field);
-    const fieldType = fieldTypeOf(field);
+    const fieldType = fieldTypeOfJson(field);
+    const description = field.description ?? unionMembers(field)?.find((member) => member.description)?.description;
     fields.push({
       name,
       type: fieldType.kind === "enum" ? "enum" : typeName(fieldType),
       fieldType,
-      required: unwrapped.required,
-      description: unwrapped.description,
-      defaultValue: unwrapped.defaultValue,
+      required: required.has(name) && field.default === undefined,
+      description,
+      defaultValue: field.default,
       enumValues: fieldType.kind === "enum" ? fieldType.values : undefined,
     });
   }

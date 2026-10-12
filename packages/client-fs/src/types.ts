@@ -38,7 +38,7 @@ export const WriteInputSchema: z.ZodObject<{
   path: z.ZodString;
   content: z.ZodString;
   encoding: z.ZodDefault<z.ZodOptional<z.ZodString>>;
-  mode: z.ZodDefault<z.ZodOptional<z.ZodEnum<["write", "append"]>>>;
+  mode: z.ZodDefault<z.ZodOptional<z.ZodEnum<{ write: "write"; append: "append" }>>>;
 }> = z.object({
   /** Path to file to write */
   path: z.string(),

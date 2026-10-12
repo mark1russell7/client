@@ -23,7 +23,7 @@ export const ShellRunInputSchema: z.ZodObject<{
   /** Working directory */
   cwd: z.string().optional(),
   /** Environment variables to set */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   /** Timeout in milliseconds */
   timeout: z.number().optional(),
   /** Encoding for output (default: utf8) */
@@ -56,7 +56,7 @@ export const ShellExecInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
   env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
   timeout: z.ZodOptional<z.ZodNumber>;
-  shell: z.ZodDefault<z.ZodUnion<[z.ZodBoolean, z.ZodString]>>;
+  shell: z.ZodDefault<z.ZodUnion<readonly [z.ZodBoolean, z.ZodString]>>;
   maxBuffer: z.ZodOptional<z.ZodNumber>;
   stdin: z.ZodOptional<z.ZodString>;
 }> = z.object({
@@ -65,7 +65,7 @@ export const ShellExecInputSchema: z.ZodObject<{
   /** Working directory */
   cwd: z.string().optional(),
   /** Environment variables */
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   /** Timeout in milliseconds. At the timeout, the shell and the programs that it started are killed. */
   timeout: z.number().optional(),
   /** Shell to use: a path, or `true` for the system shell (`cmd.exe` or `/bin/sh`). `false` is the same as `true`. */
@@ -122,7 +122,7 @@ export const ShellStreamInputSchema: z.ZodObject<{
   command: z.string(),
   args: z.array(z.string()).default([]),
   cwd: z.string().optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   timeout: z.number().optional(),
 });
 

@@ -65,7 +65,7 @@
     "@mark1russell7/client-shell": "workspace:*",
     "@vitest/coverage-v8": "^5.0.3",
     "vitest": "^5.0.3",
-    "zod": "^3.24.0"
+    "zod": "^4.6.5"
   },
   "client": {
     "procedures": "./dist/register.js"

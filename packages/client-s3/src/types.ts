@@ -54,7 +54,7 @@ export const S3UploadInputSchema: z.ZodObject<{
   /** If true, body is base64 encoded binary data */
   base64: z.boolean().optional(),
   /** Optional metadata key-value pairs */
-  metadata: z.record(z.string()).optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
 });
 
 export type S3UploadInput = z.infer<typeof S3UploadInputSchema>;
@@ -240,7 +240,7 @@ export const S3MultipartInitInputSchema: z.ZodObject<{
   /** Content type */
   contentType: z.string().optional(),
   /** Optional metadata */
-  metadata: z.record(z.string()).optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
 });
 
 export type S3MultipartInitInput = z.infer<typeof S3MultipartInitInputSchema>;

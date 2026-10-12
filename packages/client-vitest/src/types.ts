@@ -6,7 +6,7 @@ export const VitestRunInputSchema: z.ZodObject<{
   exclude: z.ZodOptional<z.ZodArray<z.ZodString>>;
   watch: z.ZodOptional<z.ZodBoolean>;
   coverage: z.ZodOptional<z.ZodBoolean>;
-  reporter: z.ZodOptional<z.ZodEnum<["default", "verbose", "json", "junit"]>>;
+  reporter: z.ZodOptional<z.ZodEnum<{ default: "default"; verbose: "verbose"; json: "json"; junit: "junit" }>>;
   passWithNoTests: z.ZodOptional<z.ZodBoolean>;
 }> = z.object({
   cwd: z.string().optional(),
@@ -80,7 +80,7 @@ export type VitestWatchInput = z.infer<typeof VitestWatchInputSchema>;
 export const VitestWatchOutputSchema: z.ZodObject<{
   id: z.ZodString;
   pid: z.ZodNumber;
-  status: z.ZodEnum<["started", "stopped"]>;
+  status: z.ZodEnum<{ started: "started"; stopped: "stopped" }>;
 }> = z.object({
   /** The id of the process in the process registry: vitest.stop takes it */
   id: z.string(),

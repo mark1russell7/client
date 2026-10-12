@@ -265,7 +265,10 @@ function createWrappedInputSchema<TData>(
           success: false as const,
           error: {
             message: `Invalid data: ${dataResult.error.message}`,
-            errors: dataResult.error.errors.map(e => ({ path: ["data", ...e.path], message: e.message }))
+            errors: (dataResult.error.issues ?? dataResult.error.errors ?? []).map((e) => ({
+              path: ["data", ...(e.path ?? [])],
+              message: e.message,
+            })),
           },
         };
       }

@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AnyProcedure } from "@mark1russell7/client";
+import { jsonSchemaOf, type AnyProcedure } from "@mark1russell7/client";
 import { discoverFromEcosystem, findWorkspaceRoot } from "./ecosystem.js";
 import { extractSchemaFields, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
 
@@ -105,13 +105,16 @@ function cliMetadata(procedure: AnyProcedure): CLIMeta {
 
 /** The commands of the manifest, from the procedures of the registry */
 export async function commandsOf(procedures: readonly AnyProcedure[]): Promise<ManifestCommand[]> {
-  const { zodToJsonSchema } = await import("@mark1russell7/mcp");
-  return procedures.map((procedure) => ({
-    path: [...procedure.path],
-    metadata: cliMetadata(procedure),
-    fields: extractSchemaFields(procedure.input),
-    inputSchema: zodToJsonSchema(procedure.input),
-  }));
+  return procedures.map((procedure) => {
+    // One JSON Schema for each command: the fields come from it too (roadmap 2.1)
+    const inputSchema = jsonSchemaOf(procedure.input) ?? {};
+    return {
+      path: [...procedure.path],
+      metadata: cliMetadata(procedure),
+      fields: extractSchemaFields(inputSchema),
+      inputSchema,
+    };
+  });
 }
 
 /** JSON of a manifest: a bigint (a default or a literal) becomes its text */
