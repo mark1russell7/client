@@ -144,7 +144,9 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | SITE-14 | low | fixed | `35f7dbc`, `3166de5`, `314c18f` | TypeScript 7, vitest 5, `@types/node` 22 and `node >=22` in every package, also in the `cue` presets. Every package has a `test` script. |
 | Ideas 3, 4, 5, 7, 8 | | done | `dd37e64`, `b341068` | Problem list, virtualized trace, put-inside and wrap-in-chain, smoke test, URL filters. |
 | Trace consumer edge | | done | `6b660c9`, `e1266fe` | `HydrateOptions.onRef` and `observeHydration()`. The trace shows a hydrated call under the call that gets its result. |
-| New pages | | done | `bc0c69e`, `0902eb6`, `a67c021` | The status board (`#/status`, from this file), the middleware lab (`#/lab`) and the program graph in the Composer. |
+| New pages | | done | `bc0c69e`, `0902eb6`, `a67c021` | The status board (`/status/`, from this file), the middleware lab (`/lab/`) and the program graph in the Composer. |
+| SEO | | done | `750d5ce`, `33a50b3`, `72bdef5` | Path routes, 281 prerendered pages with their own titles, Open Graph images and JSON-LD, `sitemap.xml`, `llms.txt`, a web manifest. Each deploy sends its URLs to IndexNow. Google Search Console needs the owner's login. |
+| Home page | | done | `750d5ce` | A live program in the hero, numbers measured at build time, an install box. The first script went from 163 to 96 kB gzip. |
 | Test-file types | low | fixed | `eca5164`, `6f019a7` | The test files of every package type-check. It found a library type defect: the collection behaviors declared `Middleware<X & Y>`, not `Middleware<X, X & Y>`. |
 
 ## Collections and the general repositories
