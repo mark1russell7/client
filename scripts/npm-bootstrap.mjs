@@ -18,7 +18,12 @@
 // After the scope change (2026-10-12), --deprecate-old marks each old @mark1russell7 package that
 // is on npm as deprecated, with the name of its @procedures package (also with the 2FA).
 //
-// Options: --dry-run, --approve, --trust, --deprecate-old, --otp <code>,
+// --publish publishes the first version directly (`npm publish`, with the 2FA in the terminal),
+// in place of the staged publish. npm limits the staged publish of new packages: on 2026-10-12 it
+// refused each one with HTTP 429 after 25 new packages in one day, while the direct publish was
+// not limited. A direct publish needs no --approve step.
+//
+// Options: --dry-run, --publish, --approve, --trust, --deprecate-old, --otp <code>,
 //          --only <name,name> (a part of the packages).
 
 import { spawnSync } from "node:child_process";
@@ -37,6 +42,7 @@ const value = (name) => {
 const dryRun = flag("--dry-run");
 const trust = flag("--trust");
 const approve = flag("--approve");
+const publishDirect = flag("--publish");
 const deprecateOld = flag("--deprecate-old");
 const otp = value("--otp");
 const only = value("--only")?.split(",").map((s) => s.trim());
@@ -184,6 +190,20 @@ try {
     mkdirSync(out);
     run("pnpm", ["pack", "--pack-destination", out], pkg.path, true);
     const tgz = join(out, readdirSync(out).find((f) => f.endsWith(".tgz")));
+    if (publishDirect) {
+      // In the terminal, so that npm can open the browser for the 2FA
+      const publishArgs = ["publish", tgz, "--access", "public", "--provenance=false", ...(otp ? ["--otp", otp] : [])];
+      if (dryRun) publishArgs.push("--dry-run");
+      console.log(`npm publish ${pkg.name}@${pkg.version}`);
+      if (interactive(publishArgs) === 0) {
+        staged.push(`${pkg.name}@${pkg.version}`);
+        console.log(`${dryRun ? "would publish" : "published"} ${pkg.name}@${pkg.version}`);
+      } else {
+        failed.push(pkg.name);
+        console.error(`FAIL  ${pkg.name}`);
+      }
+      continue;
+    }
     const args = ["stage", "publish", tgz, "--access", "public", "--provenance=false"];
     if (dryRun) args.push("--dry-run");
     try {
@@ -199,8 +219,11 @@ try {
   rmSync(work, { recursive: true, force: true });
 }
 
-console.log(`\n${staged.length} ${dryRun ? "would be staged" : "staged"}, ${skipped.length} on npm already, ${failed.length} failed.`);
-if (!dryRun && staged.length > 0) {
+const verb = publishDirect ? (dryRun ? "would be published" : "published") : dryRun ? "would be staged" : "staged";
+console.log(`\n${staged.length} ${verb}, ${skipped.length} on npm already, ${failed.length} failed.`);
+if (!dryRun && staged.length > 0 && publishDirect) {
+  console.log("\nNext: node scripts/npm-bootstrap.mjs --trust");
+} else if (!dryRun && staged.length > 0) {
   console.log("\nNext:");
   console.log("  1. node scripts/npm-bootstrap.mjs --approve   (in a terminal: npm opens the browser for the 2FA)");
   console.log("  2. node scripts/npm-bootstrap.mjs --trust");

@@ -54,6 +54,12 @@ node scripts/npm-bootstrap.mjs
 
 The script packs each public package with pnpm and stages it with `npm stage publish`. It skips a version that is on npm. It refuses a package with a git dependency.
 
+If npm refuses the staged publish with HTTP 429 ("rate limited exceeded"), publish directly. npm limits the staged publish of new packages (on 2026-10-12 it refused each one after 25 new packages in one day), but not the direct publish. Start this command in a terminal. npm opens the browser for the 2FA of each package, and the step 3 is not necessary:
+
+```sh
+node scripts/npm-bootstrap.mjs --publish
+```
+
 ### 3. Approve the staged versions
 
 Start this command in a terminal. For each staged version of the packages, it starts `npm stage approve <id>`, and npm opens the browser for the 2FA:
