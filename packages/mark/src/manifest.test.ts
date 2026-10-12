@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROCEDURE_REGISTRY } from "@mark1russell7/client";
 import { discoverFromEcosystem, loadEcosystemProcedures } from "./ecosystem.js";
-import { commandsOf, computeFingerprint, readFreshManifest, type Manifest } from "./manifest.js";
+import { MANIFEST_VERSION, commandsOf, computeFingerprint, readFreshManifest, type Manifest } from "./manifest.js";
 
 const markDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dirs: string[] = [];
@@ -84,7 +84,7 @@ describe("the fingerprint", () => {
     const root = mkdtempSync(join(tmpdir(), "mark-manifest-"));
     dirs.push(root);
     const file = join(root, "manifest.json");
-    const manifest: Manifest = { version: 1, fingerprint: "old", generatedAt: "", commands: [] };
+    const manifest: Manifest = { version: MANIFEST_VERSION, fingerprint: "old", generatedAt: "", commands: [] };
     writeFileSync(file, JSON.stringify(manifest));
     expect(readFreshManifest(file)).toBeNull();
     writeFileSync(file, JSON.stringify({ ...manifest, fingerprint: computeFingerprint() }));
