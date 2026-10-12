@@ -9,11 +9,13 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactEle
 import { packages, procedures } from "../data";
 import { examples } from "../lib/examples";
 import { encodeProgram } from "../lib/program";
-import { href, navigate } from "../lib/router";
+import { docHref, href, navigate } from "../lib/router";
+import { docs } from "../data/docs";
+import docSearchJson from "../data/generated/docs-search.js";
 import { fuzzyScore, search } from "../lib/search";
 import { cycleTheme, THEME_LABEL, NEXT_THEME, getTheme } from "../lib/theme";
 
-type Kind = "page" | "action" | "example" | "procedure" | "package";
+type Kind = "page" | "doc" | "action" | "example" | "procedure" | "package";
 
 interface Command {
   id: string;
@@ -27,23 +29,28 @@ interface Command {
 
 const KIND_LABEL: Record<Kind, string> = {
   page: "Pages",
+  doc: "Docs",
   action: "Actions",
   example: "Examples",
   procedure: "Procedures",
   package: "Packages",
 };
 
-const KIND_ORDER: Kind[] = ["page", "action", "example", "procedure", "package"];
+const KIND_ORDER: Kind[] = ["page", "doc", "action", "example", "procedure", "package"];
 
 const PAGES: Array<{ page: string; label: string; hint: string }> = [
   { page: "", label: "Home", hint: "What the client is, in five seconds" },
   { page: "composer", label: "Composer", hint: "Build a program from blocks and run it" },
+  { page: "docs", label: "Docs", hint: "The guides, the program format and the package READMEs" },
   { page: "catalog", label: "Procedures", hint: "Search the procedures and their schemas" },
   { page: "architecture", label: "Architecture", hint: "The journey of one call, and the packages" },
   { page: "lab", label: "Middleware lab", hint: "Break a server and watch the middlewares" },
   { page: "claude", label: "What Claude sees", hint: "The MCP tools of Claude Code" },
   { page: "status", label: "Status board", hint: "The findings and the bugs, with their fixes" },
 ];
+
+/** The headings of each docs page, for the search (`scripts/docs-data.mjs`). */
+const docHeadings = docSearchJson as unknown as Array<{ slug: string; title: string; headings: Array<{ id: string; text: string }> }>;
 
 function go(url: string): void {
   navigate(url);
@@ -120,6 +127,29 @@ function commands(onDone: (message: string) => void): Command[] {
       run: () => go(href("catalog", procedure.key)),
     });
   }
+  // The docs pages, then each heading of each page (the headings load with the palette)
+  for (const doc of docs) {
+    list.push({
+      id: `doc:${doc.slug}`,
+      kind: "doc",
+      label: doc.package ?? doc.title,
+      hint: `${doc.section} · ${doc.packageDescription || doc.description}`,
+      text: `${doc.title} ${doc.package ?? ""} docs`,
+      run: () => go(docHref(doc.slug)),
+    });
+  }
+  for (const entry of docHeadings) {
+    for (const heading of entry.headings) {
+      list.push({
+        id: `doc:${entry.slug}#${heading.id}`,
+        kind: "doc",
+        label: heading.text,
+        hint: `${entry.title} · docs`,
+        text: `${heading.text} ${entry.title}`,
+        run: () => go(docHref(entry.slug, heading.id)),
+      });
+    }
+  }
   for (const pkg of packages) {
     list.push({
       id: `package:${pkg.dir}`,
@@ -141,9 +171,9 @@ function results(all: Command[], query: string): Array<{ kind: Kind; items: Comm
   const empty = query.trim() === "";
   const groups: Array<{ kind: Kind; items: Command[]; best: number }> = [];
   for (const kind of KIND_ORDER) {
-    if (empty && (kind === "procedure" || kind === "package")) continue;
+    if (empty && (kind === "procedure" || kind === "package" || kind === "doc")) continue;
     const ofKind = all.filter((command) => command.kind === kind);
-    const items = search(ofKind, query, kind === "procedure" ? 12 : 6);
+    const items = search(ofKind, query, kind === "procedure" ? 12 : kind === "doc" ? 8 : 6);
     if (items.length === 0) continue;
     groups.push({ kind, items, best: empty ? -KIND_ORDER.indexOf(kind) : (fuzzyScore(query, items[0]!.text) ?? 0) });
   }

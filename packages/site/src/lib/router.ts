@@ -110,6 +110,20 @@ export function href(page: string, rest?: string, query?: Record<string, string>
   return `${basePath(base)}${path}${path ? "/" : ""}${search}`;
 }
 
+/**
+ * The link of a docs page: `docHref("packages/client-git")` gives
+ * "/client/docs/packages/client-git/". A slug can have several segments, so each is encoded on
+ * its own (`href` encodes its `rest` as one segment).
+ */
+export function docHref(slug: string, hash: string = "", base: string = BASE): string {
+  const path = slug
+    .split("/")
+    .filter((segment) => segment !== "")
+    .map(encodeURIComponent)
+    .join("/");
+  return `${basePath(base)}docs/${path}${path ? "/" : ""}${hash ? `#${hash}` : ""}`;
+}
+
 /** The history state of the entries that the site writes. A pasted link has no such state. */
 const OWN_STATE = { owner: "site" } as const;
 

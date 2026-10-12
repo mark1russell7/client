@@ -15,6 +15,7 @@ const Architecture = lazy(() => import("./pages/Architecture").then((module) => 
 const Claude = lazy(() => import("./pages/Claude").then((module) => ({ default: module.Claude })));
 const Status = lazy(() => import("./pages/Status").then((module) => ({ default: module.Status })));
 const Lab = lazy(() => import("./pages/Lab").then((module) => ({ default: module.Lab })));
+const Docs = lazy(() => import("./pages/Docs").then((module) => ({ default: module.Docs })));
 const CommandPalette = lazy(() => import("./components/CommandPalette").then((module) => ({ default: module.CommandPalette })));
 
 /** The page while its code loads. */
@@ -28,6 +29,7 @@ function PageLoading(): ReactElement {
 
 const NAV: Array<{ page: string; label: string }> = [
   { page: "composer", label: "Composer" },
+  { page: "docs", label: "Docs" },
   { page: "catalog", label: "Procedures" },
   { page: "architecture", label: "Architecture" },
   { page: "lab", label: "Lab" },
@@ -162,6 +164,9 @@ export function App(): ReactElement {
     case "lab":
       page = <Lab />;
       break;
+    case "docs":
+      page = <Docs route={route} />;
+      break;
     default:
       page = <Home />;
   }
@@ -207,7 +212,7 @@ export function App(): ReactElement {
           <ThemeToggle />
         </div>
       </header>
-      <main id="main" tabIndex={-1} className={["composer", "architecture", "status", "lab"].includes(route.page) ? "main wide" : "main"}>
+      <main id="main" tabIndex={-1} className={["composer", "architecture", "status", "lab", "docs"].includes(route.page) ? "main wide" : "main"}>
         <ErrorBoundary resetKey={`${route.page}/${route.rest}?${route.query.toString()}`}>
           <Suspense fallback={<PageLoading />}>{page}</Suspense>
         </ErrorBoundary>

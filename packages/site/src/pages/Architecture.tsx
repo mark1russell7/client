@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactElement } from "react";
 import { packages, type PackageInfo } from "../data";
-import { href, type Route } from "../lib/router";
+import { hasDoc } from "../data/doc-routes";
+import { docHref, href, type Route } from "../lib/router";
 import { Journey } from "../components/Journey";
 
 const NODE_WIDTH = 176;
@@ -136,6 +137,12 @@ function Details({ pkg }: { pkg: PackageInfo }): ReactElement {
             ))}
       </p>
       <p className="small">
+        {hasDoc(`packages/${pkg.dir}`) ? (
+          <>
+            <a href={docHref(`packages/${pkg.dir}`)}>Read the README →</a>
+            <br />
+          </>
+        ) : null}
         <a href={`https://github.com/mark1russell7/client/tree/main/packages/${pkg.dir}`}>Source on GitHub →</a>
       </p>
     </aside>

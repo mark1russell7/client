@@ -18,6 +18,16 @@ describe("the meta data of the pages", () => {
     }
   });
 
+  it("has a page for the docs and for each document, with a title that starts with its words", () => {
+    const paths = staticPages().map((page) => page.path);
+    expect(paths).toContain("docs");
+    expect(paths).toContain("docs/program-format");
+    expect(paths).toContain("docs/packages/client-git");
+    expect(metaOf({ page: "docs", rest: "program-format" })?.title).toMatch(/^Program format: .+ \| client$/);
+    expect(metaOf({ page: "docs", rest: "packages/client-git" })?.title).toMatch(/^@mark1russell7\/client-git: .+ \| client$/);
+    expect(metaOf({ page: "docs", rest: "packages/no-such-package" })).toBeNull();
+  });
+
   it("finds the page of a route, and has none for an unknown procedure or page", () => {
     expect(metaOf({ page: "catalog", rest: "client.chain" })?.heading).toMatch(/^client\.chain/);
     expect(metaOf({ page: "catalog", rest: "no.such.procedure" })).toBeNull();
