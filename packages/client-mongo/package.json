@@ -60,9 +60,9 @@
     "provenance": true
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },
   "scripts": {
@@ -78,6 +78,7 @@
   "dependencies": {
     "@mark1russell7/client": "workspace:*",
     "@mark1russell7/client-collections": "workspace:*",
-    "mongodb": "^7.0.0"
+    "mongodb": "^7.0.0",
+    "zod": "^4.6.5"
   }
 }

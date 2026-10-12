@@ -6,7 +6,7 @@
 
 import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
 import type { McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
-import { cachedZodToJsonSchema } from "../schema/zod-to-json-schema.js";
+import { cachedToolInputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
 
 // This package's tsconfig only pulls in the `esnext` lib (no DOM/node types),
@@ -55,7 +55,7 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
   const tool: McpTool = {
     name: toolName,
     description: meta.description ?? `Call ${cacheKey}`,
-    inputSchema: cachedZodToJsonSchema(procedure.input, cacheKey),
+    inputSchema: cachedToolInputSchema(procedure.input, cacheKey),
     procedurePath: procedure.path,
   };
 
