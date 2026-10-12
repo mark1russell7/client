@@ -71,6 +71,25 @@ describe("the program store procedures", () => {
     expect(isDataDriven(procedure)).toBe(true);
   });
 
+  it("a loaded program runs as exec() runs it: a root $when does not apply, a list in the root input is a chain (DOC-3)", async () => {
+    const store = new MemoryProgramStore();
+    const program = {
+      $proc: ["client", "identity"],
+      input: { value: [add({ $ref: "input.x" }, 1), add(2, 2)] },
+      $when: "$never",
+    };
+    const first = startProcess(store);
+    await define(first.client, ["math", "both"], program);
+    await first.client.exec(["procedure", "store"], { path: "math.both" });
+
+    const second = startProcess(store);
+    await second.client.exec(["procedure", "load"], { all: true });
+    const viaStore = await second.client.exec(["math", "both"], { x: 1 });
+    const viaExec = await second.client.exec({ ...program, input: { value: [add(1, 1), add(2, 2)] } });
+    expect(viaStore).toEqual(viaExec);
+    expect(viaStore).toMatchObject({ final: 4 });
+  });
+
   it("fails with NOT_CONFIGURED without a store, and remote status says so", async () => {
     const { client, registry } = startProcess();
     expect(getProgramStore(registry)).toBeUndefined();
