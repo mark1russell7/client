@@ -5,6 +5,7 @@
  * All procedures are namespaced under "client" (e.g., client.typeof, client.isArray).
  */
 
+import { z } from "zod";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 
@@ -27,14 +28,18 @@ const anySchema: {
 // =============================================================================
 
 interface TypeofInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const TypeofInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type TypeofProcedure = Procedure<TypeofInput, string, { description: string; tags: string[] }>;
 
 const typeofProcedure: TypeofProcedure = defineProcedure({
   path: ["typeof"],
-  input: anySchema as any,
+  input: TypeofInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Get type of value (string, number, boolean, object, array, null, undefined, function)",
@@ -53,14 +58,18 @@ const typeofProcedure: TypeofProcedure = defineProcedure({
 // =============================================================================
 
 interface IsNullInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsNullInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsNullProcedure = Procedure<IsNullInput, boolean, { description: string; tags: string[] }>;
 
 const isNullProcedure: IsNullProcedure = defineProcedure({
   path: ["isNull"],
-  input: anySchema as any,
+  input: IsNullInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is null",
@@ -76,14 +85,18 @@ const isNullProcedure: IsNullProcedure = defineProcedure({
 // =============================================================================
 
 interface IsUndefinedInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsUndefinedInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsUndefinedProcedure = Procedure<IsUndefinedInput, boolean, { description: string; tags: string[] }>;
 
 const isUndefinedProcedure: IsUndefinedProcedure = defineProcedure({
   path: ["isUndefined"],
-  input: anySchema as any,
+  input: IsUndefinedInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is undefined",
@@ -99,14 +112,18 @@ const isUndefinedProcedure: IsUndefinedProcedure = defineProcedure({
 // =============================================================================
 
 interface IsNilInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsNilInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsNilProcedure = Procedure<IsNilInput, boolean, { description: string; tags: string[] }>;
 
 const isNilProcedure: IsNilProcedure = defineProcedure({
   path: ["isNil"],
-  input: anySchema as any,
+  input: IsNilInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is null or undefined",
@@ -122,14 +139,18 @@ const isNilProcedure: IsNilProcedure = defineProcedure({
 // =============================================================================
 
 interface IsArrayInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsArrayInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsArrayProcedure = Procedure<IsArrayInput, boolean, { description: string; tags: string[] }>;
 
 const isArrayProcedure: IsArrayProcedure = defineProcedure({
   path: ["isArray"],
-  input: anySchema as any,
+  input: IsArrayInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is an array",
@@ -145,14 +166,18 @@ const isArrayProcedure: IsArrayProcedure = defineProcedure({
 // =============================================================================
 
 interface IsObjectInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsObjectInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsObjectProcedure = Procedure<IsObjectInput, boolean, { description: string; tags: string[] }>;
 
 const isObjectProcedure: IsObjectProcedure = defineProcedure({
   path: ["isObject"],
-  input: anySchema as any,
+  input: IsObjectInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is a plain object (not array, not null)",
@@ -168,14 +193,18 @@ const isObjectProcedure: IsObjectProcedure = defineProcedure({
 // =============================================================================
 
 interface IsStringInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsStringInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsStringProcedure = Procedure<IsStringInput, boolean, { description: string; tags: string[] }>;
 
 const isStringProcedure: IsStringProcedure = defineProcedure({
   path: ["isString"],
-  input: anySchema as any,
+  input: IsStringInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is a string",
@@ -191,14 +220,18 @@ const isStringProcedure: IsStringProcedure = defineProcedure({
 // =============================================================================
 
 interface IsNumberInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsNumberInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsNumberProcedure = Procedure<IsNumberInput, boolean, { description: string; tags: string[] }>;
 
 const isNumberProcedure: IsNumberProcedure = defineProcedure({
   path: ["isNumber"],
-  input: anySchema as any,
+  input: IsNumberInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is a number (not NaN)",
@@ -214,14 +247,18 @@ const isNumberProcedure: IsNumberProcedure = defineProcedure({
 // =============================================================================
 
 interface IsBooleanInput {
-  value: unknown;
+  value?: unknown;
 }
+
+const IsBooleanInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+});
 
 type IsBooleanProcedure = Procedure<IsBooleanInput, boolean, { description: string; tags: string[] }>;
 
 const isBooleanProcedure: IsBooleanProcedure = defineProcedure({
   path: ["isBoolean"],
-  input: anySchema as any,
+  input: IsBooleanInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if value is a boolean",
@@ -237,15 +274,20 @@ const isBooleanProcedure: IsBooleanProcedure = defineProcedure({
 // =============================================================================
 
 interface CoerceInput {
-  value: unknown;
+  value?: unknown;
   to: "string" | "number" | "boolean" | "array";
 }
+
+const CoerceInputSchema = z.object({
+  value: z.unknown().optional().describe("The value"),
+  to: z.enum(["string", "number", "boolean", "array"]).describe("The type to convert to: string, number, boolean or array"),
+});
 
 type CoerceProcedure = Procedure<CoerceInput, unknown, { description: string; tags: string[] }>;
 
 const coerceProcedure: CoerceProcedure = defineProcedure({
   path: ["coerce"],
-  input: anySchema as any,
+  input: CoerceInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Coerce value to specified type",

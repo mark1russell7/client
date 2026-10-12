@@ -44,17 +44,17 @@ export const S3UploadInputSchema: z.ZodObject<{
   metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key (path in bucket) */
-  key: z.string(),
+  key: z.string().describe("Object key (path in bucket)"),
   /** Content to upload - string or base64 encoded binary */
-  body: z.string(),
+  body: z.string().describe("Content to upload - string or base64 encoded binary"),
   /** Content type (e.g., "application/json", "text/plain") */
-  contentType: z.string().optional(),
+  contentType: z.string().optional().describe("Content type (e.g., \"application/json\", \"text/plain\")"),
   /** If true, body is base64 encoded binary data */
-  base64: z.boolean().optional(),
+  base64: z.boolean().optional().describe("If true, body is base64 encoded binary data"),
   /** Optional metadata key-value pairs */
-  metadata: z.record(z.string(), z.string()).optional(),
+  metadata: z.record(z.string(), z.string()).optional().describe("Optional metadata key-value pairs"),
 });
 
 export type S3UploadInput = z.infer<typeof S3UploadInputSchema>;
@@ -81,17 +81,17 @@ export const S3DownloadInputSchema: z.ZodObject<{
   maxBytes: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key (path in bucket) */
-  key: z.string(),
+  key: z.string().describe("Object key (path in bucket)"),
   /** Encoding for text content (utf8, ascii, etc.) - omit for base64 binary */
-  encoding: z.string().optional(),
+  encoding: z.string().optional().describe("Encoding for text content (utf8, ascii, etc.) - omit for base64 binary"),
   /** Specific version to download */
-  versionId: z.string().optional(),
+  versionId: z.string().optional().describe("Specific version to download"),
   /** Write the object to this file instead of returning it (streams to disk: no size limit, no base64) */
-  destPath: z.string().optional(),
+  destPath: z.string().optional().describe("Write the object to this file instead of returning it (streams to disk: no size limit, no base64)"),
   /** Largest object to load into memory when destPath is not set (default: 64 MiB) */
-  maxBytes: z.number().int().positive().optional(),
+  maxBytes: z.number().int().positive().optional().describe("Largest object to load into memory when destPath is not set (default: 64 MiB)"),
 });
 
 export type S3DownloadInput = z.infer<typeof S3DownloadInputSchema>;
@@ -123,15 +123,15 @@ export const S3ListInputSchema: z.ZodObject<{
   delimiter: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Filter objects by prefix */
-  prefix: z.string().optional(),
+  prefix: z.string().optional().describe("Filter objects by prefix"),
   /** Maximum number of keys to return (default 1000) */
-  maxKeys: z.number().optional(),
+  maxKeys: z.number().optional().describe("Maximum number of keys to return (default 1000)"),
   /** Continuation token for pagination */
-  continuationToken: z.string().optional(),
+  continuationToken: z.string().optional().describe("Continuation token for pagination"),
   /** Delimiter for hierarchical listing (e.g., "/") */
-  delimiter: z.string().optional(),
+  delimiter: z.string().optional().describe("Delimiter for hierarchical listing (e.g., \"/\")"),
 });
 
 export type S3ListInput = z.infer<typeof S3ListInputSchema>;
@@ -173,13 +173,13 @@ export const S3ListAllInputSchema: z.ZodObject<{
   delimiter: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Filter objects by prefix */
-  prefix: z.string().optional(),
+  prefix: z.string().optional().describe("Filter objects by prefix"),
   /** Page size for each underlying request (default/max 1000); paging is automatic */
-  maxKeys: z.number().optional(),
+  maxKeys: z.number().optional().describe("Page size for each underlying request (default/max 1000); paging is automatic"),
   /** Delimiter for hierarchical listing (e.g., "/") */
-  delimiter: z.string().optional(),
+  delimiter: z.string().optional().describe("Delimiter for hierarchical listing (e.g., \"/\")"),
 });
 
 export type S3ListAllInput = z.infer<typeof S3ListAllInputSchema>;
@@ -205,11 +205,11 @@ export const S3DeleteInputSchema: z.ZodObject<{
   versionId: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key (path in bucket) */
-  key: z.string(),
+  key: z.string().describe("Object key (path in bucket)"),
   /** Specific version to delete */
-  versionId: z.string().optional(),
+  versionId: z.string().optional().describe("Specific version to delete"),
 });
 
 export type S3DeleteInput = z.infer<typeof S3DeleteInputSchema>;
@@ -234,13 +234,13 @@ export const S3MultipartInitInputSchema: z.ZodObject<{
   metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key (path in bucket) */
-  key: z.string(),
+  key: z.string().describe("Object key (path in bucket)"),
   /** Content type */
-  contentType: z.string().optional(),
+  contentType: z.string().optional().describe("Content type"),
   /** Optional metadata */
-  metadata: z.record(z.string(), z.string()).optional(),
+  metadata: z.record(z.string(), z.string()).optional().describe("Optional metadata"),
 });
 
 export type S3MultipartInitInput = z.infer<typeof S3MultipartInitInputSchema>;
@@ -266,15 +266,15 @@ export const S3MultipartUploadInputSchema: z.ZodObject<{
   body: z.ZodString;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key */
-  key: z.string(),
+  key: z.string().describe("Object key"),
   /** Upload ID from init */
-  uploadId: z.string(),
+  uploadId: z.string().describe("Upload ID from init"),
   /** Part number (1-10000) */
-  partNumber: z.number().min(1).max(10000),
+  partNumber: z.number().min(1).max(10000).describe("Part number (1-10000)"),
   /** Part content - base64 encoded */
-  body: z.string(),
+  body: z.string().describe("Part content - base64 encoded"),
 });
 
 export type S3MultipartUploadInput = z.infer<typeof S3MultipartUploadInputSchema>;
@@ -300,18 +300,18 @@ export const S3MultipartCompleteInputSchema: z.ZodObject<{
   }>>;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key */
-  key: z.string(),
+  key: z.string().describe("Object key"),
   /** Upload ID from init */
-  uploadId: z.string(),
+  uploadId: z.string().describe("Upload ID from init"),
   /** Parts to complete (etag and partNumber) */
   parts: z.array(
     z.object({
       etag: z.string(),
       partNumber: z.number(),
     })
-  ),
+  ).describe("Parts to complete (etag and partNumber)"),
 });
 
 export type S3MultipartCompleteInput = z.infer<typeof S3MultipartCompleteInputSchema>;
@@ -337,11 +337,11 @@ export const S3MultipartAbortInputSchema: z.ZodObject<{
   uploadId: z.ZodString;
 }> = z.object({
   /** S3 bucket name */
-  bucket: z.string(),
+  bucket: z.string().describe("S3 bucket name"),
   /** Object key */
-  key: z.string(),
+  key: z.string().describe("Object key"),
   /** Upload ID to abort */
-  uploadId: z.string(),
+  uploadId: z.string().describe("Upload ID to abort"),
 });
 
 export type S3MultipartAbortInput = z.infer<typeof S3MultipartAbortInputSchema>;

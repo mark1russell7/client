@@ -239,15 +239,15 @@ export type IndexSpec = Record<string, 1 | -1 | "text" | "2dsphere">;
  */
 export interface IndexOptions {
   /** Index name */
-  name?: string;
+  name?: string | undefined;
   /** Unique index */
-  unique?: boolean;
+  unique?: boolean | undefined;
   /** Sparse index */
-  sparse?: boolean;
+  sparse?: boolean | undefined;
   /** Build in background */
-  background?: boolean;
+  background?: boolean | undefined;
   /** TTL in seconds */
-  expireAfterSeconds?: number;
+  expireAfterSeconds?: number | undefined;
 }
 
 /**
@@ -269,13 +269,13 @@ export interface IndexInfo {
  */
 export interface CollectionOptions {
   /** Create a capped collection */
-  capped?: boolean;
+  capped?: boolean | undefined;
   /** Max size in bytes (for capped) */
-  size?: number;
+  size?: number | undefined;
   /** Max documents (for capped) */
-  max?: number;
+  max?: number | undefined;
   /** JSON Schema validator */
-  validator?: Document;
+  validator?: Document | undefined;
 }
 
 /**
@@ -330,7 +330,7 @@ export type AggregationStage = Document;
  */
 export interface AggregationOptions {
   /** Allow disk use for large operations */
-  allowDiskUse?: boolean;
+  allowDiskUse?: boolean | undefined;
   /** Max execution time in ms */
-  maxTimeMS?: number;
+  maxTimeMS?: number | undefined;
 }

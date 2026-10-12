@@ -10,13 +10,13 @@ import { proceduresToMcpTools, type McpToolFilter } from "@mark1russell7/mcp";
 
 const McpListToolsInputSchema = z.object({
   /** Only include procedures with these tags */
-  includeTags: z.array(z.string()).optional(),
+  includeTags: z.array(z.string()).optional().describe("Only include procedures with these tags"),
   /** Exclude procedures with these tags */
-  excludeTags: z.array(z.string()).optional(),
+  excludeTags: z.array(z.string()).optional().describe("Exclude procedures with these tags"),
   /** Exclude internal procedures (default: true) */
-  excludeInternal: z.boolean().default(true),
+  excludeInternal: z.boolean().default(true).describe("Exclude internal procedures (default: true)"),
   /** Only include procedures under this path prefix */
-  pathPrefix: z.array(z.string()).optional(),
+  pathPrefix: z.array(z.string()).optional().describe("Only include procedures under this path prefix"),
 });
 
 type McpListToolsInput = z.infer<typeof McpListToolsInputSchema>;

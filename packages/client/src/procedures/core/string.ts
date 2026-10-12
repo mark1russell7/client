@@ -5,6 +5,7 @@
  * All procedures are namespaced under "client" (e.g., client.concat, client.split).
  */
 
+import { z } from "zod";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 
@@ -28,14 +29,19 @@ const anySchema: {
 
 interface ConcatInput {
   values: string[];
-  separator?: string;
+  separator?: string | undefined;
 }
+
+const ConcatInputSchema = z.object({
+  values: z.array(z.string()).describe("The values"),
+  separator: z.string().optional().describe("The separator"),
+});
 
 type ConcatProcedure = Procedure<ConcatInput, string, { description: string; tags: string[] }>;
 
 const concatProcedure: ConcatProcedure = defineProcedure({
   path: ["concat"],
-  input: anySchema as any,
+  input: ConcatInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Concatenate strings with optional separator",
@@ -53,14 +59,20 @@ const concatProcedure: ConcatProcedure = defineProcedure({
 interface SplitInput {
   value: string;
   separator: string;
-  limit?: number;
+  limit?: number | undefined;
 }
+
+const SplitInputSchema = z.object({
+  value: z.string().describe("The value"),
+  separator: z.string().describe("The separator"),
+  limit: z.number().optional().describe("The most parts to give"),
+});
 
 type SplitProcedure = Procedure<SplitInput, string[], { description: string; tags: string[] }>;
 
 const splitProcedure: SplitProcedure = defineProcedure({
   path: ["split"],
-  input: anySchema as any,
+  input: SplitInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Split string by separator",
@@ -80,11 +92,16 @@ interface JoinInput {
   separator: string;
 }
 
+const JoinInputSchema = z.object({
+  values: z.array(z.string()).describe("The values"),
+  separator: z.string().describe("The separator"),
+});
+
 type JoinProcedure = Procedure<JoinInput, string, { description: string; tags: string[] }>;
 
 const joinProcedure: JoinProcedure = defineProcedure({
   path: ["join"],
-  input: anySchema as any,
+  input: JoinInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Join array of strings with separator",
@@ -103,14 +120,21 @@ interface ReplaceInput {
   value: string;
   search: string;
   replace: string;
-  all?: boolean;
+  all?: boolean | undefined;
 }
+
+const ReplaceInputSchema = z.object({
+  value: z.string().describe("The value"),
+  search: z.string().describe("The text to find"),
+  replace: z.string().describe("The replacement text"),
+  all: z.boolean().optional().describe("Replace every match, not only the first one"),
+});
 
 type ReplaceProcedure = Procedure<ReplaceInput, string, { description: string; tags: string[] }>;
 
 const replaceProcedure: ReplaceProcedure = defineProcedure({
   path: ["replace"],
-  input: anySchema as any,
+  input: ReplaceInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Replace substring (first occurrence or all)",
@@ -131,14 +155,20 @@ const replaceProcedure: ReplaceProcedure = defineProcedure({
 interface SubstringInput {
   value: string;
   start: number;
-  end?: number;
+  end?: number | undefined;
 }
+
+const SubstringInputSchema = z.object({
+  value: z.string().describe("The value"),
+  start: z.number().describe("The start position (inclusive)"),
+  end: z.number().optional().describe("The end position (exclusive)"),
+});
 
 type SubstringProcedure = Procedure<SubstringInput, string, { description: string; tags: string[] }>;
 
 const substringProcedure: SubstringProcedure = defineProcedure({
   path: ["substring"],
-  input: anySchema as any,
+  input: SubstringInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Extract substring from start to end index",
@@ -155,14 +185,19 @@ const substringProcedure: SubstringProcedure = defineProcedure({
 
 interface TrimInput {
   value: string;
-  side?: "start" | "end" | "both";
+  side?: "start" | "end" | "both" | undefined;
 }
+
+const TrimInputSchema = z.object({
+  value: z.string().describe("The value"),
+  side: z.enum(["start", "end", "both"]).optional().describe("Which side to trim: start, end or both (default: both)"),
+});
 
 type TrimProcedure = Procedure<TrimInput, string, { description: string; tags: string[] }>;
 
 const trimProcedure: TrimProcedure = defineProcedure({
   path: ["trim"],
-  input: anySchema as any,
+  input: TrimInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Trim whitespace from string",
@@ -189,11 +224,15 @@ interface ToLowerInput {
   value: string;
 }
 
+const ToLowerInputSchema = z.object({
+  value: z.string().describe("The value"),
+});
+
 type ToLowerProcedure = Procedure<ToLowerInput, string, { description: string; tags: string[] }>;
 
 const toLowerProcedure: ToLowerProcedure = defineProcedure({
   path: ["toLower"],
-  input: anySchema as any,
+  input: ToLowerInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Convert string to lowercase",
@@ -212,11 +251,15 @@ interface ToUpperInput {
   value: string;
 }
 
+const ToUpperInputSchema = z.object({
+  value: z.string().describe("The value"),
+});
+
 type ToUpperProcedure = Procedure<ToUpperInput, string, { description: string; tags: string[] }>;
 
 const toUpperProcedure: ToUpperProcedure = defineProcedure({
   path: ["toUpper"],
-  input: anySchema as any,
+  input: ToUpperInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Convert string to uppercase",
@@ -236,11 +279,16 @@ interface StartsWithInput {
   search: string;
 }
 
+const StartsWithInputSchema = z.object({
+  value: z.string().describe("The value"),
+  search: z.string().describe("The text to find"),
+});
+
 type StartsWithProcedure = Procedure<StartsWithInput, boolean, { description: string; tags: string[] }>;
 
 const startsWithProcedure: StartsWithProcedure = defineProcedure({
   path: ["startsWith"],
-  input: anySchema as any,
+  input: StartsWithInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if string starts with search string",
@@ -260,11 +308,16 @@ interface EndsWithInput {
   search: string;
 }
 
+const EndsWithInputSchema = z.object({
+  value: z.string().describe("The value"),
+  search: z.string().describe("The text to find"),
+});
+
 type EndsWithProcedure = Procedure<EndsWithInput, boolean, { description: string; tags: string[] }>;
 
 const endsWithProcedure: EndsWithProcedure = defineProcedure({
   path: ["endsWith"],
-  input: anySchema as any,
+  input: EndsWithInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if string ends with search string",
@@ -284,11 +337,16 @@ interface IncludesInput {
   search: string;
 }
 
+const IncludesInputSchema = z.object({
+  value: z.string().describe("The value"),
+  search: z.string().describe("The text to find"),
+});
+
 type IncludesProcedure = Procedure<IncludesInput, boolean, { description: string; tags: string[] }>;
 
 const includesProcedure: IncludesProcedure = defineProcedure({
   path: ["includes"],
-  input: anySchema as any,
+  input: IncludesInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if string contains search string",
@@ -307,11 +365,15 @@ interface StrLengthInput {
   value: string;
 }
 
+const StrLengthInputSchema = z.object({
+  value: z.string().describe("The value"),
+});
+
 type StrLengthProcedure = Procedure<StrLengthInput, number, { description: string; tags: string[] }>;
 
 const strLengthProcedure: StrLengthProcedure = defineProcedure({
   path: ["strLength"],
-  input: anySchema as any,
+  input: StrLengthInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Get string length",
@@ -331,11 +393,16 @@ interface TemplateInput {
   values: Record<string, unknown>;
 }
 
+const TemplateInputSchema = z.object({
+  template: z.string().describe("The template text, with {name} placeholders"),
+  values: z.record(z.string(), z.unknown()).describe("The values"),
+});
+
 type TemplateProcedure = Procedure<TemplateInput, string, { description: string; tags: string[] }>;
 
 const templateProcedure: TemplateProcedure = defineProcedure({
   path: ["template"],
-  input: anySchema as any,
+  input: TemplateInputSchema,
   output: anySchema as any,
   metadata: {
     description: "String interpolation with {{key}} placeholders",

@@ -5,6 +5,7 @@
  * All procedures are namespaced under "client" (e.g., client.add, client.multiply).
  */
 
+import { z } from "zod";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 
@@ -31,11 +32,16 @@ interface AddInput {
   b: number;
 }
 
+const AddInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type AddProcedure = Procedure<AddInput, number, { description: string; tags: string[] }>;
 
 const addProcedure: AddProcedure = defineProcedure({
   path: ["add"],
-  input: anySchema as any,
+  input: AddInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Add two numbers",
@@ -55,11 +61,16 @@ interface SubtractInput {
   b: number;
 }
 
+const SubtractInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type SubtractProcedure = Procedure<SubtractInput, number, { description: string; tags: string[] }>;
 
 const subtractProcedure: SubtractProcedure = defineProcedure({
   path: ["subtract"],
-  input: anySchema as any,
+  input: SubtractInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Subtract b from a",
@@ -79,11 +90,16 @@ interface MultiplyInput {
   b: number;
 }
 
+const MultiplyInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type MultiplyProcedure = Procedure<MultiplyInput, number, { description: string; tags: string[] }>;
 
 const multiplyProcedure: MultiplyProcedure = defineProcedure({
   path: ["multiply"],
-  input: anySchema as any,
+  input: MultiplyInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Multiply two numbers",
@@ -103,11 +119,16 @@ interface DivideInput {
   b: number;
 }
 
+const DivideInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type DivideProcedure = Procedure<DivideInput, number, { description: string; tags: string[] }>;
 
 const divideProcedure: DivideProcedure = defineProcedure({
   path: ["divide"],
-  input: anySchema as any,
+  input: DivideInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Divide a by b",
@@ -130,11 +151,16 @@ interface ModInput {
   b: number;
 }
 
+const ModInputSchema = z.object({
+  a: z.number().describe("The first operand"),
+  b: z.number().describe("The second operand"),
+});
+
 type ModProcedure = Procedure<ModInput, number, { description: string; tags: string[] }>;
 
 const modProcedure: ModProcedure = defineProcedure({
   path: ["mod"],
-  input: anySchema as any,
+  input: ModInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Modulo (remainder of a / b)",
@@ -153,11 +179,15 @@ interface AbsInput {
   value: number;
 }
 
+const AbsInputSchema = z.object({
+  value: z.number().describe("The value"),
+});
+
 type AbsProcedure = Procedure<AbsInput, number, { description: string; tags: string[] }>;
 
 const absProcedure: AbsProcedure = defineProcedure({
   path: ["abs"],
-  input: anySchema as any,
+  input: AbsInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Absolute value",
@@ -176,11 +206,15 @@ interface MinInput {
   values: number[];
 }
 
+const MinInputSchema = z.object({
+  values: z.array(z.number()).describe("The values"),
+});
+
 type MinProcedure = Procedure<MinInput, number, { description: string; tags: string[] }>;
 
 const minProcedure: MinProcedure = defineProcedure({
   path: ["min"],
-  input: anySchema as any,
+  input: MinInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Minimum value from array",
@@ -202,11 +236,15 @@ interface MaxInput {
   values: number[];
 }
 
+const MaxInputSchema = z.object({
+  values: z.array(z.number()).describe("The values"),
+});
+
 type MaxProcedure = Procedure<MaxInput, number, { description: string; tags: string[] }>;
 
 const maxProcedure: MaxProcedure = defineProcedure({
   path: ["max"],
-  input: anySchema as any,
+  input: MaxInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Maximum value from array",
@@ -228,11 +266,15 @@ interface SumInput {
   values: number[];
 }
 
+const SumInputSchema = z.object({
+  values: z.array(z.number()).describe("The values"),
+});
+
 type SumProcedure = Procedure<SumInput, number, { description: string; tags: string[] }>;
 
 const sumProcedure: SumProcedure = defineProcedure({
   path: ["sum"],
-  input: anySchema as any,
+  input: SumInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Sum of all values in array",
@@ -252,11 +294,16 @@ interface PowInput {
   exp: number;
 }
 
+const PowInputSchema = z.object({
+  base: z.number().describe("The base"),
+  exp: z.number().describe("The exponent"),
+});
+
 type PowProcedure = Procedure<PowInput, number, { description: string; tags: string[] }>;
 
 const powProcedure: PowProcedure = defineProcedure({
   path: ["pow"],
-  input: anySchema as any,
+  input: PowInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Raise base to exponent power",
@@ -275,11 +322,15 @@ interface SqrtInput {
   value: number;
 }
 
+const SqrtInputSchema = z.object({
+  value: z.number().describe("The value"),
+});
+
 type SqrtProcedure = Procedure<SqrtInput, number, { description: string; tags: string[] }>;
 
 const sqrtProcedure: SqrtProcedure = defineProcedure({
   path: ["sqrt"],
-  input: anySchema as any,
+  input: SqrtInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Square root",
@@ -298,11 +349,15 @@ interface FloorInput {
   value: number;
 }
 
+const FloorInputSchema = z.object({
+  value: z.number().describe("The value"),
+});
+
 type FloorProcedure = Procedure<FloorInput, number, { description: string; tags: string[] }>;
 
 const floorProcedure: FloorProcedure = defineProcedure({
   path: ["floor"],
-  input: anySchema as any,
+  input: FloorInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Round down to nearest integer",
@@ -321,11 +376,15 @@ interface CeilInput {
   value: number;
 }
 
+const CeilInputSchema = z.object({
+  value: z.number().describe("The value"),
+});
+
 type CeilProcedure = Procedure<CeilInput, number, { description: string; tags: string[] }>;
 
 const ceilProcedure: CeilProcedure = defineProcedure({
   path: ["ceil"],
-  input: anySchema as any,
+  input: CeilInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Round up to nearest integer",
@@ -342,14 +401,19 @@ const ceilProcedure: CeilProcedure = defineProcedure({
 
 interface RoundInput {
   value: number;
-  decimals?: number;
+  decimals?: number | undefined;
 }
+
+const RoundInputSchema = z.object({
+  value: z.number().describe("The value"),
+  decimals: z.number().optional().describe("The number of decimal places (default: 0)"),
+});
 
 type RoundProcedure = Procedure<RoundInput, number, { description: string; tags: string[] }>;
 
 const roundProcedure: RoundProcedure = defineProcedure({
   path: ["round"],
-  input: anySchema as any,
+  input: RoundInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Round to nearest integer or specified decimal places",

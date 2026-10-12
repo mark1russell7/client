@@ -17,17 +17,17 @@ export const ShellRunInputSchema: z.ZodObject<{
   encoding: z.ZodDefault<z.ZodString>;
 }> = z.object({
   /** Command to run */
-  command: z.string(),
+  command: z.string().describe("Command to run"),
   /** Arguments to pass */
-  args: z.array(z.string()).default([]),
+  args: z.array(z.string()).default([]).describe("Arguments to pass"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Environment variables to set */
-  env: z.record(z.string(), z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional().describe("Environment variables to set"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
   /** Encoding for output (default: utf8) */
-  encoding: z.string().default("utf8"),
+  encoding: z.string().default("utf8").describe("Encoding for output (default: utf8)"),
 });
 
 export type ShellRunInput = z.infer<typeof ShellRunInputSchema>;
@@ -61,19 +61,19 @@ export const ShellExecInputSchema: z.ZodObject<{
   stdin: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Full command string to execute via shell */
-  command: z.string(),
+  command: z.string().describe("Full command string to execute via shell"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Environment variables */
-  env: z.record(z.string(), z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional().describe("Environment variables"),
   /** Timeout in milliseconds. At the timeout, the shell and the programs that it started are killed. */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds. At the timeout, the shell and the programs that it started are killed."),
   /** Shell to use: a path, or `true` for the system shell (`cmd.exe` or `/bin/sh`). `false` is the same as `true`. */
-  shell: z.union([z.boolean(), z.string()]).default(true),
+  shell: z.union([z.boolean(), z.string()]).default(true).describe("Shell to use: a path, or `true` for the system shell (`cmd.exe` or `/bin/sh`). `false` is the same as `true`."),
   /** The most bytes kept of each output stream (default: 64 MiB). The procedure drops the rest. */
-  maxBuffer: z.number().optional(),
+  maxBuffer: z.number().optional().describe("The most bytes kept of each output stream (default: 64 MiB). The procedure drops the rest."),
   /** Text to write to stdin. Without it, stdin is empty. */
-  stdin: z.string().optional(),
+  stdin: z.string().optional().describe("Text to write to stdin. Without it, stdin is empty."),
 });
 
 export type ShellExecInput = z.infer<typeof ShellExecInputSchema>;
@@ -96,7 +96,7 @@ export const ShellWhichInputSchema: z.ZodObject<{
   command: z.ZodString;
 }> = z.object({
   /** Command to find */
-  command: z.string(),
+  command: z.string().describe("Command to find"),
 });
 
 export type ShellWhichInput = z.infer<typeof ShellWhichInputSchema>;

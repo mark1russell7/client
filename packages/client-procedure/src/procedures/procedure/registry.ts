@@ -31,7 +31,7 @@ const anySchema: {
 
 const ProcedureExportInputSchema = z.object({
   /** Procedure path (array or dot-separated) */
-  path: z.union([z.array(z.string()), z.string()]),
+  path: z.union([z.array(z.string()), z.string()]).describe("Procedure path (array or dot-separated)"),
 });
 
 type ProcedureExportInput = z.infer<typeof ProcedureExportInputSchema>;

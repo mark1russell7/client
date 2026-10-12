@@ -149,9 +149,9 @@ export const ${outputSchemaName}: z.ZodObject<{
   message: z.ZodString;
 }> = z.object({
   /** Whether the operation succeeded */
-  success: z.boolean(),
+  success: z.boolean().describe("Whether the operation succeeded"),
   /** Response message */
-  message: z.string(),
+  message: z.string().describe("Response message"),
 });
 
 export type ${pascalName}Output = z.infer<typeof ${outputSchemaName}>;

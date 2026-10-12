@@ -5,7 +5,8 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, registerProcedures, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, outputSchema, zodAdapter } from "@mark1russell7/client";
+import { z } from "zod";
 import {
   withConnection,
   query,
@@ -33,13 +34,74 @@ import {
 // Schemas
 // =============================================================================
 
-const dbQueryInputSchema = outputSchema<DbQueryInput>();
-const dbQueryOutputSchema = outputSchema<DbQueryOutput>();
-const dbExecuteInputSchema = outputSchema<DbExecuteInput>();
-const dbExecuteOutputSchema = outputSchema<DbExecuteOutput>();
-const logsStoreInputSchema = outputSchema<LogsStoreInput>();
-const logsStoreOutputSchema = outputSchema<LogsStoreOutput>();
-const logsQueryInputSchema = outputSchema<LogsQueryInput>();
+// Real schemas (roadmap 2.1): the input is validated before the handler, and the MCP tool list
+// and the help of mark describe each field. zodAdapter<T> checks each schema against its type.
+
+const dbPathField = z
+  .string()
+  .optional()
+  .describe(`The SQLite database file (default: ${DEFAULT_DB_PATH}). A query does not make a missing file.`);
+const paramsField = z
+  .array(z.unknown())
+  .optional()
+  .describe("The values of the ? placeholders of the SQL, in order");
+const logLevel = z.enum(LOG_LEVELS as [LogLevel, ...LogLevel[]], { error: (issue) => `Invalid log level: ${JSON.stringify(issue.input)}` });
+/** A non-negative integer: it goes into the SQL text, so the schema is strict. */
+const nonNegativeInteger = (field: string) =>
+  z
+    .number({ error: (issue) => `Invalid ${field}: expected a non-negative integer, got ${JSON.stringify(issue.input)}` })
+    .int({ error: `Invalid ${field}: expected a non-negative integer` })
+    .min(0, { error: `Invalid ${field}: expected a non-negative integer` });
+
+const dbQueryInputSchema = zodAdapter<DbQueryInput>(
+  z.object({
+    sql: z.string().describe("The SQL query (SELECT)"),
+    params: paramsField,
+    dbPath: dbPathField,
+  })
+);
+const dbQueryOutputSchema = zodAdapter<DbQueryOutput>(
+  z.looseObject({
+    columns: z.array(z.string()).describe("The column names"),
+    rows: z.array(z.record(z.string(), z.unknown())).describe("The rows, one object for each row"),
+  })
+);
+const dbExecuteInputSchema = zodAdapter<DbExecuteInput>(
+  z.object({
+    sql: z.string().describe("The SQL statement or script (INSERT, UPDATE, DELETE, CREATE TABLE, ...)"),
+    params: paramsField,
+    dbPath: dbPathField,
+  })
+);
+const dbExecuteOutputSchema = zodAdapter<DbExecuteOutput>(
+  z.looseObject({ changes: z.number().describe("The number of rows that the statements changed") })
+);
+const logsStoreInputSchema = zodAdapter<LogsStoreInput>(
+  z.object({
+    level: logLevel.describe("The level: trace, debug, info, warn or error"),
+    message: z.string().describe("The log message"),
+    sessionId: z.string().optional().describe("The session that the entry belongs to (to group entries)"),
+    command: z.string().optional().describe("The command that made the entry"),
+    context: z.string().optional().describe("More context, for example a package name"),
+    data: z.record(z.string(), z.unknown()).optional().describe("Structured data of the entry"),
+    errorStack: z.string().optional().describe("The stack trace of an error"),
+    dbPath: dbPathField,
+  })
+);
+const logsStoreOutputSchema = zodAdapter<LogsStoreOutput>(
+  z.looseObject({ id: z.number().describe("The id of the new log row") })
+);
+const logsQueryInputSchema = zodAdapter<LogsQueryInput>(
+  z.object({
+    sessionId: z.string().optional().describe("Only the entries of this session"),
+    command: z.string().optional().describe("Only the entries of this command"),
+    level: z.union([logLevel, z.array(logLevel)]).optional().describe("Only the entries of this level, or of these levels"),
+    limit: nonNegativeInteger("limit").optional().describe("The most entries to give"),
+    offset: nonNegativeInteger("offset").optional().describe("The number of entries to skip (for pages)"),
+    orderBy: z.enum(["asc", "desc"]).optional().describe("The order by time: desc (the default, newest first) or asc"),
+    dbPath: dbPathField,
+  })
+);
 const logsQueryOutputSchema = outputSchema<LogsQueryOutput>();
 
 // =============================================================================

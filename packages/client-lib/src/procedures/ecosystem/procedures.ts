@@ -26,11 +26,11 @@ export const EcosystemProceduresInputSchema: z.ZodObject<{
   includeMetadata: z.ZodDefault<z.ZodBoolean>;
 }> = z.object({
   /** Workspace root (defaults to the pnpm workspace that contains client-lib) */
-  rootPath: z.string().optional(),
+  rootPath: z.string().optional().describe("Workspace root (defaults to the pnpm workspace that contains client-lib)"),
   /** Filter by namespace prefix */
-  namespace: z.string().optional(),
+  namespace: z.string().optional().describe("Filter by namespace prefix"),
   /** Include full metadata */
-  includeMetadata: z.boolean().default(false),
+  includeMetadata: z.boolean().default(false).describe("Include full metadata"),
 });
 
 export type EcosystemProceduresInput = z.infer<typeof EcosystemProceduresInputSchema>;

@@ -5,12 +5,13 @@
 
 import {
   createProcedure,
-  zodAdapter,
   type Procedure,
   type ProcedureContext,
 } from "@mark1russell7/client";
 import { collectionFor, copyScope, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { described, documentObject, scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 import {
   type PaginationOutput,
   type DocumentQuery,
@@ -73,7 +74,17 @@ function parseFindInput(data: unknown): FindInput {
 }
 
 // Schemas
-const findInputSchema = zodAdapter<FindInput>({ parse: parseFindInput });
+const findInputSchema = described<FindInput>(
+  parseFindInput,
+  z.object({
+    ...scopeFields(),
+    query: documentObject().optional().describe("The filter of the documents (default: all documents)"),
+    projection: z.record(z.string(), z.union([z.literal(0), z.literal(1)])).optional().describe("The fields to give (1) or to leave out (0)"),
+    sort: z.record(z.string(), z.unknown()).optional().describe("The sort order: { field: 1 } ascending, { field: -1 } descending"),
+    page: z.number().int().min(1).optional().describe("The page to give, from 1"),
+    limit: z.number().int().min(1).optional().describe("The number of documents on a page"),
+  })
+);
 const findOutputSchema = schema<FindOutput>();
 
 export const findProcedure: Procedure<

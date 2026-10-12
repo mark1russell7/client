@@ -40,25 +40,25 @@ export const DockerRunInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Docker image to run */
-  image: z.string(),
+  image: z.string().describe("Docker image to run"),
   /** Container name */
-  name: z.string().optional(),
+  name: z.string().optional().describe("Container name"),
   /** Port mappings (e.g., ["8080:80", "3000:3000"]) */
-  ports: z.array(z.string()).optional(),
+  ports: z.array(z.string()).optional().describe("Port mappings (e.g., [\"8080:80\", \"3000:3000\"])"),
   /** Volume mappings (e.g., ["/host:/container"]) */
-  volumes: z.array(z.string()).optional(),
+  volumes: z.array(z.string()).optional().describe("Volume mappings (e.g., [\"/host:/container\"])"),
   /** Environment variables */
-  env: z.record(z.string(), z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional().describe("Environment variables"),
   /** Run in detached mode */
-  detach: z.boolean().optional(),
+  detach: z.boolean().optional().describe("Run in detached mode"),
   /** Automatically remove container when it exits */
-  rm: z.boolean().optional(),
+  rm: z.boolean().optional().describe("Automatically remove container when it exits"),
   /** Command to run in container */
-  command: z.string().optional(),
+  command: z.string().optional().describe("Command to run in container"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerRunInput = z.infer<typeof DockerRunInputSchema>;
@@ -77,19 +77,19 @@ export const DockerBuildInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Build context path */
-  context: z.string(),
+  context: z.string().describe("Build context path"),
   /** Image tag */
-  tag: z.string(),
+  tag: z.string().describe("Image tag"),
   /** Dockerfile path (relative to context) */
-  dockerfile: z.string().optional(),
+  dockerfile: z.string().optional().describe("Dockerfile path (relative to context)"),
   /** Build arguments */
-  buildArgs: z.record(z.string(), z.string()).optional(),
+  buildArgs: z.record(z.string(), z.string()).optional().describe("Build arguments"),
   /** Do not use cache when building */
-  noCache: z.boolean().optional(),
+  noCache: z.boolean().optional().describe("Do not use cache when building"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerBuildInput = z.infer<typeof DockerBuildInputSchema>;
@@ -105,13 +105,13 @@ export const DockerPullInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Image to pull */
-  image: z.string(),
+  image: z.string().describe("Image to pull"),
   /** Image tag (default: latest) */
-  tag: z.string().optional(),
+  tag: z.string().optional().describe("Image tag (default: latest)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerPullInput = z.infer<typeof DockerPullInputSchema>;
@@ -131,21 +131,21 @@ export const DockerExecInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Container name or ID */
-  container: z.string(),
+  container: z.string().describe("Container name or ID"),
   /** Command to execute */
-  command: z.string(),
+  command: z.string().describe("Command to execute"),
   /** Run interactively */
-  interactive: z.boolean().optional(),
+  interactive: z.boolean().optional().describe("Run interactively"),
   /** Allocate a TTY */
-  tty: z.boolean().optional(),
+  tty: z.boolean().optional().describe("Allocate a TTY"),
   /** Working directory inside container */
-  workdir: z.string().optional(),
+  workdir: z.string().optional().describe("Working directory inside container"),
   /** Environment variables */
-  env: z.record(z.string(), z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional().describe("Environment variables"),
   /** Working directory (host) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory (host)"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerExecInput = z.infer<typeof DockerExecInputSchema>;
@@ -161,13 +161,13 @@ export const DockerStopInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Container name(s) or ID(s) */
-  containers: z.array(z.string()),
+  containers: z.array(z.string()).describe("Container name(s) or ID(s)"),
   /** Seconds to wait before killing */
-  time: z.number().optional(),
+  time: z.number().optional().describe("Seconds to wait before killing"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerStopInput = z.infer<typeof DockerStopInputSchema>;
@@ -184,15 +184,15 @@ export const DockerRmInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Container name(s) or ID(s) */
-  containers: z.array(z.string()),
+  containers: z.array(z.string()).describe("Container name(s) or ID(s)"),
   /** Force removal */
-  force: z.boolean().optional(),
+  force: z.boolean().optional().describe("Force removal"),
   /** Remove volumes */
-  volumes: z.boolean().optional(),
+  volumes: z.boolean().optional().describe("Remove volumes"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerRmInput = z.infer<typeof DockerRmInputSchema>;
@@ -209,15 +209,15 @@ export const DockerPsInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Show all containers (default shows just running) */
-  all: z.boolean().optional(),
+  all: z.boolean().optional().describe("Show all containers (default shows just running)"),
   /** Filter containers */
-  filter: z.string().optional(),
+  filter: z.string().optional().describe("Filter containers"),
   /** Format output */
-  format: z.string().optional(),
+  format: z.string().optional().describe("Format output"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerPsInput = z.infer<typeof DockerPsInputSchema>;
@@ -235,17 +235,17 @@ export const DockerLogsInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Container name or ID */
-  container: z.string(),
+  container: z.string().describe("Container name or ID"),
   /** Follow log output */
-  follow: z.boolean().optional(),
+  follow: z.boolean().optional().describe("Follow log output"),
   /** Number of lines from end */
-  tail: z.number().optional(),
+  tail: z.number().optional().describe("Number of lines from end"),
   /** Show timestamps */
-  timestamps: z.boolean().optional(),
+  timestamps: z.boolean().optional().describe("Show timestamps"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerLogsInput = z.infer<typeof DockerLogsInputSchema>;
@@ -264,19 +264,19 @@ export const DockerComposeUpInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Compose file path */
-  file: z.string().optional(),
+  file: z.string().optional().describe("Compose file path"),
   /** Services to start (default: all) */
-  services: z.array(z.string()).optional(),
+  services: z.array(z.string()).optional().describe("Services to start (default: all)"),
   /** Detached mode */
-  detach: z.boolean().optional(),
+  detach: z.boolean().optional().describe("Detached mode"),
   /** Build images before starting */
-  build: z.boolean().optional(),
+  build: z.boolean().optional().describe("Build images before starting"),
   /** Force recreate containers */
-  forceRecreate: z.boolean().optional(),
+  forceRecreate: z.boolean().optional().describe("Force recreate containers"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerComposeUpInput = z.infer<typeof DockerComposeUpInputSchema>;
@@ -294,17 +294,17 @@ export const DockerComposeDownInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Compose file path */
-  file: z.string().optional(),
+  file: z.string().optional().describe("Compose file path"),
   /** Remove volumes */
-  volumes: z.boolean().optional(),
+  volumes: z.boolean().optional().describe("Remove volumes"),
   /** Remove orphan containers */
-  removeOrphans: z.boolean().optional(),
+  removeOrphans: z.boolean().optional().describe("Remove orphan containers"),
   /** Remove images (all, local) */
-  rmi: z.enum(["all", "local"]).optional(),
+  rmi: z.enum(["all", "local"]).optional().describe("Remove images (all, local)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type DockerComposeDownInput = z.infer<typeof DockerComposeDownInputSchema>;

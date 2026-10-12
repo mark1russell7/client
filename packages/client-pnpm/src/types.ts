@@ -35,15 +35,15 @@ export const PnpmInstallInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Packages to install. If not provided, installs from package.json */
-  packages: z.array(z.string()).optional(),
+  packages: z.array(z.string()).optional().describe("Packages to install. If not provided, installs from package.json"),
   /** Save as dev dependency */
-  dev: z.boolean().optional(),
+  dev: z.boolean().optional().describe("Save as dev dependency"),
   /** Use frozen lockfile (--frozen-lockfile) */
-  frozen: z.boolean().optional(),
+  frozen: z.boolean().optional().describe("Use frozen lockfile (--frozen-lockfile)"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type PnpmInstallInput = z.infer<typeof PnpmInstallInputSchema>;
@@ -60,15 +60,15 @@ export const PnpmAddInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Packages to add */
-  packages: z.array(z.string()),
+  packages: z.array(z.string()).describe("Packages to add"),
   /** Save as dev dependency */
-  dev: z.boolean().optional(),
+  dev: z.boolean().optional().describe("Save as dev dependency"),
   /** Install globally */
-  global: z.boolean().optional(),
+  global: z.boolean().optional().describe("Install globally"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type PnpmAddInput = z.infer<typeof PnpmAddInputSchema>;
@@ -84,13 +84,13 @@ export const PnpmRemoveInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Packages to remove */
-  packages: z.array(z.string()),
+  packages: z.array(z.string()).describe("Packages to remove"),
   /** Remove from global */
-  global: z.boolean().optional(),
+  global: z.boolean().optional().describe("Remove from global"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type PnpmRemoveInput = z.infer<typeof PnpmRemoveInputSchema>;
@@ -106,13 +106,13 @@ export const PnpmLinkInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Path to package to link. If not provided, links current directory globally */
-  path: z.string().optional(),
+  path: z.string().optional().describe("Path to package to link. If not provided, links current directory globally"),
   /** Link globally */
-  global: z.boolean().optional(),
+  global: z.boolean().optional().describe("Link globally"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type PnpmLinkInput = z.infer<typeof PnpmLinkInputSchema>;
@@ -128,13 +128,13 @@ export const PnpmRunInputSchema: z.ZodObject<{
   timeout: z.ZodOptional<z.ZodNumber>;
 }> = z.object({
   /** Script name to run */
-  script: z.string(),
+  script: z.string().describe("Script name to run"),
   /** Additional arguments to pass to the script */
-  args: z.array(z.string()).optional(),
+  args: z.array(z.string()).optional().describe("Additional arguments to pass to the script"),
   /** Working directory */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory"),
   /** Timeout in milliseconds */
-  timeout: z.number().optional(),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
 });
 
 export type PnpmRunInput = z.infer<typeof PnpmRunInputSchema>;
@@ -147,7 +147,7 @@ export const PnpmStorePathInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Working directory (affects store path on some configurations) */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe("Working directory (affects store path on some configurations)"),
 });
 
 export type PnpmStorePathInput = z.infer<typeof PnpmStorePathInputSchema>;

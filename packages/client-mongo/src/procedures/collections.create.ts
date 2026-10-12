@@ -3,15 +3,18 @@
  * Create a new collection
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields, documentObject } from "./input-schemas.js";
+import { z } from "zod";
+import type { CreateCollectionOptions } from "mongodb";
 import { type CollectionOptions } from "../types.js";
 
 // Input/Output types
 interface CreateInput extends ScopeInput {
   name: string;
-  options?: CollectionOptions;
+  options?: CollectionOptions | undefined;
 }
 
 interface CreateOutput {
@@ -20,7 +23,21 @@ interface CreateOutput {
 }
 
 // Schemas
-const createInputSchema = schema<CreateInput>();
+const createInputSchema = zodAdapter<CreateInput>(
+  z.object({
+    ...scopeFields(),
+    name: z.string().min(1).describe("The name of the new collection"),
+    options: z
+      .looseObject({
+        capped: z.boolean().optional().describe("Make a capped collection"),
+        size: z.number().optional().describe("The maximum size in bytes (capped collections)"),
+        max: z.number().optional().describe("The maximum number of documents (capped collections)"),
+        validator: documentObject().optional().describe("A validator document (for example a $jsonSchema)"),
+      })
+      .optional()
+      .describe("The options of the collection"),
+  })
+);
 const createOutputSchema = schema<CreateOutput>();
 
 export const createCollectionProcedure: Procedure<
@@ -35,7 +52,8 @@ export const createCollectionProcedure: Procedure<
   .handler(async (input: CreateInput, ctx: ProcedureContext) => {
     const db = await databaseFor(input, ctx);
 
-    await db.createCollection(input.name, input.options);
+    // The schema leaves out an option that the input does not give: no option is undefined at run time
+    await db.createCollection(input.name, input.options as CreateCollectionOptions | undefined);
 
     return {
       acknowledged: true,

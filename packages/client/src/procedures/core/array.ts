@@ -5,6 +5,7 @@
  * All procedures are namespaced under "client" (e.g., client.first, client.filter).
  */
 
+import { z } from "zod";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 
@@ -30,11 +31,15 @@ interface FirstInput {
   items: unknown[];
 }
 
+const FirstInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+});
+
 type FirstProcedure = Procedure<FirstInput, unknown, { description: string; tags: string[] }>;
 
 const firstProcedure: FirstProcedure = defineProcedure({
   path: ["first"],
-  input: anySchema as any,
+  input: FirstInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Get first element of array",
@@ -53,11 +58,15 @@ interface LastInput {
   items: unknown[];
 }
 
+const LastInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+});
+
 type LastProcedure = Procedure<LastInput, unknown, { description: string; tags: string[] }>;
 
 const lastProcedure: LastProcedure = defineProcedure({
   path: ["last"],
-  input: anySchema as any,
+  input: LastInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Get last element of array",
@@ -77,11 +86,16 @@ interface NthInput {
   index: number;
 }
 
+const NthInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  index: z.number().describe("The position"),
+});
+
 type NthProcedure = Procedure<NthInput, unknown, { description: string; tags: string[] }>;
 
 const nthProcedure: NthProcedure = defineProcedure({
   path: ["nth"],
-  input: anySchema as any,
+  input: NthInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Get element at index (supports negative indexing)",
@@ -101,11 +115,15 @@ interface ArrLengthInput {
   items: unknown[];
 }
 
+const ArrLengthInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+});
+
 type ArrLengthProcedure = Procedure<ArrLengthInput, number, { description: string; tags: string[] }>;
 
 const arrLengthProcedure: ArrLengthProcedure = defineProcedure({
   path: ["arrLength"],
-  input: anySchema as any,
+  input: ArrLengthInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Get array length",
@@ -122,14 +140,19 @@ const arrLengthProcedure: ArrLengthProcedure = defineProcedure({
 
 interface FlattenInput {
   items: unknown[];
-  depth?: number;
+  depth?: number | undefined;
 }
+
+const FlattenInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  depth: z.number().optional().describe("How many levels to flatten (default: 1)"),
+});
 
 type FlattenProcedure = Procedure<FlattenInput, unknown[], { description: string; tags: string[] }>;
 
 const flattenProcedure: FlattenProcedure = defineProcedure({
   path: ["flatten"],
-  input: anySchema as any,
+  input: FlattenInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Flatten nested arrays to specified depth",
@@ -148,11 +171,15 @@ interface ReverseInput {
   items: unknown[];
 }
 
+const ReverseInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+});
+
 type ReverseProcedure = Procedure<ReverseInput, unknown[], { description: string; tags: string[] }>;
 
 const reverseProcedure: ReverseProcedure = defineProcedure({
   path: ["reverse"],
-  input: anySchema as any,
+  input: ReverseInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Reverse array order",
@@ -169,15 +196,21 @@ const reverseProcedure: ReverseProcedure = defineProcedure({
 
 interface SortInput {
   items: unknown[];
-  key?: string;
-  desc?: boolean;
+  key?: string | undefined;
+  desc?: boolean | undefined;
 }
+
+const SortInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  key: z.string().optional().describe("The key (a field name of the items)"),
+  desc: z.boolean().optional().describe("Sort in descending order"),
+});
 
 type SortProcedure = Procedure<SortInput, unknown[], { description: string; tags: string[] }>;
 
 const sortProcedure: SortProcedure = defineProcedure({
   path: ["sort"],
-  input: anySchema as any,
+  input: SortInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Sort array (optionally by key, optionally descending)",
@@ -209,14 +242,20 @@ const sortProcedure: SortProcedure = defineProcedure({
 interface SliceInput {
   items: unknown[];
   start: number;
-  end?: number;
+  end?: number | undefined;
 }
+
+const SliceInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  start: z.number().describe("The start position (inclusive)"),
+  end: z.number().optional().describe("The end position (exclusive)"),
+});
 
 type SliceProcedure = Procedure<SliceInput, unknown[], { description: string; tags: string[] }>;
 
 const sliceProcedure: SliceProcedure = defineProcedure({
   path: ["slice"],
-  input: anySchema as any,
+  input: SliceInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Extract portion of array",
@@ -235,11 +274,15 @@ interface ArrConcatInput {
   arrays: unknown[][];
 }
 
+const ArrConcatInputSchema = z.object({
+  arrays: z.array(z.array(z.unknown())).describe("The arrays"),
+});
+
 type ArrConcatProcedure = Procedure<ArrConcatInput, unknown[], { description: string; tags: string[] }>;
 
 const arrConcatProcedure: ArrConcatProcedure = defineProcedure({
   path: ["arrConcat"],
-  input: anySchema as any,
+  input: ArrConcatInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Concatenate multiple arrays",
@@ -256,14 +299,19 @@ const arrConcatProcedure: ArrConcatProcedure = defineProcedure({
 
 interface UniqueInput {
   items: unknown[];
-  key?: string;
+  key?: string | undefined;
 }
+
+const UniqueInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  key: z.string().optional().describe("The key (a field name of the items)"),
+});
 
 type UniqueProcedure = Procedure<UniqueInput, unknown[], { description: string; tags: string[] }>;
 
 const uniqueProcedure: UniqueProcedure = defineProcedure({
   path: ["unique"],
-  input: anySchema as any,
+  input: UniqueInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Remove duplicate values (optionally by key)",
@@ -292,11 +340,16 @@ interface GroupByInput {
   key: string;
 }
 
+const GroupByInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  key: z.string().describe("The key (a field name of the items)"),
+});
+
 type GroupByProcedure = Procedure<GroupByInput, Record<string, unknown[]>, { description: string; tags: string[] }>;
 
 const groupByProcedure: GroupByProcedure = defineProcedure({
   path: ["groupBy"],
-  input: anySchema as any,
+  input: GroupByInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Group array items by key value",
@@ -323,11 +376,15 @@ interface ZipInput {
   arrays: unknown[][];
 }
 
+const ZipInputSchema = z.object({
+  arrays: z.array(z.array(z.unknown())).describe("The arrays"),
+});
+
 type ZipProcedure = Procedure<ZipInput, unknown[][], { description: string; tags: string[] }>;
 
 const zipProcedure: ZipProcedure = defineProcedure({
   path: ["zip"],
-  input: anySchema as any,
+  input: ZipInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Zip multiple arrays into array of tuples",
@@ -352,11 +409,15 @@ interface UnzipInput {
   tuples: unknown[][];
 }
 
+const UnzipInputSchema = z.object({
+  tuples: z.array(z.array(z.unknown())).describe("The tuples"),
+});
+
 type UnzipProcedure = Procedure<UnzipInput, unknown[][], { description: string; tags: string[] }>;
 
 const unzipProcedure: UnzipProcedure = defineProcedure({
   path: ["unzip"],
-  input: anySchema as any,
+  input: UnzipInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Unzip array of tuples into multiple arrays",
@@ -381,15 +442,21 @@ const unzipProcedure: UnzipProcedure = defineProcedure({
 
 interface IndexOfInput {
   items: unknown[];
-  value: unknown;
-  fromIndex?: number;
+  value?: unknown;
+  fromIndex?: number | undefined;
 }
+
+const IndexOfInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  value: z.unknown().optional().describe("The value"),
+  fromIndex: z.number().optional().describe("The position to start the search from"),
+});
 
 type IndexOfProcedure = Procedure<IndexOfInput, number, { description: string; tags: string[] }>;
 
 const indexOfProcedure: IndexOfProcedure = defineProcedure({
   path: ["indexOf"],
-  input: anySchema as any,
+  input: IndexOfInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Find index of value in array (-1 if not found)",
@@ -406,14 +473,19 @@ const indexOfProcedure: IndexOfProcedure = defineProcedure({
 
 interface ContainsInput {
   items: unknown[];
-  value: unknown;
+  value?: unknown;
 }
+
+const ContainsInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  value: z.unknown().optional().describe("The value"),
+});
 
 type ContainsProcedure = Procedure<ContainsInput, boolean, { description: string; tags: string[] }>;
 
 const containsProcedure: ContainsProcedure = defineProcedure({
   path: ["contains"],
-  input: anySchema as any,
+  input: ContainsInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Check if array contains value",
@@ -430,14 +502,19 @@ const containsProcedure: ContainsProcedure = defineProcedure({
 
 interface PushInput {
   items: unknown[];
-  value: unknown;
+  value?: unknown;
 }
+
+const PushInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  value: z.unknown().optional().describe("The value"),
+});
 
 type PushProcedure = Procedure<PushInput, unknown[], { description: string; tags: string[] }>;
 
 const pushProcedure: PushProcedure = defineProcedure({
   path: ["push"],
-  input: anySchema as any,
+  input: PushInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Add value to end of array (immutable)",
@@ -454,14 +531,19 @@ const pushProcedure: PushProcedure = defineProcedure({
 
 interface UnshiftInput {
   items: unknown[];
-  value: unknown;
+  value?: unknown;
 }
+
+const UnshiftInputSchema = z.object({
+  items: z.array(z.unknown()).describe("The array"),
+  value: z.unknown().optional().describe("The value"),
+});
 
 type UnshiftProcedure = Procedure<UnshiftInput, unknown[], { description: string; tags: string[] }>;
 
 const unshiftProcedure: UnshiftProcedure = defineProcedure({
   path: ["unshift"],
-  input: anySchema as any,
+  input: UnshiftInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Add value to beginning of array (immutable)",
@@ -479,8 +561,14 @@ const unshiftProcedure: UnshiftProcedure = defineProcedure({
 interface RangeInput {
   start: number;
   end: number;
-  step?: number;
+  step?: number | undefined;
 }
+
+const RangeInputSchema = z.object({
+  start: z.number().describe("The start position (inclusive)"),
+  end: z.number().describe("The end position (exclusive)"),
+  step: z.number().optional().describe("The step (default: 1)"),
+});
 
 type RangeProcedure = Procedure<RangeInput, number[], { description: string; tags: string[] }>;
 
@@ -489,7 +577,7 @@ export const MAX_RANGE_LENGTH = 1_000_000;
 
 const rangeProcedure: RangeProcedure = defineProcedure({
   path: ["range"],
-  input: anySchema as any,
+  input: RangeInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Generate array of numbers from start to end (exclusive)",
@@ -530,22 +618,31 @@ interface FilterInput {
   /** Array to filter */
   items: unknown[];
   /** Property to match against */
-  key?: string;
+  key?: string | undefined;
   /** Value to match (equality check) */
-  value?: unknown;
+  value?: unknown | undefined;
   /** Values to match (any of these) */
-  values?: unknown[];
+  values?: unknown[] | undefined;
   /** Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith' */
-  match?: 'equals' | 'not' | 'in' | 'notIn' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte';
+  match?: 'equals' | 'not' | 'in' | 'notIn' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte' | undefined;
   /** Invert the filter */
-  invert?: boolean;
+  invert?: boolean | undefined;
 }
+
+const FilterInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array to filter"),
+  key: z.string().optional().describe("Property to match against"),
+  value: z.unknown().optional().describe("Value to match (equality check)"),
+  values: z.array(z.unknown()).optional().describe("Values to match (any of these)"),
+  match: z.enum(["equals", "not", "in", "notIn", "contains", "startsWith", "endsWith", "gt", "gte", "lt", "lte"]).optional().describe("Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith'"),
+  invert: z.boolean().optional().describe("Invert the filter"),
+});
 
 type FilterProcedure = Procedure<FilterInput, unknown[], { description: string; tags: string[] }>;
 
 const filterProcedure: FilterProcedure = defineProcedure({
   path: ["filter"],
-  input: anySchema as any,
+  input: FilterInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Filter array by property value or predicate",
@@ -614,11 +711,16 @@ interface WhereInput {
   where: Record<string, unknown>;
 }
 
+const WhereInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array to filter"),
+  where: z.record(z.string(), z.unknown()).describe("Object with key-value pairs to match"),
+});
+
 type WhereProcedure = Procedure<WhereInput, unknown[], { description: string; tags: string[] }>;
 
 const whereProcedure: WhereProcedure = defineProcedure({
   path: ["where"],
-  input: anySchema as any,
+  input: WhereInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Filter array where all key-value pairs match",
@@ -644,11 +746,16 @@ interface PluckInput {
   key: string;
 }
 
+const PluckInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array of objects"),
+  key: z.string().describe("Property to extract"),
+});
+
 type PluckProcedure = Procedure<PluckInput, unknown[], { description: string; tags: string[] }>;
 
 const pluckProcedure: PluckProcedure = defineProcedure({
   path: ["pluck"],
-  input: anySchema as any,
+  input: PluckInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Extract single property from all items",
@@ -670,11 +777,16 @@ interface ArrPickInput {
   keys: string[];
 }
 
+const ArrPickInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array of objects"),
+  keys: z.array(z.string()).describe("Properties to keep"),
+});
+
 type ArrPickProcedure = Procedure<ArrPickInput, unknown[], { description: string; tags: string[] }>;
 
 const arrPickProcedure: ArrPickProcedure = defineProcedure({
   path: ["arrPick"],
-  input: anySchema as any,
+  input: ArrPickInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Keep only specified properties from all items",
@@ -705,11 +817,16 @@ interface ArrOmitInput {
   keys: string[];
 }
 
+const ArrOmitInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array of objects"),
+  keys: z.array(z.string()).describe("Properties to remove"),
+});
+
 type ArrOmitProcedure = Procedure<ArrOmitInput, unknown[], { description: string; tags: string[] }>;
 
 const arrOmitProcedure: ArrOmitProcedure = defineProcedure({
   path: ["arrOmit"],
-  input: anySchema as any,
+  input: ArrOmitInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Remove specified properties from all array items",
@@ -740,8 +857,14 @@ interface PartitionInput {
   /** Property to check for truthiness */
   key: string;
   /** Value to match for truthy partition */
-  value?: unknown;
+  value?: unknown | undefined;
 }
+
+const PartitionInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array to partition"),
+  key: z.string().describe("Property to check for truthiness"),
+  value: z.unknown().optional().describe("Value to match for truthy partition"),
+});
 
 interface PartitionOutput {
   /** Items that matched */
@@ -754,7 +877,7 @@ type PartitionProcedure = Procedure<PartitionInput, PartitionOutput, { descripti
 
 const partitionProcedure: PartitionProcedure = defineProcedure({
   path: ["partition"],
-  input: anySchema as any,
+  input: PartitionInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Split array into two arrays based on predicate",
@@ -786,16 +909,22 @@ interface CountInput {
   /** Array to count */
   items: unknown[];
   /** Optional property to check for truthiness */
-  key?: string;
+  key?: string | undefined;
   /** Optional value to match */
-  value?: unknown;
+  value?: unknown | undefined;
 }
+
+const CountInputSchema = z.object({
+  items: z.array(z.unknown()).describe("Array to count"),
+  key: z.string().optional().describe("Optional property to check for truthiness"),
+  value: z.unknown().optional().describe("Optional value to match"),
+});
 
 type CountProcedure = Procedure<CountInput, number, { description: string; tags: string[] }>;
 
 const countProcedure: CountProcedure = defineProcedure({
   path: ["count"],
-  input: anySchema as any,
+  input: CountInputSchema,
   output: anySchema as any,
   metadata: {
     description: "Count items matching criteria (or total if no criteria)",

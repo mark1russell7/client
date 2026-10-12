@@ -3,9 +3,11 @@
  * Get collection statistics
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { schema } from "./schema.js";
+import { scopeFields } from "./input-schemas.js";
+import { z } from "zod";
 import type { CollectionStats } from "../types.js";
 
 // Input/Output types
@@ -13,7 +15,9 @@ import type { CollectionStats } from "../types.js";
 type StatsInput = ScopeInput;
 
 // Schemas
-const statsInputSchema = schema<StatsInput>();
+const statsInputSchema = zodAdapter<StatsInput>(
+  z.object({ ...scopeFields() })
+);
 const statsOutputSchema = schema<CollectionStats>();
 
 export const statsProcedure: Procedure<
