@@ -193,7 +193,7 @@ The documentation fork checked each document against the code and ran each examp
 | 1.1 Program Format v1 and one evaluator | done | `8a9e7c7`, `88edf02` | One interpreter, and `documentation/PROGRAM-FORMAT.md`. Its section 11 lists the open points. |
 | 1.2 Interceptors in `invokeProcedure` | done | `9e20de8` | Timeout, tracing and metrics interceptors. Nested calls inherit the chain. The MCP server limits each tool call. |
 | 1.3 A build-time manifest and a thin `mark` path | done | `978175a` | `mark --help` went from 1127 ms to 164 ms, and a warm-server call from 1170 ms to 352 ms. |
-| 2.1 Standard Schema, real schemas for exposed procedures | open | | |
+| 2.1 Standard Schema, real schemas for exposed procedures | partly | `580a72a`, `99633da`, `8306c1e` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. The 62 tools and the 100 core procedures have real input schemas. Real output schemas exist only for `db.*`. |
 | 2.2 `commandProcedure()` and the wrapper migration | done | `6638311` | As `runCommand`. |
 | 2.3 One `host` package | open | | |
 | 3.1 Modules without side effects | open | | |
