@@ -131,5 +131,5 @@ export interface LogsQueryOutput {
   /** Log entries matching the query */
   logs: LogEntry[];
   /** Total count (if limit was applied) */
-  total?: number;
+  total?: number | undefined;
 }

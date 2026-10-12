@@ -7,9 +7,9 @@
 // Import shell dependency to ensure shell.exec is registered
 import "@mark1russell7/client-shell";
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import { cliRun } from "./procedures/cli/index.js";
-import { CliRunInputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
+import { CliRunInputSchema, CliRunOutputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 
 // =============================================================================
@@ -19,7 +19,7 @@ import type { ProcedureContext } from "@mark1russell7/client";
 const cliRunProcedure = createProcedure()
   .path(["cli", "run"])
   .input(zodAdapter<CliRunInput>(CliRunInputSchema))
-  .output(outputSchema<CliRunOutput>())
+  .output(zodAdapter<CliRunOutput>(CliRunOutputSchema))
   .meta({
     description: "Run a mark CLI command",
     args: ["path"],

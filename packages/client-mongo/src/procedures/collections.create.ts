@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
 import type { CreateCollectionOptions } from "mongodb";
@@ -38,7 +37,12 @@ const createInputSchema = zodAdapter<CreateInput>(
       .describe("The options of the collection"),
   })
 );
-const createOutputSchema = schema<CreateOutput>();
+const createOutputSchema = zodAdapter<CreateOutput>(
+  z.looseObject({
+    acknowledged: z.boolean().describe("True when the server confirmed the write"),
+    collectionName: z.string().describe("The name of the new collection"),
+  })
+);
 
 export const createCollectionProcedure: Procedure<
   CreateInput,

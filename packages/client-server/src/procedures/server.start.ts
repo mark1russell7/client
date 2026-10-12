@@ -8,7 +8,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { createProcedure, type Procedure } from "@mark1russell7/client";
-import { schema } from "../schema.js";
+import { wrapSchema } from "../schema.js";
+import { ServerStartOutputSchema } from "../output-schemas.js";
 import { serverStartInputSchema } from "../input-schemas.js";
 import { checkServer, readLockfileForPort } from "../lockfile.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
@@ -18,7 +19,7 @@ const SERVERS_DIR = path.join(MARK_DIR, "servers");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
-const serverStartOutputSchema = schema<ServerStartOutput>();
+const serverStartOutputSchema = wrapSchema<ServerStartOutput>(ServerStartOutputSchema);
 
 
 /**

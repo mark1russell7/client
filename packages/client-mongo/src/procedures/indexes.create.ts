@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 import type { CreateIndexesOptions } from "mongodb";
@@ -39,7 +38,12 @@ const createIndexInputSchema = zodAdapter<CreateIndexInput>(
       .describe("The options of the index"),
   })
 );
-const createIndexOutputSchema = schema<CreateIndexOutput>();
+const createIndexOutputSchema = zodAdapter<CreateIndexOutput>(
+  z.looseObject({
+    acknowledged: z.boolean().describe("True when the server confirmed the write"),
+    indexName: z.string().describe("The name of the new index"),
+  })
+);
 
 export const createIndexProcedure: Procedure<
   CreateIndexInput,

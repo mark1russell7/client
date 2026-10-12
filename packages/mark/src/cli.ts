@@ -10,7 +10,7 @@ import { print } from "./print.js";
 import type { Method, AnyProcedure } from "@mark1russell7/client";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { fieldsOf, generateHelp, type CLIMeta, type CommandLike } from "./parse.js";
+import { fieldsOf, generateHelp, resultFieldsOf, type CLIMeta, type CommandLike } from "./parse.js";
 import { readFreshManifest, writeManifest, type ManifestCommand } from "./manifest.js";
 import { askMissing, canAsk, missingFields, processTerminal, terminalAsker, type Asker, type Terminal } from "./ask.js";
 import { formatOutput, type OutputFormat, type Print } from "./format.js";
@@ -68,7 +68,7 @@ function showHelp(procedures: readonly CommandLike[], path: string[]): boolean {
   if (proc) {
     // Show help for specific command with schema introspection (or the fields of the manifest)
     const meta = (proc.metadata ?? {}) as CLIMeta;
-    print.info(generateHelp(path, meta, fieldsOf(proc)));
+    print.info(generateHelp(path, meta, fieldsOf(proc), resultFieldsOf(proc)));
     return true;
   }
 

@@ -8,7 +8,7 @@
 // Import shell dependency to ensure shell.exec is registered
 import "@mark1russell7/client-shell";
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import {
   dockerRun,
   dockerBuild,
@@ -44,6 +44,8 @@ import {
   type DockerComposeUpInput,
   type DockerComposeDownInput,
   type DockerCommandOutput,
+  DockerCommandOutputSchema,
+  DockerLogsOutputSchema,
 } from "./types.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 
@@ -54,7 +56,7 @@ import type { ProcedureContext } from "@mark1russell7/client";
 const dockerRunProcedure = createProcedure()
   .path(["docker", "run"])
   .input(zodAdapter<DockerRunInput>(DockerRunInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Run a Docker container",
     calls: ["shell.run"],
@@ -70,7 +72,7 @@ const dockerRunProcedure = createProcedure()
 const dockerBuildProcedure = createProcedure()
   .path(["docker", "build"])
   .input(zodAdapter<DockerBuildInput>(DockerBuildInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Build a Docker image",
     calls: ["shell.run"],
@@ -86,7 +88,7 @@ const dockerBuildProcedure = createProcedure()
 const dockerPullProcedure = createProcedure()
   .path(["docker", "pull"])
   .input(zodAdapter<DockerPullInput>(DockerPullInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Pull a Docker image",
     calls: ["shell.run"],
@@ -101,7 +103,7 @@ const dockerPullProcedure = createProcedure()
 const dockerExecProcedure = createProcedure()
   .path(["docker", "exec"])
   .input(zodAdapter<DockerExecInput>(DockerExecInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Execute command in a running container",
     calls: ["shell.run"],
@@ -117,7 +119,7 @@ const dockerExecProcedure = createProcedure()
 const dockerStopProcedure = createProcedure()
   .path(["docker", "stop"])
   .input(zodAdapter<DockerStopInput>(DockerStopInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Stop running container(s)",
     calls: ["shell.run"],
@@ -133,7 +135,7 @@ const dockerStopProcedure = createProcedure()
 const dockerRmProcedure = createProcedure()
   .path(["docker", "rm"])
   .input(zodAdapter<DockerRmInput>(DockerRmInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Remove container(s)",
     calls: ["shell.run"],
@@ -149,7 +151,7 @@ const dockerRmProcedure = createProcedure()
 const dockerPsProcedure = createProcedure()
   .path(["docker", "ps"])
   .input(zodAdapter<DockerPsInput>(DockerPsInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "List containers",
     calls: ["shell.run"],
@@ -165,7 +167,7 @@ const dockerLogsProcedure = createProcedure()
   .path(["docker", "logs"])
   .input(zodAdapter<DockerLogsInput>(DockerLogsInputSchema))
   // One value, or with follow one item for each log line (a stream)
-  .output(outputSchema<DockerCommandOutput | DockerLogItem>())
+  .output(zodAdapter<DockerCommandOutput | DockerLogItem>(DockerLogsOutputSchema))
   .meta({
     description: "Get container logs",
     calls: ["shell.run", "shell.stream"],
@@ -183,7 +185,7 @@ const dockerLogsProcedure = createProcedure()
 const dockerComposeUpProcedure = createProcedure()
   .path(["docker", "compose", "up"])
   .input(zodAdapter<DockerComposeUpInput>(DockerComposeUpInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Start services with docker compose",
     calls: ["shell.run"],
@@ -198,7 +200,7 @@ const dockerComposeUpProcedure = createProcedure()
 const dockerComposeDownProcedure = createProcedure()
   .path(["docker", "compose", "down"])
   .input(zodAdapter<DockerComposeDownInput>(DockerComposeDownInputSchema))
-  .output(outputSchema<DockerCommandOutput>())
+  .output(zodAdapter<DockerCommandOutput>(DockerCommandOutputSchema))
   .meta({
     description: "Stop services with docker compose",
     calls: ["shell.run"],

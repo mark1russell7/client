@@ -19,10 +19,13 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { jsonSchemaOf, type AnyProcedure } from "@mark1russell7/client";
 import { discoverFromEcosystem, findWorkspaceRoot } from "./ecosystem.js";
-import { extractSchemaFields, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
+import { extractSchemaFields, resultFieldsOfSchema, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
 
-/** The format of the manifest. A change of the format makes old manifests stale. */
-export const MANIFEST_VERSION = 1;
+/**
+ * The format of the manifest. A change of the format makes old manifests stale.
+ * Version 2 adds `resultFields`.
+ */
+export const MANIFEST_VERSION = 2;
 
 /** One command of the manifest */
 export interface ManifestCommand {
@@ -33,6 +36,8 @@ export interface ManifestCommand {
   fields: SchemaFieldInfo[];
   /** The JSON Schema of the input */
   inputSchema: unknown;
+  /** The fields of the result, for the help (none when the result is not an object) */
+  resultFields: SchemaFieldInfo[];
 }
 
 export interface Manifest {
@@ -113,6 +118,7 @@ export async function commandsOf(procedures: readonly AnyProcedure[]): Promise<M
       metadata: cliMetadata(procedure),
       fields: extractSchemaFields(inputSchema),
       inputSchema,
+      resultFields: resultFieldsOfSchema(procedure.output),
     };
   });
 }

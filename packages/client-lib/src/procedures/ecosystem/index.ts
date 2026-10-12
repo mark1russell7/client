@@ -9,4 +9,4 @@ export type {
   ProcedureInfo,
   PackageProcedures,
 } from "./procedures.js";
-export { EcosystemProceduresInputSchema } from "./procedures.js";
+export { EcosystemProceduresInputSchema, EcosystemProceduresOutputSchema } from "./procedures.js";

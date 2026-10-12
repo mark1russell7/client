@@ -24,7 +24,7 @@ export interface GitStatusFile {
   /** The path of the file (for a rename or a copy, the new path) */
   path: string;
   /** For a rename or a copy, the old path */
-  from?: string;
+  from?: string | undefined;
   status: "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "ignored";
   staged: boolean;
 }
@@ -36,7 +36,7 @@ export interface GitStatusOutput {
   files: GitStatusFile[];
   clean: boolean;
   /** With `short: true`, one line per file in the format of `git status --short` */
-  lines?: string[];
+  lines?: string[] | undefined;
 }
 
 // =============================================================================
@@ -90,7 +90,7 @@ export interface GitCommitOutput {
   author: string;
   date: string;
   /** True if commit was skipped (nothing to commit) */
-  skipped?: boolean;
+  skipped?: boolean | undefined;
 }
 
 // =============================================================================
@@ -239,13 +239,13 @@ export interface GitBranchInfo {
   name: string;
   current: boolean;
   remote: boolean;
-  tracking?: string;
+  tracking?: string | undefined;
 }
 
 export interface GitBranchOutput {
-  branches?: GitBranchInfo[];
-  created?: string;
-  deleted?: string;
+  branches?: GitBranchInfo[] | undefined;
+  created?: string | undefined;
+  deleted?: string | undefined;
   current: string;
 }
 
@@ -283,7 +283,7 @@ export interface GitLogCommit {
 export interface GitLogOutput {
   commits: GitLogCommit[];
   /** With `oneline: true`, one line per commit: the short hash and the subject */
-  lines?: string[];
+  lines?: string[] | undefined;
 }
 
 // =============================================================================
@@ -315,7 +315,7 @@ export interface GitDiffFile {
   /** The path of the file (for a rename, the new path) */
   path: string;
   /** For a rename, the old path */
-  from?: string;
+  from?: string | undefined;
   /** Added lines (0 for a binary file) */
   additions: number;
   /** Deleted lines (0 for a binary file) */
@@ -326,7 +326,7 @@ export interface GitDiffOutput {
   files: GitDiffFile[];
   additions: number;
   deletions: number;
-  diff?: string;
+  diff?: string | undefined;
 }
 
 // =============================================================================
@@ -616,3 +616,184 @@ export interface GitStashImportOutput {
   /** Error message if failed */
   error?: string | undefined;
 }
+
+// =============================================================================
+// Output schemas (roadmap 2.1)
+// =============================================================================
+
+// Loose objects: a field that a schema does not name stays in the result (a strict schema would
+// remove it when the output is validated).
+
+const statusFile = z.looseObject({
+  path: z.string().describe("The path of the file (for a rename or a copy, the new path)"),
+  from: z.string().optional().describe("For a rename or a copy, the old path"),
+  status: z
+    .enum(["modified", "added", "deleted", "renamed", "copied", "untracked", "ignored"])
+    .describe("The change of the file"),
+  staged: z.boolean().describe("True when the change is in the index"),
+});
+
+export const GitStatusOutputSchema: z.ZodType<GitStatusOutput> = z.looseObject({
+  branch: z.string().describe('The current branch ("HEAD" when detached)'),
+  ahead: z.number().describe("The commits that the upstream does not have"),
+  behind: z.number().describe("The commits of the upstream that the branch does not have"),
+  files: z.array(statusFile).describe("The changed, untracked and ignored files"),
+  clean: z.boolean().describe("True when nothing changed"),
+  lines: z.array(z.string()).optional().describe("With short: true, one line per file as git status --short gives it"),
+});
+
+export const GitAddOutputSchema: z.ZodType<GitAddOutput> = z.looseObject({
+  staged: z.array(z.string()).describe("The files that the call staged"),
+});
+
+export const GitCommitOutputSchema: z.ZodType<GitCommitOutput> = z.looseObject({
+  hash: z.string().describe("The hash of the new commit"),
+  message: z.string().describe("The commit message"),
+  author: z.string().describe("The author"),
+  date: z.string().describe("The date of the commit"),
+  skipped: z.boolean().optional().describe("True when there was nothing to commit"),
+});
+
+export const GitPushOutputSchema: z.ZodType<GitPushOutput> = z.looseObject({
+  remote: z.string().describe("The remote"),
+  branch: z.string().describe("The branch"),
+  commits: z.number().describe("The number of commits that the push sent"),
+});
+
+export const GitPullOutputSchema: z.ZodType<GitPullOutput> = z.looseObject({
+  remote: z.string().describe("The remote"),
+  branch: z.string().describe("The branch"),
+  commits: z.number().describe("The number of commits that the pull brought"),
+  fastForward: z.boolean().describe("True for a fast-forward"),
+});
+
+export const GitCloneOutputSchema: z.ZodType<GitCloneOutput> = z.looseObject({
+  path: z.string().describe("The folder of the clone"),
+  branch: z.string().describe("The branch of the clone"),
+});
+
+export const GitCheckoutOutputSchema: z.ZodType<GitCheckoutOutput> = z.looseObject({
+  ref: z.string().describe("The branch or the ref that is checked out"),
+  created: z.boolean().describe("True when the call made the branch"),
+});
+
+export const GitBranchOutputSchema: z.ZodType<GitBranchOutput> = z.looseObject({
+  branches: z
+    .array(
+      z.looseObject({
+        name: z.string().describe("The branch name"),
+        current: z.boolean().describe("True for the current branch"),
+        remote: z.boolean().describe("True for a remote-tracking branch"),
+        tracking: z.string().optional().describe("The upstream of the branch"),
+      })
+    )
+    .optional()
+    .describe("The branches, for a list"),
+  created: z.string().optional().describe("The branch that the call made"),
+  deleted: z.string().optional().describe("The branch that the call deleted"),
+  current: z.string().describe("The current branch"),
+});
+
+export const GitLogOutputSchema: z.ZodType<GitLogOutput> = z.looseObject({
+  commits: z
+    .array(
+      z.looseObject({
+        hash: z.string().describe("The commit hash"),
+        shortHash: z.string().describe("The short hash"),
+        author: z.string().describe("The author name"),
+        email: z.string().describe("The author email"),
+        date: z.string().describe("The author date"),
+        message: z.string().describe("The commit message"),
+      })
+    )
+    .describe("The commits, newest first"),
+  lines: z.array(z.string()).optional().describe("With oneline: true, the short hash and the subject of each commit"),
+});
+
+export const GitDiffOutputSchema: z.ZodType<GitDiffOutput> = z.looseObject({
+  files: z
+    .array(
+      z.looseObject({
+        path: z.string().describe("The path of the file (for a rename, the new path)"),
+        from: z.string().optional().describe("For a rename, the old path"),
+        additions: z.number().describe("The added lines (0 for a binary file)"),
+        deletions: z.number().describe("The deleted lines (0 for a binary file)"),
+      })
+    )
+    .describe("The changed files"),
+  additions: z.number().describe("The added lines of all files"),
+  deletions: z.number().describe("The deleted lines of all files"),
+  diff: z.string().optional().describe("The text of the diff"),
+});
+
+export const GitInitOutputSchema: z.ZodType<GitInitOutput> = z.looseObject({
+  path: z.string().describe("The folder of the repository"),
+  created: z.boolean().describe("True when the call made a new repository"),
+});
+
+export const GitRemoteOutputSchema: z.ZodType<GitRemoteOutput> = z.looseObject({
+  name: z.string().describe("The remote name"),
+  url: z.string().describe("The remote URL"),
+});
+
+export const GitFetchOutputSchema: z.ZodType<GitFetchOutput> = z.looseObject({
+  remote: z.string().describe("The remote"),
+  fetched: z.boolean().describe("True when the fetch ran"),
+});
+
+export const GitPredicateOutputSchema: z.ZodType<GitPredicateOutput> = z.looseObject({
+  value: z.boolean().describe("The answer of the predicate"),
+});
+
+export const GitStashListOutputSchema: z.ZodType<GitStashListOutput> = z.looseObject({
+  stashes: z
+    .array(
+      z.looseObject({
+        index: z.number().describe("The stash index (0 is the newest)"),
+        ref: z.string().describe("The stash reference, for example stash@{0}"),
+        hash: z.string().describe("The commit hash of the stash"),
+        message: z.string().describe("The stash message"),
+      })
+    )
+    .describe("The stashes"),
+  count: z.number().describe("The number of stashes"),
+});
+
+export const GitStashPushOutputSchema: z.ZodType<GitStashPushOutput> = z.looseObject({
+  stashed: z.boolean().describe("True when the call stashed changes"),
+  ref: z.string().optional().describe("The new stash reference"),
+  message: z.string().optional().describe("The stash message"),
+});
+
+export const GitStashPopOutputSchema: z.ZodType<GitStashPopOutput> = z.looseObject({
+  applied: z.boolean().describe("True when the stash was applied"),
+  ref: z.string().describe("The stash reference"),
+  dropped: z.boolean().describe("True when the stash was dropped (false after a conflict)"),
+  conflict: z.boolean().optional().describe("True when the stash had a merge conflict"),
+});
+
+export const GitStashApplyOutputSchema: z.ZodType<GitStashApplyOutput> = z.looseObject({
+  applied: z.boolean().describe("True when the stash was applied"),
+  ref: z.string().describe("The stash reference"),
+  conflict: z.boolean().optional().describe("True when the stash had a merge conflict"),
+});
+
+export const GitStashDropOutputSchema: z.ZodType<GitStashDropOutput> = z.looseObject({
+  dropped: z.boolean().describe("True when the stash was dropped"),
+  ref: z.string().describe("The stash reference"),
+});
+
+export const GitStashExportOutputSchema: z.ZodType<GitStashExportOutput> = z.looseObject({
+  ref: z.string().describe("The stash reference"),
+  hash: z.string().describe("The commit hash of the stash"),
+  message: z.string().describe("The stash message"),
+  patch: z.string().describe("The patch of the tracked changes"),
+  hasUntracked: z.boolean().describe("True when the stash has untracked files"),
+  untrackedPatch: z.string().optional().describe("The patch of the untracked files"),
+});
+
+export const GitStashImportOutputSchema: z.ZodType<GitStashImportOutput> = z.looseObject({
+  imported: z.boolean().describe("True when the import succeeded"),
+  ref: z.string().optional().describe("The new stash reference"),
+  error: z.string().optional().describe("Why the import failed"),
+});

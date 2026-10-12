@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
 import { type DocumentQuery } from "../types.js";
@@ -26,7 +25,11 @@ const countInputSchema = zodAdapter<CountInput>(
     query: documentObject().optional().describe("The filter of the documents to count (default: all documents)"),
   })
 );
-const countOutputSchema = schema<CountOutput>();
+const countOutputSchema = zodAdapter<CountOutput>(
+  z.looseObject({
+    count: z.number().describe("The number of documents that match"),
+  })
+);
 
 export const countProcedure: Procedure<
   CountInput,

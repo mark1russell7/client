@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 
@@ -22,7 +21,12 @@ interface PingOutput {
 const pingInputSchema = zodAdapter<PingInput>(
   z.object({ ...scopeFields() })
 );
-const pingOutputSchema = schema<PingOutput>();
+const pingOutputSchema = zodAdapter<PingOutput>(
+  z.looseObject({
+    ok: z.boolean().describe("True when the server answered"),
+    latencyMs: z.number().describe("The time of the ping, in milliseconds"),
+  })
+);
 
 export const pingProcedure: Procedure<
   PingInput,

@@ -3,9 +3,8 @@
  * Update documents matching a filter
  */
 
-import { createProcedure, type Procedure, type ProcedureContext } from "@mark1russell7/client";
+import { createProcedure, type Procedure, type ProcedureContext, zodAdapter } from "@mark1russell7/client";
 import { collectionFor } from "../scope.js";
-import { schema } from "./schema.js";
 import { described, documentObject, scopeFields, targetFields } from "./input-schemas.js";
 import { z } from "zod";
 import type { DocumentUpdate } from "../types.js";
@@ -54,7 +53,15 @@ const updateInputSchema = described<UpdateInput>(
     upsert: z.boolean().optional().describe("Insert a document when none matches"),
   })
 );
-const updateOutputSchema = schema<UpdateOutput>();
+const updateOutputSchema = zodAdapter<UpdateOutput>(
+  z.looseObject({
+    acknowledged: z.boolean().describe("True when the server confirmed the write"),
+    matchedCount: z.number().describe("The number of documents that matched"),
+    modifiedCount: z.number().describe("The number of documents that changed"),
+    upsertedId: z.string().nullable().describe("The id of the new document of an upsert, as text, or null"),
+    upsertedCount: z.number().describe("The number of documents that an upsert made"),
+  })
+);
 
 export const updateProcedure: Procedure<
   UpdateInput,

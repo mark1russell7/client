@@ -60,7 +60,7 @@ export interface PackageProcedures {
   /** Whether loading succeeded */
   success: boolean;
   /** Error if loading failed */
-  error?: string;
+  error?: string | undefined;
 }
 
 export interface EcosystemProceduresOutput {
@@ -78,6 +78,40 @@ export interface EcosystemProceduresOutput {
     namespaces: string[];
   };
 }
+
+const procedureInfoSchema = z.looseObject({
+  path: z.array(z.string()).describe("The procedure path"),
+  key: z.string().describe("The dotted key of the path"),
+  package: z.string().describe("The package that registers the procedure"),
+  packagePath: z.string().describe("The folder of the package"),
+  description: z.string().optional().describe("The description of the procedure"),
+  tags: z.array(z.string()).optional().describe("The tags of the procedure"),
+});
+
+/** The output schema of ecosystem.procedures (roadmap 2.1). Loose: other fields stay. */
+export const EcosystemProceduresOutputSchema: z.ZodType<EcosystemProceduresOutput> = z.looseObject({
+  procedures: z.array(procedureInfoSchema).describe("Every procedure of the workspace packages"),
+  byPackage: z
+    .array(
+      z.looseObject({
+        name: z.string().describe("The package name"),
+        path: z.string().describe("The package folder"),
+        procedures: z.array(procedureInfoSchema).describe("The procedures of the package"),
+        success: z.boolean().describe("False when the package did not load"),
+        error: z.string().optional().describe("Why the package did not load"),
+      })
+    )
+    .describe("The procedures of each package"),
+  byNamespace: z.record(z.string(), z.array(procedureInfoSchema)).describe("The procedures of each namespace"),
+  summary: z
+    .looseObject({
+      totalPackages: z.number().describe("The number of packages that were examined"),
+      packagesWithProcedures: z.number().describe("The number of packages that have procedures"),
+      totalProcedures: z.number().describe("The number of procedures"),
+      namespaces: z.array(z.string()).describe("The namespaces (first path segments)"),
+    })
+    .describe("The counts"),
+});
 
 // =============================================================================
 // Collector Pattern Implementation

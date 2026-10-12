@@ -383,9 +383,144 @@ export interface CoreCatchOutput {
   /** Whether the try succeeded */
   success: boolean;
   /** Result from try (if success) or handler decision */
-  result?: unknown;
+  result?: unknown | undefined;
   /** Error message if failed */
-  error?: string;
+  error?: string | undefined;
   /** Whether execution should continue (from handler) */
   continue: boolean;
 }
+
+// =============================================================================
+// Output schemas (roadmap 2.1)
+// =============================================================================
+
+// Loose objects: a field that a schema does not name stays in the result (a strict schema would
+// remove it when the output is validated).
+
+export const LibScanOutputSchema: z.ZodType<LibScanOutput> = z.looseObject({
+  packages: z
+    .record(
+      z.string(),
+      z.looseObject({
+        name: z.string().describe("The package name"),
+        repoPath: z.string().describe("The absolute path of the package folder"),
+        gitRemote: z.string().optional().describe("The git remote URL of the workspace repository"),
+        currentBranch: z.string().optional().describe("The current branch of the workspace repository"),
+        mark1russell7Deps: z.array(z.string()).describe("The @mark1russell7 dependencies of the package"),
+      })
+    )
+    .describe("The workspace packages, by name"),
+  warnings: z
+    .array(z.looseObject({ path: z.string().describe("The folder"), issue: z.string().describe("The problem") }))
+    .describe("The problems that the scan found"),
+});
+
+export const LibRenameOutputSchema: z.ZodType<LibRenameOutput> = z.looseObject({
+  success: z.boolean().describe("True when every change succeeded"),
+  changes: z
+    .array(
+      z.looseObject({
+        type: z.enum(["package-name", "dependency", "import", "dynamic-import"]).describe("The kind of change"),
+        file: z.string().describe("The file that changes"),
+        field: z.string().optional().describe("The dependency field, for a dependency change"),
+        line: z.number().optional().describe("The line, for an import change"),
+        oldValue: z.string().describe("The old text"),
+        newValue: z.string().describe("The new text"),
+      })
+    )
+    .describe("The changes that the call made, or would make with dryRun"),
+  errors: z.array(z.string()).describe("The errors"),
+  summary: z
+    .looseObject({
+      packageNames: z.number().describe("The number of package name changes"),
+      dependencies: z.number().describe("The number of dependency changes"),
+      imports: z.number().describe("The number of import changes"),
+      total: z.number().describe("The number of changes"),
+    })
+    .describe("The counts"),
+});
+
+export const LibNewOutputSchema: z.ZodType<LibNewOutput> = z.looseObject({
+  success: z.boolean().describe("True when the package was made"),
+  packageName: z.string().describe("The full package name (@mark1russell7/...)"),
+  packagePath: z.string().describe("The folder of the new package"),
+  created: z.array(z.string()).describe("The files that the call made"),
+  operations: z.array(z.string()).describe("The steps that the call ran"),
+  errors: z.array(z.string()).describe("The errors"),
+});
+
+export const LibAuditOutputSchema: z.ZodType<LibAuditOutput> = z.looseObject({
+  success: z.boolean().describe("True when every package passes the audit"),
+  flagNotices: z
+    .array(
+      z.looseObject({
+        procedure: z.string().describe('The procedure path, for example "docker compose down"'),
+        flag: z.string().describe('The flag of the procedure, for example "-v"'),
+        global: z.string().describe('The global flag of mark that it hides, for example "-v (--version)"'),
+      })
+    )
+    .describe("Procedure flags that hide a global flag of mark after the command path (information only)"),
+  template: z
+    .looseObject({
+      files: z.array(z.string()).describe("The files that each package needs"),
+      dirs: z.array(z.string()).describe("The folders that each package needs"),
+    })
+    .describe("The template of the audit"),
+  results: z
+    .array(
+      z.looseObject({
+        name: z.string().describe("The package name"),
+        path: z.string().describe("The package folder"),
+        valid: z.boolean().describe("True when the package passes"),
+        missingFiles: z.array(z.string()).describe("The required files that are missing"),
+        missingDirs: z.array(z.string()).describe("The required folders that are missing"),
+        pnpmIssues: z
+          .array(
+            z.looseObject({
+              type: z
+                .enum(["npm-lockfile", "package-lockfile", "ignored-pnpm-field", "not-workspace-link"])
+                .describe("The kind of pnpm problem"),
+              message: z.string().describe("The problem"),
+              package: z.string().optional().describe("The dependency that the problem is about"),
+            })
+          )
+          .describe("The pnpm configuration problems"),
+        fixedFiles: z.array(z.string()).optional().describe("The files that fix made"),
+        fixedDirs: z.array(z.string()).optional().describe("The folders that fix made"),
+      })
+    )
+    .describe("The result of each package"),
+  summary: z
+    .looseObject({
+      total: z.number().describe("The number of packages"),
+      valid: z.number().describe("The number of packages that pass"),
+      invalid: z.number().describe("The number of packages that fail"),
+    })
+    .describe("The counts"),
+});
+
+export const DagTraverseOutputSchema: z.ZodType<DagTraverseOutput> = z.looseObject({
+  success: z.boolean().describe("True when every visit succeeded"),
+  results: z
+    .array(
+      z.looseObject({
+        name: z.string().describe("The package name of the node"),
+        path: z.string().describe("The folder of the node"),
+        success: z.boolean().describe("True when the visit succeeded"),
+        duration: z.number().describe("The time of the visit, in milliseconds"),
+        error: z.string().optional().describe("The error of a failed visit"),
+        output: z.unknown().optional().describe("The result of the visit"),
+      })
+    )
+    .describe("The result of each visited node"),
+  totalDuration: z.number().describe("The time of the traversal, in milliseconds"),
+  visited: z.number().describe("The number of visited nodes"),
+  failed: z.number().describe("The number of failed visits"),
+});
+
+export const CoreCatchOutputSchema: z.ZodType<CoreCatchOutput> = z.looseObject({
+  success: z.boolean().describe("True when the try operand succeeded"),
+  result: z.unknown().optional().describe("The result of try, or the decision of the handler"),
+  error: z.string().optional().describe("The error of try, when it failed"),
+  continue: z.boolean().describe("True when the caller can continue"),
+});

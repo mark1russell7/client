@@ -103,3 +103,25 @@ export interface ViteStopOutput {
   /** Whether stop succeeded */
   success: boolean;
 }
+
+// Output schemas (roadmap 2.1). Loose objects: a field that a schema does not name stays in the
+// result (a strict schema would remove it when the output is validated).
+
+const serverFields = {
+  serverId: z.string().describe("The id of the server: vite.stop takes it"),
+  url: z.string().describe("The URL of the server"),
+  pid: z.number().describe("The process id of vite"),
+};
+
+export const ViteDevOutputSchema: z.ZodType<ViteDevOutput> = z.looseObject(serverFields);
+
+export const VitePreviewOutputSchema: z.ZodType<VitePreviewOutput> = z.looseObject(serverFields);
+
+export const ViteBuildOutputSchema: z.ZodType<ViteBuildOutput> = z.looseObject({
+  success: z.boolean().describe("True when the build succeeded"),
+  outDir: z.string().describe("The output folder of the build"),
+});
+
+export const ViteStopOutputSchema: z.ZodType<ViteStopOutput> = z.looseObject({
+  success: z.boolean().describe("True when the server stopped"),
+});

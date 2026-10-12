@@ -499,8 +499,12 @@ export interface CommandLike {
   metadata?: unknown;
   /** The input schema of a procedure of the registry */
   input?: unknown;
+  /** The output schema of a procedure of the registry */
+  output?: unknown;
   /** The fields of the input of a command of the manifest */
   fields?: readonly SchemaFieldInfo[];
+  /** The fields of the result of a command of the manifest */
+  resultFields?: readonly SchemaFieldInfo[];
 }
 
 /** The fields of the input of a command: from the manifest, or read from the schema */
@@ -509,13 +513,29 @@ export function fieldsOf(command: CommandLike): SchemaFieldInfo[] {
 }
 
 /**
+ * The fields of the result of a procedure, from its output schema: only for a result that is an
+ * object (a union, a stream item or a pass-through schema gives none).
+ */
+export function resultFieldsOfSchema(output: unknown): SchemaFieldInfo[] {
+  const json = output ? (jsonSchemaOf(output as ProcedureSchema, { io: "output" }) as JsonNode | undefined) : undefined;
+  return json && json.type === "object" ? extractSchemaFields(json) : [];
+}
+
+/** The fields of the result of a command: from the manifest, or read from the output schema */
+export function resultFieldsOf(command: CommandLike): SchemaFieldInfo[] {
+  return command.resultFields ? [...command.resultFields] : resultFieldsOfSchema(command.output);
+}
+
+/**
  * Generate help text for a procedure based on its metadata and schema. `schema` is the input
- * schema, or the fields of the input (a command of the manifest).
+ * schema, or the fields of the input (a command of the manifest). `result` gives the fields of
+ * the result, which the help lists after the options.
  */
 export function generateHelp(
   path: string[],
   meta: CLIMeta,
-  schema?: unknown
+  schema?: unknown,
+  result: readonly SchemaFieldInfo[] = []
 ): string {
   const positionalArgs = meta.args ?? [];
   const shorts = meta.shorts ?? {};
@@ -590,6 +610,19 @@ export function generateHelp(
   if (optionLines.length > 0) {
     lines.push("Options:");
     lines.push(...optionLines);
+  }
+
+  // The fields of the result (roadmap 2.1: the output schemas describe them)
+  if (result.length > 0) {
+    lines.push("");
+    lines.push("Result:");
+    for (const field of result) {
+      const optional = field.required ? "" : ", optional";
+      lines.push(`  ${field.name} (${field.type}${optional})`);
+      if (field.description) {
+        lines.push(`        ${field.description}`);
+      }
+    }
   }
 
   // Standard options

@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 import { type IndexInfo } from "../types.js";
@@ -22,7 +21,20 @@ interface ListIndexesOutput {
 const listIndexesInputSchema = zodAdapter<ListIndexesInput>(
   z.object({ ...scopeFields() })
 );
-const listIndexesOutputSchema = schema<ListIndexesOutput>();
+const listIndexesOutputSchema = zodAdapter<ListIndexesOutput>(
+  z.looseObject({
+    indexes: z
+      .array(
+        z.looseObject({
+          name: z.string().describe("The index name"),
+          key: z.record(z.string(), z.union([z.number(), z.string()])).describe("The fields of the index and their kind (1, -1, \"text\", \"hashed\")"),
+          unique: z.boolean().optional().describe("True for a unique index"),
+          sparse: z.boolean().optional().describe("True for a sparse index"),
+        })
+      )
+      .describe("The indexes of the collection"),
+  })
+);
 
 export const listIndexesProcedure: Procedure<
   ListIndexesInput,

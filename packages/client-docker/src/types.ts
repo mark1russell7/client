@@ -23,6 +23,47 @@ export interface DockerCommandOutput {
   duration: number;
 }
 
+/** One item of a followed log: a line of the container, or the end of `docker logs` (the last item). */
+export type DockerLogItem =
+  | { type: "stdout" | "stderr"; line: string }
+  | {
+      type: "exit";
+      exitCode: number;
+      duration: number;
+      signal?: string | undefined;
+      timedOut?: boolean | undefined;
+      aborted?: boolean | undefined;
+    };
+
+// Output schemas (roadmap 2.1). Loose objects: a field that a schema does not name stays in the
+// result (a strict schema would remove it when the output is validated).
+
+/** The result of a docker command: every docker.* procedure gives it. */
+export const DockerCommandOutputSchema: z.ZodType<DockerCommandOutput> = z.looseObject({
+  exitCode: z.number().describe("The exit code of docker (0 is success)"),
+  stdout: z.string().describe("The standard output of docker"),
+  stderr: z.string().describe("The standard error of docker, or the error message when docker did not start"),
+  success: z.boolean().describe("True when the exit code is 0"),
+  duration: z.number().describe("The time of the command, in milliseconds"),
+});
+
+/** docker.logs: one result, or with follow a stream of lines and one last exit item. */
+export const DockerLogsOutputSchema: z.ZodType<DockerCommandOutput | DockerLogItem> = z.union([
+  DockerCommandOutputSchema,
+  z.looseObject({
+    type: z.enum(["stdout", "stderr"]).describe("The stream of the line"),
+    line: z.string().describe("One line of the log, without its line end"),
+  }),
+  z.looseObject({
+    type: z.literal("exit").describe("The end of the stream"),
+    exitCode: z.number().describe("The exit code of docker logs"),
+    duration: z.number().describe("The time of the stream, in milliseconds"),
+    signal: z.string().optional().describe("The signal that ended docker logs"),
+    timedOut: z.boolean().optional().describe("True when the timeout ended the stream"),
+    aborted: z.boolean().optional().describe("True when the reader or the signal ended the stream"),
+  }),
+]);
+
 // =============================================================================
 // docker.run Types
 // =============================================================================

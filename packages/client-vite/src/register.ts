@@ -2,7 +2,7 @@
  * Procedure Registration for Vite dev server management
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import { viteDev } from "./procedures/vite/dev.js";
 import { viteBuild } from "./procedures/vite/build.js";
 import { vitePreview } from "./procedures/vite/preview.js";
@@ -20,12 +20,16 @@ import {
   type VitePreviewOutput,
   type ViteStopInput,
   type ViteStopOutput,
+  ViteDevOutputSchema,
+  ViteBuildOutputSchema,
+  VitePreviewOutputSchema,
+  ViteStopOutputSchema,
 } from "./types.js";
 
 const viteDevProcedure = createProcedure()
   .path(["vite", "dev"])
   .input(zodAdapter<ViteDevInput>(ViteDevInputSchema))
-  .output(outputSchema<ViteDevOutput>())
+  .output(zodAdapter<ViteDevOutput>(ViteDevOutputSchema))
   .meta({
     description: "Start Vite dev server",
     args: ["cwd"],
@@ -38,7 +42,7 @@ const viteDevProcedure = createProcedure()
 const viteBuildProcedure = createProcedure()
   .path(["vite", "build"])
   .input(zodAdapter<ViteBuildInput>(ViteBuildInputSchema))
-  .output(outputSchema<ViteBuildOutput>())
+  .output(zodAdapter<ViteBuildOutput>(ViteBuildOutputSchema))
   .meta({
     description: "Build for production",
     args: ["cwd"],
@@ -51,7 +55,7 @@ const viteBuildProcedure = createProcedure()
 const vitePreviewProcedure = createProcedure()
   .path(["vite", "preview"])
   .input(zodAdapter<VitePreviewInput>(VitePreviewInputSchema))
-  .output(outputSchema<VitePreviewOutput>())
+  .output(zodAdapter<VitePreviewOutput>(VitePreviewOutputSchema))
   .meta({
     description: "Preview production build",
     args: ["cwd"],
@@ -64,7 +68,7 @@ const vitePreviewProcedure = createProcedure()
 const viteStopProcedure = createProcedure()
   .path(["vite", "stop"])
   .input(zodAdapter<ViteStopInput>(ViteStopInputSchema))
-  .output(outputSchema<ViteStopOutput>())
+  .output(zodAdapter<ViteStopOutput>(ViteStopOutputSchema))
   .meta({
     description: "Stop a running Vite server",
     args: ["serverId"],

@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
 import { type DatabaseInfo } from "../types.js";
@@ -18,7 +17,15 @@ type InfoInput = ScopeInput;
 const infoInputSchema = zodAdapter<InfoInput>(
   z.object({ ...scopeFields() })
 );
-const infoOutputSchema = schema<DatabaseInfo>();
+const infoOutputSchema = zodAdapter<DatabaseInfo>(
+  z.looseObject({
+    name: z.string().describe("The database name"),
+    collections: z.number().describe("The number of collections (views not counted)"),
+    views: z.number().describe("The number of views"),
+    sizeOnDisk: z.number().describe("The data size, in bytes"),
+    empty: z.boolean().describe("True when the database has no collections"),
+  })
+);
 
 export const infoProcedure: Procedure<
   InfoInput,

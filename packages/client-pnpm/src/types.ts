@@ -160,3 +160,21 @@ export interface PnpmStorePathOutput {
   /** Platform (win32, darwin, linux) */
   platform: string;
 }
+
+// Output schemas (roadmap 2.1). Loose objects: a field that a schema does not name stays in the
+// result (a strict schema would remove it when the output is validated).
+
+/** The result of a pnpm command: add, install, remove, link and run give it. */
+export const PnpmCommandOutputSchema: z.ZodType<PnpmCommandOutput> = z.looseObject({
+  exitCode: z.number().describe("The exit code of pnpm (0 is success)"),
+  stdout: z.string().describe("The standard output of pnpm"),
+  stderr: z.string().describe("The standard error of pnpm"),
+  success: z.boolean().describe("True when the exit code is 0"),
+  duration: z.number().describe("The time of the command, in milliseconds"),
+});
+
+export const PnpmStorePathOutputSchema: z.ZodType<PnpmStorePathOutput> = z.looseObject({
+  path: z.string().describe("The absolute path of the pnpm store"),
+  exists: z.boolean().describe("True when the store folder exists"),
+  platform: z.string().describe("The platform (win32, darwin, linux)"),
+});

@@ -350,3 +350,76 @@ export interface S3MultipartAbortOutput {
   /** Whether abort was successful */
   aborted: boolean;
 }
+
+// =============================================================================
+// Output schemas (roadmap 2.1)
+// =============================================================================
+
+// Loose objects: a field that a schema does not name stays in the result (a strict schema would
+// remove it when the output is validated).
+
+export const S3UploadOutputSchema: z.ZodType<S3UploadOutput> = z.looseObject({
+  etag: z.string().describe("The ETag of the object, without quotes"),
+  versionId: z.string().optional().describe("The version id, when the bucket has versioning"),
+  location: z.string().describe("The S3 URI of the object (s3://bucket/key)"),
+});
+
+export const S3DownloadOutputSchema: z.ZodType<S3DownloadOutput> = z.looseObject({
+  body: z.string().describe("The content: text with an encoding, base64 without one, empty with destPath"),
+  path: z.string().optional().describe("The file that holds the object, with destPath"),
+  contentLength: z.number().describe("The size of the object, in bytes"),
+  contentType: z.string().optional().describe("The content type"),
+  etag: z.string().optional().describe("The ETag of the object, without quotes"),
+  lastModified: z.string().optional().describe("The time of the last change (ISO 8601)"),
+});
+
+const listObject = z.looseObject({
+  key: z.string().describe("The object key"),
+  size: z.number().describe("The size, in bytes"),
+  lastModified: z.string().describe("The time of the last change (ISO 8601)"),
+  etag: z.string().describe("The ETag, without quotes"),
+  storageClass: z.string().optional().describe("The storage class"),
+});
+
+export const S3ListOutputSchema: z.ZodType<S3ListOutput> = z.looseObject({
+  contents: z.array(listObject).describe("The objects of the page"),
+  commonPrefixes: z.array(z.string()).describe("The common prefixes (with a delimiter)"),
+  isTruncated: z.boolean().describe("True when more pages exist"),
+  nextContinuationToken: z.string().optional().describe("The token of the next page"),
+  keyCount: z.number().describe("The number of keys on the page"),
+});
+
+export const S3ListAllOutputSchema: z.ZodType<S3ListAllOutput> = z.looseObject({
+  contents: z.array(listObject).describe("The objects of all pages"),
+  commonPrefixes: z.array(z.string()).describe("The common prefixes of all pages (with a delimiter)"),
+  keyCount: z.number().describe("The number of keys"),
+  pageCount: z.number().describe("The number of list requests"),
+});
+
+export const S3DeleteOutputSchema: z.ZodType<S3DeleteOutput> = z.looseObject({
+  deleted: z.boolean().describe("True when the delete succeeded"),
+  deleteMarker: z.boolean().optional().describe("True when versioning made a delete marker"),
+  versionId: z.string().optional().describe("The version id of the delete marker"),
+});
+
+export const S3MultipartInitOutputSchema: z.ZodType<S3MultipartInitOutput> = z.looseObject({
+  uploadId: z.string().describe("The upload id: the part uploads and complete take it"),
+  bucket: z.string().describe("The bucket"),
+  key: z.string().describe("The object key"),
+});
+
+export const S3MultipartUploadOutputSchema: z.ZodType<S3MultipartUploadOutput> = z.looseObject({
+  etag: z.string().describe("The ETag of the part, without quotes: complete takes it"),
+  partNumber: z.number().describe("The part number"),
+});
+
+export const S3MultipartCompleteOutputSchema: z.ZodType<S3MultipartCompleteOutput> = z.looseObject({
+  location: z.string().describe("The location of the object"),
+  bucket: z.string().describe("The bucket"),
+  key: z.string().describe("The object key"),
+  etag: z.string().describe("The ETag of the object, without quotes"),
+});
+
+export const S3MultipartAbortOutputSchema: z.ZodType<S3MultipartAbortOutput> = z.looseObject({
+  aborted: z.boolean().describe("True when the upload was aborted"),
+});

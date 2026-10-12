@@ -34,6 +34,21 @@ function toText(value: unknown): string {
   return typeof value === "string" ? value : (JSON.stringify(value, null, 2) ?? String(value));
 }
 
+/**
+ * The structured content of a result: the result as JSON, when it is an object. JSON drops
+ * what JSON cannot show (a function, `undefined`) and turns a class instance into its JSON form
+ * (an ObjectId into its hex text), as the text block does.
+ */
+function structuredContentOf(value: unknown): Record<string, unknown> | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  try {
+    const json = JSON.parse(JSON.stringify(value)) as unknown;
+    return json !== null && typeof json === "object" && !Array.isArray(json) ? (json as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function generateRequestId(): string {
   return `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -158,8 +173,12 @@ export class McpServerTransport implements ServerTransport {
           return await this.streamResult(response.stream, extra);
         }
         if (response.status.type === "success") {
+          const structured = tool.outputSchema ? structuredContentOf(response.payload) : undefined;
           return {
             content: [{ type: "text" as const, text: toText(response.payload) }],
+            // MCP structured output: the result as an object, for a tool with an output schema.
+            // The text block stays, for clients that do not read structured content.
+            ...(structured ? { structuredContent: structured } : {}),
           };
         } else {
           return {

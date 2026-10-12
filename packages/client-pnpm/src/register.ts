@@ -7,7 +7,7 @@
 // Import shell dependency to ensure shell.exec is registered
 import "@mark1russell7/client-shell";
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import {
   PnpmInstallInputSchema,
@@ -24,6 +24,8 @@ import {
   PnpmStorePathInputSchema,
   type PnpmStorePathInput,
   type PnpmStorePathOutput,
+  PnpmCommandOutputSchema,
+  PnpmStorePathOutputSchema,
 } from "./types.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 
@@ -34,7 +36,7 @@ import type { ProcedureContext } from "@mark1russell7/client";
 const pnpmInstallProcedure = createProcedure()
   .path(["pnpm", "install"])
   .input(zodAdapter<PnpmInstallInput>(PnpmInstallInputSchema))
-  .output(outputSchema<PnpmCommandOutput>())
+  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Install packages using pnpm",
     shorts: { cwd: "C", dev: "D", frozen: "F" },
@@ -48,7 +50,7 @@ const pnpmInstallProcedure = createProcedure()
 const pnpmAddProcedure = createProcedure()
   .path(["pnpm", "add"])
   .input(zodAdapter<PnpmAddInput>(PnpmAddInputSchema))
-  .output(outputSchema<PnpmCommandOutput>())
+  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Add packages using pnpm",
     args: ["packages"],
@@ -63,7 +65,7 @@ const pnpmAddProcedure = createProcedure()
 const pnpmRemoveProcedure = createProcedure()
   .path(["pnpm", "remove"])
   .input(zodAdapter<PnpmRemoveInput>(PnpmRemoveInputSchema))
-  .output(outputSchema<PnpmCommandOutput>())
+  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Remove packages using pnpm",
     args: ["packages"],
@@ -78,7 +80,7 @@ const pnpmRemoveProcedure = createProcedure()
 const pnpmLinkProcedure = createProcedure()
   .path(["pnpm", "link"])
   .input(zodAdapter<PnpmLinkInput>(PnpmLinkInputSchema))
-  .output(outputSchema<PnpmCommandOutput>())
+  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Link packages using pnpm",
     shorts: { cwd: "C", global: "g" },
@@ -92,7 +94,7 @@ const pnpmLinkProcedure = createProcedure()
 const pnpmRunProcedure = createProcedure()
   .path(["pnpm", "run"])
   .input(zodAdapter<PnpmRunInput>(PnpmRunInputSchema))
-  .output(outputSchema<PnpmCommandOutput>())
+  .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Run package scripts using pnpm",
     args: ["script"],
@@ -107,7 +109,7 @@ const pnpmRunProcedure = createProcedure()
 const pnpmStorePathProcedure = createProcedure()
   .path(["pnpm", "store", "path"])
   .input(zodAdapter<PnpmStorePathInput>(PnpmStorePathInputSchema))
-  .output(outputSchema<PnpmStorePathOutput>())
+  .output(zodAdapter<PnpmStorePathOutput>(PnpmStorePathOutputSchema))
   .meta({
     description: "Get pnpm store path for snapshot/restore",
     args: [],

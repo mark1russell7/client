@@ -4,14 +4,15 @@
  */
 
 import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { schema } from "../schema.js";
+import { wrapSchema } from "../schema.js";
+import { ServerCreateOutputSchema } from "../output-schemas.js";
 import { serverCreateInputSchema } from "../input-schemas.js";
 import type { ServerCreateInput, ServerCreateOutput } from "../types.js";
 import { createPeer, type Peer } from "../peer/index.js";
 import { exposeRule } from "../expose.js";
 
 // Use pass-through schemas for simplicity (validation happens at Zod level if needed)
-const serverCreateOutputSchema = schema<ServerCreateOutput>();
+const serverCreateOutputSchema = wrapSchema<ServerCreateOutput>(ServerCreateOutputSchema);
 
 // Active peers (module-level state for now, could be in context)
 const activePeers = new Map<string, Peer>();

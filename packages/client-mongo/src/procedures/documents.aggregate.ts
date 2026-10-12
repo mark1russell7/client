@@ -5,7 +5,6 @@
 
 import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@mark1russell7/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
-import { schema } from "./schema.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
 import type { AggregateOptions } from "mongodb";
@@ -39,7 +38,11 @@ const aggregateInputSchema = zodAdapter<AggregateInput>(
       .describe("The options of the aggregation"),
   })
 );
-const aggregateOutputSchema = schema<AggregateOutput>();
+const aggregateOutputSchema = zodAdapter<AggregateOutput>(
+  z.looseObject({
+    results: z.array(z.record(z.string(), z.unknown())).describe("The documents that the pipeline gave"),
+  })
+);
 
 export const aggregateProcedure: Procedure<
   AggregateInput,

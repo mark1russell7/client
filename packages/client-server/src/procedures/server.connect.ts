@@ -4,13 +4,14 @@
  */
 
 import { createProcedure, type Procedure } from "@mark1russell7/client";
-import { schema } from "../schema.js";
+import { wrapSchema } from "../schema.js";
+import { ServerConnectOutputSchema } from "../output-schemas.js";
 import { serverConnectInputSchema } from "../input-schemas.js";
 import type { ServerConnectInput, ServerConnectOutput } from "../types.js";
 import { connect } from "../connection/index.js";
 
 // Use pass-through schemas
-const serverConnectOutputSchema = schema<ServerConnectOutput>();
+const serverConnectOutputSchema = wrapSchema<ServerConnectOutput>(ServerConnectOutputSchema);
 
 export const serverConnectProcedure: Procedure<
   ServerConnectInput,
