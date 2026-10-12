@@ -147,6 +147,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | New pages | | done | `bc0c69e`, `0902eb6`, `a67c021` | The status board (`/status/`, from this file), the middleware lab (`/lab/`) and the program graph in the Composer. |
 | SEO | | done | `750d5ce`, `33a50b3`, `72bdef5` | Path routes, 281 prerendered pages with their own titles, Open Graph images and JSON-LD, `sitemap.xml`, `llms.txt`, a web manifest. Each deploy sends its URLs to IndexNow. Google Search Console needs the owner's login. |
 | Home page | | done | `750d5ce` | A live program in the hero, numbers measured at build time, an install box. The first script went from 163 to 96 kB gzip. |
+| Delight | | done | `b3a3b95`, `d104889`, `5afe861` | The journey of one call through the layers on the Architecture page (four hosts, with a scrubber), a command palette (Ctrl+K), and an example gallery with graph thumbnails. |
 | Test-file types | low | fixed | `eca5164`, `6f019a7` | The test files of every package type-check. It found a library type defect: the collection behaviors declared `Middleware<X & Y>`, not `Middleware<X, X & Y>`. |
 
 ## Collections and the general repositories
@@ -194,7 +195,7 @@ The documentation fork checked each document against the code and ran each examp
 | 1.1 Program Format v1 and one evaluator | done | `8a9e7c7`, `88edf02` | One interpreter, and `documentation/PROGRAM-FORMAT.md`. Its section 11 lists the open points. |
 | 1.2 Interceptors in `invokeProcedure` | done | `9e20de8` | Timeout, tracing and metrics interceptors. Nested calls inherit the chain. The MCP server limits each tool call. |
 | 1.3 A build-time manifest and a thin `mark` path | done | `978175a` | `mark --help` went from 1127 ms to 164 ms, and a warm-server call from 1170 ms to 352 ms. |
-| 2.1 Standard Schema, real schemas for exposed procedures | partly | `580a72a`, `8306c1e`, `830af9c`, `b223979` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. Every tool has a real input schema. The 42 tools outside `packages/client` and every procedure of the `client-*` packages have real output schemas, and the MCP server sends structured output. The 20 core tools are in progress. |
+| 2.1 Standard Schema, real schemas for exposed procedures | done | `580a72a`, `8306c1e`, `830af9c`, `b223979`, `448141d` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. Every tool has a real input schema. Every procedure has a real output schema (`448141d` for the 100 core procedures and the 20 core tools), and the MCP server sends structured output for each tool with an object result. |
 | 2.2 `commandProcedure()` and the wrapper migration | done | `6638311` | As `runCommand`. |
 | 2.3 One `host` package | open | | |
 | 3.1 Modules without side effects | open | | |
