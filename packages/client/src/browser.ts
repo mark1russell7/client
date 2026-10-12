@@ -113,6 +113,12 @@ export {
   registerModule,
   registerProcedures,
   createAndRegister,
+  // Modules and explicit registries (roadmap 3.1)
+  clientModule,
+  defineModule,
+  moduleClosure,
+  registerModules,
+  createRegistry,
   // Procedure reference system (procedure-as-data)
   PROCEDURE_SYMBOL,
   PROCEDURE_JSON_KEY,
@@ -207,6 +213,7 @@ export type {
   CollectionStorage,
   StorageMetadata,
   ProcedureModule,
+  ModuleInput,
   RegistrationOptions,
   ProcedureRegistryLike,
   ProcedureDefinition,

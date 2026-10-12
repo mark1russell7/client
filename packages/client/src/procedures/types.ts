@@ -465,6 +465,12 @@ export interface ProcedureModule {
 
   /** Optional module name for debugging */
   name?: string;
+
+  /**
+   * The modules whose procedures this module calls (for example `client-lib` calls `fs.*` and
+   * `git.*`). `createRegistry()` registers them too.
+   */
+  requires?: readonly ProcedureModule[] | undefined;
 }
 
 /**
