@@ -141,6 +141,30 @@ export function Home(): ReactElement {
           </p>
         </div>
       </div>
+
+      <h2>Explore</h2>
+      <div className="cards">
+        <a className="panel explore-card" href={href("lab")}>
+          <h3>The middleware lab →</h3>
+          <p className="small">
+            The real middlewares run around a server that you break: latency, errors, a dead peer, a slow stream. Watch each
+            request go through the layers.
+          </p>
+        </a>
+        <a className="panel explore-card" href={href("composer", undefined, { example: "chain" })}>
+          <h3>The program as a graph →</h3>
+          <p className="small">
+            The Graph tab of the Composer draws a program as a tree of calls, with the steps of each chain and each{" "}
+            <code>$ref</code> read.
+          </p>
+        </a>
+        <a className="panel explore-card" href={href("status")}>
+          <h3>The status board →</h3>
+          <p className="small">
+            Each finding of the October deep dive and each bug of the July register, with its status and its commits.
+          </p>
+        </a>
+      </div>
     </>
   );
 }

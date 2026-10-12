@@ -27,6 +27,23 @@
   color: var(--tone-ink);
 }
 
+/* ---- The cards of the home page that link to a page ---- */
+
+a.explore-card {
+  display: block;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+a.explore-card:hover {
+  border-color: var(--color-accent);
+}
+
+a.explore-card h3 {
+  color: var(--color-accent-strong);
+  margin-top: 0;
+}
+
 /* ---- Status board ---- */
 
 .lead-text {
