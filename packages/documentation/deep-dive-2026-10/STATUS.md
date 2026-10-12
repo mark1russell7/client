@@ -180,11 +180,11 @@ The documentation fork checked each document against the code and ran each examp
 
 | ID | Severity | Status | Commit | Note |
 |---|---|---|---|---|
-| NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 29 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.mjs` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
+| NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 30 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.mjs` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
 | NPM-2 | | done | `cue` `fb4b155` | `@mark1russell7/cue` 1.0.0, `splay` 0.1.0 and `docker-sqlite` 0.1.0 are on npm (2026-10-12). The monorepo uses them from npm, so no package has a git dependency, and the package check runs in strict mode. |
 | NPM-3 | low | fixed | | Owner decision (2026-10-12): the bins are `client-registry` (was `client`) and `procedure-server` (was `server`), so a global install does not take a generic command name. |
 | NPM-4 | low | fixed | | Owner decision (2026-10-12): the three generator scripts of `client-vitest` are deleted (git history keeps them). |
-| NPM-5 | | done | `11820e6`, `ef6a327` | Owner decision (2026-10-12): the monorepo packages are `@procedures/*` (the scope `@client` belongs to an npm user). `scripts/check-scope.mjs` refuses an old name. MiniMongo and the `cue` schema use the new names. The 22 `@mark1russell7/*` 0.1.0 versions on npm get a deprecation that names the new package (`npm-bootstrap.mjs --deprecate-old`). The npm organization `procedures` is necessary before the staging. |
+| NPM-5 | | done | `11820e6`, `ef6a327` | Owner decision (2026-10-12): the monorepo packages are `@procedures/*` (the scope `@client` belongs to an npm user). `scripts/check-scope.mjs` refuses an old name. MiniMongo and the `cue` schema use the new names. The 22 `@mark1russell7/*` 0.1.0 versions on npm get a deprecation that names the new package (`npm-bootstrap.mjs --deprecate-old`). The npm organization `procedures` exists (2026-10-12). npm refuses the first publish of the 30 packages with HTTP 429: the account made 25 new packages that day. A support request asks for a higher limit. |
 
 ## Architecture roadmap
 

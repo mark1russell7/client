@@ -19,9 +19,11 @@
 // is on npm as deprecated, with the name of its @procedures package (also with the 2FA).
 //
 // --publish publishes the first version directly (`npm publish`, with the 2FA in the terminal),
-// in place of the staged publish. npm limits the staged publish of new packages: on 2026-10-12 it
-// refused each one with HTTP 429 after 25 new packages in one day, while the direct publish was
-// not limited. A direct publish needs no --approve step.
+// in place of the staged publish. A direct publish needs no --approve step. It stops at the first
+// failure, because each try asks for the 2FA. Start it again: it skips the versions on npm.
+//
+// npm limits the new packages of one account. On 2026-10-12 it refused each new package with
+// HTTP 429 ("rate limited exceeded") after 25 new packages, for the staged and the direct publish.
 //
 // Options: --dry-run, --publish, --approve, --trust, --deprecate-old, --otp <code>,
 //          --only <name,name> (a part of the packages).
@@ -200,7 +202,8 @@ try {
         console.log(`${dryRun ? "would publish" : "published"} ${pkg.name}@${pkg.version}`);
       } else {
         failed.push(pkg.name);
-        console.error(`FAIL  ${pkg.name}`);
+        console.error(`FAIL  ${pkg.name}: the next packages are not tried. Start the command again.`);
+        break;
       }
       continue;
     }
