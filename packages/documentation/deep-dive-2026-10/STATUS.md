@@ -167,7 +167,7 @@ The documentation fork checked each document against the code and ran each examp
 |---|---|---|---|---|
 | DOC-1 | medium | fixed | `d45d8ce`, `73e7278` | An array is an implicit chain only when every call in it runs now. A deferred call is data, also as a chain step. The Composer follows the same rule. |
 | DOC-2 | medium | fixed | `d45d8ce` | `client.eval` evaluates its call like `exec()`, in the scope of the caller. |
-| DOC-3 | low | decision | | `exec()` and a defined body treat the root differently (lists in the root input, a root `$when`). Recommendation: a defined body behaves exactly like `exec()`, because the Composer and the CLI teach the `exec()` rules. See PROGRAM-FORMAT.md section 11. |
+| DOC-3 | low | fixed | `b09fd6e`, `633e8ad`, `d505824` | Owner decision (2026-10-12): a defined body runs exactly as `exec()` runs the same program. `prepareRootCall()` is the one root path: a list of calls in the root input is a chain, and a root `$when` is ignored. A stored program follows the same rule. |
 | DOC-4 | low | fixed | `d45d8ce` | `reduce` runs a call in `initial`. `chain` implements `passThrough` and `initialInput`. |
 | DOC-5 | medium | fixed | `50e831f` | `client-lib` registers `client-fs` and `client-git`. The reachability snapshot has the four `lib` to `git` edges. The tool list is unchanged. |
 | DOC-6 | low | fixed | `50e831f`, `6cd398f`, `8b6ff5d` | The `bundle-mcp` root registers its packages. One `procedure.list`/`get` in core (`get` gives `{ found: false }`, not `null`). `mark client add --a 2 --b 3` prints 5. |
