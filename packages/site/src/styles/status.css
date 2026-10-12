@@ -349,11 +349,26 @@ table.findings.compact th[scope="row"] {
     padding: var(--space-1) 0;
   }
 
+  /* A short field has its label beside the value, the note has it above */
+  table.findings td {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  table.findings td.note-cell {
+    display: block;
+  }
+
   table.findings td::before {
     content: attr(data-label);
-    display: block;
     font-size: var(--text-xs);
     color: var(--color-ink-muted);
+  }
+
+  table.findings td.note-cell::before {
+    display: block;
   }
 
   table.findings .note-cell {

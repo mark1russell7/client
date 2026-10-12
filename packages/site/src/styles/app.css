@@ -412,6 +412,21 @@ textarea[aria-invalid="true"] {
   font-weight: 600;
 }
 
+/* Four tabs and the count of calls fit at 375 px: the count goes under the tabs */
+@media (max-width: 480px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab-buttons {
+    gap: 0;
+  }
+
+  .tabs button {
+    padding: var(--space-2);
+  }
+}
+
 .tab-panel:focus-visible {
   outline-offset: 4px;
 }

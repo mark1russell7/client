@@ -83,13 +83,13 @@ svg.onion {
 .onion-label {
   fill: var(--color-ink-secondary);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   pointer-events: none;
 }
 
 .onion-label.core-label {
   fill: var(--color-accent-strong);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .onion path.flash-bad,

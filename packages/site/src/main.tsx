@@ -4,6 +4,7 @@ import "./styles/tokens.css";
 import "./styles/app.css";
 import "./styles/status.css";
 import "./styles/lab.css";
+import "./styles/graph.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

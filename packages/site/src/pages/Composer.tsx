@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { PICKER_LIST, Slot, browserProcedures, callFor, type EditorContext } from "../components/Blocks";
 import { Palette } from "../components/Palette";
+import { ProgramGraph } from "../components/ProgramGraph";
 import { Trace } from "../components/Trace";
 import { packages, procedureByKey } from "../data";
 import { analyzeProgram } from "../lib/analysis";
@@ -26,7 +27,7 @@ import { href, isOwnEntry, writeHash, type Route } from "../lib/router";
 import { ProgramRunner } from "../lib/runner";
 import { runProgram, type RunResult } from "../lib/runtime";
 
-type Tab = "blocks" | "json" | "ts";
+type Tab = "blocks" | "graph" | "json" | "ts";
 
 // ---------------------------------------------------------------------------
 // History: undo, redo and the browser history
@@ -182,6 +183,7 @@ function CopyButton({ text, label }: { text: () => string; label: string }): Rea
 
 const TABS: Array<[Tab, string]> = [
   ["blocks", "Blocks"],
+  ["graph", "Graph"],
   ["json", "JSON"],
   ["ts", "TypeScript"],
 ];
@@ -686,6 +688,21 @@ export function Composer({ route }: { route: Route }): ReactElement {
             ) : (
               <Slot value={program} location={[]} ctx={ctx} type={undefined} label="the program" />
             )
+          ) : null}
+          {tab === "graph" ? (
+            <div onClick={(event) => event.stopPropagation()}>
+              <ProgramGraph
+                program={program}
+                analysis={analysis}
+                selected={selected}
+                onSelect={(location) => setSelected(locationKey(location))}
+                onEdit={(location) => {
+                  setTab("blocks");
+                  setSelected(locationKey(location));
+                  focus(location);
+                }}
+              />
+            </div>
           ) : null}
           {tab === "json" ? <JsonEditor program={program} onChange={(next) => edit(() => next, "json")} /> : null}
           {tab === "ts" ? (
