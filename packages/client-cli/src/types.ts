@@ -43,3 +43,12 @@ export interface CliRunOutput {
   /** Duration in milliseconds */
   duration: number;
 }
+
+/** The output schema of cli.run (roadmap 2.1). Loose: a field that it does not name stays. */
+export const CliRunOutputSchema: z.ZodType<CliRunOutput> = z.looseObject({
+  exitCode: z.number().describe("The exit code of mark"),
+  stdout: z.string().describe("The standard output of mark"),
+  stderr: z.string().describe("The standard error of mark"),
+  success: z.boolean().describe("True when the exit code is 0"),
+  duration: z.number().describe("The time of the command, in milliseconds"),
+});

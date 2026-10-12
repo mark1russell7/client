@@ -40,7 +40,7 @@ export interface NodeRunOutput {
   /** Standard error */
   stderr: string;
   /** True when an output stream was longer than `maxOutputBytes` */
-  truncated?: boolean;
+  truncated?: boolean | undefined;
 }
 
 // ============================================================================
@@ -145,3 +145,40 @@ export interface NodeStatusOutput {
   /** List of processes */
   processes: ProcessInfo[];
 }
+
+// Output schemas (roadmap 2.1). Loose objects: a field that a schema does not name stays in the
+// result (a strict schema would remove it when the output is validated).
+
+export const NodeRunOutputSchema: z.ZodType<NodeRunOutput> = z.looseObject({
+  exitCode: z.number().describe("The exit code of the script"),
+  stdout: z.string().describe("The standard output"),
+  stderr: z.string().describe("The standard error"),
+  truncated: z.boolean().optional().describe("True when an output stream was longer than maxOutputBytes"),
+});
+
+export const NodeSpawnOutputSchema: z.ZodType<NodeSpawnOutput> = z.looseObject({
+  processId: z.string().describe("The id of the process: node.kill and node.status take it"),
+  pid: z.number().describe("The process id of the operating system"),
+});
+
+export const NodeKillOutputSchema: z.ZodType<NodeKillOutput> = z.looseObject({
+  success: z.boolean().describe("True when the process ended"),
+  exitCode: z.number().optional().describe("The exit code, when the process exited"),
+});
+
+export const NodeStatusOutputSchema: z.ZodType<NodeStatusOutput> = z.looseObject({
+  processes: z
+    .array(
+      z.looseObject({
+        processId: z.string().describe("The id of the process"),
+        pid: z.number().describe("The process id of the operating system"),
+        script: z.string().describe("The script"),
+        status: z.enum(["running", "exited", "error"]).describe("The state of the process"),
+        exitCode: z.number().optional().describe("The exit code, when the process exited"),
+        startedAt: z.string().describe("The start time (ISO 8601)"),
+        exitedAt: z.string().optional().describe("The end time (ISO 8601), when the process ended"),
+        output: z.string().optional().describe("With output: true, the end of the output"),
+      })
+    )
+    .describe("The processes of this host"),
+});

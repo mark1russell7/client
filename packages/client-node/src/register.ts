@@ -2,7 +2,7 @@
  * Procedure Registration for Node.js process management
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import { nodeRun } from "./procedures/node/run.js";
 import { nodeSpawn } from "./procedures/node/spawn.js";
 import { nodeKill } from "./procedures/node/kill.js";
@@ -20,13 +20,17 @@ import {
   type NodeKillOutput,
   type NodeStatusInput,
   type NodeStatusOutput,
+  NodeRunOutputSchema,
+  NodeSpawnOutputSchema,
+  NodeKillOutputSchema,
+  NodeStatusOutputSchema,
 } from "./types.js";
 
 // Procedure definitions
 const nodeRunProcedure = createProcedure()
   .path(["node", "run"])
   .input(zodAdapter<NodeRunInput>(NodeRunInputSchema))
-  .output(outputSchema<NodeRunOutput>())
+  .output(zodAdapter<NodeRunOutput>(NodeRunOutputSchema))
   .meta({
     description: "Run a Node.js script and wait for completion",
     args: ["script"],
@@ -41,7 +45,7 @@ const nodeRunProcedure = createProcedure()
 const nodeSpawnProcedure = createProcedure()
   .path(["node", "spawn"])
   .input(zodAdapter<NodeSpawnInput>(NodeSpawnInputSchema))
-  .output(outputSchema<NodeSpawnOutput>())
+  .output(zodAdapter<NodeSpawnOutput>(NodeSpawnOutputSchema))
   .meta({
     description: "Spawn a long-running Node.js process",
     args: ["script"],
@@ -56,7 +60,7 @@ const nodeSpawnProcedure = createProcedure()
 const nodeKillProcedure = createProcedure()
   .path(["node", "kill"])
   .input(zodAdapter<NodeKillInput>(NodeKillInputSchema))
-  .output(outputSchema<NodeKillOutput>())
+  .output(zodAdapter<NodeKillOutput>(NodeKillOutputSchema))
   .meta({
     description: "Kill a spawned Node.js process",
     args: ["processId"],
@@ -71,7 +75,7 @@ const nodeKillProcedure = createProcedure()
 const nodeStatusProcedure = createProcedure()
   .path(["node", "status"])
   .input(zodAdapter<NodeStatusInput>(NodeStatusInputSchema))
-  .output(outputSchema<NodeStatusOutput>())
+  .output(zodAdapter<NodeStatusOutput>(NodeStatusOutputSchema))
   .meta({
     description: "Get status of running Node.js processes",
     args: [],

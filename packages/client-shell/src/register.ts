@@ -2,7 +2,7 @@
  * Procedure Registration for shell operations
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
@@ -20,13 +20,17 @@ import {
   type ShellWhichOutput,
   type ShellStreamInput,
   type ShellStreamItem,
+  ShellRunOutputSchema,
+  ShellExecOutputSchema,
+  ShellWhichOutputSchema,
+  ShellStreamItemSchema,
 } from "./types.js";
 
 // Procedure definitions
 const shellRunProcedure = createProcedure()
   .path(["shell", "run"])
   .input(zodAdapter<ShellRunInput>(ShellRunInputSchema))
-  .output(outputSchema<ShellRunOutput>())
+  .output(zodAdapter<ShellRunOutput>(ShellRunOutputSchema))
   .meta({
     description: "Run a command with arguments",
     args: ["command"],
@@ -41,7 +45,7 @@ const shellRunProcedure = createProcedure()
 const shellExecProcedure = createProcedure()
   .path(["shell", "exec"])
   .input(zodAdapter<ShellExecInput>(ShellExecInputSchema))
-  .output(outputSchema<ShellExecOutput>())
+  .output(zodAdapter<ShellExecOutput>(ShellExecOutputSchema))
   .meta({
     description: "Execute command string via shell",
     args: ["command"],
@@ -56,7 +60,7 @@ const shellExecProcedure = createProcedure()
 const shellWhichProcedure = createProcedure()
   .path(["shell", "which"])
   .input(zodAdapter<ShellWhichInput>(ShellWhichInputSchema))
-  .output(outputSchema<ShellWhichOutput>())
+  .output(zodAdapter<ShellWhichOutput>(ShellWhichOutputSchema))
   .meta({
     description: "Find the path to a command",
     args: ["command"],
@@ -71,7 +75,7 @@ const shellWhichProcedure = createProcedure()
 const shellStreamProcedure = createProcedure()
   .path(["shell", "stream"])
   .input(zodAdapter<ShellStreamInput>(ShellStreamInputSchema))
-  .output(outputSchema<ShellStreamItem>())
+  .output(zodAdapter<ShellStreamItem>(ShellStreamItemSchema))
   .meta({
     description: "Run a command and stream each output line as it arrives",
     args: ["command"],
