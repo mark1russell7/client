@@ -7,6 +7,7 @@ import "./styles/lab.css";
 import "./styles/graph.css";
 import "./styles/home.css";
 import "./styles/journey.css";
+import "./styles/command.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
