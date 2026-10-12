@@ -100,9 +100,10 @@ describe("module requirements", () => {
   });
 
   it("refuses a cycle of requirements", () => {
-    const left: ProcedureModule = { name: "test-left", procedures: [] };
+    const leftRequires: ProcedureModule[] = [];
+    const left: ProcedureModule = { name: "test-left", procedures: [], requires: leftRequires };
     const right: ProcedureModule = { name: "test-right", procedures: [], requires: [left] };
-    (left as { requires?: ProcedureModule[] }).requires = [right];
+    leftRequires.push(right);
     expect(() => moduleClosure([left])).toThrow(/cycle/);
   });
 });
