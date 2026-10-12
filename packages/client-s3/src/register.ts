@@ -5,7 +5,7 @@
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import {
   s3Upload,
   s3Download,
@@ -45,6 +45,15 @@ import {
   type S3MultipartUploadOutput,
   type S3MultipartCompleteOutput,
   type S3MultipartAbortOutput,
+  S3UploadOutputSchema,
+  S3DownloadOutputSchema,
+  S3ListOutputSchema,
+  S3ListAllOutputSchema,
+  S3DeleteOutputSchema,
+  S3MultipartInitOutputSchema,
+  S3MultipartUploadOutputSchema,
+  S3MultipartCompleteOutputSchema,
+  S3MultipartAbortOutputSchema,
 } from "./types.js";
 
 // =============================================================================
@@ -54,7 +63,7 @@ import {
 const s3UploadProcedure = createProcedure()
   .path(["s3", "upload"])
   .input(zodAdapter<S3UploadInput>(S3UploadInputSchema))
-  .output(outputSchema<S3UploadOutput>())
+  .output(zodAdapter<S3UploadOutput>(S3UploadOutputSchema))
   .meta({
     description: "Upload content to S3 bucket",
     shorts: { bucket: "b", key: "k" },
@@ -68,7 +77,7 @@ const s3UploadProcedure = createProcedure()
 const s3DownloadProcedure = createProcedure()
   .path(["s3", "download"])
   .input(zodAdapter<S3DownloadInput>(S3DownloadInputSchema))
-  .output(outputSchema<S3DownloadOutput>())
+  .output(zodAdapter<S3DownloadOutput>(S3DownloadOutputSchema))
   .meta({
     description: "Download content from S3 bucket",
     shorts: { bucket: "b", key: "k", encoding: "e" },
@@ -82,7 +91,7 @@ const s3DownloadProcedure = createProcedure()
 const s3ListProcedure = createProcedure()
   .path(["s3", "list"])
   .input(zodAdapter<S3ListInput>(S3ListInputSchema))
-  .output(outputSchema<S3ListOutput>())
+  .output(zodAdapter<S3ListOutput>(S3ListOutputSchema))
   .meta({
     description: "List objects in S3 bucket",
     shorts: { bucket: "b", prefix: "p", maxKeys: "n" },
@@ -96,7 +105,7 @@ const s3ListProcedure = createProcedure()
 const s3ListAllProcedure = createProcedure()
   .path(["s3", "listAll"])
   .input(zodAdapter<S3ListAllInput>(S3ListAllInputSchema))
-  .output(outputSchema<S3ListAllOutput>())
+  .output(zodAdapter<S3ListAllOutput>(S3ListAllOutputSchema))
   .meta({
     description: "List ALL objects in S3 bucket, following continuation tokens (unbounded by 1000)",
     shorts: { bucket: "b", prefix: "p", maxKeys: "n" },
@@ -110,7 +119,7 @@ const s3ListAllProcedure = createProcedure()
 const s3DeleteProcedure = createProcedure()
   .path(["s3", "delete"])
   .input(zodAdapter<S3DeleteInput>(S3DeleteInputSchema))
-  .output(outputSchema<S3DeleteOutput>())
+  .output(zodAdapter<S3DeleteOutput>(S3DeleteOutputSchema))
   .meta({
     description: "Delete object from S3 bucket",
     shorts: { bucket: "b", key: "k" },
@@ -124,7 +133,7 @@ const s3DeleteProcedure = createProcedure()
 const s3MultipartInitProcedure = createProcedure()
   .path(["s3", "multipart", "init"])
   .input(zodAdapter<S3MultipartInitInput>(S3MultipartInitInputSchema))
-  .output(outputSchema<S3MultipartInitOutput>())
+  .output(zodAdapter<S3MultipartInitOutput>(S3MultipartInitOutputSchema))
   .meta({
     description: "Initialize multipart upload for large files",
     shorts: { bucket: "b", key: "k" },
@@ -138,7 +147,7 @@ const s3MultipartInitProcedure = createProcedure()
 const s3MultipartUploadProcedure = createProcedure()
   .path(["s3", "multipart", "upload"])
   .input(zodAdapter<S3MultipartUploadInput>(S3MultipartUploadInputSchema))
-  .output(outputSchema<S3MultipartUploadOutput>())
+  .output(zodAdapter<S3MultipartUploadOutput>(S3MultipartUploadOutputSchema))
   .meta({
     description: "Upload a part in multipart upload",
     shorts: { bucket: "b", key: "k", partNumber: "n" },
@@ -152,7 +161,7 @@ const s3MultipartUploadProcedure = createProcedure()
 const s3MultipartCompleteProcedure = createProcedure()
   .path(["s3", "multipart", "complete"])
   .input(zodAdapter<S3MultipartCompleteInput>(S3MultipartCompleteInputSchema))
-  .output(outputSchema<S3MultipartCompleteOutput>())
+  .output(zodAdapter<S3MultipartCompleteOutput>(S3MultipartCompleteOutputSchema))
   .meta({
     description: "Complete multipart upload by assembling parts",
     shorts: { bucket: "b", key: "k" },
@@ -166,7 +175,7 @@ const s3MultipartCompleteProcedure = createProcedure()
 const s3MultipartAbortProcedure = createProcedure()
   .path(["s3", "multipart", "abort"])
   .input(zodAdapter<S3MultipartAbortInput>(S3MultipartAbortInputSchema))
-  .output(outputSchema<S3MultipartAbortOutput>())
+  .output(zodAdapter<S3MultipartAbortOutput>(S3MultipartAbortOutputSchema))
   .meta({
     description: "Abort multipart upload and clean up parts",
     shorts: { bucket: "b", key: "k" },

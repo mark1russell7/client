@@ -4,7 +4,7 @@
  * Provides snapshot.create, snapshot.list, snapshot.restore, snapshot.diff, snapshot.delete procedures.
  */
 
-import { createProcedure, registerProcedures, zodAdapter, outputSchema } from "@mark1russell7/client";
+import { createProcedure, registerProcedures, zodAdapter } from "@mark1russell7/client";
 import type { ProcedureContext } from "@mark1russell7/client";
 import {
   snapshotCreate,
@@ -29,6 +29,11 @@ import {
   type SnapshotDiffOutput,
   type SnapshotDeleteInput,
   type SnapshotDeleteOutput,
+  SnapshotCreateOutputSchema,
+  SnapshotRestoreOutputSchema,
+  SnapshotListOutputSchema,
+  SnapshotDiffOutputSchema,
+  SnapshotDeleteOutputSchema,
 } from "./types.js";
 
 // =============================================================================
@@ -38,7 +43,7 @@ import {
 const snapshotCreateProcedure = createProcedure()
   .path(["snapshot", "create"])
   .input(zodAdapter<SnapshotCreateInput>(SnapshotCreateInputSchema))
-  .output(outputSchema<SnapshotCreateOutput>())
+  .output(zodAdapter<SnapshotCreateOutput>(SnapshotCreateOutputSchema))
   .meta({
     description: "Create environment snapshot and upload to S3",
     args: ["name"],
@@ -53,7 +58,7 @@ const snapshotCreateProcedure = createProcedure()
 const snapshotListProcedure = createProcedure()
   .path(["snapshot", "list"])
   .input(zodAdapter<SnapshotListInput>(SnapshotListInputSchema))
-  .output(outputSchema<SnapshotListOutput>())
+  .output(zodAdapter<SnapshotListOutput>(SnapshotListOutputSchema))
   .meta({
     description: "List available snapshots in S3 bucket",
     args: [],
@@ -68,7 +73,7 @@ const snapshotListProcedure = createProcedure()
 const snapshotRestoreProcedure = createProcedure()
   .path(["snapshot", "restore"])
   .input(zodAdapter<SnapshotRestoreInput>(SnapshotRestoreInputSchema))
-  .output(outputSchema<SnapshotRestoreOutput>())
+  .output(zodAdapter<SnapshotRestoreOutput>(SnapshotRestoreOutputSchema))
   .meta({
     description: "Restore environment from S3 snapshot",
     args: ["id"],
@@ -83,7 +88,7 @@ const snapshotRestoreProcedure = createProcedure()
 const snapshotDiffProcedure = createProcedure()
   .path(["snapshot", "diff"])
   .input(zodAdapter<SnapshotDiffInput>(SnapshotDiffInputSchema))
-  .output(outputSchema<SnapshotDiffOutput>())
+  .output(zodAdapter<SnapshotDiffOutput>(SnapshotDiffOutputSchema))
   .meta({
     description: "Compare current state against a snapshot",
     args: ["id"],
@@ -98,7 +103,7 @@ const snapshotDiffProcedure = createProcedure()
 const snapshotDeleteProcedure = createProcedure()
   .path(["snapshot", "delete"])
   .input(zodAdapter<SnapshotDeleteInput>(SnapshotDeleteInputSchema))
-  .output(outputSchema<SnapshotDeleteOutput>())
+  .output(zodAdapter<SnapshotDeleteOutput>(SnapshotDeleteOutputSchema))
   .meta({
     description: "Delete a snapshot from S3",
     args: ["id"],

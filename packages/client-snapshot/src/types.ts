@@ -269,3 +269,113 @@ export interface SnapshotDeleteOutput {
   /** Deleted snapshot ID */
   id: string;
 }
+
+// =============================================================================
+// Output schemas (roadmap 2.1)
+// =============================================================================
+
+// Loose objects: a field that a schema does not name stays in the result (a strict schema would
+// remove it when the output is validated).
+//
+// The metadata of a snapshot comes back from S3, where an older version of this package can have
+// written it with fewer fields. A schema that required each field of today's type would turn a
+// restore that worked into a validation error, so the metadata parts require only the id. The
+// casts say that these schemas are more lenient than the types on purpose.
+
+const repositoryInfo = z.looseObject({
+  path: z.string().optional().describe("The repository folder, relative to the snapshot root"),
+  name: z.string().optional().describe("The package name"),
+  branch: z.string().optional().describe("The branch at the time of the snapshot"),
+  commit: z.string().optional().describe("The HEAD commit at the time of the snapshot"),
+  dirty: z.boolean().optional().describe("True when the working tree had changes"),
+  stashCount: z.number().optional().describe("The number of stashes"),
+  remoteUrl: z.string().optional().describe("The remote URL"),
+  ahead: z.number().optional().describe("The commits that the remote did not have"),
+  behind: z.number().optional().describe("The commits of the remote that the branch did not have"),
+});
+
+const snapshotMetadata = z
+  .looseObject({
+    id: z.string().describe("The snapshot id"),
+    name: z.string().optional().describe("The name of the snapshot"),
+    preset: z.string().optional().describe("The preset: light, medium or heavy"),
+    createdAt: z.string().optional().describe("The time of the snapshot (ISO 8601)"),
+    environment: z
+      .looseObject({
+        os: z.string().optional().describe("The operating system"),
+        nodeVersion: z.string().optional().describe("The Node.js version"),
+        pnpmVersion: z.string().optional().describe("The pnpm version"),
+        username: z.string().optional().describe("The user who made the snapshot"),
+        hostname: z.string().optional().describe("The host name"),
+      })
+      .optional()
+      .describe("The environment of the snapshot"),
+    repositories: z.array(repositoryInfo).optional().describe("The repositories in the snapshot"),
+    checksum: z.string().optional().describe("The SHA-256 checksum of the archive"),
+    archiveSize: z.number().optional().describe("The size of the compressed archive, in bytes"),
+    description: z.string().optional().describe("The description"),
+  })
+  .describe("The metadata of the snapshot");
+
+export const SnapshotCreateOutputSchema: z.ZodType<SnapshotCreateOutput> = z.looseObject({
+  id: z.string().describe("The snapshot id"),
+  location: z.string().describe("The S3 location of the archive"),
+  metadata: snapshotMetadata,
+  uploadDuration: z.number().describe("The time of the upload, in milliseconds"),
+}) as unknown as z.ZodType<SnapshotCreateOutput>;
+
+export const SnapshotRestoreOutputSchema: z.ZodType<SnapshotRestoreOutput> = z.looseObject({
+  success: z.boolean().describe("True when the restore succeeded"),
+  metadata: snapshotMetadata,
+  restoredPaths: z.array(z.string()).describe("The folders that the restore wrote"),
+  downloadDuration: z.number().describe("The time of the download, in milliseconds"),
+  extractDuration: z.number().describe("The time of the extraction, in milliseconds"),
+}) as unknown as z.ZodType<SnapshotRestoreOutput>;
+
+export const SnapshotListOutputSchema: z.ZodType<SnapshotListOutput> = z.looseObject({
+  snapshots: z
+    .array(
+      z.looseObject({
+        id: z.string().describe("The snapshot id"),
+        name: z.string().optional().describe("The name of the snapshot"),
+        preset: z.string().optional().describe("The preset"),
+        createdAt: z.string().optional().describe("The time of the snapshot (ISO 8601)"),
+        size: z.number().optional().describe("The size of the archive, in bytes"),
+        os: z.string().optional().describe("The operating system of the snapshot"),
+      })
+    )
+    .describe("The snapshots, newest first"),
+  count: z.number().describe("The number of snapshots"),
+}) as unknown as z.ZodType<SnapshotListOutput>;
+
+const pair = z.looseObject({
+  current: z.string().describe("The value now"),
+  snapshot: z.string().describe("The value in the snapshot"),
+});
+
+export const SnapshotDiffOutputSchema: z.ZodType<SnapshotDiffOutput> = z.looseObject({
+  snapshotMetadata,
+  repositories: z
+    .array(
+      z.looseObject({
+        path: z.string().describe("The repository folder"),
+        branchDiff: pair.optional().describe("The branch now and in the snapshot, when they differ"),
+        commitDiff: pair.optional().describe("The commit now and in the snapshot, when they differ"),
+        filesChanged: z.number().describe("The files changed since the snapshot"),
+        newStashes: z.number().describe("The stashes made since the snapshot"),
+      })
+    )
+    .describe("The differences of each repository"),
+  summary: z
+    .looseObject({
+      reposChanged: z.number().describe("The repositories with differences"),
+      totalFilesChanged: z.number().describe("The files changed in all repositories"),
+      isMatch: z.boolean().describe("True when the current state matches the snapshot"),
+    })
+    .describe("The summary"),
+}) as unknown as z.ZodType<SnapshotDiffOutput>;
+
+export const SnapshotDeleteOutputSchema: z.ZodType<SnapshotDeleteOutput> = z.looseObject({
+  deleted: z.boolean().describe("True when the snapshot was deleted"),
+  id: z.string().describe("The snapshot id"),
+});
