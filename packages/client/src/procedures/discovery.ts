@@ -2,12 +2,12 @@
  * Procedure Registration Helpers
  *
  * Manual registration helpers for procedures. For compile-time auto-discovery,
- * use the CLI: `npx client discover`
+ * use the CLI: `npx client-registry discover`
  *
  * Libraries that depend on client should:
  * 1. Add `"client": { "procedures": "./dist/register.js" }` to package.json
  * 2. Create a register.ts that uses createAndRegister()
- * 3. Consumers run `npx client discover` to generate imports
+ * 3. Consumers run `npx client-registry discover` to generate imports
  */
 
 import { PROCEDURE_REGISTRY } from "./registry.js";

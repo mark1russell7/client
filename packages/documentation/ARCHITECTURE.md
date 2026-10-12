@@ -70,11 +70,11 @@ The transports are `LocalTransport` (a registry in this process), `HttpTransport
 |---|---|---|---|
 | `mark`, local mode | `mark <command>` | `mark` | It makes a registry from the module of each package with `client.procedures`. It parses the command line against the procedure's schema and starts the procedure with `LocalTransport`. |
 | `mark`, warm mode | `mark --server` | `mark`, `client-server` | It starts a peer server on `127.0.0.1` with the same registry, and writes a lockfile in `~/.mark/servers/`. A later `mark` command in the same folder, from the same build, goes to that server over HTTP. |
-| The procedure server | `mark serve`, or `server` | `server`, `client-server` | An HTTP and WebSocket server for the procedure packages of `--procedures`. Its registry has the modules of those packages and the `server.*` procedures. |
+| The procedure server | `mark serve`, or `procedure-server` | `server`, `client-server` | An HTTP and WebSocket server for the procedure packages of `--procedures`. Its registry has the modules of those packages and the `server.*` procedures. |
 | The MCP server | `mark mcp`, or `node packages/impl-mcp-dev/dist/server.js` | `impl-mcp-dev`, `client-mcp`, `bundle-mcp` | Claude Code starts it over stdio. Its registry has the modules of its bundles. `McpServerTransport` gives the tools of that registry. |
 | The Composer | | `site` | It starts programs in a Web Worker of the browser, with `LocalTransport` and the core procedures. |
 
-`mark` is the one command that a user needs. The `server` and `mcp-dev-tools` commands start the same hosts.
+`mark` is the one command that a user needs. The `procedure-server` and `mcp-dev-tools` commands start the same hosts.
 
 The warm mode removes the start time of Node for a command. `mark` reads a manifest that its build writes (`dist/manifest.json`). Thus the help and a command for a warm server load no procedures.
 
@@ -108,7 +108,7 @@ A registry often has `shell.*`, which starts any program. These rules protect it
 - **No shell strings.** The command wrappers give an argument list to `runCommand()` or `shell.run`. They refuse values that start with `-` where the tool reads them as options.
 - **Browser checks.** `HttpServerTransport` and `WebSocketServerTransport` examine each request ([`server/browser-guard.ts`](../client/src/server/browser-guard.ts)). On a loopback address, the `Host` name must be a loopback name. An `Origin` must be the origin of the server or a permitted origin (`allowedOrigins`). A call by GET needs `allowGet`, and a body must be JSON.
 - **The warm-server token.** `mark --server` makes a random token and writes it in its lockfile, which only the user can read. Each request must send it. `mark` uses a server only when its health endpoint gives the peer id of the lockfile.
-- **The procedure server.** `mark serve` and `server` bind to `127.0.0.1` by default and have the browser checks. Each request must send a token: `--token`, `SERVER_TOKEN`, or a random token that the server prints at its start. `--expose` limits the procedures. Use `--no-token` only on a computer that you trust.
+- **The procedure server.** `mark serve` and `procedure-server` bind to `127.0.0.1` by default and have the browser checks. Each request must send a token: `--token`, `SERVER_TOKEN`, or a random token that the server prints at its start. `--expose` limits the procedures. Use `--no-token` only on a computer that you trust.
 
 ## The program interpreter
 

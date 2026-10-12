@@ -62,7 +62,7 @@ dist/
 .coverage
 coverage/
 
-# The registry file that `client announce` writes at the workspace root
+# The registry file that `client-registry announce` writes at the workspace root
 .client-registry.json
 
 # Node / JS

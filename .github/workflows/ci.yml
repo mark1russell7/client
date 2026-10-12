@@ -73,9 +73,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          # Node 24 (npm 11): npm 12 does not install the github: dependencies of the general packages.
-          # Go back to 26 after scripts/use-npm-general-packages.mjs (packages/documentation/RELEASE.md).
-          node-version: 24
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -83,7 +81,7 @@ jobs:
       # tarballs into an empty project, imports, a program and the bins. Until the general packages
       # (cue, splay, docker-sqlite) are on npm, three packages use github: dependencies
       # (packages/documentation/RELEASE.md). The release workflow does not allow them.
-      - run: node scripts/check-packages.mjs --allow-git-deps
+      - run: node scripts/check-packages.mjs
 
   site:
     name: Site (browser smoke test)

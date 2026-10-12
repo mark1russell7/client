@@ -546,7 +546,7 @@ export function registerPnpmProcedures(): void;
     "procedures": "./dist/register.js"
   },
   "scripts": {
-    "postinstall": "client announce"
+    "postinstall": "client-registry announce"
   }
 }
 ```

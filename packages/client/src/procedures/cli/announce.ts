@@ -5,9 +5,9 @@
  * by writing to a registry file at the root of the project.
  *
  * This enables true bottom-up propagation:
- * - Each package with procedures has `"postinstall": "client announce"`
+ * - Each package with procedures has `"postinstall": "client-registry announce"`
  * - On install, it walks up to find the root and registers itself
- * - `client discover` reads this registry instead of scanning
+ * - `client-registry discover` reads this registry instead of scanning
  *
  * The registry file (.client-registry.json) accumulates entries from
  * all packages as they're installed, making discovery instant.
@@ -26,9 +26,9 @@ export interface AnnounceOptions {
   /** The folder to start from (default: the current folder) */
   cwd?: string | undefined;
   /**
-   * Add `client announce` to the postinstall script of the package that depends on this one.
+   * Add `client-registry announce` to the postinstall script of the package that depends on this one.
    * This edits a package.json that belongs to the consumer, so it happens only when asked
-   * (`client announce --propagate`). Default: false.
+   * (`client-registry announce --propagate`). Default: false.
    */
   propagate?: boolean | undefined;
 }
@@ -240,7 +240,7 @@ async function updateRegistry(rootDir: string, change: (registry: Registry) => b
  *
  * Called from a package's postinstall script to register its procedures.
  *
- * With `propagate: true` (`client announce --propagate`), it also adds the postinstall script
+ * With `propagate: true` (`client-registry announce --propagate`), it also adds the postinstall script
  * to the package that depends on this one, for transitive discovery:
  * - When client is installed in package D, client's postinstall adds postinstall to D
  * - When D is installed in C, D's postinstall adds postinstall to C
@@ -407,19 +407,19 @@ async function ensurePostinstall(packageDir: string, pkg: PackageJson, verbose: 
   const scripts = (fullPkg["scripts"] ?? {}) as Record<string, string>;
   const postinstall = scripts["postinstall"] ?? "";
 
-  // Check if postinstall already includes client announce
-  if (postinstall.includes("client announce")) {
+  // Check if postinstall already includes client-registry announce
+  if (postinstall.includes("client-registry announce")) {
     if (verbose) {
-      console.log(`[client] ${pkg.name} already has client announce in postinstall`);
+      console.log(`[client] ${pkg.name} already has client-registry announce in postinstall`);
     }
     return;
   }
 
-  // Add client announce to postinstall (cross-platform, no shell-specific syntax)
+  // Add client-registry announce to postinstall (cross-platform, no shell-specific syntax)
   // The CLI handles errors internally and always exits 0
   const newPostinstall = postinstall
-    ? `${postinstall} && client announce`
-    : "client announce";
+    ? `${postinstall} && client-registry announce`
+    : "client-registry announce";
 
   scripts["postinstall"] = newPostinstall;
   fullPkg["scripts"] = scripts;

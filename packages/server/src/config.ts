@@ -24,8 +24,8 @@ function parsePort(value: string): number {
  * Parse command line arguments into server configuration.
  *
  * Usage:
- *   server --procedures @mark1russell7/client-mongo/register --port 3000
- *   server --procedures pkg1,pkg2 --transport http,websocket
+ *   procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
+ *   procedure-server --procedures pkg1,pkg2 --transport http,websocket
  *
  * An unknown option, an option with no value, an invalid port and an unknown transport are
  * errors. The order of the options does not matter: `--cors` before `--transport` also applies.
@@ -107,7 +107,7 @@ export function parseConfig(argv: string[]): ServerConfig {
         printHelp();
         return process.exit(0);
       default:
-        throw new Error(`Unknown option: ${token}. Run 'server --help' for the options.`);
+        throw new Error(`Unknown option: ${token}. Run 'procedure-server --help' for the options.`);
     }
   }
 
@@ -141,10 +141,10 @@ export function parseConfig(argv: string[]): ServerConfig {
 
 function printHelp(): void {
   console.log(`
-server - General procedure server
+procedure-server - General procedure server
 
 USAGE:
-  server [OPTIONS]
+  procedure-server [OPTIONS]
 
 OPTIONS:
   --procedures, -p <pkgs>   Comma-separated procedure packages to load
@@ -182,12 +182,12 @@ OPTIONS:
 
 EXAMPLES:
   # Start MongoDB procedure server
-  server --procedures @mark1russell7/client-mongo/register --port 3000
+  procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
 
   # Start with multiple procedure packages
-  server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register
+  procedure-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register
 
   # Start with both HTTP and WebSocket
-  server -p @mark1russell7/client-mongo/register -t http,websocket
+  procedure-server -p @mark1russell7/client-mongo/register -t http,websocket
 `);
 }

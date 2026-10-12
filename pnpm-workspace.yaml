@@ -4,8 +4,9 @@ packages:
 # Packages allowed to run install scripts. Since pnpm 11 every other package that has one fails the install.
 # A git-hosted package is approved by its repository URL, so a new commit of cue needs no new approval.
 allowBuilds:
-  "@mark1russell7/cue@git+https://github.com/mark1russell7/cue.git": true
-  # client-sqlite uses docker-sqlite. Its repository commits dist/, so its "prepare" build does not run.
-  # (That build fails here: the nested install that pnpm starts for it does not read this allowlist.)
-  "@mark1russell7/docker-sqlite@git+https://github.com/mark1russell7/docker-sqlite.git": false
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - "@mark1russell7/cue@1.0.0"
+  - "@mark1russell7/docker-sqlite@0.1.0"
+  - "@mark1russell7/splay@0.1.0"

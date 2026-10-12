@@ -30,7 +30,7 @@
     "@mark1russell7/client-store": "workspace:*",
     "@mark1russell7/client-vite": "workspace:*",
     "@mark1russell7/client-vitest": "workspace:*",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/cue": "^1.0.0",
     "@mark1russell7/mcp": "workspace:*",
     "@playwright/test": "^1.64.0",
     "@types/node": "^22.0.0",

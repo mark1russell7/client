@@ -154,7 +154,7 @@ console.log(names.length + " packages import, and the client runs a program");
           continue;
         }
         // A server bin waits for requests: only examine that it exists
-        if (bin === "mcp-dev-tools" || bin === "client") continue;
+        if (bin === "mcp-dev-tools" || bin === "client-registry") continue;
         try {
           run("node", [file, "--help"], app, true);
           console.log(`  ok   ${bin} --help`);

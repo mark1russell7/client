@@ -65,7 +65,7 @@
     }
   },
   "bin": {
-    "client": "./dist/procedures/cli/index.js"
+    "client-registry": "./dist/procedures/cli/index.js"
   },
   "files": [
     "dist",
@@ -100,7 +100,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/cue": "^1.0.0",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",

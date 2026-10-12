@@ -181,9 +181,9 @@ The documentation fork checked each document against the code and ran each examp
 | ID | Severity | Status | Commit | Note |
 |---|---|---|---|---|
 | NPM-1 | | done | `8d4c3cd`, `542aca6`, `1e0365f`, `8b6ff5d` | 29 public packages at `0.1.0` with full metadata, a LICENSE and a change log. `scripts/check-packages.mjs` packs, lints (publint, attw), installs and runs every package. Changesets and an OIDC release workflow in the `npm` environment. `packages/documentation/RELEASE.md` gives the bootstrap. |
-| NPM-2 | | open | | The general packages `cue` 1.0.0, `splay` 0.1.0 and `docker-sqlite` 0.1.0 are ready, but the npm login has expired: the owner runs `npm login`, then the bootstrap stages every package for one approval. |
-| NPM-3 | low | decision | | The bins `client` (the announce and discover tool) and `server` have generic names. Rename them before the first publish, or keep them. |
-| NPM-4 | low | decision | | `client-vitest/write-register.cjs`, `write-files.cjs` and `write-types.cjs` are one-time generator scripts from the creation of the package. They are not published, but a run overwrites the current source with old code. Recommendation: delete them. |
+| NPM-2 | | done | `cue` `fb4b155` | `@mark1russell7/cue` 1.0.0, `splay` 0.1.0 and `docker-sqlite` 0.1.0 are on npm (2026-10-12). The monorepo uses them from npm, so no package has a git dependency, and the package check runs in strict mode. |
+| NPM-3 | low | fixed | | Owner decision (2026-10-12): the bins are `client-registry` (was `client`) and `procedure-server` (was `server`), so a global install does not take a generic command name. |
+| NPM-4 | low | fixed | | Owner decision (2026-10-12): the three generator scripts of `client-vitest` are deleted (git history keeps them). |
 
 ## Architecture roadmap
 

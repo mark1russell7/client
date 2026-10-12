@@ -31,7 +31,7 @@
     }
   },
   "bin": {
-    "server": "./dist/cli.js"
+    "procedure-server": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
-    "@mark1russell7/cue": "github:mark1russell7/cue#main",
+    "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3"
   }
 }

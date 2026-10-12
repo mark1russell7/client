@@ -117,39 +117,39 @@ Commands:
 
 Examples:
   # Generate procedure imports from dependencies
-  client discover
+  client-registry discover
 
   # Generate to custom output path
-  client discover --output ./src/generated/procedures.ts
+  client-registry discover --output ./src/generated/procedures.ts
 
   # Watch for changes (dev mode)
-  client discover --watch
+  client-registry discover --watch
 
   # Check if generated file is up-to-date (CI)
-  client discover --check
+  client-registry discover --check
 
   # Initialize a new library
-  client init my-new-lib
+  client-registry init my-new-lib
 
   # Initialize in current directory
-  client init .
+  client-registry init .
 
   # Register procedures (called automatically via postinstall)
-  client announce
+  client-registry announce
 
-  # Also add "client announce" to the postinstall script of the package that depends on this one
-  client announce --propagate
+  # Also add "client-registry announce" to the postinstall script of the package that depends on this one
+  client-registry announce --propagate
 
 How it works:
   1. Libraries with procedures add to package.json:
      { "client": { "procedures": "./dist/register.js" } }
 
   2. Libraries add postinstall hook:
-     { "scripts": { "postinstall": "client announce" } }
+     { "scripts": { "postinstall": "client-registry announce" } }
 
   3. When installed, each library announces itself to .client-registry.json
 
-  4. App runs "client discover" to generate imports from the registry
+  4. App runs "client-registry discover" to generate imports from the registry
 
 For more information, visit: https://github.com/your-org/client
 `);
@@ -183,7 +183,7 @@ async function main(): Promise<void> {
         const name = positionals[0];
         if (!name) {
           console.error("Error: Please provide a library name");
-          console.error("Usage: client init <name>");
+          console.error("Usage: client-registry init <name>");
           process.exit(1);
         }
         await init({

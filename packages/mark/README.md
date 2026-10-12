@@ -146,7 +146,7 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@mark
 |---|---|---|
 | `mark <command>` | This process | The registry has the module of each workspace package with `client.procedures`. |
 | `mark --server` | The CLI server | The same registry, on `127.0.0.1`, with a token in the lockfile. A later `mark` command in the same folder uses it. |
-| `mark serve` | The procedure server | The options of the `server` CLI. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
+| `mark serve` | The procedure server | The options of the `procedure-server` command. A package of `--procedures` resolves from the current folder, then from the folder of `mark`. A token is necessary by default. |
 | `mark mcp` | The dev-tools MCP server, over stdio | The server of Claude Code's MCP configuration. stdout holds only protocol lines, and `mark mcp --help` writes to stderr. |
 
 `mark mcp <procedure>` runs an `mcp.*` procedure (for example `mark mcp listTools`), not the server. Each host gets its policy from `hostPolicy()` of `@mark1russell7/client`.

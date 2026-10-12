@@ -53,7 +53,7 @@ function getPackageJsonTemplate(name: string): string {
     "clean": "rm -rf dist",
     "watch": "tsc -b --watch",
     "prepare": "npm run build",
-    "postinstall": "client announce || true"
+    "postinstall": "client-registry announce || true"
   },
   "peerDependencies": {
     "client": "^1.0.0",
@@ -120,7 +120,7 @@ function getRegisterTemplate(name: string): string {
  * This file is imported as a side-effect to register procedures.
  * The path to this file is declared in package.json under "client.procedures".
  *
- * When another app runs \`npx client discover\`, this file will be
+ * When another app runs \`npx client-registry discover\`, this file will be
  * automatically imported, causing procedures to be registered.
  */
 
@@ -237,9 +237,9 @@ npm install ${name}
 
 This library automatically registers its procedures when installed:
 
-1. The \`postinstall\` script runs \`client announce\`
+1. The \`postinstall\` script runs \`client-registry announce\`
 2. This writes to \`.client-registry.json\` at your project root
-3. When you run \`client discover\`, it reads from this registry
+3. When you run \`client-registry discover\`, it reads from this registry
 
 This means **zero configuration** for consumers - just install and discover!
 
@@ -250,7 +250,7 @@ This means **zero configuration** for consumers - just install and discover!
 After installing this library, run discovery to generate imports:
 
 \`\`\`bash
-npx client discover
+npx client-registry discover
 \`\`\`
 
 Then import the generated file in your entry point:
@@ -364,7 +364,7 @@ Done! Next steps:
 
 Your library is ready to define procedures in src/procedures/index.ts
 
-When consumers install your library and run \`npx client discover\`,
+When consumers install your library and run \`npx client-registry discover\`,
 your procedures will be automatically discovered and registered.
 `);
 }

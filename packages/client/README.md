@@ -577,12 +577,12 @@ Packages can declare procedures in `package.json`:
     "procedures": "./dist/register.js"
   },
   "scripts": {
-    "postinstall": "client announce"
+    "postinstall": "client-registry announce"
   }
 }
 ```
 
-When installed, procedures auto-register. Run `client discover` to generate the registry.
+When installed, procedures auto-register. Run `client-registry discover` to generate the registry.
 
 ## Type-Safe Middleware
 

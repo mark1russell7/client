@@ -1007,7 +1007,7 @@ Procedures are automatically registered when the package is loaded:
     "procedures": "./dist/register.js"
   },
   "scripts": {
-    "postinstall": "client announce"
+    "postinstall": "client-registry announce"
   }
 }
 ```

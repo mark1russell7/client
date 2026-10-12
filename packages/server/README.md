@@ -135,13 +135,13 @@ graph LR
 
 ```bash
 # Start MongoDB procedure server
-server --procedures @mark1russell7/client-mongo/register --port 3000
+procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
 
 # Start with multiple procedure packages
-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register
+procedure-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register
 
 # Start with multiple transports
-server -p @mark1russell7/client-mongo/register -t http,websocket
+procedure-server -p @mark1russell7/client-mongo/register -t http,websocket
 ```
 
 ---
@@ -197,7 +197,7 @@ graph TB
 ### MongoDB Server
 
 ```bash
-server --procedures @mark1russell7/client-mongo/register --port 3000
+procedure-server --procedures @mark1russell7/client-mongo/register --port 3000
 ```
 
 **Output:**
@@ -218,7 +218,7 @@ Press Ctrl+C to stop the server.
 ### Multi-Package Server
 
 ```bash
-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register \
+procedure-server -p @mark1russell7/client-fs/register,@mark1russell7/client-git/register \
        -t http,websocket \
        --port 3000
 ```
@@ -248,7 +248,7 @@ The `server` package replaces domain-specific server packages:
 npx @mark1russell7/server-mongo
 
 # NEW (general)
-npx server --procedures @mark1russell7/client-mongo/register
+npx procedure-server --procedures @mark1russell7/client-mongo/register
 ```
 
 ### With client-server

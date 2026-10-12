@@ -1,5 +1,5 @@
 /**
- * `client discover` and `client announce` (deep dive CORE-17).
+ * `client-registry discover` and `client-registry announce` (deep dive CORE-17).
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -27,7 +27,7 @@ function pkg(dir: string, manifest: Record<string, unknown>, proceduresFile?: st
   }
 }
 
-describe("client discover", () => {
+describe("client-registry discover", () => {
   it("finds a hoisted transitive dependency", async () => {
     pkg(root, { name: "app", dependencies: { a: "1" } });
     pkg(join(root, "node_modules", "a"), { name: "a", dependencies: { b: "1" } });
@@ -65,7 +65,7 @@ describe("client discover", () => {
   });
 });
 
-describe("client announce", () => {
+describe("client-registry announce", () => {
   it("does not edit the package.json of the consumer without the propagate option", async () => {
     pkg(root, { name: "app", scripts: {} });
     const dir = join(root, "node_modules", "lib");
@@ -76,7 +76,7 @@ describe("client announce", () => {
     expect((await getRegistry(root)).packages["lib"]?.proceduresPath).toBe("./dist/register.js");
 
     await announce({ verbose: false, cwd: dir, propagate: true });
-    expect(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.postinstall).toBe("client announce");
+    expect(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.postinstall).toBe("client-registry announce");
   });
 
   it("keeps every entry when several packages announce at the same time, and leaves no temp file", async () => {
