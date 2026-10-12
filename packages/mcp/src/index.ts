@@ -23,6 +23,8 @@ export type {
 export {
   toolInputSchema,
   cachedToolInputSchema,
+  toolOutputSchema,
+  cachedToolOutputSchema,
   zodToJsonSchema,
   cachedZodToJsonSchema,
   clearSchemaCache,

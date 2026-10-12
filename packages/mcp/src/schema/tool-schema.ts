@@ -81,6 +81,36 @@ export function cachedToolInputSchema(schema: ProcedureSchema | unknown, _cacheK
 }
 
 /**
+ * The output JSON Schema of a tool (MCP structured output), or `undefined`.
+ *
+ * MCP needs an object at the root of an output schema, and a client can check each structured
+ * result against it. So only an output whose JSON Schema is an object gives one: a pass-through
+ * schema, a union (a stream of items) or a number gives none, and the tool gives text only.
+ */
+export function toolOutputSchema(schema: ProcedureSchema | unknown): JsonSchema | undefined {
+  const json = jsonSchemaOf(schema as ProcedureSchema, { io: "output" });
+  return json && json["type"] === "object" ? (json as JsonSchema) : undefined;
+}
+
+// The output schemas, cached by the schema object like the input schemas. `null` keeps "no
+// output schema", so the check runs once for each schema.
+const outputSchemaCache = new Map<object, JsonSchema | null>();
+
+/** The output JSON Schema of a tool, cached by the schema object. */
+export function cachedToolOutputSchema(schema: ProcedureSchema | unknown): JsonSchema | undefined {
+  if (!schema || typeof schema !== "object") {
+    return toolOutputSchema(schema);
+  }
+  const cached = outputSchemaCache.get(schema);
+  if (cached !== undefined) {
+    return cached ?? undefined;
+  }
+  const jsonSchema = toolOutputSchema(schema);
+  outputSchemaCache.set(schema, jsonSchema ?? null);
+  return jsonSchema;
+}
+
+/**
  * The input JSON Schema of a tool, cached.
  * @deprecated Use `cachedToolInputSchema`.
  */
@@ -94,6 +124,7 @@ export function cachedZodToJsonSchema(schema: SchemaLike | unknown, cacheKey?: s
  */
 export function clearSchemaCache(): void {
   schemaCache.clear();
+  outputSchemaCache.clear();
 }
 
 /**

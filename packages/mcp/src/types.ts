@@ -39,6 +39,11 @@ export interface McpToolDefinition {
   description?: string;
   /** JSON Schema for tool input */
   inputSchema: JsonSchema;
+  /**
+   * JSON Schema of the result (MCP 2025-06-18 structured output). Only a tool whose output is
+   * an object has it: then each successful result also has `structuredContent`.
+   */
+  outputSchema?: JsonSchema;
 }
 
 /**

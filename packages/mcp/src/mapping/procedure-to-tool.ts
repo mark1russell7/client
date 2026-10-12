@@ -6,7 +6,7 @@
 
 import type { AnyProcedure, ProcedurePath } from "@mark1russell7/client";
 import type { McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
-import { cachedToolInputSchema } from "../schema/tool-schema.js";
+import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
 
 // This package's tsconfig only pulls in the `esnext` lib (no DOM/node types),
@@ -59,6 +59,12 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
     procedurePath: procedure.path,
   };
 
+  // MCP structured output: only an output whose JSON Schema is an object
+  const outputSchema = cachedToolOutputSchema(procedure.output);
+  if (outputSchema !== undefined) {
+    tool.outputSchema = outputSchema;
+  }
+
   // Only add optional properties if they have values
   if (procedure.streaming !== undefined) {
     tool.streaming = procedure.streaming;
@@ -84,6 +90,9 @@ export function toToolDefinition(tool: McpTool): McpToolDefinition {
 
   if (tool.description !== undefined) {
     def.description = tool.description;
+  }
+  if (tool.outputSchema !== undefined) {
+    def.outputSchema = tool.outputSchema;
   }
 
   return def;
