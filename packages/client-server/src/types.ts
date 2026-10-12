@@ -84,11 +84,11 @@ export interface ProcedureInfo {
   /** Procedure path */
   path: string[];
   /** Description from metadata */
-  description?: string;
+  description?: string | undefined;
   /** Input schema as JSON schema */
-  inputSchema?: Record<string, unknown>;
+  inputSchema?: Record<string, unknown> | undefined;
   /** Output schema as JSON schema */
-  outputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown> | undefined;
 }
 
 export interface ServerConnectOutput {
@@ -131,15 +131,17 @@ export interface ManifestGenerateInput {
 
 export interface ManifestGenerateOutput {
   /** Generated JSON manifest */
-  json?: {
-    procedures: ProcedureInfo[];
-    generatedAt: string;
-    version: string;
-  };
+  json?:
+    | {
+        procedures: ProcedureInfo[];
+        generatedAt: string;
+        version: string;
+      }
+    | undefined;
   /** Generated TypeScript declaration */
-  typescript?: string;
+  typescript?: string | undefined;
   /** Files written if outputDir provided */
-  filesWritten?: string[];
+  filesWritten?: string[] | undefined;
 }
 
 // =============================================================================
@@ -195,13 +197,13 @@ export interface ServerStartOutput {
   /** Whether start succeeded */
   success: boolean;
   /** Process ID of server */
-  pid?: number;
+  pid?: number | undefined;
   /** Port server is running on */
-  port?: number;
+  port?: number | undefined;
   /** Endpoint URL */
-  endpoint?: string;
+  endpoint?: string | undefined;
   /** Log file path */
-  logFile?: string;
+  logFile?: string | undefined;
   /** Status message */
   message: string;
 }
@@ -237,19 +239,19 @@ export interface ServerStatusOutput {
   /** Whether server is running */
   running: boolean;
   /** Process ID */
-  pid?: number;
+  pid?: number | undefined;
   /** Port */
-  port?: number;
+  port?: number | undefined;
   /** Endpoint URL */
-  endpoint?: string;
+  endpoint?: string | undefined;
   /** Transport type */
-  transport?: string;
+  transport?: string | undefined;
   /** When server started (ISO string) */
-  startedAt?: string;
+  startedAt?: string | undefined;
   /** Human-readable uptime */
-  uptime?: string;
+  uptime?: string | undefined;
   /** Log file path */
-  logFile?: string;
+  logFile?: string | undefined;
   /** Status message */
   message: string;
 }

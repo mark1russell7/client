@@ -4,7 +4,8 @@
  */
 
 import { createProcedure, jsonSchemaOf, type Procedure, PROCEDURE_REGISTRY } from "@mark1russell7/client";
-import { schema } from "../schema.js";
+import { wrapSchema } from "../schema.js";
+import { ManifestGenerateOutputSchema } from "../output-schemas.js";
 import { manifestGenerateInputSchema } from "../input-schemas.js";
 import type { ManifestGenerateInput, ManifestGenerateOutput, ProcedureInfo } from "../types.js";
 import { generateTypeScript } from "../manifest/typescript.js";
@@ -13,7 +14,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join, dirname } from "path";
 
 // Use pass-through schemas
-const manifestGenerateOutputSchema = schema<ManifestGenerateOutput>();
+const manifestGenerateOutputSchema = wrapSchema<ManifestGenerateOutput>(ManifestGenerateOutputSchema);
 
 export const manifestGenerateProcedure: Procedure<
   ManifestGenerateInput,

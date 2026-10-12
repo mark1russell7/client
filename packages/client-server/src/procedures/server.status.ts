@@ -6,7 +6,8 @@
 import * as path from "node:path";
 import * as os from "node:os";
 import { createProcedure, type Procedure } from "@mark1russell7/client";
-import { schema } from "../schema.js";
+import { wrapSchema } from "../schema.js";
+import { ServerStatusOutputSchema } from "../output-schemas.js";
 import { serverStatusInputSchema } from "../input-schemas.js";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "../lockfile.js";
 import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
@@ -14,7 +15,7 @@ import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
 const MARK_DIR = path.join(os.homedir(), ".mark");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 
-const serverStatusOutputSchema = schema<ServerStatusOutput>();
+const serverStatusOutputSchema = wrapSchema<ServerStatusOutput>(ServerStatusOutputSchema);
 
 
 
