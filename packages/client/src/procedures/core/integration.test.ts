@@ -5,8 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { chainProcedure, conditionalProcedure } from "./index.js";
+import { chainProcedure as chainDefinition, conditionalProcedure as conditionalDefinition } from "./index.js";
+import { valueHandler } from "../../../test/value-handler.js";
 import type { ProcedureContext } from "../types.js";
+
+// The tests read one value from the handler: valueHandler types it so, and checks it
+const chainProcedure = valueHandler(chainDefinition);
+const conditionalProcedure = valueHandler(conditionalDefinition);
 
 /**
  * Simple inline mock client for tests
@@ -71,7 +76,7 @@ describe("aggregation integration tests", () => {
       mockClient.mockResponse(["git", "add"], { output: { staged: 5 } });
 
       // First run the chain that includes a conditional
-      const chainResult = await chainProcedure.handler(
+      const chainResult = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["git", "hasChanges"], input: {}, $name: "changes" },
@@ -81,7 +86,7 @@ describe("aggregation integration tests", () => {
       );
 
       // Now run the conditional with the result
-      const condResult = await conditionalProcedure.handler(
+      const condResult = await conditionalProcedure.handler!(
         {
           condition: chainResult.results[0], // { value: true }
           then: { $proc: ["git", "add"], input: { all: true } },
@@ -97,7 +102,7 @@ describe("aggregation integration tests", () => {
     it("skips branch when predicate returns false", async () => {
       mockClient.mockResponse(["git", "hasChanges"], { output: { value: false } });
 
-      const chainResult = await chainProcedure.handler(
+      const chainResult = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["git", "hasChanges"], input: {}, $name: "changes" },
@@ -106,7 +111,7 @@ describe("aggregation integration tests", () => {
         ctx
       );
 
-      const condResult = await conditionalProcedure.handler(
+      const condResult = await conditionalProcedure.handler!(
         {
           condition: chainResult.results[0], // { value: false }
           then: { $proc: ["git", "add"], input: { all: true } },
@@ -135,7 +140,7 @@ describe("aggregation integration tests", () => {
         };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["api", "getItems"], input: {}, $name: "fetch" },
@@ -170,7 +175,7 @@ describe("aggregation integration tests", () => {
         };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["user", "get"], input: {}, $name: "user" },
@@ -203,7 +208,7 @@ describe("aggregation integration tests", () => {
         return { result: input.value - 5 };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["math", "add"], input: { a: 5, b: 5 } }, // 10
@@ -241,7 +246,7 @@ describe("aggregation integration tests", () => {
       });
 
       // Simulate what dag.traverse does - calls chain with cwd
-      const chainResult = await chainProcedure.handler(
+      const chainResult = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["git", "hasChanges"], input: {}, $name: "changes" },
@@ -252,7 +257,7 @@ describe("aggregation integration tests", () => {
       );
 
       // Then conditional with the result
-      await conditionalProcedure.handler(
+      await conditionalProcedure.handler!(
         {
           condition: chainResult.results[0],
           then: { $proc: ["git", "add"], input: { all: true } },
@@ -298,7 +303,7 @@ describe("aggregation integration tests", () => {
       });
 
       // Run pnpm install first
-      const installResult = await chainProcedure.handler(
+      await chainProcedure.handler!(
         {
           steps: [{ $proc: ["pnpm", "install"], input: {} }],
           cwd: "/project",
@@ -307,7 +312,7 @@ describe("aggregation integration tests", () => {
       );
 
       // Check for changes
-      const changesResult = await chainProcedure.handler(
+      const changesResult = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["git", "hasChanges"], input: {}, $name: "changes" },
@@ -319,7 +324,7 @@ describe("aggregation integration tests", () => {
 
       // If changes, stage and commit
       if ((changesResult.results[0] as any).value) {
-        await chainProcedure.handler(
+        await chainProcedure.handler!(
           {
             steps: [
               { $proc: ["git", "add"], input: { all: true } },
@@ -345,12 +350,12 @@ describe("aggregation integration tests", () => {
     it("simulates conditional git push based on hasLocalCommits", async () => {
       const executionLog: string[] = [];
 
-      mockClient.mockImplementation(["git", "hasLocalCommits"], (input: any) => {
+      mockClient.mockImplementation(["git", "hasLocalCommits"], () => {
         executionLog.push("check local commits");
         return { value: true };
       });
 
-      mockClient.mockImplementation(["git", "push"], (input: any) => {
+      mockClient.mockImplementation(["git", "push"], () => {
         executionLog.push("push to remote");
         return { pushed: true };
       });
@@ -361,7 +366,7 @@ describe("aggregation integration tests", () => {
       });
 
       // Check if we have local commits
-      const checkResult = await chainProcedure.handler(
+      const checkResult = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["git", "hasLocalCommits"], input: {}, $name: "local" },
@@ -371,7 +376,7 @@ describe("aggregation integration tests", () => {
       );
 
       // Conditionally push
-      const pushResult = await conditionalProcedure.handler(
+      const pushResult = await conditionalProcedure.handler!(
         {
           condition: checkResult.results[0],
           then: { $proc: ["git", "push"], input: {} },
@@ -390,7 +395,7 @@ describe("aggregation integration tests", () => {
       mockClient.mockResponse(["deploy", "production"], { output: { deployed: true } });
 
       // Check if production
-      const isProdResult = await chainProcedure.handler(
+      const isProdResult = await chainProcedure.handler!(
         {
           steps: [{ $proc: ["check", "isProduction"], input: {} }],
         },
@@ -399,14 +404,14 @@ describe("aggregation integration tests", () => {
 
       if ((isProdResult.results[0] as any).value) {
         // In production, check if tests pass
-        const hasTestsResult = await chainProcedure.handler(
+        const hasTestsResult = await chainProcedure.handler!(
           {
             steps: [{ $proc: ["check", "hasTests"], input: {} }],
           },
           ctx
         );
 
-        const deployResult = await conditionalProcedure.handler(
+        const deployResult = await conditionalProcedure.handler!(
           {
             condition: hasTestsResult.results[0],
             then: { $proc: ["deploy", "production"], input: {} },
@@ -439,7 +444,7 @@ describe("aggregation integration tests", () => {
       });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [
               { $proc: ["step", "one"], input: {} },
@@ -460,7 +465,7 @@ describe("aggregation integration tests", () => {
       });
 
       await expect(
-        conditionalProcedure.handler(
+        conditionalProcedure.handler!(
           {
             condition: true,
             then: { $proc: ["action", "fail"], input: {} },
@@ -489,7 +494,7 @@ describe("aggregation integration tests", () => {
         itemCount: input.items.length,
       }));
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["data", "get"], input: {}, $name: "source" },
@@ -532,7 +537,7 @@ describe("aggregation integration tests", () => {
       }));
 
       // First get user
-      const userResult = await chainProcedure.handler(
+      const userResult = await chainProcedure.handler!(
         {
           steps: [{ $proc: ["user", "get"], input: {}, $name: "user" }],
         },
@@ -542,7 +547,7 @@ describe("aggregation integration tests", () => {
       const user = userResult.results[0] as { name: string; role: string };
 
       // Then route based on role
-      const panelResult = await conditionalProcedure.handler(
+      const panelResult = await conditionalProcedure.handler!(
         {
           condition: user.role === "admin",
           then: { $proc: ["admin", "panel"], input: { userName: user.name } },

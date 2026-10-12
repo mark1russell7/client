@@ -39,7 +39,7 @@ describe("routeStream (regression: BUGS-2026-07 H12)", () => {
     const complete = await response.complete;
 
     expect(seen.sort()).toEqual(["test.a", "test.b", "test.c", "test.d"]);
-    expect(Object.keys((complete as { test: Record<string, unknown> }).test).sort()).toEqual(["a", "b", "c", "d"]);
+    expect(Object.keys((complete as unknown as { test: Record<string, unknown> }).test).sort()).toEqual(["a", "b", "c", "d"]);
   });
 });
 

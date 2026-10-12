@@ -18,9 +18,13 @@ import {
   stringifyProcedureJson,
   toJson,
   type ProcedureRef,
+  type RefExecutor,
 } from "./ref.js";
 
 const echo = vi.fn(async (path: readonly string[], input: unknown) => ({ path: path.join("."), input }));
+
+/** Hydration takes a generic RefExecutor. A test executor gives one concrete type: this function converts it. */
+const asExecutor = (fn: (path: readonly string[], input: unknown) => Promise<unknown>): RefExecutor => fn as unknown as RefExecutor;
 
 describe("CORE-11: the JSON helpers keep $when and $name", () => {
   const json = { $proc: ["a"], input: { x: 1 }, $when: "$never", $name: "n" };
@@ -48,14 +52,14 @@ describe("CORE-11: the JSON helpers keep $when and $name", () => {
   it("a $never ref parsed from JSON does not run", async () => {
     echo.mockClear();
     const input = parseProcedureJson(JSON.stringify({ later: json }));
-    await hydrateInput(input, echo);
+    await hydrateInput(input, asExecutor(echo));
     expect(echo).not.toHaveBeenCalled();
   });
 
   it("$never protects its subtree", async () => {
     echo.mockClear();
     const input = { $proc: ["a"], $when: "$never", input: { nested: { $proc: ["b"], input: {} } } };
-    expect(await hydrateInput(input, echo)).toEqual(input);
+    expect(await hydrateInput(input, asExecutor(echo))).toEqual(input);
     expect(echo).not.toHaveBeenCalled();
   });
 
@@ -67,14 +71,14 @@ describe("CORE-11: the JSON helpers keep $when and $name", () => {
     };
     for (const input of [program, { nested: program }, { a: { b: program } }]) {
       echo.mockClear();
-      await hydrateInput(input, echo);
+      await hydrateInput(input, asExecutor(echo));
       expect(echo.mock.calls.map(([path]) => path.join("."))).toEqual(["outer"]);
     }
   });
 
   it("a ref deferred to a name runs when the runner gives that name", async () => {
     echo.mockClear();
-    await hydrateInput({ x: { $proc: ["inner"], input: {}, $when: "ctx" } }, echo, { contextStack: ["ctx"] });
+    await hydrateInput({ x: { $proc: ["inner"], input: {}, $when: "ctx" } }, asExecutor(echo), { contextStack: ["ctx"] });
     expect(echo.mock.calls.map(([path]) => path.join("."))).toEqual(["inner"]);
   });
 });
@@ -84,26 +88,26 @@ describe("CORE-12: hydration leaves plain data alone", () => {
 
   it("deep plain data does not count toward the depth limit", async () => {
     const input = deep(40, "leaf");
-    expect(await hydrateInput(input, echo, { maxDepth: 10 })).toEqual(input);
+    expect(await hydrateInput(input, asExecutor(echo), { maxDepth: 10 })).toEqual(input);
   });
 
   it("refs nested deeper than the limit fail", async () => {
     const nestedRefs = (levels: number): unknown =>
       levels === 0 ? 1 : { $proc: ["p"], input: { v: nestedRefs(levels - 1) } };
-    await expect(hydrateInput(nestedRefs(12), echo, { maxDepth: 10 })).rejects.toThrow("Hydration depth exceeded");
+    await expect(hydrateInput(nestedRefs(12), asExecutor(echo), { maxDepth: 10 })).rejects.toThrow("Hydration depth exceeded");
   });
 
   it("a cyclic input fails with a clear message", async () => {
     const cyclic: Record<string, unknown> = { a: 1 };
     cyclic["self"] = cyclic;
-    await expect(hydrateInput(cyclic, echo)).rejects.toThrow(/cycl/i);
+    await expect(hydrateInput(cyclic, asExecutor(echo))).rejects.toThrow(/cycl/i);
   });
 
   it("values that are not plain objects stay unchanged", async () => {
     const date = new Date(0);
     const bytes = new Uint8Array([1, 2, 3]);
     const map = new Map([["k", 1]]);
-    const result = await hydrateInput({ date, bytes, map }, echo);
+    const result = await hydrateInput({ date, bytes, map }, asExecutor(echo));
     expect(result.date).toBe(date);
     expect(result.bytes).toBe(bytes);
     expect(result.map).toBe(map);
@@ -116,7 +120,7 @@ describe("CORE-12: hydration leaves plain data alone", () => {
       schema: { $literal: { $ref: "#/definitions/item" } },
       ref: { $literal: { $proc: ["never"], input: {} } },
     };
-    expect(await hydrateInput(input, echo, { scope })).toEqual({
+    expect(await hydrateInput(input, asExecutor(echo), { scope })).toEqual({
       schema: { $ref: "#/definitions/item" },
       ref: { $proc: ["never"], input: {} },
     });
@@ -125,7 +129,7 @@ describe("CORE-12: hydration leaves plain data alone", () => {
 
   it("without a scope, a $ref object stays (a JSON Schema reference)", async () => {
     const input = { schema: { $ref: "#/definitions/item" } };
-    expect(await hydrateInput(input, echo)).toEqual(input);
+    expect(await hydrateInput(input, asExecutor(echo))).toEqual(input);
   });
 
   it("parallel: false runs sibling refs in order; parallel: true runs them together", async () => {
@@ -137,7 +141,7 @@ describe("CORE-12: hydration leaves plain data alone", () => {
         events.push(`end ${path[0]}`);
         return path[0]!;
       };
-      await hydrateInput({ a: { $proc: ["a"], input: {} }, b: { $proc: ["b"], input: {} } }, executor, { parallel });
+      await hydrateInput({ a: { $proc: ["a"], input: {} }, b: { $proc: ["b"], input: {} } }, asExecutor(executor), { parallel });
       return events;
     };
     expect(await order(false)).toEqual(["start a", "end a", "start b", "end b"]);

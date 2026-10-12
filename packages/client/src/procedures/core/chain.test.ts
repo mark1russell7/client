@@ -3,8 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { chainProcedure } from "./index.js";
+import { chainProcedure as chainDefinition } from "./index.js";
+import { valueHandler } from "../../../test/value-handler.js";
 import type { ProcedureContext } from "../types.js";
+
+// The tests read one value from the handler: valueHandler types it so, and checks it
+const chainProcedure = valueHandler(chainDefinition);
 
 /**
  * Simple inline mock client for tests
@@ -69,7 +73,7 @@ describe("chain procedure", () => {
       mockClient.mockResponse(["test", "step2"], { output: { value: 2 } });
       mockClient.mockResponse(["test", "step3"], { output: { value: 3 } });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "step1"], input: {} },
@@ -88,7 +92,7 @@ describe("chain procedure", () => {
     });
 
     it("returns empty results for empty steps array", async () => {
-      const result = await chainProcedure.handler({ steps: [] }, ctx);
+      const result = await chainProcedure.handler!({ steps: [] }, ctx);
 
       expect(result.results).toHaveLength(0);
       expect(result.final).toBeUndefined();
@@ -97,7 +101,7 @@ describe("chain procedure", () => {
     it("handles single step", async () => {
       mockClient.mockResponse(["test", "single"], { output: "result" });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [{ $proc: ["test", "single"], input: {} }],
         },
@@ -117,7 +121,7 @@ describe("chain procedure", () => {
         return { received: (input as { data: unknown }).data };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "getData"], input: {}, $name: "dataStep" },
@@ -143,7 +147,7 @@ describe("chain procedure", () => {
         return { received: (input as { data: unknown }).data };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "getData"], input: {}, $name: "data" },
@@ -165,7 +169,7 @@ describe("chain procedure", () => {
         return { previous: (input as { prev: unknown }).prev };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "step1"], input: {} },
@@ -184,7 +188,7 @@ describe("chain procedure", () => {
         return { wasTrue: (input as { flag: boolean }).flag };
       });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "predicate"], input: {} },
@@ -206,7 +210,7 @@ describe("chain procedure", () => {
         return { ok: true };
       });
 
-      await chainProcedure.handler(
+      await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "step"], input: { name: "first" } },
@@ -233,7 +237,7 @@ describe("chain procedure", () => {
 
       const nodeData = { id: "node1", path: "/repo" };
 
-      await chainProcedure.handler(
+      await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "step"], input: {} },
@@ -249,7 +253,7 @@ describe("chain procedure", () => {
 
   describe("non-procedure steps", () => {
     it("handles raw values as steps", async () => {
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { literal: "value" },
@@ -270,7 +274,7 @@ describe("chain procedure", () => {
     it("handles $ref as step value", async () => {
       mockClient.mockResponse(["test", "getData"], { output: { key: "value" } });
 
-      const result = await chainProcedure.handler(
+      const result = await chainProcedure.handler!(
         {
           steps: [
             { $proc: ["test", "getData"], input: {}, $name: "data" },
@@ -293,7 +297,7 @@ describe("chain procedure", () => {
         client: undefined as any,
       };
 
-      const result = await chainProcedure.handler({
+      const result = await chainProcedure.handler!({
         steps: [
           { $proc: ["test", "step"], input: { foo: "bar" } },
         ],
@@ -311,7 +315,7 @@ describe("chain procedure", () => {
       });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [{ $proc: ["test", "fail"], input: {} }],
           },
@@ -344,7 +348,7 @@ describe("chain procedure", () => {
       });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [
               { $proc: ["test", "step1"], input: {} },
@@ -367,7 +371,7 @@ describe("chain procedure", () => {
       mockClient.mockResponse(["test", "validate"], { error: customError });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [
               { $proc: ["test", "validate"], input: { data: {} } },
@@ -390,7 +394,7 @@ describe("chain procedure", () => {
       });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [
               { $proc: ["test", "first"], input: {} },
@@ -410,7 +414,7 @@ describe("chain procedure", () => {
       mockClient.mockResponse(["test", "failLast"], { error: new Error("Last step failed") });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [
               { $proc: ["test", "success1"], input: {} },
@@ -431,7 +435,7 @@ describe("chain procedure", () => {
       });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [
               { $proc: ["test", "outerStep"], input: {} },
@@ -448,7 +452,7 @@ describe("chain procedure", () => {
       mockClient.mockResponse(["test", "typeError"], { error: typeError });
 
       try {
-        await chainProcedure.handler(
+        await chainProcedure.handler!(
           {
             steps: [{ $proc: ["test", "typeError"], input: {} }],
           },
@@ -468,7 +472,7 @@ describe("chain procedure", () => {
       });
 
       await expect(
-        chainProcedure.handler(
+        chainProcedure.handler!(
           {
             steps: [{ $proc: ["test", "asyncFail"], input: {} }],
           },

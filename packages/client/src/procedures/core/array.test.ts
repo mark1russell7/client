@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { valueHandler } from "../../../test/value-handler.js";
 import {
   firstProcedure,
   lastProcedure,
@@ -324,7 +325,7 @@ describe("rangeProcedure", () => {
   });
 
   it("does not go past end with a fractional step", async () => {
-    const result = await rangeProcedure.handler!({ start: 0, end: 0.3, step: 0.1 }, {} as any);
+    const result = await valueHandler(rangeProcedure).handler({ start: 0, end: 0.3, step: 0.1 }, {} as any);
     expect(result.length).toBe(3);
     expect(result.every((value) => value < 0.3)).toBe(true);
   });
@@ -566,7 +567,7 @@ describe("partitionProcedure", () => {
       { status: "done", id: 2 },
       { status: "pending", id: 3 },
     ];
-    const result = await partitionProcedure.handler!(
+    const result = await valueHandler(partitionProcedure).handler(
       { items, key: "status", value: "done" },
       {} as any
     );

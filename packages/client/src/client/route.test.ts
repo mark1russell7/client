@@ -46,8 +46,8 @@ describe("route keys (deep dive CORE-6)", () => {
       [["toString", "a"], { success: true, data: 1 }],
       [["toString", "b"], { success: true, data: 2 }],
     ]) as unknown as { toString: Record<string, { data: number }> };
-    expect(response.toString.a.data).toBe(1);
-    expect(response.toString.b.data).toBe(2);
+    expect(response.toString["a"]?.data).toBe(1);
+    expect(response.toString["b"]?.data).toBe(2);
   });
 });
 

@@ -29,11 +29,6 @@ function hasTests(dir) {
   return false;
 }
 
-// The packages whose tests had type errors when this check started (2026-10-08). The script
-// still examines them and prints the errors, but they do not fail the check. Remove a package
-// from the list when its tests type-check. Do not add a package.
-const KNOWN_FAILING = new Set(["client", "client-collections", "client-dag", "client-git"]);
-
 /** The path of the tsc script of the TypeScript that a package uses. */
 function typescriptBin(dir) {
   const manifestPath = createRequire(join(dir, "package.json")).resolve("typescript/package.json");
@@ -49,8 +44,6 @@ const folders = (requested.length > 0 ? requested : readdirSync(PACKAGES))
   .filter((dir) => existsSync(join(dir, "tsconfig.json")) && hasTests(join(dir, "src")));
 
 let failed = 0;
-const known = [];
-const fixed = [];
 for (const dir of folders) {
   const name = relative(ROOT, dir).replace(/\\/g, "/");
   const temp = join(dir, TEMP_NAME);
@@ -73,28 +66,17 @@ for (const dir of folders) {
     // the package.json of typescript: TypeScript 7 does not export "./bin/tsc".
     const tsc = typescriptBin(dir);
     const result = spawnSync(process.execPath, [tsc, "-p", temp, "--pretty", "false"], { cwd: dir, encoding: "utf8" });
-    const folder = relative(PACKAGES, dir);
     if (result.status === 0) {
       console.log(`ok    ${name}`);
-      if (KNOWN_FAILING.has(folder)) fixed.push(folder);
     } else {
-      const output = (result.stdout || result.stderr).trimEnd();
-      const errors = output.split("\n").filter((line) => line.includes("error TS")).length;
-      if (KNOWN_FAILING.has(folder)) {
-        known.push(folder);
-        console.log(`known ${name} (${errors} errors, in the list of known failures)`);
-      } else {
-        failed++;
-        console.log(`error ${name}`);
-      }
-      console.log(output.replace(/^/gm, "      "));
+      failed++;
+      console.log(`error ${name}`);
+      console.log((result.stdout || result.stderr).trimEnd().replace(/^/gm, "      "));
     }
   } finally {
     rmSync(temp, { force: true });
   }
 }
 
-console.log(`\n${folders.length - failed - known.length} of ${folders.length} packages: the test files type-check.`);
-if (known.length > 0) console.log(`Known failures (they do not fail the check): ${known.join(", ")}.`);
-if (fixed.length > 0) console.log(`These packages type-check now. Remove them from KNOWN_FAILING: ${fixed.join(", ")}.`);
+console.log(`\n${folders.length - failed} of ${folders.length} packages: the test files type-check.`);
 process.exit(failed > 0 ? 1 : 0);

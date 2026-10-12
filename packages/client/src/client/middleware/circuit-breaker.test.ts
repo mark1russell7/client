@@ -8,7 +8,7 @@ function ctx(): ClientContext {
   } as ClientContext;
 }
 function errorItem(): ResponseItem {
-  return { id: "1", status: { type: "error", code: "FAIL", message: "boom" }, payload: undefined, metadata: {} };
+  return { id: "1", status: { type: "error", code: "FAIL", message: "boom", retryable: false }, payload: undefined, metadata: {} };
 }
 function successItem(): ResponseItem {
   return { id: "1", status: { type: "success", code: 200 }, payload: { ok: true }, metadata: {} };

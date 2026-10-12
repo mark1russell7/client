@@ -20,20 +20,32 @@ import {
   type MapResult,
 } from "./results.js";
 
+/** The success form of a step result. The test fails when the result is a failure. */
+function ok<T>(result: StepResult<T>): Extract<StepResult<T>, { success: true }> {
+  if (!result.success) throw new Error(`expected a success, got: ${result.error}`);
+  return result;
+}
+
+/** The failure form of a step result. The test fails when the result is a success. */
+function failed<T>(result: StepResult<T>): Extract<StepResult<T>, { success: false }> {
+  if (result.success) throw new Error("expected a failure");
+  return result;
+}
+
 describe("successResult", () => {
   it("creates success result with value and duration", () => {
     const result = successResult({ id: 1, name: "test" }, 42);
 
     expect(result.success).toBe(true);
-    expect(result.value).toEqual({ id: 1, name: "test" });
+    expect(ok(result).value).toEqual({ id: 1, name: "test" });
     expect(result.duration).toBe(42);
   });
 
   it("handles primitive values", () => {
-    expect(successResult(42, 10).value).toBe(42);
-    expect(successResult("hello", 10).value).toBe("hello");
-    expect(successResult(true, 10).value).toBe(true);
-    expect(successResult(null, 10).value).toBeNull();
+    expect(ok(successResult(42, 10)).value).toBe(42);
+    expect(ok(successResult("hello", 10)).value).toBe("hello");
+    expect(ok(successResult(true, 10)).value).toBe(true);
+    expect(ok(successResult(null, 10)).value).toBeNull();
   });
 
   it("handles zero duration", () => {
@@ -48,7 +60,7 @@ describe("errorResult", () => {
     const result = errorResult<number>("Something went wrong", 100);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe("Something went wrong");
+    expect(failed(result).error).toBe("Something went wrong");
     expect(result.duration).toBe(100);
   });
 
@@ -56,7 +68,7 @@ describe("errorResult", () => {
     const result = errorResult<number>(new Error("Connection timeout"), 5000);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe("Connection timeout");
+    expect(failed(result).error).toBe("Connection timeout");
     expect(result.duration).toBe(5000);
   });
 
@@ -64,7 +76,7 @@ describe("errorResult", () => {
     const error = new TypeError("Invalid type");
     const result = errorResult<string>(error, 10);
 
-    expect(result.error).toBe("Invalid type");
+    expect(failed(result).error).toBe("Invalid type");
   });
 });
 

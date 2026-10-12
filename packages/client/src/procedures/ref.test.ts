@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   PROCEDURE_SYMBOL,
-  PROCEDURE_JSON_KEY,
   WHEN_IMMEDIATE,
   WHEN_NEVER,
   WHEN_PARENT,
@@ -26,7 +25,6 @@ import {
   stringifyProcedureJson,
   type ProcedureRef,
   type ProcedureRefJson,
-  type RefScope,
 } from "./ref.js";
 
 describe("ref.ts", () => {
@@ -441,7 +439,7 @@ describe("ref.ts", () => {
       ];
 
       // Arrays of procedure refs become implicit chains
-      const result = await hydrateInput(input, mockExecutor);
+      await hydrateInput(input, mockExecutor);
 
       // The implicit chain was executed
       expect(mockExecutor).toHaveBeenCalled();
@@ -460,7 +458,6 @@ describe("ref.ts", () => {
     });
 
     it("adds $name to context stack", async () => {
-      const calls: string[][] = [];
       mockExecutor.mockImplementation(() => {
         return Promise.resolve({ ok: true });
       });
@@ -513,7 +510,7 @@ describe("ref.ts", () => {
       it("does not wrap mixed arrays as chains", async () => {
         const input = [{ $proc: ["step1"], input: {} }, "plain string", 42];
 
-        const result = await hydrateInput(input, mockExecutor);
+        await hydrateInput(input, mockExecutor);
 
         // Mixed array should not become a chain
         // It should hydrate each element individually

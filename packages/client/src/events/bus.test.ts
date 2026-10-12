@@ -30,9 +30,13 @@ describe("DefaultEventBus", () => {
   it("a repeated old unsubscribe does not remove a newer subscriber", () => {
     const bus = createEventBus();
     const seen: string[] = [];
-    const unsubscribeOld = bus.on("ch", () => seen.push("old"));
+    const unsubscribeOld = bus.on("ch", () => {
+      seen.push("old");
+    });
     unsubscribeOld();
-    bus.on("ch", (data: string) => seen.push(data));
+    bus.on("ch", (data: string) => {
+      seen.push(data);
+    });
     unsubscribeOld();
 
     bus.emit("ch", "new");

@@ -4,10 +4,10 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  defineProcedureProcedure,
-  getProcedureProcedure,
-  listProceduresProcedure,
-  deleteProcedureProcedure,
+  defineProcedureProcedure as defineDefinition,
+  getProcedureProcedure as getDefinition,
+  listProceduresProcedure as listDefinition,
+  deleteProcedureProcedure as deleteDefinition,
   getRuntimeProcedure,
   hasRuntimeProcedure,
   getAllRuntimeProcedures,
@@ -20,6 +20,13 @@ import { metaProcedures } from "./define-procedure.js";
 import { Client } from "../client/client.js";
 import { allCoreProcedures } from "./core/index.js";
 import { isDataDriven } from "./ref.js";
+import { valueHandler } from "../../test/value-handler.js";
+
+// The tests read one value from the handlers: valueHandler types it so, and checks it
+const defineProcedureProcedure = valueHandler(defineDefinition);
+const getProcedureProcedure = valueHandler(getDefinition);
+const listProceduresProcedure = valueHandler(listDefinition);
+const deleteProcedureProcedure = valueHandler(deleteDefinition);
 
 /**
  * Simple inline mock client for tests
@@ -226,7 +233,7 @@ describe("procedure.define meta-procedure", () => {
       expect(proc?.handler).toBeDefined();
 
       // Execute the procedure
-      const result = await proc!.handler!({ data: "hello" }, ctx);
+      await proc!.handler!({ data: "hello" }, ctx);
 
       // Should call client.identity with resolved input
       expect(mockClient.getCalls()).toHaveLength(1);

@@ -17,6 +17,7 @@ import { RUNS_REFS_TAG } from "../procedures/ref.js";
 import { defineProcedureProcedure } from "../procedures/define-procedure.js";
 import type { ProcedureContext } from "../procedures/types.js";
 import type { ServerResponse } from "./types.js";
+import { valueHandler } from "../../test/value-handler.js";
 
 function makeServer(): { server: ProcedureServer; shellCalls: string[] } {
   const shellCalls: string[] = [];
@@ -116,7 +117,7 @@ describe("ProcedureServer expose", () => {
     const { server, shellCalls } = makeServer();
     const registry = (server as unknown as { procedureRegistry: ProcedureRegistry }).procedureRegistry;
     // procedure.define registers in the global registry, so run its handler with this registry's view
-    const defined = await defineProcedureProcedure.handler!(
+    const defined = await valueHandler(defineProcedureProcedure).handler(
       { path: ["docker", "evil"], aggregation: { $proc: ["shell", "exec"], input: { command: "x" } } },
       { metadata: {}, path: ["procedure", "define"], client: { call: async () => undefined as never } },
     );

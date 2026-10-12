@@ -3,8 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { conditionalProcedure } from "./index.js";
+import { conditionalProcedure as conditionalDefinition } from "./index.js";
+import { valueHandler } from "../../../test/value-handler.js";
 import type { ProcedureContext } from "../types.js";
+
+// The tests read one value from the handler: valueHandler types it so, and checks it
+const conditionalProcedure = valueHandler(conditionalDefinition);
 
 /**
  * Simple inline mock client for tests
@@ -66,7 +70,7 @@ describe("conditional procedure", () => {
     it("executes then branch when condition is true", async () => {
       mockClient.mockResponse(["test", "thenProc"], { output: "then result" });
 
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: true,
           then: { $proc: ["test", "thenProc"], input: {} },
@@ -83,7 +87,7 @@ describe("conditional procedure", () => {
     it("executes else branch when condition is false", async () => {
       mockClient.mockResponse(["test", "elseProc"], { output: "else result" });
 
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: false,
           then: { $proc: ["test", "thenProc"], input: {} },
@@ -98,7 +102,7 @@ describe("conditional procedure", () => {
     });
 
     it("returns undefined when condition is false and no else", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: false,
           then: { $proc: ["test", "thenProc"], input: {} },
@@ -115,7 +119,7 @@ describe("conditional procedure", () => {
       mockClient.mockResponse(["test", "thenProc"], { output: "executed" });
 
       // Simulates predicate output like { value: true }
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: { value: true },
           then: { $proc: ["test", "thenProc"], input: {} },
@@ -129,7 +133,7 @@ describe("conditional procedure", () => {
     it("treats { value: false } as falsy", async () => {
       mockClient.mockResponse(["test", "elseProc"], { output: "else executed" });
 
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: { value: false },
           then: { $proc: ["test", "thenProc"], input: {} },
@@ -143,7 +147,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats { value: 0 } as falsy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: { value: 0 },
           then: "truthy",
@@ -156,7 +160,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats { value: 1 } as truthy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: { value: 1 },
           then: "truthy",
@@ -169,7 +173,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats { value: '' } as falsy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: { value: "" },
           then: "truthy",
@@ -182,7 +186,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats { value: 'non-empty' } as truthy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: { value: "non-empty" },
           then: "truthy",
@@ -197,7 +201,7 @@ describe("conditional procedure", () => {
 
   describe("falsy values", () => {
     it("treats null as falsy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: null,
           then: "truthy",
@@ -210,7 +214,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats undefined as falsy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: undefined,
           then: "truthy",
@@ -223,7 +227,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats 0 as falsy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: 0,
           then: "truthy",
@@ -236,7 +240,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats empty string as falsy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: "",
           then: "truthy",
@@ -251,7 +255,7 @@ describe("conditional procedure", () => {
 
   describe("truthy values", () => {
     it("treats non-empty string as truthy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: "hello",
           then: "truthy",
@@ -264,7 +268,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats non-zero number as truthy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: 42,
           then: "truthy",
@@ -277,7 +281,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats empty array as truthy", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: [],
           then: "truthy",
@@ -290,7 +294,7 @@ describe("conditional procedure", () => {
     });
 
     it("treats empty object as truthy (but checks .value if present)", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: {},
           then: "truthy",
@@ -311,7 +315,7 @@ describe("conditional procedure", () => {
         return { ok: true };
       });
 
-      await conditionalProcedure.handler(
+      await conditionalProcedure.handler!(
         {
           condition: true,
           then: { $proc: ["test", "action"], input: { name: "test" } },
@@ -331,7 +335,7 @@ describe("conditional procedure", () => {
         return { ok: true };
       });
 
-      await conditionalProcedure.handler(
+      await conditionalProcedure.handler!(
         {
           condition: false,
           then: { $proc: ["test", "other"], input: {} },
@@ -354,7 +358,7 @@ describe("conditional procedure", () => {
 
       const nodeData = { id: "node1", repoPath: "/repo" };
 
-      await conditionalProcedure.handler(
+      await conditionalProcedure.handler!(
         {
           condition: true,
           then: { $proc: ["test", "action"], input: {} },
@@ -369,7 +373,7 @@ describe("conditional procedure", () => {
 
   describe("non-procedure branches", () => {
     it("returns raw value for then branch", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: true,
           then: { message: "success" },
@@ -382,7 +386,7 @@ describe("conditional procedure", () => {
     });
 
     it("returns raw value for else branch", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: false,
           then: { message: "success" },
@@ -395,7 +399,7 @@ describe("conditional procedure", () => {
     });
 
     it("returns primitive for then branch", async () => {
-      const result = await conditionalProcedure.handler(
+      const result = await conditionalProcedure.handler!(
         {
           condition: true,
           then: "yes",
@@ -417,7 +421,7 @@ describe("conditional procedure", () => {
         client: undefined as any,
       };
 
-      const result = await conditionalProcedure.handler({
+      const result = await conditionalProcedure.handler!({
         condition: true,
         then: { $proc: ["test", "action"], input: { foo: "bar" } },
       }, noClientCtx);
@@ -434,7 +438,7 @@ describe("conditional procedure", () => {
         client: undefined as any,
       };
 
-      const result = await conditionalProcedure.handler({
+      const result = await conditionalProcedure.handler!({
         condition: false,
         then: "yes",
         else: "no",
@@ -451,7 +455,7 @@ describe("conditional procedure", () => {
       });
 
       await expect(
-        conditionalProcedure.handler(
+        conditionalProcedure.handler!(
           {
             condition: true,
             then: { $proc: ["test", "fail"], input: {} },
@@ -467,7 +471,7 @@ describe("conditional procedure", () => {
       });
 
       await expect(
-        conditionalProcedure.handler(
+        conditionalProcedure.handler!(
           {
             condition: false,
             then: { $proc: ["test", "ok"], input: {} },
