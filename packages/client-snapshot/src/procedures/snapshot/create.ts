@@ -9,11 +9,11 @@ import { open } from "node:fs/promises";
 import { join, basename, dirname, resolve } from "node:path";
 import { tmpdir, hostname } from "node:os";
 import { randomUUID } from "node:crypto";
-import { execSync } from "node:child_process";
 import * as tar from "tar";
 import type { ProcedureContext } from "@mark1russell7/client";
 import { assertSnapshotName, isExcluded } from "./names.js";
 import { readPart, sha256File } from "./archive-io.js";
+import { gitText, pnpmVersion } from "./commands.js";
 import type {
   SnapshotCreateInput,
   SnapshotCreateOutput,
@@ -49,7 +49,7 @@ export async function snapshotCreate(
     );
 
     // Get environment info
-    const environment = await getEnvironmentInfo();
+    const environment = await getEnvironmentInfo(ctx.signal);
 
     // Create metadata
     const metadata: SnapshotMetadata = {
@@ -151,22 +151,9 @@ async function getRepositoryInfo(
       { branch: string; ahead: number; behind: number; files: unknown[]; clean: boolean }
     >(["git", "status"], { cwd: repoPath });
 
-    // Get commit hash
-    const commit = execSync("git rev-parse HEAD", {
-      cwd: repoPath,
-      encoding: "utf8",
-    }).trim();
-
-    // Get remote URL
-    let remoteUrl: string | undefined;
-    try {
-      remoteUrl = execSync("git remote get-url origin", {
-        cwd: repoPath,
-        encoding: "utf8",
-      }).trim();
-    } catch {
-      // No remote
-    }
+    // The commit hash ("" for a repository with no commit) and the remote URL (none without "origin")
+    const commit = (await gitText(["rev-parse", "HEAD"], repoPath, ctx.signal)) ?? "";
+    const remoteUrl = await gitText(["remote", "get-url", "origin"], repoPath, ctx.signal);
 
     // Get stash count
     let stashCount = 0;
@@ -221,18 +208,11 @@ async function getRepositoryInfo(
 /**
  * Get environment info
  */
-async function getEnvironmentInfo(): Promise<SnapshotMetadata["environment"]> {
-  let pnpmVersion = "unknown";
-  try {
-    pnpmVersion = execSync("pnpm --version", { encoding: "utf8" }).trim();
-  } catch {
-    // pnpm not installed
-  }
-
+async function getEnvironmentInfo(signal?: AbortSignal): Promise<SnapshotMetadata["environment"]> {
   return {
     os: process.platform,
     nodeVersion: process.version,
-    pnpmVersion,
+    pnpmVersion: await pnpmVersion(signal),
     username: process.env["USER"] || process.env["USERNAME"] || "unknown",
     hostname: hostname(),
   };

@@ -30,6 +30,7 @@ import {
   isAnyProcedureRef,
   normalizeRef,
   hydrateInput,
+  scopeOf,
   type StepResultInfo,
   type ContinueDecision,
 } from "@mark1russell7/client";
@@ -43,6 +44,8 @@ export async function coreCatch(
   ctx: ProcedureContext
 ): Promise<CoreCatchOutput> {
   const { try: tryRef, handler: handlerRef, cwd } = input;
+  // The names of the chain around this procedure: a `$ref` in an operand can read them
+  const scope = scopeOf(input);
 
   // Validate try is a procedure ref
   if (!isAnyProcedureRef(tryRef)) {
@@ -72,6 +75,7 @@ export async function coreCatch(
     // `try`: a nested ref that throws is an error of the `try` step (deep dive DATA-22).
     const hydratedTryInput = await hydrateInput(tryInput, executor, {
       contextStack: ["catch"],
+      scope,
     });
 
     // Execute the try procedure
@@ -113,6 +117,7 @@ export async function coreCatch(
       // Hydrate handler input (a failure here is a failure of the handler)
       const hydratedHandlerInput = await hydrateInput(handlerInput, executor, {
         contextStack: ["catch"],
+        scope,
       });
 
       const decision = await ctx.client.call(normalizedHandler.path, hydratedHandlerInput) as ContinueDecision;

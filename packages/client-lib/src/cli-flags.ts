@@ -30,6 +30,7 @@ export const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[] = [
   { long: "format", short: "f", takesValue: true, description: "The output format: text, json, table or streaming" },
   { long: "local", takesValue: false, description: "Run the command in this process, not on the CLI server" },
   { long: "json", takesValue: true, description: "Run a procedure reference that is given as JSON" },
+  { long: "no-input", takesValue: false, description: "Never ask for a missing argument (also when CI is set)" },
   { long: "interactive", short: "i", takesValue: false, mode: true, description: "Start the REPL" },
   { long: "server", takesValue: false, mode: true, description: "Start the CLI server" },
   { long: "port", takesValue: true, serverOption: true, description: "The port of the CLI server (with --server)" },

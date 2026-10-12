@@ -36,7 +36,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { ProcedureContext, ProcedurePath } from "@mark1russell7/client";
-import { isAnyProcedureRef, hydrateInput } from "@mark1russell7/client";
+import { isAnyProcedureRef, hydrateInput, scopeOf } from "@mark1russell7/client";
 import type {
   DAGNode,
   DagTraverseInput,
@@ -216,6 +216,8 @@ export async function dagTraverse(
       // Push "dag.traverse" onto context stack so refs with $when: "dag.traverse" execute
       const hydratedInput = await hydrateInput(visitInput, executor, {
         contextStack: ["dag.traverse"],
+        // The names of the chain around this procedure: a `$ref` in the visit can read them
+        scope: scopeOf(input),
       });
 
       // Execute visit procedure with hydrated input

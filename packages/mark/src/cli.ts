@@ -8,10 +8,11 @@
 
 import { print } from "./print.js";
 import type { Method, AnyProcedure } from "@mark1russell7/client";
-import { pathToMethod as corePathToMethod } from "@mark1russell7/client";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { generateHelp, type CLIMeta } from "./parse.js";
+import { fieldsOf, generateHelp, type CLIMeta, type CommandLike } from "./parse.js";
+import { readFreshManifest, writeManifest, type ManifestCommand } from "./manifest.js";
+import { askMissing, canAsk, missingFields, processTerminal, terminalAsker, type Asker, type Terminal } from "./ask.js";
 import { formatOutput, type OutputFormat, type Print } from "./format.js";
 import { loadEcosystemProcedures } from "./ecosystem.js";
 import { startServerMode, parsePort, parseTransport } from "./server-mode.js";
@@ -24,9 +25,11 @@ const VERSION = "1.0.0";
 
 /**
  * Convert procedure path to transport method. The core mapping is the one of every host: the
- * last segment is the operation (deep dive architecture review 3.3).
+ * last segment is the operation (deep dive architecture review 3.3). The core loads only for a
+ * run in this process: the help and a call to the CLI server do not need it.
  */
-function pathToMethod(path: string[]): Method {
+async function pathToMethod(path: string[]): Promise<Method> {
+  const { pathToMethod: corePathToMethod } = await import("@mark1russell7/client");
   return corePathToMethod(path);
 }
 
@@ -59,13 +62,13 @@ function validationMessage(error: unknown): string {
 /**
  * Show help for a path (either a command or a group). Returns false for an unknown path.
  */
-function showHelp(procedures: AnyProcedure[], path: string[]): boolean {
+function showHelp(procedures: readonly CommandLike[], path: string[]): boolean {
   const proc = findProcedure(procedures, path);
 
   if (proc) {
-    // Show help for specific command with schema introspection
+    // Show help for specific command with schema introspection (or the fields of the manifest)
     const meta = (proc.metadata ?? {}) as CLIMeta;
-    print.info(generateHelp(path, meta, proc.input));
+    print.info(generateHelp(path, meta, fieldsOf(proc)));
     return true;
   }
 
@@ -108,12 +111,12 @@ function showHelp(procedures: AnyProcedure[], path: string[]): boolean {
 /**
  * Show root help
  */
-function showRootHelp(procedures: AnyProcedure[]): void {
+function showRootHelp(procedures: readonly CommandLike[]): void {
   print.info(`mark v${VERSION} - Development workflow automation\n`);
   print.info("Commands:\n");
 
   // Group by first path segment
-  const groups = new Map<string, AnyProcedure[]>();
+  const groups = new Map<string, CommandLike[]>();
   for (const proc of procedures) {
     const group = proc.path[0] ?? "other";
     if (!groups.has(group)) {
@@ -147,6 +150,22 @@ export interface CliContext {
 }
 
 /**
+ * The context of a run that starts from the manifest: the commands are known, the procedures
+ * are not loaded. `load()` loads them when the command runs in this process.
+ */
+export interface ManifestContext {
+  commands: readonly ManifestCommand[];
+  verbose: boolean;
+  load: () => Promise<CliContext>;
+}
+
+/** The terminal and the asker of the questions for missing arguments (tests give fakes) */
+export interface ExecuteOptions {
+  terminal?: Terminal;
+  ask?: Asker;
+}
+
+/**
  * Initialize the CLI context (load ecosystem, create client)
  * This is the expensive part (~4s). Call once, reuse many times.
  */
@@ -172,9 +191,18 @@ export async function initCli(verbose = false): Promise<CliContext> {
  * The exit code is 1 for an unknown command, a problem of the command line, invalid input, a
  * thrown error, and a result that reports a failure (`success: false`, or an `exitCode` that is
  * not 0: see failure.ts). Before, all of these exited with 0 (deep dive CLI-8).
+ *
+ * With a ManifestContext, the help and a call to the CLI server need no procedures: they load
+ * only when the command runs in this process (roadmap 1.3).
  */
-export async function executeArgs(argv: string[], ctx: CliContext): Promise<void> {
-  const { client, procedures } = ctx;
+export async function executeArgs(
+  argv: string[],
+  ctx: CliContext | ManifestContext,
+  options: ExecuteOptions = {}
+): Promise<void> {
+  const procedures: readonly CommandLike[] = "procedures" in ctx ? ctx.procedures : ctx.commands;
+  let loaded: CliContext | undefined = "procedures" in ctx ? ctx : undefined;
+  const local = async (): Promise<CliContext> => (loaded ??= await (ctx as ManifestContext).load());
 
   // Global flags, path and procedure input, converted by the field types (deep dive CLI-7, 9, 10, 11)
   const parsed = parseCommandLine(argv, procedures);
@@ -236,6 +264,7 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
       return;
     }
     try {
+      const { client } = await local();
       const result = await client.exec(parsedJson as Parameters<typeof client.exec>[0]);
       formatOutput(print as unknown as Print, result, "json");
       if (failureOf(result)) {
@@ -262,14 +291,46 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
   const meta = (procedure.metadata ?? {}) as CLIMeta;
   const outputFormat = (formatOverride ?? meta.output ?? "text") as OutputFormat;
 
-  let validated: unknown = parsed.input;
-  try {
-    if (procedure.input) {
-      validated = procedure.input.parse(parsed.input);
+  // A required argument that is missing: in a terminal, mark asks for it (see ask.ts)
+  let input = parsed.input;
+  const missing = missingFields(fieldsOf(procedure), input);
+  if (missing.length > 0 && canAsk(globals["no-input"] === true, meta, options.terminal ?? processTerminal())) {
+    const asked = await askMissing(missing, input, options.ask ?? terminalAsker);
+    if (!asked.ok) {
+      fail(asked.cancelled ? "Cancelled" : `Invalid input for mark ${path.join(" ")}:\n  ${asked.error}`);
+      return;
     }
-  } catch (error) {
-    fail(`Invalid input for mark ${path.join(" ")}:\n  ${validationMessage(error)}`, `Run 'mark ${path.join(" ")} --help' for the options.`);
-    return;
+    input = asked.input;
+  }
+
+  // A procedure of the registry validates the input here. A command of the manifest has no
+  // schema: the CLI server validates, or this process after the procedures load.
+  let validated: unknown = input;
+  let checked = false;
+  const validate = (target: CommandLike): boolean => {
+    const schema = target.input as { parse?: (data: unknown) => unknown } | undefined;
+    try {
+      if (typeof schema?.parse === "function") {
+        validated = schema.parse(input);
+      }
+    } catch (error) {
+      fail(`Invalid input for mark ${path.join(" ")}:\n  ${validationMessage(error)}`, `Run 'mark ${path.join(" ")} --help' for the options.`);
+      return false;
+    }
+    checked = true;
+    return true;
+  };
+  if (loaded) {
+    if (!validate(procedure)) {
+      return;
+    }
+  } else {
+    const stillMissing = missingFields(fieldsOf(procedure), input);
+    if (stillMissing.length > 0) {
+      const names = stillMissing.map((field) => `${field.name}: Required`).join("\n  ");
+      fail(`Invalid input for mark ${path.join(" ")}:\n  ${names}`, `Run 'mark ${path.join(" ")} --help' for the options.`);
+      return;
+    }
   }
 
   // Each item prints when it arrives. A failed item makes the command fail.
@@ -302,6 +363,23 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
     }
   }
 
+  // The command runs in this process: the procedures load now (a ManifestContext)
+  let runtime: CliContext;
+  try {
+    runtime = await local();
+  } catch (error) {
+    fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  const target = findProcedure(runtime.procedures, path);
+  if (!target) {
+    fail(`Unknown command: mark ${path.join(" ")}`, "Run 'mark --help' for available commands.");
+    return;
+  }
+  if (!checked && !validate(target)) {
+    return;
+  }
+
   try {
     let spinner: ReturnType<typeof print.spin> | undefined;
 
@@ -309,7 +387,8 @@ export async function executeArgs(argv: string[], ctx: CliContext): Promise<void
       spinner = print.spin(`Running ${path.join(" ")}...`);
     }
 
-    const method = pathToMethod(path);
+    const method = await pathToMethod(path);
+    const { client } = runtime;
 
     // A streaming procedure gives many items: print each one when it arrives. A
     // request/response procedure gives one item, so its output does not change.
@@ -380,8 +459,24 @@ async function run(argv: string[]): Promise<void> {
     return;
   }
 
-  // Normal CLI: init once, execute once
+  // The manifest gives the commands without the procedures: the help and a call to the CLI
+  // server do not load them (roadmap 1.3)
+  const manifest = readFreshManifest();
+  if (manifest) {
+    await executeArgs(argv, { commands: manifest.commands, verbose, load: () => initCli(verbose) });
+    return;
+  }
+
+  // No manifest, or a stale one (a package was built again): load the procedures as before, and
+  // write the manifest for the next run. A failure to write costs only time.
   const ctx = await initCli(verbose);
+  try {
+    await writeManifest(ctx.procedures);
+  } catch (error) {
+    if (verbose) {
+      print.warning(`mark: the manifest was not written: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
   await executeArgs(argv, ctx);
 }
 

@@ -750,6 +750,9 @@ importers:
       '@mark1russell7/client-s3':
         specifier: workspace:*
         version: link:../client-s3
+      '@mark1russell7/client-shell':
+        specifier: workspace:*
+        version: link:../client-shell
       tar:
         specifier: ^7.5.0
         version: 7.5.22
@@ -939,6 +942,9 @@ importers:
       '@mark1russell7/client-vitest':
         specifier: workspace:*
         version: link:../client-vitest
+      '@mark1russell7/mcp':
+        specifier: workspace:*
+        version: link:../mcp
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -955,6 +961,45 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@mark1russell7/bundle-dev':
+        specifier: workspace:*
+        version: link:../bundle-dev
+      '@mark1russell7/bundle-mcp':
+        specifier: workspace:*
+        version: link:../bundle-mcp
+      '@mark1russell7/client-cue':
+        specifier: workspace:*
+        version: link:../client-cue
+      '@mark1russell7/client-docker':
+        specifier: workspace:*
+        version: link:../client-docker
+      '@mark1russell7/client-fs':
+        specifier: workspace:*
+        version: link:../client-fs
+      '@mark1russell7/client-git':
+        specifier: workspace:*
+        version: link:../client-git
+      '@mark1russell7/client-mongo':
+        specifier: workspace:*
+        version: link:../client-mongo
+      '@mark1russell7/client-node':
+        specifier: workspace:*
+        version: link:../client-node
+      '@mark1russell7/client-s3':
+        specifier: workspace:*
+        version: link:../client-s3
+      '@mark1russell7/client-snapshot':
+        specifier: workspace:*
+        version: link:../client-snapshot
+      '@mark1russell7/client-splay':
+        specifier: workspace:*
+        version: link:../client-splay
+      '@mark1russell7/client-sqlite':
+        specifier: workspace:*
+        version: link:../client-sqlite
+      '@mark1russell7/client-vite':
+        specifier: workspace:*
+        version: link:../client-vite
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#main
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/f2bb6026e14fcfb782eef3e02771ce983d4bff55

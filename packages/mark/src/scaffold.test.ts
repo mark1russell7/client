@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ProcedureContext } from "@mark1russell7/client";
 import { libNew } from "@mark1russell7/client-lib";
 import { procedureNew } from "@mark1russell7/client-procedure";
@@ -120,6 +120,20 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
     const result = compile(packageDir);
     expect(result.output).not.toContain("error");
     expect(result.ok).toBe(true);
+  }, 120000);
+
+  it("gives a new procedure real input and output schemas, so its results are validated", async () => {
+    const register = readFileSync(join(packageDir, "src", "register.ts"), "utf8");
+    expect(register).toContain("zodAdapter<DemoHelloOutput>(DemoHelloOutputSchema)");
+    expect(register).not.toContain("outputSchema<");
+
+    const types = (await import(pathToFileURL(join(packageDir, "src", "types.ts")).href)) as Record<
+      string,
+      { safeParse: (data: unknown) => { success: boolean } }
+    >;
+    expect(types["DemoHelloOutputSchema"]!.safeParse({ success: true, message: "hi" }).success).toBe(true);
+    expect(types["DemoHelloOutputSchema"]!.safeParse({ success: "yes" }).success).toBe(false);
+    expect(types["DemoHelloInputSchema"]!.safeParse({}).success).toBe(true);
   }, 120000);
 
   it("refuses a name that collides, and writes nothing", async () => {

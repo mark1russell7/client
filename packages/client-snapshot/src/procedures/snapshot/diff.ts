@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { execFileSync, execSync } from "node:child_process";
+import { gitText } from "./commands.js";
 import type { ProcedureContext } from "@mark1russell7/client";
 import type {
   SnapshotDiffInput,
@@ -71,11 +71,9 @@ export async function snapshotDiff(
     }
 
     try {
-      // Get current branch
-      const currentBranch = execSync("git rev-parse --abbrev-ref HEAD", {
-        cwd: repoPath,
-        encoding: "utf8",
-      }).trim();
+      // Get current branch (a failure is an error of this repository: the catch below)
+      const currentBranch = await gitText(["rev-parse", "--abbrev-ref", "HEAD"], repoPath, ctx.signal);
+      if (currentBranch === undefined) throw new Error(`git cannot read the branch of ${repoPath}`);
 
       if (currentBranch !== snapshotRepo.branch) {
         diff.branchDiff = {
@@ -85,10 +83,8 @@ export async function snapshotDiff(
       }
 
       // Get current commit
-      const currentCommit = execSync("git rev-parse HEAD", {
-        cwd: repoPath,
-        encoding: "utf8",
-      }).trim();
+      const currentCommit = await gitText(["rev-parse", "HEAD"], repoPath, ctx.signal);
+      if (currentCommit === undefined) throw new Error(`git cannot read the commit of ${repoPath}`);
 
       if (currentCommit !== snapshotRepo.commit) {
         diff.commitDiff = {
@@ -103,11 +99,8 @@ export async function snapshotDiff(
           if (!/^[0-9a-f]{7,64}$/i.test(snapshotRepo.commit)) {
             throw new Error(`Not a commit hash: ${snapshotRepo.commit}`);
           }
-          const diffStat = execFileSync(
-            "git",
-            ["diff", "--stat", `${snapshotRepo.commit}..HEAD`],
-            { cwd: repoPath, encoding: "utf8" }
-          );
+          const diffStat = await gitText(["diff", "--stat", `${snapshotRepo.commit}..HEAD`], repoPath, ctx.signal);
+          if (diffStat === undefined) throw new Error(`git cannot compare ${snapshotRepo.commit} with HEAD`);
           // Count lines that represent files (contain |)
           diff.filesChanged = diffStat.split("\n").filter((l) => l.includes("|")).length;
           totalFilesChanged += diff.filesChanged;

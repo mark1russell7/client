@@ -5,6 +5,6 @@ export { dockerExec } from "./exec.js";
 export { dockerStop } from "./stop.js";
 export { dockerRm } from "./rm.js";
 export { dockerPs } from "./ps.js";
-export { dockerLogs } from "./logs.js";
+export { dockerLogs, type DockerLogItem } from "./logs.js";
 export { dockerComposeUp } from "./up.js";
 export { dockerComposeDown } from "./down.js";

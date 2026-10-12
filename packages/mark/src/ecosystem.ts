@@ -52,7 +52,7 @@ function readJson<T>(filePath: string): T | null {
 /**
  * Find the workspace root: the nearest folder above this module that holds pnpm-workspace.yaml
  */
-function findWorkspaceRoot(): string | null {
+export function findWorkspaceRoot(): string | null {
   let dir = path.dirname(fileURLToPath(import.meta.url));
   for (;;) {
     if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) {
@@ -69,10 +69,9 @@ function findWorkspaceRoot(): string | null {
 /**
  * Discover workspace packages that declare client.procedures
  */
-export function discoverFromEcosystem(): DiscoveredPackage[] {
+export function discoverFromEcosystem(root: string | null = findWorkspaceRoot()): DiscoveredPackage[] {
   const discovered: DiscoveredPackage[] = [];
 
-  const root = findWorkspaceRoot();
   if (!root) {
     // Not running from inside the monorepo, nothing to discover
     return discovered;
@@ -104,9 +103,10 @@ export function discoverFromEcosystem(): DiscoveredPackage[] {
  *
  * A package that fails to load gives one warning line on stderr, also without `verbose`: before,
  * its commands were missing with no message (deep dive CLI-18). A package that is not built yet
- * (no procedures file) is reported only with `verbose`.
+ * (no procedures file) is reported only with `verbose`. `warn: false` turns the warnings off (the
+ * build of mark writes the manifest while other packages can still be in their build).
  */
-export async function loadEcosystemProcedures(verbose = false): Promise<string[]> {
+export async function loadEcosystemProcedures(verbose = false, warn = true): Promise<string[]> {
   const discovered = discoverFromEcosystem();
   const loaded: string[] = [];
 
@@ -134,7 +134,9 @@ export async function loadEcosystemProcedures(verbose = false): Promise<string[]
       }
     } catch (error) {
       const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
-      console.warn(`mark: the procedures of ${pkg.name} did not load: ${message}`);
+      if (warn) {
+        console.warn(`mark: the procedures of ${pkg.name} did not load: ${message}`);
+      }
       if (verbose && error instanceof Error && error.stack) {
         console.warn(error.stack);
       }

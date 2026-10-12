@@ -127,7 +127,10 @@ export async function ${camelName}(_input: ${pascalName}Input): Promise<${pascal
 function generateTypes(layout: ProcedureLayout, description: string): string {
   const { segments, pascalName } = layout;
   const schemaName = `${pascalName}InputSchema`;
+  const outputSchemaName = `${pascalName}OutputSchema`;
 
+  // The output has a real schema too: the registry validates each result with it. (Before, the
+  // output was an interface with a pass-through outputSchema(), so no result was checked.)
   return `
 // =============================================================================
 // ${segments.join(".")} Types - ${description}
@@ -141,12 +144,17 @@ export const ${schemaName}: z.ZodObject<{
 
 export type ${pascalName}Input = z.infer<typeof ${schemaName}>;
 
-export interface ${pascalName}Output {
+export const ${outputSchemaName}: z.ZodObject<{
+  success: z.ZodBoolean;
+  message: z.ZodString;
+}> = z.object({
   /** Whether the operation succeeded */
-  success: boolean;
+  success: z.boolean(),
   /** Response message */
-  message: string;
-}
+  message: z.string(),
+});
+
+export type ${pascalName}Output = z.infer<typeof ${outputSchemaName}>;
 `;
 }
 
@@ -272,7 +280,7 @@ function generateRegistration(layout: ProcedureLayout, description: string): str
   return `const ${camelName}Procedure = createProcedure()
   .path(${JSON.stringify(segments)})
   .input(zodAdapter<${pascalName}Input>(${pascalName}InputSchema))
-  .output(outputSchema<${pascalName}Output>())
+  .output(zodAdapter<${pascalName}Output>(${pascalName}OutputSchema))
   .meta({
     description: ${JSON.stringify(description)},
     args: [],
@@ -311,10 +319,10 @@ export function registerSource(source: string, layout: ProcedureLayout, descript
   if (withArray === undefined) {
     return undefined;
   }
-  let updated = ensureNamedImports(withArray, "@mark1russell7/client", ["createProcedure", "zodAdapter", "outputSchema"]);
+  let updated = ensureNamedImports(withArray, "@mark1russell7/client", ["createProcedure", "zodAdapter"]);
   updated = addImports(updated, [
     `import { ${camelName} } from "${importPath}";\n`,
-    `import { ${pascalName}InputSchema, type ${pascalName}Input, type ${pascalName}Output } from "./types.js";\n`,
+    `import { ${pascalName}InputSchema, ${pascalName}OutputSchema, type ${pascalName}Input, type ${pascalName}Output } from "./types.js";\n`,
   ]);
   // The definition goes before the code that registers the procedures
   const anchor = /^(export\s+)?(async\s+)?function\s+register\w*\s*\(|^\s*(registerProcedures|PROCEDURE_REGISTRY\.registerAll)\s*\(/m.exec(updated);
@@ -371,7 +379,7 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
     return fail(`Procedure file already exists: ${procedureFile}`);
   }
   const existingTypes = await readText(typesFile, ctx);
-  if (existingTypes !== undefined && new RegExp(`\\b${pascalName}(Input|Output|InputSchema)\\b`).test(existingTypes)) {
+  if (existingTypes !== undefined && new RegExp(`\\b${pascalName}(Input|Output|InputSchema|OutputSchema)\\b`).test(existingTypes)) {
     return fail(
       `types.ts already has types named ${pascalName}: the name ${segments.join(".")} collides with another procedure. Choose another name.`
     );
