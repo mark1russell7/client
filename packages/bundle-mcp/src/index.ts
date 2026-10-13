@@ -7,4 +7,4 @@
  * come with it.
  */
 
-export { mcpNamespaces, mcpExclude, bundleMcpModules, bundleMcpModule } from "./register.js";
+export { mcpNamespaces, mcpExclude, bundleMcpModules, bundleMcpModule } from "./module.js";

@@ -16,7 +16,7 @@ SQLite database operations via client procedures. Execute queries and store stru
 - **Migration support**: Schema versioning and migration utilities
 - **Default log database**: Pre-configured logging at `~/logs/cli/cli.db`
 
-The package auto-registers 4 procedures:
+The package has 4 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
 - **Database**: `db.query`, `db.execute`
 - **Logs**: `logs.store`, `logs.query`
 
@@ -434,7 +434,7 @@ const { logs } = await client.exec(
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/sqlite"; // registers its procedures
+import "@procedures/sqlite/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -653,8 +653,8 @@ result.rows.forEach(user => {
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@procedures/sqlite"; // registers its procedures
-import "@procedures/mongo"; // registers its procedures
+import "@procedures/sqlite/register"; // registers its procedures
+import "@procedures/mongo/register"; // registers its procedures
 import "@procedures/s3/register.js";
 ```
 

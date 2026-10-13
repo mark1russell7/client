@@ -27,4 +27,4 @@ export { CliRunInputSchema } from "./types.js";
 export { cliRun } from "./procedures/cli/index.js";
 
 // Registration
-export { registerCliProcedures } from "./register.js";
+export { registerCliProcedures } from "./module.js";

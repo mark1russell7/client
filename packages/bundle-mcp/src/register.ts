@@ -1,22 +1,11 @@
 /**
- * Importing this file registers the procedures of the bundle in the global registry: it imports
- * each package of the bundle (DECISIONS-2026-10, "Every package root registers its procedures").
- * The lists and the modules are in `module.ts`, which registers nothing.
+ * Importing this file registers the procedures of @procedures/bundle-mcp, and of the modules that it
+ * requires, in the global registry: `import "@procedures/bundle-mcp/register"`. The package root and the
+ * `./module` entry register nothing (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
 
-// Core orchestration
-import "@procedures/lib";
-import "@procedures/procedure";
-import "@procedures/cue";
-
-// Infrastructure
-import "@procedures/docker";
-
-// Databases
-import "@procedures/mongo";
-import "@procedures/sqlite";
-
-// Testing
-import "@procedures/vitest";
+import { registerBundleMcpProcedures } from "./module.js";
 
 export * from "./module.js";
+
+registerBundleMcpProcedures();

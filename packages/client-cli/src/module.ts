@@ -7,7 +7,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { cliRun } from "./procedures/cli/index.js";
 import { CliRunInputSchema, CliRunOutputSchema, type CliRunInput, type CliRunOutput } from "./types.js";
@@ -45,3 +45,12 @@ export const cliModule: ProcedureModule = defineModule("@procedures/cli-run", [
   ], [shellModule]);
 
 export default cliModule;
+
+/**
+ * This function registers the procedures of @procedures/cli-run, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerCliProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [cliModule]);
+}

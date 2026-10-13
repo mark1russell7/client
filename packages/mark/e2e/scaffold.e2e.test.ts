@@ -30,7 +30,7 @@ describe.skipIf(!built)("mark: lib new and procedure new", () => {
     const run = mark(["lib", "new", "e2e-demo", "--root-path", root]);
     expect(run.stderr).toBe("");
     expect(run.exitCode).toBe(0);
-    for (const file of ["package.json", "tsconfig.json", "src/index.ts", "src/register.ts", "src/types.ts"]) {
+    for (const file of ["package.json", "tsconfig.json", "src/index.ts", "src/module.ts", "src/register.ts", "src/types.ts"]) {
       expect(existsSync(join(pkg, file)), file).toBe(true);
     }
   });
@@ -40,9 +40,10 @@ describe.skipIf(!built)("mark: lib new and procedure new", () => {
     expect(mark(["procedure", "new", "api.v2.users.create", "--path", pkg]).exitCode).toBe(0);
     expect(existsSync(join(pkg, "src", "procedures", "demo", "hello.ts"))).toBe(true);
     expect(existsSync(join(pkg, "src", "procedures", "api", "v2", "users", "create.ts"))).toBe(true);
-    const register = readFileSync(join(pkg, "src", "register.ts"), "utf8");
-    expect(register).toContain("demoHelloProcedure");
-    expect(register).toContain("apiV2UsersCreateProcedure");
+    // The procedures go into the module (the register entry starts its register function)
+    const module = readFileSync(join(pkg, "src", "module.ts"), "utf8");
+    expect(module).toContain("demoHelloProcedure");
+    expect(module).toContain("apiV2UsersCreateProcedure");
   });
 
   it("procedure new refuses a name that exists, with exit code 1", () => {

@@ -150,7 +150,7 @@ graph BT
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/vitest"; // registers its procedures
+import "@procedures/vitest/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

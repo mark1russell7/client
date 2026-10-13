@@ -17,7 +17,7 @@ File system operations as RPC procedures. Read, write, copy, move, glob files an
 - **JSON utilities**: Read and parse JSON files
 - **Zod validation**: Runtime type safety on all inputs
 
-The package auto-registers 11 procedures:
+The package has 11 procedures. Its register entry (`import "@procedures/fs/register"`) registers them:
 `fs.read`, `fs.write`, `fs.exists`, `fs.stat`, `fs.mkdir`, `fs.rm`, `fs.readdir`, `fs.copy`, `fs.move`, `fs.glob`, `fs.read.json`
 
 ## Architecture
@@ -548,7 +548,7 @@ console.log(pkg.name, pkg.version);
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/fs"; // registers its procedures
+import "@procedures/fs/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -814,9 +814,9 @@ await client.exec(
 
 ```typescript
 // In bundle-dev/src/register.ts
-import "@procedures/fs"; // registers its procedures
-import "@procedures/shell"; // registers its procedures
-import "@procedures/cli-run"; // registers its procedures
+import "@procedures/fs/register"; // registers its procedures
+import "@procedures/shell/register"; // registers its procedures
+import "@procedures/cli-run/register"; // registers its procedures
 ```
 
 ## Dependencies

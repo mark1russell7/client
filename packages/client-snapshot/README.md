@@ -123,7 +123,7 @@ This package depends on:
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/snapshot"; // registers its procedures
+import "@procedures/snapshot/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -702,7 +702,7 @@ try {
 ### With bundle-dev
 
 ```typescript
-import "@procedures/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev/register"; // registers its procedures
 
 // snapshot.* procedures available
 await client.exec(["snapshot", "create"], { ... });

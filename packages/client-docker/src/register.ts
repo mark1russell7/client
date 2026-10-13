@@ -1,20 +1,11 @@
 /**
- * Importing this file registers the procedures of @procedures/docker in the global registry
- * (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as data
- * are in `module.ts`, which registers nothing: a host with its own registry uses that one.
+ * Importing this file registers the procedures of @procedures/docker, and of the modules that it
+ * requires, in the global registry: `import "@procedures/docker/register"`. The package root and the
+ * `./module` entry register nothing (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
 
-// Import shell dependency to ensure shell.exec is registered
-import "@procedures/shell";
-
-import { registerProcedures } from "@procedures/client";
-import { dockerModule } from "./module.js";
+import { registerDockerProcedures } from "./module.js";
 
 export * from "./module.js";
 
-export function registerDockerProcedures(): void {
-  registerProcedures(dockerModule.procedures);
-}
-
-// Auto-register when this module is loaded
 registerDockerProcedures();

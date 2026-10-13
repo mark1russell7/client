@@ -21,7 +21,7 @@ All input fields are optional, except `serverId`. Without `cwd`, a procedure use
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/vite"; // registers vite.*
+import "@procedures/vite/register"; // registers vite.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

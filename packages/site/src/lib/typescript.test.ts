@@ -44,7 +44,7 @@ describe("the TypeScript tab", () => {
     const code = toTypeScript({ $proc: ["git", "status"], input: {} }, (key) =>
       key.startsWith("git.") ? "@procedures/git" : undefined,
     );
-    expect(code).toContain('import "@procedures/git";');
+    expect(code).toContain('import "@procedures/git/register";');
     expect(code).toContain("PROCEDURE_REGISTRY.register(procedure)");
   });
 });

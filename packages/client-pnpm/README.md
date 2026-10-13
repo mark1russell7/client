@@ -66,7 +66,7 @@ yarn add @procedures/pnpm
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/pnpm"; // registers its procedures
+import "@procedures/pnpm/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -592,7 +592,7 @@ graph LR
 
 ```typescript
 // bundle-dev/src/register.ts
-import "@procedures/pnpm"; // registers its procedures
+import "@procedures/pnpm/register"; // registers its procedures
 
 // client-lib uses pnpm procedures for package management
 import { pnpmInstall, pnpmRun } from "@procedures/pnpm";
@@ -637,7 +637,7 @@ The handlers start pnpm through `ctx.client.call(["shell", "run"], ...)`, so the
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/pnpm"; // registers pnpm.* and shell.*
+import "@procedures/pnpm/register"; // registers pnpm.* and shell.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

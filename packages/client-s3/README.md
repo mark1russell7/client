@@ -17,7 +17,7 @@ AWS S3 operations as RPC procedures. Upload, download, list, delete, and perform
 - **Zod validation**: Runtime type safety on all inputs
 - **MinIO/LocalStack support**: Custom S3 endpoints for testing
 
-The package auto-registers 9 procedures:
+The package has 9 procedures. Its register entry (`import "@procedures/s3/register"`) registers them:
 - **Standard**: `s3.upload`, `s3.download`, `s3.list`, `s3.listAll`, `s3.delete`
 - **Multipart**: `s3.multipart.init`, `s3.multipart.upload`, `s3.multipart.complete`, `s3.multipart.abort`
 
@@ -802,8 +802,8 @@ await client.exec(
 ```typescript
 // In bundle-data/src/register.ts
 import "@procedures/s3/register.js";
-import "@procedures/mongo"; // registers its procedures
-import "@procedures/fs"; // registers its procedures
+import "@procedures/mongo/register"; // registers its procedures
+import "@procedures/fs/register"; // registers its procedures
 ```
 
 ## Dependencies

@@ -24,8 +24,8 @@ Until October 2026, `client-lib` also had `lib.install`, `lib.pull` and `lib.ref
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/lib"; // registers its procedures
-import "@procedures/fs"; // lib.* reads and writes files through fs.*
+import "@procedures/lib/register"; // registers its procedures
+import "@procedures/fs/register"; // lib.* reads and writes files through fs.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

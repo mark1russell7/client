@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { type AnyProcedure, defineModule, type ProcedureModule } from "@procedures/client";
+import { type AnyProcedure, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 
 // Import all procedures
 import { serverCreateProcedure } from "./procedures/server.create.js";
@@ -44,3 +44,12 @@ export const procedures: readonly AnyProcedure[] = [
 export const serverModule: ProcedureModule = defineModule("@procedures/peer", [...procedures]);
 
 export default serverModule;
+
+/**
+ * This function registers the procedures of @procedures/peer, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerServerProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [serverModule]);
+}

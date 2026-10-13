@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -383,3 +383,12 @@ export const sqliteModule: ProcedureModule = defineModule("@procedures/sqlite", 
   ]);
 
 export default sqliteModule;
+
+/**
+ * This function registers the procedures of @procedures/sqlite, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerSqliteProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [sqliteModule]);
+}

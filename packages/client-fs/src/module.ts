@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
 import { exists } from "./procedures/fs/exists.js";
@@ -236,3 +236,12 @@ export const fsModule: ProcedureModule = defineModule("@procedures/fs", [
   ]);
 
 export default fsModule;
+
+/**
+ * This function registers the procedures of @procedures/fs, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerFsProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [fsModule]);
+}

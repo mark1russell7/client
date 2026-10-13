@@ -122,7 +122,7 @@ This package depends on:
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/docker"; // registers its procedures
+import "@procedures/docker/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -563,7 +563,7 @@ export interface DockerCommandOutput {
 The `bundle-dev` package includes `client-docker` for development workflows:
 
 ```typescript
-import "@procedures/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev/register"; // registers its procedures
 
 // docker.* procedures are now available
 await client.exec(["docker", "run"], { ... });

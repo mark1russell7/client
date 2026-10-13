@@ -1,17 +1,11 @@
 /**
- * Importing this file registers the procedures of @procedures/vitest in the global
- * registry (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as
- * data are in `module.ts`, which registers nothing: a host with its own registry uses that one.
+ * Importing this file registers the procedures of @procedures/vitest, and of the modules that it
+ * requires, in the global registry: `import "@procedures/vitest/register"`. The package root and the
+ * `./module` entry register nothing (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
 
-import { registerProcedures } from "@procedures/client";
-import { vitestModule } from "./module.js";
+import { registerVitestProcedures } from "./module.js";
 
 export * from "./module.js";
 
-export function registerVitestProcedures(): void {
-  registerProcedures(vitestModule.procedures);
-}
-
-// Auto-register when this module is loaded
 registerVitestProcedures();

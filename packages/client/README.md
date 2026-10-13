@@ -582,7 +582,7 @@ Packages can declare procedures in `package.json`:
 }
 ```
 
-When installed, procedures auto-register. Run `client-registry discover` to generate the registry.
+When installed, the package announces its procedures in `.client-registry.json`. Run `client-registry discover` to generate a file that imports the register entry of each announced package.
 
 ## Type-Safe Middleware
 

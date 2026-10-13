@@ -2,8 +2,7 @@
  * client-node - Node.js process management procedures
  */
 
-// Importing the package registers its procedures, as in the other client packages (BUGS-2026-07 H18)
-import "./register.js";
+export * from "./module.js";
 
 // Export types
 export * from "./types.js";

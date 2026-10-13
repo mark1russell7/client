@@ -13,7 +13,7 @@ MongoDB client wrapper with client procedures for local or RPC access. Provides 
 - **Local usage**: Direct MongoDB connection with native driver
 - **RPC usage**: Remote procedure calls via `client.call()`
 
-The package follows the client procedure pattern, auto-registering 16 procedures organized into 4 categories:
+The package follows the client procedure pattern, with 16 procedures in 4 categories. Its register entry (`import "@procedures/mongo/register"`) registers them:
 - **Database**: `ping`, `info`
 - **Collections**: `list`, `create`, `drop`, `stats`
 - **Documents**: `find`, `get`, `insert`, `update`, `delete`, `count`, `aggregate`
@@ -1227,8 +1227,8 @@ await client.exec(
 
 ```typescript
 // In bundle-data/src/register.ts
-import "@procedures/mongo"; // registers its procedures
-import "@procedures/sqlite"; // registers its procedures
+import "@procedures/mongo/register"; // registers its procedures
+import "@procedures/sqlite/register"; // registers its procedures
 import "@procedures/s3/register.js";
 ```
 

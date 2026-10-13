@@ -119,6 +119,7 @@ export {
   moduleClosure,
   registerModules,
   createRegistry,
+  registerClientProcedures,
   // Procedure reference system (procedure-as-data)
   PROCEDURE_SYMBOL,
   PROCEDURE_JSON_KEY,

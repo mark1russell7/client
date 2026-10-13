@@ -235,7 +235,7 @@ npm install ${name}
 
 ## How It Works
 
-This library automatically registers its procedures when installed:
+This library announces its procedures when installed:
 
 1. The \`postinstall\` script runs \`client-registry announce\`
 2. This writes to \`.client-registry.json\` at your project root

@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, RUNS_REFS_TAG, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, RUNS_REFS_TAG, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import gitModule from "@procedures/git/module";
 import fsModule from "@procedures/fs/module";
 import {
@@ -205,3 +205,12 @@ export const libModule: ProcedureModule = defineModule("@procedures/lib", [
   ], [fsModule, gitModule]);
 
 export default libModule;
+
+/**
+ * This function registers the procedures of @procedures/lib, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerLibProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [libModule]);
+}

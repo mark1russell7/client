@@ -113,7 +113,9 @@ try {
     console.log("Installing the tarballs into an empty project");
     run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", ...tarballs], app);
 
-    // Each package root imports, and the client runs a program
+    // Each package root imports and registers nothing. Each register entry registers. The client
+    // runs a program (ARCHITECTURE-PROPOSALS-2026-10, P9).
+    const registering = packages.filter((p) => p.manifest.exports?.["./register"]).map((p) => p.name);
     writeFileSync(
       join(app, "smoke.mjs"),
       `const names = ${JSON.stringify(packages.map((p) => p.name))};
@@ -125,6 +127,16 @@ for (const name of names) {
   }
 }
 await import("@procedures/client/browser");
+const global = globalThis[Symbol.for("@procedures/client/PROCEDURE_REGISTRY")];
+const afterRoots = global ? global.getAll().length : 0;
+if (afterRoots !== 0) throw new Error("the package roots registered " + afterRoots + " procedures");
+for (const name of ${JSON.stringify(registering)}) {
+  try {
+    await import(name + "/register");
+  } catch (error) {
+    throw new Error("import " + name + "/register: " + error.message);
+  }
+}
 
 const { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures } = await import("@procedures/client");
 for (const procedure of allCoreProcedures) {
@@ -140,7 +152,7 @@ const chain = await client.exec({
 if (chain.final !== 20) throw new Error("client.chain gave " + JSON.stringify(chain));
 const exists = await client.exec({ $proc: ["fs", "exists"], input: { path: "package.json" } });
 if (exists.exists !== true) throw new Error("fs.exists gave " + JSON.stringify(exists));
-console.log(names.length + " packages import, and the client runs a program");
+console.log(names.length + " packages import and register nothing, " + ${JSON.stringify(registering)}.length + " register entries register, and the client runs a program");
 `,
     );
     process.stdout.write(`  ok   ${run("node", ["smoke.mjs"], app)}`);

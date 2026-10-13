@@ -9,7 +9,7 @@
  * 1. Walk up from this module to the folder that holds pnpm-workspace.yaml
  * 2. For each packages/* folder, read its package.json
  * 3. If it has client.procedures, dynamically import it
- * 4. Procedures auto-register via PROCEDURE_REGISTRY
+ * 4. The register.js entry of each package registers its procedures in PROCEDURE_REGISTRY
  */
 
 import * as fs from "node:fs";
@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   PROCEDURE_REGISTRY,
   allCoreProcedures,
+  clientModule,
   createRegistry,
   defineModule,
   pathToKey,
@@ -125,14 +126,15 @@ export function discoverFromEcosystem(root: string | null = findWorkspaceRoot())
 }
 
 /**
- * This function registers the core procedures of `@procedures/client` that its import does not
- * register: the math, string, array, object, comparison, type and meta procedures (`client.add`
- * and the others). The import registers only the control-flow procedures. (Docs review DOC-6:
- * before, `mark client add` was an unknown command.) A procedure that is registered already stays.
+ * This function registers all core procedures of `@procedures/client` in the global registry: the
+ * control flow and `procedure.*` of `clientModule`, and the math, string, array, object, comparison
+ * and type procedures (`client.add` and the others). An import registers none of them
+ * (ARCHITECTURE-PROPOSALS-2026-10, P9). (Docs review DOC-6: before, `mark client add` was an
+ * unknown command.) A procedure that is registered already stays.
  */
 export function registerCoreProcedures(): number {
   let added = 0;
-  for (const procedure of allCoreProcedures) {
+  for (const procedure of [...clientModule.procedures, ...allCoreProcedures]) {
     if (!PROCEDURE_REGISTRY.has(procedure.path)) {
       PROCEDURE_REGISTRY.register(procedure);
       added++;

@@ -15,6 +15,7 @@ import {
   Client,
   LocalTransport,
   PROCEDURE_REGISTRY,
+  registerClientProcedures,
   ProcedureRegistry,
   allCoreProcedures,
   metaProcedures,
@@ -62,7 +63,9 @@ export interface RunResult {
   stopped?: boolean;
 }
 
-// Meta procedures (client.eval, client.lookup) find procedures in the global registry
+// Meta procedures (client.eval, client.lookup) find procedures in the global registry. An import
+// registers nothing (ARCHITECTURE-PROPOSALS-2026-10, P9): the control flow comes from this call.
+registerClientProcedures();
 for (const procedure of allCoreProcedures) {
   if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);
 }

@@ -53,7 +53,6 @@
     "CHANGELOG.md"
   ],
   "sideEffects": [
-    "./dist/index.js",
     "./dist/register.js"
   ],
   "engines": {

@@ -14,4 +14,4 @@
  */
 
 export * from "./procedures/fs.js";
-export * from "./register.js";
+export * from "./module.js";

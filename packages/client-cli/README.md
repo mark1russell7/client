@@ -14,7 +14,7 @@ npm install @procedures/cli-run
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/cli-run"; // registers cli.run and shell.*
+import "@procedures/cli-run/register"; // registers cli.run and shell.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

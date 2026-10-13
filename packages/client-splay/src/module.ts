@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, outputSchema, defineModule, type AnyProcedure, type ProcedureModule } from "@procedures/client";
+import { createProcedure, outputSchema, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 
 // =============================================================================
 // Types
@@ -79,3 +79,15 @@ export const splayModule: ProcedureModule = defineModule("@procedures/splay", [
 ]);
 
 export default splayModule;
+
+/**
+ * This function registers the procedures of @procedures/splay, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerSplayProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [splayModule], { override: true });
+}
+
+/** @deprecated Use `registerSplayProcedures`. The old name stays for one version. */
+export const registerBridge: (registry?: ProcedureRegistry) => void = registerSplayProcedures;

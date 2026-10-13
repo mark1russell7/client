@@ -2,9 +2,11 @@
  * lib.new procedure
  *
  * Creates a new client package in the workspace, at packages/<name>, with the
- * structure the other client packages have: cue-config files, src/index.ts (which
- * imports src/register.ts), src/register.ts, src/types.ts, the "./register" export and the
- * "client.procedures" field. `mark procedure new` then adds procedures that compile.
+ * structure the other client packages have: cue-config files, src/module.ts (the procedures as
+ * data), src/register.ts (the only file with a side effect), src/index.ts, src/types.ts, the
+ * "./module" and "./register" exports and the "client.procedures" field. Importing the package
+ * root registers nothing (ARCHITECTURE-PROPOSALS-2026-10, P9). `mark procedure new` then adds
+ * procedures to the module, and they compile.
  * Uses fs.* and shell.* procedures via ctx.client.call() for all operations.
  *
  * After it, run `pnpm install` and `pnpm build` in the workspace root.
@@ -22,9 +24,9 @@ interface ShellRunOutput {
   success: boolean;
 }
 
-// Importing the package registers its procedures, as in the other client packages
-const INDEX_TS = `// Entry point: importing the package registers its procedures
-export * from "./register.js";
+// The root registers nothing: `import "<package>/register"` or `createRegistry()` registers the procedures
+const INDEX_TS = `// The root registers nothing: import "<package>/register", or give the module to createRegistry()
+export * from "./module.js";
 export * from "./types.js";
 `;
 
@@ -39,22 +41,52 @@ const TYPES_TS = `/**
 export {};
 `;
 
-function registerTs(name: string): string {
+/** The names of a package folder in code: "my-package" gives "myPackage" and "MyPackage". */
+function codeNames(name: string): { camel: string; pascal: string } {
+  const pascal = name
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join("");
+  return { camel: pascal[0]!.toLowerCase() + pascal.slice(1), pascal };
+}
+
+function moduleTs(name: string, packageName: string): string {
+  const { camel, pascal } = codeNames(name);
   return `/**
- * Procedure registration for ${name}
+ * The procedures of ${packageName} as data. Importing this file registers nothing.
  *
- * Add each procedure of this package to the registerProcedures() array.
  * Scaffold a procedure with: mark procedure new <name> --path packages/${name}
  */
 
-import { registerProcedures } from "@procedures/client";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
 
-export function register(): void {
-  registerProcedures([]);
+export const ${camel}Module: ProcedureModule = defineModule("${packageName}", []);
+
+export default ${camel}Module;
+
+/**
+ * This function registers the procedures of ${packageName} in a registry. The default is the
+ * global registry.
+ */
+export function register${pascal}Procedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [${camel}Module]);
+}
+`;
 }
 
-// Auto-register
-register();
+function registerTs(name: string, packageName: string): string {
+  const { pascal } = codeNames(name);
+  return `/**
+ * Importing this file registers the procedures of ${packageName} in the global registry:
+ * \`import "${packageName}/register"\`. The package root registers nothing.
+ */
+
+import { register${pascal}Procedures } from "./module.js";
+
+export * from "./module.js";
+
+register${pascal}Procedures();
 `;
 }
 
@@ -121,6 +153,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
 
   const files = [
     join(packagePath, "src", "index.ts"),
+    join(packagePath, "src", "module.ts"),
     join(packagePath, "src", "register.ts"),
     join(packagePath, "src", "types.ts"),
     join(packagePath, "dependencies.json"),
@@ -136,7 +169,7 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
       packagePath,
       created: [`${packagePath}/`, `${join(packagePath, "src")}/`, ...files],
       operations: [
-        "Would create packages/" + input.name + " with src/index.ts, src/register.ts and src/types.ts",
+        "Would create packages/" + input.name + " with src/index.ts, src/module.ts, src/register.ts and src/types.ts",
         `Would run cue-config init --preset ${input.preset}`,
         "Would run cue-config generate",
         `Would set the package name to ${packageName}, the exports, client.procedures and the client dependency`,
@@ -157,7 +190,8 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
 
     for (const [file, content] of [
       [join(packagePath, "src", "index.ts"), INDEX_TS],
-      [join(packagePath, "src", "register.ts"), registerTs(input.name)],
+      [join(packagePath, "src", "module.ts"), moduleTs(input.name, packageName)],
+      [join(packagePath, "src", "register.ts"), registerTs(input.name, packageName)],
       [join(packagePath, "src", "types.ts"), TYPES_TS],
     ] as const) {
       await ctx.client.call<{ path: string; content: string }, { path: string; bytesWritten: number }>(
@@ -188,8 +222,11 @@ export async function libNew(input: LibNewInput, ctx: ProcedureContext): Promise
     pkgJson["name"] = packageName;
     pkgJson["exports"] = {
       ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+      "./module": { types: "./dist/module.d.ts", import: "./dist/module.js" },
       "./register": { types: "./dist/register.d.ts", import: "./dist/register.js" },
     };
+    // Only the register entry has a side effect, so a bundler can drop the rest
+    pkgJson["sideEffects"] = ["./dist/register.js"];
     pkgJson["client"] = { procedures: "./dist/register.js" };
     pkgJson["dependencies"] = {
       ...((pkgJson["dependencies"] as Record<string, string> | undefined) ?? {}),

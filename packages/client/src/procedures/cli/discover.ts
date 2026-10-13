@@ -61,9 +61,9 @@ function exportTargets(value: unknown): string[] {
 /**
  * The specifier that imports the procedures file of a package. With an `exports` map, a bare
  * `pkg/dist/register.js` import fails unless the map exports that path: the function looks for
- * the subpath (also a `./*` pattern) whose target is the file. When the map has none, it
- * imports the package root, which registers the procedures of the packages of this repository.
- * (Before, the generated import ignored the map, and failed: deep dive CORE-17.)
+ * the subpath (also a `./*` pattern) whose target is the file: for the packages of this
+ * repository, `./register`. When the map has none, it imports the package root. (Before, the
+ * generated import ignored the map, and failed: deep dive CORE-17.)
  *
  * @param name - Package name
  * @param manifest - The package.json of the package

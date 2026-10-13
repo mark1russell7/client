@@ -168,7 +168,7 @@ graph TB
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/shell"; // registers its procedures // Auto-registers procedures
+import "@procedures/shell/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

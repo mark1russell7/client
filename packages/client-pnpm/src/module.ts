@@ -7,7 +7,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import {
@@ -140,3 +140,12 @@ export const pnpmModule: ProcedureModule = defineModule("@procedures/pnpm", [
   ], [shellModule]);
 
 export default pnpmModule;
+
+/**
+ * This function registers the procedures of @procedures/pnpm, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerPnpmProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [pnpmModule]);
+}

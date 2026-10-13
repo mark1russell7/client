@@ -1,23 +1,11 @@
 /**
- * Bundle Registration for dev workflow
- *
- * Imports client packages which triggers auto-registration of their procedures.
- * This file has side effects - importing it registers all procedures. The modules of the same
- * packages, with no side effects, are in `module.ts`.
+ * Importing this file registers the procedures of @procedures/bundle-dev, and of the modules that it
+ * requires, in the global registry: `import "@procedures/bundle-dev/register"`. The package root and the
+ * `./module` entry register nothing (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
 
-// Core infrastructure
-import "@procedures/shell";
-import "@procedures/fs";
-
-// CLI wrappers
-import "@procedures/cli-run";
-import "@procedures/pnpm";
-
-// Dev workflow
-import "@procedures/lib";
-import "@procedures/git";
-import "@procedures/dag";
-import "@procedures/procedure";
+import { registerBundleDevProcedures } from "./module.js";
 
 export * from "./module.js";
+
+registerBundleDevProcedures();

@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import fsModule from "@procedures/fs/module";
 import { cueInit } from "./procedures/cue/init.js";
 import { cueAdd } from "./procedures/cue/add.js";
@@ -138,3 +138,12 @@ export const cueModule: ProcedureModule = defineModule("@procedures/cue", [
   ], [fsModule]);
 
 export default cueModule;
+
+/**
+ * This function registers the procedures of @procedures/cue, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerCueProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [cueModule]);
+}

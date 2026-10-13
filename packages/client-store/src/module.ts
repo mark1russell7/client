@@ -6,7 +6,7 @@
  * before they moved here (roadmap 3.2).
  */
 
-import { defineModule, type ProcedureModule } from "@procedures/client";
+import { defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { procedureStorageProcedures } from "./procedures.js";
 
 /**
@@ -16,3 +16,15 @@ import { procedureStorageProcedures } from "./procedures.js";
 export const storeModule: ProcedureModule = defineModule("@procedures/store", procedureStorageProcedures);
 
 export default storeModule;
+
+/**
+ * This function registers the procedures of @procedures/store, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerStoreProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [storeModule], { override: true });
+}
+
+/** @deprecated Use `registerStoreProcedures`. The old name stays for one version. */
+export const register: (registry?: ProcedureRegistry) => void = registerStoreProcedures;

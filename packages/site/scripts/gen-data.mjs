@@ -139,6 +139,8 @@ if (unbuilt.length > 0) {
 
 const client = await import(pathToFileURL(clientDist).href);
 const registry = client.PROCEDURE_REGISTRY;
+// An import registers nothing: the register entry of the client package adds its procedures
+await import(pathToFileURL(join(PACKAGES, "client", "dist", "register.js")).href);
 
 const owner = new Map();
 for (const proc of registry.getAll()) owner.set(proc.path.join("."), "client");

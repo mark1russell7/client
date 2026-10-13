@@ -273,7 +273,7 @@ Promise resolves with { processId, pid }
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/node"; // registers its procedures
+import "@procedures/node/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -316,12 +316,12 @@ try {
 }
 ```
 
-## Auto-Registration
+## Registration
 
-Import the register module to auto-register all procedures:
+Import the register entry to register all procedures:
 
 ```typescript
-import "@procedures/node"; // registers its procedures
+import "@procedures/node/register"; // registers its procedures
 ```
 
 Or register manually:

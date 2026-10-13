@@ -8,7 +8,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import {
   dockerRun,
@@ -235,3 +235,12 @@ export const dockerModule: ProcedureModule = defineModule("@procedures/docker", 
   ], [shellModule]);
 
 export default dockerModule;
+
+/**
+ * This function registers the procedures of @procedures/docker, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerDockerProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [dockerModule]);
+}

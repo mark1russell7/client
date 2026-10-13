@@ -13,6 +13,20 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### An import registers nothing (owner decision 2026-10-13, P9 option C)
+
+The owner chose option C of [P9](./ARCHITECTURE-PROPOSALS-2026-10.md#p9-registration-without-side-effects-p2-option-3). It replaces the rule "Every package root registers its procedures" below. The packages go to 0.2.0 (a changeset records it).
+
+- Each `register<Name>Procedures(registry = PROCEDURE_REGISTRY)` is in `src/module.ts` and registers the module with `registerModules()`, so the modules that the package requires come with it. `src/register.ts`, the `./register` entry, starts it. The root exports the module.
+- The core moved its auto-registration into `@procedures/client/register` (`registerClientProcedures()`).
+- **Judgment call: the global registry starts empty.** I did not seed it with `clientModule` at its first use. A seed needs `registry.ts` to import `module.ts`, which imports the core procedures, which import the registry. In some import orders, that cycle reads a binding before it exists. So a host that uses the global registry imports `@procedures/client/register`, as the root README now shows. Reverse: a seed through a hook that `module.ts` sets.
+- **The bundles require `clientModule`.** The MCP surface has the `client` namespace, so `@procedures/bundle-mcp/register` must give it. `createRegistry()` added it before. Now the global registry of a bundle gets it too.
+- **`procedure new` checks `ctx.registry`** for a collision before it checks the global registry, so a host with its own registry gets the right answer.
+- `mark` registers `clientModule` and `allCoreProcedures` in `registerCoreProcedures()`. The site runtime, the dev-tools host (its global path) and the catalog generator import or start the client registration.
+- `scripts/check-side-effects.mjs` (a CI step) imports each entry of each public package in a new process and fails when the global registry gets a procedure. On the 0.1.0 build it found 50 problems. On this change it finds none.
+
+Reverse: `git revert` of the merge. The 0.2.0 versions stay on npm.
+
 ### The deep dive, wave 2: changes of behavior and judgment calls
 
 Wave 2 (2026-10-11) merged the toolchain, the call policy, the documents, the site pages and the open items. The changes that a user can see:

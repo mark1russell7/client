@@ -153,7 +153,7 @@ import { ProcedureServer, PROCEDURE_REGISTRY } from "@procedures/client";
 import { McpServerTransport } from "@procedures/mcp-server";
 
 // Load procedures (via side-effect imports)
-import "@procedures/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev/register"; // registers its procedures
 
 // Create procedure server
 const server = new ProcedureServer({
