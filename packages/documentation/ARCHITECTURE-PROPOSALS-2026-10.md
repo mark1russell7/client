@@ -162,6 +162,43 @@ Proposal:
 
 Effort: L. Status: waiting. The site and streaming are first.
 
+## P9. Registration without side effects (P2 option 3)
+
+> **Decided on 2026-10-13** (owner: option C below). It reverses the 2026-10-08 rule "Every package root registers its procedures" (DECISIONS-2026-10). The change is breaking, so the packages go to 0.2.0.
+
+**Problem.** Importing a package root registers its procedures in the global registry. A measurement on 2026-10-13:
+
+| Import | Procedures in the global registry |
+|---|---|
+| `@procedures/client` | 19 (the `client.*` procedures) |
+| + `@procedures/git/module` | 19 |
+| + `@procedures/git` | 45 |
+
+Each `./module` entry imports the `@procedures/client` root. So no import is free of side effects, and a host with its own registry also gets a filled global registry. The package roots declare `sideEffects`, so a bundler keeps all of their code.
+
+**Options.**
+
+- A. Keep the rule. A host with its own registry imports only `./module` entries.
+- B. Make only the `@procedures/client` root free of side effects.
+- C. Make each root free of side effects. Registration needs `import "@procedures/<name>/register"` or `createRegistry(...modules)`. The global registry stays, as an opt-in.
+- D. Remove the global registry.
+
+**Decision: C.**
+
+- Each root has `"sideEffects": false`, except the `./register` entry.
+- A test imports each root and each `./module` entry in a new process, and the global registry stays empty.
+- The bundles, `mark`, the site, the templates of `lib new` and the documentation change with it.
+
+The private application of [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md) needs C, because its law forbids a global registry that imports fill.
+
+## P10. Invocation capabilities
+
+> **Proposal** (2026-10-13). The owner approved the direction: the mechanism goes into `@procedures/client`. The design is in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md).
+
+Each invocation runs with a capability: reach, effects, clearance and deadline. A nested call gets the same capability or a narrower one. Procedures declare their effects, and the host calculates the capability from its authentication. The MCP tool hints, a read-only MCP session and a data gate for a private application come from the same mechanism.
+
+Effort: M per phase, four phases. Status: waiting for the owner's answers to the four questions of the document.
+
 ## Suggested order
 
 1. P2's allowlist and MCP snapshot test (S). It protects the tool surface before anything else changes.
