@@ -109,13 +109,16 @@ function onNpm(name) {
  * trust that the same workflow can match (HTTP 409). `npm trust list` needs no 2FA.
  */
 function trustsWorkflow(name) {
-  let text;
-  try {
-    text = run("npm", ["trust", "list", name, "--json"], root, true).trim();
-  } catch {
-    return false;
+  // Two tries: on 2026-10-13 one request failed once, and the script asked for a trust that existed
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const text = run("npm", ["trust", "list", name, "--json"], root, true);
+      return text.includes(`"repository": "${REPO}"`) && text.includes(`"file": "${WORKFLOW}"`);
+    } catch {
+      // npm failed (also 404 for a package that npm does not have): try again
+    }
   }
-  return text.includes(`"repository": "${REPO}"`) && text.includes(`"file": "${WORKFLOW}"`);
+  return false;
 }
 
 /** The version of a package on npm, or undefined when npm does not have it. */
@@ -221,8 +224,13 @@ if (trust) {
     console.log(`npm ${args.join(" ")}`);
     if (dryRun) continue;
     if (interactive(args) !== 0) {
-      failures.push(pkg.name);
-      console.error(`  failed: ${pkg.name}`);
+      // npm refuses a second trust with HTTP 409: then the package trusts the workflow, which is correct
+      if (trustsWorkflow(pkg.name)) {
+        console.log(`  ${pkg.name} trusts ${WORKFLOW} (npm refused a second trust).`);
+      } else {
+        failures.push(pkg.name);
+        console.error(`  failed: ${pkg.name}`);
+      }
     }
   }
   if (failures.length > 0) {
@@ -316,7 +324,26 @@ try {
 const verb = publishDirect ? (dryRun ? "would be published" : "published") : dryRun ? "would be staged" : "staged";
 console.log(`\n${staged.length} ${verb}, ${skipped.length} on npm already, ${waiting.length} wait for --approve, ${failed.length} failed.`);
 if (limited > 0) {
-  console.log(`npm refused ${limited} with HTTP 429, the limit of new packages of the account. Start the command again in 24 hours.`);
+  // npm frees the limit 24 hours after the new packages (on 2026-10-13: about 25 in 24 hours)
+  const day = 24 * 60 * 60 * 1000;
+  const created = await Promise.all(
+    publicPackages().map(async (pkg) => {
+      try {
+        const response = await fetch(`https://registry.npmjs.org/${pkg.name.replace("/", "%2f")}`);
+        return response.ok ? Date.parse((await response.json()).time?.created) : NaN;
+      } catch {
+        return NaN;
+      }
+    }),
+  );
+  const recent = created.filter((t) => t > Date.now() - day).sort((a, b) => a - b);
+  console.log(`npm refused ${limited} with HTTP 429, the limit of new packages of the account.`);
+  if (recent.length > 0) {
+    const after = new Date(recent[0] + day);
+    console.log(`${recent.length} packages of this repository are newer than 24 hours. Start the command again after ${after.toLocaleString()} (${after.toISOString().slice(11, 16)} UTC).`);
+  } else {
+    console.log("Start the command again in some hours.");
+  }
 }
 if (!dryRun && staged.length > 0 && publishDirect) {
   console.log("\nNext: node scripts/npm-bootstrap.mjs --trust");
