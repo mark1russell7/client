@@ -78,7 +78,7 @@ You can also approve each staged version on npmjs.com.
 node scripts/npm-bootstrap.mjs --trust
 ```
 
-The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --env npm --allow-publish` for each package, in the terminal, so npm can open the browser for the 2FA. If a command fails, start the script again with `--only <package,package>`.
+The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --env npm --allow-publish` for each package, in the terminal, so npm can open the browser for the 2FA. It skips a package that trusts the workflow already, and a package that is not on npm. You can start it again at any time.
 
 ### 5. Set the repository and the packages
 

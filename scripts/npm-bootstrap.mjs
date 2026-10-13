@@ -104,6 +104,20 @@ function onNpm(name) {
   }
 }
 
+/**
+ * This function tells if a package trusts the release workflow already. npm refuses a second
+ * trust that the same workflow can match (HTTP 409). `npm trust list` needs no 2FA.
+ */
+function trustsWorkflow(name) {
+  let text;
+  try {
+    text = run("npm", ["trust", "list", name, "--json"], root, true).trim();
+  } catch {
+    return false;
+  }
+  return text.includes(`"repository": "${REPO}"`) && text.includes(`"file": "${WORKFLOW}"`);
+}
+
 /** The version of a package on npm, or undefined when npm does not have it. */
 function publishedVersion(name, version) {
   try {
@@ -196,6 +210,10 @@ if (trust) {
     if (!dryRun && !onNpm(pkg.name)) {
       absent.push(pkg.name);
       console.log(`wait  ${pkg.name}: not on npm yet`);
+      continue;
+    }
+    if (trustsWorkflow(pkg.name)) {
+      console.log(`skip  ${pkg.name}: trusts ${WORKFLOW} already`);
       continue;
     }
     const args = ["trust", "github", pkg.name, "--file", WORKFLOW, "--repo", REPO, "--env", ENVIRONMENT, "--allow-publish", "--yes"];
