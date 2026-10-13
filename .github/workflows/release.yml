@@ -9,7 +9,7 @@ name: Release
 #
 # The owner starts it by hand. The job runs in the GitHub environment "npm", so the owner approves
 # each run. npm trusts this workflow for each package (trusted publishing with OIDC, no token):
-#   node scripts/npm-bootstrap.mjs --trust --otp <code>
+#   node scripts/npm-bootstrap.mjs --trust
 # packages/documentation/RELEASE.md tells the one-time bootstrap and the release steps.
 on:
   workflow_dispatch:

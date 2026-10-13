@@ -8,7 +8,7 @@
 
 import { print } from "./print.js";
 import type { Method, AnyProcedure } from "@procedures/client";
-import { realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fieldsOf, generateHelp, resultFieldsOf, type CLIMeta, type CommandLike } from "./parse.js";
@@ -22,7 +22,8 @@ import { startRepl } from "./repl.js";
 import { findChildren, findProcedure, parseCommandLine, parseLeadingGlobals } from "./args.js";
 import { failureOf } from "./failure.js";
 
-const VERSION = "1.0.0";
+/** The version of this package. This file is `dist/cli.js` (or `src/cli.ts` in the tests): the package.json is one folder up. */
+const VERSION = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 
 /**
  * Convert procedure path to transport method. The core mapping is the one of every host: the

@@ -10,6 +10,7 @@
  * - init: Initialize a new library with procedure support
  */
 
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { discover } from "./discover.js";
 import { init } from "./init.js";
@@ -151,13 +152,14 @@ How it works:
 
   4. App runs "client-registry discover" to generate imports from the registry
 
-For more information, visit: https://github.com/your-org/client
+For more information, visit: https://mark1russell7.github.io/client/
 `);
 }
 
 function printVersion(): void {
-  // Read version from package.json at runtime
-  console.log("client v1.0.0");
+  // This file is dist/procedures/cli/index.js: the package.json is three folders up
+  const manifest = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as { version: string };
+  console.log(`client-registry v${manifest.version}`);
 }
 
 // =============================================================================

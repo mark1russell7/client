@@ -190,7 +190,14 @@ if (approve) {
 // --trust: connect each package to the release workflow
 if (trust) {
   const failures = [];
+  const absent = [];
   for (const pkg of packages) {
+    // npm can trust only a package that it has (HTTP 404 for the others)
+    if (!dryRun && !onNpm(pkg.name)) {
+      absent.push(pkg.name);
+      console.log(`wait  ${pkg.name}: not on npm yet`);
+      continue;
+    }
     const args = ["trust", "github", pkg.name, "--file", WORKFLOW, "--repo", REPO, "--env", ENVIRONMENT, "--allow-publish", "--yes"];
     if (otp) args.push("--otp", otp);
     console.log(`npm ${args.join(" ")}`);
@@ -202,11 +209,13 @@ if (trust) {
   }
   if (failures.length > 0) {
     console.error(`\n${failures.length} packages have no trusted publisher yet: ${failures.join(", ")}`);
-    console.error("A 2FA code is valid for a short time: start the command again with a new code and --only.");
+    console.error(`Start the command again with --only ${failures.join(",")}`);
     process.exit(1);
   }
   if (dryRun) {
     console.log(`\nThe dry run printed the ${packages.length} commands, and started none.`);
+  } else if (absent.length > 0) {
+    console.log(`\n${absent.length} packages are not on npm yet. After their publish, start: node scripts/npm-bootstrap.mjs --trust --only ${absent.join(",")}`);
   } else {
     console.log("\nEach package trusts the release workflow. Set 'Require two-factor authentication and disallow tokens' on npmjs.com after the first release from the workflow.");
   }
