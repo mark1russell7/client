@@ -78,6 +78,32 @@ function rateLimited(logsDir) {
   }
 }
 
+/**
+ * This function gives the staged versions ("name@version") of the account, which wait for an
+ * approval. npm refuses to stage such a version again (HTTP 409).
+ */
+function stagedVersions() {
+  try {
+    const list = JSON.parse(run("npm", ["stage", "list", "--json"], root, true));
+    return new Set(list.filter((s) => s.status === "staged").map((s) => `${s.packageName}@${s.version}`));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * This function tells if a package has a real version on npm. A staged publish of a new package
+ * makes the package with the placeholder version `0.0.0-stage` until the approval.
+ */
+function onNpm(name) {
+  try {
+    const latest = run("npm", ["view", name, "dist-tags.latest"], root, true).trim();
+    return latest !== "" && latest !== "0.0.0-stage";
+  } catch {
+    return false;
+  }
+}
+
 /** The version of a package on npm, or undefined when npm does not have it. */
 function publishedVersion(name, version) {
   try {
@@ -100,6 +126,7 @@ if (!dryRun) {
 if (deprecateOld) {
   const pairs = Object.entries(OLD_TO_NEW).filter(([, to]) => !only || only.includes(`${NEW_SCOPE}${to}`));
   const failures = [];
+  const waiting = [];
   let count = 0;
   for (const [from, to] of pairs) {
     const oldName = `${OLD_SCOPE}${from}`;
@@ -110,6 +137,12 @@ if (deprecateOld) {
       continue; // not on npm: the private packages, and names that were never published
     }
     if (!versions) continue;
+    // The message must not name a package that npm does not have yet
+    if (!onNpm(`${NEW_SCOPE}${to}`)) {
+      waiting.push(oldName);
+      console.log(`wait  ${oldName}: ${NEW_SCOPE}${to} is not on npm yet`);
+      continue;
+    }
     const message = `Moved to ${NEW_SCOPE}${to}: npm install ${NEW_SCOPE}${to}`;
     console.log(`npm deprecate "${oldName}@*" "${message}"`);
     count++;
@@ -121,6 +154,9 @@ if (deprecateOld) {
     process.exit(1);
   }
   console.log(dryRun ? `\nThe dry run printed ${count} deprecations.` : `\n${count} old packages point to their new names.`);
+  if (waiting.length > 0) {
+    console.log(`${waiting.length} old packages wait for their new package. Start the command again after its publish.`);
+  }
   process.exit(0);
 }
 
@@ -189,13 +225,21 @@ if (blocked.length > 0) {
 const work = mkdtempSync(join(tmpdir(), "client-bootstrap-"));
 const staged = [];
 const skipped = [];
+const waiting = [];
 const failed = [];
+let limited = 0;
+const alreadyStaged = dryRun ? new Set() : stagedVersions();
 try {
   for (const pkg of packages) {
     const existing = publishedVersion(pkg.name, pkg.version);
     if (existing) {
       skipped.push(`${pkg.name}@${existing}`);
       console.log(`skip  ${pkg.name}@${pkg.version}: on npm`);
+      continue;
+    }
+    if (alreadyStaged.has(`${pkg.name}@${pkg.version}`)) {
+      waiting.push(`${pkg.name}@${pkg.version}`);
+      console.log(`skip  ${pkg.name}@${pkg.version}: staged, waits for --approve`);
       continue;
     }
     // pnpm packs the package: it writes the versions of the workspace:* dependencies
@@ -233,7 +277,9 @@ try {
       console.log(`${dryRun ? "would stage" : "staged"} ${pkg.name}@${pkg.version}`);
     } catch (error) {
       failed.push(pkg.name);
-      console.error(`FAIL  ${pkg.name}: ${String(error.stderr ?? error.message).trim().split("\n").slice(-3).join(" ")}`);
+      const text = String(error.stderr ?? error.message);
+      if (/E429/.test(text)) limited++;
+      console.error(`FAIL  ${pkg.name}: ${text.trim().split("\n").slice(-3).join(" ")}`);
     }
   }
 } finally {
@@ -241,10 +287,13 @@ try {
 }
 
 const verb = publishDirect ? (dryRun ? "would be published" : "published") : dryRun ? "would be staged" : "staged";
-console.log(`\n${staged.length} ${verb}, ${skipped.length} on npm already, ${failed.length} failed.`);
+console.log(`\n${staged.length} ${verb}, ${skipped.length} on npm already, ${waiting.length} wait for --approve, ${failed.length} failed.`);
+if (limited > 0) {
+  console.log(`npm refused ${limited} with HTTP 429, the limit of new packages of the account. Start the command again in 24 hours.`);
+}
 if (!dryRun && staged.length > 0 && publishDirect) {
   console.log("\nNext: node scripts/npm-bootstrap.mjs --trust");
-} else if (!dryRun && staged.length > 0) {
+} else if (!dryRun && staged.length + waiting.length > 0) {
   console.log("\nNext:");
   console.log("  1. node scripts/npm-bootstrap.mjs --approve   (in a terminal: npm opens the browser for the 2FA)");
   console.log("  2. node scripts/npm-bootstrap.mjs --trust");

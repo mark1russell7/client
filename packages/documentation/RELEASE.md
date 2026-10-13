@@ -52,7 +52,7 @@ node scripts/npm-bootstrap.mjs --dry-run
 node scripts/npm-bootstrap.mjs
 ```
 
-The script packs each public package with pnpm and stages it with `npm stage publish`. It skips a version that is on npm. It refuses a package with a git dependency.
+The script packs each public package with pnpm and stages it with `npm stage publish`. It skips a version that is on npm or staged. It refuses a package with a git dependency.
 
 To publish without the approval step, publish directly. Start this command in a terminal. npm opens the browser for the 2FA. The command stops at the first failure. Start it again: it skips the versions on npm. Step 3 is then not necessary:
 
@@ -95,7 +95,7 @@ node scripts/npm-bootstrap.mjs --deprecate-old --dry-run
 node scripts/npm-bootstrap.mjs --deprecate-old
 ```
 
-A user who installs an old package sees "Moved to `@procedures/<name>`". The old versions stay on npm, so nothing breaks.
+A user who installs an old package sees "Moved to `@procedures/<name>`". The old versions stay on npm, so nothing breaks. The command does not deprecate an old package before its new package is on npm. Start it again after the last publish.
 
 ## A release
 
