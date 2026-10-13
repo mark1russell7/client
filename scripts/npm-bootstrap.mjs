@@ -24,12 +24,14 @@
 //
 // npm limits the new packages of one account. On 2026-10-12 it refused each new package with
 // HTTP 429 ("rate limited exceeded") after 25 new packages, for the staged and the direct publish.
+// The direct publish shows this 429 as EOTP: npm sends the request again with the used 2FA. So
+// the script reads the npm log of a failed publish, and tells when the cause is the 429.
 //
 // Options: --dry-run, --publish, --approve, --trust, --deprecate-old, --otp <code>,
 //          --only <name,name> (a part of the packages).
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gitDependencies, publicPackages, root, run } from "./lib/workspace.mjs";
@@ -65,6 +67,15 @@ if (packages.length === 0) {
  */
 function interactive(args) {
   return spawnSync("npm", args, { cwd: root, stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
+}
+
+/** This function tells if the npm logs in a folder show HTTP 429, the limit of new packages. */
+function rateLimited(logsDir) {
+  try {
+    return readdirSync(logsDir).some((f) => /failed with 429|code E429/.test(readFileSync(join(logsDir, f), "utf8")));
+  } catch {
+    return false;
+  }
 }
 
 /** The version of a package on npm, or undefined when npm does not have it. */
@@ -194,7 +205,9 @@ try {
     const tgz = join(out, readdirSync(out).find((f) => f.endsWith(".tgz")));
     if (publishDirect) {
       // In the terminal, so that npm can open the browser for the 2FA
-      const publishArgs = ["publish", tgz, "--access", "public", "--provenance=false", ...(otp ? ["--otp", otp] : [])];
+      const logs = join(out, "logs");
+      mkdirSync(logs);
+      const publishArgs = ["publish", tgz, "--access", "public", "--provenance=false", "--logs-dir", logs, ...(otp ? ["--otp", otp] : [])];
       if (dryRun) publishArgs.push("--dry-run");
       console.log(`npm publish ${pkg.name}@${pkg.version}`);
       if (interactive(publishArgs) === 0) {
@@ -202,7 +215,12 @@ try {
         console.log(`${dryRun ? "would publish" : "published"} ${pkg.name}@${pkg.version}`);
       } else {
         failed.push(pkg.name);
-        console.error(`FAIL  ${pkg.name}: the next packages are not tried. Start the command again.`);
+        if (rateLimited(logs)) {
+          console.error(`\nFAIL  ${pkg.name}: npm refused it with HTTP 429, the limit of new packages of the account.`);
+          console.error("      The 2FA was correct: npm shows the 429 as EOTP. Try again when the limit resets.");
+        } else {
+          console.error(`FAIL  ${pkg.name}: the next packages are not tried. Start the command again.`);
+        }
         break;
       }
       continue;
