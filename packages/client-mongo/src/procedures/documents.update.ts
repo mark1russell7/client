@@ -3,7 +3,7 @@
  * Update documents matching a filter
  */
 
-import { createProcedure, type Procedure, type ProcedureContext, zodAdapter } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext, zodAdapter } from "@procedures/client";
 import { collectionFor } from "../scope.js";
 import { described, documentObject, scopeFields, targetFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -66,12 +66,15 @@ const updateOutputSchema = zodAdapter<UpdateOutput>(
 export const updateProcedure: Procedure<
   UpdateInput,
   UpdateOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "update"])
   .input(updateInputSchema)
   .output(updateOutputSchema)
-  .meta({ description: "Update documents matching a filter" })
+  .meta({
+    description: "Update documents matching a filter",
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"] },
+  })
   .handler(async (input: UpdateInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
     const upsert = input.upsert ?? false;

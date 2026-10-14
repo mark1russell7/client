@@ -172,7 +172,11 @@ const dbQueryProcedure = createProcedure()
   .path(["db", "query"])
   .input(dbQueryInputSchema)
   .output(dbQueryOutputSchema)
-  .meta({ description: "Execute a SQL SELECT query" })
+  .meta({
+    description: "Execute a SQL SELECT query",
+    // The SQL is not limited to SELECT: the first statement runs, and the file keeps its changes
+    effects: { reads: ["fs"], writes: ["fs"] },
+  })
   .handler(async (input: DbQueryInput): Promise<DbQueryOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
     const params = input.params ?? [];
@@ -195,7 +199,10 @@ const dbExecuteProcedure = createProcedure()
   .path(["db", "execute"])
   .input(dbExecuteInputSchema)
   .output(dbExecuteOutputSchema)
-  .meta({ description: "Execute a SQL statement (INSERT, UPDATE, DELETE)" })
+  .meta({
+    description: "Execute a SQL statement (INSERT, UPDATE, DELETE)",
+    effects: { reads: ["fs"], writes: ["fs"] },
+  })
   .handler(async (input: DbExecuteInput): Promise<DbExecuteOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
     const params = input.params ?? [];
@@ -215,7 +222,11 @@ const logsStoreProcedure = createProcedure()
   .path(["logs", "store"])
   .input(logsStoreInputSchema)
   .output(logsStoreOutputSchema)
-  .meta({ description: "Store a log entry in the database" })
+  .meta({
+    description: "Store a log entry in the database",
+    // It adds a row, and the logs table when it is missing
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false },
+  })
   .handler(async (input: LogsStoreInput): Promise<LogsStoreOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
 
@@ -274,7 +285,11 @@ const logsQueryProcedure = createProcedure()
   .path(["logs", "query"])
   .input(logsQueryInputSchema)
   .output(logsQueryOutputSchema)
-  .meta({ description: "Query log entries from the database" })
+  .meta({
+    description: "Query log entries from the database",
+    // It makes the database file and the logs table when they are missing
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true },
+  })
   .handler(async (input: LogsQueryInput): Promise<LogsQueryOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
 

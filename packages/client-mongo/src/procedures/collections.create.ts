@@ -3,7 +3,7 @@
  * Create a new collection
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -47,12 +47,15 @@ const createOutputSchema = zodAdapter<CreateOutput>(
 export const createCollectionProcedure: Procedure<
   CreateInput,
   CreateOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "collections", "create"])
   .input(createInputSchema)
   .output(createOutputSchema)
-  .meta({ description: "Create a new collection" })
+  .meta({
+    description: "Create a new collection",
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"], destructive: false },
+  })
   .handler(async (input: CreateInput, ctx: ProcedureContext) => {
     const db = await databaseFor(input, ctx);
 

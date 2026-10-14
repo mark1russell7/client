@@ -3,7 +3,7 @@
  * List indexes on a collection
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -39,12 +39,15 @@ const listIndexesOutputSchema = zodAdapter<ListIndexesOutput>(
 export const listIndexesProcedure: Procedure<
   ListIndexesInput,
   ListIndexesOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "indexes", "list"])
   .input(listIndexesInputSchema)
   .output(listIndexesOutputSchema)
-  .meta({ description: "List indexes on a collection" })
+  .meta({
+    description: "List indexes on a collection",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: ListIndexesInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

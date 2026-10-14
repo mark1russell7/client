@@ -3,7 +3,7 @@
  * Drop (delete) a collection
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionName, databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -36,12 +36,16 @@ const dropOutputSchema = zodAdapter<DropOutput>(
 export const dropProcedure: Procedure<
   DropInput,
   DropOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "collections", "drop"])
   .input(dropInputSchema)
   .output(dropOutputSchema)
-  .meta({ description: "Drop (delete) a collection" })
+  .meta({
+    description: "Drop (delete) a collection",
+    // The drop of a missing collection is not an error: it gives dropped: false
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"], idempotent: true },
+  })
   .handler(async (input: DropInput, ctx: ProcedureContext) => {
     const name = collectionName(input, ctx);
 

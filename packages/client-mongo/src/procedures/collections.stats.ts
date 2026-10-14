@@ -3,7 +3,7 @@
  * Get collection statistics
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -31,12 +31,15 @@ const statsOutputSchema = zodAdapter<CollectionStats>(
 export const statsProcedure: Procedure<
   StatsInput,
   CollectionStats,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "collections", "stats"])
   .input(statsInputSchema)
   .output(statsOutputSchema)
-  .meta({ description: "Get collection statistics" })
+  .meta({
+    description: "Get collection statistics",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: StatsInput, ctx: ProcedureContext) => {
     const { db, name } = await collectionFor(input, ctx);
     // Use collStats command since stats() is deprecated

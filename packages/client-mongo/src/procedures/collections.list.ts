@@ -3,7 +3,7 @@
  * List all collections in the database
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -29,12 +29,15 @@ const listOutputSchema = zodAdapter<ListOutput>(
 export const listProcedure: Procedure<
   ListInput,
   ListOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "collections", "list"])
   .input(listInputSchema)
   .output(listOutputSchema)
-  .meta({ description: "List all collections in the database" })
+  .meta({
+    description: "List all collections in the database",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: ListInput, ctx: ProcedureContext) => {
     const db = await databaseFor(input, ctx);
 

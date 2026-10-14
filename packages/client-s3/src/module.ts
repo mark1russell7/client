@@ -68,6 +68,8 @@ const s3UploadProcedure = createProcedure()
   .output(zodAdapter<S3UploadOutput>(S3UploadOutputSchema))
   .meta({
     description: "Upload content to S3 bucket",
+    // A put replaces the object of an existing key
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
     shorts: { bucket: "b", key: "k" },
     output: "json",
   })
@@ -82,6 +84,8 @@ const s3DownloadProcedure = createProcedure()
   .output(zodAdapter<S3DownloadOutput>(S3DownloadOutputSchema))
   .meta({
     description: "Download content from S3 bucket",
+    // With destPath, it replaces the file at that path
+    effects: { reads: ["s3", "network"], writes: ["fs"], idempotent: true },
     shorts: { bucket: "b", key: "k", encoding: "e" },
     output: "json",
   })
@@ -96,6 +100,7 @@ const s3ListProcedure = createProcedure()
   .output(zodAdapter<S3ListOutput>(S3ListOutputSchema))
   .meta({
     description: "List objects in S3 bucket",
+    effects: { reads: ["s3", "network"], writes: [] },
     shorts: { bucket: "b", prefix: "p", maxKeys: "n" },
     output: "json",
   })
@@ -110,6 +115,7 @@ const s3ListAllProcedure = createProcedure()
   .output(zodAdapter<S3ListAllOutput>(S3ListAllOutputSchema))
   .meta({
     description: "List ALL objects in S3 bucket, following continuation tokens (unbounded by 1000)",
+    effects: { reads: ["s3", "network"], writes: [] },
     shorts: { bucket: "b", prefix: "p", maxKeys: "n" },
     output: "json",
   })
@@ -124,6 +130,7 @@ const s3DeleteProcedure = createProcedure()
   .output(zodAdapter<S3DeleteOutput>(S3DeleteOutputSchema))
   .meta({
     description: "Delete object from S3 bucket",
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
     shorts: { bucket: "b", key: "k" },
     output: "json",
   })
@@ -138,6 +145,8 @@ const s3MultipartInitProcedure = createProcedure()
   .output(zodAdapter<S3MultipartInitOutput>(S3MultipartInitOutputSchema))
   .meta({
     description: "Initialize multipart upload for large files",
+    // It starts a new upload: the object of the key does not change before the completion
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"], destructive: false },
     shorts: { bucket: "b", key: "k" },
     output: "json",
   })
@@ -152,6 +161,8 @@ const s3MultipartUploadProcedure = createProcedure()
   .output(zodAdapter<S3MultipartUploadOutput>(S3MultipartUploadOutputSchema))
   .meta({
     description: "Upload a part in multipart upload",
+    // A part replaces the earlier part with the same number
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"], idempotent: true },
     shorts: { bucket: "b", key: "k", partNumber: "n" },
     output: "json",
   })
@@ -166,6 +177,8 @@ const s3MultipartCompleteProcedure = createProcedure()
   .output(zodAdapter<S3MultipartCompleteOutput>(S3MultipartCompleteOutputSchema))
   .meta({
     description: "Complete multipart upload by assembling parts",
+    // The assembled object replaces the object of an existing key
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
     shorts: { bucket: "b", key: "k" },
     output: "json",
   })
@@ -180,6 +193,7 @@ const s3MultipartAbortProcedure = createProcedure()
   .output(zodAdapter<S3MultipartAbortOutput>(S3MultipartAbortOutputSchema))
   .meta({
     description: "Abort multipart upload and clean up parts",
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
     shorts: { bucket: "b", key: "k" },
     output: "json",
   })
