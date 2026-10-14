@@ -4,7 +4,7 @@
  * Procedure Registration for shell operations
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
@@ -28,6 +28,13 @@ import {
   ShellStreamItemSchema,
 } from "./types.js";
 
+/**
+ * The effects of a procedure that runs a program that its caller chooses. The program can read
+ * and change anything, so "process" names both. A caller of these procedures declares what its
+ * program does.
+ */
+const RUNS_PROGRAM: Effects = { reads: ["process"], writes: ["process"] };
+
 // Procedure definitions
 const shellRunProcedure = createProcedure()
   .path(["shell", "run"])
@@ -38,6 +45,7 @@ const shellRunProcedure = createProcedure()
     args: ["command"],
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
+    effects: RUNS_PROGRAM,
   })
   .handler(async (input: ShellRunInput, ctx): Promise<ShellRunOutput> => {
     return shellRun(input, ctx);
@@ -53,6 +61,7 @@ const shellExecProcedure = createProcedure()
     args: ["command"],
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
+    effects: RUNS_PROGRAM,
   })
   .handler(async (input: ShellExecInput, ctx): Promise<ShellExecOutput> => {
     return shellExec(input, ctx);
@@ -68,6 +77,8 @@ const shellWhichProcedure = createProcedure()
     args: ["command"],
     shorts: {},
     output: "json",
+    // A fixed program (`where` or `which`) reads the folders of PATH and changes nothing
+    effects: { reads: ["fs"], writes: [] },
   })
   .handler(async (input: ShellWhichInput, ctx): Promise<ShellWhichOutput> => {
     return shellWhich(input, ctx);
@@ -84,6 +95,7 @@ const shellStreamProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
     streaming: true,
+    effects: RUNS_PROGRAM,
   })
   .handler(shellStream)
   .build();

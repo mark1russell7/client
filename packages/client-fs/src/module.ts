@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
 import { exists } from "./procedures/fs/exists.js";
@@ -70,6 +70,9 @@ import {
 // Procedure Definitions
 // =============================================================================
 
+/** The effects of a procedure that reads the files of the host and changes nothing. */
+const READS_FILES: Effects = { reads: ["fs"], writes: [] };
+
 const fsReadProcedure = createProcedure()
   .path(["fs", "read"])
   .input(zodAdapter<ReadInput>(ReadInputSchema))
@@ -79,6 +82,7 @@ const fsReadProcedure = createProcedure()
     args: ["path"],
     shorts: { encoding: "e" },
     output: "json",
+    effects: READS_FILES,
   })
   .handler(read)
   .build();
@@ -92,6 +96,8 @@ const fsWriteProcedure = createProcedure()
     args: ["path", "content"],
     shorts: { encoding: "e", mode: "m" },
     output: "json",
+    // It replaces the file, or appends to it. A second append adds the content again.
+    effects: { reads: [], writes: ["fs"] },
   })
   .handler(write)
   .build();
@@ -105,6 +111,7 @@ const fsExistsProcedure = createProcedure()
     args: ["path"],
     shorts: {},
     output: "json",
+    effects: READS_FILES,
   })
   .handler(exists)
   .build();
@@ -118,6 +125,8 @@ const fsMkdirProcedure = createProcedure()
     args: ["path"],
     shorts: { recursive: "r" },
     output: "json",
+    // It creates only a missing folder. An existing folder gives `created: false`.
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true },
   })
   .handler(mkdir)
   .build();
@@ -131,6 +140,7 @@ const fsRmProcedure = createProcedure()
     args: ["path"],
     shorts: { recursive: "r", force: "f" },
     output: "json",
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
   })
   .handler(rm)
   .build();
@@ -144,6 +154,7 @@ const fsReaddirProcedure = createProcedure()
     args: ["path"],
     shorts: { recursive: "r", includeStats: "s" },
     output: "json",
+    effects: READS_FILES,
   })
   .handler(readdir)
   .build();
@@ -157,6 +168,7 @@ const fsStatProcedure = createProcedure()
     args: ["path"],
     shorts: {},
     output: "json",
+    effects: READS_FILES,
   })
   .handler(stat)
   .build();
@@ -170,6 +182,8 @@ const fsCopyProcedure = createProcedure()
     args: ["src", "dest"],
     shorts: { recursive: "r", overwrite: "o" },
     output: "json",
+    // With `overwrite`, it replaces the files at the destination
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
   })
   .handler(copy)
   .build();
@@ -183,6 +197,8 @@ const fsMoveProcedure = createProcedure()
     args: ["src", "dest"],
     shorts: { overwrite: "o" },
     output: "json",
+    // With `overwrite`, it replaces the destination. A second call finds no source and changes nothing.
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
   })
   .handler(move)
   .build();
@@ -196,6 +212,7 @@ const fsGlobProcedure = createProcedure()
     args: ["pattern"],
     shorts: { cwd: "c", absolute: "a", dot: "d" },
     output: "json",
+    effects: READS_FILES,
   })
   .handler(glob)
   .build();
@@ -209,6 +226,7 @@ const fsReadJsonProcedure = createProcedure()
     args: ["path"],
     shorts: {},
     output: "json",
+    effects: READS_FILES,
   })
   .handler(readJson)
   .build();

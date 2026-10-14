@@ -26,6 +26,9 @@ const cliRunProcedure = createProcedure()
     args: ["path"],
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
+    // The caller chooses the mark command, and a mark command can start any procedure.
+    // It also finds the mark CLI in the files of the workspace.
+    effects: { reads: ["fs", "process"], writes: ["process"] },
   })
   .handler(async (input: CliRunInput, ctx: ProcedureContext): Promise<CliRunOutput> => {
     return cliRun(input, ctx);

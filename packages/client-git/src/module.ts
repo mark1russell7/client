@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
 import { gitCommit } from "./procedures/git/commit.js";
@@ -126,6 +126,19 @@ import {
 } from "./types.js";
 
 // =============================================================================
+// Effects
+// =============================================================================
+
+// Git is a fixed program, so the declarations name what git reads and changes, not "process".
+// They do not include the hooks of a repository.
+
+/** The effects of a git command that reads the repository and changes nothing. */
+const READS_REPOSITORY: Effects = { reads: ["fs"], writes: [] };
+
+/** The effects of a git command that can replace or remove the data of the repository. */
+const CHANGES_REPOSITORY: Effects = { reads: ["fs"], writes: ["fs"] };
+
+// =============================================================================
 // Procedure Definitions
 // =============================================================================
 
@@ -138,6 +151,7 @@ const gitStatusProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C", short: "s" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitStatusInput, ctx): Promise<GitStatusOutput> => {
     return gitStatus(input, ctx);
@@ -153,6 +167,7 @@ const gitAddProcedure = createProcedure()
     args: ["paths"],
     shorts: { all: "A", cwd: "C" },
     output: "json",
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true },
   })
   .handler(async (input: GitAddInput, ctx): Promise<GitAddOutput> => {
     return gitAdd(input, ctx);
@@ -168,6 +183,8 @@ const gitCommitProcedure = createProcedure()
     args: ["message"],
     shorts: { message: "m", all: "a", amend: "A", cwd: "C" },
     output: "json",
+    // With `amend`, it replaces the last commit, so it is destructive
+    effects: CHANGES_REPOSITORY,
   })
   .handler(async (input: GitCommitInput, ctx): Promise<GitCommitOutput> => {
     return gitCommit(input, ctx);
@@ -183,6 +200,8 @@ const gitPushProcedure = createProcedure()
     args: [],
     shorts: { remote: "r", branch: "b", force: "f", setUpstream: "u", cwd: "C" },
     output: "json",
+    // With `force`, it replaces the commits of the remote. It also writes the remote-tracking ref.
+    effects: { reads: ["fs", "network"], writes: ["fs", "network"], idempotent: true },
   })
   .handler(async (input: GitPushInput, ctx): Promise<GitPushOutput> => {
     return gitPush(input, ctx);
@@ -198,6 +217,8 @@ const gitPullProcedure = createProcedure()
     args: [],
     shorts: { remote: "r", branch: "b", rebase: "R", cwd: "C" },
     output: "json",
+    // It merges or rebases into the working tree
+    effects: { reads: ["fs", "network"], writes: ["fs"], idempotent: true },
   })
   .handler(async (input: GitPullInput, ctx): Promise<GitPullOutput> => {
     return gitPull(input, ctx);
@@ -213,6 +234,8 @@ const gitCloneProcedure = createProcedure()
     args: ["url"],
     shorts: { dest: "d", branch: "b", depth: "D", cwd: "C" },
     output: "json",
+    // The source can be a local path. Git clones only into a new or empty folder.
+    effects: { reads: ["fs", "network"], writes: ["fs"], destructive: false, idempotent: true },
   })
   .handler(async (input: GitCloneInput, ctx): Promise<GitCloneOutput> => {
     return gitClone(input, ctx);
@@ -228,6 +251,8 @@ const gitCheckoutProcedure = createProcedure()
     args: ["ref"],
     shorts: { create: "b", cwd: "C" },
     output: "json",
+    // It replaces files of the working tree
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
   })
   .handler(async (input: GitCheckoutInput, ctx): Promise<GitCheckoutOutput> => {
     return gitCheckout(input, ctx);
@@ -243,6 +268,8 @@ const gitBranchProcedure = createProcedure()
     args: ["name"],
     shorts: { delete: "d", list: "l", remote: "r", cwd: "C" },
     output: "json",
+    // It lists, creates or deletes a branch
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
   })
   .handler(async (input: GitBranchInput, ctx): Promise<GitBranchOutput> => {
     return gitBranch(input, ctx);
@@ -258,6 +285,7 @@ const gitLogProcedure = createProcedure()
     args: [],
     shorts: { count: "n", oneline: "o", ref: "r", cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitLogInput, ctx): Promise<GitLogOutput> => {
     return gitLog(input, ctx);
@@ -273,6 +301,7 @@ const gitDiffProcedure = createProcedure()
     args: [],
     shorts: { staged: "s", ref: "r", stat: "S", cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitDiffInput, ctx): Promise<GitDiffOutput> => {
     return gitDiff(input, ctx);
@@ -289,6 +318,8 @@ const gitInitProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C", bare: "b", initialBranch: "B" },
     output: "json",
+    // It runs `git init` only when the folder has no .git (it calls fs.exists)
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true },
   })
   .handler(async (input: GitInitInput, ctx): Promise<GitInitOutput> => {
     return gitInit(input, ctx);
@@ -304,6 +335,8 @@ const gitRemoteProcedure = createProcedure()
     args: [],
     shorts: { name: "n", url: "u", cwd: "C" },
     output: "json",
+    // With `url`, it replaces the URL of the remote in the git configuration
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
   })
   .handler(async (input: GitRemoteInput, ctx): Promise<GitRemoteOutput> => {
     return gitRemote(input, ctx);
@@ -319,6 +352,8 @@ const gitFetchProcedure = createProcedure()
     args: [],
     shorts: { remote: "r", branch: "b", all: "a", prune: "p", cwd: "C" },
     output: "json",
+    // With `prune`, it deletes remote-tracking refs
+    effects: { reads: ["fs", "network"], writes: ["fs"], idempotent: true },
   })
   .handler(async (input: GitFetchInput, ctx): Promise<GitFetchOutput> => {
     return gitFetch(input, ctx);
@@ -338,6 +373,7 @@ const gitHasChangesProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
     return gitHasChanges(input, ctx);
@@ -353,6 +389,7 @@ const gitHasStagedChangesProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
     return gitHasStagedChanges(input, ctx);
@@ -368,6 +405,7 @@ const gitHasUnstagedChangesProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
     return gitHasUnstagedChanges(input, ctx);
@@ -383,6 +421,7 @@ const gitHasUntrackedFilesProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
     return gitHasUntrackedFiles(input, ctx);
@@ -398,6 +437,8 @@ const gitHasLocalCommitsProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    // It compares with the local remote-tracking ref and does not fetch
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
     return gitHasLocalCommits(input, ctx);
@@ -413,6 +454,7 @@ const gitIsCleanProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitPredicateInput, ctx): Promise<GitPredicateOutput> => {
     return gitIsClean(input, ctx);
@@ -432,6 +474,7 @@ const gitStashListProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitStashListInput, ctx): Promise<GitStashListOutput> => {
     return gitStashList(input, ctx);
@@ -447,6 +490,8 @@ const gitStashPushProcedure = createProcedure()
     args: ["message"],
     shorts: { message: "m", includeUntracked: "u", keepIndex: "k", cwd: "C" },
     output: "json",
+    // It removes the changes from the working tree. With `keepIndex`, a second call stashes again.
+    effects: CHANGES_REPOSITORY,
   })
   .handler(async (input: GitStashPushInput, ctx): Promise<GitStashPushOutput> => {
     return gitStashPush(input, ctx);
@@ -462,6 +507,7 @@ const gitStashPopProcedure = createProcedure()
     args: [],
     shorts: { index: "n", cwd: "C" },
     output: "json",
+    effects: CHANGES_REPOSITORY,
   })
   .handler(async (input: GitStashPopInput, ctx): Promise<GitStashPopOutput> => {
     return gitStashPop(input, ctx);
@@ -477,6 +523,7 @@ const gitStashApplyProcedure = createProcedure()
     args: [],
     shorts: { index: "n", cwd: "C" },
     output: "json",
+    effects: CHANGES_REPOSITORY,
   })
   .handler(async (input: GitStashApplyInput, ctx): Promise<GitStashApplyOutput> => {
     return gitStashApply(input, ctx);
@@ -492,6 +539,7 @@ const gitStashDropProcedure = createProcedure()
     args: [],
     shorts: { index: "n", cwd: "C" },
     output: "json",
+    effects: CHANGES_REPOSITORY,
   })
   .handler(async (input: GitStashDropInput, ctx): Promise<GitStashDropOutput> => {
     return gitStashDrop(input, ctx);
@@ -507,6 +555,7 @@ const gitStashExportProcedure = createProcedure()
     args: [],
     shorts: { index: "n", cwd: "C" },
     output: "json",
+    effects: READS_REPOSITORY,
   })
   .handler(async (input: GitStashExportInput, ctx): Promise<GitStashExportOutput> => {
     return gitStashExport(input, ctx);
@@ -522,6 +571,8 @@ const gitStashImportProcedure = createProcedure()
     args: ["patch"],
     shorts: { message: "m", includeUntracked: "u", cwd: "C" },
     output: "json",
+    // It applies the patch to the working tree, then stashes all the changes of the working tree
+    effects: CHANGES_REPOSITORY,
   })
   .handler(async (input: GitStashImportInput, ctx): Promise<GitStashImportOutput> => {
     return gitStashImport(input, ctx);
