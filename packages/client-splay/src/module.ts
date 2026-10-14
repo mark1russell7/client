@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, outputSchema, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, outputSchema, defineModule, PURE_EFFECTS, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 
 // =============================================================================
 // Types
@@ -43,7 +43,7 @@ const infoProcedure = createProcedure()
   .path(["splay", "bridge", "info"])
   .input(voidSchema)
   .output(bridgeInfoSchema)
-  .meta({ description: "Get client-splay bridge information" })
+  .meta({ description: "Get client-splay bridge information", effects: PURE_EFFECTS })
   .handler(() => ({
     name: "@procedures/splay",
     version: "1.0.0",
@@ -58,7 +58,7 @@ const healthProcedure = createProcedure()
   .path(["splay", "bridge", "health"])
   .input(voidSchema)
   .output(healthCheckSchema)
-  .meta({ description: "Health check for client-splay bridge" })
+  .meta({ description: "Health check for client-splay bridge", effects: PURE_EFFECTS })
   .handler(() => ({
     status: "healthy",
     timestamp: new Date().toISOString(),
