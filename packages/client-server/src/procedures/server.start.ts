@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerStartOutputSchema } from "../output-schemas.js";
 import { serverStartInputSchema } from "../input-schemas.js";
@@ -88,13 +88,16 @@ function findCliPath(): string {
 export const serverStartProcedure: Procedure<
   ServerStartInput,
   ServerStartOutput,
-  { description: string; args: string[]; shorts: Record<string, string> }
+  { description: string; effects: Effects; args: string[]; shorts: Record<string, string> }
 > = createProcedure()
   .path(["server", "start"])
   .input(serverStartInputSchema)
   .output(serverStartOutputSchema)
   .meta({
     description: "Start CLI server as background daemon",
+    // The daemon loads the procedure packages of the workspace. The procedure moves server.log
+    // over server.log.1.
+    effects: { reads: ["fs", "server"], writes: ["fs", "network", "process", "server"] },
     args: [],
     shorts: { port: "p", host: "h" },
   })

@@ -3,7 +3,7 @@
  * Stops the running CLI server daemon
  */
 
-import { createProcedure, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerStopOutputSchema } from "../output-schemas.js";
 import { serverStopInputSchema } from "../input-schemas.js";
@@ -32,13 +32,15 @@ function killProcess(pid: number, signal: NodeJS.Signals = "SIGTERM"): boolean {
 export const serverStopProcedure: Procedure<
   ServerStopInput,
   ServerStopOutput,
-  { description: string }
+  { description: string; effects: Effects }
 > = createProcedure()
   .path(["server", "stop"])
   .input(serverStopInputSchema)
   .output(serverStopOutputSchema)
   .meta({
     description: "Stop running CLI server",
+    // It stops the servers of the lockfiles and deletes their lockfiles
+    effects: { reads: ["fs", "server"], writes: ["fs", "server"], idempotent: true },
     args: [],
     shorts: { port: "p" },
   })

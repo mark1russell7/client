@@ -89,6 +89,9 @@ export const procedureRegisterProcedure: AnyProcedure = defineProcedure({
   metadata: {
     description: "Register a procedure at runtime",
     tags: ["procedure", "registry", "storage"],
+    // It never replaces a registered procedure. With `persist`, it writes the record to the
+    // store of the synced registry, over a stored record of the same key.
+    effects: { reads: ["registry"], writes: ["registry"] },
   },
   handler: async (input: RegisterInput, ctx: ProcedureContext): Promise<RegisterOutput> => {
     const { path, metadata = {}, streaming, handlerRef, persist = false } = input;

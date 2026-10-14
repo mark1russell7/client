@@ -3,7 +3,7 @@
  * Creates a transport-agnostic peer that exposes procedures
  */
 
-import { createProcedure, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCreateOutputSchema } from "../output-schemas.js";
 import { serverCreateInputSchema } from "../input-schemas.js";
@@ -20,12 +20,16 @@ const activePeers = new Map<string, Peer>();
 export const serverCreateProcedure: Procedure<
   ServerCreateInput,
   ServerCreateOutput,
-  { description: string }
+  { description: string; effects: Effects }
 > = createProcedure()
   .path(["server", "create"])
   .input(serverCreateInputSchema)
   .output(serverCreateOutputSchema)
-  .meta({ description: "Create a transport-agnostic peer that exposes procedures" })
+  .meta({
+    description: "Create a transport-agnostic peer that exposes procedures",
+    // Each call starts a new peer that listens on its transports. It replaces nothing.
+    effects: { reads: ["registry"], writes: ["network", "server"], destructive: false },
+  })
   .handler(async (input: ServerCreateInput) => {
     // Generate unique server ID
     const serverId = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -64,6 +64,7 @@ const libScanProcedure = createProcedure()
   .meta({
     description: "Scan for packages in the git directory",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote"],
+    effects: { reads: ["fs"], writes: [] },
     args: [],
     shorts: {},
     output: "json",
@@ -80,6 +81,8 @@ const libRenameProcedure = createProcedure()
   .meta({
     description: "Rename a package across the ecosystem",
     calls: ["fs.glob", "fs.read.json", "fs.write", "fs.exists"],
+    // It rewrites package.json files and TypeScript imports of the whole workspace
+    effects: { reads: ["fs"], writes: ["fs"] },
     args: ["oldName", "newName"],
     shorts: { dryRun: "n" },
     output: "json",
@@ -96,6 +99,9 @@ const libNewProcedure = createProcedure()
   .meta({
     description: "Create a new package in the ecosystem",
     calls: ["shell.run", "fs.exists", "fs.mkdir", "fs.write", "fs.read.json"],
+    // The cue-config CLI of the workspace writes only files of the new package folder. An
+    // existing folder is an error, so the procedure overwrites nothing.
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false },
     args: ["name"],
     shorts: { dryRun: "n" },
     output: "json",
@@ -112,6 +118,9 @@ const libAuditProcedure = createProcedure()
   .meta({
     description: "Audit ecosystem packages for issues",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote", "fs.exists", "fs.mkdir", "fs.write"],
+    // It reads the registry for the flag notices. With `fix`, it makes only the missing folders
+    // and files, so a second call changes nothing more.
+    effects: { reads: ["fs", "registry"], writes: ["fs"], destructive: false, idempotent: true },
     args: [],
     shorts: { fix: "f" },
     output: "json",
@@ -131,6 +140,8 @@ const ecosystemProceduresProcedure = createProcedure()
   .output(zodAdapter<EcosystemProceduresOutput>(EcosystemProceduresOutputSchema))
   .meta({
     description: "List all procedures across the ecosystem",
+    // It imports the register file of each package: that code runs, and it registers procedures
+    effects: { reads: ["fs", "registry"], writes: ["process", "registry"] },
     args: [],
     shorts: { namespace: "n" },
     output: "json",
@@ -152,6 +163,8 @@ const dagTraverseProcedure = createProcedure()
     description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
     // It runs the procedure refs of its input: a server with an expose rule limits what they call
     tags: [RUNS_REFS_TAG],
+    // Its own effect is the scan of the workspace. The admission examines each visit call.
+    effects: { reads: ["fs"], writes: [] },
     args: [],
     shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
     output: "streaming",
@@ -173,6 +186,8 @@ const coreCatchProcedure = createProcedure()
     description: "Execute a procedure with error handling",
     // It runs the procedure refs of its input: a server with an expose rule limits what they call
     tags: [RUNS_REFS_TAG],
+    // Control flow: no effects of its own. The admission examines each nested call.
+    effects: { reads: [], writes: [] },
     args: [],
     shorts: {},
     output: "json",

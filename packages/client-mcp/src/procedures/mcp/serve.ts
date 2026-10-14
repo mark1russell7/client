@@ -132,6 +132,8 @@ export const mcpServeProcedure: AnyProcedure = defineProcedure({
   metadata: {
     description: "Start MCP server to expose procedures as tools",
     tags: ["mcp", "server"],
+    // It imports the bundles of the project, which register their procedures, and serves on stdio
+    effects: { reads: ["fs", "registry"], writes: ["process", "registry", "server"] },
   },
   handler: async (input: McpServeInput): Promise<McpServeOutput> => {
     const serverName = input.name ?? "procedure-server";

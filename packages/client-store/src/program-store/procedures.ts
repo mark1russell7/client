@@ -122,6 +122,8 @@ export const procedureStoreProcedure: AnyProcedure = createProcedure()
   .meta({
     description: "Write the program of a procedure that procedure.define made to the program store",
     tags: ["procedure", "registry", "storage"],
+    // It replaces a stored program of the same key. A FileProgramStore keeps the programs in a file.
+    effects: { reads: ["registry"], writes: ["fs", "programs"] },
     args: ["path"],
   })
   .handler(async (input: StoreInput, ctx: ProcedureContext): Promise<StoreOutput> => {
@@ -181,6 +183,8 @@ export const procedureLoadProcedure: AnyProcedure = createProcedure()
     description: "Define the stored programs again (procedure.define), after a restart",
     tags: ["procedure", "registry", "storage"],
     calls: ["procedure.define"],
+    // A loaded program replaces a runtime-defined procedure of the same path
+    effects: { reads: ["fs", "programs", "registry"], writes: ["registry"] },
   })
   .handler(async (input: LoadInput, ctx: ProcedureContext): Promise<LoadOutput> => {
     const chosen = [input.path !== undefined, input.prefix !== undefined, input.all === true].filter(Boolean).length;
@@ -266,6 +270,7 @@ export const procedureSyncProcedure: AnyProcedure = createProcedure()
     description: "Synchronize the runtime-defined procedures of the registry with the program store",
     tags: ["procedure", "registry", "storage"],
     calls: ["procedure.define"],
+    effects: { reads: ["fs", "programs", "registry"], writes: ["fs", "programs", "registry"] },
   })
   .handler(async (input: SyncInput, ctx: ProcedureContext): Promise<SyncOutput> => {
     const direction = input.direction ?? "both";
@@ -317,6 +322,8 @@ export const procedureRemoteProcedure: AnyProcedure = createProcedure()
   .meta({
     description: "The status of the program store of the registry",
     tags: ["procedure", "registry", "storage"],
+    // It gives the kind of the store. `connect` and `disconnect` change nothing: they fail.
+    effects: { reads: ["programs"], writes: [] },
     args: ["action"],
   })
   .handler(async (input: RemoteInput, ctx: ProcedureContext): Promise<RemoteOutput> => {

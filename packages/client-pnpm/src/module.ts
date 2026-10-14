@@ -40,6 +40,9 @@ const pnpmInstallProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Install packages using pnpm",
+    // pnpm reads the npm registry, rewrites node_modules and the lockfile, and runs the
+    // lifecycle scripts and the pnpmfile of the project
+    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     shorts: { cwd: "C", dev: "D", frozen: "F" },
     output: "json",
   })
@@ -54,6 +57,7 @@ const pnpmAddProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Add packages using pnpm",
+    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     args: ["packages"],
     shorts: { cwd: "C", dev: "D", global: "g" },
     output: "json",
@@ -69,6 +73,8 @@ const pnpmRemoveProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Remove packages using pnpm",
+    // pnpm resolves the remaining dependencies again, so it can read the npm registry
+    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     args: ["packages"],
     shorts: { cwd: "C", global: "g" },
     output: "json",
@@ -84,6 +90,7 @@ const pnpmLinkProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Link packages using pnpm",
+    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     shorts: { cwd: "C", global: "g" },
     output: "json",
   })
@@ -98,6 +105,8 @@ const pnpmRunProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Run package scripts using pnpm",
+    // A package script is code of the project: it can do anything
+    effects: { reads: ["fs"], writes: ["process"] },
     args: ["script"],
     shorts: { cwd: "C" },
     output: "json",
@@ -113,6 +122,8 @@ const pnpmStorePathProcedure = createProcedure()
   .output(zodAdapter<PnpmStorePathOutput>(PnpmStorePathOutputSchema))
   .meta({
     description: "Get pnpm store path for snapshot/restore",
+    // `pnpm store path` only reads the configuration of pnpm
+    effects: { reads: ["fs"], writes: [] },
     args: [],
     shorts: { cwd: "C" },
     output: "json",
