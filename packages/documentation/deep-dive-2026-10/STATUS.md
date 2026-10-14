@@ -195,7 +195,7 @@ The effect declarations of phase D (CAPABILITIES-2026-10) read each handler. The
 | CAP-1 | medium | open | | `db.query` starts any SQL statement and saves the file: it is not read only. A check that refuses statements that change data makes it read only. |
 | CAP-2 | medium | open | | `mongo.documents.aggregate` permits `$out` and `$merge`, which write. A refusal of those two stages makes it read only. |
 | CAP-3 | low | open | | `logs.query` starts the migrations, so the first query makes the database file and its table. |
-| CAP-4 | low | accepted | | The git procedures that start hooks (`commit`, `push`, `pull`, `checkout`) write `process`. A `reference-transaction` hook starts also on `branch`, `fetch` and `stash`: those do not declare `process`. |
+| CAP-4 | low | decision | | The git procedures that start hooks (`commit`, `push`, `pull`, `checkout`) write `process`. A `reference-transaction` hook starts also on `branch`, `fetch` and `stash`: those do not declare `process`. |
 | CAP-5 | low | fixed | | `git.remote` read and wrote: with `url`, it set the URL. So `lib.scan`, which only reads the URL, had to declare that it writes. It is two procedures now: `git.remote` reads, `git.remote.set` writes. |
 
 ## Architecture roadmap

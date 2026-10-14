@@ -21,7 +21,7 @@ The owner accepted the default answers of CAPABILITIES-2026-10 and gave the rest
 - **A procedure of code with declared effects answers for its nested calls.** The admission does not examine them again, as `metadata.calls` already does for the reach. Without this rule, a read-only session cannot start `git.status`, because it uses `shell.run`.
 - **The output filter examines only the output that leaves the host.** A nested result is not filtered, so a parent never gets a stream with holes.
 - **`git.remote` is two procedures** (CAP-5 in the status). A caller of `git.remote` with `url` calls `git.remote.set` now.
-- **The four findings CAP-1 to CAP-4** stay open or accepted: the declarations tell the truth about the code, and a read-only session refuses those procedures.
+- **The four findings CAP-1 to CAP-4** stay open, or are a decision (CAP-4): the declarations tell the truth about the code, and a read-only session refuses those procedures.
 
 Three agents declared the effects of the packages in parallel, and each decision that they were not sure of is in this list or in the proposal.
 
