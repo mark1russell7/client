@@ -3,7 +3,7 @@
  * Insert one or more documents
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -41,12 +41,15 @@ const insertOutputSchema = zodAdapter<InsertOutput>(
 export const insertProcedure: Procedure<
   InsertInput,
   InsertOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "insert"])
   .input(insertInputSchema)
   .output(insertOutputSchema)
-  .meta({ description: "Insert one or more documents" })
+  .meta({
+    description: "Insert one or more documents",
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"], destructive: false },
+  })
   .handler(async (input: InsertInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

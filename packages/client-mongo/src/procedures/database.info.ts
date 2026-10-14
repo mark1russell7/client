@@ -3,7 +3,7 @@
  * Get database information and statistics
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -30,12 +30,15 @@ const infoOutputSchema = zodAdapter<DatabaseInfo>(
 export const infoProcedure: Procedure<
   InfoInput,
   DatabaseInfo,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "database", "info"])
   .input(infoInputSchema)
   .output(infoOutputSchema)
-  .meta({ description: "Get database information and statistics" })
+  .meta({
+    description: "Get database information and statistics",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: InfoInput, ctx: ProcedureContext) => {
     const db = await databaseFor(input, ctx);
 

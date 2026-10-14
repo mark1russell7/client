@@ -5,6 +5,7 @@
 
 import {
   createProcedure,
+  type Effects,
   type Procedure,
   type ProcedureContext,
   zodAdapter,
@@ -102,12 +103,15 @@ const findOutputSchema = zodAdapter<FindOutput>(
 export const findProcedure: Procedure<
   FindInput,
   FindOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "find"])
   .input(findInputSchema)
   .output(findOutputSchema)
-  .meta({ description: "Find documents with pagination and filtering" })
+  .meta({
+    description: "Find documents with pagination and filtering",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: FindInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

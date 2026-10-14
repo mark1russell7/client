@@ -5,6 +5,7 @@
 
 import {
   createProcedure,
+  type Effects,
   type Procedure,
   type ProcedureContext,
   zodAdapter,
@@ -78,12 +79,15 @@ const getOutputSchema = zodAdapter<GetOutput>(
 export const getProcedure: Procedure<
   GetInput,
   GetOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "get"])
   .input(getInputSchema)
   .output(getOutputSchema)
-  .meta({ description: "Get a single document by ID" })
+  .meta({
+    description: "Get a single document by ID",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: GetInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

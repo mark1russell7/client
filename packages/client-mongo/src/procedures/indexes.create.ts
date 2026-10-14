@@ -3,7 +3,7 @@
  * Create an index on a collection
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -48,12 +48,16 @@ const createIndexOutputSchema = zodAdapter<CreateIndexOutput>(
 export const createIndexProcedure: Procedure<
   CreateIndexInput,
   CreateIndexOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "indexes", "create"])
   .input(createIndexInputSchema)
   .output(createIndexOutputSchema)
-  .meta({ description: "Create an index on a collection" })
+  .meta({
+    description: "Create an index on a collection",
+    // A second call with the same keys and options keeps the existing index
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"], destructive: false, idempotent: true },
+  })
   .handler(async (input: CreateIndexInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 
