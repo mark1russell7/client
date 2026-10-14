@@ -1,7 +1,9 @@
 # Invocation capabilities (proposal, October 2026)
 
 > **Status:** approved on 2026-10-13. The owner accepted the default answers and gave the remaining decisions to the implementation, with generality and the long term as the goals. The section "Decisions" records them.
+>
 > **Implementation:** phases A, B and C are done (branch `capabilities`). Phase D (the declarations of every procedure) is in progress. The guide for users is [CAPABILITIES.md](../client/docs/CAPABILITIES.md).
+>
 > **Prerequisite:** registration without side effects ([P9 in the proposals](./ARCHITECTURE-PROPOSALS-2026-10.md#p9-registration-without-side-effects-p2-option-3)), decided on the same day.
 
 ## The problem
