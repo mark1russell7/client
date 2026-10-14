@@ -59,7 +59,7 @@ const vitestWatchProcedure = createProcedure()
   .output(zodAdapter<VitestWatchOutput>(VitestWatchOutputSchema))
   .meta({
     description: "Start vitest in watch mode (no shell; uses the project's own vitest)",
-    effects: { reads: ["fs"], writes: ["process"] },
+    effects: { reads: ["fs"], writes: ["process", "jobs"] },
     args: ["cwd"],
     shorts: {},
     output: "json",
@@ -74,7 +74,8 @@ const vitestStopProcedure = createProcedure()
   .meta({
     description: "Stop a vitest watch process (all of them without an id)",
     // It stops processes of the process registry of client-shell, and starts none
-    effects: { reads: ["process"], writes: ["process"], idempotent: true },
+    // It stops a job of the host: a watch process that vitest.watch started
+    effects: { reads: ["jobs"], writes: ["jobs"], idempotent: true },
     args: ["id"],
     shorts: {},
     output: "json",
@@ -88,7 +89,7 @@ const vitestListProcedure = createProcedure()
   .output(zodAdapter<VitestListOutput>(VitestListOutputSchema))
   .meta({
     description: "List the vitest watch processes of this host",
-    effects: { reads: ["process"], writes: [] },
+    effects: { reads: ["jobs"], writes: [] },
     args: [],
     shorts: {},
     output: "json",

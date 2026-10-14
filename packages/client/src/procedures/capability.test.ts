@@ -275,10 +275,13 @@ describe("checkEffects", () => {
     const writer = proc(["a", "write"], () => 1, { effects: WRITES_FS });
     const reader = proc(["a", "reader"], () => 1, { effects: READS_FS, calls: ["a.write"] });
     const violations = checkEffects([writer, reader]);
-    expect(violations.map((v) => v.message)).toEqual([
-      "a.reader calls a.write: the declaration does not include fs in writes",
-      "a.reader calls a.write: the callee is destructive, and the declaration is not",
-    ]);
+    expect(violations.map((v) => v.message)).toEqual(["a.reader calls a.write: the declaration does not include fs in writes"]);
+  });
+
+  it("does not compare the flags: a caller that creates new files through a writer can be additive", () => {
+    const write = proc(["fs", "write"], () => 1, { effects: { reads: [], writes: ["fs"] } });
+    const create = proc(["lib", "new"], () => 1, { effects: { reads: ["fs"], writes: ["fs"], destructive: false }, calls: ["fs.write"] });
+    expect(checkEffects([write, create])).toEqual([]);
   });
 
   it("does not compare the process mechanism: the caller declares what the program does", () => {

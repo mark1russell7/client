@@ -15,7 +15,7 @@ import { gitClone } from "./clone.js";
 import { gitCheckout } from "./checkout.js";
 import { gitBranch } from "./branch.js";
 import { gitFetch } from "./fetch.js";
-import { gitRemote } from "./remote.js";
+import { gitRemote, gitRemoteSet } from "./remote.js";
 
 function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", ["-c", "user.email=test@example.com", "-c", "user.name=Test", ...args], {
@@ -87,10 +87,11 @@ describe("git procedures with hostile values", () => {
     expect(existsSync(marker)).toBe(false);
   });
 
-  it("git.fetch, git.checkout, git.branch and git.remote reject option-like values", async () => {
+  it("git.fetch, git.checkout, git.branch, git.remote and git.remote.set reject option-like values", async () => {
     await expect(gitFetch({ cwd: repo, remote: "--upload-pack=x", all: false, prune: false })).rejects.toThrow("Invalid remote");
     await expect(gitCheckout({ cwd: repo, ref: "--orphan=x" } as Parameters<typeof gitCheckout>[0])).rejects.toThrow("Invalid ref");
     await expect(gitBranch({ cwd: repo, name: "-D" } as Parameters<typeof gitBranch>[0])).rejects.toThrow("Invalid name");
-    await expect(gitRemote({ cwd: repo, name: "origin", url: "--mirror" } as Parameters<typeof gitRemote>[0])).rejects.toThrow("Invalid url");
+    await expect(gitRemoteSet({ cwd: repo, name: "origin", url: "--mirror" } as Parameters<typeof gitRemoteSet>[0])).rejects.toThrow("Invalid url");
+    await expect(gitRemote({ cwd: repo, name: "--mirror" } as Parameters<typeof gitRemote>[0])).rejects.toThrow("Invalid name");
   });
 });

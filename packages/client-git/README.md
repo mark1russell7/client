@@ -538,7 +538,7 @@ console.log(`Cloned to ${clone.path}`);
 
 #### `git.remote`
 
-Get or set remote URLs.
+Get the URL of a remote. It changes nothing.
 
 **Path:** `["git", "remote"]`
 
@@ -546,8 +546,6 @@ Get or set remote URLs.
 interface GitRemoteInput {
   /** Remote name (default: origin) */
   name?: string;
-  /** New URL to set (if provided, sets the URL; otherwise gets it) */
-  url?: string;
   /** Working directory */
   cwd?: string;
 }
@@ -557,6 +555,23 @@ interface GitRemoteOutput {
   name: string;
   /** Remote URL */
   url: string;
+}
+```
+
+#### `git.remote.set`
+
+Set the URL of a remote, or add the remote when it is missing. Before 0.2.0, `git.remote` with `url` did this.
+
+**Path:** `["git", "remote", "set"]`
+
+```typescript
+interface GitRemoteSetInput {
+  /** Remote name (default: origin) */
+  name?: string;
+  /** The URL of the remote */
+  url: string;
+  /** Working directory */
+  cwd?: string;
 }
 ```
 
@@ -842,7 +857,8 @@ fs.writeFileSync("backup.patch", exported.patch);
 | | `git.pull` | Pull from remote |
 | | `git.fetch` | Fetch from remote |
 | | `git.clone` | Clone repository |
-| | `git.remote` | Manage remotes |
+| | `git.remote` | Get the URL of a remote |
+| | `git.remote.set` | Set the URL of a remote |
 | **Predicates** | `git.hasChanges` | Check for any changes |
 | | `git.hasStagedChanges` | Check for staged changes |
 | | `git.hasUnstagedChanges` | Check for unstaged changes |

@@ -19,7 +19,7 @@ import { gitBranch } from "./procedures/git/branch.js";
 import { gitLog } from "./procedures/git/log.js";
 import { gitDiff } from "./procedures/git/diff.js";
 import { gitInit } from "./procedures/git/init.js";
-import { gitRemote } from "./procedures/git/remote.js";
+import { gitRemote, gitRemoteSet } from "./procedures/git/remote.js";
 import { gitFetch } from "./procedures/git/fetch.js";
 import {
   gitHasChanges,
@@ -74,6 +74,8 @@ import {
   type GitInitOutput,
   GitRemoteInputSchema,
   type GitRemoteInput,
+  GitRemoteSetInputSchema,
+  type GitRemoteSetInput,
   type GitRemoteOutput,
   GitFetchInputSchema,
   type GitFetchInput,
@@ -138,6 +140,13 @@ const READS_REPOSITORY: Effects = { reads: ["fs"], writes: [] };
 /** The effects of a git command that can replace or remove the data of the repository. */
 const CHANGES_REPOSITORY: Effects = { reads: ["fs"], writes: ["fs"] };
 
+/**
+ * A change that starts the hooks of the repository (commit, push, pull, checkout). A hook is code
+ * of the project (husky, for example), so these write process (CAPABILITIES-2026-10). A hook
+ * that only the reference-transaction event starts (branch, fetch, stash) is not counted.
+ */
+const RUNS_HOOKS: Effects = { reads: ["fs"], writes: ["fs", "process"] };
+
 // =============================================================================
 // Procedure Definitions
 // =============================================================================
@@ -184,7 +193,7 @@ const gitCommitProcedure = createProcedure()
     shorts: { message: "m", all: "a", amend: "A", cwd: "C" },
     output: "json",
     // With `amend`, it replaces the last commit, so it is destructive
-    effects: CHANGES_REPOSITORY,
+    effects: RUNS_HOOKS,
   })
   .handler(async (input: GitCommitInput, ctx): Promise<GitCommitOutput> => {
     return gitCommit(input, ctx);
@@ -201,7 +210,7 @@ const gitPushProcedure = createProcedure()
     shorts: { remote: "r", branch: "b", force: "f", setUpstream: "u", cwd: "C" },
     output: "json",
     // With `force`, it replaces the commits of the remote. It also writes the remote-tracking ref.
-    effects: { reads: ["fs", "network"], writes: ["fs", "network"], idempotent: true },
+    effects: { reads: ["fs", "network"], writes: ["fs", "network", "process"], idempotent: true },
   })
   .handler(async (input: GitPushInput, ctx): Promise<GitPushOutput> => {
     return gitPush(input, ctx);
@@ -218,7 +227,7 @@ const gitPullProcedure = createProcedure()
     shorts: { remote: "r", branch: "b", rebase: "R", cwd: "C" },
     output: "json",
     // It merges or rebases into the working tree
-    effects: { reads: ["fs", "network"], writes: ["fs"], idempotent: true },
+    effects: { reads: ["fs", "network"], writes: ["fs", "process"], idempotent: true },
   })
   .handler(async (input: GitPullInput, ctx): Promise<GitPullOutput> => {
     return gitPull(input, ctx);
@@ -252,7 +261,7 @@ const gitCheckoutProcedure = createProcedure()
     shorts: { create: "b", cwd: "C" },
     output: "json",
     // It replaces files of the working tree
-    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    effects: { reads: ["fs"], writes: ["fs", "process"], idempotent: true },
   })
   .handler(async (input: GitCheckoutInput, ctx): Promise<GitCheckoutOutput> => {
     return gitCheckout(input, ctx);
@@ -331,15 +340,31 @@ const gitRemoteProcedure = createProcedure()
   .input(zodAdapter<GitRemoteInput>(GitRemoteInputSchema))
   .output(zodAdapter<GitRemoteOutput>(GitRemoteOutputSchema))
   .meta({
-    description: "Get or set remote URLs",
+    description: "Get the URL of a remote",
     args: [],
-    shorts: { name: "n", url: "u", cwd: "C" },
+    shorts: { name: "n", cwd: "C" },
     output: "json",
-    // With `url`, it replaces the URL of the remote in the git configuration
-    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    effects: { reads: ["fs"], writes: [] },
   })
   .handler(async (input: GitRemoteInput, ctx): Promise<GitRemoteOutput> => {
     return gitRemote(input, ctx);
+  })
+  .build();
+
+const gitRemoteSetProcedure = createProcedure()
+  .path(["git", "remote", "set"])
+  .input(zodAdapter<GitRemoteSetInput>(GitRemoteSetInputSchema))
+  .output(zodAdapter<GitRemoteOutput>(GitRemoteOutputSchema))
+  .meta({
+    description: "Set the URL of a remote, or add the remote",
+    args: ["url"],
+    shorts: { name: "n", cwd: "C" },
+    output: "json",
+    // It replaces the URL of the remote in the git configuration
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+  })
+  .handler(async (input: GitRemoteSetInput, ctx): Promise<GitRemoteOutput> => {
+    return gitRemoteSet(input, ctx);
   })
   .build();
 
@@ -600,6 +625,7 @@ export const gitModule: ProcedureModule = defineModule("@procedures/git", [
     gitDiffProcedure,
     gitInitProcedure,
     gitRemoteProcedure,
+    gitRemoteSetProcedure,
     gitFetchProcedure,
     // Predicate procedures
     gitHasChangesProcedure,

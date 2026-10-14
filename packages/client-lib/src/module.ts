@@ -99,9 +99,10 @@ const libNewProcedure = createProcedure()
   .meta({
     description: "Create a new package in the ecosystem",
     calls: ["shell.run", "fs.exists", "fs.mkdir", "fs.write", "fs.read.json"],
-    // The cue-config CLI of the workspace writes only files of the new package folder. An
-    // existing folder is an error, so the procedure overwrites nothing.
-    effects: { reads: ["fs"], writes: ["fs"], destructive: false },
+    // It starts the cue-config CLI from the node_modules of the workspace: code of the project,
+    // so it writes process. That CLI writes only files of the new package folder. An existing
+    // folder is an error, so the procedure overwrites nothing.
+    effects: { reads: ["fs"], writes: ["fs", "process"], destructive: false },
     args: ["name"],
     shorts: { dryRun: "n" },
     output: "json",

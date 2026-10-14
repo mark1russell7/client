@@ -36,7 +36,17 @@ The resource names are strings. Four names are standard:
 | `process` | It starts a program that its caller (or the code of the project) chooses: that program can do anything |
 | `registry` | The procedure registry |
 
-An application adds its own names: the packages of this repository use `docker`, `mongo`, `s3` and `collection:<name>`. A procedure that starts one fixed program (`git status` starts `git`) does not declare `process`. It declares what that program reads and writes.
+An application adds its own names. The packages of this repository use these:
+
+| Name | The resource |
+|---|---|
+| `docker`, `mongo`, `s3` | The service that a package wraps |
+| `jobs` | The background processes that the host started (`node.spawn`, `vitest.watch`) |
+| `programs` | The stored programs of `@procedures/store` |
+| `server` | A server that a procedure starts or stops |
+| `collection:<name>` | One collection of `createCollectionProcedures()` |
+
+A procedure that starts one fixed program (`git status` starts `git`) does not declare `process`. It declares what that program reads and writes. Code of the project is not a fixed program: a test file, a build plugin, a package script and a git hook can do anything. So `vitest.run`, `vite.build`, `pnpm.install` and `git.commit` write `process`.
 
 `withEffects(effects, procedures)` gives one declaration to a group of procedures. `PURE_EFFECTS` (`reads: [], writes: []`) is the declaration of a procedure that only calculates.
 
@@ -101,7 +111,7 @@ await ctx.client.call(["notes", "list"], {}, { narrow: { clearance: "public" } }
 
 An interceptor can narrow too: `next({ capability: { effects: { writes: [] } } })`. The framework calculates the result, so a request for more has no effect.
 
-The admission examines each call of a host, each nested call of a data-driven procedure (`client.chain` and the other procedures that start refs, because their caller chose the refs), and each nested call with a narrowed capability. A procedure of code that declares its effects answers for its own nested calls. `checkEffects(procedures)` examines those declarations against `metadata.calls`: a declaration must include the reads, the writes and the destructive flag of each procedure in its `calls`. The `process` of a callee is not compared, because its caller declares what the program does.
+The admission examines each call of a host, each nested call of a data-driven procedure (`client.chain` and the other procedures that start refs, because their caller chose the refs), and each nested call with a narrowed capability. A procedure of code that declares its effects answers for its own nested calls. `checkEffects(procedures)` examines those declarations against `metadata.calls`: a declaration must include the reads and the writes of each procedure in its `calls`. Two things are the claim of the caller. The first is what a program that it starts does (the `process` of a callee). The second is the flags `destructive` and `idempotent`, because they depend on the input that the caller gives.
 
 ## Deadlines
 

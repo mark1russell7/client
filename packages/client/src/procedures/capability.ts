@@ -284,9 +284,14 @@ export interface EffectsViolation {
 
 /**
  * This function examines each procedure of code that declares its effects and its calls
- * (`metadata.calls`). Its declaration must include the reads, the writes and the destructive
- * flag of each procedure that it calls. A callee that writes `process` starts any program: its
- * caller declares what that program does, so `process` is not compared.
+ * (`metadata.calls`). Its declaration must include the reads and the writes of each procedure
+ * that it calls: the resources are structural, so a caller cannot touch less than its callees.
+ *
+ * Two things are the caller's own claim, and the check does not compare them. A callee that
+ * writes `process` starts any program, and its caller declares what that program does. The
+ * flags `destructive` and `idempotent` depend on the input that the caller gives: `lib.new`
+ * creates new files with `fs.write`, which can overwrite. The effects snapshot of the MCP tools
+ * shows these claims in a review.
  */
 export function checkEffects(procedures: readonly AnyProcedure[]): EffectsViolation[] {
   const byKey = new Map(procedures.map((procedure) => [pathToKey(procedure.path), procedure]));
@@ -321,10 +326,6 @@ export function checkEffects(procedures: readonly AnyProcedure[]): EffectsViolat
           const missing = needed.filter((name) => !mine.includes(name));
           if (missing.length > 0) report(`the declaration does not include ${missing.join(", ")} in ${kind}`);
         }
-      }
-      const calleeWritesOnlyProcess = (theirs.writes ?? []).every((name) => name === "process");
-      if (isDestructive(theirs) && !isDestructive(own) && !calleeWritesOnlyProcess) {
-        report("the callee is destructive, and the declaration is not");
       }
     }
   }

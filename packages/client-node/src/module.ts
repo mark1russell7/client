@@ -55,7 +55,8 @@ const nodeSpawnProcedure = createProcedure()
     args: ["script"],
     shorts: { cwd: "C" },
     output: "json",
-    effects: { reads: ["process"], writes: ["process"] },
+    // It adds the process to the jobs of the host
+    effects: { reads: ["process"], writes: ["process", "jobs"] },
   })
   .handler(async (input: NodeSpawnInput): Promise<NodeSpawnOutput> => {
     return nodeSpawn(input);
@@ -72,7 +73,8 @@ const nodeKillProcedure = createProcedure()
     shorts: { signal: "s" },
     output: "json",
     // It ends a process of node.spawn. A second call finds the process already ended.
-    effects: { reads: ["process"], writes: ["process"], idempotent: true },
+    // It stops a job of the host: a process that node.spawn started
+    effects: { reads: ["jobs"], writes: ["jobs"], idempotent: true },
   })
   .handler(async (input: NodeKillInput): Promise<NodeKillOutput> => {
     return nodeKill(input);
@@ -89,7 +91,7 @@ const nodeStatusProcedure = createProcedure()
     shorts: {},
     output: "json",
     // It reads the records of the processes of node.spawn
-    effects: { reads: ["process"], writes: [] },
+    effects: { reads: ["jobs"], writes: [] },
   })
   .handler(async (input: NodeStatusInput): Promise<NodeStatusOutput> => {
     return nodeStatus(input);
