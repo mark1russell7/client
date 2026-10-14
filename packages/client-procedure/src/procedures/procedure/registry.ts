@@ -5,7 +5,7 @@
  * Enables procedure-as-data patterns, remote registration, and persistence.
  */
 
-import { defineProcedure, PROCEDURE_REGISTRY, pathToKey, keyToPath } from "@procedures/client";
+import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, pathToKey, keyToPath } from "@procedures/client";
 import type { AnyProcedure, ProcedurePath } from "@procedures/client";
 import { z } from "zod";
 
@@ -57,6 +57,7 @@ export const procedureExportProcedure: AnyProcedure = defineProcedure({
   metadata: {
     description: "Export a procedure definition as JSON",
     tags: ["procedure", "registry"],
+    effects: REGISTRY_READ_EFFECTS,
     args: ["path"],
     shorts: {},
     output: "json",

@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { defineProcedure, PROCEDURE_REGISTRY, type AnyProcedure } from "@procedures/client";
+import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, type AnyProcedure } from "@procedures/client";
 import { proceduresToMcpTools, type McpToolFilter } from "@procedures/mcp";
 
 const McpListToolsInputSchema = z.object({
@@ -49,6 +49,7 @@ export const mcpListToolsProcedure: AnyProcedure = defineProcedure({
   metadata: {
     description: "List available MCP tools from the procedure registry",
     tags: ["mcp", "introspection"],
+    effects: REGISTRY_READ_EFFECTS,
   },
   handler: async (input: McpListToolsInput): Promise<McpListToolsOutput> => {
     // Build filter, only adding defined values

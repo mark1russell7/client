@@ -7,8 +7,10 @@
 
 import {
   createProcedure,
+  type Effects,
   type Procedure,
   PROCEDURE_REGISTRY,
+  REGISTRY_READ_EFFECTS,
 } from "@procedures/client";
 import { schema } from "../schema.js";
 import type {
@@ -39,7 +41,7 @@ const discoveryAnnounceOutputSchema = schema<ProcedureAnnounceMessage>();
 export const discoveryAnnounceProcedure: Procedure<
   DiscoveryAnnounceInput,
   ProcedureAnnounceMessage,
-  { description: string; internal: boolean }
+  { description: string; internal: boolean; effects: Effects }
 > = createProcedure()
   .path(["_discovery", "announce"])
   .input(discoveryAnnounceInputSchema)
@@ -47,6 +49,7 @@ export const discoveryAnnounceProcedure: Procedure<
   .meta({
     description: "Exchange procedure manifests for discovery",
     internal: true,
+    effects: REGISTRY_READ_EFFECTS,
   })
   .handler(async (_input: DiscoveryAnnounceInput) => {
     // Get all registered procedures

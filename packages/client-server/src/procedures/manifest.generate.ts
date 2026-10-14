@@ -3,7 +3,7 @@
  * Generates procedure manifests in various formats
  */
 
-import { createProcedure, jsonSchemaOf, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
+import { createProcedure, jsonSchemaOf, type Effects, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ManifestGenerateOutputSchema } from "../output-schemas.js";
 import { manifestGenerateInputSchema } from "../input-schemas.js";
@@ -19,12 +19,16 @@ const manifestGenerateOutputSchema = wrapSchema<ManifestGenerateOutput>(Manifest
 export const manifestGenerateProcedure: Procedure<
   ManifestGenerateInput,
   ManifestGenerateOutput,
-  { description: string }
+  { description: string; effects: Effects }
 > = createProcedure()
   .path(["manifest", "generate"])
   .input(manifestGenerateInputSchema)
   .output(manifestGenerateOutputSchema)
-  .meta({ description: "Generate procedure manifests in various formats" })
+  .meta({
+    description: "Generate procedure manifests in various formats",
+    // With `outputDir`, it overwrites procedures.json and procedures.d.ts there
+    effects: { reads: ["registry"], writes: ["fs"], idempotent: true },
+  })
   .handler(async (input: ManifestGenerateInput) => {
     // Get all registered procedures
     const allProcedures = PROCEDURE_REGISTRY.getAll();

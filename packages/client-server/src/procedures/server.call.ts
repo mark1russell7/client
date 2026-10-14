@@ -3,7 +3,7 @@
  * Call a procedure on a remote peer through an outbound connection
  */
 
-import { createProcedure, pathToMethod, type Procedure } from "@procedures/client";
+import { createProcedure, pathToMethod, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCallOutputSchema } from "../output-schemas.js";
 import { serverCallInputSchema } from "../input-schemas.js";
@@ -42,13 +42,15 @@ const serverCallOutputSchema = wrapSchema<ServerCallOutput>(ServerCallOutputSche
 export const serverCallProcedure: Procedure<
   ServerCallInput,
   ServerCallOutput,
-  { description: string; args: string[]; shorts: Record<string, string>; output: string }
+  { description: string; effects: Effects; args: string[]; shorts: Record<string, string>; output: string }
 > = createProcedure()
   .path(["server", "call"])
   .input(serverCallInputSchema)
   .output(serverCallOutputSchema)
   .meta({
     description: "Call a procedure on a remote peer through an outbound connection",
+    // The remote procedure can change anything on its peer
+    effects: { reads: ["network"], writes: ["network"] },
     args: ["path"],
     shorts: { connectionId: "c", address: "a" },
     output: "json",
