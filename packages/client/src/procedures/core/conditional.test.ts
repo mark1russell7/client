@@ -59,7 +59,7 @@ describe("conditional procedure", () => {
 
   beforeEach(() => {
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["test", "conditional"],
@@ -415,7 +415,7 @@ describe("conditional procedure", () => {
   describe("without client context", () => {
     it("returns then value without executing procedure", async () => {
       // Create a context WITHOUT a client
-      const noClientCtx: ProcedureContext = {
+      const noClientCtx: ProcedureContext = { capability: {}, resources: {},
         metadata: {},
         path: ["test", "conditional"],
         client: undefined as any,
@@ -432,7 +432,7 @@ describe("conditional procedure", () => {
 
     it("returns raw else value without client", async () => {
       // Create a context WITHOUT a client
-      const noClientCtx: ProcedureContext = {
+      const noClientCtx: ProcedureContext = { capability: {}, resources: {},
         metadata: {},
         path: ["test", "conditional"],
         client: undefined as any,

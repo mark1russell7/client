@@ -9,6 +9,7 @@ import { z } from "zod";
 import { booleanOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
+import { PURE_EFFECTS, withEffects } from "../effects.js";
 
 // =============================================================================
 // Eq Procedure (Strict Equality)
@@ -241,7 +242,8 @@ const comparisonProceduresRaw: AnyProcedure[] = [
 /**
  * All comparison procedures namespaced under "client".
  */
-export const comparisonProcedures: AnyProcedure[] = namespace(["client"], comparisonProceduresRaw);
+// Each one calculates its output from its input: no reads, no changes (CAPABILITIES-2026-10)
+export const comparisonProcedures: AnyProcedure[] = namespace(["client"], withEffects(PURE_EFFECTS, comparisonProceduresRaw));
 
 /**
  * Comparison procedures module for registration.

@@ -47,6 +47,7 @@ import {
   rawInputRule,
   RUNS_REFS_TAG,
 } from "./ref.js";
+import { REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
 
 // Input schemas of procedure.define and procedure.delete (roadmap 2.1)
 const procedurePathField = z.array(z.string().min(1)).min(1);
@@ -524,8 +525,8 @@ export const deleteProcedureProcedure: Procedure<
  * All meta-procedures for procedure management.
  */
 export const metaProcedures: AnyProcedure[] = [
-  defineProcedureProcedure as AnyProcedure,
-  getProcedureProcedure as AnyProcedure,
-  listProceduresProcedure as AnyProcedure,
-  deleteProcedureProcedure as AnyProcedure,
+  // They read the registry. define and delete change it (CAPABILITIES-2026-10).
+  ...withEffects({ reads: ["registry"], writes: ["registry"] }, [defineProcedureProcedure as AnyProcedure]),
+  ...withEffects(REGISTRY_READ_EFFECTS, [getProcedureProcedure as AnyProcedure, listProceduresProcedure as AnyProcedure]),
+  ...withEffects({ reads: ["registry"], writes: ["registry"] }, [deleteProcedureProcedure as AnyProcedure]),
 ];

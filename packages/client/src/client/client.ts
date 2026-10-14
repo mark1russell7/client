@@ -56,6 +56,8 @@ import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from ".
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { EventBus } from "../events/types.js";
+import { TIMEOUT_METADATA_KEY, narrowCapability } from "../procedures/capability.js";
+import type { Capability, ClearanceOrder, NestedCallOptions } from "../procedures/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { validateSchema } from "../procedures/schema.js";
 import type { AnyProcedure, ProcedureClient, ProcedurePath } from "../procedures/types.js";
@@ -139,6 +141,8 @@ interface CallerContext {
   parent?: Invocation | undefined;
   /** The hydration observer of the program (`exec(ref, input, { onRef })`). */
   onRef?: ((event: HydrationEvent) => void) | undefined;
+  /** The capability of the caller: the nested calls get it, or a narrower one. */
+  capability?: Capability | undefined;
 }
 
 /** The options of `exec()` and `execStream()`. */
@@ -205,6 +209,10 @@ export class Client<TContext = {}> {
   private bus: EventBus | undefined;
   /** The interceptors of the local invocations (roadmap 1.2) */
   private interceptors: readonly Interceptor[] = [];
+  /** The capability of the local invocations (CAPABILITIES-2026-10). Undefined: no limits. */
+  private capability: Capability | undefined;
+  /** The order of the clearance values. */
+  private clearanceOrder: ClearanceOrder | undefined;
 
   /**
    * Context values set via withContext().
@@ -234,6 +242,8 @@ export class Client<TContext = {}> {
       this.throwOnError = opts.throwOnError !== false;
       this.bus = opts.bus;
       this.interceptors = opts.interceptors ?? [];
+      this.capability = opts.capability;
+      this.clearanceOrder = opts.clearanceOrder;
     }
 
     // Initialize empty context (child clients override this)
@@ -257,6 +267,8 @@ export class Client<TContext = {}> {
     (child as any).throwOnError = parent.throwOnError;
     (child as any).bus = parent.bus;
     (child as any).interceptors = parent.interceptors;
+    (child as any).capability = parent.capability;
+    (child as any).clearanceOrder = parent.clearanceOrder;
 
     // Object.create() bypasses class-field initializers, so procedureRegistry (which normally
     // defaults to PROCEDURE_REGISTRY via a field initializer) would be undefined on the child
@@ -553,15 +565,21 @@ export class Client<TContext = {}> {
     // The nested calls get the metadata and the signal of the invocation (an interceptor can
     // change them), and name it as their parent
     const client = (invocation: Invocation): ProcedureClient => {
-      const nested: CallerContext = {
+      // The nested calls get the capability of the invocation, or a narrower one on request
+      const nested = (options?: NestedCallOptions): CallerContext => ({
         metadata: invocation.metadata,
         signal: invocation.signal,
         parent: invocation,
         onRef: caller.onRef,
-      };
+        capability: options?.narrow
+          ? narrowCapability(invocation.capability, options.narrow, self.clearanceOrder)
+          : invocation.capability,
+      });
       return {
-        call: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execInternal<TOutput>(path, input, nested),
-        stream: <TInput, TOutput>(path: ProcedurePath, input: TInput) => self.execStreamInternal<TOutput>(path, input, nested),
+        call: <TInput, TOutput>(path: ProcedurePath, input: TInput, options?: NestedCallOptions) =>
+          self.execInternal<TOutput>(path, input, nested(options)),
+        stream: <TInput, TOutput>(path: ProcedurePath, input: TInput, options?: NestedCallOptions) =>
+          self.execStreamInternal<TOutput>(path, input, nested(options)),
       };
     };
     return {
@@ -573,12 +591,21 @@ export class Client<TContext = {}> {
       interceptors: this.interceptors,
       parent: caller.parent,
       onRef: caller.onRef,
+      capability: caller.capability ?? this.capability,
+      clearanceOrder: this.clearanceOrder,
     };
   }
 
-  /** The call options of a remote call for a caller: its metadata as context, and its signal. */
+  /**
+   * The call options of a remote call for a caller: its metadata as context, and its signal. A
+   * deadline goes as the remaining time (`procedure-timeout`, in milliseconds): the server
+   * calculates its own deadline, so a difference between two clocks has no effect.
+   */
   private remoteCallOptions(caller: CallerContext): CallOptions<TContext> {
-    const options: CallOptions<TContext> = { context: (caller.metadata ?? {}) as ClientContextInput<TContext> };
+    const deadline = (caller.capability ?? this.capability)?.deadline;
+    const metadata =
+      deadline === undefined ? caller.metadata ?? {} : { ...caller.metadata, [TIMEOUT_METADATA_KEY]: Math.max(0, deadline - Date.now()) };
+    const options: CallOptions<TContext> = { context: metadata as ClientContextInput<TContext> };
     if (caller.signal) {
       options.signal = caller.signal;
     }

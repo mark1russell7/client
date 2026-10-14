@@ -9,6 +9,7 @@ import { z } from "zod";
 import { anyOutput, arrayOutput, booleanOutput, recordOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
+import { PURE_EFFECTS, withEffects } from "../effects.js";
 
 // =============================================================================
 // Helper: Get nested value by path
@@ -402,7 +403,8 @@ const objectProceduresRaw: AnyProcedure[] = [
 /**
  * All object procedures namespaced under "client".
  */
-export const objectProcedures: AnyProcedure[] = namespace(["client"], objectProceduresRaw);
+// Each one calculates its output from its input: no reads, no changes (CAPABILITIES-2026-10)
+export const objectProcedures: AnyProcedure[] = namespace(["client"], withEffects(PURE_EFFECTS, objectProceduresRaw));
 
 /**
  * Object procedures module for registration.

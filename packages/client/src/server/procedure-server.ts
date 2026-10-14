@@ -17,7 +17,9 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import { InvocationError, invokeProcedure, type Interceptor } from "../procedures/invoke.js";
+import { InvocationError, invokeProcedure, type Interceptor, type Invocation } from "../procedures/invoke.js";
+import type { Capability, ClearanceOrder, ResourcesOf } from "../procedures/types.js";
+import { TIMEOUT_METADATA_KEY, narrowCapability } from "../procedures/capability.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 
 // =============================================================================
@@ -68,6 +70,29 @@ export interface ProcedureServerOptions extends ServerOptions {
    * tracing, timeouts, metrics (see `procedures/interceptors.ts`).
    */
   interceptors?: readonly Interceptor[] | undefined;
+
+  /**
+   * The capability of each request (CAPABILITIES-2026-10): one value, or a function of the
+   * request. The function reads only what the transport authenticated. Without it: no limits.
+   */
+  capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
+  /** The order of the clearance values. */
+  clearanceOrder?: ClearanceOrder | undefined;
+  /** The resources of each invocation for its capability (`ctx.resources`). */
+  resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
+  /** The filter of the output that leaves the server. */
+  admitItem?: ((item: unknown, invocation: Invocation) => boolean) | undefined;
+}
+
+/** The capability of a request with the remaining time of its caller, when it sends one. */
+function withRequestTimeout(
+  capability: Capability | undefined,
+  request: ServerRequest<unknown>,
+  order: ClearanceOrder | undefined
+): Capability | undefined {
+  const timeoutMs = request.metadata[TIMEOUT_METADATA_KEY];
+  if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs < 0) return capability;
+  return narrowCapability(capability, { timeoutMs }, order);
 }
 
 /**
@@ -78,6 +103,8 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
   // An error that says it is retryable stays retryable: before, every error lost the flag
   // (deep dive TRN-7)
   const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
+  // A refusal of the capability says why (CAPABILITIES-2026-10)
+  const reason = error instanceof InvocationError ? error.reason : undefined;
   return {
     id,
     status: {
@@ -86,7 +113,7 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
       message: error instanceof Error ? error.message : String(error),
       retryable: typeof retryable === "boolean" ? retryable : false,
     },
-    metadata: {},
+    metadata: reason ? { reason } : {},
   };
 }
 
@@ -136,6 +163,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   private readonly strictCalls: boolean;
   private readonly interceptors: readonly Interceptor[];
+  /** The capability options of the requests (CAPABILITIES-2026-10). */
+  private readonly capabilityOptions: Pick<ProcedureServerOptions, "capability" | "clearanceOrder" | "resources" | "admitItem">;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -144,6 +173,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.expose = options.expose;
     this.strictCalls = options.strictCalls ?? false;
     this.interceptors = options.interceptors ?? [];
+    this.capabilityOptions = {
+      capability: options.capability,
+      clearanceOrder: options.clearanceOrder,
+      resources: options.resources,
+      admitItem: options.admitItem,
+    };
 
     // Configure collections
     if (options.collections) {
@@ -303,6 +338,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     try {
       // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
       // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
+      const { capability, clearanceOrder, resources, admitItem } = this.capabilityOptions;
       const output = await invokeProcedure(procedure, request.payload, {
         registry: this.procedureRegistry,
         metadata: request.metadata,
@@ -311,6 +347,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         expose: this.expose,
         strictCalls: this.strictCalls,
         interceptors: this.interceptors,
+        // The capability comes from the server, never from the request. The remaining time of
+        // the caller can only make the deadline earlier (CAPABILITIES-2026-10, decision 9).
+        capability: withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder),
+        clearanceOrder,
+        resources,
+        admitItem,
       });
       if (output.kind === "stream") {
         return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };

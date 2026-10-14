@@ -24,10 +24,38 @@ export type {
   ProcedureModule,
   RegistrationOptions,
   ProcedureRegistryLike,
+  Effects,
+  PermittedEffects,
+  Register,
+  ClearanceOf,
+  ResourcesOf,
+  Capability,
+  CapabilityRequest,
+  ClearanceOrder,
+  NestedCallOptions,
 } from "./types.js";
 
 // Type utilities
 export { pathToKey, keyToPath } from "./types.js";
+
+// Capabilities (CAPABILITIES-2026-10)
+export {
+  STANDARD_RESOURCES,
+  UNLIMITED_CAPABILITY,
+  ladder,
+  effectsOf,
+  isReadOnly,
+  isDestructive,
+  isOpenWorld,
+  toolHints,
+  narrowCapability,
+  capabilityRefusal,
+  examinesNestedCall,
+  explainInvocation,
+  checkEffects,
+} from "./capability.js";
+export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./capability.js";
 
 // Registry
 export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY, assertValidPath } from "./registry.js";

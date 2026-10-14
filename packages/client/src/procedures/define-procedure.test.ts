@@ -79,7 +79,7 @@ describe("procedure.define meta-procedure", () => {
   beforeEach(() => {
     clearRuntimeProcedures();
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["procedure", "define"],
@@ -288,7 +288,7 @@ describe("procedure.define meta-procedure", () => {
       );
 
       const proc = getRuntimeProcedure(["test", "noClient"]);
-      const noClientCtx: ProcedureContext = {
+      const noClientCtx: ProcedureContext = { capability: {}, resources: {},
         metadata: {},
         path: ["test", "noClient"],
         client: undefined as any,
@@ -496,7 +496,7 @@ describe("$ref resolution", () => {
   beforeEach(() => {
     clearRuntimeProcedures();
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["procedure", "define"],

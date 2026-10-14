@@ -62,7 +62,7 @@ describe("aggregation integration tests", () => {
 
   beforeEach(() => {
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["test", "integration"],

@@ -9,6 +9,7 @@ import { z } from "zod";
 import { anyOutput, arrayOutput, booleanOutput, numberOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
+import { PURE_EFFECTS, withEffects } from "../effects.js";
 
 // =============================================================================
 // First Procedure
@@ -978,7 +979,8 @@ const arrayProceduresRaw: AnyProcedure[] = [
 /**
  * All array procedures namespaced under "client".
  */
-export const arrayProcedures: AnyProcedure[] = namespace(["client"], arrayProceduresRaw);
+// Each one calculates its output from its input: no reads, no changes (CAPABILITIES-2026-10)
+export const arrayProcedures: AnyProcedure[] = namespace(["client"], withEffects(PURE_EFFECTS, arrayProceduresRaw));
 
 /**
  * Array procedures module for registration.

@@ -1,6 +1,6 @@
 # Invocation capabilities (proposal, October 2026)
 
-> **Status:** a proposal for the owner's review. The owner approved the direction on 2026-10-13: the mechanism goes into `@procedures/client`, in its most general form. The questions at the end need answers before phase B.
+> **Status:** approved on 2026-10-13. The owner accepted the default answers and gave the remaining decisions to the implementation, with generality and the long term as the goals. The section "Decisions" records them.
 > **Prerequisite:** registration without side effects ([P9 in the proposals](./ARCHITECTURE-PROPOSALS-2026-10.md#p9-registration-without-side-effects-p2-option-3)), decided on the same day.
 
 ## The problem
@@ -146,7 +146,23 @@ A procedure with `metadata.calls` names its nested calls. So a test can calculat
 
 Phase A and phase D together give the MCP hints and the read-only mode. Phase B is the part that the private application needs.
 
-## Questions for the owner
+## Decisions (2026-10-13)
+
+The owner accepted the default answer of each question. These decisions complete the design.
+
+1. **The order of clearance values is a partial order.** The application gives `leq` and `meet`. `ladder(levels)` makes the order of a ladder. A capability without a clearance has no data limit.
+2. **The effect names are free strings, with four standard names:** `fs` (the files of the host), `network` (systems outside the host), `process` (it starts any program) and `registry` (the procedure registry). An application adds its own names, for example `world`.
+3. **The defaults of the hints follow MCP.** A procedure that writes is destructive, except when it declares `destructive: false`. A procedure is idempotent only when it declares it. A procedure is "open world" when it reads or writes `network`, or writes `process`. So the declaration has no separate field for it.
+4. **Reach stays separate** in phases A to C: `expose`, `metadata.calls` and `strictCalls` do not change.
+5. **An application gives its types in one place.** It augments the interface `Register` of `@procedures/client` with `clearance` and `resources` (the pattern of TanStack Router). Then `ctx.capability.clearance` and `ctx.resources` have its types, without a type parameter on each handler.
+6. **`ctx.resources`, not fields directly on `ctx`.** The names of an application cannot hide the fields of the framework.
+7. **Control flow has no effects of its own.** `client.chain` and the other procedures that run refs declare empty effects. Their nested calls get the capability, so the admission examines each nested call. Their MCP hints do not say "read only", because their operands can write.
+8. **An interceptor can only narrow.** `next({ capability })` gives a request, and the framework calculates the narrower capability from it.
+9. **The wire carries a time, not a date.** A remote call sends the remaining milliseconds, as gRPC does. The server calculates its own deadline. A difference between two clocks then has no effect.
+10. **A refused output value is an error.** The output filter drops a refused stream item. A refused single value gives `FORBIDDEN` with the reason `clearance`.
+
+## Questions for the owner (answered)
+
 
 Each question has a default. The work uses the default when there is no other answer.
 

@@ -4,7 +4,7 @@
  * Converts procedures from PROCEDURE_REGISTRY to MCP tool definitions.
  */
 
-import type { AnyProcedure, ProcedurePath } from "@procedures/client";
+import { toolHints, type AnyProcedure, type ProcedurePath } from "@procedures/client";
 import type { McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
@@ -65,6 +65,12 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
     tool.outputSchema = outputSchema;
   }
 
+  // The hints of the tool, from the declared effects (CAPABILITIES-2026-10)
+  const hints = toolHints(procedure);
+  if (Object.keys(hints).length > 0) {
+    tool.annotations = { ...hints };
+  }
+
   // Only add optional properties if they have values
   if (procedure.streaming !== undefined) {
     tool.streaming = procedure.streaming;
@@ -93,6 +99,9 @@ export function toToolDefinition(tool: McpTool): McpToolDefinition {
   }
   if (tool.outputSchema !== undefined) {
     def.outputSchema = tool.outputSchema;
+  }
+  if (tool.annotations !== undefined) {
+    def.annotations = tool.annotations;
   }
 
   return def;

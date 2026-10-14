@@ -45,6 +45,7 @@
  * ```
  */
 
+import { PURE_EFFECTS, withEffects } from "../effects.js";
 import { z } from "zod";
 import { anyOutput, booleanOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
@@ -786,7 +787,9 @@ const tryCatchProcedure: TryCatchProcedure = defineProcedure({
 /**
  * All core language procedures namespaced under "client".
  */
-export const coreProcedures: AnyProcedure[] = namespace(["client"], [
+// Control flow and the operators: no effects of their own. The admission examines each nested
+// call of a data-driven procedure (CAPABILITIES-2026-10).
+export const coreProcedures: AnyProcedure[] = namespace(["client"], withEffects(PURE_EFFECTS, [
   chainProcedure as AnyProcedure,
   parallelProcedure as AnyProcedure,
   conditionalProcedure as AnyProcedure,
@@ -805,7 +808,7 @@ export const coreProcedures: AnyProcedure[] = namespace(["client"], [
   constantProcedure as AnyProcedure,
   throwProcedure as AnyProcedure,
   tryCatchProcedure as AnyProcedure,
-]);
+]));
 
 /**
  * Core procedures module for registration.

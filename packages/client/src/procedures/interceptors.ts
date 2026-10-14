@@ -98,7 +98,8 @@ export function timeoutInterceptor(options: TimeoutInterceptorOptions): Intercep
 
     let output: ProcedureOutput<unknown>;
     try {
-      output = await Promise.race([next({ signal }), deadline]);
+      // The deadline goes into the capability: the nested calls and the remote calls see it
+      output = await Promise.race([next({ signal, capability: { timeoutMs: ms } }), deadline]);
     } catch (error) {
       stop();
       throw error;

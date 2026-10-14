@@ -44,6 +44,19 @@ export interface McpToolDefinition {
    * an object has it: then each successful result also has `structuredContent`.
    */
   outputSchema?: JsonSchema;
+  /**
+   * The hints of the tool (MCP 2025-03-26 tool annotations): from the declared effects of the
+   * procedure (CAPABILITIES-2026-10). Absent: the MCP defaults (not read only, destructive).
+   */
+  annotations?: McpToolAnnotations;
+}
+
+/** The hints of a tool. A client reads them. The capability of the host enforces the effects, not the hints. */
+export interface McpToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
 }
 
 /**
