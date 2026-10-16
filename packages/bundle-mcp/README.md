@@ -12,13 +12,13 @@ npm install @procedures/bundle-mcp
 
 `src/register.ts` exports these lists:
 
-- `mcpNamespaces`: the namespaces whose procedures are tools. At this time: `client`, `cue`, `db`, `docker`, `lib`, `logs`, `mongo`, `procedure`, `program` and `vitest`.
+- `mcpNamespaces`: the namespaces whose procedures are tools. At this time: `client`, `cue`, `db`, `docker`, `json`, `lib`, `logs`, `mongo`, `procedure`, `program`, `vitest` and `yaml`.
 - `mcpExclude`: procedures of those namespaces that are not tools.
   - `vitest.watch`, `vitest.stop` and `vitest.list` manage processes that live longer than a tool call.
   - `docker.prune` deletes in bulk, and `docker.volume.remove` deletes the data of a volume. `docker.push` can carry an image out to any registry.
   - `procedure.store`, `procedure.load`, `procedure.sync`, `procedure.remote` and `procedure.register` need a procedure store, and the MCP server has none.
 
-The result is 79 tools (October 2026):
+The result is 86 tools (October 2026):
 
 | Namespace | Tools |
 |---|---|
@@ -26,12 +26,14 @@ The result is 79 tools (October 2026):
 | `cue` | 5: `add`, `generate`, `init`, `remove`, `validate` |
 | `db` | 2: `execute`, `query` |
 | `docker` | 22: `build`, `compose.build`, `compose.down`, `compose.logs`, `compose.ps`, `compose.restart`, `compose.up`, `exec`, `images`, `inspect`, `logs`, `network.create`, `network.list`, `network.remove`, `ps`, `pull`, `rm`, `run`, `stop`, `tag`, `volume.create`, `volume.list` |
+| `json` | 5: `diff`, `merge`, `patch`, `query`, `validate`. They are pure. |
 | `lib` | 4: `audit`, `new`, `rename`, `scan` |
 | `logs` | 2: `query`, `store` |
 | `mongo` | 16: the `collections`, `database`, `documents` and `indexes` procedures |
 | `procedure` | 7: `define`, `delete`, `export`, `get`, `list`, `manifest`, `new` |
 | `program` | 4: `check`, `compile`, `diagram`, `explain`. They examine a program before it starts. The program stays data. |
 | `vitest` | 2: `coverage`, `run` |
+| `yaml` | 2: `parse`, `stringify`. They are pure. |
 
 `packages/impl-mcp-dev/tools.snapshot.txt` has the exact list. A test of `impl-mcp-dev` starts the real server and compares its tools with the list. The site shows the list too: <https://mark1russell7.github.io/client/claude/>.
 

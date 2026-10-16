@@ -282,6 +282,9 @@ importers:
       '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
+      '@procedures/json':
+        specifier: workspace:*
+        version: link:../json
       '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib

@@ -24,6 +24,7 @@ import { clientModule, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, r
 import libModule from "@procedures/lib/module";
 import procedureModule from "@procedures/procedure/module";
 import compilerModule from "@procedures/compiler/module";
+import jsonModule from "@procedures/json/module";
 import cueModule from "@procedures/cue/module";
 import dockerModule from "@procedures/docker/module";
 import mongoModule from "@procedures/mongo/module";
@@ -43,6 +44,8 @@ export const bundleMcpModules: readonly ProcedureModule[] = [
   // program.check, compile, diagram and explain: Claude examines a program before it runs it (roadmap R22, R23).
   // The module also registers sdk.openrpc and sdk.typescript, but sdk is not in mcpNamespaces.
   compilerModule,
+  // json.* and yaml.*: pure transforms of data, also for the steps of a program (roadmap R39)
+  jsonModule,
   cueModule,
   // Infrastructure
   dockerModule,
@@ -68,12 +71,14 @@ export const mcpNamespaces: readonly string[] = [
   "cue",
   "db",
   "docker",
+  "json",
   "lib",
   "logs",
   "mongo",
   "procedure",
   "program",
   "vitest",
+  "yaml",
 ];
 
 /**

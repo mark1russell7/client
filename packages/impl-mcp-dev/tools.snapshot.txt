@@ -42,6 +42,11 @@ docker.stop
 docker.tag
 docker.volume.create
 docker.volume.list
+json.diff
+json.merge
+json.patch
+json.query
+json.validate
 lib.audit
 lib.new
 lib.rename
@@ -77,3 +82,5 @@ program.diagram
 program.explain
 vitest.coverage
 vitest.run
+yaml.parse
+yaml.stringify

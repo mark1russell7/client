@@ -42,6 +42,11 @@ docker.stop: destructive, idempotent
 docker.tag: destructive, idempotent
 docker.volume.create: additive, idempotent
 docker.volume.list: read only
+json.diff: read only
+json.merge: read only
+json.patch: read only
+json.query: read only
+json.validate: read only
 lib.audit: additive, idempotent
 lib.new: additive, open world
 lib.rename: destructive
@@ -77,3 +82,5 @@ program.diagram: read only
 program.explain: read only
 vitest.coverage: destructive, open world
 vitest.run: destructive, open world
+yaml.parse: read only
+yaml.stringify: read only

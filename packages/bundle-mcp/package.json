@@ -73,6 +73,7 @@
     "@procedures/compiler": "workspace:*",
     "@procedures/cue": "workspace:*",
     "@procedures/docker": "workspace:*",
+    "@procedures/json": "workspace:*",
     "@procedures/lib": "workspace:*",
     "@procedures/mongo": "workspace:*",
     "@procedures/procedure": "workspace:*",

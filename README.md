@@ -91,7 +91,7 @@ Until October 2026, these packages had the scope `@mark1russell7` (for example `
 
 ## Use with Claude
 
-`@procedures/mcp-dev-tools` is an MCP server with 79 developer tools: Docker, MongoDB, SQLite, CUE, Vitest and the workspace. Each tool call has a time limit, and a tool can use only the procedures that it declares. Add it to the MCP configuration of Claude Code:
+`@procedures/mcp-dev-tools` is an MCP server with 86 developer tools: Docker, MongoDB, SQLite, CUE, Vitest and the workspace. Each tool call has a time limit, and a tool can use only the procedures that it declares. Add it to the MCP configuration of Claude Code:
 
 ```json
 {

@@ -1073,6 +1073,118 @@
       }
     }
   },
+  "json.diff": {
+    "type": "object",
+    "properties": {
+      "from": {
+        "description": "The first JSON value"
+      },
+      "to": {
+        "description": "The second JSON value"
+      }
+    },
+    "required": [
+      "from",
+      "to"
+    ]
+  },
+  "json.merge": {
+    "type": "object",
+    "properties": {
+      "target": {
+        "description": "The JSON value to change"
+      },
+      "patch": {
+        "description": "The merge patch (RFC 7386): an object of changes, where null removes a key"
+      }
+    },
+    "required": [
+      "target",
+      "patch"
+    ]
+  },
+  "json.patch": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "description": "The JSON value to change"
+      },
+      "patch": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "add",
+                "remove",
+                "replace",
+                "move",
+                "copy",
+                "test"
+              ],
+              "description": "The operation"
+            },
+            "path": {
+              "type": "string",
+              "description": "The JSON Pointer of the location"
+            },
+            "from": {
+              "description": "The JSON Pointer of the source of move and copy",
+              "type": "string"
+            },
+            "value": {
+              "description": "The value of add, replace and test"
+            }
+          },
+          "required": [
+            "op",
+            "path"
+          ]
+        },
+        "description": "The operations of the JSON Patch (RFC 6902), in order"
+      }
+    },
+    "required": [
+      "value",
+      "patch"
+    ]
+  },
+  "json.query": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "description": "The JSON value to search"
+      },
+      "pointer": {
+        "description": "A JSON Pointer (RFC 6901), for example /items/0/name. Give pointer or path",
+        "type": "string"
+      },
+      "path": {
+        "description": "A path query, for example items[*].name or $..id. Give pointer or path",
+        "type": "string"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  },
+  "json.validate": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "description": "The JSON value to examine"
+      },
+      "schema": {
+        "description": "The JSON Schema: an object or a boolean"
+      }
+    },
+    "required": [
+      "value",
+      "schema"
+    ]
+  },
   "lib.audit": {
     "type": "object",
     "properties": {
@@ -2307,5 +2419,48 @@
         "type": "boolean"
       }
     }
+  },
+  "yaml.parse": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The YAML text"
+      },
+      "all": {
+        "description": "True: the text can have more than one document, and value is the list of documents",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "text"
+    ]
+  },
+  "yaml.stringify": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "description": "The JSON value to write"
+      },
+      "indent": {
+        "description": "The spaces of one level of indentation (default: 2)",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 8
+      },
+      "lineWidth": {
+        "description": "The longest line before a fold. 0: no fold (default: 80)",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "sortKeys": {
+        "description": "True: the keys of each map in alphabetical order",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "value"
+    ]
   }
 }

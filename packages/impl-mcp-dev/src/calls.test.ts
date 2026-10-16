@@ -74,6 +74,14 @@ function samples(): Record<string, unknown> {
     // A second input of the same tool after "#": with follow, docker.logs streams through shell.stream
     "docker.logs#follow": { container: "calls-test-none", follow: true },
     "docker.ps": {},
+    // The pure transforms of roadmap R39
+    "json.query": { value: { a: [1, 2] }, pointer: "/a/0" },
+    "json.patch": { value: { a: 1 }, patch: [{ op: "replace", path: "/a", value: 2 }] },
+    "json.diff": { from: { a: 1 }, to: { a: 2 } },
+    "json.merge": { target: { a: 1 }, patch: { b: 2 } },
+    "json.validate": { value: 1, schema: { type: "number" } },
+    "yaml.parse": { text: "a: 1" },
+    "yaml.stringify": { value: { a: 1 } },
     // The tools of roadmap R41
     "docker.compose.build": cwd,
     "docker.compose.logs": cwd,

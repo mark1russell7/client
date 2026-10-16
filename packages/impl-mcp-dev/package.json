@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/mcp-dev-tools",
   "version": "0.2.3",
-  "description": "A ready-to-use MCP server for Claude Code and Claude Desktop: 79 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy.",
+  "description": "A ready-to-use MCP server for Claude Code and Claude Desktop: 86 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy.",
   "keywords": [
     "mcp",
     "model-context-protocol",
