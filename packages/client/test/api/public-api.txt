@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 408 names
+## . (dist/index.d.ts): 410 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -205,10 +205,12 @@ type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
+TIMER_DEFAULTS: dist/timers.d.ts#TIMER_DEFAULTS
 TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
 type TimeUnit: dist/duration.d.ts#TimeUnit
 type TimeoutInterceptorOptions: dist/procedures/interceptors.d.ts#TimeoutInterceptorOptions
 type TimeoutOverride: dist/client/call-types.d.ts#TimeoutOverride
+type TimerDefaults: dist/timers.d.ts#TimerDefaults
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
 type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
 type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
@@ -415,7 +417,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 391 names
+## ./browser (dist/browser.d.ts): 393 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -610,10 +612,12 @@ type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
+TIMER_DEFAULTS: dist/timers.d.ts#TIMER_DEFAULTS
 TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
 type TimeUnit: dist/duration.d.ts#TimeUnit
 type TimeoutInterceptorOptions: dist/procedures/interceptors.d.ts#TimeoutInterceptorOptions
 type TimeoutOverride: dist/client/call-types.d.ts#TimeoutOverride
+type TimerDefaults: dist/timers.d.ts#TimerDefaults
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
 type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
 type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
@@ -4046,6 +4050,50 @@ export interface ServerTransport {
     start(): Promise<void>;
     stop(): Promise<void>;
     isRunning(): boolean;
+}
+
+### dist/timers.d.ts#TIMER_DEFAULTS
+export declare const TIMER_DEFAULTS: TimerDefaults;
+
+### dist/timers.d.ts#TimerDefaults
+export interface TimerDefaults {
+    readonly retry: {
+        readonly maxRetries: number;
+        readonly retryDelayMs: number;
+        readonly backoffMultiplier: number;
+        readonly maxDelayMs: number;
+    };
+    readonly circuitBreaker: {
+        readonly failureWindowMs: number;
+        readonly resetTimeoutMs: number;
+    };
+    readonly cache: {
+        readonly ttlMs: number;
+        readonly statsIntervalMs: number;
+    };
+    readonly rateLimit: {
+        readonly windowMs: number;
+    };
+    readonly webSocketClient: {
+        readonly connectionTimeoutMs: number;
+        readonly requestTimeoutMs: number;
+        readonly heartbeatIntervalMs: number;
+        readonly heartbeatTimeoutMs: number;
+        readonly heartbeatMisses: number;
+        readonly reconnectInitialDelayMs: number;
+        readonly reconnectMaxDelayMs: number;
+    };
+    readonly webSocketServer: {
+        readonly heartbeatIntervalMs: number;
+        readonly heartbeatMisses: number;
+        readonly reverseRequestTimeoutMs: number;
+    };
+    readonly idempotency: {
+        readonly ttlMs: number;
+    };
+    readonly server: {
+        readonly stopGraceMs: number;
+    };
 }
 
 ### dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY

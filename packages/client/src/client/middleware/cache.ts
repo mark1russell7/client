@@ -10,6 +10,7 @@ import type { CacheContext } from "./contexts.js";
 import { LruMap } from "./lru.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
 import type { Effects } from "../../procedures/types.js";
+import { TIMER_DEFAULTS } from "../../timers.js";
 
 /**
  * Cache middleware options.
@@ -241,8 +242,8 @@ function defaultShouldCache(item: ResponseItem<unknown>): boolean {
  * ```
  */
 export function createCacheMiddleware(options: CacheOptions): TypedClientMiddleware<CacheContext, {}> {
-  const ttl = optionalMs(options.ttl, "ttl") ?? 60000;
-  const statsInterval = optionalMs(options.statsInterval, "statsInterval") ?? 60000;
+  const ttl = optionalMs(options.ttl, "ttl") ?? TIMER_DEFAULTS.cache.ttlMs;
+  const statsInterval = optionalMs(options.statsInterval, "statsInterval") ?? TIMER_DEFAULTS.cache.statsIntervalMs;
   const {
     methods,
     capacity = 100,

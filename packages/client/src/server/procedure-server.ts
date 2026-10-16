@@ -23,6 +23,7 @@ import { TIMEOUT_METADATA_KEY, effectsOf, narrowCapability } from "../procedures
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
+import { TIMER_DEFAULTS } from "../timers.js";
 
 // =============================================================================
 // Types
@@ -733,7 +734,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * Stop server and close storages.
    */
   override async stop(options: StopOptions = {}): Promise<void> {
-    const graceMs = optionalMs(options.grace, "grace") ?? 0;
+    const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.stopGraceMs;
     // A graceful stop: new calls get UNAVAILABLE, and the calls in flight have the grace time
     // to end (roadmap R14). Before, the transports aborted every call at once.
     this.draining = true;

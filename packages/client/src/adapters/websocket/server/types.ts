@@ -82,7 +82,7 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
    * connection that misses `misses` pongs one after the other is closed, so the server finds a
    * client that went silent (roadmap R3: before, only the client sent pings). Browsers and the
    * `ws` client answer a ping without code. `false` turns it off.
-   * @default { interval: seconds(30), misses: 2 }
+   * @default { interval: seconds(15), misses: 2 } (`TIMER_DEFAULTS.webSocketServer`)
    */
   heartbeat?: { interval?: Duration; misses?: number } | false;
 

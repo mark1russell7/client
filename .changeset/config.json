@@ -16,6 +16,7 @@
       "@procedures/cli-run",
       "@procedures/collections",
       "@procedures/compiler",
+      "@procedures/systems",
       "@procedures/cue",
       "@procedures/dag",
       "@procedures/docker",

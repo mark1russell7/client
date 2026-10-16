@@ -32,6 +32,7 @@
     "@procedures/splay": "workspace:*",
     "@procedures/sqlite": "workspace:*",
     "@procedures/store": "workspace:*",
+    "@procedures/systems": "workspace:*",
     "@procedures/vite": "workspace:*",
     "@procedures/vitest": "workspace:*",
     "@types/node": "^22.0.0",

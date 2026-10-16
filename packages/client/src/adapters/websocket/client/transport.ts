@@ -14,6 +14,7 @@ import type { RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
+import { TIMER_DEFAULTS } from "../../../timers.js";
 
 /**
  * Pending request waiting for response.
@@ -204,19 +205,19 @@ export class WebSocketTransport implements Transport {
       reconnect: {
         enabled: options.reconnect?.enabled ?? true,
         maxAttempts: options.reconnect?.maxAttempts ?? Infinity,
-        initialDelay: optionalMs(options.reconnect?.initialDelay, "reconnect.initialDelay") ?? 1000,
-        maxDelay: optionalMs(options.reconnect?.maxDelay, "reconnect.maxDelay") ?? 30000,
+        initialDelay: optionalMs(options.reconnect?.initialDelay, "reconnect.initialDelay") ?? TIMER_DEFAULTS.webSocketClient.reconnectInitialDelayMs,
+        maxDelay: optionalMs(options.reconnect?.maxDelay, "reconnect.maxDelay") ?? TIMER_DEFAULTS.webSocketClient.reconnectMaxDelayMs,
         backoffMultiplier: options.reconnect?.backoffMultiplier ?? 1.5,
         jitter: Math.min(1, Math.max(0, options.reconnect?.jitter ?? 1)),
       },
-      connectionTimeout: optionalMs(options.connectionTimeout, "connectionTimeout") ?? 10000,
-      requestTimeout: optionalMs(options.requestTimeout, "requestTimeout") ?? 30000,
+      connectionTimeout: optionalMs(options.connectionTimeout, "connectionTimeout") ?? TIMER_DEFAULTS.webSocketClient.connectionTimeoutMs,
+      requestTimeout: optionalMs(options.requestTimeout, "requestTimeout") ?? TIMER_DEFAULTS.webSocketClient.requestTimeoutMs,
       streamWindow: Math.max(2, options.streamWindow ?? 64),
       heartbeat: {
         enabled: options.heartbeat?.enabled ?? true,
-        interval: optionalMs(options.heartbeat?.interval, "heartbeat.interval") ?? 30000,
-        timeout: optionalMs(options.heartbeat?.timeout, "heartbeat.timeout") ?? 5000,
-        misses: Math.max(1, options.heartbeat?.misses ?? 1),
+        interval: optionalMs(options.heartbeat?.interval, "heartbeat.interval") ?? TIMER_DEFAULTS.webSocketClient.heartbeatIntervalMs,
+        timeout: optionalMs(options.heartbeat?.timeout, "heartbeat.timeout") ?? TIMER_DEFAULTS.webSocketClient.heartbeatTimeoutMs,
+        misses: Math.max(1, options.heartbeat?.misses ?? TIMER_DEFAULTS.webSocketClient.heartbeatMisses),
       },
       onConnect: options.onConnect,
       onDisconnect: options.onDisconnect,

@@ -95,7 +95,7 @@ export interface WebSocketTransportOptions {
 
     /**
      * Heartbeat interval.
-     * @default 30 seconds
+     * @default 20 seconds (`TIMER_DEFAULTS.webSocketClient.heartbeatIntervalMs`)
      */
     interval?: Duration;
 

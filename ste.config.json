@@ -16,6 +16,7 @@
     "packages/client-vite/README.md",
     "packages/compiler/README.md",
     "packages/compiler/src/**/*.ts",
+    "packages/systems/README.md",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [

@@ -23,6 +23,7 @@ import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/b
 import { optionalMs } from "../../../duration.js";
 import { credentialsOf, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
+import { TIMER_DEFAULTS } from "../../../timers.js";
 
 /**
  * WebSocket server transport adapter.
@@ -100,13 +101,13 @@ export class WebSocketServerTransport implements ServerTransport {
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
-    this.reverseRequestTimeoutMs = optionalMs(options.reverseRequestTimeout, "reverseRequestTimeout") ?? 30_000;
+    this.reverseRequestTimeoutMs = optionalMs(options.reverseRequestTimeout, "reverseRequestTimeout") ?? TIMER_DEFAULTS.webSocketServer.reverseRequestTimeoutMs;
     this.heartbeat =
       options.heartbeat === false
         ? undefined
         : {
-            interval: optionalMs(options.heartbeat?.interval, "heartbeat.interval") ?? 30_000,
-            misses: Math.max(1, options.heartbeat?.misses ?? 2),
+            interval: optionalMs(options.heartbeat?.interval, "heartbeat.interval") ?? TIMER_DEFAULTS.webSocketServer.heartbeatIntervalMs,
+            misses: Math.max(1, options.heartbeat?.misses ?? TIMER_DEFAULTS.webSocketServer.heartbeatMisses),
           };
   }
 

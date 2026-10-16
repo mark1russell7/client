@@ -306,6 +306,9 @@ export {
   checkEffects,
 } from "./procedures/capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects, INFERRED_EFFECTS_METADATA_KEY, inferredEffectsOf, effectsValue } from "./procedures/effects.js";
+// The default times of the core, as data (roadmap R34)
+export { TIMER_DEFAULTS } from "./timers.js";
+export type { TimerDefaults } from "./timers.js";
 // The transport over a message port: a Web Worker, a MessageChannel (roadmap R27)
 export { PortTransport } from "./adapters/port/transport.js";
 export type { PortLike, PortTransportOptions } from "./adapters/port/transport.js";

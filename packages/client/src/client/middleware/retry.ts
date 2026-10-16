@@ -10,6 +10,7 @@ import type { RetryContext } from "./contexts.js";
 import { abortedItem, deliveryOf, monotonicNow, retryAfterOf, sleep, thrownItem } from "./items.js";
 import { IDEMPOTENCY_KEY_METADATA, idempotencyKeyOf, newIdempotencyKey } from "../../procedures/idempotency.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
+import { TIMER_DEFAULTS } from "../../timers.js";
 
 /**
  * Retry middleware options.
@@ -133,7 +134,7 @@ export interface RetryOptions {
  * ```
  */
 export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMiddleware<RetryContext, {}> {
-  const defaultRetryDelay = optionalMs(options.retryDelay, "retryDelay") ?? 1000;
+  const defaultRetryDelay = optionalMs(options.retryDelay, "retryDelay") ?? TIMER_DEFAULTS.retry.retryDelayMs;
   const {
     jitter: defaultJitter = 1,
     shouldRetry: customShouldRetry,
@@ -141,9 +142,9 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
     onAfterRetry,
     idempotent: idempotentOption,
   } = options;
-  const defaultMaxRetries = options.maxRetries ?? 3;
-  const defaultMultiplier = options.backoffMultiplier ?? 2;
-  const defaultMaxDelay = optionalMs(options.maxDelay, "maxDelay") ?? Number.POSITIVE_INFINITY;
+  const defaultMaxRetries = options.maxRetries ?? TIMER_DEFAULTS.retry.maxRetries;
+  const defaultMultiplier = options.backoffMultiplier ?? TIMER_DEFAULTS.retry.backoffMultiplier;
+  const defaultMaxDelay = optionalMs(options.maxDelay, "maxDelay") ?? TIMER_DEFAULTS.retry.maxDelayMs;
 
   /**
    * The overrides of one call (`retry: { ... }` in its context), with the delays in milliseconds.

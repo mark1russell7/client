@@ -14,6 +14,7 @@ import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddlewa
 import type { CircuitBreakerContext } from "./contexts.js";
 import { optionalMs, type Duration } from "../../duration.js";
 import { isAvailabilityFailure, monotonicNow } from "./items.js";
+import { TIMER_DEFAULTS } from "../../timers.js";
 
 /**
  * Circuit breaker state.
@@ -138,8 +139,8 @@ export function createCircuitBreakerMiddleware(
     onStateChange,
   } = options;
   const halfOpenMaxRequests = options.halfOpenMaxRequests ?? successThreshold;
-  const failureWindow = optionalMs(options.failureWindow, "failureWindow") ?? 10000;
-  const resetTimeout = optionalMs(options.resetTimeout, "resetTimeout") ?? 30000;
+  const failureWindow = optionalMs(options.failureWindow, "failureWindow") ?? TIMER_DEFAULTS.circuitBreaker.failureWindowMs;
+  const resetTimeout = optionalMs(options.resetTimeout, "resetTimeout") ?? TIMER_DEFAULTS.circuitBreaker.resetTimeoutMs;
 
   let state: CircuitState = "CLOSED";
   let failures: FailureRecord[] = [];

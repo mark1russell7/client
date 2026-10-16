@@ -11,6 +11,7 @@ import type { Method } from "../client/types.js";
 import { methodToPath } from "../server/method.js";
 import type { AnyProcedure, Effects, ProcedurePath } from "./types.js";
 import { optionalMs, type Duration } from "../duration.js";
+import { TIMER_DEFAULTS } from "../timers.js";
 
 // This file imports no module of the invocation, so the retry middleware stays small in a browser
 
@@ -99,7 +100,7 @@ export class IdempotencyCache<T> {
   private readonly now: () => number;
 
   constructor(options: IdempotencyOptions = {}) {
-    this.ttlMs = optionalMs(options.ttl, "ttl") ?? 10 * 60_000;
+    this.ttlMs = optionalMs(options.ttl, "ttl") ?? TIMER_DEFAULTS.idempotency.ttlMs;
     this.maxEntries = options.maxEntries ?? 1000;
     this.now = options.now ?? Date.now;
   }

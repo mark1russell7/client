@@ -11,6 +11,7 @@ import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddlewa
 import type { RateLimitContext } from "./contexts.js";
 import { abortedItem } from "./items.js";
 import { optionalMs, type Duration } from "../../duration.js";
+import { TIMER_DEFAULTS } from "../../timers.js";
 
 /**
  * Rate limiting options.
@@ -120,7 +121,7 @@ export function createRateLimitMiddleware(
     message = "Rate limit exceeded",
     onRateLimitExceeded,
   } = options;
-  const window = optionalMs(options.window, "window") ?? 60000;
+  const window = optionalMs(options.window, "window") ?? TIMER_DEFAULTS.rateLimit.windowMs;
 
   // Token bucket state
   let tokens = maxRequests;
