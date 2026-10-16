@@ -23,6 +23,10 @@ import { updateProcedure } from "./procedures/documents.update.js";
 import { deleteProcedure } from "./procedures/documents.delete.js";
 import { countProcedure } from "./procedures/documents.count.js";
 import { aggregateProcedure } from "./procedures/documents.aggregate.js";
+import { distinctProcedure } from "./procedures/documents.distinct.js";
+import { bulkProcedure } from "./procedures/documents.bulk.js";
+import { explainProcedure } from "./procedures/documents.explain.js";
+import { watchProcedure } from "./procedures/watch.js";
 import { listIndexesProcedure } from "./procedures/indexes.list.js";
 import { createIndexProcedure } from "./procedures/indexes.create.js";
 import { dropIndexProcedure } from "./procedures/indexes.drop.js";
@@ -47,10 +51,15 @@ export const procedures: readonly AnyProcedure[] = [
   deleteProcedure,
   countProcedure,
   aggregateProcedure,
+  distinctProcedure,
+  bulkProcedure,
+  explainProcedure,
   // Indexes
   listIndexesProcedure,
   createIndexProcedure,
   dropIndexProcedure,
+  // Change streams
+  watchProcedure,
 ];
 
 /**

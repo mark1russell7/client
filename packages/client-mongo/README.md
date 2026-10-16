@@ -13,11 +13,12 @@ MongoDB client wrapper with client procedures for local or RPC access. Provides 
 - **Local usage**: Direct MongoDB connection with native driver
 - **RPC usage**: Remote procedure calls via `client.call()`
 
-The package follows the client procedure pattern, with 16 procedures in 4 categories. Its register entry (`import "@procedures/mongo/register"`) registers them:
+The package follows the client procedure pattern, with 20 procedures in 5 categories. Its register entry (`import "@procedures/mongo/register"`) registers them:
 - **Database**: `ping`, `info`
 - **Collections**: `list`, `create`, `drop`, `stats`
-- **Documents**: `find`, `get`, `insert`, `update`, `delete`, `count`, `aggregate`
+- **Documents**: `find`, `get`, `insert`, `update`, `delete`, `count`, `aggregate`, `distinct`, `bulk`, `explain`
 - **Indexes**: `list`, `create`, `drop`
+- **Change streams**: `mongo.watch`
 
 ## Architecture
 
@@ -735,6 +736,52 @@ interface AggregateOutput {
 }
 ```
 
+##### `mongo.documents.distinct`
+
+The procedure gives the distinct values of one field in the documents that match `query`. The default `query` matches all documents. An array field gives each of its elements. Use dots for an embedded field, for example `address.city`.
+
+```typescript
+const { values } = await client.exec(
+  ["mongo", "documents", "distinct"],
+  { collection: "users", field: "country", query: { status: "active" } }
+);
+```
+
+##### `mongo.documents.bulk`
+
+The procedure sends several writes in one request. The operations have the form of the `bulkWrite` of the driver: `insertOne`, `updateOne`, `updateMany`, `deleteOne` and `deleteMany`. By default, the operations run in order, and the first failure stops the rest. With `ordered: false`, the server tries each operation, and the error tells which ones failed.
+
+The rules of `update` and `delete` apply to each operation. An empty filter of an update or a delete needs `confirm: true` on the call. An unknown operation or field is an error.
+
+```typescript
+const result = await client.exec(["mongo", "documents", "bulk"], {
+  collection: "users",
+  operations: [
+    { insertOne: { document: { name: "Di" } } },
+    { updateOne: { filter: { name: "Ann" }, update: { $set: { status: "active" } } } },
+    { updateMany: { filter: { status: "new" }, update: { $set: { status: "active" } } } },
+    { deleteOne: { filter: { name: "Bob" } } },
+    { deleteMany: { filter: { status: "deleted" } } },
+  ],
+});
+// result: { ok, insertedCount, matchedCount, modifiedCount, deletedCount, upsertedCount, insertedIds, upsertedIds }
+```
+
+The ids in `insertedIds` and `upsertedIds` are text, and their keys are the indexes of the operations.
+
+##### `mongo.documents.explain`
+
+The procedure gives the plan of a find or of an aggregation pipeline. With `pipeline`, it explains an aggregation. Without `pipeline`, it explains a find with `query`, `projection`, `sort` and `limit`. The verbosity `queryPlanner` (the default) gives the plan only. The verbosities `executionStats` and `allPlansExecution` also run the plan and give its statistics. As `documents.aggregate` does, the procedure refuses `$out` and `$merge`.
+
+```typescript
+const { operation, plan } = await client.exec(["mongo", "documents", "explain"], {
+  collection: "users",
+  query: { email: "ann@example.com" },
+  verbosity: "executionStats",
+});
+console.log(plan.queryPlanner.winningPlan);
+```
+
 #### Index Procedures
 
 ##### `mongo.indexes.list`
@@ -855,6 +902,26 @@ interface DropIndexOutput {
   dropped: boolean;
 }
 ```
+
+#### Change Streams
+
+##### `mongo.watch`
+
+The procedure gives the changes of a collection as a stream. Without `collection`, it gives the changes of each collection of the database. The stream has no end (`metadata.stream: { unbounded: true }`). It stops when the reader stops or the call aborts, and the procedure then closes the change stream.
+
+A change stream needs a replica set or a sharded cluster. A standalone server refuses it, and the reader gets that error.
+
+```typescript
+for await (const change of client.execStream(["mongo", "watch"], {
+  collection: "orders",
+  pipeline: [{ $match: { operationType: { $in: ["insert", "update"] } } }],
+  fullDocument: "updateLookup",
+})) {
+  console.log(change.operationType, change.documentKey, change.resumeToken);
+}
+```
+
+Each item has the `operationType`, the namespace `ns`, the `documentKey` and the `resumeToken`. An insert gives the `fullDocument`, and an update gives the `updateDescription`. With `fullDocument: "updateLookup"`, an update also gives the current document. To continue after a stop, give the last `resumeToken` as `resumeAfter`. The `pipeline` accepts only the stages of a change stream: `$match`, `$project`, `$addFields`, `$set`, `$unset`, `$replaceRoot`, `$replaceWith` and `$redact`.
 
 ### Type Definitions
 
@@ -1278,9 +1345,13 @@ client-mongo/
 │   │   ├── documents.delete.ts
 │   │   ├── documents.count.ts
 │   │   ├── documents.aggregate.ts
+│   │   ├── documents.distinct.ts
+│   │   ├── documents.bulk.ts
+│   │   ├── documents.explain.ts
 │   │   ├── indexes.list.ts
 │   │   ├── indexes.create.ts
-│   │   └── indexes.drop.ts
+│   │   ├── indexes.drop.ts
+│   │   └── watch.ts            # mongo.watch
 ├── dist/                       # Compiled output
 ├── package.json
 ├── tsconfig.json
