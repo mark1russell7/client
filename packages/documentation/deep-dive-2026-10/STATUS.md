@@ -118,7 +118,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | CLI-17 | low | fixed | `874f355` | The bin is `dist/bin.js`. An import runs nothing. |
 | CLI-18 | low | fixed | `874f355` | `pathToFileURL`. A load failure prints one line. |
 | CLI-19 | low | fixed | `82d5924`, `612e842`, `fd64ed7` | The e2e suite tests current commands. Decision: the stale Dockerfile and compose file are retired (revert `612e842` to restore them). CI installs CUE for the scaffold test. |
-| CLI-20 | low | fixed | `806add8` | `repo rename` changes only workspace package names, in every text file. |
+| CLI-20 | low | fixed | `806add8` | `repo rename` changes only workspace package names, in every text file. On 2026-10-16 the owner removed `repo rename`, because `lib.rename` does the same work. |
 | Follow-ups | low | fixed | `a0852e2` | `git commit` takes `-m`. `git.status` works in a repository with no commits. |
 | Prompts | low | fixed | `978175a` | In a terminal, `mark` asks for a missing required argument (not with `--no-input`, in CI or outside a terminal). |
 | cli.run argv | low | fixed | `2069d8f` | `cli.run` sends `--key=value`, `false` booleans and `--` before the positional arguments. |

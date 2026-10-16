@@ -42,5 +42,5 @@ Write all prose of this repository in the style of ASD-STE100 Simplified Technic
 - `src/module.ts` holds the procedures as data. Only `src/register.ts`, the `./register` entry, registers them in the global registry.
 - An import of a package root or of `./module` must register nothing. `scripts/check-side-effects.mjs` fails when one does.
 - To make a procedure, start `node packages/mark/dist/cli.js procedure new <name> --path packages/<package>`.
-- Do not use `pnpm package add`. It makes packages without a `dist/` build, and the other packages cannot use them.
+- This repository has no `pnpm package add` command. Use `lib new` for each new package.
 - To examine all packages, start `node packages/mark/dist/cli.js lib audit`.
