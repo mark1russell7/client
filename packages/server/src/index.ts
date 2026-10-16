@@ -8,4 +8,29 @@
 
 export { parseConfig } from "./config.js";
 export { runServer, startServer, loadProcedureModule, type RunningServer, type ServerRunOptions } from "./run.js";
-export type { ServerConfig, TransportConfig, ServerCreateResult } from "./types.js";
+export type {
+  ServerConfig,
+  TransportConfig,
+  ServerCreateResult,
+  ServerStartInput,
+  ServerStartOutput,
+  ServerStopInput,
+  ServerStopOutput,
+  ServerStatusInput,
+  ServerStatusOutput,
+} from "./types.js";
+
+// server.start, server.stop and server.status (from @procedures/peer). The root registers
+// nothing: import "@procedures/server/register", or give the module to createRegistry().
+export * from "./module.js";
+export { serverStartProcedure } from "./procedures/server.start.js";
+export { serverStopProcedure } from "./procedures/server.stop.js";
+export { serverStatusProcedure } from "./procedures/server.status.js";
+export {
+  serverStartInputSchema,
+  serverStopInputSchema,
+  serverStatusInputSchema,
+  ServerStartOutputSchema,
+  ServerStopOutputSchema,
+  ServerStatusOutputSchema,
+} from "./schemas.js";

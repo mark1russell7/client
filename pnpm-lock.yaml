@@ -1569,6 +1569,9 @@ importers:
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
@@ -1712,6 +1715,9 @@ importers:
       '@procedures/schedule':
         specifier: workspace:*
         version: link:../schedule
+      '@procedures/server':
+        specifier: workspace:*
+        version: link:../server
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell

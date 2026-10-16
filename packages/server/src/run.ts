@@ -23,8 +23,9 @@ import {
   type ProcedureRegistry,
 } from "@procedures/client";
 import { createPeer, type Peer, type PeerEndpoint } from "@procedures/peer";
-import serverModule from "@procedures/peer/module";
+import peerModule from "@procedures/peer/module";
 import { parseConfig } from "./config.js";
+import { serverModule } from "./module.js";
 import type { ServerConfig } from "./types.js";
 import { seconds } from "@procedures/client";
 
@@ -134,7 +135,9 @@ export async function startServer(
   log: (line: string) => void = console.log,
   options: ServerRunOptions = {}
 ): Promise<RunningServer> {
-  const modules: ProcedureModule[] = [serverModule];
+  // The server.* procedures: those of the peer package (server.create, server.call and the
+  // others), and server.start, server.stop and server.status of this package
+  const modules: ProcedureModule[] = [peerModule, serverModule];
   for (const spec of config.procedures) {
     if (config.verbose) log(`  Loading: ${spec}`);
     try {

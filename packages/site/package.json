@@ -42,6 +42,7 @@
     "@procedures/restic": "workspace:*",
     "@procedures/s3": "workspace:*",
     "@procedures/schedule": "workspace:*",
+    "@procedures/server": "workspace:*",
     "@procedures/shell": "workspace:*",
     "@procedures/snapshot": "workspace:*",
     "@procedures/splay": "workspace:*",

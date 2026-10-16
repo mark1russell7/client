@@ -1,24 +1,17 @@
 /**
  * The server.* procedures validate their input (before, the schemas passed anything through).
+ * The schemas of server.start, server.stop and server.status are in @procedures/server, with
+ * their tests.
  */
 
 import { describe, it, expect } from "vitest";
 import {
   serverCallInputSchema,
   serverCreateInputSchema,
-  serverStartInputSchema,
-  serverStopInputSchema,
 } from "./input-schemas.js";
 
 describe("server input schemas", () => {
   it("accept valid input", () => {
-    expect(serverStartInputSchema.parse({})).toEqual({});
-    expect(serverStartInputSchema.parse({ port: 4000, host: "::1", transport: "both" })).toEqual({
-      port: 4000,
-      host: "::1",
-      transport: "both",
-    });
-    expect(serverStopInputSchema.parse({ port: 1, force: true })).toEqual({ port: 1, force: true });
     expect(serverCallInputSchema.parse({ address: "http://127.0.0.1:3000", path: "git.status" })).toEqual({
       address: "http://127.0.0.1:3000",
       path: "git.status",
@@ -42,11 +35,7 @@ describe("server input schemas", () => {
     });
   });
 
-  it("reject an invalid port, transport or call target", () => {
-    expect(() => serverStartInputSchema.parse({ port: 70000 })).toThrow();
-    expect(() => serverStartInputSchema.parse({ port: "abc" })).toThrow();
-    expect(() => serverStartInputSchema.parse({ transport: "udp" })).toThrow();
-    expect(() => serverStopInputSchema.parse({ port: 1.5 })).toThrow();
+  it("reject an invalid transport or call target", () => {
     expect(() => serverCallInputSchema.parse({ path: "git.status" })).toThrow("Give connectionId or address");
     expect(() => serverCreateInputSchema.parse({ transports: [{ type: "ftp" }] })).toThrow();
   });

@@ -1,9 +1,10 @@
 /**
- * Input schemas of the `server.*` and `manifest.*` procedures.
+ * Input schemas of the `server.*` and `manifest.*` procedures of the peer package.
  *
- * Before, these procedures used pass-through schemas: `mark server start --help` listed no
+ * Before, these procedures used pass-through schemas: `mark server create --help` listed no
  * options, and a port such as "abc" reached the handler. Each schema now validates its input,
- * and the CLI help shows the fields.
+ * and the CLI help shows the fields. The schemas of `server.start`, `server.stop` and
+ * `server.status` are in `@procedures/server`.
  */
 
 import { z } from "zod";
@@ -13,9 +14,6 @@ import type {
   ServerConnectInput,
   ServerCreateInput,
   ServerDisconnectInput,
-  ServerStartInput,
-  ServerStatusInput,
-  ServerStopInput,
 } from "./types.js";
 import type { ServerCallInput } from "./procedures/server.call.js";
 import type { ServerConnectionsInput } from "./procedures/server.connections.js";
@@ -56,27 +54,6 @@ export const serverCreateInputSchema: ZodLikeSchema<ServerCreateInput> = zodAdap
       .array(z.string().min(1))
       .optional()
       .describe("The procedures to serve: exact keys (git.status) or prefixes (git.*). Default: every procedure"),
-  })
-);
-
-export const serverStartInputSchema: ZodLikeSchema<ServerStartInput> = zodAdapter<ServerStartInput>(
-  z.object({
-    port: port.optional().describe("The port to listen on (default: 3000)"),
-    host: z.string().min(1).optional().describe("The host to bind to (default: 127.0.0.1)"),
-    transport: z.enum(["http", "websocket", "both"]).optional().describe("The transport (default: http)"),
-  })
-);
-
-export const serverStopInputSchema: ZodLikeSchema<ServerStopInput> = zodAdapter<ServerStopInput>(
-  z.object({
-    port: port.optional().describe("The port of the server to stop (default: all servers)"),
-    force: z.boolean().optional().describe("Stop with SIGKILL instead of SIGTERM"),
-  })
-);
-
-export const serverStatusInputSchema: ZodLikeSchema<ServerStatusInput> = zodAdapter<ServerStatusInput>(
-  z.object({
-    port: port.optional().describe("The port of the server (default: all servers)"),
   })
 );
 

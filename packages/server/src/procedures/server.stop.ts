@@ -1,17 +1,17 @@
 /**
  * Procedure: server.stop
  * Stops the running CLI server daemon
+ *
+ * The procedure came from `@procedures/peer`: it belongs to the host.
  */
 
-import { createProcedure, type Effects, type Procedure } from "@procedures/client";
-import { wrapSchema } from "../schema.js";
-import { ServerStopOutputSchema } from "../output-schemas.js";
-import { serverStopInputSchema } from "../input-schemas.js";
-import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "../lockfile.js";
+import { createProcedure, zodAdapter, type Effects, type Procedure } from "@procedures/client";
+import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
+import { ServerStopOutputSchema, serverStopInputSchema } from "../schemas.js";
 import type { ServerStopInput, ServerStopOutput } from "../types.js";
 
 
-const serverStopOutputSchema = wrapSchema<ServerStopOutput>(ServerStopOutputSchema);
+const serverStopOutputSchema = zodAdapter<ServerStopOutput>(ServerStopOutputSchema);
 
 
 
