@@ -76,7 +76,7 @@ export class PortTransport implements Transport {
       send,
       isOpen,
       // No time limit: a worker can run a long program. The `signal` of a call stops it. This file
-      // does not import the Durations: they bring zod, and the page of a worker stays small.
+      // does not import the Durations (quantity, 6 kB of gzip), so the page of a worker stays small.
       requestTimeoutMs: 0,
       streamWindow: Math.max(2, options.streamWindow ?? 64),
       idPrefix: "",

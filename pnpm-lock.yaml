@@ -333,8 +333,8 @@ importers:
   packages/client:
     dependencies:
       '@mark1russell7/quantity':
-        specifier: ^0.1.0
-        version: 0.1.0(zod@4.6.5)
+        specifier: ^0.2.0
+        version: 0.2.0(zod@4.6.5)
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -2554,6 +2554,15 @@ packages:
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
+
+  '@mark1russell7/quantity@0.2.0':
+    resolution: {integrity: sha512-pE2OganjbhstZgoeLVu5YRVQq6bOnV/5T4GYuJhIu0+PF77+DwpfrIZonhNNfEZHz/P4ioiwFowbIwxPq9VkSA==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@mark1russell7/service@0.2.0':
     resolution: {integrity: sha512-KaoEkJZixvZocnQ2EpqEVC38oHf1WiRajg4p4GE0xfzXAisWb7mQu4cz0WBvkZvjNYBQrCG6Um2vezk5GjX6TA==}
@@ -5394,6 +5403,10 @@ snapshots:
 
   '@mark1russell7/quantity@0.1.0(zod@4.6.5)':
     dependencies:
+      zod: 4.6.5
+
+  '@mark1russell7/quantity@0.2.0(zod@4.6.5)':
+    optionalDependencies:
       zod: 4.6.5
 
   '@mark1russell7/service@0.2.0(zod@4.6.5)':
