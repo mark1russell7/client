@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { compose, hashMap, lruMap, ttlMap, InMemoryStorage } from "./index.js";
+import { describeCollectionStorageContract, type ContractItem } from "./testing/index.js";
 
 describe("hashMap", () => {
   it("stores, reads and removes entries", () => {
@@ -131,69 +132,43 @@ describe("compose(lruMap, ttlMap) — the cache middleware's map", () => {
   });
 });
 
-describe("InMemoryStorage", () => {
-  it("implements the CollectionStorage operations", async () => {
-    const storage = new InMemoryStorage<{ id: string; n: number }>();
+// The contract of CollectionStorage: the suite of the test-only entry ./testing
+describeCollectionStorageContract(
+  "InMemoryStorage",
+  {
+    create: () => new InMemoryStorage<ContractItem>(),
+    createWithMaxTombstones: (max) => new InMemoryStorage<ContractItem>({ maxTombstones: max }),
+  },
+  { describe, it },
+);
 
-    await storage.set("1", { id: "1", n: 1 });
-    await storage.setBatch([["2", { id: "2", n: 2 }], ["3", { id: "3", n: 3 }]]);
-
-    expect(await storage.size()).toBe(3);
-    expect(await storage.get("2")).toEqual({ id: "2", n: 2 });
-    expect(await storage.has("4")).toBe(false);
-    expect((await storage.find((item) => item.n > 1)).map((item) => item.id)).toEqual(["2", "3"]);
-    expect([...(await storage.getBatch(["1", "3"])).keys()]).toEqual(["1", "3"]);
-
-    expect(await storage.delete("1")).toBe(true);
-    expect(await storage.deleteBatch(["2", "9"])).toBe(1);
-    expect((await storage.getAll()).map((item) => item.id)).toEqual(["3"]);
-
-    await storage.clear();
-    expect(await storage.size()).toBe(0);
-    await storage.close();
-  });
-
-  it("gives the changes since a version: the changed items and the deleted ids (roadmap R28)", async () => {
+describe("InMemoryStorage: what the contract does not fix", () => {
+  it("empties itself at close(), and a version of the closed storage gives all items", async () => {
     const storage = new InMemoryStorage<{ n: number }>();
-    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
-    const first = await storage.getChangesSince();
-    expect(first.full).toBe(true);
-    expect(first.changed).toEqual([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
-
-    await storage.set("a", { n: 10 });
-    await storage.delete("b");
-    await storage.delete("missing");
-    const second = await storage.getChangesSince(first.version);
-    expect(second).toEqual({ version: second.version, full: false, changed: [["a", { n: 10 }]], deleted: ["b"] });
-
-    // A deleted id that comes back is a change, not a delete
-    await storage.set("b", { n: 20 });
-    await storage.clear();
-    const third = await storage.getChangesSince(second.version);
-    expect(third.full).toBe(false);
-    expect(third.changed).toEqual([]);
-    expect(third.deleted.sort()).toEqual(["a", "b", "c"]);
-    expect(await storage.getChangesSince(third.version)).toEqual({ version: third.version, full: false, changed: [], deleted: [] });
+    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
+    const before = await storage.getChangesSince();
+    await storage.close();
+    expect(await storage.size()).toBe(0);
+    await storage.set("c", { n: 3 });
+    expect(await storage.getChangesSince(before.version)).toMatchObject({ full: true, changed: [["c", { n: 3 }]], deleted: [] });
   });
 
-  it("gives all items for a version of another storage, of a closed storage, or older than the dropped deletes", async () => {
-    const storage = new InMemoryStorage<{ n: number }>({ maxTombstones: 2 });
-    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }], ["d", { n: 4 }]]);
+  it("keeps the values that set() takes, and gives them to the reads: it makes no copies", async () => {
+    const storage = new InMemoryStorage<{ n: number }>();
+    const value = { n: 1 };
+    await storage.set("a", value);
+    expect(await storage.get("a")).toBe(value);
+    // The contract suite tests the copies only for a storage that declares them (SqliteStorage)
+    value.n = 2;
+    expect(await storage.get("a")).toEqual({ n: 2 });
+  });
+
+  it("gives a delta in the order of the first write of each id since its last delete", async () => {
+    const storage = new InMemoryStorage<{ n: number }>();
+    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
     const start = await storage.getChangesSince();
-
-    const other = await new InMemoryStorage<{ n: number }>().getChangesSince();
-    expect((await storage.getChangesSince(other.version)).full).toBe(true);
-    expect((await storage.getChangesSince("not a version")).full).toBe(true);
-
-    // Two deletes fit in the log
-    await storage.deleteBatch(["a", "b"]);
-    expect(await storage.getChangesSince(start.version)).toMatchObject({ full: false, deleted: ["a", "b"] });
-    // The third delete drops the oldest one: the start version gives all items now
-    await storage.delete("c");
-    const after = await storage.getChangesSince(start.version);
-    expect(after).toMatchObject({ full: true, changed: [["d", { n: 4 }]], deleted: [] });
-
-    await storage.close();
-    expect((await storage.getChangesSince(after.version)).full).toBe(true);
+    await storage.set("b", { n: 20 });
+    await storage.set("a", { n: 10 });
+    expect((await storage.getChangesSince(start.version)).changed.map(([id]) => id)).toEqual(["a", "b"]);
   });
 });

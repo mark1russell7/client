@@ -105,6 +105,38 @@ interface CollectionStorage<T> {
 }
 ```
 
+### The contract suite: `@procedures/collections/testing`
+
+The test-only entry `@procedures/collections/testing` holds one test suite for the contract of `CollectionStorage`. A storage runs it with a factory:
+
+```typescript
+import { describe, it } from "vitest";
+import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
+
+describeCollectionStorageContract(
+  "MyStorage",
+  {
+    create: () => new MyStorage<ContractItem>(),
+    createWithMaxTombstones: (max) => new MyStorage<ContractItem>({ maxTombstones: max }),
+    copies: true,
+  },
+  { describe, it },
+);
+```
+
+- The suite tests the reads, the writes and the batches, the order of the entries, the results as new arrays, the JSON values, the writes at the same time, `getChangesSince` and its versions, `flush`, `getMetadata`, `close` and the errors.
+- A case for an optional method skips a storage without the method.
+- A random sequence of writes runs against a `Map`, and each saved version must give the right changes.
+- The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws `ContractViolation`. The runtime entries do not import this entry.
+- `copies: true` declares that the storage keeps a copy of each value. `nullValues: false` declares that a stored `null` reads back as `undefined`.
+
+| Storage | Package | Notes |
+|---|---|---|
+| `InMemoryStorage` | `@procedures/collections` | It keeps the values, not copies. |
+| `SqliteStorage` (in memory and in a file) | `@procedures/sqlite` | It gives copies. |
+| `ApiStorage` | `@procedures/store` | A stored `null` reads back as `undefined`. |
+| `HybridStorage` (each mode, and a queue in IndexedDB) | `@procedures/store` | It has no `getChangesSince`. |
+
 ## Storage Backends
 
 ### MemoryStorage

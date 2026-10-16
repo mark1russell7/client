@@ -6,6 +6,10 @@
  *
  * This entry point is for Node. It exports the browser-safe entry point
  * ("@procedures/client/browser") and the server transports, which use `http` and `ws`.
+ *
+ * The `WebSocketTransport` of this entry uses the global `WebSocket`, because some applications
+ * bundle this entry for a browser. The Node entry "@procedures/client/node" has a
+ * `WebSocketTransport` whose sockets are of the `ws` package: a drop ends them at once.
  */
 
 export * from "./browser.js";

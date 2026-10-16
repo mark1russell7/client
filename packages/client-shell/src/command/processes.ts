@@ -7,12 +7,14 @@
  * - a record (id, pid, status, exit code), which `list` and `get` give;
  * - a `stop` that kills the whole process tree;
  * - the end of its output (the last 64 KiB), which also keeps its pipes from filling;
+ * - the output after a time, for a follower: `subscribe` and `follow`;
  * - an end with the host: the host does not wait for the process, and kills it when it ends.
  *
  * The registry keeps the records of ended processes, up to `keepExited` of them.
  */
 
 import type { ChildProcess } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import { killTree } from "./tree-kill.js";
 import { OutputCollector } from "./output.js";
 import { startChild, startError, type SpawnOptions } from "./spawn.js";
@@ -48,6 +50,50 @@ export interface StopResult {
   signal?: string;
 }
 
+/** One piece of the output of a process, as `subscribe` gives it. */
+export interface ProcessOutputChunk {
+  /** The stream of the piece. */
+  stream: "stdout" | "stderr";
+  /** The bytes of the piece. A piece can end in a line or in a UTF-8 character. */
+  data: Buffer;
+}
+
+/** The functions that `subscribe` calls for one subscriber. */
+export interface ProcessOutputListener {
+  /** This function gets each piece of output that the process writes after the subscription. */
+  output?(chunk: ProcessOutputChunk): void;
+  /** This function gets a copy of the record when the process ends. After it, no call comes. */
+  end?(info: ManagedProcessInfo): void;
+}
+
+/** One item of `follow`. */
+export type ProcessFollowItem =
+  /** The output that the registry kept before the subscription: the first item with `backlog`. */
+  | { type: "backlog"; text: string }
+  /** A piece of new output, decoded as UTF-8. A piece can end in the middle of a line. */
+  | { type: "output"; stream: "stdout" | "stderr"; text: string }
+  /** The reader was slow, so the follower dropped the oldest pieces: this many bytes. */
+  | { type: "dropped"; bytes: number }
+  /** The end of the process: the last item. */
+  | { type: "end"; info: ManagedProcessInfo };
+
+/** The options of `follow`. */
+export interface FollowOptions {
+  /** True: the first item is the output that the registry kept before the subscription. */
+  backlog?: boolean | undefined;
+  /** An abort ends the stream. The process continues. */
+  signal?: AbortSignal | undefined;
+  /**
+   * The most bytes of output that wait for the reader. Above it, the follower drops the oldest
+   * pieces and gives a `dropped` item, because the registry cannot slow the process.
+   * @default 1 MiB
+   */
+  maxBufferedBytes?: number | undefined;
+}
+
+/** The default of `maxBufferedBytes` of `follow`. */
+export const FOLLOW_BUFFER_BYTES: number = 1024 * 1024;
+
 /** The end of the output that the registry keeps for each process. */
 const OUTPUT_TAIL_BYTES = 64 * 1024;
 /** How long `stop` waits after the first kill, before it kills again with SIGKILL. */
@@ -67,7 +113,18 @@ interface Entry {
   output: OutputCollector;
   /** Called after each output chunk and at the end. */
   watchers: Set<() => void>;
+  /** The subscribers of `subscribe`. The end of the process removes them. */
+  listeners: Set<ProcessOutputListener>;
   done: Promise<void>;
+}
+
+/** This function calls a function of a subscriber. An error of a subscriber does not reach the registry. */
+function notify(run: () => void): void {
+  try {
+    run();
+  } catch (error) {
+    console.error("A subscriber of the process registry failed:", error);
+  }
 }
 
 export class ProcessRegistry {
@@ -97,17 +154,17 @@ export class ProcessRegistry {
 
     const output = new OutputCollector(OUTPUT_TAIL_BYTES, "tail");
     const watchers = new Set<() => void>();
+    const listeners = new Set<ProcessOutputListener>();
     const changed = (): void => {
       for (const watcher of [...watchers]) watcher();
     };
-    child.stdout!.on("data", (chunk: Buffer) => {
+    const received = (stream: "stdout" | "stderr", chunk: Buffer): void => {
       output.add(chunk);
+      for (const listener of [...listeners]) notify(() => listener.output?.({ stream, data: chunk }));
       changed();
-    });
-    child.stderr!.on("data", (chunk: Buffer) => {
-      output.add(chunk);
-      changed();
-    });
+    };
+    child.stdout!.on("data", (chunk: Buffer) => received("stdout", chunk));
+    child.stderr!.on("data", (chunk: Buffer) => received("stderr", chunk));
 
     const done = new Promise<void>((resolve) => {
       let finished = false;
@@ -117,6 +174,10 @@ export class ProcessRegistry {
         info.exitedAt = new Date().toISOString();
         resolve();
         changed();
+        // The end is the last call to a subscriber: the registry then forgets each subscriber
+        const ending = [...listeners];
+        listeners.clear();
+        for (const listener of ending) notify(() => listener.end?.({ ...info, args: [...info.args] }));
         this.reap();
       };
       child.on("error", (error) => {
@@ -140,7 +201,7 @@ export class ProcessRegistry {
       (stream as unknown as { unref?: () => void } | null)?.unref?.();
     }
 
-    this.entries.set(id, { info, child, output, watchers, done });
+    this.entries.set(id, { info, child, output, watchers, listeners, done });
     this.reap();
     return { ...info };
   }
@@ -164,6 +225,105 @@ export class ProcessRegistry {
   /** This function gives the end of the output of a process (stdout and stderr together). */
   output(id: string): string {
     return this.entries.get(id)?.output.text() ?? "";
+  }
+
+  /**
+   * This function subscribes to the output of a process. `listener.output` gets each piece of
+   * output after this call, with its stream. `listener.end` gets the record at the end of the
+   * process, and then the registry forgets the subscriber. For a process that ended already,
+   * `listener.end` runs at once. The result removes the subscriber. It is undefined when the
+   * registry has no process of this id.
+   */
+  subscribe(id: string, listener: ProcessOutputListener): (() => void) | undefined {
+    const entry = this.entries.get(id);
+    if (!entry) return undefined;
+    if (entry.info.exitedAt) {
+      notify(() => listener.end?.({ ...entry.info, args: [...entry.info.args] }));
+      return () => undefined;
+    }
+    entry.listeners.add(listener);
+    return () => {
+      entry.listeners.delete(listener);
+    };
+  }
+
+  /**
+   * This function gives the output of a process as a stream, until the process ends or the
+   * signal aborts. The subscription starts when the reader asks for the first item, and the
+   * end of the stream removes it: an end of the process, an abort, or a reader that stops. With
+   * `backlog`, the first item is the output that the registry kept until then, without a gap.
+   * The last item of an ended process is `end`. An unknown id throws at the first item.
+   */
+  async *follow(id: string, options: FollowOptions = {}): AsyncGenerator<ProcessFollowItem, void, undefined> {
+    const limit = Math.max(1, options.maxBufferedBytes ?? FOLLOW_BUFFER_BYTES);
+    const signal = options.signal;
+    const queue: Array<{ item: ProcessFollowItem; bytes: number }> = [];
+    let queued = 0;
+    let dropped = 0;
+    let ended: ManagedProcessInfo | undefined;
+    let wake: (() => void) | undefined;
+    const wakeUp = (): void => {
+      const resolve = wake;
+      wake = undefined;
+      resolve?.();
+    };
+    const decoders = { stdout: new StringDecoder("utf8"), stderr: new StringDecoder("utf8") };
+    const add = (stream: "stdout" | "stderr", text: string, bytes: number): void => {
+      if (text === "") return;
+      queue.push({ item: { type: "output", stream, text }, bytes });
+      queued += bytes;
+      // The registry cannot slow the process: above the limit, the oldest pieces go
+      while (queued > limit && queue.length > 1) {
+        const oldest = queue.shift()!;
+        queued -= oldest.bytes;
+        dropped += oldest.bytes;
+      }
+    };
+
+    if (signal?.aborted) return;
+    const backlog = options.backlog ? this.output(id) : "";
+    const unsubscribe = this.subscribe(id, {
+      output: ({ stream, data }) => {
+        add(stream, decoders[stream].write(data), data.length);
+        wakeUp();
+      },
+      end: (info) => {
+        for (const stream of ["stdout", "stderr"] as const) {
+          const rest = decoders[stream].end();
+          add(stream, rest, Buffer.byteLength(rest));
+        }
+        ended = info;
+        wakeUp();
+      },
+    });
+    if (!unsubscribe) throw new Error(`No process ${id}`);
+    signal?.addEventListener("abort", wakeUp, { once: true });
+    try {
+      if (options.backlog) yield { type: "backlog", text: backlog };
+      for (;;) {
+        if (signal?.aborted) return;
+        if (dropped > 0) {
+          const bytes = dropped;
+          dropped = 0;
+          yield { type: "dropped", bytes };
+          continue;
+        }
+        const next = queue.shift();
+        if (next) {
+          queued -= next.bytes;
+          yield next.item;
+          continue;
+        }
+        if (ended) {
+          yield { type: "end", info: ended };
+          return;
+        }
+        await new Promise<void>((resolve) => (wake = resolve));
+      }
+    } finally {
+      unsubscribe();
+      signal?.removeEventListener("abort", wakeUp);
+    }
   }
 
   /** This function waits until the process ends, then gives its record. */

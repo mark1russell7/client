@@ -9,7 +9,7 @@
  * - the registry removes old exit records, and `cleanup` removes the rest.
  */
 
-import { processes, type ManagedProcessInfo } from "@procedures/shell/command";
+import { processes, type FollowOptions, type ManagedProcessInfo, type ProcessFollowItem } from "@procedures/shell/command";
 import type { ProcessInfo } from "./types.js";
 
 /** The group of the node processes in the process registry. */
@@ -74,6 +74,14 @@ class ProcessManager {
    */
   output(processId: string): string {
     return this.get(processId) ? processes.output(processId) : "";
+  }
+
+  /**
+   * The output of a process as a stream, until the process ends or the signal aborts: `follow`
+   * of the process registry. A process of another group gives an empty stream.
+   */
+  follow(processId: string, options: FollowOptions = {}): AsyncGenerator<ProcessFollowItem, void, undefined> {
+    return this.get(processId) ? processes.follow(processId, options) : (async function* () {})();
   }
 
   /**

@@ -4,7 +4,7 @@
  * Procedure Registration for Node.js process management
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureContext, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { nodeRun } from "./procedures/node/run.js";
 import { nodeSpawn } from "./procedures/node/spawn.js";
 import { nodeKill } from "./procedures/node/kill.js";
@@ -26,6 +26,7 @@ import {
   type NodeStatusOutput,
   type NodeLogsInput,
   type NodeLogsOutput,
+  type NodeLogItem,
   NodeRunOutputSchema,
   NodeSpawnOutputSchema,
   NodeKillOutputSchema,
@@ -103,20 +104,24 @@ const nodeStatusProcedure = createProcedure()
   })
   .build();
 
-// node.logs (roadmap R44)
+// node.logs (roadmap R44). One value, or with follow one item for each line (a stream).
 const nodeLogsProcedure = createProcedure()
   .path(["node", "logs"])
   .input(zodAdapter<NodeLogsInput>(NodeLogsInputSchema))
-  .output(zodAdapter<NodeLogsOutput>(NodeLogsOutputSchema))
+  .output(zodAdapter<NodeLogsOutput | NodeLogItem>(NodeLogsOutputSchema))
   .meta({
-    description: "The output of a process of node.spawn: the last 64 KiB of stdout and stderr",
+    description: "The output of a process of node.spawn: the last 64 KiB of stdout and stderr, or with follow a stream of its lines",
     args: ["processId"],
-    shorts: { lines: "n" },
+    shorts: { lines: "n", follow: "f" },
     output: "json",
     // It reads the output that the process registry keeps for a process of node.spawn
     effects: { reads: ["jobs"], writes: [] },
+    // With follow, the stream runs as long as the process (roadmap R15)
+    stream: { unbounded: true },
   })
-  .handler(async (input: NodeLogsInput): Promise<NodeLogsOutput> => nodeLogs(input))
+  // With follow, the promise gives a stream: invokeProcedure reads a returned async iterable as a
+  // stream, and the handler types of the core do not describe that case
+  .handler((input: NodeLogsInput, ctx: ProcedureContext) => nodeLogs(input, ctx) as unknown as Promise<NodeLogsOutput | NodeLogItem>)
   .build();
 
 /**

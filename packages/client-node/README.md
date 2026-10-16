@@ -237,10 +237,33 @@ The input has these fields:
 - `processId` (necessary): the process ID that `node.spawn` gave.
 - `lines`: give only the last lines of the output.
 - `stripAnsi`: remove the ANSI escape codes (colors) from the output.
+- `follow`: give a stream of lines (see below).
 
 The output has the `processId`, the `status` (`running`, `exited` or `error`), the `exitCode` of an ended process and the `output`.
 
-The procedure knows only the processes of its host. The process writes to two pipes, stdout and stderr. Thus `output` has their lines in the order of their arrival. A process that `node.spawn` did not start is an error. The procedure has no stream: a stream of new output needs a subscription to the process registry of `client-shell`.
+The procedure knows only the processes of its host. The process writes to two pipes, stdout and stderr. Thus `output` has their lines in the order of their arrival. A process that `node.spawn` did not start is an error.
+
+#### `follow`: a stream of the lines
+
+With `follow: true`, the result is a stream. It uses `processes.follow` of `@procedures/shell/command`.
+
+```typescript
+for await (const item of client.stream(["node", "logs"], { processId, follow: true, lines: 20 })) {
+  if (item.type === "exit") break;
+  console.log(item.type, item.line);
+}
+```
+
+| Item | Meaning |
+|---|---|
+| `{ type: "output", line }` | A line of the kept output. `lines` limits these lines. The kept output has stdout and stderr together. |
+| `{ type: "stdout" \| "stderr", line }` | A new line of the process, without its line end. |
+| `{ type: "dropped", bytes }` | The reader was slow, and the stream dropped this many bytes of output. |
+| `{ type: "exit", status, exitCode, signal }` | The end of the process. It is the last item. |
+
+- The stream ends at the end of the process, at an abort of the caller, and when the reader stops. Each end removes the subscription from the process registry.
+- A line without a line end at the end of the process is the last line of its stream.
+- The procedure declares `stream: { unbounded: true }`, because a process can run without an end.
 
 ## Process Lifecycle
 

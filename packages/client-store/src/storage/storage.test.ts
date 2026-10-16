@@ -43,32 +43,8 @@ function collectionServer<T>(collection: string): {
   return { transport: new LocalTransport({ handlers }), storage, calls };
 }
 
+// The CollectionStorage operations of ApiStorage run in the contract suite (contract.test.ts)
 describe("ApiStorage against the core collection procedures (deep dive CORE-9, DATA-9)", () => {
-  it("reads and writes through collections.<name>.<op>, with raw values", async () => {
-    const server = collectionServer<{ n: number }>("things");
-    const api = new ApiStorage<{ n: number }>(new Client(server.transport), { collection: "things" });
-
-    await api.set("a", { n: 1 });
-    await api.setBatch([
-      ["b", { n: 2 }],
-      ["c", { n: 3 }],
-    ]);
-    expect(await api.get("a")).toEqual({ n: 1 });
-    expect(await api.get("missing")).toBeUndefined();
-    expect(await api.has("b")).toBe(true);
-    expect(await api.size()).toBe(3);
-    expect((await api.getAll()).map((v) => v.n).sort()).toEqual([1, 2, 3]);
-    expect((await api.find((v) => v.n > 1)).length).toBe(2);
-    expect([...(await api.getBatch(["a", "c"])).entries()]).toEqual([
-      ["a", { n: 1 }],
-      ["c", { n: 3 }],
-    ]);
-    expect(await api.delete("a")).toBe(true);
-    expect(await api.deleteBatch(["b", "zzz"])).toBe(1);
-    await api.clear();
-    expect(await api.size()).toBe(0);
-  });
-
   it("close() leaves the caller's client open, unless closeClient is set", async () => {
     let closed = 0;
     const transport = { name: "t", send: async function* () {}, close: async () => void closed++ } as unknown as Transport;

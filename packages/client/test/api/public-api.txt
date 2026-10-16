@@ -835,6 +835,12 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
+## ./node (dist/node.d.ts): 3 names
+
+type WebSocketClass: dist/adapters/websocket/client/types.d.ts#WebSocketClass
+WebSocketTransport: dist/adapters/websocket/client/node.d.ts#WebSocketTransport
+type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+
 ## ./register (dist/register.d.ts): 0 names
 
 
@@ -1419,6 +1425,11 @@ export declare class PortTransport implements Transport {
 export interface PortTransportOptions {
     serve?: RequestHandler | undefined;
     streamWindow?: number | undefined;
+}
+
+### dist/adapters/websocket/client/node.d.ts#WebSocketTransport
+export declare class WebSocketTransport extends PortableWebSocketTransport {
+    constructor(options: WebSocketTransportOptions);
 }
 
 ### dist/adapters/websocket/client/transport.d.ts#WebSocketTransport

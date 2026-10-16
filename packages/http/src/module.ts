@@ -102,8 +102,11 @@ const HttpJsonOutputSchema = z.object({
 
 const streamFields = {
   url,
+  method: z.enum(["GET", "POST"]).optional().describe("GET or POST (default: POST with body or json, GET without them)"),
   headers,
   query,
+  body: z.string().optional().describe("A body of text for a POST"),
+  json: z.unknown().optional().describe("A body of JSON for a POST: the procedure sets content-type: application/json"),
   timeoutMs: milliseconds("The time of the whole stream, in milliseconds (default: no limit)"),
   idleTimeoutMs: milliseconds("The longest time without data, in milliseconds (default: no limit)"),
 };
@@ -132,11 +135,11 @@ const HttpSseOutputSchema = z.object({
 // Procedures
 // =============================================================================
 
-/** The effects of a request with any method: it reads from the network and can change remote data. */
+/**
+ * The effects of each procedure of this package: it reads from the network, and a POST, a PUT or
+ * a DELETE can change remote data. The two streams also send a POST, so they declare the write too.
+ */
 const NETWORK_WRITE: Effects = { reads: ["network"], writes: ["network"] };
-
-/** The effects of a GET: it reads from the network and changes nothing. */
-const NETWORK_READ: Effects = { reads: ["network"], writes: [] };
 
 /** The four procedures, with handlers that use the settings. */
 function httpProcedures(settings: HttpSettings): AnyProcedure[] {
@@ -175,15 +178,15 @@ function httpProcedures(settings: HttpSettings): AnyProcedure[] {
     .input(zodAdapter<HttpNdjsonInput>(HttpNdjsonInputSchema))
     .output(zodAdapter<HttpNdjsonOutput>(HttpNdjsonOutputSchema))
     .meta({
-      description: "Read an NDJSON response as a stream of parsed lines",
+      description: "Read an NDJSON response to a GET or a POST as a stream of parsed lines",
       args: ["url"],
-      shorts: { timeoutMs: "t" },
+      shorts: { method: "X", timeoutMs: "t" },
       output: "json",
       streaming: true,
       // A server can send lines without an end (a watch, a feed): roadmap R15
       stream: { unbounded: true },
-      // Only a GET
-      effects: NETWORK_READ,
+      // A POST can change remote data
+      effects: NETWORK_WRITE,
     })
     // The promise gives the stream after the status: invokeProcedure reads a returned async
     // iterable as a stream, and the handler types of the core do not describe that case
@@ -195,15 +198,15 @@ function httpProcedures(settings: HttpSettings): AnyProcedure[] {
     .input(zodAdapter<HttpSseInput>(HttpSseInputSchema))
     .output(zodAdapter<HttpSseOutput>(HttpSseOutputSchema))
     .meta({
-      description: "Read a stream of server-sent events",
+      description: "Read the server-sent events of a GET or a POST as a stream",
       args: ["url"],
-      shorts: { timeoutMs: "t" },
+      shorts: { method: "X", timeoutMs: "t" },
       output: "json",
       streaming: true,
       // An event stream can run without an end: roadmap R15
       stream: { unbounded: true },
-      // Only a GET
-      effects: NETWORK_READ,
+      // A POST can change remote data: an LLM API streams the answer of a POST
+      effects: NETWORK_WRITE,
     })
     .handler(((input: HttpSseInput, ctx: ScopeContext) => httpSse(input, ctx, settings)) as unknown as ProcedureHandler<HttpSseInput, HttpSseOutput>)
     .build();

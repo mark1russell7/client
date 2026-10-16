@@ -1,11 +1,10 @@
 /**
  * SqliteStorage (roadmap R45).
  *
- * The first block mirrors the tests of `InMemoryStorage` in client-collections
- * (`collections.test.ts`), case by case, for a database in memory and for a file. The repository
- * has no shared contract suite for `CollectionStorage` yet: a suite that each storage runs is the
- * better place for these cases. The other blocks test what is particular to SQLite: the file, the
- * versions after a restart, the transactions, the shared database of a file and the table names.
+ * The first block runs the contract suite of `CollectionStorage` from
+ * `@procedures/collections/testing`, for a database in memory and for a file. The other blocks
+ * test what is particular to SQLite: the file, the versions after a restart, the transactions,
+ * the shared database of a file and the table names.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -13,6 +12,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database } from "@mark1russell7/docker-sqlite";
+import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
 import { MEMORY_PATH, SqliteStorage, checkTableName, type SqliteStorageOptions } from "./storage.js";
 
 const dirs: string[] = [];
@@ -50,75 +50,38 @@ const places: Array<[string, () => string]> = [
   ["in a file", tempDb],
 ];
 
+// The contract of CollectionStorage (the suite of @procedures/collections/testing), for a
+// database in memory and for a file. SqliteStorage keeps JSON text, so it gives copies.
 for (const [place, pathOf] of places) {
-  describe(`SqliteStorage ${place}: the cases of InMemoryStorage`, () => {
-    it("implements the CollectionStorage operations", async () => {
-      const storage = storageOf<{ id: string; n: number }>({ path: pathOf(), table: "items" });
-
-      await storage.set("1", { id: "1", n: 1 });
-      await storage.setBatch([["2", { id: "2", n: 2 }], ["3", { id: "3", n: 3 }]]);
-
-      expect(await storage.size()).toBe(3);
-      expect(await storage.get("2")).toEqual({ id: "2", n: 2 });
-      expect(await storage.has("4")).toBe(false);
-      expect((await storage.find((item) => item.n > 1)).map((item) => item.id)).toEqual(["2", "3"]);
-      expect([...(await storage.getBatch(["1", "3"])).keys()]).toEqual(["1", "3"]);
-
-      expect(await storage.delete("1")).toBe(true);
-      expect(await storage.deleteBatch(["2", "9"])).toBe(1);
-      expect((await storage.getAll()).map((item) => item.id)).toEqual(["3"]);
-
-      await storage.clear();
-      expect(await storage.size()).toBe(0);
-      await storage.close();
-    });
-
-    it("gives the changes since a version: the changed items and the deleted ids (roadmap R28)", async () => {
-      const storage = storageOf<{ n: number }>({ path: pathOf(), table: "items" });
-      await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
-      const first = await storage.getChangesSince();
-      expect(first.full).toBe(true);
-      expect(first.changed).toEqual([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
-
-      await storage.set("a", { n: 10 });
-      await storage.delete("b");
-      await storage.delete("missing");
-      const second = await storage.getChangesSince(first.version);
-      expect(second).toEqual({ version: second.version, full: false, changed: [["a", { n: 10 }]], deleted: ["b"] });
-
-      // A deleted id that comes back is a change, not a delete
-      await storage.set("b", { n: 20 });
-      await storage.clear();
-      const third = await storage.getChangesSince(second.version);
-      expect(third.full).toBe(false);
-      expect(third.changed).toEqual([]);
-      expect(third.deleted.sort()).toEqual(["a", "b", "c"]);
-      expect(await storage.getChangesSince(third.version)).toEqual({ version: third.version, full: false, changed: [], deleted: [] });
-    });
-
-    it("gives all items for a version of another storage, or older than the dropped deletes", async () => {
-      const storage = storageOf<{ n: number }>({ path: pathOf(), table: "items", maxTombstones: 2 });
-      await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }], ["d", { n: 4 }]]);
-      const start = await storage.getChangesSince();
-
-      const other = await storageOf<{ n: number }>({ path: MEMORY_PATH, table: "items" }).getChangesSince();
-      expect((await storage.getChangesSince(other.version)).full).toBe(true);
-      expect((await storage.getChangesSince("not a version")).full).toBe(true);
-      // A number above the version of the storage is not a version of it
-      expect((await storage.getChangesSince(`${start.version.split(":")[0]}:999`)).full).toBe(true);
-
-      // Two deletes fit in the log
-      await storage.deleteBatch(["a", "b"]);
-      expect(await storage.getChangesSince(start.version)).toMatchObject({ full: false, deleted: ["a", "b"] });
-      // The third delete drops the oldest one: the start version gives all items now
-      await storage.delete("c");
-      const after = await storage.getChangesSince(start.version);
-      expect(after).toMatchObject({ full: true, changed: [["d", { n: 4 }]], deleted: [] });
-      // A version after the dropped deletes still gives a delta
-      expect((await storage.getChangesSince(after.version)).full).toBe(false);
-    });
-  });
+  describeCollectionStorageContract(
+    `SqliteStorage ${place}`,
+    {
+      create: () => storageOf<ContractItem>({ path: pathOf(), table: "items" }),
+      createWithMaxTombstones: (max) => storageOf<ContractItem>({ path: pathOf(), table: "items", maxTombstones: max }),
+      copies: true,
+    },
+    { describe, it },
+  );
 }
+
+describe("SqliteStorage: the versions", () => {
+  it("a number above the version of the storage is not a version of it", async () => {
+    const storage = storageOf<{ n: number }>({ path: MEMORY_PATH, table: "items" });
+    await storage.set("a", { n: 1 });
+    const start = await storage.getChangesSince();
+    expect((await storage.getChangesSince(`${start.version.split(":")[0]}:999`)).full).toBe(true);
+    expect((await storage.getChangesSince(start.version)).full).toBe(false);
+  });
+
+  it("gives a delta in the order of the last write of each id", async () => {
+    const storage = storageOf<{ n: number }>({ path: MEMORY_PATH, table: "items" });
+    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
+    const start = await storage.getChangesSince();
+    await storage.set("b", { n: 20 });
+    await storage.set("a", { n: 10 });
+    expect((await storage.getChangesSince(start.version)).changed.map(([id]) => id)).toEqual(["b", "a"]);
+  });
+});
 
 describe("SqliteStorage in a file", () => {
   it("keeps the items after close(), and a new storage of the file reads them", async () => {
@@ -262,30 +225,6 @@ describe("SqliteStorage: the transactions", () => {
     await expect(storage.set(1 as unknown as string, 1)).rejects.toThrow(/An id must be a string/);
   });
 
-  it("keeps the JSON values, and gives a copy for each read", async () => {
-    const storage = storageOf<unknown>({ path: MEMORY_PATH, table: "items" });
-    const value = { text: "é ✓", list: [1, null, { deep: true }], n: 1.5 };
-    await storage.setBatch([["object", value], ["null", null], ["text", "plain"], ["zero", 0]]);
-    const read = (await storage.get("object")) as typeof value;
-    expect(read).toEqual(value);
-    read.list.push(99);
-    expect(await storage.get("object")).toEqual(value);
-    expect(await storage.get("null")).toBeNull();
-    expect(await storage.getBatch(["zero", "missing", "text"])).toEqual(new Map<string, unknown>([["zero", 0], ["text", "plain"]]));
-  });
-
-  it("a set of an existing id keeps its place in the order", async () => {
-    const storage = storageOf<number>({ path: MEMORY_PATH, table: "items" });
-    await storage.setBatch([["a", 1], ["b", 2], ["c", 3]]);
-    await storage.set("a", 10);
-    expect((await storage.getEntries()).map(([id]) => id)).toEqual(["a", "b", "c"]);
-    // A delete, then a set: the id goes to the end, as in a Map
-    await storage.delete("a");
-    await storage.set("a", 11);
-    expect((await storage.getEntries()).map(([id]) => id)).toEqual(["b", "c", "a"]);
-    expect(await storage.deleteBatch([])).toBe(0);
-    await storage.setBatch([]);
-  });
 });
 
 describe("SqliteStorage: the life cycle and the options", () => {
