@@ -57,13 +57,13 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R7 | 1 | The read-only guards of CAP-1, CAP-2 and CAP-3 | S | fixed | `89d8a4a` |
 | R8 | 1 | The CI gates of stage 0 | S | fixed | `82f8270` |
 | R9 | 1 | The timeout examples in the documents set a timeout | S | fixed | `f7c4a7f` |
-| R10 | 2 | One deadline model: the client timeouts send `procedure-timeout` (REV-6) | M | open | |
-| R11 | 2 | Typed durations in the public options | M | open | |
-| R12 | 2 | Retry budget, full jitter, `Retry-After`, a circuit breaker that counts only failures | S–M | open | |
-| R13 | 2 | The cache: one call for the same key, a write removes entries, the principal in the key | S–M | open | |
-| R14 | 2 | Cancellation scopes and a graceful stop | M | open | |
-| R15 | 2 | Unbounded streams on the faces that collect a stream | S–M | open | |
-| R16 | 2 | One trace from the client to the handler | S–M | open | |
+| R10 | 2 | One deadline model: the client timeouts send `procedure-timeout` (REV-6) | M | fixed | `5b9264e` |
+| R11 | 2 | Typed durations in the public options | M | fixed | `fb30718` |
+| R12 | 2 | Retry budget, full jitter, `Retry-After`, a circuit breaker that counts only failures | S–M | fixed | `43f7de5` |
+| R13 | 2 | The cache: one call for the same key, a write removes entries, the principal in the key | S–M | fixed | `a8c47f1` |
+| R14 | 2 | Cancellation scopes and a graceful stop | M | fixed | `381ce3a` |
+| R15 | 2 | Unbounded streams on the faces that collect a stream | S–M | fixed | `c5528e4` |
+| R16 | 2 | One trace from the client to the handler | S–M | fixed | `ff62281` |
 | R17 | 3 | One manifest type, built from the registry and the expose rule | M | open | |
 | R18 | 3 | A typed server-transport contract, a principal, the token in `ProcedureServer` | M | open | |
 | R19 | 3 | `host.health`, `host.info` and `host.metrics` | S | open | |
@@ -195,9 +195,13 @@ These items change the public options of the middleware. They go in one release.
 
 **Done when** a test shows that the server stops a handler when the overall time of the client ends.
 
+**Result.** The deadline of a call is one internal value (`__deadline`). The transport runner writes its remaining time into `procedure-timeout` before each try. The timeout of one try does not change the deadline of the server. A keyed write (R1) continues until the next try can get its result. The test of R1 found this rule.
+
 ### R11. Typed durations
 
 The public options that are times take a `Duration` of `@mark1russell7/quantity`: the timeouts, the intervals, the backoff and the heartbeat. A plain number of milliseconds gives a type error. The wire keeps milliseconds. The study of R37 confirms that the package works in a browser and is on npm (0.1.0). The package has no `Duration` type yet, so the client declares an alias and its own constructors.
+
+**Result.** `ms()`, `seconds()`, `minutes()` and `hours()` make a duration. At run time, a number in a time option gives a `TypeError` that names the option. The inputs of procedures and the wire keep milliseconds. A codemod moved the tests. The collections package (`@procedures/collections`) keeps its numbers: it is a general library of data structures.
 
 ### R12. Retry and the circuit breaker
 
@@ -215,6 +219,8 @@ The public options that are times take a `Duration` of `@mark1russell7/quantity`
 - A write to a path removes the cache entries that the write makes old.
 - The key contains the principal, so two users do not share an entry.
 - The rate limiter for each service keeps a bounded map.
+
+**Result.** The cache also refuses to store a response when an inner layer changed the key metadata during the call. The rate limiter for each service keeps one limiter for each configured service, so its map was bounded already.
 
 ### R14. Cancellation scopes and a graceful stop
 
