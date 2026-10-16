@@ -2,13 +2,15 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/geo",
   "version": "0.3.0",
-  "description": "Map procedures: the coordinates of an address (OpenStreetMap Nominatim) and the time and distance of a drive (OSRM).",
+  "description": "Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash.",
   "keywords": [
     "geocode",
     "nominatim",
     "openstreetmap",
     "osrm",
     "routing",
+    "haversine",
+    "geohash",
     "procedures"
   ],
   "homepage": "https://mark1russell7.github.io/client/",

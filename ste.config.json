@@ -18,6 +18,8 @@
     "packages/compiler/src/**/*.ts",
     "packages/systems/README.md",
     "packages/bundle-assistant/README.md",
+    "packages/ics/README.md",
+    "packages/geo/README.md",
     "packages/gh/README.md",
     "packages/npm/README.md",
     "packages/http/README.md",
@@ -26,6 +28,12 @@
     "packages/schedule/README.md",
     "packages/env/README.md",
     "packages/archive/README.md",
+    "packages/ios-backup/README.md",
+    "packages/privacy-scan/README.md",
+    "packages/pdf/README.md",
+    "packages/pdf/src/**/*.ts",
+    "packages/claude-cli/README.md",
+    "packages/claude-cli/src/**/*.ts",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [

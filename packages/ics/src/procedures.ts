@@ -1,10 +1,12 @@
 /**
- * The procedures of `@procedures/ics`: `ics.parse`, `ics.occurrences` and `ics.fetch`.
+ * The procedures of `@procedures/ics`: `ics.parse`, `ics.occurrences`, `ics.write` and `ics.fetch`.
  */
 
 import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { z } from "zod";
 import { calendarOccurrences, isCalendar, parseIcs, type IcsEvent, type Occurrence } from "./ics.js";
+import { icsWrite } from "./procedures/ics/write.js";
+import { IcsWriteInputSchema, IcsWriteOutputSchema, type IcsWriteInput, type IcsWriteOutput } from "./types.js";
 
 const PURE = { reads: [], writes: [] };
 
@@ -91,6 +93,22 @@ export const icsOccurrencesProcedure: AnyProcedure = createProcedure()
   .build() as AnyProcedure;
 
 // =============================================================================
+// ics.write
+// =============================================================================
+
+export const icsWriteProcedure: AnyProcedure = createProcedure()
+  .path(["ics", "write"])
+  .input(zodAdapter<IcsWriteInput>(IcsWriteInputSchema))
+  .output(zodAdapter<IcsWriteOutput>(IcsWriteOutputSchema))
+  .meta({
+    description: "Write an iCalendar text from events: escaped text, folded lines and CRLF line ends",
+    output: "json",
+    effects: PURE,
+  })
+  .handler(async (input: IcsWriteInput): Promise<IcsWriteOutput> => icsWrite(input))
+  .build() as AnyProcedure;
+
+// =============================================================================
 // ics.fetch
 // =============================================================================
 
@@ -136,4 +154,4 @@ export const icsFetchProcedure: AnyProcedure = createProcedure()
   })
   .build() as AnyProcedure;
 
-export const icsProcedures: AnyProcedure[] = [icsParseProcedure, icsOccurrencesProcedure, icsFetchProcedure];
+export const icsProcedures: AnyProcedure[] = [icsParseProcedure, icsOccurrencesProcedure, icsWriteProcedure, icsFetchProcedure];

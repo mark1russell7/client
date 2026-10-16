@@ -254,8 +254,8 @@ const gitStatusProcedure = createProcedure()
   .output(zodAdapter<GitStatusOutput>(GitStatusOutputSchema))
   .meta({
     description: "Get git status",
-    args: [],
-    shorts: { cwd: "C", short: "s" },
+    args: ["paths"],
+    shorts: { cwd: "C", short: "s", untrackedFiles: "u" },
     output: "json",
     effects: READS_REPOSITORY,
   })

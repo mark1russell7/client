@@ -1,12 +1,25 @@
 /**
- * The procedures of `@procedures/geo`: `geo.geocode` and `geo.route`.
+ * The procedures of `@procedures/geo`: `geo.geocode`, `geo.route`, `geo.distance` and `geo.geohash`.
  */
 
 import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { z } from "zod";
 import { drivingRoute, geocode, type GeocodeResult, type RouteResult } from "./geo.js";
+import { geoDistance } from "./procedures/geo/distance.js";
+import { geoGeohash } from "./procedures/geo/geohash.js";
+import {
+  GeoDistanceInputSchema,
+  GeoDistanceOutputSchema,
+  GeoGeohashInputSchema,
+  GeoGeohashOutputSchema,
+  type GeoDistanceInput,
+  type GeoDistanceOutput,
+  type GeoGeohashInput,
+  type GeoGeohashOutput,
+} from "./types.js";
 
 const NETWORK_READ = { reads: ["network"], writes: [] };
+const PURE = { reads: [], writes: [] };
 const point = z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
 const timeoutMs = z.number().int().positive().max(120_000).default(20_000).describe("The time limit, in milliseconds (default: 20000)");
 
@@ -79,4 +92,36 @@ export const geoRouteProcedure: AnyProcedure = createProcedure()
   )
   .build() as AnyProcedure;
 
-export const geoProcedures: AnyProcedure[] = [geoGeocodeProcedure, geoRouteProcedure];
+// =============================================================================
+// geo.distance
+// =============================================================================
+
+export const geoDistanceProcedure: AnyProcedure = createProcedure()
+  .path(["geo", "distance"])
+  .input(zodAdapter<GeoDistanceInput>(GeoDistanceInputSchema))
+  .output(zodAdapter<GeoDistanceOutput>(GeoDistanceOutputSchema))
+  .meta({
+    description: "Give the great-circle distance between two points in kilometres (haversine), without the network",
+    output: "json",
+    effects: PURE,
+  })
+  .handler(async (input: GeoDistanceInput): Promise<GeoDistanceOutput> => geoDistance(input))
+  .build() as AnyProcedure;
+
+// =============================================================================
+// geo.geohash
+// =============================================================================
+
+export const geoGeohashProcedure: AnyProcedure = createProcedure()
+  .path(["geo", "geohash"])
+  .input(zodAdapter<GeoGeohashInput>(GeoGeohashInputSchema))
+  .output(zodAdapter<GeoGeohashOutput>(GeoGeohashOutputSchema))
+  .meta({
+    description: "Give the geohash of a point and the cell of that geohash, without the network",
+    output: "json",
+    effects: PURE,
+  })
+  .handler(async (input: GeoGeohashInput): Promise<GeoGeohashOutput> => geoGeohash(input))
+  .build() as AnyProcedure;
+
+export const geoProcedures: AnyProcedure[] = [geoGeocodeProcedure, geoRouteProcedure, geoDistanceProcedure, geoGeohashProcedure];
