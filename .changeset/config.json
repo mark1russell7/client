@@ -26,6 +26,7 @@
       "@procedures/mcp-server",
       "@procedures/mongo",
       "@procedures/node",
+      "@procedures/npm",
       "@procedures/playground",
       "@procedures/pnpm",
       "@procedures/procedure",

@@ -88,6 +88,7 @@
     "@procedures/git": "workspace:*",
     "@procedures/mongo": "workspace:*",
     "@procedures/node": "workspace:*",
+    "@procedures/npm": "workspace:*",
     "@procedures/s3": "workspace:*",
     "@procedures/snapshot": "workspace:*",
     "@procedures/splay": "workspace:*",
