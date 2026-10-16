@@ -28,6 +28,8 @@
     "packages/schedule/README.md",
     "packages/env/README.md",
     "packages/archive/README.md",
+    "packages/ios-backup/README.md",
+    "packages/privacy-scan/README.md",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [
