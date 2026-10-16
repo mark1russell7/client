@@ -48,7 +48,7 @@ import {
   rawInputRule,
   RUNS_REFS_TAG,
 } from "./ref.js";
-import { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+import { INFERRED_EFFECTS_METADATA_KEY, PURE_EFFECTS, REGISTRY_READ_EFFECTS, effectsValue, withEffects } from "./effects.js";
 import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, type ProcedureManifest } from "./manifest.js";
 import type { JsonSchema } from "./schema.js";
 import { isRuntimeDefined, markRuntimeProgram, runtimeProgramOfHandler } from "./runtime-programs.js";
@@ -337,6 +337,10 @@ export const defineProcedureProcedure: Procedure<
       throw new Error(`Procedure already exists at path: ${pathKey}`);
     }
 
+    // The effects of the body that the host found (roadmap R22). Only an interceptor of the host
+    // can give them: each transport removes the key from a request.
+    const inferred = effectsValue(ctx?.metadata?.[INFERRED_EFFECTS_METADATA_KEY]);
+
     // Create the procedure
     const procedure: AnyProcedure = defineProcedure({
       path,
@@ -351,6 +355,8 @@ export const defineProcedureProcedure: Procedure<
         // No effects of its own, as client.chain: the admission examines each nested call of a
         // data-driven procedure. The framework sets it, so the metadata of a caller cannot claim less
         effects: PURE_EFFECTS,
+        // The framework sets this field too: the effects of the body, for the tool hints
+        ...(inferred ? { inferredEffects: inferred } : { inferredEffects: undefined }),
       },
       handler: createAggregationHandler(aggregation),
     });

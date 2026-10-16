@@ -54,7 +54,7 @@ export {
   explainInvocation,
   checkEffects,
 } from "./capability.js";
-export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects, INFERRED_EFFECTS_METADATA_KEY, inferredEffectsOf, effectsValue } from "./effects.js";
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./manifest.js";
 export type { ProcedureEntry, ProcedureManifest, CliDescription, DescribeOptions, DescribeRegistryOptions } from "./manifest.js";

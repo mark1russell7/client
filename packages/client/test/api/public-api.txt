@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 404 names
+## . (dist/index.d.ts): 408 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -60,6 +60,7 @@ type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
+type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
 type Handler: dist/adapters/local/client/types.d.ts#Handler
@@ -78,6 +79,7 @@ type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
 type IEventBus: dist/events/types.d.ts#EventBus
+INFERRED_EFFECTS_METADATA_KEY: dist/procedures/effects.d.ts#INFERRED_EFFECTS_METADATA_KEY
 IdempotencyCache: dist/procedures/idempotency.d.ts#IdempotencyCache
 type IdempotencyOptions: dist/procedures/idempotency.d.ts#IdempotencyOptions
 type InferProcedureInput: dist/procedures/types.d.ts#InferProcedureInput
@@ -276,6 +278,7 @@ describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
 describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
+effectsValue: dist/procedures/effects.d.ts#effectsValue
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/ref.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
@@ -308,6 +311,7 @@ hydrateInput: dist/procedures/ref.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
 identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
+inferredEffectsOf: dist/procedures/effects.d.ts#inferredEffectsOf
 invokePath: dist/procedures/invoke.d.ts#invokePath
 invokeProcedure: dist/procedures/invoke.d.ts#invokeProcedure
 isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
@@ -411,7 +415,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 387 names
+## ./browser (dist/browser.d.ts): 391 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -466,6 +470,7 @@ type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
+type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -479,6 +484,7 @@ type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
 type IEventBus: dist/events/types.d.ts#EventBus
+INFERRED_EFFECTS_METADATA_KEY: dist/procedures/effects.d.ts#INFERRED_EFFECTS_METADATA_KEY
 IdempotencyCache: dist/procedures/idempotency.d.ts#IdempotencyCache
 type IdempotencyOptions: dist/procedures/idempotency.d.ts#IdempotencyOptions
 type InferProcedureInput: dist/procedures/types.d.ts#InferProcedureInput
@@ -670,6 +676,7 @@ describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
 describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
+effectsValue: dist/procedures/effects.d.ts#effectsValue
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/ref.d.ts#executeRef
 executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
@@ -701,6 +708,7 @@ hydrateInput: dist/procedures/ref.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
 identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
+inferredEffectsOf: dist/procedures/effects.d.ts#inferredEffectsOf
 invokePath: dist/procedures/invoke.d.ts#invokePath
 invokeProcedure: dist/procedures/invoke.d.ts#invokeProcedure
 isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
@@ -957,7 +965,7 @@ resetGlobalEventBus: dist/events/bus.d.ts#resetGlobalEventBus
 throttleChannel: dist/events/bus.d.ts#throttleChannel
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 198 names
+## ./procedures (dist/procedures/index.d.ts): 201 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -980,6 +988,7 @@ type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
+INFERRED_EFFECTS_METADATA_KEY: dist/procedures/effects.d.ts#INFERRED_EFFECTS_METADATA_KEY
 IdempotencyCache: dist/procedures/idempotency.d.ts#IdempotencyCache
 type IdempotencyOptions: dist/procedures/idempotency.d.ts#IdempotencyOptions
 type InferProcedureInput: dist/procedures/types.d.ts#InferProcedureInput
@@ -1080,6 +1089,7 @@ describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
 describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
 effectsIn: dist/procedures/idempotency.d.ts#effectsIn
 effectsOf: dist/procedures/capability.d.ts#effectsOf
+effectsValue: dist/procedures/effects.d.ts#effectsValue
 examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
 executeRef: dist/procedures/ref.d.ts#executeRef
 explainInvocation: dist/procedures/capability.d.ts#explainInvocation
@@ -1097,6 +1107,7 @@ hydrateInput: dist/procedures/ref.d.ts#hydrateInput
 idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
 idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
 identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
+inferredEffectsOf: dist/procedures/effects.d.ts#inferredEffectsOf
 isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
 isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
@@ -2872,11 +2883,22 @@ export declare function registerModule(module: ProcedureModule): void;
 ### dist/procedures/discovery.d.ts#registerProcedures
 export declare function registerProcedures(procedures: AnyProcedure[]): void;
 
+### dist/procedures/effects.d.ts#INFERRED_EFFECTS_METADATA_KEY
+export declare const INFERRED_EFFECTS_METADATA_KEY = "__inferredEffects";
+
 ### dist/procedures/effects.d.ts#PURE_EFFECTS
 export declare const PURE_EFFECTS: Effects;
 
 ### dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
 export declare const REGISTRY_READ_EFFECTS: Effects;
+
+### dist/procedures/effects.d.ts#effectsValue
+export declare function effectsValue(value: unknown): Effects | undefined;
+
+### dist/procedures/effects.d.ts#inferredEffectsOf
+export declare function inferredEffectsOf(source: {
+    readonly metadata?: unknown;
+} | Record<string, unknown> | undefined): Effects | undefined;
 
 ### dist/procedures/effects.d.ts#withEffects
 export declare function withEffects<T extends AnyProcedure>(effects: Effects, procedures: readonly T[]): T[];
@@ -2985,6 +3007,9 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 ### dist/procedures/invoke.d.ts#AdmitItem
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
+### dist/procedures/invoke.d.ts#ForbiddenReason
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root";
+
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
 
@@ -3014,8 +3039,8 @@ export declare class InvocationError extends Error {
     readonly code: InvocationErrorCode;
     readonly path: ProcedurePath;
     readonly retryable: boolean;
-    readonly reason: CapabilityRefusalReason | undefined;
-    constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: CapabilityRefusalReason);
+    readonly reason: ForbiddenReason | undefined;
+    constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: ForbiddenReason);
 }
 
 ### dist/procedures/invoke.d.ts#InvocationErrorCode

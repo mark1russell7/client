@@ -4,7 +4,16 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { invokeProcedure, outputValue, PURE_EFFECTS, defineProcedure, anySchema, type Capability, type ProcedurePath } from "@procedures/client/browser";
+import {
+  invokeProcedure,
+  outputValue,
+  PURE_EFFECTS,
+  defineProcedure,
+  anySchema,
+  toolHints,
+  type Capability,
+  type ProcedurePath,
+} from "@procedures/client/browser";
 import { makeHarness } from "../test/harness.js";
 import { programCheckInterceptor } from "./interceptor.js";
 
@@ -83,6 +92,45 @@ describe("programCheckInterceptor (R22)", () => {
     // The admission of the interpreter refuses it: the interceptor did not examine it
     await expect(checked.outcome).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(checked.checks).toEqual([]);
+  });
+
+  it("gives procedure.define the effects of its body, so the tool of the procedure has the right hints", async () => {
+    const harness = makeHarness();
+    const interceptors = [programCheckInterceptor({ registry: harness.registry })];
+    const define = (path: string[], aggregation: unknown, metadata?: unknown) =>
+      invokeProcedure(harness.registry.get(["procedure", "define"])!, { path, aggregation, ...(metadata ? { metadata } : {}) }, { registry: harness.registry, interceptors }).then(
+        (output) => outputValue(output),
+      );
+
+    await define(["d", "writer"], { $proc: ["t", "write"], input: { key: "k", value: { $ref: "input.value" } } });
+    const writer = harness.registry.get(["d", "writer"])!;
+    expect((writer.metadata as { inferredEffects?: unknown }).inferredEffects).toMatchObject({ reads: [], writes: ["store"] });
+    expect(toolHints(writer)).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+
+    // The metadata of the caller cannot claim the effects: the framework sets the field
+    await define(["d", "pure"], { $proc: ["t", "echo"], input: { value: 1 } }, { description: "pure", inferredEffects: { reads: [], writes: ["store"] } });
+    expect(toolHints(harness.registry.get(["d", "pure"])!)).toMatchObject({ readOnlyHint: true });
+  });
+
+  it("refuses a body with an error, and gives the place in the input", async () => {
+    const harness = makeHarness();
+    const define = invokeProcedure(
+      harness.registry.get(["procedure", "define"])!,
+      { path: ["d", "broken"], aggregation: { $proc: ["t", "echo"], input: { value: { $ref: "missing" } } } },
+      { registry: harness.registry, interceptors: [programCheckInterceptor({ registry: harness.registry })] },
+    );
+    await expect(define).rejects.toThrow("unknown-name at /aggregation/input/value of the input");
+    expect(harness.registry.get(["d", "broken"])).toBeUndefined();
+  });
+
+  it("gives no hints to a defined procedure without the check of a host", async () => {
+    const harness = makeHarness();
+    await invokeProcedure(
+      harness.registry.get(["procedure", "define"])!,
+      { path: ["d", "plain"], aggregation: { $proc: ["t", "echo"], input: { value: 1 } }, metadata: { inferredEffects: { reads: [], writes: [] } } },
+      { registry: harness.registry },
+    ).then((output) => outputValue(output));
+    expect(toolHints(harness.registry.get(["d", "plain"])!)).toEqual({});
   });
 
   it("makes its facts again when the registry changes", async () => {

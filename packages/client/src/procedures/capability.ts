@@ -25,6 +25,7 @@ import type {
 } from "./types.js";
 import { pathToKey } from "./types.js";
 import { isDataDriven } from "./ref.js";
+import { inferredEffectsOf } from "./effects.js";
 import { callMatches } from "./policy.js";
 
 /** The standard resource names. An application adds its own names. */
@@ -94,11 +95,12 @@ export interface ToolHints {
 /**
  * The MCP hints of a procedure, from its declared effects. A procedure without a declaration,
  * or a data-driven one (its operands decide what it does), gets no hints: then the MCP defaults
- * apply (not read-only, destructive, open world).
+ * apply (not read-only, destructive, open world). A procedure that `procedure.define` made gets
+ * the hints of the effects that the host found for its body (`inferredEffects`, roadmap R22).
  */
 export function toolHints(procedure: AnyProcedure): ToolHints {
-  const effects = effectsOf(procedure);
-  if (!effects || isDataDriven(procedure)) return {};
+  const effects = isDataDriven(procedure) ? inferredEffectsOf(procedure) : effectsOf(procedure);
+  if (!effects) return {};
   if (isReadOnly(effects)) {
     return { readOnlyHint: true, openWorldHint: isOpenWorld(effects) };
   }

@@ -10,6 +10,10 @@
  * The check is conservative. It refuses a call that a branch can make, also a branch that does
  * not run. A `client.tryCatch` around a refused call does not help: the program does not start.
  *
+ * A call of `procedure.define` gets the check of its body. The host refuses a body with an
+ * error, and gives the effects of the body to `procedure.define`, which keeps them as
+ * `inferredEffects`. Then the tool of a defined procedure has the right hints.
+ *
  * @example
  * ```typescript
  * const server = new ProcedureServer({
@@ -21,8 +25,11 @@
  */
 
 import {
+  INFERRED_EFFECTS_METADATA_KEY,
   InvocationError,
+  effectsValue,
   isDataDriven,
+  pathToKey,
   type AnyProcedure,
   type CapabilityRefusalReason,
   type Interceptor,
@@ -110,6 +117,21 @@ export function programCheckInterceptor(options: ProgramCheckOptions): Intercept
   options.registry.on?.("unregister", reset);
 
   return async (invocation, next) => {
+    if (pathToKey(invocation.path) === "procedure.define") {
+      const aggregation = (invocation.input as { aggregation?: unknown } | null | undefined)?.aggregation;
+      if (aggregation === undefined) return next();
+      facts ??= registryFacts(options.registry, { expose: options.expose });
+      const body = checkProgram(aggregation, { facts, expose: options.expose, mode: "body" });
+      options.onCheck?.(invocation, body);
+      // A nested definition is a part of a program that the check examined already
+      const refused = invocation.depth === 0 ? body.diagnostics.filter(refuses) : [];
+      if (refused.length > 0) {
+        const placed = refused.map((diagnostic) => ({ ...diagnostic, pointer: `/input/aggregation${diagnostic.pointer}` }));
+        throw new InvocationError(codeOf(placed[0]!), messageOf(placed), invocation.path, reasonOf(placed[0]!));
+      }
+      const effects = effectsValue(body.effects);
+      return effects ? next({ metadata: { ...invocation.metadata, [INFERRED_EFFECTS_METADATA_KEY]: effects } }) : next();
+    }
     if (invocation.depth !== 0 || !isDataDriven(invocation.procedure)) return next();
     facts ??= registryFacts(options.registry, { expose: options.expose });
     const result = checkProgram(
