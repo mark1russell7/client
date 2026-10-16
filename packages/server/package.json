@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/server",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list.",
   "keywords": [
     "server",

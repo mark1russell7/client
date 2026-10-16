@@ -1,5 +1,13 @@
 # @procedures/git
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [15e48cf]
+  - @procedures/client@0.2.3
+  - @procedures/shell@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes

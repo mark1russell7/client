@@ -1,5 +1,14 @@
 # @procedures/mcp-server
 
+## 0.2.3
+
+### Patch Changes
+
+- 15e48cf: Three fixes of the architecture review (2026-10-16). A `timeoutMs` that is not a finite number of zero or more asks for nothing: before, `NaN` removed the deadline. A procedure of `procedure.define` declares no effects of its own, so a read-only capability runs it and examines each nested call. `mcp.list-tools`, `mcp.serve`, `_discovery.announce`, `manifest.generate`, `server.create`, `procedure.export` and `lib.audit` read the registry of the call, not the global registry. `getProcedureInfos` and `watchProcedures` take a registry.
+- Updated dependencies [15e48cf]
+  - @procedures/client@0.2.3
+  - @procedures/mcp@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes

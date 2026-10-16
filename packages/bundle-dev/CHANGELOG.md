@@ -1,5 +1,20 @@
 # @procedures/bundle-dev
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [15e48cf]
+  - @procedures/client@0.2.3
+  - @procedures/procedure@0.2.3
+  - @procedures/lib@0.2.3
+  - @procedures/cli-run@0.2.3
+  - @procedures/fs@0.2.3
+  - @procedures/git@0.2.3
+  - @procedures/pnpm@0.2.3
+  - @procedures/shell@0.2.3
+  - @procedures/dag@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes
