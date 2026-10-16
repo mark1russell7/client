@@ -61,6 +61,9 @@ const AVAILABILITY_CODES = new Set([
   "NETWORK_ERROR",
   "CONNECTION_REFUSED",
   "STREAM_ENDED",
+  // The connection to the other side closed before the call left (roadmap R30: before, the list
+  // did not have this code of R24)
+  "CONNECTION_CLOSED",
 ]);
 
 /** True when an error says that the service is not available (see AVAILABILITY_CODES). */

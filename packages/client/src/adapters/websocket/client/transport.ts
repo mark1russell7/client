@@ -315,6 +315,10 @@ export class WebSocketTransport implements Transport {
         if (this.options.onError) {
           this.options.onError(error);
         }
+        // A failed handshake: the WebSocket of Node 22 gives no close event after this error, and
+        // stays in CONNECTING. The transport closes it now, so the reconnect starts at once
+        // (roadmap R30: before, each try waited for the time limit of the handshake).
+        if (this.state === WebSocketState.CONNECTING) this.dropConnection("Connection failed");
       };
     } catch (error) {
       console.error(`[${this.name}] Failed to create WebSocket:`, error);

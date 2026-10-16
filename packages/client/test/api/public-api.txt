@@ -1,0 +1,4049 @@
+# The public API of @procedures/client
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
+# dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
+
+## . (dist/index.d.ts): 404 names
+
+type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
+type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
+type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
+type BatchConfig: dist/client/call-types.d.ts#BatchConfig
+type BatchExecutionResult: dist/client/batch-executor.d.ts#BatchExecutionResult
+BatchExecutor: dist/client/batch-executor.d.ts#BatchExecutor
+type BatchItem: dist/client/batch-executor.d.ts#BatchItem
+type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
+type BrowserGuardOptions: dist/server/browser-guard.d.ts#BrowserGuardOptions
+type CacheOverride: dist/client/call-types.d.ts#CacheOverride
+type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
+type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
+type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
+type CallRequest: dist/client/call-types.d.ts#CallRequest
+type CallResponse: dist/client/call-types.d.ts#CallResponse
+type Capability: dist/procedures/types.d.ts#Capability
+type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
+type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
+type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
+type ChannelMap: dist/events/types.d.ts#ChannelMap
+type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
+type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
+type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+Client: dist/client/client.d.ts#Client
+type ClientContext: dist/client/types.d.ts#ClientContext
+ClientError: dist/client/types.d.ts#ClientError
+type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
+type ClientOptions: dist/client/types.d.ts#ClientOptions
+type ClientRunner: dist/client/types.d.ts#ClientRunner
+type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
+type Credentials: dist/server/types.d.ts#Credentials
+DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
+type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
+type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
+type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
+type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
+type Duration: dist/duration.d.ts#Duration
+ERROR_CODES: dist/protocol.d.ts#ERROR_CODES
+ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
+type Effects: dist/procedures/types.d.ts#Effects
+type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
+ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
+type ErrorCodeInfo: dist/protocol.d.ts#ErrorCodeInfo
+type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
+type ErrorMetadata: dist/client/errors/types.d.ts#ErrorMetadata
+type ErrorRegistry: dist/client/errors/types.d.ts#ErrorRegistry
+ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
+EventBus: dist/events/bus.d.ts#DefaultEventBus
+type EventBusOptions: dist/events/types.d.ts#EventBusOptions
+type EventHandler: dist/events/types.d.ts#EventHandler
+type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
+type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
+type GuardResult: dist/server/browser-guard.d.ts#GuardResult
+type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
+type Handler: dist/adapters/local/client/types.d.ts#Handler
+HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
+type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
+type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
+type HostSource: dist/server/host-procedures.d.ts#HostSource
+type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
+HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
+type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
+type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
+type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
+type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
+IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
+type IEventBus: dist/events/types.d.ts#EventBus
+IdempotencyCache: dist/procedures/idempotency.d.ts#IdempotencyCache
+type IdempotencyOptions: dist/procedures/idempotency.d.ts#IdempotencyOptions
+type InferProcedureInput: dist/procedures/types.d.ts#InferProcedureInput
+type InferProcedureMetadata: dist/procedures/types.d.ts#InferProcedureMetadata
+type InferProcedureOutput: dist/procedures/types.d.ts#InferProcedureOutput
+type InferSchema: dist/procedures/schema.d.ts#InferSchema
+type Interceptor: dist/procedures/invoke.d.ts#Interceptor
+type Invocation: dist/procedures/invoke.d.ts#Invocation
+type InvocationChanges: dist/procedures/invoke.d.ts#InvocationChanges
+InvocationError: dist/procedures/invoke.d.ts#InvocationError
+type InvocationErrorCode: dist/procedures/invoke.d.ts#InvocationErrorCode
+type InvocationExplanation: dist/procedures/capability.d.ts#InvocationExplanation
+type InvocationNext: dist/procedures/invoke.d.ts#InvocationNext
+type InvocationSpan: dist/procedures/interceptors.d.ts#InvocationSpan
+type InvokeOptions: dist/procedures/invoke.d.ts#InvokeOptions
+type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
+type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
+type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
+LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
+type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
+MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
+MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+type Message: dist/client/types.d.ts#Message
+type Metadata: dist/client/types.d.ts#Metadata
+type Method: dist/client/types.d.ts#Method
+type MetricsInterceptor: dist/procedures/interceptors.d.ts#MetricsInterceptor
+type MiddlewareOverrides: dist/client/call-types.d.ts#MiddlewareOverrides
+type MockResponse: dist/adapters/mock/client/types.d.ts#MockResponse
+MockTransport: dist/adapters/mock/client/transport.d.ts#MockTransport
+type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOptions
+type ModuleInput: dist/procedures/module.d.ts#ModuleInput
+type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
+type OutputRef: dist/procedures/ref.d.ts#OutputRef
+PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
+PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
+PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
+PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
+PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
+PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
+PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
+type PortLike: dist/adapters/port/transport.d.ts#PortLike
+PortTransport: dist/adapters/port/transport.d.ts#PortTransport
+type PortTransportOptions: dist/adapters/port/transport.d.ts#PortTransportOptions
+type Principal: dist/server/types.d.ts#Principal
+type Procedure: dist/procedures/types.d.ts#Procedure
+ProcedureBuilder: dist/procedures/define.d.ts#ProcedureBuilder
+type ProcedureCallResult: dist/client/call-types.d.ts#ProcedureCallResult
+type ProcedureContext: dist/procedures/types.d.ts#ProcedureContext
+type ProcedureDefinition: dist/procedures/define.d.ts#ProcedureDefinition
+type ProcedureEntry: dist/procedures/manifest.d.ts#ProcedureEntry
+type ProcedureError: dist/procedures/types.d.ts#ProcedureError
+type ProcedureExecutor: dist/client/batch-executor.d.ts#ProcedureExecutor
+type ProcedureHandler: dist/procedures/types.d.ts#ProcedureHandler
+type ProcedureManifest: dist/procedures/manifest.d.ts#ProcedureManifest
+type ProcedureMetadata: dist/procedures/types.d.ts#ProcedureMetadata
+type ProcedureMetrics: dist/procedures/interceptors.d.ts#ProcedureMetrics
+type ProcedureModule: dist/procedures/types.d.ts#ProcedureModule
+type ProcedureOutput: dist/procedures/invoke.d.ts#ProcedureOutput
+type ProcedurePath: dist/procedures/types.d.ts#ProcedurePath
+type ProcedureRef: dist/procedures/ref.d.ts#ProcedureRef
+ProcedureRefBuilder: dist/procedures/ref.d.ts#ProcedureRefBuilder
+type ProcedureRefJson: dist/procedures/ref.d.ts#ProcedureRefJson
+ProcedureRegistry: dist/procedures/registry.d.ts#ProcedureRegistry
+type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
+type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
+type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
+type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
+type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
+type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
+type ProtocolErrorCode: dist/protocol.d.ts#ProtocolErrorCode
+RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
+REGISTRY_READ_EFFECTS: dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
+RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
+type RefExecutor: dist/procedures/ref.d.ts#RefExecutor
+type RefScope: dist/procedures/ref.d.ts#RefScope
+type Register: dist/procedures/types.d.ts#Register
+type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
+RegistryError: dist/procedures/registry.d.ts#RegistryError
+type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
+type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type RequestHandler: dist/server/types.d.ts#RequestHandler
+type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
+type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
+type ResponseItem: dist/client/types.d.ts#ResponseItem
+type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
+type RetryOverride: dist/client/call-types.d.ts#RetryOverride
+type RichError: dist/client/errors/types.d.ts#RichError
+type Route: dist/client/call-types.d.ts#Route
+type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
+type RouteNode: dist/client/call-types.d.ts#RouteNode
+type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
+type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
+RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
+STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
+STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+Semaphore: dist/client/batch-executor.d.ts#Semaphore
+Server: dist/server/server.d.ts#Server
+type ServerContext: dist/server/types.d.ts#ServerContext
+ServerError: dist/server/types.d.ts#ServerError
+type ServerHandler: dist/server/types.d.ts#ServerHandler
+type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
+type ServerOptions: dist/server/server.d.ts#ServerOptions
+type ServerRequest: dist/server/types.d.ts#ServerRequest
+type ServerResponse: dist/server/types.d.ts#ServerResponse
+type ServerRunner: dist/server/types.d.ts#ServerRunner
+type ServerTransport: dist/server/types.d.ts#ServerTransport
+type SingleCallRequest: dist/client/call-types.d.ts#SingleCallRequest
+type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
+type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
+type Status: dist/client/types.d.ts#Status
+type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
+type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StreamConfig: dist/client/call-types.d.ts#StreamConfig
+type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
+TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
+TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
+type TimeUnit: dist/duration.d.ts#TimeUnit
+type TimeoutInterceptorOptions: dist/procedures/interceptors.d.ts#TimeoutInterceptorOptions
+type TimeoutOverride: dist/client/call-types.d.ts#TimeoutOverride
+type ToolHints: dist/procedures/capability.d.ts#ToolHints
+type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
+type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
+type TracingInterceptorOptions: dist/procedures/interceptors.d.ts#TracingInterceptorOptions
+type Transport: dist/client/types.d.ts#Transport
+type TypedEventBus: dist/events/types.d.ts#TypedEventBus
+UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
+type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
+type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
+WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
+WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
+type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
+type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
+type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
+type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
+WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
+type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
+allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
+allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
+allProcedure: dist/procedures/core/index.d.ts#allProcedure
+andProcedure: dist/procedures/core/index.d.ts#andProcedure
+anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
+anySchema: dist/procedures/core/schemas.d.ts#anySchema
+assertValidPath: dist/procedures/registry.d.ts#assertValidPath
+bearerOf: dist/server/request-auth.d.ts#bearerOf
+buildResponse: dist/client/call-types.d.ts#buildResponse
+callMatches: dist/procedures/policy.d.ts#callMatches
+capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
+chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
+checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
+checkEffects: dist/procedures/capability.d.ts#checkEffects
+clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
+clientModule: dist/procedures/module.d.ts#clientModule
+conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
+constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
+coreModule: dist/procedures/core/index.d.ts#coreModule
+coreProcedures: dist/procedures/core/index.d.ts#coreProcedures
+createAndRegister: dist/procedures/discovery.d.ts#createAndRegister
+createBatchExecutor: dist/client/batch-executor.d.ts#createBatchExecutor
+createCollectionProcedures: dist/procedures/collection/procedures.d.ts#createCollectionProcedures
+createError: dist/client/errors/factory.d.ts#createError
+createErrorFromException: dist/client/errors/factory.d.ts#createErrorFromException
+createErrorFromHTTPStatus: dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
+createEventBus: dist/events/bus.d.ts#createEventBus
+createProcedure: dist/procedures/define.d.ts#createProcedure
+createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
+createRefScope: dist/procedures/ref.d.ts#createRefScope
+createRegistry: dist/procedures/module.d.ts#createRegistry
+createRoute: dist/client/call-types.d.ts#createRoute
+createRouteResolver: dist/client/route-resolver.d.ts#createRouteResolver
+createTypedEventBus: dist/events/bus.d.ts#createTypedEventBus
+credentialsOf: dist/server/request-auth.d.ts#credentialsOf
+declaredCalls: dist/procedures/policy.d.ts#declaredCalls
+defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
+defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
+defineModule: dist/procedures/module.d.ts#defineModule
+defineProcedure: dist/procedures/define.d.ts#defineProcedure
+defineProcedureProcedure: dist/procedures/define-procedure.d.ts#defineProcedureProcedure
+defineStub: dist/procedures/define.d.ts#defineStub
+deleteProcedureProcedure: dist/procedures/define-procedure.d.ts#deleteProcedureProcedure
+describeIssues: dist/procedures/schema.d.ts#describeIssues
+describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
+describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
+effectsIn: dist/procedures/idempotency.d.ts#effectsIn
+effectsOf: dist/procedures/capability.d.ts#effectsOf
+examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
+executeRef: dist/procedures/ref.d.ts#executeRef
+executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
+explainInvocation: dist/procedures/capability.d.ts#explainInvocation
+exposePatterns: dist/server/host-policy.d.ts#exposePatterns
+exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
+extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+flattenRoute: dist/client/call-types.d.ts#flattenRoute
+formatError: dist/client/errors/factory.d.ts#formatError
+formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+fromJson: dist/procedures/ref.d.ts#fromJson
+getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
+getErrorMetadata: dist/client/errors/registry.d.ts#getErrorMetadata
+getGlobalEventBus: dist/events/bus.d.ts#getGlobalEventBus
+getMissingPaths: dist/client/route-resolver.d.ts#getMissingPaths
+getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedure
+getRefName: dist/procedures/ref.d.ts#getRefName
+getRefWhen: dist/procedures/ref.d.ts#getRefWhen
+getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
+hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
+hashOf: dist/procedures/manifest.d.ts#hashOf
+hiddenReach: dist/procedures/policy.d.ts#hiddenReach
+hostNameOf: dist/server/browser-guard.d.ts#hostNameOf
+hostPolicy: dist/server/host-policy.d.ts#hostPolicy
+hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
+hours: dist/duration.d.ts#hours
+httpStatusOf: dist/protocol.d.ts#httpStatusOf
+hydrateInput: dist/procedures/ref.d.ts#hydrateInput
+idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
+idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
+identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
+invokePath: dist/procedures/invoke.d.ts#invokePath
+invokeProcedure: dist/procedures/invoke.d.ts#invokeProcedure
+isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
+isAsyncIterable: dist/procedures/invoke.d.ts#isAsyncIterable
+isBatchRoute: dist/client/call-types.d.ts#isBatchRoute
+isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
+isDataDriven: dist/procedures/ref.d.ts#isDataDriven
+isDestructive: dist/procedures/capability.d.ts#isDestructive
+isDuration: dist/duration.d.ts#isDuration
+isKnownError: dist/client/errors/registry.d.ts#isKnownError
+isLiteral: dist/procedures/ref.d.ts#isLiteral
+isLoopbackAddress: dist/server/browser-guard.d.ts#isLoopbackAddress
+isLoopbackHost: dist/server/browser-guard.d.ts#isLoopbackHost
+isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
+isPlainObject: dist/procedures/ref.d.ts#isPlainObject
+isProcedureRef: dist/procedures/ref.d.ts#isProcedureRef
+isProcedureRefJson: dist/procedures/ref.d.ts#isProcedureRefJson
+isProtocolErrorCode: dist/protocol.d.ts#isProtocolErrorCode
+isReadOnly: dist/procedures/capability.d.ts#isReadOnly
+isRepeatable: dist/procedures/idempotency.d.ts#isRepeatable
+isRuntimeDefined: dist/procedures/runtime-programs.d.ts#isRuntimeDefined
+isStandardSchema: dist/procedures/schema.d.ts#isStandardSchema
+isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+isValidRoute: dist/client/route-resolver.d.ts#isValidRoute
+isW3cIds: dist/tracing/traceparent.d.ts#isW3cIds
+jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
+keyToPath: dist/procedures/types.d.ts#keyToPath
+ladder: dist/procedures/capability.d.ts#ladder
+listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
+manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
+mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
+markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+matchPath: dist/client/route-resolver.d.ts#matchPath
+mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
+metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
+methodToPath: dist/server/method.d.ts#methodToPath
+metricsInterceptor: dist/procedures/interceptors.d.ts#metricsInterceptor
+minutes: dist/duration.d.ts#minutes
+mockBuilder: dist/adapters/mock/client/builder.d.ts#mockBuilder
+moduleClosure: dist/procedures/module.d.ts#moduleClosure
+ms: dist/duration.d.ts#ms
+namespace: dist/procedures/define.d.ts#namespace
+narrowCapability: dist/procedures/capability.d.ts#narrowCapability
+nestedCallRefusal: dist/procedures/policy.d.ts#nestedCallRefusal
+newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
+newSpanId: dist/tracing/traceparent.d.ts#newSpanId
+newTraceId: dist/tracing/traceparent.d.ts#newTraceId
+noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
+normalizeRef: dist/procedures/ref.d.ts#normalizeRef
+notProcedure: dist/procedures/core/index.d.ts#notProcedure
+observeHydration: dist/procedures/ref.d.ts#observeHydration
+optionalMs: dist/duration.d.ts#optionalMs
+orProcedure: dist/procedures/core/index.d.ts#orProcedure
+outputItems: dist/procedures/invoke.d.ts#outputItems
+outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
+outputValue: dist/procedures/invoke.d.ts#outputValue
+parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
+parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
+parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
+pathToKey: dist/procedures/types.d.ts#pathToKey
+pathToMethod: dist/server/method.d.ts#pathToMethod
+postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
+prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
+proc: dist/procedures/ref.d.ts#proc
+procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
+protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
+rawInputRule: dist/procedures/ref.d.ts#rawInputRule
+reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
+registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
+registerModule: dist/procedures/discovery.d.ts#registerModule
+registerModules: dist/procedures/module.d.ts#registerModules
+registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
+restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
+scopeOf: dist/procedures/ref.d.ts#scopeOf
+seconds: dist/duration.d.ts#seconds
+shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
+streamOutput: dist/procedures/invoke.d.ts#streamOutput
+stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
+surfaceRule: dist/server/host-policy.d.ts#surfaceRule
+takesRawInput: dist/procedures/ref.d.ts#takesRawInput
+throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
+timeoutInterceptor: dist/procedures/interceptors.d.ts#timeoutInterceptor
+toJson: dist/procedures/ref.d.ts#toJson
+toMs: dist/duration.d.ts#toMs
+tokenMatches: dist/server/procedure-server.d.ts#tokenMatches
+toolHints: dist/procedures/capability.d.ts#toolHints
+tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
+tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
+typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
+validateCalls: dist/procedures/policy.d.ts#validateCalls
+validateProcedure: dist/procedures/define.d.ts#validateProcedure
+validateSchema: dist/procedures/schema.d.ts#validateSchema
+validateSchemaAsync: dist/procedures/schema.d.ts#validateSchemaAsync
+withEffects: dist/procedures/effects.d.ts#withEffects
+withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+withScope: dist/procedures/ref.d.ts#withScope
+withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
+zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
+
+## ./browser (dist/browser.d.ts): 387 names
+
+type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
+type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
+type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
+type BatchConfig: dist/client/call-types.d.ts#BatchConfig
+type BatchExecutionResult: dist/client/batch-executor.d.ts#BatchExecutionResult
+BatchExecutor: dist/client/batch-executor.d.ts#BatchExecutor
+type BatchItem: dist/client/batch-executor.d.ts#BatchItem
+type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
+type CacheOverride: dist/client/call-types.d.ts#CacheOverride
+type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
+type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
+type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
+type CallRequest: dist/client/call-types.d.ts#CallRequest
+type CallResponse: dist/client/call-types.d.ts#CallResponse
+type Capability: dist/procedures/types.d.ts#Capability
+type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
+type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
+type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
+type ChannelMap: dist/events/types.d.ts#ChannelMap
+type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
+type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
+type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+Client: dist/client/client.d.ts#Client
+type ClientContext: dist/client/types.d.ts#ClientContext
+ClientError: dist/client/types.d.ts#ClientError
+type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
+type ClientOptions: dist/client/types.d.ts#ClientOptions
+type ClientRunner: dist/client/types.d.ts#ClientRunner
+type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
+type Credentials: dist/server/types.d.ts#Credentials
+DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
+type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
+type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
+type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
+type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
+type Duration: dist/duration.d.ts#Duration
+ERROR_CODES: dist/protocol.d.ts#ERROR_CODES
+ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
+type Effects: dist/procedures/types.d.ts#Effects
+type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
+ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
+type ErrorCodeInfo: dist/protocol.d.ts#ErrorCodeInfo
+type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
+type ErrorMetadata: dist/client/errors/types.d.ts#ErrorMetadata
+type ErrorRegistry: dist/client/errors/types.d.ts#ErrorRegistry
+ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
+EventBus: dist/events/bus.d.ts#DefaultEventBus
+type EventBusOptions: dist/events/types.d.ts#EventBusOptions
+type EventHandler: dist/events/types.d.ts#EventHandler
+type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
+type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
+type Handler: dist/adapters/local/client/types.d.ts#Handler
+HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
+type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
+type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
+type HostSource: dist/server/host-procedures.d.ts#HostSource
+type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
+HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
+type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
+type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
+type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
+IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
+type IEventBus: dist/events/types.d.ts#EventBus
+IdempotencyCache: dist/procedures/idempotency.d.ts#IdempotencyCache
+type IdempotencyOptions: dist/procedures/idempotency.d.ts#IdempotencyOptions
+type InferProcedureInput: dist/procedures/types.d.ts#InferProcedureInput
+type InferProcedureMetadata: dist/procedures/types.d.ts#InferProcedureMetadata
+type InferProcedureOutput: dist/procedures/types.d.ts#InferProcedureOutput
+type InferSchema: dist/procedures/schema.d.ts#InferSchema
+type Interceptor: dist/procedures/invoke.d.ts#Interceptor
+type Invocation: dist/procedures/invoke.d.ts#Invocation
+type InvocationChanges: dist/procedures/invoke.d.ts#InvocationChanges
+InvocationError: dist/procedures/invoke.d.ts#InvocationError
+type InvocationErrorCode: dist/procedures/invoke.d.ts#InvocationErrorCode
+type InvocationExplanation: dist/procedures/capability.d.ts#InvocationExplanation
+type InvocationNext: dist/procedures/invoke.d.ts#InvocationNext
+type InvocationSpan: dist/procedures/interceptors.d.ts#InvocationSpan
+type InvokeOptions: dist/procedures/invoke.d.ts#InvokeOptions
+type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
+type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
+type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
+LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
+type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
+MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
+MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+type Message: dist/client/types.d.ts#Message
+type Metadata: dist/client/types.d.ts#Metadata
+type Method: dist/client/types.d.ts#Method
+type MetricsInterceptor: dist/procedures/interceptors.d.ts#MetricsInterceptor
+type MiddlewareOverrides: dist/client/call-types.d.ts#MiddlewareOverrides
+type MockResponse: dist/adapters/mock/client/types.d.ts#MockResponse
+MockTransport: dist/adapters/mock/client/transport.d.ts#MockTransport
+type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOptions
+type ModuleInput: dist/procedures/module.d.ts#ModuleInput
+type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
+type OutputRef: dist/procedures/ref.d.ts#OutputRef
+PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
+PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
+PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
+PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
+PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
+PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
+PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
+type PortLike: dist/adapters/port/transport.d.ts#PortLike
+PortTransport: dist/adapters/port/transport.d.ts#PortTransport
+type PortTransportOptions: dist/adapters/port/transport.d.ts#PortTransportOptions
+type Principal: dist/server/types.d.ts#Principal
+type Procedure: dist/procedures/types.d.ts#Procedure
+ProcedureBuilder: dist/procedures/define.d.ts#ProcedureBuilder
+type ProcedureCallResult: dist/client/call-types.d.ts#ProcedureCallResult
+type ProcedureContext: dist/procedures/types.d.ts#ProcedureContext
+type ProcedureDefinition: dist/procedures/define.d.ts#ProcedureDefinition
+type ProcedureEntry: dist/procedures/manifest.d.ts#ProcedureEntry
+type ProcedureError: dist/procedures/types.d.ts#ProcedureError
+type ProcedureExecutor: dist/client/batch-executor.d.ts#ProcedureExecutor
+type ProcedureHandler: dist/procedures/types.d.ts#ProcedureHandler
+type ProcedureManifest: dist/procedures/manifest.d.ts#ProcedureManifest
+type ProcedureMetadata: dist/procedures/types.d.ts#ProcedureMetadata
+type ProcedureMetrics: dist/procedures/interceptors.d.ts#ProcedureMetrics
+type ProcedureModule: dist/procedures/types.d.ts#ProcedureModule
+type ProcedureOutput: dist/procedures/invoke.d.ts#ProcedureOutput
+type ProcedurePath: dist/procedures/types.d.ts#ProcedurePath
+type ProcedureRef: dist/procedures/ref.d.ts#ProcedureRef
+ProcedureRefBuilder: dist/procedures/ref.d.ts#ProcedureRefBuilder
+type ProcedureRefJson: dist/procedures/ref.d.ts#ProcedureRefJson
+ProcedureRegistry: dist/procedures/registry.d.ts#ProcedureRegistry
+type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
+type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
+type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
+type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
+type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
+type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
+type ProtocolErrorCode: dist/protocol.d.ts#ProtocolErrorCode
+RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
+REGISTRY_READ_EFFECTS: dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
+RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
+type RefExecutor: dist/procedures/ref.d.ts#RefExecutor
+type RefScope: dist/procedures/ref.d.ts#RefScope
+type Register: dist/procedures/types.d.ts#Register
+type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
+RegistryError: dist/procedures/registry.d.ts#RegistryError
+type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
+type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type RequestHandler: dist/server/types.d.ts#RequestHandler
+type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
+type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
+type ResponseItem: dist/client/types.d.ts#ResponseItem
+type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
+type RetryOverride: dist/client/call-types.d.ts#RetryOverride
+type RichError: dist/client/errors/types.d.ts#RichError
+type Route: dist/client/call-types.d.ts#Route
+type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
+type RouteNode: dist/client/call-types.d.ts#RouteNode
+type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
+type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
+RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
+STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
+STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+Semaphore: dist/client/batch-executor.d.ts#Semaphore
+Server: dist/server/server.d.ts#Server
+type ServerContext: dist/server/types.d.ts#ServerContext
+ServerError: dist/server/types.d.ts#ServerError
+type ServerHandler: dist/server/types.d.ts#ServerHandler
+type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
+type ServerOptions: dist/server/server.d.ts#ServerOptions
+type ServerRequest: dist/server/types.d.ts#ServerRequest
+type ServerResponse: dist/server/types.d.ts#ServerResponse
+type ServerRunner: dist/server/types.d.ts#ServerRunner
+type ServerTransport: dist/server/types.d.ts#ServerTransport
+type SingleCallRequest: dist/client/call-types.d.ts#SingleCallRequest
+type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
+type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
+type Status: dist/client/types.d.ts#Status
+type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
+type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StreamConfig: dist/client/call-types.d.ts#StreamConfig
+type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
+TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
+TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
+type TimeUnit: dist/duration.d.ts#TimeUnit
+type TimeoutInterceptorOptions: dist/procedures/interceptors.d.ts#TimeoutInterceptorOptions
+type TimeoutOverride: dist/client/call-types.d.ts#TimeoutOverride
+type ToolHints: dist/procedures/capability.d.ts#ToolHints
+type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
+type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
+type TracingInterceptorOptions: dist/procedures/interceptors.d.ts#TracingInterceptorOptions
+type Transport: dist/client/types.d.ts#Transport
+type TypedEventBus: dist/events/types.d.ts#TypedEventBus
+UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
+type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
+type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
+WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
+WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
+WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
+WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
+type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
+allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
+allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
+allProcedure: dist/procedures/core/index.d.ts#allProcedure
+andProcedure: dist/procedures/core/index.d.ts#andProcedure
+anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
+anySchema: dist/procedures/core/schemas.d.ts#anySchema
+assertValidPath: dist/procedures/registry.d.ts#assertValidPath
+bearerOf: dist/server/request-auth.d.ts#bearerOf
+buildResponse: dist/client/call-types.d.ts#buildResponse
+callMatches: dist/procedures/policy.d.ts#callMatches
+capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
+chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
+checkEffects: dist/procedures/capability.d.ts#checkEffects
+clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
+clientModule: dist/procedures/module.d.ts#clientModule
+conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
+constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
+coreModule: dist/procedures/core/index.d.ts#coreModule
+coreProcedures: dist/procedures/core/index.d.ts#coreProcedures
+createAndRegister: dist/procedures/discovery.d.ts#createAndRegister
+createBatchExecutor: dist/client/batch-executor.d.ts#createBatchExecutor
+createCollectionProcedures: dist/procedures/collection/procedures.d.ts#createCollectionProcedures
+createError: dist/client/errors/factory.d.ts#createError
+createErrorFromException: dist/client/errors/factory.d.ts#createErrorFromException
+createErrorFromHTTPStatus: dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
+createEventBus: dist/events/bus.d.ts#createEventBus
+createProcedure: dist/procedures/define.d.ts#createProcedure
+createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
+createRefScope: dist/procedures/ref.d.ts#createRefScope
+createRegistry: dist/procedures/module.d.ts#createRegistry
+createRoute: dist/client/call-types.d.ts#createRoute
+createRouteResolver: dist/client/route-resolver.d.ts#createRouteResolver
+createTypedEventBus: dist/events/bus.d.ts#createTypedEventBus
+credentialsOf: dist/server/request-auth.d.ts#credentialsOf
+declaredCalls: dist/procedures/policy.d.ts#declaredCalls
+defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
+defineModule: dist/procedures/module.d.ts#defineModule
+defineProcedure: dist/procedures/define.d.ts#defineProcedure
+defineProcedureProcedure: dist/procedures/define-procedure.d.ts#defineProcedureProcedure
+defineStub: dist/procedures/define.d.ts#defineStub
+deleteProcedureProcedure: dist/procedures/define-procedure.d.ts#deleteProcedureProcedure
+describeIssues: dist/procedures/schema.d.ts#describeIssues
+describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
+describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
+effectsIn: dist/procedures/idempotency.d.ts#effectsIn
+effectsOf: dist/procedures/capability.d.ts#effectsOf
+examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
+executeRef: dist/procedures/ref.d.ts#executeRef
+executeWithConcurrency: dist/client/batch-executor.d.ts#executeWithConcurrency
+explainInvocation: dist/procedures/capability.d.ts#explainInvocation
+exposePatterns: dist/server/host-policy.d.ts#exposePatterns
+exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
+extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+flattenRoute: dist/client/call-types.d.ts#flattenRoute
+formatError: dist/client/errors/factory.d.ts#formatError
+formatTraceparent: dist/tracing/traceparent.d.ts#formatTraceparent
+fromJson: dist/procedures/ref.d.ts#fromJson
+getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
+getErrorMetadata: dist/client/errors/registry.d.ts#getErrorMetadata
+getGlobalEventBus: dist/events/bus.d.ts#getGlobalEventBus
+getMissingPaths: dist/client/route-resolver.d.ts#getMissingPaths
+getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedure
+getRefName: dist/procedures/ref.d.ts#getRefName
+getRefWhen: dist/procedures/ref.d.ts#getRefWhen
+getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
+hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
+hashOf: dist/procedures/manifest.d.ts#hashOf
+hiddenReach: dist/procedures/policy.d.ts#hiddenReach
+hostPolicy: dist/server/host-policy.d.ts#hostPolicy
+hostProcedures: dist/server/host-procedures.d.ts#hostProcedures
+hours: dist/duration.d.ts#hours
+httpStatusOf: dist/protocol.d.ts#httpStatusOf
+hydrateInput: dist/procedures/ref.d.ts#hydrateInput
+idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
+idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
+identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
+invokePath: dist/procedures/invoke.d.ts#invokePath
+invokeProcedure: dist/procedures/invoke.d.ts#invokeProcedure
+isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
+isAsyncIterable: dist/procedures/invoke.d.ts#isAsyncIterable
+isBatchRoute: dist/client/call-types.d.ts#isBatchRoute
+isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
+isDataDriven: dist/procedures/ref.d.ts#isDataDriven
+isDestructive: dist/procedures/capability.d.ts#isDestructive
+isDuration: dist/duration.d.ts#isDuration
+isKnownError: dist/client/errors/registry.d.ts#isKnownError
+isLiteral: dist/procedures/ref.d.ts#isLiteral
+isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
+isPlainObject: dist/procedures/ref.d.ts#isPlainObject
+isProcedureRef: dist/procedures/ref.d.ts#isProcedureRef
+isProcedureRefJson: dist/procedures/ref.d.ts#isProcedureRefJson
+isProtocolErrorCode: dist/protocol.d.ts#isProtocolErrorCode
+isReadOnly: dist/procedures/capability.d.ts#isReadOnly
+isRepeatable: dist/procedures/idempotency.d.ts#isRepeatable
+isRuntimeDefined: dist/procedures/runtime-programs.d.ts#isRuntimeDefined
+isStandardSchema: dist/procedures/schema.d.ts#isStandardSchema
+isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+isValidRoute: dist/client/route-resolver.d.ts#isValidRoute
+isW3cIds: dist/tracing/traceparent.d.ts#isW3cIds
+jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
+keyToPath: dist/procedures/types.d.ts#keyToPath
+ladder: dist/procedures/capability.d.ts#ladder
+listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
+manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
+mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
+markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+matchPath: dist/client/route-resolver.d.ts#matchPath
+mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
+metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
+methodToPath: dist/server/method.d.ts#methodToPath
+metricsInterceptor: dist/procedures/interceptors.d.ts#metricsInterceptor
+minutes: dist/duration.d.ts#minutes
+mockBuilder: dist/adapters/mock/client/builder.d.ts#mockBuilder
+moduleClosure: dist/procedures/module.d.ts#moduleClosure
+ms: dist/duration.d.ts#ms
+namespace: dist/procedures/define.d.ts#namespace
+narrowCapability: dist/procedures/capability.d.ts#narrowCapability
+nestedCallRefusal: dist/procedures/policy.d.ts#nestedCallRefusal
+newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
+newSpanId: dist/tracing/traceparent.d.ts#newSpanId
+newTraceId: dist/tracing/traceparent.d.ts#newTraceId
+noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
+normalizeRef: dist/procedures/ref.d.ts#normalizeRef
+notProcedure: dist/procedures/core/index.d.ts#notProcedure
+observeHydration: dist/procedures/ref.d.ts#observeHydration
+optionalMs: dist/duration.d.ts#optionalMs
+orProcedure: dist/procedures/core/index.d.ts#orProcedure
+outputItems: dist/procedures/invoke.d.ts#outputItems
+outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
+outputValue: dist/procedures/invoke.d.ts#outputValue
+parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
+parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
+parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
+pathToKey: dist/procedures/types.d.ts#pathToKey
+pathToMethod: dist/server/method.d.ts#pathToMethod
+postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
+prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
+proc: dist/procedures/ref.d.ts#proc
+procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
+protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
+rawInputRule: dist/procedures/ref.d.ts#rawInputRule
+reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
+registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
+registerModule: dist/procedures/discovery.d.ts#registerModule
+registerModules: dist/procedures/module.d.ts#registerModules
+registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
+restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
+scopeOf: dist/procedures/ref.d.ts#scopeOf
+seconds: dist/duration.d.ts#seconds
+shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
+streamOutput: dist/procedures/invoke.d.ts#streamOutput
+stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
+surfaceRule: dist/server/host-policy.d.ts#surfaceRule
+takesRawInput: dist/procedures/ref.d.ts#takesRawInput
+throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
+timeoutInterceptor: dist/procedures/interceptors.d.ts#timeoutInterceptor
+toJson: dist/procedures/ref.d.ts#toJson
+toMs: dist/duration.d.ts#toMs
+tokenMatches: dist/server/procedure-server.d.ts#tokenMatches
+toolHints: dist/procedures/capability.d.ts#toolHints
+tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
+tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
+typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
+validateCalls: dist/procedures/policy.d.ts#validateCalls
+validateProcedure: dist/procedures/define.d.ts#validateProcedure
+validateSchema: dist/procedures/schema.d.ts#validateSchema
+validateSchemaAsync: dist/procedures/schema.d.ts#validateSchemaAsync
+withEffects: dist/procedures/effects.d.ts#withEffects
+withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+withScope: dist/procedures/ref.d.ts#withScope
+withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
+zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
+
+## ./register (dist/register.d.ts): 0 names
+
+
+## ./client (dist/client/index.d.ts): 123 names
+
+type AuthOptions: dist/client/middleware/auth.d.ts#AuthOptions
+type BaseCaller: dist/client/typed.d.ts#BaseCaller
+type CacheOptions: dist/client/middleware/cache.d.ts#CacheOptions
+type CacheStats: dist/client/middleware/cache.d.ts#CacheStats
+type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
+type CallOptions: dist/client/context.d.ts#CallOptions
+CircuitBreakerError: dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerError
+type CircuitBreakerOptions: dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerOptions
+type CircuitBreakerStats: dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerStats
+type CircuitState: dist/client/middleware/circuit-breaker.d.ts#CircuitState
+Client: dist/client/client.d.ts#Client
+type ClientContext: dist/client/types.d.ts#ClientContext
+type ClientContextInput: dist/client/context.d.ts#ClientContextInput
+ClientError: dist/client/types.d.ts#ClientError
+type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
+type ClientOptions: dist/client/types.d.ts#ClientOptions
+type ClientRunner: dist/client/types.d.ts#ClientRunner
+DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
+DELIVERY_METADATA_KEY: dist/client/middleware/items.d.ts#DELIVERY_METADATA_KEY
+type Delivery: dist/client/middleware/items.d.ts#Delivery
+type Duration: dist/duration.d.ts#Duration
+ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
+ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
+type ErrorContext: dist/client/errors/types.d.ts#ErrorContext
+type ErrorMetadata: dist/client/errors/types.d.ts#ErrorMetadata
+type ErrorRegistry: dist/client/errors/types.d.ts#ErrorRegistry
+ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
+type Handler: dist/adapters/local/client/types.d.ts#Handler
+type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
+HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
+type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
+LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
+type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
+type MergeProcedures: dist/client/typed.d.ts#MergeProcedures
+type Message: dist/client/types.d.ts#Message
+type Metadata: dist/client/types.d.ts#Metadata
+type Method: dist/client/types.d.ts#Method
+type MiddlewareContextFields: dist/client/context.d.ts#MiddlewareContextFields
+type MockResponse: dist/adapters/mock/client/types.d.ts#MockResponse
+MockTransport: dist/adapters/mock/client/transport.d.ts#MockTransport
+type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOptions
+type PaginationOptions: dist/client/middleware/pagination.d.ts#PaginationOptions
+type PathInput: dist/client/typed.d.ts#PathInput
+type PathOutput: dist/client/typed.d.ts#PathOutput
+type ProcedureDef: dist/client/typed.d.ts#ProcedureDef
+type ProcedureNamespace: dist/client/typed.d.ts#ProcedureNamespace
+type ProcedurePaths: dist/client/typed.d.ts#ProcedurePaths
+RateLimitError: dist/client/middleware/rate-limit.d.ts#RateLimitError
+type RateLimitOptions: dist/client/middleware/rate-limit.d.ts#RateLimitOptions
+type RateLimitStats: dist/client/middleware/rate-limit.d.ts#RateLimitStats
+type ResilienceContext: dist/client/middleware/resilience.d.ts#ResilienceContext
+type ResilienceOptions: dist/client/middleware/resilience.d.ts#ResilienceOptions
+type ResponseItem: dist/client/types.d.ts#ResponseItem
+type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
+type RetryOptions: dist/client/middleware/retry.d.ts#RetryOptions
+type RichError: dist/client/errors/types.d.ts#RichError
+type SchemaDefinition: dist/client/validation/types.d.ts#SchemaDefinition
+type SchemaOverride: dist/client/context.d.ts#SchemaOverride
+type Status: dist/client/types.d.ts#Status
+TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
+type TimeoutOptions: dist/client/middleware/timeout.d.ts#TimeoutOptions
+type TracingOptions: dist/client/middleware/tracing.d.ts#TracingOptions
+type Transport: dist/client/types.d.ts#Transport
+type TypedCaller: dist/client/typed.d.ts#TypedCaller
+type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
+ValidationError: dist/client/validation/types.d.ts#ValidationError
+type ValidationMode: dist/client/validation/middleware.d.ts#ValidationMode
+type ValidationPhase: dist/client/validation/types.d.ts#ValidationPhase
+WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
+WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
+type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+type ZodErrorLike: dist/client/validation/types.d.ts#ZodErrorLike
+type ZodLike: dist/client/validation/types.d.ts#ZodLike
+type ZodMiddlewareOptions: dist/client/validation/middleware.d.ts#ZodMiddlewareOptions
+type ZodValidationContext: dist/client/validation/types.d.ts#ZodValidationContext
+absorbTimeout: dist/client/deadline.d.ts#absorbTimeout
+createApiKeyAuthMiddleware: dist/client/middleware/auth.d.ts#createApiKeyAuthMiddleware
+createAuthMiddleware: dist/client/middleware/auth.d.ts#createAuthMiddleware
+createBearerAuthMiddleware: dist/client/middleware/auth.d.ts#createBearerAuthMiddleware
+createCacheMiddleware: dist/client/middleware/cache.d.ts#createCacheMiddleware
+createCircuitBreakerMiddleware: dist/client/middleware/circuit-breaker.d.ts#createCircuitBreakerMiddleware
+createCombinedTimeoutMiddleware: dist/client/middleware/timeout.d.ts#createCombinedTimeoutMiddleware
+createError: dist/client/errors/factory.d.ts#createError
+createErrorFromException: dist/client/errors/factory.d.ts#createErrorFromException
+createErrorFromHTTPStatus: dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
+createOverallTimeoutMiddleware: dist/client/middleware/timeout.d.ts#createOverallTimeoutMiddleware
+createPaginationMiddleware: dist/client/middleware/pagination.d.ts#createPaginationMiddleware
+createPerServiceRateLimiter: dist/client/middleware/rate-limit.d.ts#createPerServiceRateLimiter
+createRateLimitMiddleware: dist/client/middleware/rate-limit.d.ts#createRateLimitMiddleware
+createRetryMiddleware: dist/client/middleware/retry.d.ts#createRetryMiddleware
+createSimpleTracingMiddleware: dist/client/middleware/tracing.d.ts#createSimpleTracingMiddleware
+createTimeoutMiddleware: dist/client/middleware/timeout.d.ts#createTimeoutMiddleware
+createTracingMiddleware: dist/client/middleware/tracing.d.ts#createTracingMiddleware
+createTypedCaller: dist/client/typed.d.ts#createTypedCaller
+createZodMiddleware: dist/client/validation/middleware.d.ts#createZodMiddleware
+deadlineOf: dist/client/deadline.d.ts#deadlineOf
+defaultUrlPattern: dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
+deliveryOf: dist/client/middleware/items.d.ts#deliveryOf
+extractTracingInfo: dist/client/middleware/tracing.d.ts#extractTracingInfo
+formatError: dist/client/errors/factory.d.ts#formatError
+getErrorMetadata: dist/client/errors/registry.d.ts#getErrorMetadata
+hours: dist/duration.d.ts#hours
+invalidateCache: dist/client/middleware/cache.d.ts#invalidateCache
+isCallOptions: dist/client/context.d.ts#isCallOptions
+isDuration: dist/duration.d.ts#isDuration
+isKnownError: dist/client/errors/registry.d.ts#isKnownError
+isNotSentError: dist/client/middleware/items.d.ts#isNotSentError
+keyToMethod: dist/client/validation/types.d.ts#keyToMethod
+mergeContext: dist/client/context.d.ts#mergeContext
+methodToKey: dist/client/validation/types.d.ts#methodToKey
+minutes: dist/duration.d.ts#minutes
+mockBuilder: dist/adapters/mock/client/builder.d.ts#mockBuilder
+ms: dist/duration.d.ts#ms
+narrowDeadline: dist/client/deadline.d.ts#narrowDeadline
+normalizeCallOptions: dist/client/context.d.ts#normalizeCallOptions
+paginateAll: dist/client/middleware/pagination.d.ts#paginateAll
+postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
+resilience: dist/client/middleware/resilience.d.ts#resilience
+restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+restoreDeadline: dist/client/deadline.d.ts#restoreDeadline
+seconds: dist/duration.d.ts#seconds
+toMs: dist/duration.d.ts#toMs
+writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
+
+## ./events (dist/events/index.d.ts): 24 names
+
+type ChannelMap: dist/events/types.d.ts#ChannelMap
+type DefaultChannels: dist/events/types.d.ts#DefaultChannels
+DefaultEventBus: dist/events/bus.d.ts#DefaultEventBus
+type Event: dist/events/types.d.ts#Event
+type EventBus: dist/events/types.d.ts#EventBus
+type EventBusOptions: dist/events/types.d.ts#EventBusOptions
+type EventHandler: dist/events/types.d.ts#EventHandler
+type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
+type ProcedureChannels: dist/events/types.d.ts#ProcedureChannels
+type SystemChannels: dist/events/types.d.ts#SystemChannels
+type TypedEventBus: dist/events/types.d.ts#TypedEventBus
+type Unsubscribe: dist/events/types.d.ts#Unsubscribe
+createChannelPrefix: dist/events/bus.d.ts#createChannelPrefix
+createEventBus: dist/events/bus.d.ts#createEventBus
+createTypedEventBus: dist/events/bus.d.ts#createTypedEventBus
+debounceChannel: dist/events/bus.d.ts#debounceChannel
+filterChannel: dist/events/bus.d.ts#filterChannel
+forwardChannel: dist/events/bus.d.ts#forwardChannel
+getGlobalEventBus: dist/events/bus.d.ts#getGlobalEventBus
+mapChannel: dist/events/bus.d.ts#mapChannel
+mergeChannels: dist/events/bus.d.ts#mergeChannels
+resetGlobalEventBus: dist/events/bus.d.ts#resetGlobalEventBus
+throttleChannel: dist/events/bus.d.ts#throttleChannel
+withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
+
+## ./procedures (dist/procedures/index.d.ts): 198 names
+
+type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
+type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
+type Capability: dist/procedures/types.d.ts#Capability
+type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
+type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
+type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
+type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
+type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
+type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
+type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
+type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
+type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
+type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
+type Effects: dist/procedures/types.d.ts#Effects
+type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
+type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
+type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
+IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
+IdempotencyCache: dist/procedures/idempotency.d.ts#IdempotencyCache
+type IdempotencyOptions: dist/procedures/idempotency.d.ts#IdempotencyOptions
+type InferProcedureInput: dist/procedures/types.d.ts#InferProcedureInput
+type InferProcedureMetadata: dist/procedures/types.d.ts#InferProcedureMetadata
+type InferProcedureOutput: dist/procedures/types.d.ts#InferProcedureOutput
+type InferSchema: dist/procedures/schema.d.ts#InferSchema
+type InvocationExplanation: dist/procedures/capability.d.ts#InvocationExplanation
+type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
+type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
+type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
+LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
+MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+type ModuleInput: dist/procedures/module.d.ts#ModuleInput
+type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
+type OutputRef: dist/procedures/ref.d.ts#OutputRef
+PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
+PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
+PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
+PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
+PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
+type Procedure: dist/procedures/types.d.ts#Procedure
+ProcedureBuilder: dist/procedures/define.d.ts#ProcedureBuilder
+type ProcedureContext: dist/procedures/types.d.ts#ProcedureContext
+type ProcedureDefinition: dist/procedures/define.d.ts#ProcedureDefinition
+type ProcedureEntry: dist/procedures/manifest.d.ts#ProcedureEntry
+type ProcedureError: dist/procedures/types.d.ts#ProcedureError
+type ProcedureHandler: dist/procedures/types.d.ts#ProcedureHandler
+type ProcedureManifest: dist/procedures/manifest.d.ts#ProcedureManifest
+type ProcedureMetadata: dist/procedures/types.d.ts#ProcedureMetadata
+type ProcedureModule: dist/procedures/types.d.ts#ProcedureModule
+type ProcedurePath: dist/procedures/types.d.ts#ProcedurePath
+type ProcedureRef: dist/procedures/ref.d.ts#ProcedureRef
+ProcedureRefBuilder: dist/procedures/ref.d.ts#ProcedureRefBuilder
+type ProcedureRefJson: dist/procedures/ref.d.ts#ProcedureRefJson
+ProcedureRegistry: dist/procedures/registry.d.ts#ProcedureRegistry
+type ProcedureRegistryLike: dist/procedures/types.d.ts#ProcedureRegistryLike
+type ProcedureResult: dist/procedures/types.d.ts#ProcedureResult
+type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
+type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
+type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
+RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
+REGISTRY_READ_EFFECTS: dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
+RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
+type RefExecutor: dist/procedures/ref.d.ts#RefExecutor
+type RefScope: dist/procedures/ref.d.ts#RefScope
+type Register: dist/procedures/types.d.ts#Register
+type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
+RegistryError: dist/procedures/registry.d.ts#RegistryError
+type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
+type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
+STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
+type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
+type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
+type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
+type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
+type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type ToolHints: dist/procedures/capability.d.ts#ToolHints
+UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
+WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
+WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
+WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
+type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
+allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
+allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
+allProcedure: dist/procedures/core/index.d.ts#allProcedure
+andProcedure: dist/procedures/core/index.d.ts#andProcedure
+anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
+anySchema: dist/procedures/core/schemas.d.ts#anySchema
+assertValidPath: dist/procedures/registry.d.ts#assertValidPath
+capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
+chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
+checkEffects: dist/procedures/capability.d.ts#checkEffects
+clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
+clientModule: dist/procedures/module.d.ts#clientModule
+conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
+constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
+coreModule: dist/procedures/core/index.d.ts#coreModule
+coreProcedures: dist/procedures/core/index.d.ts#coreProcedures
+createAndRegister: dist/procedures/discovery.d.ts#createAndRegister
+createCollectionProcedures: dist/procedures/collection/procedures.d.ts#createCollectionProcedures
+createProcedure: dist/procedures/define.d.ts#createProcedure
+createRefScope: dist/procedures/ref.d.ts#createRefScope
+createRegistry: dist/procedures/module.d.ts#createRegistry
+defineModule: dist/procedures/module.d.ts#defineModule
+defineProcedure: dist/procedures/define.d.ts#defineProcedure
+defineProcedureProcedure: dist/procedures/define-procedure.d.ts#defineProcedureProcedure
+defineStub: dist/procedures/define.d.ts#defineStub
+deleteProcedureProcedure: dist/procedures/define-procedure.d.ts#deleteProcedureProcedure
+describeIssues: dist/procedures/schema.d.ts#describeIssues
+describeProcedureEntry: dist/procedures/manifest.d.ts#describeProcedure
+describeRegistry: dist/procedures/manifest.d.ts#describeRegistry
+effectsIn: dist/procedures/idempotency.d.ts#effectsIn
+effectsOf: dist/procedures/capability.d.ts#effectsOf
+examinesNestedCall: dist/procedures/capability.d.ts#examinesNestedCall
+executeRef: dist/procedures/ref.d.ts#executeRef
+explainInvocation: dist/procedures/capability.d.ts#explainInvocation
+exposedProcedures: dist/procedures/manifest.d.ts#exposedProcedures
+extractTemplate: dist/procedures/ref.d.ts#extractTemplate
+fromJson: dist/procedures/ref.d.ts#fromJson
+getAllRuntimeProcedures: dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
+getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedure
+getRefName: dist/procedures/ref.d.ts#getRefName
+getRefWhen: dist/procedures/ref.d.ts#getRefWhen
+getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
+hashOf: dist/procedures/manifest.d.ts#hashOf
+hydrateInput: dist/procedures/ref.d.ts#hydrateInput
+idempotencyKeyOf: dist/procedures/idempotency.d.ts#idempotencyKeyOf
+idempotentIn: dist/procedures/idempotency.d.ts#idempotentIn
+identityProcedure: dist/procedures/core/index.d.ts#identityProcedure
+isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
+isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
+isDataDriven: dist/procedures/ref.d.ts#isDataDriven
+isDestructive: dist/procedures/capability.d.ts#isDestructive
+isLiteral: dist/procedures/ref.d.ts#isLiteral
+isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
+isPlainObject: dist/procedures/ref.d.ts#isPlainObject
+isProcedureRef: dist/procedures/ref.d.ts#isProcedureRef
+isProcedureRefJson: dist/procedures/ref.d.ts#isProcedureRefJson
+isReadOnly: dist/procedures/capability.d.ts#isReadOnly
+isRepeatable: dist/procedures/idempotency.d.ts#isRepeatable
+isRuntimeDefined: dist/procedures/runtime-programs.d.ts#isRuntimeDefined
+isStandardSchema: dist/procedures/schema.d.ts#isStandardSchema
+jsonSchemaOf: dist/procedures/schema.d.ts#jsonSchemaOf
+keyToPath: dist/procedures/types.d.ts#keyToPath
+ladder: dist/procedures/capability.d.ts#ladder
+listProceduresProcedure: dist/procedures/define-procedure.d.ts#listProceduresProcedure
+lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
+manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
+mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
+markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
+moduleClosure: dist/procedures/module.d.ts#moduleClosure
+namespace: dist/procedures/define.d.ts#namespace
+narrowCapability: dist/procedures/capability.d.ts#narrowCapability
+newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
+noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
+normalizeRef: dist/procedures/ref.d.ts#normalizeRef
+notProcedure: dist/procedures/core/index.d.ts#notProcedure
+observeHydration: dist/procedures/ref.d.ts#observeHydration
+orProcedure: dist/procedures/core/index.d.ts#orProcedure
+outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
+parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
+parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
+pathToKey: dist/procedures/types.d.ts#pathToKey
+prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
+proc: dist/procedures/ref.d.ts#proc
+rawInputRule: dist/procedures/ref.d.ts#rawInputRule
+reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
+registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
+registerModule: dist/procedures/discovery.d.ts#registerModule
+registerModules: dist/procedures/module.d.ts#registerModules
+registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
+runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
+scopeOf: dist/procedures/ref.d.ts#scopeOf
+shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
+stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
+takesRawInput: dist/procedures/ref.d.ts#takesRawInput
+throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
+toJson: dist/procedures/ref.d.ts#toJson
+toolHints: dist/procedures/capability.d.ts#toolHints
+tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
+typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
+validateProcedure: dist/procedures/define.d.ts#validateProcedure
+validateSchema: dist/procedures/schema.d.ts#validateSchema
+validateSchemaAsync: dist/procedures/schema.d.ts#validateSchemaAsync
+withEffects: dist/procedures/effects.d.ts#withEffects
+withScope: dist/procedures/ref.d.ts#withScope
+zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
+
+## ./middleware (dist/middleware/index.d.ts): 13 names
+
+type AsyncMiddleware: dist/middleware/types.d.ts#AsyncMiddleware
+type IsAsyncMiddleware: dist/middleware/types.d.ts#IsAsyncMiddleware
+type Middleware: dist/middleware/types.d.ts#Middleware
+type MiddlewareContextIn: dist/middleware/types.d.ts#MiddlewareContextIn
+type MiddlewareContextOut: dist/middleware/types.d.ts#MiddlewareContextOut
+type MiddlewareReturn: dist/middleware/types.d.ts#MiddlewareReturn
+type MiddlewareRunner: dist/middleware/types.d.ts#MiddlewareRunner
+type MiddlewaresContext: dist/middleware/types.d.ts#MiddlewaresContext
+type SyncMiddleware: dist/middleware/types.d.ts#SyncMiddleware
+bundle: dist/middleware/compose.d.ts#bundle
+compose: dist/middleware/compose.d.ts#compose
+wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
+wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
+
+## ./server (dist/server/index.d.ts): 34 names
+
+type Credentials: dist/server/types.d.ts#Credentials
+HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
+HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
+type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+type Principal: dist/server/types.d.ts#Principal
+ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
+type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
+type RequestHandler: dist/server/types.d.ts#RequestHandler
+STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+Server: dist/server/server.d.ts#Server
+type ServerContext: dist/server/types.d.ts#ServerContext
+ServerError: dist/server/types.d.ts#ServerError
+type ServerHandler: dist/server/types.d.ts#ServerHandler
+type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
+type ServerOptions: dist/server/server.d.ts#ServerOptions
+type ServerRequest: dist/server/types.d.ts#ServerRequest
+type ServerResponse: dist/server/types.d.ts#ServerResponse
+type ServerRunner: dist/server/types.d.ts#ServerRunner
+type ServerTransport: dist/server/types.d.ts#ServerTransport
+type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
+type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
+type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
+type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
+defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
+isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+methodToPath: dist/server/method.d.ts#methodToPath
+pathToMethod: dist/server/method.d.ts#pathToMethod
+rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+
+## Declarations
+
+### dist/adapters/http/client/transport.d.ts#HttpTransport
+export declare class HttpTransport implements Transport {
+    readonly name: typeof HTTP;
+    constructor(options: HttpTransportOptions);
+    send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    close(): Promise<void>;
+}
+
+### dist/adapters/http/client/types.d.ts#HttpTransportOptions
+export interface HttpTransportOptions {
+    baseUrl: string;
+    urlStrategy?: UrlStrategy;
+    httpMethodStrategy?: HttpMethodStrategy;
+    headerConverter?: HeaderConverter;
+    defaultHeaders?: Record<string, string>;
+    timeout?: Duration;
+}
+
+### dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
+export declare function defaultServerUrlStrategy(req: Request): Method | null;
+
+### dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+export declare function rpcServerUrlStrategy(req: Request): Method | null;
+
+### dist/adapters/http/server/transport.d.ts#HttpServerTransport
+export declare class HttpServerTransport implements ServerTransport {
+    readonly name = "http";
+    constructor(server: RequestHandler, options?: HttpServerTransportOptions);
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    isRunning(): boolean;
+}
+
+### dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+export interface HttpServerTransportOptions extends BrowserGuardOptions {
+    app?: Express;
+    httpServer?: HttpServer;
+    port?: number;
+    host?: string;
+    urlStrategy?: HttpUrlStrategy;
+    basePath?: string;
+    cors?: boolean;
+    bodyLimit?: number;
+    corsOptions?: {
+        origin?: string | string[];
+        methods?: string[];
+        allowedHeaders?: string[];
+        credentials?: boolean;
+    };
+}
+
+### dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+export type HttpUrlStrategy = (req: Request) => Method | null;
+
+### dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
+export type HttpMethodStrategy = (method: Method) => HTTPMethod;
+
+### dist/adapters/http/shared/strategies.d.ts#UrlStrategy
+export type UrlStrategy = (method: Method, baseUrl: string) => string;
+
+### dist/adapters/http/shared/strategies.d.ts#defaultUrlPattern
+export declare const defaultUrlPattern: UrlPattern;
+
+### dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
+export declare const postOnlyStrategy: HttpMethodStrategy;
+
+### dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
+export declare const restfulHttpMethodStrategy: HttpMethodStrategy;
+
+### dist/adapters/local/client/transport.d.ts#LocalTransport
+export declare class LocalTransport implements Transport {
+    readonly name = "local";
+    constructor(options?: LocalTransportOptions);
+    register<TReq, TRes>(method: Method, handler: Handler<TReq, TRes>): void;
+    unregister(method: Method): void;
+    has(method: Method): boolean;
+    send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    close(): Promise<void>;
+    clear(): void;
+    getMethods(): string[];
+}
+
+### dist/adapters/local/client/types.d.ts#Handler
+export type Handler<TReq = unknown, TRes = unknown> = (payload: TReq, message: Message<TReq>) => TRes | Promise<TRes> | AsyncIterable<TRes>;
+
+### dist/adapters/local/client/types.d.ts#LocalTransportOptions
+export interface LocalTransportOptions {
+    handlers?: Record<string, Handler>;
+    throwOnMissing?: boolean;
+    registry?: ProcedureRegistry;
+    interceptors?: readonly Interceptor[] | undefined;
+    capability?: Capability | undefined;
+    clearanceOrder?: ClearanceOrder | undefined;
+}
+
+### dist/adapters/mock/client/builder.d.ts#mockBuilder
+export declare function mockBuilder(transport: MockTransport): MockResponseBuilder;
+
+### dist/adapters/mock/client/transport.d.ts#MockTransport
+export declare class MockTransport implements Transport {
+    readonly name = "mock";
+    constructor(options?: MockTransportOptions);
+    mockResponse<TRes = unknown>(matcher: ResponseMatcher, response: MockResponse<TRes>): void;
+    mockSuccess<TRes = unknown>(matcher: ResponseMatcher, payload: TRes, metadata?: Record<string, unknown>): void;
+    mockError(matcher: ResponseMatcher, message: string): void;
+    mockStream<TRes = unknown>(matcher: ResponseMatcher, items: ResponseItem<TRes>[]): void;
+    clearMocks(): void;
+    getCalls(): CallHistoryEntry[];
+    getCallsMatching(predicate: (entry: CallHistoryEntry) => boolean): CallHistoryEntry[];
+    getLastCall(): CallHistoryEntry | undefined;
+    clearHistory(): void;
+    reset(): void;
+    send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    close(): Promise<void>;
+}
+
+### dist/adapters/mock/client/types.d.ts#CallHistoryEntry
+export interface CallHistoryEntry<TReq = unknown> {
+    message: Message<TReq>;
+    timestamp: number;
+    success: boolean;
+    error: Error | undefined;
+}
+
+### dist/adapters/mock/client/types.d.ts#MockResponse
+export interface MockResponse<TRes = unknown> {
+    items?: ResponseItem<TRes>[];
+    item?: ResponseItem<TRes>;
+    error?: Error;
+    delay?: Duration;
+    count?: number;
+}
+
+### dist/adapters/mock/client/types.d.ts#MockTransportOptions
+export interface MockTransportOptions {
+    minLatency?: Duration;
+    maxLatency?: Duration;
+    failureRate?: number;
+    defaultErrorMessage?: string;
+    trackHistory?: boolean;
+    maxHistorySize?: number;
+}
+
+### dist/adapters/mock/client/types.d.ts#ResponseMatcher
+export type ResponseMatcher = (method: any, payload: unknown) => boolean;
+
+### dist/adapters/port/transport.d.ts#PortLike
+export interface PortLike {
+    postMessage(message: unknown): void;
+    addEventListener?(type: "message", listener: (event: any) => void): void;
+    removeEventListener?(type: "message", listener: (event: any) => void): void;
+    on?(type: "message", listener: (data: unknown) => void): unknown;
+    off?(type: "message", listener: (data: unknown) => void): unknown;
+    start?(): void;
+}
+
+### dist/adapters/port/transport.d.ts#PortTransport
+export declare class PortTransport implements Transport {
+    readonly name = "port";
+    constructor(port: PortLike, options?: PortTransportOptions);
+    send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    close(): Promise<void>;
+}
+
+### dist/adapters/port/transport.d.ts#PortTransportOptions
+export interface PortTransportOptions {
+    serve?: RequestHandler | undefined;
+    streamWindow?: number | undefined;
+}
+
+### dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
+export declare class WebSocketTransport implements Transport {
+    readonly name = "websocket";
+    constructor(options: WebSocketTransportOptions);
+    send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    close(): Promise<void>;
+    getServerProtocol(): number | undefined;
+    getState(): WebSocketState;
+    isConnected(): boolean;
+}
+
+### dist/adapters/websocket/client/types.d.ts#WebSocketState
+export declare enum WebSocketState {
+    CONNECTING = "CONNECTING",
+    CONNECTED = "CONNECTED",
+    DISCONNECTING = "DISCONNECTING",
+    DISCONNECTED = "DISCONNECTED",
+    RECONNECTING = "RECONNECTING"
+}
+
+### dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+export interface WebSocketTransportOptions {
+    url: string;
+    reconnect?: {
+        enabled?: boolean;
+        maxAttempts?: number;
+        initialDelay?: Duration;
+        maxDelay?: Duration;
+        backoffMultiplier?: number;
+        jitter?: number;
+    };
+    connectionTimeout?: Duration;
+    requestTimeout?: Duration;
+    streamWindow?: number;
+    heartbeat?: {
+        enabled?: boolean;
+        interval?: Duration;
+        timeout?: Duration;
+        misses?: number;
+    };
+    onConnect?: () => void;
+    onDisconnect?: (reason?: string) => void;
+    onReconnecting?: (attempt: number) => void;
+    onError?: (error: Error) => void;
+    onServerRequest?: ServerRequestHandler;
+    serve?: RequestHandler;
+    onEvent?: EventHandler;
+}
+
+### dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
+export declare class WebSocketServerTransport implements ServerTransport {
+    readonly name = "websocket";
+    constructor(server: RequestHandler, options: WebSocketServerTransportOptions);
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    isRunning(): boolean;
+    broadcast(message: WebSocketMessage): void;
+    getConnectionCount(): number;
+    getTrackedConnections(): TrackedConnection[];
+    getTrackedConnection(connectionId: string): TrackedConnection | undefined;
+    sendToConnection(connectionId: string, message: WebSocketMessage): void;
+    callConnection<TReq, TRes>(connectionId: string, message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    transportFor(connectionId: string): Transport;
+    callClient(connectionId: string, path: string[], input: unknown, timeout?: number): Promise<unknown>;
+    onConnect(handler: ConnectionEventHandler): () => void;
+    onDisconnect(handler: ConnectionEventHandler): () => void;
+    updateConnectionMetadata(connectionId: string, metadata: Record<string, unknown>): void;
+    setConnectionProcedures(connectionId: string, procedures: string[]): void;
+}
+
+### dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
+export type WebSocketAuthHandler = (req: IncomingMessage) => Promise<boolean> | boolean;
+
+### dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
+export type WebSocketConnectionHandler = (ws: WebSocket, req: IncomingMessage) => void;
+
+### dist/adapters/websocket/server/types.d.ts#WebSocketMessage
+export interface WebSocketMessage<TReq = unknown> {
+    id: string;
+    type: "hello" | "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
+    protocol?: number;
+    method?: {
+        service: string;
+        operation: string;
+        version?: string;
+    };
+    path?: string[];
+    input?: unknown;
+    result?: unknown;
+    payload?: TReq;
+    metadata?: Record<string, unknown>;
+    status?: {
+        type: "success" | "error";
+        code: string | number;
+        message?: string;
+        retryable?: boolean;
+    };
+    error?: {
+        code: string | number;
+        message: string;
+        retryable?: boolean;
+    };
+    credit?: number;
+    stream?: {
+        done: boolean;
+    };
+    topic?: string;
+    data?: unknown;
+    subscriptionId?: string;
+}
+
+### dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOptions, "allowGet"> {
+    server: HttpServer;
+    path?: string;
+    authenticate?: WebSocketAuthHandler;
+    onConnection?: WebSocketConnectionHandler;
+    perMessageDeflate?: boolean;
+    maxPayload?: number;
+    clientTracking?: boolean;
+    highWaterMark?: number;
+    heartbeat?: {
+        interval?: Duration;
+        misses?: number;
+    } | false;
+    reverseRequestTimeout?: Duration;
+}
+
+### dist/client/batch-executor.d.ts#BatchExecutionResult
+export interface BatchExecutionResult<TRoute extends Route = Route> {
+    response: CallResponse<TRoute>;
+    success: boolean;
+    duration: number;
+    results: BatchItem[];
+}
+
+### dist/client/batch-executor.d.ts#BatchExecutor
+export declare class BatchExecutor {
+    constructor(execute: ProcedureExecutor);
+    executeBatch<TRoute extends Route>(resolved: ResolvedRoute[], context: ExecutionContext, config?: BatchConfig): Promise<BatchExecutionResult<TRoute>>;
+    executeAll<TRoute extends Route>(resolved: ResolvedRoute[], context: ExecutionContext, config?: BatchConfig): Promise<BatchExecutionResult<TRoute>>;
+    executeRace<TRoute extends Route>(resolved: ResolvedRoute[], context: ExecutionContext): Promise<BatchExecutionResult<TRoute>>;
+    executeStream(resolved: ResolvedRoute[], context: ExecutionContext, config?: BatchConfig): AsyncGenerator<BatchItem>;
+    getStreamingResponse<TRoute extends Route>(resolved: ResolvedRoute[], context: ExecutionContext, config?: BatchConfig): StreamingCallResponse<TRoute>;
+}
+
+### dist/client/batch-executor.d.ts#BatchItem
+export interface BatchItem {
+    path: ProcedurePath;
+    result: ProcedureCallResult;
+    duration: number;
+}
+
+### dist/client/batch-executor.d.ts#ExecutionContext
+export interface ExecutionContext {
+    signal?: AbortSignal;
+    metadata: Record<string, unknown>;
+    procedureContext?: ProcedureContext;
+}
+
+### dist/client/batch-executor.d.ts#ProcedureExecutor
+export type ProcedureExecutor = (resolved: ResolvedRoute, context: ExecutionContext) => Promise<ProcedureCallResult>;
+
+### dist/client/batch-executor.d.ts#Semaphore
+export declare class Semaphore {
+    constructor(permits: number);
+    acquire(): Promise<void>;
+    release(): void;
+    withPermit<T>(fn: () => Promise<T>): Promise<T>;
+}
+
+### dist/client/batch-executor.d.ts#createBatchExecutor
+export declare function createBatchExecutor(execute: ProcedureExecutor): BatchExecutor;
+
+### dist/client/batch-executor.d.ts#executeWithConcurrency
+export declare function executeWithConcurrency(resolved: ResolvedRoute[], execute: ProcedureExecutor, context: ExecutionContext, concurrency: number): Promise<Array<{
+    path: ProcedurePath;
+    result: ProcedureCallResult;
+}>>;
+
+### dist/client/call-types.d.ts#BatchConfig
+export interface BatchConfig {
+    strategy: BatchStrategy;
+    streamConfig?: StreamConfig;
+    continueOnError?: boolean;
+}
+
+### dist/client/call-types.d.ts#BatchStrategy
+export type BatchStrategy = "all" | "race" | "stream";
+
+### dist/client/call-types.d.ts#CacheOverride
+export interface CacheOverride {
+    ttl?: Duration;
+    bypass?: boolean;
+    refresh?: boolean;
+}
+
+### dist/client/call-types.d.ts#CallRequest
+export interface CallRequest<TRoute extends Route = Route> {
+    middlewares?: MiddlewareOverrides;
+    batch?: BatchConfig;
+    route: TRoute;
+    signal?: AbortSignal;
+}
+
+### dist/client/call-types.d.ts#CallResponse
+export type CallResponse<TRoute> = TRoute extends RouteLeaf ? ProcedureCallResult : {
+    [K in keyof TRoute]: TRoute[K] extends RouteNode ? CallResponse<TRoute[K]> : ProcedureCallResult;
+};
+
+### dist/client/call-types.d.ts#MiddlewareOverrides
+export interface MiddlewareOverrides {
+    retry?: RetryOverride;
+    timeout?: TimeoutOverride;
+    cache?: CacheOverride;
+    [key: string]: unknown;
+}
+
+### dist/client/call-types.d.ts#ProcedureCallResult
+export interface ProcedureCallResult<TOutput = unknown> {
+    success: boolean;
+    data?: TOutput;
+    error?: {
+        code: string;
+        message: string;
+        retryable: boolean;
+        path: ProcedurePath;
+    };
+}
+
+### dist/client/call-types.d.ts#RetryOverride
+export interface RetryOverride {
+    attempts?: number;
+    delay?: Duration;
+    backoffMultiplier?: number;
+    maxDelay?: Duration;
+}
+
+### dist/client/call-types.d.ts#Route
+export type Route = RouteNode;
+
+### dist/client/call-types.d.ts#RouteNode
+export type RouteNode = {
+    [key: string]: RouteNode | RouteLeaf;
+};
+
+### dist/client/call-types.d.ts#SingleCallRequest
+export interface SingleCallRequest<TRoute extends Route = Route> {
+    middlewares?: MiddlewareOverrides;
+    route: TRoute;
+    signal?: AbortSignal;
+}
+
+### dist/client/call-types.d.ts#StreamConfig
+export interface StreamConfig {
+    bufferSize?: number;
+    emitPartial?: boolean;
+    concurrency?: number;
+}
+
+### dist/client/call-types.d.ts#StreamingCallResponse
+export interface StreamingCallResponse<TRoute extends Route = Route> {
+    results: AsyncIterable<{
+        path: ProcedurePath;
+        result: ProcedureCallResult;
+    }>;
+    complete: Promise<CallResponse<TRoute>>;
+}
+
+### dist/client/call-types.d.ts#TimeoutOverride
+export interface TimeoutOverride {
+    overall?: Duration;
+    perAttempt?: Duration;
+}
+
+### dist/client/call-types.d.ts#buildResponse
+export declare function buildResponse<TRoute extends Route>(results: Array<[ProcedurePath, ProcedureCallResult]>): CallResponse<TRoute>;
+
+### dist/client/call-types.d.ts#createRoute
+export declare function createRoute<TInput extends RouteLeaf>(path: ProcedurePath, input: TInput): Route;
+
+### dist/client/call-types.d.ts#flattenRoute
+export declare function flattenRoute(route: Route): FlattenedRouteEntry[];
+
+### dist/client/call-types.d.ts#isBatchRoute
+export declare function isBatchRoute(route: Route): boolean;
+
+### dist/client/call-types.d.ts#mergeRoutes
+export declare function mergeRoutes(...routes: Route[]): Route;
+
+### dist/client/client.d.ts#Client
+export declare class Client<TContext = {}> {
+    constructor(options: ClientOptions | Transport);
+    withContext<TAdditional extends object = {}>(context: TAdditional & ClientContextInput<TContext>): Client<TContext & TAdditional>;
+    use<TProvides = {}, TRequires extends TContext = TContext>(middleware: TypedClientMiddleware<TProvides, TRequires> | ClientMiddleware): Client<TContext & TProvides>;
+    call<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): Promise<TRes>;
+    exec<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown, options?: ExecOptions): Promise<TOutput>;
+    execStream<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown, options?: ExecOptions): AsyncIterable<TOutput>;
+    stream<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): AsyncIterable<TRes>;
+    get transportName(): string;
+    close(): Promise<void>;
+    schema<TInput extends ZodLike = ZodLike, TOutput extends ZodLike = ZodLike>(method: Method, schemas: {
+        input?: TInput;
+        output?: TOutput;
+    }): this;
+    useRegistry(registry: ProcedureRegistry): this;
+    useBus(bus: EventBus): this;
+    route<TRoute extends Route>(request: CallRequest<TRoute>): Promise<CallResponse<TRoute>>;
+    routeStream<TRoute extends Route>(request: CallRequest<TRoute>): StreamingCallResponse<TRoute>;
+}
+
+### dist/client/consumption.d.ts#RouteLeaf
+export type RouteLeaf<TInput = unknown> = RouteLeafWithConfig<TInput> | LegacyRouteLeaf;
+
+### dist/client/context.d.ts#CallOptions
+export interface CallOptions<TContext = {}> {
+    context?: ClientContextInput<TContext>;
+    metadata?: Metadata;
+    signal?: AbortSignal;
+    schema?: SchemaOverride;
+}
+
+### dist/client/context.d.ts#ClientContextInput
+export type ClientContextInput<TContext = {}> = TContext extends object ? Partial<TContext> & MiddlewareContextFields : MiddlewareContextFields;
+
+### dist/client/context.d.ts#MiddlewareContextFields
+export type MiddlewareContextFields = Partial<RetryContext & CacheContext & TimeoutContext & AuthContext & TracingContext & CircuitBreakerContext & RateLimitContext & PaginationContext>;
+
+### dist/client/context.d.ts#SchemaOverride
+export interface SchemaOverride {
+    input?: unknown;
+    output?: unknown;
+}
+
+### dist/client/context.d.ts#isCallOptions
+export declare function isCallOptions<TContext>(options: CallOptions<TContext> | Metadata | undefined): options is CallOptions<TContext>;
+
+### dist/client/context.d.ts#mergeContext
+export declare function mergeContext<T extends object>(base: T | undefined, ...overrides: (Partial<T> | undefined)[]): T;
+
+### dist/client/context.d.ts#normalizeCallOptions
+export declare function normalizeCallOptions<TContext>(options: CallOptions<TContext> | Metadata | undefined): CallOptions<TContext>;
+
+### dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
+export declare const DEADLINE_METADATA_KEY = "__deadline";
+
+### dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
+export declare const TIMEOUT_METADATA_KEY = "procedure-timeout";
+
+### dist/client/deadline.d.ts#absorbTimeout
+export declare function absorbTimeout(metadata: Metadata, now?: number): void;
+
+### dist/client/deadline.d.ts#deadlineOf
+export declare function deadlineOf(metadata: Metadata): number | undefined;
+
+### dist/client/deadline.d.ts#narrowDeadline
+export declare function narrowDeadline(metadata: Metadata, at: number): number | undefined;
+
+### dist/client/deadline.d.ts#restoreDeadline
+export declare function restoreDeadline(metadata: Metadata, before: number | undefined): void;
+
+### dist/client/deadline.d.ts#writeRemainingTime
+export declare function writeRemainingTime(metadata: Metadata, now?: number): void;
+
+### dist/client/errors/factory.d.ts#createError
+export declare function createError(code: string, context?: Partial<ErrorContext>, cause?: Error): RichError;
+
+### dist/client/errors/factory.d.ts#createErrorFromException
+export declare function createErrorFromException(error: Error, context?: Partial<ErrorContext>): RichError;
+
+### dist/client/errors/factory.d.ts#createErrorFromHTTPStatus
+export declare function createErrorFromHTTPStatus(status: number, context?: Partial<ErrorContext>): RichError;
+
+### dist/client/errors/factory.d.ts#formatError
+export declare function formatError(error: RichError, includeStack?: boolean): string;
+
+### dist/client/errors/registry.d.ts#ERROR_REGISTRY
+export declare const ERROR_REGISTRY: ErrorRegistry;
+
+### dist/client/errors/registry.d.ts#getErrorMetadata
+export declare function getErrorMetadata(code: string): ErrorMetadata;
+
+### dist/client/errors/registry.d.ts#isKnownError
+export declare function isKnownError(code: string): boolean;
+
+### dist/client/errors/types.d.ts#ErrorCategory
+export declare enum ErrorCategory {
+    NETWORK = "network",
+    CLIENT = "client",
+    SERVER = "server",
+    PROTOCOL = "protocol",
+    AUTH = "auth",
+    RATE_LIMIT = "rate_limit",
+    TIMEOUT = "timeout",
+    CANCELLED = "cancelled",
+    UNKNOWN = "unknown"
+}
+
+### dist/client/errors/types.d.ts#ErrorContext
+export interface ErrorContext {
+    timestamp: number;
+    requestId?: string;
+    transport?: string;
+    method?: {
+        service: string;
+        operation: string;
+        version?: string;
+    };
+    [key: string]: unknown;
+}
+
+### dist/client/errors/types.d.ts#ErrorMetadata
+export interface ErrorMetadata {
+    code: string;
+    summary: string;
+    detail: string;
+    category: ErrorCategory;
+    retryable: boolean;
+    severity: ErrorSeverity;
+    userMessage: string;
+    devMessage: string;
+    httpStatus?: number;
+    suggestions?: string[];
+    docsUrl?: string;
+}
+
+### dist/client/errors/types.d.ts#ErrorRegistry
+export type ErrorRegistry = Record<string, ErrorMetadata>;
+
+### dist/client/errors/types.d.ts#ErrorSeverity
+export declare enum ErrorSeverity {
+    INFO = "info",
+    WARNING = "warning",
+    ERROR = "error",
+    CRITICAL = "critical"
+}
+
+### dist/client/errors/types.d.ts#RichError
+export interface RichError {
+    code: string;
+    metadata: ErrorMetadata;
+    context: ErrorContext;
+    cause?: Error;
+}
+
+### dist/client/middleware/auth.d.ts#AuthOptions
+export interface AuthOptions {
+    token?: string;
+    apiKey?: string;
+    userId?: string;
+    [key: string]: unknown;
+}
+
+### dist/client/middleware/auth.d.ts#createApiKeyAuthMiddleware
+export declare function createApiKeyAuthMiddleware(apiKeyOrFn: string | (() => string)): TypedClientMiddleware<AuthContext, {}>;
+
+### dist/client/middleware/auth.d.ts#createAuthMiddleware
+export declare function createAuthMiddleware(authOptionsOrFn: AuthOptions | (() => AuthOptions)): TypedClientMiddleware<AuthContext, {}>;
+
+### dist/client/middleware/auth.d.ts#createBearerAuthMiddleware
+export declare function createBearerAuthMiddleware(tokenOrFn: string | (() => string)): TypedClientMiddleware<AuthContext, {}>;
+
+### dist/client/middleware/cache.d.ts#CacheOptions
+export interface CacheOptions {
+    methods: readonly string[] | ((method: Method) => boolean);
+    ttl?: Duration;
+    capacity?: number;
+    onStats?: (stats: CacheStats) => void;
+    statsInterval?: Duration;
+    keyGenerator?: (method: Method, payload: unknown, metadata: Metadata) => string;
+    shouldCache?: (item: ResponseItem<unknown>) => boolean;
+    effects?: (method: Method) => Effects | undefined;
+}
+
+### dist/client/middleware/cache.d.ts#CacheStats
+export interface CacheStats {
+    hits: number;
+    misses: number;
+    size: number;
+    evictions: number;
+    hitRate: number;
+}
+
+### dist/client/middleware/cache.d.ts#createCacheMiddleware
+export declare function createCacheMiddleware(options: CacheOptions): TypedClientMiddleware<CacheContext, {}>;
+
+### dist/client/middleware/cache.d.ts#invalidateCache
+export declare function invalidateCache(middleware: object, matches?: (method: Method) => boolean): number;
+
+### dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerError
+export declare class CircuitBreakerError extends Error {
+    readonly state: CircuitState;
+    readonly lastError: Error | null;
+    constructor(state: CircuitState, lastError: Error | null);
+}
+
+### dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerOptions
+export interface CircuitBreakerOptions {
+    failureThreshold?: number;
+    failureWindow?: Duration;
+    resetTimeout?: Duration;
+    successThreshold?: number;
+    halfOpenMaxRequests?: number;
+    isFailure?: (error: Error) => boolean;
+    onStateChange?: (oldState: CircuitState, newState: CircuitState) => void;
+}
+
+### dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerStats
+export interface CircuitBreakerStats {
+    state: CircuitState;
+    failures: number;
+    successes: number;
+    totalRequests: number;
+    lastFailureTime: number | null;
+    lastStateChange: number;
+}
+
+### dist/client/middleware/circuit-breaker.d.ts#CircuitState
+export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
+
+### dist/client/middleware/circuit-breaker.d.ts#createCircuitBreakerMiddleware
+export declare function createCircuitBreakerMiddleware(options?: CircuitBreakerOptions): TypedClientMiddleware<CircuitBreakerContext, {}>;
+
+### dist/client/middleware/items.d.ts#DELIVERY_METADATA_KEY
+export declare const DELIVERY_METADATA_KEY = "delivery";
+
+### dist/client/middleware/items.d.ts#Delivery
+export type Delivery = "not-sent" | "indeterminate";
+
+### dist/client/middleware/items.d.ts#deliveryOf
+export declare function deliveryOf(item: ResponseItem<unknown>): Delivery | undefined;
+
+### dist/client/middleware/items.d.ts#isNotSentError
+export declare function isNotSentError(error: unknown): boolean;
+
+### dist/client/middleware/pagination.d.ts#PaginationOptions
+export interface PaginationOptions {
+    defaultLimit?: number;
+    maxLimit?: number;
+    pageKey?: string;
+    limitKey?: string;
+    offsetKey?: string;
+    useOffset?: boolean;
+}
+
+### dist/client/middleware/pagination.d.ts#createPaginationMiddleware
+export declare function createPaginationMiddleware(options?: PaginationOptions): TypedClientMiddleware<PaginationContext, {}>;
+
+### dist/client/middleware/pagination.d.ts#paginateAll
+export declare function paginateAll<TReq, TRes extends {
+    items: any[];
+    hasMore?: boolean;
+    total?: number;
+}>(client: {
+    call: (method: any, payload: TReq, metadata?: any) => Promise<TRes>;
+}, method: any, payload: TReq, options?: {
+    limit?: number;
+    maxPages?: number;
+}): AsyncIterable<TRes extends {
+    items: (infer U)[];
+} ? U : never>;
+
+### dist/client/middleware/rate-limit.d.ts#RateLimitError
+export declare class RateLimitError extends Error {
+    readonly stats: RateLimitStats;
+    constructor(message: string, stats: RateLimitStats);
+}
+
+### dist/client/middleware/rate-limit.d.ts#RateLimitOptions
+export interface RateLimitOptions {
+    maxRequests?: number;
+    window?: Duration;
+    strategy?: "reject" | "queue";
+    maxQueueSize?: number;
+    message?: string;
+    onRateLimitExceeded?: (stats: RateLimitStats) => void;
+}
+
+### dist/client/middleware/rate-limit.d.ts#RateLimitStats
+export interface RateLimitStats {
+    tokensAvailable: number;
+    maxTokens: number;
+    queueSize: number;
+    totalRequests: number;
+    rejectedRequests: number;
+}
+
+### dist/client/middleware/rate-limit.d.ts#createPerServiceRateLimiter
+export declare function createPerServiceRateLimiter(limits: Record<string, RateLimitOptions> & {
+    default?: RateLimitOptions;
+}): ClientMiddleware;
+
+### dist/client/middleware/rate-limit.d.ts#createRateLimitMiddleware
+export declare function createRateLimitMiddleware(options?: RateLimitOptions): TypedClientMiddleware<RateLimitContext, {}>;
+
+### dist/client/middleware/resilience.d.ts#ResilienceContext
+export type ResilienceContext = TimeoutContext & Partial<RetryContext & CacheContext & CircuitBreakerContext & RateLimitContext>;
+
+### dist/client/middleware/resilience.d.ts#ResilienceOptions
+export interface ResilienceOptions {
+    overall?: Duration | undefined;
+    perAttempt?: Duration | undefined;
+    retry?: RetryOptions | undefined;
+    breaker?: CircuitBreakerOptions | undefined;
+    cache?: CacheOptions | undefined;
+    rateLimit?: RateLimitOptions | undefined;
+    message?: string | undefined;
+}
+
+### dist/client/middleware/resilience.d.ts#resilience
+export declare function resilience(options: ResilienceOptions): TypedClientMiddleware<ResilienceContext, {}>;
+
+### dist/client/middleware/retry.d.ts#RetryOptions
+export interface RetryOptions {
+    maxRetries?: number;
+    retryDelay?: Duration;
+    backoffMultiplier?: number;
+    maxDelay?: Duration;
+    jitter?: number;
+    budget?: {
+        ratio?: number;
+        minPerSecond?: number;
+    } | false;
+    idempotent?: boolean | ((method: Method) => boolean | undefined);
+    shouldRetry?: (item: ResponseItem<unknown>, attempt: number) => boolean;
+    onBeforeRetry?: (item: ResponseItem<unknown>, attempt: number) => Promise<{
+        shouldRetry: boolean;
+        delayMs?: number;
+    }> | {
+        shouldRetry: boolean;
+        delayMs?: number;
+    };
+    onAfterRetry?: (success: boolean, attempt: number) => Promise<void> | void;
+}
+
+### dist/client/middleware/retry.d.ts#createRetryMiddleware
+export declare function createRetryMiddleware(options?: RetryOptions): TypedClientMiddleware<RetryContext, {}>;
+
+### dist/client/middleware/timeout.d.ts#TimeoutOptions
+export interface TimeoutOptions {
+    overall?: Duration | undefined;
+    perAttempt?: Duration | undefined;
+    message?: string;
+}
+
+### dist/client/middleware/timeout.d.ts#createCombinedTimeoutMiddleware
+export declare function createCombinedTimeoutMiddleware(options: TimeoutOptions): TypedClientMiddleware<TimeoutContext, {}>;
+
+### dist/client/middleware/timeout.d.ts#createOverallTimeoutMiddleware
+export declare function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): TypedClientMiddleware<TimeoutContext, {}>;
+
+### dist/client/middleware/timeout.d.ts#createTimeoutMiddleware
+export declare function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): TypedClientMiddleware<TimeoutContext, {}>;
+
+### dist/client/middleware/tracing.d.ts#TracingOptions
+export interface TracingOptions {
+    generateTraceId?: () => string;
+    generateSpanId?: () => string;
+    getCurrentTrace?: () => {
+        traceId: string;
+        spanId: string;
+    } | null;
+    serviceName?: string;
+}
+
+### dist/client/middleware/tracing.d.ts#createSimpleTracingMiddleware
+export declare function createSimpleTracingMiddleware(): TypedClientMiddleware<TracingContext, {}>;
+
+### dist/client/middleware/tracing.d.ts#createTracingMiddleware
+export declare function createTracingMiddleware(options?: TracingOptions): TypedClientMiddleware<TracingContext, {}>;
+
+### dist/client/middleware/tracing.d.ts#extractTracingInfo
+export declare function extractTracingInfo(metadata: Record<string, unknown>): {
+    traceId?: string;
+    spanId?: string;
+    parentSpanId?: string;
+} | null;
+
+### dist/client/route-resolver.d.ts#ResolvedRoute
+export interface ResolvedRoute {
+    path: ProcedurePath;
+    procedure: AnyProcedure;
+    input: unknown;
+    outputConfig: OutputConfig;
+    inputValidated?: boolean;
+}
+
+### dist/client/route-resolver.d.ts#RouteResolutionError
+export interface RouteResolutionError {
+    path: ProcedurePath;
+    type: "not_found" | "invalid_input" | "validation_error";
+    message: string;
+}
+
+### dist/client/route-resolver.d.ts#RouteResolutionResult
+export interface RouteResolutionResult {
+    resolved: ResolvedRoute[];
+    errors: RouteResolutionError[];
+    skipped: ProcedurePath[];
+    success: boolean;
+}
+
+### dist/client/route-resolver.d.ts#RouteResolver
+export declare class RouteResolver {
+    constructor(registry: ProcedureRegistry);
+    resolve(route: Route, options?: RouteResolverOptions): RouteResolutionResult;
+    getProcedure(path: ProcedurePath): AnyProcedure | undefined;
+    hasProcedure(path: ProcedurePath): boolean;
+    validate(route: Route): RouteResolutionError[];
+    getProceduresForRoute(route: Route): Array<[ProcedurePath, AnyProcedure]>;
+}
+
+### dist/client/route-resolver.d.ts#createRouteResolver
+export declare function createRouteResolver(registry: ProcedureRegistry): RouteResolver;
+
+### dist/client/route-resolver.d.ts#getMissingPaths
+export declare function getMissingPaths(route: Route, registry: ProcedureRegistry): ProcedurePath[];
+
+### dist/client/route-resolver.d.ts#isValidRoute
+export declare function isValidRoute(route: Route, registry: ProcedureRegistry): boolean;
+
+### dist/client/route-resolver.d.ts#matchPath
+export declare function matchPath(path: ProcedurePath, pattern: ProcedurePath): boolean;
+
+### dist/client/typed.d.ts#BaseCaller
+export type BaseCaller = <TOutput>(path: string[], input: unknown, options?: CallOptions) => Promise<TOutput>;
+
+### dist/client/typed.d.ts#MergeProcedures
+export type MergeProcedures<T extends ProcedureNamespace> = T;
+
+### dist/client/typed.d.ts#PathInput
+export type PathInput<T, P extends string[]> = GetProcedure<T, P> extends ProcedureDef ? GetProcedure<T, P>["input"] : never;
+
+### dist/client/typed.d.ts#PathOutput
+export type PathOutput<T, P extends string[]> = GetProcedure<T, P> extends ProcedureDef ? GetProcedure<T, P>["output"] : never;
+
+### dist/client/typed.d.ts#ProcedureDef
+export interface ProcedureDef {
+    input: unknown;
+    output: unknown;
+}
+
+### dist/client/typed.d.ts#ProcedureNamespace
+export type ProcedureNamespace = {
+    [key: string]: ProcedureDef | ProcedureNamespace;
+};
+
+### dist/client/typed.d.ts#ProcedurePaths
+export type ProcedurePaths<T, Prefix extends string[] = []> = T extends ProcedureDef ? Prefix : T extends ProcedureNamespace ? {
+    [K in keyof T]: T[K] extends ProcedureDef ? [...Prefix, K & string] : T[K] extends ProcedureNamespace ? ProcedurePaths<T[K], [...Prefix, K & string]> : never;
+}[keyof T] : never;
+
+### dist/client/typed.d.ts#TypedCaller
+export interface TypedCaller<T extends ProcedureNamespace> {
+    <P extends ProcedurePaths<T> & string[]>(path: P, input: PathInput<T, P>, options?: CallOptions): Promise<PathOutput<T, P>>;
+}
+
+### dist/client/typed.d.ts#createTypedCaller
+export declare function createTypedCaller<T extends ProcedureNamespace>(caller: BaseCaller): TypedCaller<T>;
+
+### dist/client/types.d.ts#ClientContext
+export interface ClientContext<TReq = unknown> {
+    message: Message<TReq>;
+}
+
+### dist/client/types.d.ts#ClientError
+export declare class ClientError extends Error {
+    readonly status: Extract<Status, {
+        type: "error";
+    }>;
+    readonly responseId: string;
+    constructor(status: Extract<Status, {
+        type: "error";
+    }>, responseId: string);
+    get code(): string;
+    get retryable(): boolean;
+}
+
+### dist/client/types.d.ts#ClientMiddleware
+export type ClientMiddleware<TReq = unknown, TRes = unknown> = (next: ClientRunner<TReq, TRes>) => ClientRunner<TReq, TRes>;
+
+### dist/client/types.d.ts#ClientOptions
+export interface ClientOptions {
+    transport: Transport;
+    defaultMetadata?: Metadata;
+    throwOnError?: boolean;
+    bus?: EventBus;
+    interceptors?: readonly Interceptor[];
+    capability?: Capability;
+    clearanceOrder?: ClearanceOrder;
+}
+
+### dist/client/types.d.ts#ClientRunner
+export type ClientRunner<TReq = unknown, TRes = unknown> = (context: ClientContext<TReq>) => AsyncIterable<ResponseItem<TRes>>;
+
+### dist/client/types.d.ts#Message
+export interface Message<TPayload = unknown> {
+    id: string;
+    method: Method;
+    payload: TPayload;
+    metadata: Metadata;
+    signal?: AbortSignal;
+}
+
+### dist/client/types.d.ts#Metadata
+export interface Metadata {
+    tracing?: {
+        traceId: string;
+        spanId: string;
+        parentSpanId?: string;
+    };
+    auth?: {
+        token?: string;
+        apiKey?: string;
+        userId?: string;
+        [key: string]: unknown;
+    };
+    timeout?: {
+        overall?: number;
+        perAttempt?: number;
+    };
+    retry?: {
+        attempt: number;
+        maxAttempts: number;
+        idempotent?: boolean;
+    };
+    [key: string]: unknown;
+}
+
+### dist/client/types.d.ts#Method
+export interface Method {
+    service: string;
+    operation: string;
+    version?: string;
+}
+
+### dist/client/types.d.ts#ResponseItem
+export interface ResponseItem<TPayload = unknown> {
+    id: string;
+    status: Status;
+    payload: TPayload;
+    metadata: Metadata;
+}
+
+### dist/client/types.d.ts#Status
+export type Status = {
+    type: "success";
+    code: number;
+} | {
+    type: "error";
+    code: string;
+    message: string;
+    retryable: boolean;
+    metadata?: ErrorMetadata;
+};
+
+### dist/client/types.d.ts#Transport
+export interface Transport {
+    readonly name: string;
+    send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    close(): Promise<void>;
+}
+
+### dist/client/validation/middleware.d.ts#ValidationMode
+export type ValidationMode = "strict" | "warn" | "silent";
+
+### dist/client/validation/middleware.d.ts#ZodMiddlewareOptions
+export interface ZodMiddlewareOptions {
+    mode?: ValidationMode;
+    transformOutput?: boolean;
+    onValidationError?: (error: ValidationError) => void;
+}
+
+### dist/client/validation/middleware.d.ts#createZodMiddleware
+export declare function createZodMiddleware(options?: ZodMiddlewareOptions): ZodMiddleware;
+
+### dist/client/validation/types.d.ts#SchemaDefinition
+export interface SchemaDefinition<TInput extends ProcedureSchema = ProcedureSchema, TOutput extends ProcedureSchema = ProcedureSchema> {
+    input?: TInput;
+    output?: TOutput;
+}
+
+### dist/client/validation/types.d.ts#ValidationError
+export declare class ValidationError extends Error {
+    readonly phase: ValidationPhase;
+    readonly zodError: ZodErrorLike;
+    readonly method: Method;
+    readonly name = "ValidationError";
+    constructor(message: string,
+    phase: ValidationPhase,
+    zodError: ZodErrorLike,
+    method: Method);
+    get details(): string;
+}
+
+### dist/client/validation/types.d.ts#ValidationPhase
+export type ValidationPhase = "input" | "output";
+
+### dist/client/validation/types.d.ts#ZodErrorLike
+export interface ZodErrorLike {
+    message: string;
+    errors?: ReadonlyArray<{
+        path?: ReadonlyArray<PropertyKey>;
+        message: string;
+    }> | undefined;
+    issues?: ReadonlyArray<{
+        path?: ReadonlyArray<PropertyKey>;
+        message: string;
+    }> | undefined;
+}
+
+### dist/client/validation/types.d.ts#ZodLike
+export interface ZodLike<T = unknown> {
+    parse(data: unknown): T;
+    safeParse(data: unknown): {
+        success: true;
+        data: T;
+    } | {
+        success: false;
+        error: ZodErrorLike;
+    };
+}
+
+### dist/client/validation/types.d.ts#ZodValidationContext
+export interface ZodValidationContext {
+    validation: {
+        inputValidated: boolean;
+        outputValidated: boolean;
+        methodKey: MethodKey;
+    };
+}
+
+### dist/client/validation/types.d.ts#keyToMethod
+export declare function keyToMethod(key: MethodKey): Method;
+
+### dist/client/validation/types.d.ts#methodToKey
+export declare function methodToKey(method: Method): MethodKey;
+
+### dist/duration.d.ts#Duration
+export type Duration = Quantity & {
+    readonly unit: TimeUnit;
+};
+
+### dist/duration.d.ts#TimeUnit
+export type TimeUnit = "ns" | "us" | "ms" | "s" | "min" | "h" | "d";
+
+### dist/duration.d.ts#hours
+export declare const hours: (value: number) => Duration;
+
+### dist/duration.d.ts#isDuration
+export declare function isDuration(value: unknown): value is Duration;
+
+### dist/duration.d.ts#minutes
+export declare const minutes: (value: number) => Duration;
+
+### dist/duration.d.ts#ms
+export declare const ms: (value: number) => Duration;
+
+### dist/duration.d.ts#optionalMs
+export declare function optionalMs(duration: Duration | undefined, option?: string): number | undefined;
+
+### dist/duration.d.ts#seconds
+export declare const seconds: (value: number) => Duration;
+
+### dist/duration.d.ts#toMs
+export declare function toMs(duration: Duration, option?: string): number;
+
+### dist/events/bus.d.ts#DefaultEventBus
+export declare class DefaultEventBus implements EventBus {
+    constructor(options?: EventBusOptions);
+    emit<T>(channel: string, data: T): void;
+    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+    once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
+    stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
+    subscriberCount(channel: string): number;
+    hasSubscribers(channel: string): boolean;
+    channels(): string[];
+    clear(channel: string): void;
+    clearAll(): void;
+}
+
+### dist/events/bus.d.ts#createChannelPrefix
+export declare function createChannelPrefix(bus: EventBus, prefix: string): {
+    emit<T>(channel: string, data: T): void;
+    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+    once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
+    stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
+};
+
+### dist/events/bus.d.ts#createEventBus
+export declare function createEventBus(options?: EventBusOptions): EventBus;
+
+### dist/events/bus.d.ts#createTypedEventBus
+export declare function createTypedEventBus<TChannels extends ChannelMap>(options?: EventBusOptions): TypedEventBus<TChannels>;
+
+### dist/events/bus.d.ts#debounceChannel
+export declare function debounceChannel<T>(bus: EventBus, source: string, target: string, delay: number): Unsubscribe;
+
+### dist/events/bus.d.ts#filterChannel
+export declare function filterChannel<T>(bus: EventBus, source: string, target: string, predicate: (data: T) => boolean): Unsubscribe;
+
+### dist/events/bus.d.ts#forwardChannel
+export declare function forwardChannel(bus: EventBus, from: string, to: string): Unsubscribe;
+
+### dist/events/bus.d.ts#getGlobalEventBus
+export declare function getGlobalEventBus(options?: EventBusOptions): EventBus;
+
+### dist/events/bus.d.ts#mapChannel
+export declare function mapChannel<TIn, TOut>(bus: EventBus, source: string, target: string, transform: (data: TIn) => TOut): Unsubscribe;
+
+### dist/events/bus.d.ts#mergeChannels
+export declare function mergeChannels(bus: EventBus, sources: string[], target: string): Unsubscribe;
+
+### dist/events/bus.d.ts#resetGlobalEventBus
+export declare function resetGlobalEventBus(): void;
+
+### dist/events/bus.d.ts#throttleChannel
+export declare function throttleChannel<T>(bus: EventBus, source: string, target: string, interval: number): Unsubscribe;
+
+### dist/events/bus.d.ts#withEventBusSignal
+export declare function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus;
+
+### dist/events/types.d.ts#ChannelMap
+export interface ChannelMap {
+    [channel: string]: unknown;
+}
+
+### dist/events/types.d.ts#DefaultChannels
+export interface DefaultChannels extends SystemChannels, ProcedureChannels {
+    [channel: string]: unknown;
+}
+
+### dist/events/types.d.ts#Event
+export interface Event<T = unknown> {
+    channel: string;
+    data: T;
+    timestamp: number;
+}
+
+### dist/events/types.d.ts#EventBus
+export interface EventBus {
+    emit<T>(channel: string, data: T): void;
+    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+    once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
+    stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
+    subscriberCount(channel: string): number;
+    hasSubscribers(channel: string): boolean;
+    channels(): string[];
+    clear(channel: string): void;
+    clearAll(): void;
+}
+
+### dist/events/types.d.ts#EventBusOptions
+export interface EventBusOptions {
+    bufferSize?: number;
+    onError?: (error: Error, channel: string) => void;
+    debug?: boolean;
+}
+
+### dist/events/types.d.ts#EventHandler
+export type EventHandler<T = unknown> = (data: T) => void | Promise<void>;
+
+### dist/events/types.d.ts#EventWaitOptions
+export interface EventWaitOptions {
+    signal?: AbortSignal | undefined;
+}
+
+### dist/events/types.d.ts#ProcedureChannels
+export interface ProcedureChannels {
+    "procedure:start": {
+        path: string[];
+        input: unknown;
+    };
+    "procedure:complete": {
+        path: string[];
+        output: unknown;
+        duration: number;
+    };
+    "procedure:error": {
+        path: string[];
+        error: Error;
+    };
+    "procedure:yield": {
+        path: string[];
+        value: unknown;
+        index: number;
+    };
+}
+
+### dist/events/types.d.ts#SystemChannels
+export interface SystemChannels {
+    "system:error": {
+        error: Error;
+        context?: string;
+    };
+    "system:warning": {
+        message: string;
+        context?: string;
+    };
+    "system:debug": {
+        message: string;
+        data?: unknown;
+    };
+}
+
+### dist/events/types.d.ts#TypedEventBus
+export interface TypedEventBus<TChannels extends ChannelMap> {
+    emit<K extends keyof TChannels & string>(channel: K, data: TChannels[K]): void;
+    on<K extends keyof TChannels & string>(channel: K, handler: EventHandler<TChannels[K]>): Unsubscribe;
+    once<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): Promise<TChannels[K]>;
+    stream<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): AsyncIterable<TChannels[K]>;
+    subscriberCount(channel: string): number;
+    hasSubscribers(channel: string): boolean;
+    channels(): string[];
+    clear(channel: string): void;
+    clearAll(): void;
+}
+
+### dist/events/types.d.ts#Unsubscribe
+export type Unsubscribe = () => void;
+
+### dist/middleware/compose.d.ts#bundle
+export declare function bundle<TAsync extends boolean = false>(...middleware: Middleware<any, any, any, TAsync>[]): Middleware<any, any, any, TAsync>;
+
+### dist/middleware/compose.d.ts#compose
+export declare function compose<TAsync extends boolean = false>(...args: [...Middleware<any, any, any, TAsync>[], any]): MiddlewareRunner<any, any, TAsync>;
+
+### dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
+export declare function wrapWithAsyncMiddlewares<TMiddlewares extends readonly AsyncMiddleware<any, any, any>[], TBaseContext, TReturn>(middlewares: TMiddlewares, fn: MiddlewareRunner<MiddlewaresContext<TMiddlewares, TBaseContext>, TReturn, true>): MiddlewareRunner<TBaseContext, TReturn, true>;
+
+### dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
+export declare function wrapWithSyncMiddlewares<TMiddlewares extends readonly SyncMiddleware<any, any, any>[], TBaseContext, TReturn>(middlewares: TMiddlewares, fn: MiddlewareRunner<MiddlewaresContext<TMiddlewares, TBaseContext>, TReturn, false>): MiddlewareRunner<TBaseContext, TReturn, false>;
+
+### dist/middleware/types.d.ts#AsyncMiddleware
+export type AsyncMiddleware<TContextOut, TContextIn, TReturn> = Middleware<TContextOut, TContextIn, TReturn, true>;
+
+### dist/middleware/types.d.ts#IsAsyncMiddleware
+export type IsAsyncMiddleware<T> = T extends Middleware<any, any, any, infer A> ? A : never;
+
+### dist/middleware/types.d.ts#Middleware
+export interface Middleware<TContextOut, TContextIn, TReturn, TAsync extends boolean = false> {
+    (next: MiddlewareRunner<TContextIn & TContextOut, TReturn, TAsync>): MiddlewareRunner<TContextIn, TReturn, TAsync>;
+}
+
+### dist/middleware/types.d.ts#MiddlewareContextIn
+export type MiddlewareContextIn<T> = T extends Middleware<any, infer Ctx, any, any> ? Ctx : never;
+
+### dist/middleware/types.d.ts#MiddlewareContextOut
+export type MiddlewareContextOut<T> = T extends Middleware<infer Ctx, any, any, any> ? Ctx : never;
+
+### dist/middleware/types.d.ts#MiddlewareReturn
+export type MiddlewareReturn<T> = T extends Middleware<any, any, infer R, any> ? R : never;
+
+### dist/middleware/types.d.ts#MiddlewareRunner
+export type MiddlewareRunner<TContext, TReturn, TAsync extends boolean = false> = TAsync extends true ? (context: TContext) => Promise<TReturn> : (context: TContext) => TReturn;
+
+### dist/middleware/types.d.ts#MiddlewaresContext
+export type MiddlewaresContext<TMiddlewares extends readonly Middleware<any, any, any, any>[], TContextIn = {}> = TMiddlewares extends readonly [
+    Middleware<infer TNextContextOut, infer TNextContextIn, any, any>,
+    ...infer TRest
+] ? TContextIn extends TNextContextIn ? TRest extends readonly Middleware<any, any, any, any>[] ? MiddlewaresContext<TRest, TContextIn & TNextContextOut> : never : never : TMiddlewares extends readonly [] ? TContextIn : never;
+
+### dist/middleware/types.d.ts#SyncMiddleware
+export type SyncMiddleware<TContextOut, TContextIn, TReturn> = Middleware<TContextOut, TContextIn, TReturn, false>;
+
+### dist/procedures/capability.d.ts#CapabilityRefusal
+export interface CapabilityRefusal {
+    readonly reason: CapabilityRefusalReason;
+    readonly message: string;
+}
+
+### dist/procedures/capability.d.ts#CapabilityRefusalReason
+export type CapabilityRefusalReason = "effects-undeclared" | "effects-exceeded" | "clearance" | "deadline";
+
+### dist/procedures/capability.d.ts#EffectsViolation
+export interface EffectsViolation {
+    readonly path: ProcedurePath;
+    readonly callee: string;
+    readonly message: string;
+}
+
+### dist/procedures/capability.d.ts#InvocationExplanation
+export interface InvocationExplanation {
+    readonly permitted: boolean;
+    readonly reason?: CapabilityRefusalReason | "not-found";
+    readonly message: string;
+}
+
+### dist/procedures/capability.d.ts#STANDARD_RESOURCES
+export declare const STANDARD_RESOURCES: readonly ["fs", "network", "process", "registry"];
+
+### dist/procedures/capability.d.ts#ToolHints
+export interface ToolHints {
+    readonly readOnlyHint?: boolean;
+    readonly destructiveHint?: boolean;
+    readonly idempotentHint?: boolean;
+    readonly openWorldHint?: boolean;
+}
+
+### dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
+export declare const UNLIMITED_CAPABILITY: Capability;
+
+### dist/procedures/capability.d.ts#capabilityRefusal
+export declare function capabilityRefusal(procedure: AnyProcedure, capability: Capability<unknown> | undefined, now?: number): CapabilityRefusal | undefined;
+
+### dist/procedures/capability.d.ts#checkEffects
+export declare function checkEffects(procedures: readonly AnyProcedure[]): EffectsViolation[];
+
+### dist/procedures/capability.d.ts#effectsOf
+export declare function effectsOf(procedure: {
+    readonly metadata?: unknown;
+}): Effects | undefined;
+
+### dist/procedures/capability.d.ts#examinesNestedCall
+export declare function examinesNestedCall(caller: AnyProcedure, callerCapability: Capability<unknown>, capability: Capability<unknown>): boolean;
+
+### dist/procedures/capability.d.ts#explainInvocation
+export declare function explainInvocation(path: ProcedurePath, capability: Capability<unknown> | undefined, registry: {
+    get(path: ProcedurePath): AnyProcedure | undefined;
+}, now?: number): InvocationExplanation;
+
+### dist/procedures/capability.d.ts#isDestructive
+export declare function isDestructive(effects: Effects | undefined): boolean;
+
+### dist/procedures/capability.d.ts#isOpenWorld
+export declare function isOpenWorld(effects: Effects | undefined): boolean;
+
+### dist/procedures/capability.d.ts#isReadOnly
+export declare function isReadOnly(effects: Effects | undefined): boolean;
+
+### dist/procedures/capability.d.ts#ladder
+export declare function ladder<C>(levels: readonly C[]): ClearanceOrder<C>;
+
+### dist/procedures/capability.d.ts#narrowCapability
+export declare function narrowCapability<C>(current: Capability<C> | undefined, request: CapabilityRequest<C> | undefined, order?: ClearanceOrder<C>, now?: number): Capability<C>;
+
+### dist/procedures/capability.d.ts#toolHints
+export declare function toolHints(procedure: AnyProcedure): ToolHints;
+
+### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
+export declare function createCollectionProcedures(collectionName: string): AnyProcedure[];
+
+### dist/procedures/collection/storage.d.ts#CollectionStorage
+export interface CollectionStorage<T> {
+    get(id: string): Promise<T | undefined>;
+    getAll(): Promise<T[]>;
+    getEntries?(): Promise<Array<[string, T]>>;
+    getChangesSince?(since?: string): Promise<StorageChanges<T>>;
+    find(predicate: (item: T) => boolean): Promise<T[]>;
+    has(id: string): Promise<boolean>;
+    size(): Promise<number>;
+    set(id: string, value: T): Promise<void>;
+    delete(id: string): Promise<boolean>;
+    clear(): Promise<void>;
+    setBatch(items: Array<[string, T]>): Promise<void>;
+    deleteBatch(ids: string[]): Promise<number>;
+    getBatch(ids: string[]): Promise<Map<string, T>>;
+    flush?(): Promise<void>;
+    close(): Promise<void>;
+    getMetadata?(): Promise<StorageMetadata>;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageChanges
+export interface StorageChanges<T> {
+    version: string;
+    full: boolean;
+    changed: Array<[string, T]>;
+    deleted: string[];
+}
+
+### dist/procedures/collection/storage.d.ts#StorageMetadata
+export interface StorageMetadata {
+    type: "memory" | "api" | "hybrid" | "synced" | "custom";
+    size: number;
+    stats?: {
+        hitRate?: number;
+        lastSync?: number;
+        pendingOps?: number;
+        memoryUsage?: number;
+        [key: string]: unknown;
+    };
+}
+
+### dist/procedures/core/index.d.ts#allCoreModules
+export declare const allCoreModules: Array<{
+    name: string;
+    procedures: AnyProcedure[];
+}>;
+
+### dist/procedures/core/index.d.ts#allCoreProcedures
+export declare const allCoreProcedures: AnyProcedure[];
+
+### dist/procedures/core/index.d.ts#allProcedure
+declare const allProcedure: AllProcedure;
+
+### dist/procedures/core/index.d.ts#andProcedure
+declare const andProcedure: AndProcedure;
+
+### dist/procedures/core/index.d.ts#anyProcedure
+declare const anyProcedure: AnyProcedureType;
+
+### dist/procedures/core/index.d.ts#chainProcedure
+declare const chainProcedure: ChainProcedure;
+
+### dist/procedures/core/index.d.ts#conditionalProcedure
+declare const conditionalProcedure: ConditionalProcedure;
+
+### dist/procedures/core/index.d.ts#constantProcedure
+declare const constantProcedure: ConstantProcedure;
+
+### dist/procedures/core/index.d.ts#coreModule
+export declare const coreModule: {
+    name: string;
+    procedures: AnyProcedure[];
+};
+
+### dist/procedures/core/index.d.ts#coreProcedures
+export declare const coreProcedures: AnyProcedure[];
+
+### dist/procedures/core/index.d.ts#identityProcedure
+declare const identityProcedure: IdentityProcedure;
+
+### dist/procedures/core/index.d.ts#mapProcedure
+declare const mapProcedure: MapProcedure;
+
+### dist/procedures/core/index.d.ts#noneProcedure
+declare const noneProcedure: NoneProcedure;
+
+### dist/procedures/core/index.d.ts#notProcedure
+declare const notProcedure: NotProcedure;
+
+### dist/procedures/core/index.d.ts#orProcedure
+declare const orProcedure: OrProcedure;
+
+### dist/procedures/core/index.d.ts#parallelProcedure
+declare const parallelProcedure: ParallelProcedure;
+
+### dist/procedures/core/index.d.ts#reduceProcedure
+declare const reduceProcedure: ReduceProcedure;
+
+### dist/procedures/core/index.d.ts#throwProcedure
+declare const throwProcedure: ThrowProcedure;
+
+### dist/procedures/core/index.d.ts#tryCatchProcedure
+declare const tryCatchProcedure: TryCatchProcedure;
+
+### dist/procedures/core/schemas.d.ts#ZodLikeSchema
+export interface ZodLikeSchema<T> extends ZodLike<T> {
+    _output: T;
+}
+
+### dist/procedures/core/schemas.d.ts#anySchema
+export declare const anySchema: ZodLike<any> & StandardSchemaV1<unknown, any> & {
+    readonly "~jsonSchema": JsonSchema;
+};
+
+### dist/procedures/core/schemas.d.ts#outputSchema
+export declare function outputSchema<T>(): ZodLikeSchema<T> & StandardSchemaV1<unknown, T>;
+
+### dist/procedures/core/schemas.d.ts#typedAnySchema
+export declare function typedAnySchema<T>(): ZodLike<T> & StandardSchemaV1<unknown, T>;
+
+### dist/procedures/core/schemas.d.ts#zodAdapter
+export declare function zodAdapter<T>(schema: {
+    parse: (data: unknown) => T;
+}): ZodLikeSchema<T>;
+
+### dist/procedures/define-procedure.d.ts#AggregationDefinition
+export interface AggregationDefinition {
+    $proc: ProcedurePath;
+    input: unknown;
+    $name?: string;
+}
+
+### dist/procedures/define-procedure.d.ts#DefineProcedureInput
+export interface DefineProcedureInput {
+    path: ProcedurePath;
+    aggregation: AggregationDefinition;
+    metadata?: ProcedureMetadata;
+    replace?: boolean;
+}
+
+### dist/procedures/define-procedure.d.ts#DefineProcedureOutput
+export interface DefineProcedureOutput {
+    path: ProcedurePath;
+    replaced: boolean;
+}
+
+### dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
+export declare function clearRuntimeProcedures(registry?: RegistryOf): void;
+
+### dist/procedures/define-procedure.d.ts#defineProcedureProcedure
+export declare const defineProcedureProcedure: Procedure<DefineProcedureInput, DefineProcedureOutput, DefineMetadata>;
+
+### dist/procedures/define-procedure.d.ts#deleteProcedureProcedure
+export declare const deleteProcedureProcedure: Procedure<{
+    path: ProcedurePath;
+}, {
+    deleted: boolean;
+}, ProcedureMetadata>;
+
+### dist/procedures/define-procedure.d.ts#getAllRuntimeProcedures
+export declare function getAllRuntimeProcedures(registry?: RegistryOf): AnyProcedure[];
+
+### dist/procedures/define-procedure.d.ts#getProcedureProcedure
+export declare const getProcedureProcedure: Procedure<ProcedureGetInput, {
+    found: false;
+} | (ProcedureDescription & GetSchemas & {
+    found: true;
+    hasInputSchema: boolean;
+    hasOutputSchema: boolean;
+}), ProcedureMetadata>;
+
+### dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+export declare function getRuntimeProcedure(path: ProcedurePath, registry?: RegistryOf): AnyProcedure | undefined;
+
+### dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
+export declare function hasRuntimeProcedure(path: ProcedurePath, registry?: RegistryOf): boolean;
+
+### dist/procedures/define-procedure.d.ts#listProceduresProcedure
+export declare const listProceduresProcedure: Procedure<ProcedureListInput, {
+    procedures: ProcedureDescription[];
+    count: number;
+}, ProcedureMetadata>;
+
+### dist/procedures/define-procedure.d.ts#manifestProcedure
+export declare const manifestProcedure: Procedure<{
+    namespace?: string | undefined;
+}, ProcedureManifest, ProcedureMetadata>;
+
+### dist/procedures/define-procedure.d.ts#metaProcedures
+export declare const metaProcedures: AnyProcedure[];
+
+### dist/procedures/define-procedure.d.ts#runtimeProgramOf
+export declare function runtimeProgramOf(procedure: {
+    handler?: unknown;
+}): AggregationDefinition | undefined;
+
+### dist/procedures/define.d.ts#ProcedureBuilder
+export declare class ProcedureBuilder<TInput = unknown, TOutput = unknown, TMeta extends ProcedureMetadata = ProcedureMetadata> {
+    path(path: ProcedurePath): this;
+    input<T>(schema: ProcedureSchema<T>): ProcedureBuilder<T, TOutput, TMeta>;
+    output<T>(schema: ProcedureSchema<T>): ProcedureBuilder<TInput, T, TMeta>;
+    meta<T extends ProcedureMetadata>(metadata: T): ProcedureBuilder<TInput, TOutput, T>;
+    handler(fn: ProcedureHandler<TInput, TOutput>): this;
+    build(): Procedure<TInput, TOutput, TMeta>;
+}
+
+### dist/procedures/define.d.ts#ProcedureDefinition
+export interface ProcedureDefinition<TInput, TOutput, TMeta extends ProcedureMetadata = ProcedureMetadata> {
+    path: ProcedurePath;
+    input: ProcedureSchema<TInput>;
+    output: ProcedureSchema<TOutput>;
+    metadata?: TMeta;
+    handler?: ProcedureHandler<TInput, TOutput>;
+}
+
+### dist/procedures/define.d.ts#ProcedureStub
+export interface ProcedureStub<TInput, TOutput> {
+    path: ProcedurePath;
+    input: ProcedureSchema<TInput>;
+    output: ProcedureSchema<TOutput>;
+    metadata?: ProcedureMetadata;
+}
+
+### dist/procedures/define.d.ts#createProcedure
+export declare function createProcedure(): ProcedureBuilder;
+
+### dist/procedures/define.d.ts#defineProcedure
+export declare function defineProcedure<TInput, TOutput, TMeta extends ProcedureMetadata = ProcedureMetadata>(definition: ProcedureDefinition<TInput, TOutput, TMeta>): Procedure<TInput, TOutput, TMeta>;
+
+### dist/procedures/define.d.ts#defineStub
+export declare function defineStub<TInput, TOutput>(stub: ProcedureStub<TInput, TOutput>): Procedure<TInput, TOutput, ProcedureMetadata>;
+
+### dist/procedures/define.d.ts#namespace
+export declare function namespace<T extends Procedure<unknown, unknown, ProcedureMetadata>[]>(namespacePath: ProcedurePath, procedures: T): T;
+
+### dist/procedures/define.d.ts#validateProcedure
+export declare function validateProcedure(procedure: Procedure<unknown, unknown, ProcedureMetadata>): void;
+
+### dist/procedures/discovery.d.ts#createAndRegister
+export declare function createAndRegister(name: string, procedures: AnyProcedure[]): ProcedureModule;
+
+### dist/procedures/discovery.d.ts#registerModule
+export declare function registerModule(module: ProcedureModule): void;
+
+### dist/procedures/discovery.d.ts#registerProcedures
+export declare function registerProcedures(procedures: AnyProcedure[]): void;
+
+### dist/procedures/effects.d.ts#PURE_EFFECTS
+export declare const PURE_EFFECTS: Effects;
+
+### dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
+export declare const REGISTRY_READ_EFFECTS: Effects;
+
+### dist/procedures/effects.d.ts#withEffects
+export declare function withEffects<T extends AnyProcedure>(effects: Effects, procedures: readonly T[]): T[];
+
+### dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
+export declare const IDEMPOTENCY_KEY_METADATA = "idempotency-key";
+
+### dist/procedures/idempotency.d.ts#IdempotencyCache
+export declare class IdempotencyCache<T> {
+    constructor(options?: IdempotencyOptions);
+    get size(): number;
+    run(key: string, run: () => Promise<T>, keep: (result: T) => boolean): {
+        result: Promise<T>;
+        first: boolean;
+    };
+}
+
+### dist/procedures/idempotency.d.ts#IdempotencyOptions
+export interface IdempotencyOptions {
+    readonly ttl?: Duration;
+    readonly maxEntries?: number;
+    readonly now?: () => number;
+}
+
+### dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+export declare const MAX_IDEMPOTENCY_KEY_LENGTH = 200;
+
+### dist/procedures/idempotency.d.ts#effectsIn
+export declare function effectsIn(registry: {
+    get(path: ProcedurePath): AnyProcedure | undefined;
+}): (method: Method) => Effects | undefined;
+
+### dist/procedures/idempotency.d.ts#idempotencyKeyOf
+export declare function idempotencyKeyOf(metadata: Record<string, unknown> | undefined): string | undefined;
+
+### dist/procedures/idempotency.d.ts#idempotentIn
+export declare function idempotentIn(registry: {
+    get(path: ProcedurePath): AnyProcedure | undefined;
+}): (method: Method) => boolean | undefined;
+
+### dist/procedures/idempotency.d.ts#isRepeatable
+export declare function isRepeatable(effects: Effects | undefined): boolean;
+
+### dist/procedures/idempotency.d.ts#newIdempotencyKey
+export declare function newIdempotencyKey(): string;
+
+### dist/procedures/interceptors.d.ts#InvocationSpan
+export interface InvocationSpan {
+    readonly id: string;
+    readonly parentId: string | undefined;
+    readonly remoteParent?: boolean | undefined;
+    readonly traceId: string;
+    readonly path: ProcedurePath;
+    readonly key: string;
+    readonly depth: number;
+    readonly start: number;
+    end: number | undefined;
+    durationMs: number | undefined;
+    status: "running" | "ok" | "error";
+    error?: string | undefined;
+    code?: string | undefined;
+    kind?: "value" | "stream" | undefined;
+    items?: number | undefined;
+}
+
+### dist/procedures/interceptors.d.ts#MetricsInterceptor
+export interface MetricsInterceptor {
+    interceptor: Interceptor;
+    snapshot(): Record<string, ProcedureMetrics>;
+    reset(): void;
+}
+
+### dist/procedures/interceptors.d.ts#ProcedureMetrics
+export interface ProcedureMetrics {
+    calls: number;
+    errors: number;
+    totalMs: number;
+    maxMs: number;
+}
+
+### dist/procedures/interceptors.d.ts#TimeoutInterceptorOptions
+export interface TimeoutInterceptorOptions {
+    limit: Duration;
+    appliesTo?: ((invocation: Invocation) => boolean) | undefined;
+    onLimit?: ((invocation: Invocation) => void) | undefined;
+}
+
+### dist/procedures/interceptors.d.ts#TracingInterceptorOptions
+export interface TracingInterceptorOptions {
+    onSpan: (span: InvocationSpan) => void;
+    onStart?: ((span: InvocationSpan) => void) | undefined;
+    now?: (() => number) | undefined;
+}
+
+### dist/procedures/interceptors.d.ts#metricsInterceptor
+export declare function metricsInterceptor(options?: {
+    now?: () => number;
+}): MetricsInterceptor;
+
+### dist/procedures/interceptors.d.ts#timeoutInterceptor
+export declare function timeoutInterceptor(options: TimeoutInterceptorOptions): Interceptor;
+
+### dist/procedures/interceptors.d.ts#tracingInterceptor
+export declare function tracingInterceptor(options: TracingInterceptorOptions): Interceptor;
+
+### dist/procedures/invoke.d.ts#AdmitItem
+export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
+
+### dist/procedures/invoke.d.ts#Interceptor
+export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
+
+### dist/procedures/invoke.d.ts#Invocation
+export interface Invocation {
+    readonly id: number;
+    readonly procedure: AnyProcedure;
+    readonly path: ProcedurePath;
+    readonly input: unknown;
+    readonly metadata: Record<string, unknown>;
+    readonly signal: AbortSignal | undefined;
+    readonly parent: Invocation | undefined;
+    readonly depth: number;
+    readonly capability: Capability;
+}
+
+### dist/procedures/invoke.d.ts#InvocationChanges
+export interface InvocationChanges {
+    signal?: AbortSignal | undefined;
+    metadata?: Record<string, unknown> | undefined;
+    capability?: CapabilityRequest | undefined;
+}
+
+### dist/procedures/invoke.d.ts#InvocationError
+export declare class InvocationError extends Error {
+    readonly name = "InvocationError";
+    readonly code: InvocationErrorCode;
+    readonly path: ProcedurePath;
+    readonly retryable: boolean;
+    readonly reason: CapabilityRefusalReason | undefined;
+    constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: CapabilityRefusalReason);
+}
+
+### dist/procedures/invoke.d.ts#InvocationErrorCode
+export type InvocationErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "VALIDATION_ERROR" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "ABORTED" | "TIMEOUT"
+ | "FORBIDDEN";
+
+### dist/procedures/invoke.d.ts#InvocationNext
+export type InvocationNext = (changes?: InvocationChanges) => Promise<ProcedureOutput<unknown>>;
+
+### dist/procedures/invoke.d.ts#InvokeOptions
+export interface InvokeOptions {
+    onRef?: ((event: HydrationEvent) => void) | undefined;
+    registry?: ProcedureRegistry | undefined;
+    metadata?: Record<string, unknown> | undefined;
+    signal?: AbortSignal | undefined;
+    repository?: RepositoryProvider | undefined;
+    bus?: EventBus | undefined;
+    inputValidated?: boolean | undefined;
+    client?: ProcedureClient | ((invocation: Invocation) => ProcedureClient) | undefined;
+    expose?: ((path: ProcedurePath) => boolean) | undefined;
+    strictCalls?: boolean | undefined;
+    interceptors?: readonly Interceptor[] | undefined;
+    parent?: Invocation | undefined;
+    capability?: Capability | undefined;
+    clearanceOrder?: ClearanceOrder | undefined;
+    resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
+    admitItem?: AdmitItem | undefined;
+}
+
+### dist/procedures/invoke.d.ts#ProcedureOutput
+export type ProcedureOutput<T = unknown> = {
+    readonly kind: "value";
+    readonly value: T;
+} | {
+    readonly kind: "stream";
+    readonly items: AsyncGenerator<T, void, undefined>;
+};
+
+### dist/procedures/invoke.d.ts#invokePath
+export declare function invokePath<TOutput = unknown>(path: ProcedurePath, input: unknown, options?: InvokeOptions): Promise<ProcedureOutput<TOutput>>;
+
+### dist/procedures/invoke.d.ts#invokeProcedure
+export declare function invokeProcedure<TOutput = unknown>(procedure: AnyProcedure, input: unknown, options?: InvokeOptions): Promise<ProcedureOutput<TOutput>>;
+
+### dist/procedures/invoke.d.ts#isAsyncIterable
+export declare function isAsyncIterable(value: unknown): value is AsyncIterable<unknown>;
+
+### dist/procedures/invoke.d.ts#outputItems
+export declare function outputItems<T>(output: ProcedureOutput<T>): AsyncGenerator<T, void, undefined>;
+
+### dist/procedures/invoke.d.ts#outputValue
+export declare function outputValue<T>(output: ProcedureOutput<T>, path?: ProcedurePath): Promise<T>;
+
+### dist/procedures/invoke.d.ts#streamOutput
+export declare function streamOutput<T>(start: () => Promise<ProcedureOutput<T>>): AsyncGenerator<T, void, undefined>;
+
+### dist/procedures/manifest.d.ts#CliDescription
+export interface CliDescription {
+    readonly args?: readonly string[] | undefined;
+    readonly shorts?: Readonly<Record<string, string>> | undefined;
+    readonly output?: string | undefined;
+    readonly interactive?: boolean | undefined;
+}
+
+### dist/procedures/manifest.d.ts#DescribeOptions
+export interface DescribeOptions {
+    readonly schemas?: boolean | undefined;
+}
+
+### dist/procedures/manifest.d.ts#DescribeRegistryOptions
+export interface DescribeRegistryOptions extends DescribeOptions {
+    readonly expose?: ((path: ProcedurePath) => boolean) | undefined;
+    readonly include?: ((procedure: AnyProcedure) => boolean) | undefined;
+    readonly withoutHandler?: boolean | undefined;
+}
+
+### dist/procedures/manifest.d.ts#MANIFEST_FORMAT
+export declare const MANIFEST_FORMAT = "procedures.manifest/1";
+
+### dist/procedures/manifest.d.ts#ProcedureEntry
+export interface ProcedureEntry {
+    readonly path: ProcedurePath;
+    readonly key: string;
+    readonly description?: string | undefined;
+    readonly tags?: readonly string[] | undefined;
+    readonly effects?: Effects | undefined;
+    readonly input?: JsonSchema | undefined;
+    readonly output?: JsonSchema | undefined;
+    readonly calls?: readonly string[] | undefined;
+    readonly unboundedStream?: boolean | undefined;
+    readonly dataDriven: boolean;
+    readonly runtime: boolean;
+    readonly hasHandler: boolean;
+    readonly deprecated?: boolean | undefined;
+    readonly cli?: CliDescription | undefined;
+}
+
+### dist/procedures/manifest.d.ts#ProcedureManifest
+export interface ProcedureManifest {
+    readonly format: typeof MANIFEST_FORMAT;
+    readonly hash: string;
+    readonly procedures: readonly ProcedureEntry[];
+}
+
+### dist/procedures/manifest.d.ts#describeProcedure
+export declare function describeProcedure(procedure: AnyProcedure, options?: DescribeOptions): ProcedureEntry;
+
+### dist/procedures/manifest.d.ts#describeRegistry
+export declare function describeRegistry(registry: {
+    getAll(): AnyProcedure[];
+}, options?: DescribeRegistryOptions): ProcedureManifest;
+
+### dist/procedures/manifest.d.ts#exposedProcedures
+export declare function exposedProcedures(registry: {
+    getAll(): AnyProcedure[];
+}, options?: Pick<DescribeRegistryOptions, "expose" | "include" | "withoutHandler">): AnyProcedure[];
+
+### dist/procedures/manifest.d.ts#hashOf
+export declare function hashOf(value: unknown): string;
+
+### dist/procedures/module.d.ts#ModuleInput
+export type ModuleInput = ProcedureModule | readonly ProcedureModule[];
+
+### dist/procedures/module.d.ts#clientModule
+export declare const clientModule: ProcedureModule;
+
+### dist/procedures/module.d.ts#createRegistry
+export declare function createRegistry(...modules: ModuleInput[]): ProcedureRegistry;
+
+### dist/procedures/module.d.ts#defineModule
+export declare function defineModule(name: string, procedures: readonly AnyProcedure[], requires?: readonly ProcedureModule[]): ProcedureModule;
+
+### dist/procedures/module.d.ts#moduleClosure
+export declare function moduleClosure(modules: readonly ProcedureModule[]): ProcedureModule[];
+
+### dist/procedures/module.d.ts#registerClientProcedures
+export declare function registerClientProcedures(registry?: ProcedureRegistry): void;
+
+### dist/procedures/module.d.ts#registerModules
+export declare function registerModules(registry: ProcedureRegistry, modules: readonly ModuleInput[], options?: RegistrationOptions): ProcedureRegistry;
+
+### dist/procedures/policy.d.ts#CallPolicy
+export interface CallPolicy {
+    expose?: ((path: ProcedurePath) => boolean) | undefined;
+    strictCalls?: boolean | undefined;
+}
+
+### dist/procedures/policy.d.ts#CallRefusal
+export interface CallRefusal {
+    readonly code: "NOT_EXPOSED" | "NOT_DECLARED";
+    readonly message: string;
+}
+
+### dist/procedures/policy.d.ts#HiddenCall
+export interface HiddenCall {
+    readonly from: string;
+    readonly to: string;
+}
+
+### dist/procedures/policy.d.ts#callMatches
+export declare function callMatches(entry: string, key: string): boolean;
+
+### dist/procedures/policy.d.ts#declaredCalls
+export declare function declaredCalls(procedure: Pick<AnyProcedure, "path" | "metadata">): readonly string[] | undefined;
+
+### dist/procedures/policy.d.ts#hasCallPolicy
+export declare function hasCallPolicy(policy: CallPolicy): boolean;
+
+### dist/procedures/policy.d.ts#hiddenReach
+export declare function hiddenReach(procedures: readonly AnyProcedure[], expose: (path: ProcedurePath) => boolean): HiddenCall[];
+
+### dist/procedures/policy.d.ts#nestedCallRefusal
+export declare function nestedCallRefusal(caller: AnyProcedure, path: ProcedurePath, policy: CallPolicy): CallRefusal | undefined;
+
+### dist/procedures/policy.d.ts#validateCalls
+export declare function validateCalls(calls: unknown, path: ProcedurePath): readonly string[] | undefined;
+
+### dist/procedures/ref.d.ts#AnyProcedureRef
+export type AnyProcedureRef<TInput = unknown, TOutput = unknown> = ProcedureRef<TInput, TOutput> | ProcedureRefJson<TInput>;
+
+### dist/procedures/ref.d.ts#ContinueDecision
+export interface ContinueDecision {
+    continue: boolean;
+}
+
+### dist/procedures/ref.d.ts#HydrateOptions
+export interface HydrateOptions {
+    maxDepth?: number | undefined;
+    parallel?: boolean | undefined;
+    contextStack?: string[] | undefined;
+    scope?: RefScope | undefined;
+    rawInput?: ((path: ProcedurePath) => boolean) | undefined;
+    onRef?: ((event: HydrationEvent) => void) | undefined;
+}
+
+### dist/procedures/ref.d.ts#HydrationEvent
+export interface HydrationEvent {
+    readonly path: ProcedurePath;
+    readonly ref: AnyProcedureRef;
+    readonly consumer: AnyProcedureRef | undefined;
+}
+
+### dist/procedures/ref.d.ts#LITERAL_KEY
+export declare const LITERAL_KEY: string;
+
+### dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+export declare const MAX_DATA_DEPTH = 1000;
+
+### dist/procedures/ref.d.ts#OutputRef
+export interface OutputRef {
+    readonly $ref: string;
+}
+
+### dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
+export declare const PROCEDURE_JSON_KEY: string;
+
+### dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
+export declare const PROCEDURE_NAME_KEY: string;
+
+### dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
+export declare const PROCEDURE_SYMBOL: symbol;
+
+### dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
+export declare const PROCEDURE_WHEN_KEY: string;
+
+### dist/procedures/ref.d.ts#ProcedureRef
+export interface ProcedureRef<TInput = unknown, TOutput = unknown> {
+    readonly [PROCEDURE_SYMBOL]: true;
+    readonly path: ProcedurePath;
+    readonly input: TInput;
+    readonly $name?: string;
+    readonly $when?: ProcedureWhen;
+    readonly __output?: TOutput;
+}
+
+### dist/procedures/ref.d.ts#ProcedureRefBuilder
+export declare class ProcedureRefBuilder<TInput = unknown, TOutput = unknown> {
+    constructor(path: ProcedurePath);
+    input<T>(input: T): ProcedureRefBuilder<T, TOutput>;
+    name(name: string): this;
+    when(when: ProcedureWhen): this;
+    defer(): this;
+    deferToParent(): this;
+    build(): ProcedureRef<TInput, TOutput>;
+    toJson(): ProcedureRefJson<TInput>;
+    get ref(): ProcedureRef<TInput, TOutput>;
+}
+
+### dist/procedures/ref.d.ts#ProcedureRefJson
+export interface ProcedureRefJson<TInput = unknown> {
+    readonly $proc: ProcedurePath;
+    readonly input?: TInput;
+    readonly $name?: string;
+    readonly $when?: ProcedureWhen;
+}
+
+### dist/procedures/ref.d.ts#ProcedureWhen
+export type ProcedureWhen = "$immediate" | "$never" | "$parent" | string;
+
+### dist/procedures/ref.d.ts#RAW_INPUT_TAG
+export declare const RAW_INPUT_TAG = "raw-input";
+
+### dist/procedures/ref.d.ts#RUNS_REFS_TAG
+export declare const RUNS_REFS_TAG = "runs-refs";
+
+### dist/procedures/ref.d.ts#RefExecutor
+export type RefExecutor = <TInput, TOutput>(path: ProcedurePath, input: TInput) => Promise<TOutput>;
+
+### dist/procedures/ref.d.ts#RefScope
+export interface RefScope {
+    outputs: Map<string, unknown>;
+    last?: unknown | undefined;
+    parent?: RefScope | undefined;
+    name?: string | undefined;
+}
+
+### dist/procedures/ref.d.ts#StepResultInfo
+export interface StepResultInfo {
+    success: boolean;
+    result?: unknown;
+    error?: string;
+    skipped?: boolean;
+    proc: ProcedurePath;
+}
+
+### dist/procedures/ref.d.ts#WHEN_IMMEDIATE
+export declare const WHEN_IMMEDIATE: string;
+
+### dist/procedures/ref.d.ts#WHEN_NEVER
+export declare const WHEN_NEVER: string;
+
+### dist/procedures/ref.d.ts#WHEN_PARENT
+export declare const WHEN_PARENT: string;
+
+### dist/procedures/ref.d.ts#createRefScope
+export declare function createRefScope(parent?: RefScope, name?: string): RefScope;
+
+### dist/procedures/ref.d.ts#executeRef
+export declare function executeRef<TOutput = unknown>(ref: AnyProcedureRef, executor: RefExecutor, additionalInput?: Record<string, unknown>, options?: HydrateOptions): Promise<TOutput>;
+
+### dist/procedures/ref.d.ts#extractTemplate
+export declare function extractTemplate<TInput>(ref: ProcedureRef<TInput>): ProcedureRefJson<unknown>;
+
+### dist/procedures/ref.d.ts#fromJson
+export declare function fromJson<TInput, TOutput>(json: ProcedureRefJson<TInput>): ProcedureRef<TInput, TOutput>;
+
+### dist/procedures/ref.d.ts#getRefName
+export declare function getRefName(ref: AnyProcedureRef): string | undefined;
+
+### dist/procedures/ref.d.ts#getRefWhen
+export declare function getRefWhen(ref: AnyProcedureRef): ProcedureWhen;
+
+### dist/procedures/ref.d.ts#hydrateInput
+export declare function hydrateInput<T>(input: T, executor: RefExecutor, options?: HydrateOptions): Promise<T>;
+
+### dist/procedures/ref.d.ts#isAnyProcedureRef
+export declare function isAnyProcedureRef(value: unknown): value is AnyProcedureRef;
+
+### dist/procedures/ref.d.ts#isControlFlowPath
+export declare function isControlFlowPath(path: ProcedurePath): boolean;
+
+### dist/procedures/ref.d.ts#isDataDriven
+export declare function isDataDriven(procedure: ProcedureShape): boolean;
+
+### dist/procedures/ref.d.ts#isLiteral
+export declare function isLiteral(value: unknown): value is {
+    $literal: unknown;
+};
+
+### dist/procedures/ref.d.ts#isPlainObject
+export declare function isPlainObject(value: unknown): value is Record<string, unknown>;
+
+### dist/procedures/ref.d.ts#isProcedureRef
+export declare function isProcedureRef(value: unknown): value is ProcedureRef;
+
+### dist/procedures/ref.d.ts#isProcedureRefJson
+export declare function isProcedureRefJson(value: unknown): value is ProcedureRefJson;
+
+### dist/procedures/ref.d.ts#lookupOutputRef
+export declare function lookupOutputRef(refPath: string, scope: RefScope | undefined): {
+    found: boolean;
+    value?: unknown;
+};
+
+### dist/procedures/ref.d.ts#markDataDriven
+export declare function markDataDriven<T extends {
+    handler?: unknown;
+}>(procedure: T): T;
+
+### dist/procedures/ref.d.ts#normalizeRef
+export declare function normalizeRef<TInput, TOutput>(ref: AnyProcedureRef<TInput, TOutput>): ProcedureRef<TInput, TOutput>;
+
+### dist/procedures/ref.d.ts#observeHydration
+export declare function observeHydration(observer: (event: HydrationEvent) => void): () => void;
+
+### dist/procedures/ref.d.ts#parseProcedureJson
+export declare function parseProcedureJson<T>(json: string): T;
+
+### dist/procedures/ref.d.ts#prepareRootCall
+export declare function prepareRootCall(ref: AnyProcedureRef, executor: RefExecutor, options?: Pick<HydrateOptions, "rawInput" | "onRef" | "scope">): Promise<{
+    path: ProcedurePath;
+    input: unknown;
+}>;
+
+### dist/procedures/ref.d.ts#proc
+export declare function proc<TOutput = unknown>(path: ProcedurePath): ProcedureRefBuilder<unknown, TOutput>;
+
+### dist/procedures/ref.d.ts#rawInputRule
+export declare function rawInputRule(registry: {
+    get(path: ProcedurePath): ProcedureShape | undefined;
+} | undefined): (path: ProcedurePath) => boolean;
+
+### dist/procedures/ref.d.ts#resolveOutputRef
+export declare function resolveOutputRef(refPath: string, scope: RefScope): unknown;
+
+### dist/procedures/ref.d.ts#scopeOf
+export declare function scopeOf(input: unknown): RefScope | undefined;
+
+### dist/procedures/ref.d.ts#shouldExecuteRef
+export declare function shouldExecuteRef(ref: AnyProcedureRef, contextStack: string[], isParentContext?: boolean): boolean;
+
+### dist/procedures/ref.d.ts#stringifyProcedureJson
+export declare function stringifyProcedureJson(value: unknown, space?: number): string;
+
+### dist/procedures/ref.d.ts#takesRawInput
+export declare function takesRawInput(procedure: ProcedureShape): boolean;
+
+### dist/procedures/ref.d.ts#toJson
+export declare function toJson<TInput>(ref: ProcedureRef<TInput>): ProcedureRefJson<TInput>;
+
+### dist/procedures/ref.d.ts#withScope
+export declare function withScope<T>(input: T, scope: RefScope | undefined): T;
+
+### dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
+export declare const PROCEDURE_REGISTRY: ProcedureRegistry;
+
+### dist/procedures/registry.d.ts#ProcedureRegistry
+export declare class ProcedureRegistry {
+    register(procedure: AnyProcedure, options?: RegistrationOptions): void;
+    unregister(path: ProcedurePath): boolean;
+    registerModule(module: ProcedureModule, options?: RegistrationOptions): void;
+    registerAll(procedures: AnyProcedure[], options?: RegistrationOptions): void;
+    get(path: ProcedurePath): AnyProcedure | undefined;
+    has(path: ProcedurePath): boolean;
+    getByPrefix(prefix: ProcedurePath): AnyProcedure[];
+    getAll(): AnyProcedure[];
+    get size(): number;
+    getModules(): string[];
+    getTree(): Record<string, unknown>;
+    getNamespacesAtDepth(depth: number): string[];
+    on(event: RegistryEventType, listener: (procedure: AnyProcedure) => void): void;
+    off(event: RegistryEventType, listener: (procedure: AnyProcedure) => void): void;
+    clear(): void;
+    snapshot(): {
+        paths: string[];
+        modules: string[];
+    };
+}
+
+### dist/procedures/registry.d.ts#RegistryError
+export declare class RegistryError extends Error {
+    readonly name = "RegistryError";
+    readonly path: ProcedurePath;
+    constructor(message: string, path: ProcedurePath, cause?: Error);
+}
+
+### dist/procedures/registry.d.ts#assertValidPath
+export declare function assertValidPath(path: ProcedurePath): void;
+
+### dist/procedures/runtime-programs.d.ts#isRuntimeDefined
+export declare function isRuntimeDefined(procedure: {
+    handler?: unknown;
+}): boolean;
+
+### dist/procedures/schema.d.ts#InferSchema
+export type InferSchema<S> = S extends StandardSchemaV1<unknown, infer T> ? T : S extends ZodLike<infer U> ? U : unknown;
+
+### dist/procedures/schema.d.ts#JsonSchema
+export type JsonSchema = Record<string, unknown>;
+
+### dist/procedures/schema.d.ts#JsonSchemaSource
+export interface JsonSchemaSource {
+    readonly "~jsonSchema"?: JsonSchema | undefined;
+}
+
+### dist/procedures/schema.d.ts#JsonSchemaTarget
+export type JsonSchemaTarget = "draft-2020-12" | "draft-07" | "openapi-3.0";
+
+### dist/procedures/schema.d.ts#ProcedureSchema
+export type ProcedureSchema<T = unknown> = StandardSchemaV1<unknown, T> | ZodLike<T>;
+
+### dist/procedures/schema.d.ts#SchemaResult
+export type SchemaResult<T> = {
+    readonly ok: true;
+    readonly value: T;
+} | {
+    readonly ok: false;
+    readonly message: string;
+    readonly issues: ReadonlyArray<StandardSchemaV1.Issue>;
+};
+
+### dist/procedures/schema.d.ts#StandardJSONSchemaConverter
+export interface StandardJSONSchemaConverter {
+    input(options: {
+        target: JsonSchemaTarget;
+    }): Record<string, unknown>;
+    output(options: {
+        target: JsonSchemaTarget;
+    }): Record<string, unknown>;
+}
+
+### dist/procedures/schema.d.ts#StandardSchemaV1
+export interface StandardSchemaV1<Input = unknown, Output = Input> {
+    readonly "~standard": StandardSchemaV1.Props<Input, Output>;
+}
+export declare namespace StandardSchemaV1 {
+    interface Props<Input = unknown, Output = Input> {
+        readonly version: 1;
+        readonly vendor: string;
+        readonly validate: (value: unknown) => Result<Output> | Promise<Result<Output>>;
+        readonly types?: Types<Input, Output> | undefined;
+    }
+    type Result<Output> = SuccessResult<Output> | FailureResult;
+    interface SuccessResult<Output> {
+        readonly value: Output;
+        readonly issues?: undefined;
+    }
+    interface FailureResult {
+        readonly issues: ReadonlyArray<Issue>;
+    }
+    interface Issue {
+        readonly message: string;
+        readonly path?: ReadonlyArray<PropertyKey | PathSegment> | undefined;
+    }
+    interface PathSegment {
+        readonly key: PropertyKey;
+    }
+    interface Types<Input = unknown, Output = Input> {
+        readonly input: Input;
+        readonly output: Output;
+    }
+    type InferInput<Schema extends StandardSchemaV1> = NonNullable<Schema["~standard"]["types"]>["input"];
+    type InferOutput<Schema extends StandardSchemaV1> = NonNullable<Schema["~standard"]["types"]>["output"];
+}
+
+### dist/procedures/schema.d.ts#describeIssues
+export declare function describeIssues(issues: ReadonlyArray<StandardSchemaV1.Issue>): string;
+
+### dist/procedures/schema.d.ts#isStandardSchema
+export declare function isStandardSchema(value: unknown): value is StandardSchemaV1;
+
+### dist/procedures/schema.d.ts#jsonSchemaOf
+export declare function jsonSchemaOf(schema: ProcedureSchema | undefined, options?: {
+    io?: "input" | "output";
+    target?: JsonSchemaTarget;
+}): JsonSchema | undefined;
+
+### dist/procedures/schema.d.ts#validateSchema
+export declare function validateSchema<T>(schema: ProcedureSchema<T>, value: unknown): SchemaResult<T> | Promise<SchemaResult<T>>;
+
+### dist/procedures/schema.d.ts#validateSchemaAsync
+export declare function validateSchemaAsync<T>(schema: ProcedureSchema<T>, value: unknown): Promise<SchemaResult<T>>;
+
+### dist/procedures/types.d.ts#AnyProcedure
+export type AnyProcedure = Procedure<any, any, ProcedureMetadata>;
+
+### dist/procedures/types.d.ts#Capability
+export interface Capability<C = ClearanceOf> {
+    readonly clearance?: C;
+    readonly effects?: PermittedEffects;
+    readonly deadline?: number;
+}
+
+### dist/procedures/types.d.ts#CapabilityRequest
+export interface CapabilityRequest<C = ClearanceOf> {
+    clearance?: C;
+    effects?: PermittedEffects;
+    timeoutMs?: number;
+}
+
+### dist/procedures/types.d.ts#ClearanceOf
+export type ClearanceOf = Register extends {
+    clearance: infer C;
+} ? C : unknown;
+
+### dist/procedures/types.d.ts#ClearanceOrder
+export interface ClearanceOrder<C = ClearanceOf> {
+    leq(a: C, b: C): boolean;
+    meet(a: C, b: C): C;
+}
+
+### dist/procedures/types.d.ts#Effects
+export interface Effects {
+    readonly reads?: readonly string[];
+    readonly writes?: readonly string[];
+    readonly idempotent?: boolean;
+    readonly destructive?: boolean;
+}
+
+### dist/procedures/types.d.ts#InferProcedureInput
+export type InferProcedureInput<T> = T extends Procedure<infer TInput, any, any> ? TInput : unknown;
+
+### dist/procedures/types.d.ts#InferProcedureMetadata
+export type InferProcedureMetadata<T> = T extends Procedure<any, any, infer TMeta> ? TMeta : ProcedureMetadata;
+
+### dist/procedures/types.d.ts#InferProcedureOutput
+export type InferProcedureOutput<T> = T extends Procedure<any, infer TOutput, any> ? TOutput : unknown;
+
+### dist/procedures/types.d.ts#NestedCallOptions
+export interface NestedCallOptions {
+    narrow?: CapabilityRequest | undefined;
+}
+
+### dist/procedures/types.d.ts#PermittedEffects
+export interface PermittedEffects {
+    readonly reads?: readonly string[] | "any";
+    readonly writes?: readonly string[] | "any";
+    readonly destructive?: boolean;
+}
+
+### dist/procedures/types.d.ts#Procedure
+export interface Procedure<TInput = unknown, TOutput = unknown, TMeta extends ProcedureMetadata = ProcedureMetadata> {
+    path: ProcedurePath;
+    input: ProcedureSchema<TInput>;
+    output: ProcedureSchema<TOutput>;
+    metadata: TMeta;
+    streaming?: boolean | undefined;
+    outputMode?: 'single' | 'stream' | 'batch' | undefined;
+    handler?: ProcedureHandler<TInput, TOutput> | undefined;
+}
+
+### dist/procedures/types.d.ts#ProcedureContext
+export interface ProcedureContext {
+    metadata: Record<string, unknown>;
+    signal?: AbortSignal;
+    repository?: RepositoryProvider;
+    path: ProcedurePath;
+    bus?: EventBus;
+    client: ProcedureClient;
+    registry?: ProcedureRegistryLike;
+    expose?: ((path: ProcedurePath) => boolean) | undefined;
+    onRef?: ((event: HydrationEvent) => void) | undefined;
+    capability: Capability;
+    resources: ResourcesOf;
+}
+
+### dist/procedures/types.d.ts#ProcedureError
+export interface ProcedureError {
+    code: string;
+    message: string;
+    retryable: boolean;
+    validationErrors?: ZodErrorLike;
+    path: ProcedurePath;
+}
+
+### dist/procedures/types.d.ts#ProcedureHandler
+export type ProcedureHandler<TInput = unknown, TOutput = unknown> = StandardHandler<TInput, TOutput> | GeneratorHandler<TInput, TOutput>;
+
+### dist/procedures/types.d.ts#ProcedureMetadata
+export interface ProcedureMetadata {
+    description?: string;
+    tags?: string[];
+    deprecated?: boolean;
+    deprecationMessage?: string;
+    calls?: readonly string[];
+    effects?: Effects;
+    stream?: {
+        readonly unbounded?: boolean;
+    } | undefined;
+    [key: string]: unknown;
+}
+
+### dist/procedures/types.d.ts#ProcedureModule
+export interface ProcedureModule {
+    procedures: AnyProcedure[];
+    name?: string;
+    requires?: readonly ProcedureModule[] | undefined;
+}
+
+### dist/procedures/types.d.ts#ProcedurePath
+export type ProcedurePath = string[];
+
+### dist/procedures/types.d.ts#ProcedureRegistryLike
+export interface ProcedureRegistryLike {
+    get(path: ProcedurePath): AnyProcedure | undefined;
+    has(path: ProcedurePath): boolean;
+    getAll(): AnyProcedure[];
+    register(procedure: AnyProcedure, options?: RegistrationOptions): void;
+    unregister(path: ProcedurePath): boolean;
+}
+
+### dist/procedures/types.d.ts#ProcedureResult
+export type ProcedureResult<TOutput> = {
+    success: true;
+    data: TOutput;
+} | {
+    success: false;
+    error: ProcedureError;
+};
+
+### dist/procedures/types.d.ts#Register
+export interface Register {
+}
+
+### dist/procedures/types.d.ts#RegistrationOptions
+export interface RegistrationOptions {
+    override?: boolean;
+    pathPrefix?: ProcedurePath;
+}
+
+### dist/procedures/types.d.ts#RegistryEventType
+export type RegistryEventType = "register" | "unregister";
+
+### dist/procedures/types.d.ts#RegistryListener
+export interface RegistryListener {
+    event: RegistryEventType;
+    listener: (procedure: AnyProcedure) => void;
+}
+
+### dist/procedures/types.d.ts#RepositoryProvider
+export interface RepositoryProvider {
+    getStorage<T>(collection: string): CollectionStorage<T>;
+    hasCollection(collection: string): boolean;
+}
+
+### dist/procedures/types.d.ts#ResourcesOf
+export type ResourcesOf = Register extends {
+    resources: infer R;
+} ? R : Readonly<Record<string, unknown>>;
+
+### dist/procedures/types.d.ts#keyToPath
+export declare function keyToPath(key: string): ProcedurePath;
+
+### dist/procedures/types.d.ts#pathToKey
+export declare function pathToKey(path: ProcedurePath): string;
+
+### dist/protocol.d.ts#ERROR_CODES
+export declare const ERROR_CODES: Readonly<Record<ProtocolErrorCode, ErrorCodeInfo>>;
+
+### dist/protocol.d.ts#ErrorCodeInfo
+export interface ErrorCodeInfo {
+    readonly http: number;
+    readonly retryable: boolean;
+    readonly meaning: string;
+}
+
+### dist/protocol.d.ts#PROTOCOL_HEADER
+export declare const PROTOCOL_HEADER = "Procedures-Protocol";
+
+### dist/protocol.d.ts#PROTOCOL_VERSION
+export declare const PROTOCOL_VERSION = 1;
+
+### dist/protocol.d.ts#ProtocolErrorCode
+export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND";
+
+### dist/protocol.d.ts#httpStatusOf
+export declare function httpStatusOf(code: unknown): number | undefined;
+
+### dist/protocol.d.ts#isProtocolErrorCode
+export declare function isProtocolErrorCode(code: unknown): code is ProtocolErrorCode;
+
+### dist/protocol.d.ts#protocolVersionOf
+export declare function protocolVersionOf(value: unknown): number | undefined;
+
+### dist/server/browser-guard.d.ts#BrowserGuardOptions
+export interface BrowserGuardOptions {
+    allowedOrigins?: readonly string[] | "*" | ((origin: string) => boolean) | undefined;
+    allowedHosts?: readonly string[] | "*" | undefined;
+    allowGet?: boolean | undefined;
+}
+
+### dist/server/browser-guard.d.ts#GuardResult
+export type GuardResult = {
+    readonly ok: true;
+} | {
+    readonly ok: false;
+    readonly status: 403 | 405 | 415;
+    readonly code: string;
+    readonly message: string;
+};
+
+### dist/server/browser-guard.d.ts#GuardedRequest
+export interface GuardedRequest {
+    method?: string | undefined;
+    headers: IncomingHttpHeaders;
+    socket?: {
+        localAddress?: string | undefined;
+    } | undefined;
+}
+
+### dist/server/browser-guard.d.ts#checkBrowserRequest
+export declare function checkBrowserRequest(req: GuardedRequest, options?: BrowserGuardOptions, http?: boolean): GuardResult;
+
+### dist/server/browser-guard.d.ts#hostNameOf
+export declare function hostNameOf(header: string | undefined): string;
+
+### dist/server/browser-guard.d.ts#isLoopbackAddress
+export declare function isLoopbackAddress(address: string | undefined): boolean;
+
+### dist/server/browser-guard.d.ts#isLoopbackHost
+export declare function isLoopbackHost(host: string): boolean;
+
+### dist/server/host-policy.d.ts#HostPolicy
+export interface HostPolicy {
+    readonly expose: ((path: ProcedurePath) => boolean) | undefined;
+    readonly strictCalls: boolean;
+    readonly interceptors: readonly Interceptor[];
+    readonly token: string | undefined;
+    readonly browser: BrowserGuardOptions;
+    readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
+    readonly clearanceOrder: ClearanceOrder | undefined;
+    readonly resources: ((invocation: Invocation) => ResourcesOf) | undefined;
+    readonly admitItem: AdmitItem | undefined;
+}
+
+### dist/server/host-policy.d.ts#HostPolicyOptions
+export interface HostPolicyOptions {
+    expose?: readonly string[] | ToolSurface | ((path: ProcedurePath) => boolean) | undefined;
+    exclude?: readonly string[] | undefined;
+    strictCalls?: boolean | undefined;
+    timeout?: Duration | undefined;
+    interceptors?: readonly Interceptor[] | undefined;
+    token?: string | undefined;
+    browser?: BrowserGuardOptions | undefined;
+    capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
+    readOnly?: boolean | undefined;
+    clearanceOrder?: ClearanceOrder | undefined;
+    resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
+    admitItem?: AdmitItem | undefined;
+}
+
+### dist/server/host-policy.d.ts#ToolSurface
+export interface ToolSurface {
+    namespaces: readonly string[];
+    exclude?: readonly string[] | undefined;
+}
+
+### dist/server/host-policy.d.ts#exposePatterns
+export declare function exposePatterns(patterns: readonly string[]): (path: ProcedurePath) => boolean;
+
+### dist/server/host-policy.d.ts#hostPolicy
+export declare function hostPolicy(options?: HostPolicyOptions): HostPolicy;
+
+### dist/server/host-policy.d.ts#procedureServerOptions
+export declare function procedureServerOptions(policy: HostPolicy, registry?: ProcedureRegistry): ProcedureServerOptions;
+
+### dist/server/host-policy.d.ts#surfaceRule
+export declare function surfaceRule(surface: ToolSurface): (path: ProcedurePath) => boolean;
+
+### dist/server/host-procedures.d.ts#HostSource
+export interface HostSource {
+    readonly id: string;
+    readonly startedAt: number;
+    readonly server: ProcedureServer;
+    readonly endpoints?: (() => ReadonlyArray<{
+        type: string;
+        address: string;
+    }>) | undefined;
+    readonly metrics?: MetricsInterceptor | undefined;
+}
+
+### dist/server/host-procedures.d.ts#hostProcedures
+export declare function hostProcedures(source: HostSource): AnyProcedure[];
+
+### dist/server/method.d.ts#methodToPath
+export declare function methodToPath(method: Pick<Method, "service" | "operation">): ProcedurePath;
+
+### dist/server/method.d.ts#pathToMethod
+export declare function pathToMethod(path: readonly string[]): Method;
+
+### dist/server/procedure-server.d.ts#ProcedureServer
+export declare class ProcedureServer extends Server implements RepositoryProvider {
+    constructor(options?: ProcedureServerOptions);
+    getStorage<T>(collection: string): CollectionStorage<T>;
+    hasCollection(collection: string): boolean;
+    useStorage<T>(name: string, storage: CollectionStorage<T>): this;
+    useStorage<T>(name: string, storage: CollectionStorage<T>, options: UseStorageOptions): Promise<this>;
+    useStorages(storages: Record<string, CollectionStorage<unknown>>): this;
+    getCollectionNames(): string[];
+    registerProcedure(procedure: AnyProcedure): void;
+    registerProcedures(procedures: AnyProcedure[]): void;
+    registerModule(module: ProcedureModule): void;
+    registerFromRegistry(): void;
+    protected findHandler(method: Method): ServerHandler | null;
+    get callsInFlight(): number;
+    get stopping(): boolean;
+    registerCollectionProcedures(collectionName: string): void;
+    get procedureCount(): number;
+    getRegistry(): ProcedureRegistry;
+    hasProcedure(path: ProcedurePath): boolean;
+    closeStorages(): Promise<void>;
+    stop(options?: StopOptions): Promise<void>;
+}
+
+### dist/server/procedure-server.d.ts#ProcedureServerOptions
+export interface ProcedureServerOptions extends ServerOptions {
+    registry?: ProcedureRegistry;
+    autoRegister?: boolean;
+    collections?: Record<string, CollectionStorage<unknown>>;
+    expose?: ((path: ProcedurePath) => boolean) | undefined;
+    strictCalls?: boolean | undefined;
+    interceptors?: readonly Interceptor[] | undefined;
+    capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
+    clearanceOrder?: ClearanceOrder | undefined;
+    resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
+    admitItem?: AdmitItem | undefined;
+    idempotency?: IdempotencyOptions | false | undefined;
+    token?: string | undefined;
+    authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
+}
+
+### dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
+export declare const STREAM_METADATA_KEY = "stream";
+
+### dist/server/procedure-server.d.ts#StopOptions
+export interface StopOptions {
+    grace?: Duration | undefined;
+}
+
+### dist/server/procedure-server.d.ts#StorageConfig
+export interface StorageConfig<T = unknown> {
+    storage: CollectionStorage<T>;
+    name: string;
+}
+
+### dist/server/procedure-server.d.ts#UseStorageOptions
+export interface UseStorageOptions {
+    drain?: boolean | undefined;
+    close?: boolean | undefined;
+}
+
+### dist/server/procedure-server.d.ts#createProcedureServer
+export declare function createProcedureServer(options?: ProcedureServerOptions): ProcedureServer;
+
+### dist/server/procedure-server.d.ts#isUnboundedStream
+export declare function isUnboundedStream(response: {
+    metadata?: Record<string, unknown> | undefined;
+}): boolean;
+
+### dist/server/procedure-server.d.ts#tokenMatches
+export declare function tokenMatches(expected: string, presented: string | undefined): boolean;
+
+### dist/server/request-auth.d.ts#bearerOf
+export declare function bearerOf(header: unknown): string | undefined;
+
+### dist/server/request-auth.d.ts#credentialsOf
+export declare function credentialsOf(request: {
+    headers: Record<string, unknown>;
+    url?: string | undefined;
+}): Credentials;
+
+### dist/server/request-auth.d.ts#withoutSecretHeaders
+export declare function withoutSecretHeaders(headers: Record<string, unknown>): Record<string, string>;
+
+### dist/server/server.d.ts#Server
+export declare class Server {
+    constructor(options?: ServerOptions);
+    register(matcher: Method | MethodMatcher, handler: ServerHandler): void;
+    use(middleware: ServerMiddleware): void;
+    addTransport(transport: ServerTransport): void;
+    getTransports(): ServerTransport[];
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    handle<TReq, TRes>(request: ServerRequest<TReq>): Promise<ServerResponse<TRes>>;
+    protected findHandler(method: Method): ServerHandler | null;
+}
+
+### dist/server/server.d.ts#ServerOptions
+export interface ServerOptions {
+    transports?: ServerTransport[];
+    onError?: (error: Error, request: ServerRequest) => void;
+    onRequest?: (request: ServerRequest) => void;
+    onResponse?: (response: ServerResponse) => void;
+}
+
+### dist/server/types.d.ts#Credentials
+export interface Credentials {
+    readonly bearer?: string | undefined;
+}
+
+### dist/server/types.d.ts#HandlerNotFoundError
+export declare class HandlerNotFoundError extends Error {
+    constructor(method: Method);
+}
+
+### dist/server/types.d.ts#Principal
+export interface Principal {
+    readonly id: string;
+    readonly via: string;
+    readonly claims?: Readonly<Record<string, unknown>> | undefined;
+}
+
+### dist/server/types.d.ts#RequestHandler
+export interface RequestHandler {
+    handle(request: ServerRequest): Promise<ServerResponse>;
+}
+
+### dist/server/types.d.ts#ServerContext
+export interface ServerContext<TReq = unknown> {
+    request: ServerRequest<TReq>;
+    state: Record<string, unknown>;
+}
+
+### dist/server/types.d.ts#ServerError
+export declare class ServerError extends Error {
+    readonly code: string;
+    readonly retryable: boolean;
+    constructor(message: string, code?: string, retryable?: boolean);
+}
+
+### dist/server/types.d.ts#ServerHandler
+export type ServerHandler<TReq = unknown, TRes = unknown> = (request: ServerRequest<TReq>) => Promise<ServerResponse<TRes>> | ServerResponse<TRes>;
+
+### dist/server/types.d.ts#ServerMiddleware
+export type ServerMiddleware<TReq = unknown, TRes = unknown> = (next: ServerRunner<TReq, TRes>) => ServerRunner<TReq, TRes>;
+
+### dist/server/types.d.ts#ServerRequest
+export interface ServerRequest<TReq = unknown> {
+    id: string;
+    method: Method;
+    payload: TReq;
+    metadata: Metadata;
+    signal?: AbortSignal;
+    credentials?: Credentials | undefined;
+    principal?: Principal | undefined;
+}
+
+### dist/server/types.d.ts#ServerResponse
+export interface ServerResponse<TRes = unknown> {
+    id: string;
+    status: Status;
+    payload?: TRes;
+    stream?: AsyncIterable<TRes>;
+    metadata: Metadata;
+}
+
+### dist/server/types.d.ts#ServerRunner
+export type ServerRunner<TReq = unknown, TRes = unknown> = (context: ServerContext<TReq>) => Promise<ServerResponse<TRes>>;
+
+### dist/server/types.d.ts#ServerTransport
+export interface ServerTransport {
+    readonly name: string;
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    isRunning(): boolean;
+}
+
+### dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
+export declare const TRACEPARENT_METADATA_KEY = "traceparent";
+
+### dist/tracing/traceparent.d.ts#TraceContext
+export interface TraceContext {
+    readonly traceId: string;
+    readonly spanId: string;
+    readonly sampled: boolean;
+}
+
+### dist/tracing/traceparent.d.ts#formatTraceparent
+export declare function formatTraceparent(traceId: string, spanId: string, sampled?: boolean): string;
+
+### dist/tracing/traceparent.d.ts#isW3cIds
+export declare function isW3cIds(traceId: string, spanId: string): boolean;
+
+### dist/tracing/traceparent.d.ts#newSpanId
+export declare function newSpanId(): string;
+
+### dist/tracing/traceparent.d.ts#newTraceId
+export declare function newTraceId(): string;
+
+### dist/tracing/traceparent.d.ts#parseTraceparent
+export declare function parseTraceparent(value: unknown): TraceContext | undefined;
