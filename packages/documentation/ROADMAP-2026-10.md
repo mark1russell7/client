@@ -94,7 +94,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R44 | 9 | More operations for fs, mongo, sqlite, s3, node and lib | M | in progress: the fs part is done | `f23c7ad` |
 | R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | open | |
 | R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | open | |
-| R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | open | |
+| R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | fixed, and CI keeps them current | `596190d`, `2315ea9` |
 | R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | fixed by the jarvis session, with an opt-in bundle for MCP | `5e2ba76`, `382b0fd`, `120be4c`, `4055a3d` |
 | R49 | 9 | Packages from jarvis, wave 2: `restic.run` and `tailscale.run` (the jarvis session builds them) | S | fixed by the jarvis session, not tools | `5e2ba76` |
 
@@ -496,7 +496,7 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 | R44 | fs: append, JSON write, watch, hash, temporary folders. mongo: `distinct`, bulk writes, `explain`, watch. sqlite: tables, schema, transactions, migrations, backup. s3: head, copy, presigned URLs. `node.logs`. `lib.graph`. |
 | R45 | A SQLite collection storage, and an IndexedDB program store for the site. |
 | R46 | `llm` (complete, structured), `schedule` (a cron that starts a stored program), `env` and secrets (not MCP tools), `archive`. |
-| R47 | Generate `PROCEDURES.md` and `PACKAGES.md` again. They say 157 procedures, and the registry has 158. |
+| R47 | Generate `PROCEDURES.md` and `PACKAGES.md` again. They say 157 procedures, and the registry has 158. Result: the CI job on Node 26 makes them from the built registry and fails on a difference. Its artifact has the new files. |
 | R48 | Code from jarvis without personal data: `@procedures/ics` (parse, fetch, occurrences), `@procedures/mail` (parse, headers), `@procedures/geo` (geocode, route), `@procedures/weather` (forecast), `@procedures/exif` (read), `@procedures/notify` (send through ntfy). The jarvis session builds them. This session adds them to the bundles and the MCP snapshots. |
 | R49 | `restic.run` and `tailscale.run`: one procedure for each CLI tool, on `client-shell`. The jarvis session builds them. |
 
