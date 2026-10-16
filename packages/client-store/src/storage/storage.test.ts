@@ -189,13 +189,14 @@ describe("HybridStorage (deep dive CORE-9, DATA-9)", () => {
     const remote = new ApiStorage<{ id: string; v: number }>(new Client(server.transport), { collection: "items" });
     const hybrid = new HybridStorage(remote, { syncOnInit: false, conflictResolution: "remote" });
 
-    const original = remote.getAll.bind(remote);
+    // The sync reads the changes (roadmap R28). The answer has the older value of "k".
+    const original = remote.getChangesSince.bind(remote);
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    remote.getAll = async () => {
-      const all = await original();
+    remote.getChangesSince = async (since?: string) => {
+      const changes = await original(since);
       await gate;
-      return all;
+      return changes;
     };
     const syncing = hybrid.syncFromRemote();
     await new Promise((resolve) => setImmediate(resolve));

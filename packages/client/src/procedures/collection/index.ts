@@ -21,6 +21,8 @@ export {
   getAllOutputSchema,
   entriesInputSchema,
   entriesOutputSchema,
+  changesInputSchema,
+  changesOutputSchema,
   sizeInputSchema,
   sizeOutputSchema,
   clearInputSchema,
@@ -41,6 +43,8 @@ export type {
   GetAllInput,
   EntriesInput,
   CollectionEntry,
+  ChangesInput,
+  ChangesOutput,
   SizeInput,
   ClearInput,
   GetBatchInput,
@@ -52,4 +56,4 @@ export type {
 export { createCollectionProcedures } from "./procedures.js";
 
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
-export type { CollectionStorage, StorageMetadata } from "./storage.js";
+export type { CollectionStorage, StorageChanges, StorageMetadata } from "./storage.js";

@@ -152,4 +152,48 @@ describe("InMemoryStorage", () => {
     expect(await storage.size()).toBe(0);
     await storage.close();
   });
+
+  it("gives the changes since a version: the changed items and the deleted ids (roadmap R28)", async () => {
+    const storage = new InMemoryStorage<{ n: number }>();
+    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+    const first = await storage.getChangesSince();
+    expect(first.full).toBe(true);
+    expect(first.changed).toEqual([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }]]);
+
+    await storage.set("a", { n: 10 });
+    await storage.delete("b");
+    await storage.delete("missing");
+    const second = await storage.getChangesSince(first.version);
+    expect(second).toEqual({ version: second.version, full: false, changed: [["a", { n: 10 }]], deleted: ["b"] });
+
+    // A deleted id that comes back is a change, not a delete
+    await storage.set("b", { n: 20 });
+    await storage.clear();
+    const third = await storage.getChangesSince(second.version);
+    expect(third.full).toBe(false);
+    expect(third.changed).toEqual([]);
+    expect(third.deleted.sort()).toEqual(["a", "b", "c"]);
+    expect(await storage.getChangesSince(third.version)).toEqual({ version: third.version, full: false, changed: [], deleted: [] });
+  });
+
+  it("gives all items for a version of another storage, of a closed storage, or older than the dropped deletes", async () => {
+    const storage = new InMemoryStorage<{ n: number }>({ maxTombstones: 2 });
+    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }], ["c", { n: 3 }], ["d", { n: 4 }]]);
+    const start = await storage.getChangesSince();
+
+    const other = await new InMemoryStorage<{ n: number }>().getChangesSince();
+    expect((await storage.getChangesSince(other.version)).full).toBe(true);
+    expect((await storage.getChangesSince("not a version")).full).toBe(true);
+
+    // Two deletes fit in the log
+    await storage.deleteBatch(["a", "b"]);
+    expect(await storage.getChangesSince(start.version)).toMatchObject({ full: false, deleted: ["a", "b"] });
+    // The third delete drops the oldest one: the start version gives all items now
+    await storage.delete("c");
+    const after = await storage.getChangesSince(start.version);
+    expect(after).toMatchObject({ full: true, changed: [["d", { n: 4 }]], deleted: [] });
+
+    await storage.close();
+    expect((await storage.getChangesSince(after.version)).full).toBe(true);
+  });
 });

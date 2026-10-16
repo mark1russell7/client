@@ -47,6 +47,15 @@ export interface CollectionStorage<T> {
   getEntries?(): Promise<Array<[string, T]>>;
 
   /**
+   * The changes after a version (roadmap R28). A storage without a change log does not have
+   * this method, and a sync uses `getEntries()`.
+   *
+   * @param since - A `version` that an earlier call gave. Without it, the result has all items.
+   * @returns Promise resolving to the changed items, the deleted ids and the new version
+   */
+  getChangesSince?(since?: string): Promise<StorageChanges<T>>;
+
+  /**
    * Find items matching predicate.
    *
    * @param predicate - Filter function
@@ -130,6 +139,14 @@ export interface CollectionStorage<T> {
   //
 
   /**
+   * This method sends the writes that wait in the storage to their destination (roadmap R28). A storage
+   * that keeps no writes does not have this method.
+   *
+   * @returns Promise resolving when the waiting writes reached their destination
+   */
+  flush?(): Promise<void>;
+
+  /**
    * Close storage and cleanup resources.
    * Should be called when collection is no longer needed.
    *
@@ -144,6 +161,27 @@ export interface CollectionStorage<T> {
    * @returns Promise resolving to storage-specific metadata
    */
   getMetadata?(): Promise<StorageMetadata>;
+}
+
+/**
+ * The changes of a storage after a version (roadmap R28).
+ *
+ * - `version` is opaque. The next call gives it back as `since`.
+ * - When `full` is true, `changed` has every item, and each id that it does not have was
+ *   deleted. A storage gives a full result when it cannot find the changes since the version:
+ *   the first call, a version of an older run, or a change log that dropped old deletes.
+ * - When `full` is false, `changed` has the items that changed after the version, and `deleted`
+ *   has the ids that were deleted after it.
+ */
+export interface StorageChanges<T> {
+  /** The version of the storage that includes these changes. */
+  version: string;
+  /** True when `changed` has every item of the storage. */
+  full: boolean;
+  /** The items that changed, with their ids. */
+  changed: Array<[string, T]>;
+  /** The ids that were deleted. Empty when `full` is true. */
+  deleted: string[];
 }
 
 /**

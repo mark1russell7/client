@@ -10,7 +10,8 @@
  * does not depend on the client package.
  */
 
-export type { CollectionStorage, StorageMetadata } from "./interface.js";
+export type { CollectionStorage, StorageChanges, StorageMetadata } from "./interface.js";
 export { normalizeStorageResult } from "./interface.js";
 
 export { InMemoryStorage } from "./memory.js";
+export type { InMemoryStorageOptions } from "./memory.js";

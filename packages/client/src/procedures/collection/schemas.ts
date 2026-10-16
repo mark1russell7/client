@@ -381,6 +381,71 @@ export const entriesOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Col
 });
 
 // =============================================================================
+// Changes Operation Schemas
+// =============================================================================
+
+/** Input for changes operation: the version of an earlier call (roadmap R28). */
+export interface ChangesInput {
+  /** The `version` of an earlier result. Without it, the result has all items. */
+  since?: string;
+}
+
+export const changesInputSchema : ZodLike<ChangesInput> = createSchema<ChangesInput>((data) => {
+  if (!isObject(data)) {
+    return {
+      success: false,
+      error: {
+        message: "Input must be an object",
+        errors: [{ path: [], message: "Input must be an object" }],
+      },
+    };
+  }
+  const since = data["since"];
+  if (since !== undefined && !isString(since)) {
+    return {
+      success: false,
+      error: {
+        message: "since must be a string",
+        errors: [{ path: ["since"], message: "since must be a string" }],
+      },
+    };
+  }
+  return { success: true, data: since === undefined ? {} : { since } };
+});
+
+/**
+ * Output for changes operation: the items that changed after the version, the deleted ids, and
+ * the new version. When `full` is true, `changed` has each item (roadmap R28).
+ */
+export interface ChangesOutput {
+  version: string;
+  full: boolean;
+  changed: CollectionEntry[];
+  deleted: string[];
+}
+
+export const changesOutputSchema : ZodLike<ChangesOutput> = createSchema<ChangesOutput>((data) => {
+  if (
+    isObject(data) &&
+    isString(data["version"]) &&
+    typeof data["full"] === "boolean" &&
+    isArray(data["changed"]) &&
+    data["changed"].every((entry) => isObject(entry) && isString(entry["id"]) && "value" in entry) &&
+    isArray(data["deleted"]) &&
+    data["deleted"].every((id) => isString(id))
+  ) {
+    return { success: true, data: data as unknown as ChangesOutput };
+  }
+  return {
+    success: false,
+    error: {
+      message: "Output must be { version, full, changed: [{ id, value }], deleted: [id] }",
+      errors: [{ path: [], message: "Output must be { version, full, changed: [{ id, value }], deleted: [id] }" }],
+    },
+  };
+});
+
+// =============================================================================
 // Size Operation Schemas
 // =============================================================================
 

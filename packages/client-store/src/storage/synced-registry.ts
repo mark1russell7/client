@@ -22,6 +22,18 @@ import type {
 import { ProcedureStorageAdapter } from "./adapter.js";
 import { serializeProcedure, deserializeProcedure, getSerializedKey } from "./serialization.js";
 import { optionalMs, toMs, type Duration } from "@procedures/client";
+import type { HybridMode } from "./hybrid.js";
+
+/** A storage with modes: `HybridStorage` (roadmap R28). */
+interface StorageWithModes {
+  getMode(): HybridMode;
+  setMode(mode: HybridMode): Promise<void>;
+}
+
+function hasModes(storage: unknown): storage is StorageWithModes {
+  const candidate = storage as Partial<StorageWithModes> | null;
+  return typeof candidate?.setMode === "function" && typeof candidate.getMode === "function";
+}
 
 // =============================================================================
 // Extended Registration Options
@@ -101,6 +113,8 @@ export function getProcedureStore(registry: ProcedureRegistry): SyncedProcedureR
 export class SyncedProcedureRegistry {
   private readonly baseRegistry: ProcedureRegistry;
   private readonly adapter: ProcedureStorageAdapter;
+  /** The storage of the records: `setMode` changes its mode */
+  private readonly storage: CollectionStorage<SerializedProcedure>;
   /** The options, with the sync interval in milliseconds */
   private readonly options: Omit<SyncedRegistryOptions, "syncInterval"> & { syncInterval: number };
 
@@ -144,6 +158,7 @@ export class SyncedProcedureRegistry {
     options: Partial<SyncedRegistryOptions> = {}
   ) {
     this.baseRegistry = baseRegistry;
+    this.storage = storage;
     this.adapter = new ProcedureStorageAdapter(storage, {
       handlerLoader: options.handlerLoader,
     });
@@ -496,7 +511,33 @@ export class SyncedProcedureRegistry {
       lastSync: this.lastSyncTime,
       pendingChanges: this.pendingChanges.size + this.pendingDeletes.size,
       syncing: this.syncing,
+      mode: this.getMode(),
     };
+  }
+
+  // ===========================================================================
+  // The mode of the storage (roadmap R28)
+  // ===========================================================================
+
+  /** The mode of the storage, or undefined when the storage has no modes. */
+  getMode(): HybridMode | undefined {
+    return hasModes(this.storage) ? this.storage.getMode() : undefined;
+  }
+
+  /**
+   * This method changes the mode of the storage while the registry operates (roadmap R28). The registry
+   * waits for its write-through stores that run, then `HybridStorage.setMode()` changes the
+   * mode: it sends the queued records before the change.
+   *
+   * @param mode - `local-only`, `write-through`, `write-back` or `remote-only`
+   * @throws When the storage has no modes, or when the switch fails (`ModeSwitchError`)
+   */
+  async setMode(mode: HybridMode): Promise<void> {
+    if (!hasModes(this.storage)) {
+      throw new Error('The storage of this registry has no modes: use createSyncedRegistry({ type: "hybrid" })');
+    }
+    await this.flushWrites();
+    await this.storage.setMode(mode);
   }
 
   // ===========================================================================

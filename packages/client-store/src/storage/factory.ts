@@ -9,7 +9,7 @@ import type { CollectionStorage } from "@procedures/collections";
 import { InMemoryStorage } from "@procedures/collections";
 import { ApiStorage } from "./api.js";
 import { HybridStorage } from "./hybrid.js";
-import type { HybridStorageOptions } from "./hybrid.js";
+import type { HybridMode, HybridStorageOptions } from "./hybrid.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "@procedures/client";
 import type { SerializedProcedure, SyncedRegistryOptions, HandlerLoader } from "./types.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";
@@ -48,6 +48,14 @@ export interface CreateSyncedRegistryConfig {
    * `collections.<collection>`.
    */
   service?: string | undefined;
+
+  /**
+   * The first mode of the hybrid storage (roadmap R28): `local-only`, `write-through`,
+   * `write-back` or `remote-only`. `setMode()` of the registry changes it later. Only the type
+   * "hybrid" has modes.
+   * @default "write-through"
+   */
+  mode?: HybridMode | undefined;
 
   /**
    * Additional options for hybrid storage.
@@ -99,11 +107,15 @@ export interface CreateSyncedRegistryConfig {
  *   type: 'hybrid',
  *   client: myClient,
  *   service: 'procedures',
+ *   mode: 'write-through',
  *   hybridOptions: {
- *     writeStrategy: 'write-through',
  *     conflictResolution: 'remote',
  *   },
  * });
+ *
+ * // Offline, then online again: the switch sends the queued records
+ * await registry.setMode('local-only');
+ * await registry.setMode('write-through');
  * ```
  */
 export function createSyncedRegistry(config: CreateSyncedRegistryConfig): SyncedProcedureRegistry {
@@ -112,6 +124,7 @@ export function createSyncedRegistry(config: CreateSyncedRegistryConfig): Synced
     client,
     collection = "procedures",
     service,
+    mode,
     hybridOptions,
     registryOptions = {},
     baseRegistry = PROCEDURE_REGISTRY,
@@ -123,6 +136,9 @@ export function createSyncedRegistry(config: CreateSyncedRegistryConfig): Synced
   // Validate client is provided for api/hybrid
   if ((type === "api" || type === "hybrid") && !client) {
     throw new Error(`Client is required for storage type: ${type}`);
+  }
+  if (mode !== undefined && type !== "hybrid") {
+    throw new Error(`Only the storage type "hybrid" has modes, not "${type}"`);
   }
 
   // Create the appropriate storage backend
@@ -145,14 +161,15 @@ export function createSyncedRegistry(config: CreateSyncedRegistryConfig): Synced
         collection,
         ...(service !== undefined && { service }),
       });
+      const { mode: optionMode, writeStrategy, ...otherOptions } = hybridOptions ?? {};
       storage = new HybridStorage<SerializedProcedure>(
         remoteStorage,
         {
-          writeStrategy: hybridOptions?.writeStrategy ?? "write-through",
           conflictResolution: hybridOptions?.conflictResolution ?? "local",
           // A procedure record has no id: its key is its path (deep dive DATA-9)
           keyOf: getSerializedKey,
-          ...hybridOptions,
+          ...otherOptions,
+          mode: mode ?? optionMode ?? writeStrategy ?? "write-through",
         }
       );
       break;

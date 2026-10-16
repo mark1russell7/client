@@ -88,7 +88,7 @@ export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 
 // Collection procedures
 export { createCollectionProcedures } from "./collection/index.js";
-export type { CollectionStorage, StorageMetadata } from "./collection/index.js";
+export type { CollectionStorage, StorageChanges, StorageMetadata } from "./collection/index.js";
 
 // Manual registration helpers
 export {
