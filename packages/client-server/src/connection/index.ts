@@ -8,11 +8,13 @@
 import {
   Client,
   HttpTransport,
-  WebSocketTransport,
   defaultUrlPattern,
   postOnlyStrategy,
   type HttpTransportOptions,
 } from "@procedures/client";
+// The Node entry: its WebSocketTransport uses the ws class, so a drop ends the socket at once with
+// terminate(). The peer package runs in Node only.
+import { WebSocketTransport } from "@procedures/client/node";
 import type {
   TransportType,
   PeerConnection,
