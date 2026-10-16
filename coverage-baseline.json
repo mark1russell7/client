@@ -1,4 +1,22 @@
 {
+  "@procedures/archive": {
+    "lines": 96.7,
+    "statements": 92.5,
+    "functions": 92.3,
+    "branches": 86.9
+  },
+  "@procedures/bundle-assistant": {
+    "lines": 44.4,
+    "statements": 44.4,
+    "functions": 0,
+    "branches": 0
+  },
+  "@procedures/bundle-dev": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 0
+  },
   "@procedures/bundle-mcp": {
     "lines": 100,
     "statements": 100,
@@ -12,22 +30,22 @@
     "branches": 44
   },
   "@procedures/client": {
-    "lines": 77.8,
-    "statements": 77.4,
-    "functions": 74.9,
-    "branches": 71.1
+    "lines": 77.9,
+    "statements": 77.5,
+    "functions": 75,
+    "branches": 71.2
   },
   "@procedures/collections": {
-    "lines": 54.6,
-    "statements": 53.5,
+    "lines": 54.7,
+    "statements": 53.7,
     "functions": 47.6,
     "branches": 45.9
   },
   "@procedures/compiler": {
-    "lines": 94.3,
-    "statements": 91.6,
-    "functions": 95,
-    "branches": 83.6
+    "lines": 95.5,
+    "statements": 93.2,
+    "functions": 96.5,
+    "branches": 85
   },
   "@procedures/cue": {
     "lines": 85.6,
@@ -42,28 +60,88 @@
     "branches": 89.4
   },
   "@procedures/docker": {
-    "lines": 91,
-    "statements": 85.9,
+    "lines": 99.6,
+    "statements": 98.5,
     "functions": 100,
-    "branches": 74.1
+    "branches": 96.4
+  },
+  "@procedures/documentation": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "@procedures/env": {
+    "lines": 93.9,
+    "statements": 94.8,
+    "functions": 100,
+    "branches": 96.1
+  },
+  "@procedures/exif": {
+    "lines": 90.3,
+    "statements": 88,
+    "functions": 92.3,
+    "branches": 74.4
   },
   "@procedures/fs": {
-    "lines": 95.2,
-    "statements": 93.5,
+    "lines": 95.7,
+    "statements": 94.2,
     "functions": 100,
     "branches": 88.1
   },
+  "@procedures/geo": {
+    "lines": 83.3,
+    "statements": 82.2,
+    "functions": 83.3,
+    "branches": 77.4
+  },
+  "@procedures/gh": {
+    "lines": 93.4,
+    "statements": 91.7,
+    "functions": 95.6,
+    "branches": 71.6
+  },
   "@procedures/git": {
-    "lines": 94.7,
-    "statements": 92.7,
-    "functions": 98.7,
-    "branches": 78.1
+    "lines": 96.1,
+    "statements": 94.1,
+    "functions": 99.2,
+    "branches": 82
+  },
+  "@procedures/http": {
+    "lines": 96.3,
+    "statements": 94.7,
+    "functions": 96.1,
+    "branches": 87.8
+  },
+  "@procedures/ics": {
+    "lines": 95.5,
+    "statements": 93.8,
+    "functions": 97.1,
+    "branches": 84.2
+  },
+  "@procedures/json": {
+    "lines": 98.7,
+    "statements": 97.3,
+    "functions": 100,
+    "branches": 96.3
   },
   "@procedures/lib": {
-    "lines": 71.5,
-    "statements": 71.8,
-    "functions": 69,
-    "branches": 55.5
+    "lines": 75,
+    "statements": 75.7,
+    "functions": 73.1,
+    "branches": 60
+  },
+  "@procedures/llm": {
+    "lines": 96.1,
+    "statements": 94.8,
+    "functions": 91.8,
+    "branches": 89.4
+  },
+  "@procedures/mail": {
+    "lines": 87.9,
+    "statements": 83.9,
+    "functions": 84.3,
+    "branches": 70.1
   },
   "@procedures/mark": {
     "lines": 59.1,
@@ -72,10 +150,10 @@
     "branches": 57.9
   },
   "@procedures/mcp": {
-    "lines": 46.5,
-    "statements": 43.5,
-    "functions": 34.4,
-    "branches": 34.6
+    "lines": 50.9,
+    "statements": 49.1,
+    "functions": 40.6,
+    "branches": 42.3
   },
   "@procedures/mcp-dev-tools": {
     "lines": 57.4,
@@ -90,16 +168,28 @@
     "branches": 62.8
   },
   "@procedures/mongo": {
-    "lines": 82.4,
-    "statements": 81,
-    "functions": 77.5,
-    "branches": 70.2
+    "lines": 88,
+    "statements": 87.3,
+    "functions": 80.1,
+    "branches": 82.5
   },
   "@procedures/node": {
-    "lines": 56.2,
-    "statements": 55.2,
-    "functions": 68.4,
-    "branches": 60.7
+    "lines": 79.5,
+    "statements": 79.4,
+    "functions": 81.8,
+    "branches": 72.3
+  },
+  "@procedures/notify": {
+    "lines": 65.3,
+    "statements": 67.8,
+    "functions": 80,
+    "branches": 79.3
+  },
+  "@procedures/npm": {
+    "lines": 92.6,
+    "statements": 93.6,
+    "functions": 100,
+    "branches": 93.4
   },
   "@procedures/peer": {
     "lines": 49.2,
@@ -107,11 +197,17 @@
     "functions": 58.6,
     "branches": 44.2
   },
+  "@procedures/playground": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 0
+  },
   "@procedures/pnpm": {
-    "lines": 19.8,
-    "statements": 19.4,
-    "functions": 30,
-    "branches": 19.1
+    "lines": 64.6,
+    "statements": 65.8,
+    "functions": 60,
+    "branches": 52.7
   },
   "@procedures/procedure": {
     "lines": 7.4,
@@ -125,11 +221,23 @@
     "functions": 28.5,
     "branches": 16.9
   },
+  "@procedures/restic": {
+    "lines": 79.4,
+    "statements": 84,
+    "functions": 85.7,
+    "branches": 72.2
+  },
   "@procedures/s3": {
-    "lines": 92.6,
-    "statements": 92.7,
-    "functions": 96.7,
-    "branches": 77.2
+    "lines": 94.4,
+    "statements": 93.1,
+    "functions": 97.5,
+    "branches": 79.6
+  },
+  "@procedures/schedule": {
+    "lines": 95.4,
+    "statements": 94.4,
+    "functions": 94.5,
+    "branches": 90.1
   },
   "@procedures/server": {
     "lines": 49,
@@ -147,7 +255,7 @@
     "lines": 33.5,
     "statements": 33,
     "functions": 25.5,
-    "branches": 29.3
+    "branches": 29.4
   },
   "@procedures/snapshot": {
     "lines": 59.3,
@@ -162,22 +270,28 @@
     "branches": 54
   },
   "@procedures/sqlite": {
-    "lines": 89,
-    "statements": 89.4,
-    "functions": 94.1,
-    "branches": 64.8
+    "lines": 97,
+    "statements": 95.5,
+    "functions": 96.6,
+    "branches": 80.5
   },
   "@procedures/store": {
-    "lines": 84.2,
-    "statements": 82.9,
-    "functions": 85.1,
-    "branches": 75.2
+    "lines": 85.2,
+    "statements": 84.1,
+    "functions": 86.6,
+    "branches": 76
   },
   "@procedures/systems": {
     "lines": 90,
     "statements": 89.8,
     "functions": 94.1,
     "branches": 90
+  },
+  "@procedures/tailscale": {
+    "lines": 45,
+    "statements": 40.3,
+    "functions": 42.8,
+    "branches": 27
   },
   "@procedures/vite": {
     "lines": 60.5,
@@ -190,5 +304,11 @@
     "statements": 86.1,
     "functions": 100,
     "branches": 63.3
+  },
+  "@procedures/weather": {
+    "lines": 76.3,
+    "statements": 78.5,
+    "functions": 85.7,
+    "branches": 74.2
   }
 }
