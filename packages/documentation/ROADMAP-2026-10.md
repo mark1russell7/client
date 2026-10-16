@@ -64,9 +64,9 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R14 | 2 | Cancellation scopes and a graceful stop | M | fixed | `381ce3a` |
 | R15 | 2 | Unbounded streams on the faces that collect a stream | S–M | fixed | `c5528e4` |
 | R16 | 2 | One trace from the client to the handler | S–M | fixed | `ff62281` |
-| R17 | 3 | One manifest type, built from the registry and the expose rule | M | open | |
-| R18 | 3 | A typed server-transport contract, a principal, the token in `ProcedureServer` | M | open | |
-| R19 | 3 | `host.health`, `host.info` and `host.metrics` | S | open | |
+| R17 | 3 | One manifest type, built from the registry and the expose rule | M | fixed | `956e88b` |
+| R18 | 3 | A typed server-transport contract, a principal, the token in `ProcedureServer` | M | fixed | `b07bb50`, `6982e04` |
+| R19 | 3 | `host.health`, `host.info` and `host.metrics` | S | fixed | `07cc998` |
 | R20 | 4 | `@procedures/compiler`: the IR and `program.check` | M | open | |
 | R21 | 4 | `program.compile` and the equivalence tests | M | open | |
 | R22 | 4 | The interpreter and the site use the IR of the compiler | M | open | |
