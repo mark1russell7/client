@@ -20,6 +20,7 @@
     "@procedures/exif": "workspace:*",
     "@procedures/fs": "workspace:*",
     "@procedures/geo": "workspace:*",
+    "@procedures/gh": "workspace:*",
     "@procedures/git": "workspace:*",
     "@procedures/ics": "workspace:*",
     "@procedures/lib": "workspace:*",

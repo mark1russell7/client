@@ -1,0 +1,167 @@
+/**
+ * The procedures of @procedures/gh as data. Importing this file registers nothing.
+ *
+ * Each procedure runs the GitHub CLI (`gh`) through `shell.run`, with an argument list and no
+ * shell (roadmap R42). The reads declare `reads: ["network"]`. The procedures that make or change
+ * something on GitHub declare `writes: ["network"]`.
+ *
+ * Scaffold a procedure with: mark procedure new <name> --path packages/gh
+ */
+
+import { z } from "zod";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, type AnyProcedure, type Effects, type ProcedureModule, type ProcedureRegistry, createProcedure, zodAdapter } from "@procedures/client";
+import shellModule from "@procedures/shell/module";
+import { ghPrList } from "./procedures/gh/pr/list.js";
+import { ghPrView } from "./procedures/gh/pr/view.js";
+import { ghPrChecks } from "./procedures/gh/pr/checks.js";
+import { ghPrCreate } from "./procedures/gh/pr/create.js";
+import { ghRunList } from "./procedures/gh/run/list.js";
+import { ghRunView } from "./procedures/gh/run/view.js";
+import { ghRunRerun } from "./procedures/gh/run/rerun.js";
+import { ghReleaseList } from "./procedures/gh/release/list.js";
+import { ghReleaseView } from "./procedures/gh/release/view.js";
+import { ghIssueList } from "./procedures/gh/issue/list.js";
+import { ghIssueView } from "./procedures/gh/issue/view.js";
+import { ghIssueCreate } from "./procedures/gh/issue/create.js";
+import { ghIssueComment } from "./procedures/gh/issue/comment.js";
+
+/** A read of GitHub: it changes nothing. */
+const READS: Effects = { reads: ["network"], writes: [] };
+/** A write to GitHub that makes something new: not destructive, and a second call makes a second one. */
+const MAKES: Effects = { reads: ["network"], writes: ["network"], destructive: false, idempotent: false };
+
+const common = {
+  repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "owner/name").optional().describe("The repository as owner/name (default: the repository of the folder)"),
+  cwd: z.string().optional().describe("The folder where gh runs"),
+  timeoutMs: z.number().int().min(1).optional().describe("The time limit of the command, in milliseconds"),
+};
+const limit = z.number().int().min(1).max(1000).optional().describe("The most items (default 30)");
+const list = z.object({ items: z.array(z.record(z.string(), z.unknown())).describe("The JSON objects that gh gives") });
+const item = z.object({ item: z.record(z.string(), z.unknown()).describe("The JSON object that gh gives") });
+const created = z.object({ url: z.string().describe("The URL of what gh made") });
+
+/** One procedure of this package. Each one runs gh through shell.run, and declares it. */
+function gh<I, O>(
+  path: string[],
+  description: string,
+  input: z.ZodType<I>,
+  output: z.ZodType<O>,
+  effects: Effects,
+  handler: (input: I, ctx: Parameters<typeof ghPrList>[1]) => Promise<O>,
+  args: string[] = [],
+): AnyProcedure {
+  return createProcedure()
+    .path(path)
+    .input(zodAdapter<I>(input))
+    .output(zodAdapter<O>(output))
+    .meta({ description, args, shorts: {}, output: "json", effects, calls: ["shell.run"] })
+    .handler(handler as never)
+    .build() as unknown as AnyProcedure;
+}
+
+const procedures: AnyProcedure[] = [
+  gh(
+    ["gh", "pr", "list"],
+    "The pull requests of a repository",
+    z.object({
+      ...common,
+      state: z.enum(["open", "closed", "merged", "all"]).optional().describe("The state (default open)"),
+      author: z.string().optional().describe("Only the pull requests of this author"),
+      base: z.string().optional().describe("Only the pull requests into this branch"),
+      head: z.string().optional().describe("Only the pull requests from this branch"),
+      search: z.string().optional().describe("A search of GitHub"),
+      limit,
+    }),
+    list,
+    READS,
+    ghPrList,
+  ),
+  gh(["gh", "pr", "view"], "One pull request", z.object({ ...common, pr: z.string().min(1).describe("The number, the branch or the URL of the pull request") }), item, READS, ghPrView, ["pr"]),
+  gh(["gh", "pr", "checks"], "The checks of a pull request", z.object({ ...common, pr: z.string().min(1).describe("The number, the branch or the URL of the pull request") }), list, READS, ghPrChecks, ["pr"]),
+  gh(
+    ["gh", "pr", "create"],
+    "Open a pull request",
+    z.object({
+      ...common,
+      title: z.string().min(1).describe("The title"),
+      body: z.string().describe("The text of the pull request"),
+      base: z.string().optional().describe("The branch to merge into (default: the default branch)"),
+      head: z.string().optional().describe("The branch with the changes (default: the current branch)"),
+      draft: z.boolean().optional().describe("Open it as a draft"),
+    }),
+    created,
+    MAKES,
+    ghPrCreate,
+  ),
+  gh(
+    ["gh", "run", "list"],
+    "The workflow runs of a repository",
+    z.object({
+      ...common,
+      workflow: z.string().optional().describe("The name or the file of a workflow"),
+      branch: z.string().optional().describe("Only the runs of this branch"),
+      status: z.string().optional().describe("Only the runs with this status, for example completed or failure"),
+      limit: z.number().int().min(1).max(1000).optional().describe("The most runs (default 20)"),
+    }),
+    list,
+    READS,
+    ghRunList,
+  ),
+  gh(["gh", "run", "view"], "One workflow run with its jobs", z.object({ ...common, run: z.number().int().min(1).describe("The id of the run") }), item, READS, ghRunView, ["run"]),
+  gh(
+    ["gh", "run", "rerun"],
+    "Run a workflow run again",
+    z.object({ ...common, run: z.number().int().min(1).describe("The id of the run"), failedOnly: z.boolean().optional().describe("Only the jobs that failed") }),
+    z.object({ run: z.number().describe("The id of the run") }),
+    MAKES,
+    ghRunRerun,
+    ["run"],
+  ),
+  gh(["gh", "release", "list"], "The releases of a repository", z.object({ ...common, limit }), list, READS, ghReleaseList),
+  gh(["gh", "release", "view"], "One release: the release of a tag, or the latest release", z.object({ ...common, tag: z.string().optional().describe("The tag (default: the latest release)") }), item, READS, ghReleaseView, ["tag"]),
+  gh(
+    ["gh", "issue", "list"],
+    "The issues of a repository",
+    z.object({
+      ...common,
+      state: z.enum(["open", "closed", "all"]).optional().describe("The state (default open)"),
+      label: z.string().optional().describe("Only the issues with this label"),
+      author: z.string().optional().describe("Only the issues of this author"),
+      search: z.string().optional().describe("A search of GitHub"),
+      limit,
+    }),
+    list,
+    READS,
+    ghIssueList,
+  ),
+  gh(["gh", "issue", "view"], "One issue, with its comments", z.object({ ...common, issue: z.string().min(1).describe("The number or the URL of the issue") }), item, READS, ghIssueView, ["issue"]),
+  gh(
+    ["gh", "issue", "create"],
+    "Open an issue",
+    z.object({ ...common, title: z.string().min(1).describe("The title"), body: z.string().describe("The text of the issue"), labels: z.array(z.string()).optional().describe("The labels") }),
+    created,
+    MAKES,
+    ghIssueCreate,
+  ),
+  gh(
+    ["gh", "issue", "comment"],
+    "Add a comment to an issue or a pull request",
+    z.object({ ...common, issue: z.string().min(1).describe("The number or the URL of the issue or the pull request"), body: z.string().min(1).describe("The text of the comment") }),
+    created,
+    MAKES,
+    ghIssueComment,
+    ["issue"],
+  ),
+];
+
+export const ghModule: ProcedureModule = defineModule("@procedures/gh", procedures, [shellModule]);
+
+export default ghModule;
+
+/**
+ * This function registers the procedures of @procedures/gh in a registry. The default is the
+ * global registry.
+ */
+export function registerGhProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [ghModule]);
+}
