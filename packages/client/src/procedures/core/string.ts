@@ -132,7 +132,9 @@ const replaceProcedure: ReplaceProcedure = defineProcedure({
     if (input.all) {
       return input.value.split(input.search).join(input.replace);
     }
-    return input.value.replace(input.search, input.replace);
+    // A function gives the replacement as text. Before, "$$" became "$" and "$&" became the match
+    // (catalog test, roadmap R29).
+    return input.value.replace(input.search, () => input.replace);
   },
 });
 
@@ -382,7 +384,7 @@ interface TemplateInput {
 }
 
 const TemplateInputSchema = z.object({
-  template: z.string().describe("The template text, with {name} placeholders"),
+  template: z.string().describe("The template text, with {{name}} placeholders"),
   values: z.record(z.string(), z.unknown()).describe("The values"),
 });
 
