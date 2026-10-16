@@ -93,7 +93,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R43 | 9 | npm registry procedures | S–M | fixed | `2bc7ce5` |
 | R44 | 9 | More operations for fs, mongo, sqlite, s3, node and lib | M | fixed, 5 read-only tools | `f23c7ad`, `ffb35f3`, `3aa6495`, `94dd2a0`, `04cfef8`, `4d3ff39`, `5b7b673` |
 | R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | fixed | `4ef0d44`, `4ec3898` |
-| R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | open | |
+| R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | fixed, no MCP tools | `53785c6`, `b2175e8`, `808c510`, `c56dce3`, `2a7bd8a` |
 | R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | fixed, and CI keeps them current | `596190d`, `2315ea9` |
 | R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | fixed by the jarvis session, with an opt-in bundle for MCP | `5e2ba76`, `382b0fd`, `120be4c`, `4055a3d` |
 | R49 | 9 | Packages from jarvis, wave 2: `restic.run` and `tailscale.run` (the jarvis session builds them) | S | fixed by the jarvis session, not tools | `5e2ba76` |
@@ -534,4 +534,9 @@ The review found code that is a candidate for removal or a move. These items nee
   - `node.logs` has no follow stream, because the process registry of `client-shell` keeps its listeners private.
   - `SqliteStorage` writes the whole database file after each write, because sql.js has no partial writes.
   - A shared contract test suite for `CollectionStorage` does not exist. The storages copy the cases of `InMemoryStorage`.
-  - The MCP host has 91 tools. Some procedures can carry data out, change data in bulk, or run without an end. They are not tools: `http.*`, `docker.push`, `docker.prune`, `docker.volume.remove`, `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup`. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
+  - The MCP host has 91 tools. Some procedures can carry data out, change data in bulk, or run without an end. They are not tools: `http.*`, `docker.push`, `docker.prune`, `docker.volume.remove`, `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup`.
+  - R46 adds no MCP tools. `llm.*` costs money and sends data out. `env.*` can show secrets. `fs` is not an MCP namespace, and `archive.list` reads files. It is not a tool for that reason. `schedule.next` has little use without `schedule.add`.
+  - `llm` has no event stream, no tool use and no automatic retry. An error has a `retryable` flag. `schedule` has no IANA time zones, and `FileScheduleStore` has no lock for more than one process. `archive` has no file root.
+  - The root `.gitignore` ignores `secrets.*`. An agent made `packages/env/src/secrets.ts`, and git did not take it. A negation line keeps that file in git. A merge of an agent branch checks the ignored files of the worktree.
+  - Stryker 10.0.0 rewrites `tsconfig.json` in its sandbox with the JavaScript API of TypeScript. TypeScript 7 does not have that API, so the mutation job runs Stryker in place.
+  - The fs root decides by the real path. A link from outside the root that leads into the root is accepted, because it reaches only files in the root. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.

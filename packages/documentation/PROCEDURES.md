@@ -4,11 +4,12 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 267 across 42 namespaces. Loaded 37 package register(s).
+**Total procedures:** 279 across 46 namespaces. Loaded 41 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
+- [`archive.*`](#archive) — 3 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
 - [`client.*`](#client) — 15 procedure(s)
 - [`core.*`](#core) — 1 procedure(s)
@@ -17,6 +18,7 @@
 - [`db.*`](#db) — 7 procedure(s)
 - [`docker.*`](#docker) — 25 procedure(s)
 - [`ecosystem.*`](#ecosystem) — 1 procedure(s)
+- [`env.*`](#env) — 3 procedure(s)
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`geo.*`](#geo) — 2 procedure(s)
@@ -26,6 +28,7 @@
 - [`ics.*`](#ics) — 3 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
 - [`lib.*`](#lib) — 5 procedure(s)
+- [`llm.*`](#llm) — 2 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`mail.*`](#mail) — 2 procedure(s)
 - [`manifest.*`](#manifest) — 1 procedure(s)
@@ -39,6 +42,7 @@
 - [`program.*`](#program) — 4 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
 - [`s3.*`](#s3) — 12 procedure(s)
+- [`schedule.*`](#schedule) — 4 procedure(s)
 - [`sdk.*`](#sdk) — 2 procedure(s)
 - [`server.*`](#server) — 8 procedure(s)
 - [`shell.*`](#shell) — 4 procedure(s)
@@ -58,6 +62,14 @@
 | Procedure | Description |
 |-----------|-------------|
 | `_discovery.announce` | Exchange procedure manifests for discovery |
+
+## archive
+
+| Procedure | Description |
+|-----------|-------------|
+| `archive.create` | Make a tar.gz or zip archive of a folder or of files |
+| `archive.extract` | Extract a tar.gz or zip archive into a folder, with a check of each path |
+| `archive.list` | The entries of a tar.gz or zip archive |
 
 ## cli
 
@@ -154,6 +166,14 @@
 | Procedure | Description |
 |-----------|-------------|
 | `ecosystem.procedures` | List all procedures across the ecosystem |
+
+## env
+
+| Procedure | Description |
+|-----------|-------------|
+| `env.check` | Which required environment variables are missing |
+| `env.get` | One environment variable. A secret is masked unless the host reveals it |
+| `env.list` | The names of the environment variables, never the values of the secrets |
 
 ## exif
 
@@ -293,6 +313,13 @@
 | `lib.new` | Create a new package in the ecosystem |
 | `lib.rename` | Rename a package across the ecosystem |
 | `lib.scan` | Scan for packages in the git directory |
+
+## llm
+
+| Procedure | Description |
+|-----------|-------------|
+| `llm.complete` | Send a prompt to a language model and give the text and the usage |
+| `llm.structured` | Send a prompt and a JSON Schema to a language model and give a value that the schema accepts |
 
 ## logs
 
@@ -439,6 +466,15 @@
 | `s3.multipart.upload` | Upload a part in multipart upload |
 | `s3.presign` | A presigned URL for a GET or a PUT of an object, with an expiry in seconds |
 | `s3.upload` | Upload content to S3 bucket |
+
+## schedule
+
+| Procedure | Description |
+|-----------|-------------|
+| `schedule.add` | Add a schedule: a cron expression that starts a stored program with an input |
+| `schedule.list` | The schedules, with the next time and the last run of each |
+| `schedule.next` | The next times of a cron expression |
+| `schedule.remove` | Remove a schedule |
 
 ## sdk
 

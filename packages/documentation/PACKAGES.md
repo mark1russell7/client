@@ -4,12 +4,13 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 48. **Procedures:** 267. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 52. **Procedures:** 279. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
 | Package | Folder | Description | Procedures | Depends on |
 |---|---|---|---|---|
+| `@procedures/archive` | `packages/archive` | Archives as procedures: make, list and extract tar.gz and zip, with a check of each path against zip slip and links out of the target. | `archive.*` (3) | `client` |
 | `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `ics`, `mail`, `weather` |
 | `@procedures/bundle-dev` | `packages/bundle-dev` | One import that registers the development procedures of the client ecosystem: shell, file system, git, pnpm, workspace, DAG and procedure scaffolding. | `client.*` (15), `procedure.*` (5) | `cli-run`, `client`, `compiler`, `dag`, `fs`, `git`, `lib`, `pnpm`, `procedure`, `shell` |
 | `@procedures/bundle-mcp` | `packages/bundle-mcp` | The curated tool surface for Claude: registers the docker, mongo, sqlite, cue, vitest and workspace procedures and selects which ones an MCP server exposes. | — | `client`, `compiler`, `cue`, `docker`, `json`, `lib`, `mongo`, `procedure`, `sqlite`, `vitest` |
@@ -40,6 +41,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/vitest` | `packages/client-vitest` | Vitest as procedures: run the tests with results and coverage, watch, and stop the managed watch processes. | `vitest.*` (5) | `client`, `shell` |
 | `@procedures/compiler` | `packages/compiler` | The compiler of procedure programs: it checks a JSON program before the first call (scopes, effects, schemas, capability) and writes it as a plain async function. | `program.*` (4), `sdk.*` (2) | `client` |
 | `@procedures/documentation` | `packages/documentation` | — | — | — |
+| `@procedures/env` | `packages/env` | Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked. | `env.*` (3) | `client` |
 | `@procedures/exif` | `packages/exif` | When and where a JPEG photo was taken, from its EXIF block (time, offset, GPS), without a dependency. | `exif.*` (1) | `client` |
 | `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim) and the time and distance of a drive (OSRM). | `geo.*` (2) | `client` |
 | `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs, releases and issues, with an argument list and no shell. | `gh.*` (13) | `client`, `shell` |
@@ -47,12 +49,14 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader without dependencies: the events of a calendar and their occurrences in a time window, recurrences included. | `ics.*` (3) | `client` |
 | `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 91 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `mcp-server` |
 | `@procedures/json` | `packages/json` | Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back. | `json.*` (5), `yaml.*` (2) | `client`, `compiler` |
+| `@procedures/llm` | `packages/llm` | A language model as procedures: a completion and a structured answer that a JSON Schema accepts, through the Anthropic Messages API, with the key from the environment. | `llm.*` (2) | `client`, `json` |
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
 | `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `cli-run`, `client`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
 | `@procedures/notify` | `packages/notify` | Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address. | `notify.*` (1) | `client` |
 | `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. | `npm.*` (7) | `client`, `shell` |
 | `@procedures/restic` | `packages/restic` | The restic backup program as one procedure: backup, snapshots, restore and forget, with JSON output and no secret as input. | `restic.*` (1) | `client`, `shell` |
+| `@procedures/schedule` | `packages/schedule` | A cron for stored programs: schedules as procedures, and a scheduler that a host starts, with an injectable clock and no overlapping runs. | `schedule.*` (4) | `client`, `store` |
 | `@procedures/server` | `packages/server` | A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list. | — | `client`, `peer` |
 | `@procedures/site` | `packages/site` | The website of the client ecosystem: the Composer, the procedure catalog and the architecture map | — | `client`, `store` |
 | `@procedures/systems` | `packages/systems` | The timer law of systems for the client: it binds the times of the middleware, the transports and the server to the symbols of the law, and examines the rules of the client. | `systems.*` (1) | `@mark1russell7/service` *(general)*, `client` |
