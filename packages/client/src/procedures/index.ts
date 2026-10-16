@@ -62,6 +62,7 @@ export {
   IdempotencyCache,
   idempotencyKeyOf,
   idempotentIn,
+  effectsIn,
   isRepeatable,
   newIdempotencyKey,
 } from "./idempotency.js";

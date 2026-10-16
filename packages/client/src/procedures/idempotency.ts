@@ -44,6 +44,18 @@ export function idempotentIn(registry: { get(path: ProcedurePath): AnyProcedure 
   };
 }
 
+/**
+ * This function gives the effects of the procedures that the client knows, by method: the
+ * `effects` option of the cache middleware (roadmap R13). A path that the registry does not have
+ * gives undefined.
+ */
+export function effectsIn(registry: { get(path: ProcedurePath): AnyProcedure | undefined }): (method: Method) => Effects | undefined {
+  return (method) => {
+    const effects = (registry.get(methodToPath(method))?.metadata as { effects?: Effects } | undefined)?.effects;
+    return effects !== null && typeof effects === "object" ? effects : undefined;
+  };
+}
+
 /** This function makes a new idempotency key: a random UUID. */
 export function newIdempotencyKey(): string {
   const random = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID;

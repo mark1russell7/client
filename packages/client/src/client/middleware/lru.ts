@@ -63,4 +63,16 @@ export class LruMap<K, V> {
   clear(): void {
     this.entries.clear();
   }
+
+  /** Delete each key whose value matches. This does not count as a use. The number deleted. */
+  deleteWhere(matches: (value: V, key: K) => boolean): number {
+    let deleted = 0;
+    for (const [key, value] of this.entries) {
+      if (matches(value, key)) {
+        this.entries.delete(key);
+        deleted++;
+      }
+    }
+    return deleted;
+  }
 }

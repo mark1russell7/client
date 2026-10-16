@@ -9,6 +9,7 @@ import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, Typed
 import type { CacheContext } from "./contexts.js";
 import { LruMap } from "./lru.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
+import type { Effects } from "../../procedures/types.js";
 
 /**
  * Cache middleware options.
@@ -65,6 +66,14 @@ export interface CacheOptions {
    * @returns true if response should be cached
    */
   shouldCache?: (item: ResponseItem<unknown>) => boolean;
+
+  /**
+   * The effects of each method (roadmap R13), for example `effectsIn(registry)`. A call that
+   * writes resources deletes the cached entries of the methods that read one of them, when it
+   * succeeds. An entry of a method with unknown reads goes too. Without this option, a write
+   * deletes nothing, and the entries live until their time to live ends.
+   */
+  effects?: (method: Method) => Effects | undefined;
 }
 
 /**
@@ -111,10 +120,21 @@ export function stableStringify(value: unknown): string {
 }
 
 /**
- * The metadata keys that do not change a response: middleware state and tracing. The other
- * keys (auth, pagination, custom fields) are part of the cache key.
+ * The metadata keys that do not change a response: middleware state, tracing, and the keys of
+ * one call (its idempotency key and the remaining time of its deadline). The other keys (auth,
+ * pagination, custom fields) are part of the cache key.
  */
-const VOLATILE_METADATA = new Set(["retry", "timeout", "tracing", "cache", "circuitBreaker", "rateLimit"]);
+const VOLATILE_METADATA = new Set([
+  "retry",
+  "timeout",
+  "tracing",
+  "cache",
+  "circuitBreaker",
+  "rateLimit",
+  "idempotency-key",
+  "procedure-timeout",
+  "traceparent",
+]);
 
 /** The part of the metadata that can change a response. */
 function keyMetadata(metadata: Metadata): Record<string, unknown> {
@@ -154,6 +174,21 @@ function copyItem<T>(item: ResponseItem<T>): ResponseItem<T> | undefined {
 interface CacheEntry {
   items: ResponseItem<unknown>[];
   expiresAt: number;
+  /** The resources that the method of the entry reads, when the `effects` option knows them */
+  reads: readonly string[] | undefined;
+  /** The method of the entry, for the invalidation by method */
+  method: Method;
+}
+
+/** The deleters of each cache middleware, for `invalidateCache` */
+const invalidators = new WeakMap<object, (matches?: (method: Method) => boolean) => number>();
+
+/**
+ * This function deletes the entries of a cache middleware: all of them, or the entries of the
+ * methods that `matches` selects. It gives the number of deleted entries.
+ */
+export function invalidateCache(middleware: object, matches?: (method: Method) => boolean): number {
+  return invalidators.get(middleware)?.(matches) ?? 0;
 }
 
 /** The overrides of one call: `cache: { ttl, bypass, refresh }` in its context. */
@@ -254,11 +289,30 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
       : ((names: ReadonlySet<string>) => (method: Method): boolean => names.has(`${method.service}.${method.operation}`))(
           new Set(methods),
         );
+  const effectsOf = options.effects;
 
-  return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
+  /**
+   * The calls in flight, by key: a second call with the same key waits for the first one and
+   * gets a copy of its response (roadmap R13). Before, each one made its own request.
+   */
+  const inFlight = new Map<string, Promise<CacheEntry | undefined>>();
+
+  /** A write that succeeded deletes the entries that read one of its resources (R13). */
+  const invalidateAfterWrite = (method: Method): void => {
+    const writes = effectsOf?.(method)?.writes;
+    if (!writes || writes.length === 0) return;
+    cache.deleteWhere((entry) => entry.reads === undefined || entry.reads.some((resource) => writes.includes(resource)));
+  };
+
+  const middleware = <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       if (!cacheable(context.message.method)) {
-        yield* next(context);
+        let failed = false;
+        for await (const item of next(context)) {
+          if (item.status.type === "error") failed = true;
+          yield item;
+        }
+        if (!failed && effectsOf) invalidateAfterWrite(context.message.method);
         return;
       }
 
@@ -295,23 +349,64 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
         cache.delete(cacheKey);
       }
 
+      // The same call is in flight: wait for it and give a copy of its response (R13)
+      const pending = overrides.refresh ? undefined : inFlight.get(cacheKey);
+      if (pending) {
+        const shared = await pending;
+        if (shared) {
+          stats.hits++;
+          setState(true);
+          for (const item of shared.items) yield (copyItem(item) ?? item) as ResponseItem<TRes>;
+          return;
+        }
+        // The first call gave a stream or an error: this call makes its own request
+      }
+
       // Cache miss - fetch and store. Only a response of one item is cached: a stream is never
       // collected or cached (before, the middleware kept every item of a stream in memory).
       stats.misses++;
       let first: ResponseItem<TRes> | undefined;
       let count = 0;
+      let settle: (entry: CacheEntry | undefined) => void = () => undefined;
+      const mine = new Promise<CacheEntry | undefined>((resolve) => (settle = resolve));
+      if (!overrides.refresh) inFlight.set(cacheKey, mine);
+      let entry: CacheEntry | undefined;
+      try {
+        for await (const item of next(context)) {
+          count++;
+          if (count === 1) first = item;
+          yield item;
+        }
+        setState(false);
 
-      for await (const item of next(context)) {
-        count++;
-        if (count === 1) first = item;
-        yield item;
-      }
-      setState(false);
-
-      if (count === 1 && first && shouldCache(first)) {
-        const copy = copyItem(first);
-        if (copy) cache.set(cacheKey, { items: [copy as ResponseItem<unknown>], expiresAt: Date.now() + (overrides.ttl ?? ttl) });
+        // An inner layer that changed the key metadata during the call (an auth middleware
+        // inside the cache) makes the key wrong: such a response is not stored (R13)
+        const keyAfter = keyGenerator(context.message.method, context.message.payload, metadata);
+        if (count === 1 && first && shouldCache(first) && keyAfter === cacheKey) {
+          const copy = copyItem(first);
+          if (copy) {
+            entry = {
+              items: [copy as ResponseItem<unknown>],
+              expiresAt: Date.now() + (overrides.ttl ?? ttl),
+              reads: effectsOf?.(context.message.method)?.reads,
+              method: context.message.method,
+            };
+            cache.set(cacheKey, entry);
+          }
+        }
+      } finally {
+        if (inFlight.get(cacheKey) === mine) inFlight.delete(cacheKey);
+        settle(entry);
       }
     };
   };
+  invalidators.set(middleware, (matches) => {
+    if (!matches) {
+      const size = cache.size;
+      cache.clear();
+      return size;
+    }
+    return cache.deleteWhere((entry) => matches(entry.method));
+  });
+  return middleware;
 }

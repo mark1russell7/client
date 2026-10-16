@@ -305,6 +305,7 @@ export {
   IdempotencyCache,
   idempotencyKeyOf,
   idempotentIn,
+  effectsIn,
   isRepeatable,
   newIdempotencyKey,
 } from "./procedures/idempotency.js";
