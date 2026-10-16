@@ -311,9 +311,15 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@mark1russell7/algebra':
+        specifier: ^0.2.0
+        version: 0.2.0(zod@4.6.5)
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@mark1russell7/service':
+        specifier: ^0.2.0
+        version: 0.2.0(zod@4.6.5)
       '@stryker-mutator/core':
         specifier: 10.0.0
         version: 10.0.0(@types/node@22.20.5)

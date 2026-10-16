@@ -15,6 +15,9 @@ import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
+import { realClock, type Cancel, type Clock } from "../../../clock.js";
+import type { MachineTransition } from "../../../machines.js";
+import { WEBSOCKET_CONNECTION_MACHINE } from "../../../machines.js";
 
 /**
  * Pending request waiting for response.
@@ -70,7 +73,7 @@ interface PendingRequest {
   /** The response items of the request, in order */
   queue: ItemQueue<ResponseItem<unknown>>;
   /** The request timeout: it runs until the first frame arrives */
-  timeout?: ReturnType<typeof setTimeout> | undefined;
+  timeout?: Cancel | undefined;
 }
 
 /**
@@ -187,9 +190,13 @@ export class WebSocketTransport implements Transport {
   /** Set by close(): the connection is being closed on purpose, so it must not reconnect */
   private closing = false;
   private reconnectAttempts = 0;
-  private reconnectTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-  private heartbeatTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-  private heartbeatTimeout: ReturnType<typeof setTimeout> | undefined = undefined;
+  private reconnectTimer: Cancel | undefined = undefined;
+  private heartbeatTimer: Cancel | undefined = undefined;
+  private heartbeatTimeout: Cancel | undefined = undefined;
+  /** The clock of each timer of the transport (roadmap R35) */
+  private readonly clock: Clock;
+  /** The observer of the changes of the state (roadmap R35) */
+  private readonly transitionHandler: ((transition: MachineTransition) => void) | undefined;
   /** The pings without a pong, one after the other */
   private heartbeatMisses = 0;
   /** The protocol version of the server, from its hello, or undefined (an older server) (R25) */
@@ -197,7 +204,7 @@ export class WebSocketTransport implements Transport {
   /** The calls that the server sends on the current socket, served by `serve` (roadmap R24) */
   private incoming: IncomingCalls | undefined;
   /** The time limit of the handshake of the socket that opens now */
-  private handshakeTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+  private handshakeTimer: Cancel | undefined = undefined;
 
   constructor(options: WebSocketTransportOptions) {
     this.options = {
@@ -227,21 +234,31 @@ export class WebSocketTransport implements Transport {
       serve: options.serve,
       onEvent: options.onEvent,
     };
+    this.clock = options.clock ?? realClock;
+    this.transitionHandler = options.onTransition;
 
     // Auto-connect
     this.connect();
   }
 
-  /** Change the state, and tell the callers that wait for a connection. */
-  private setState(state: WebSocketState): void {
+  /**
+   * Change the state, and tell the callers that wait for a connection. `on` is the event of
+   * `WEBSOCKET_CONNECTION_MACHINE`: a change goes to `onTransition` (roadmap R35).
+   */
+  private setState(state: WebSocketState, on: string): void {
+    const from = this.state;
     this.state = state;
+    if (from !== state) {
+      this.transitionHandler?.({ machine: WEBSOCKET_CONNECTION_MACHINE.id, instance: this.name, from, on, to: state, at: this.clock.now() });
+    }
     for (const listener of [...this.stateListeners]) listener();
   }
 
   /**
    * Connect to WebSocket server.
    */
-  private connect(): void {
+  /** `on` is the event of the machine: the first connect, or the end of a backoff. */
+  private connect(on: "connect" | "reconnect-due" = "connect"): void {
     if (this.closing) {
       return;
     }
@@ -249,7 +266,7 @@ export class WebSocketTransport implements Transport {
       return;
     }
 
-    this.setState(WebSocketState.CONNECTING);
+    this.setState(WebSocketState.CONNECTING, on);
 
     try {
       const ws = new WebSocket(this.options.url);
@@ -260,13 +277,13 @@ export class WebSocketTransport implements Transport {
       // The handshake has a time limit: an address that never answers does not keep the socket
       // in CONNECTING (roadmap R3)
       this.clearHandshakeTimer();
-      this.handshakeTimer = setTimeout(() => {
+      this.handshakeTimer = this.clock.after(this.options.connectionTimeout, () => {
         this.handshakeTimer = undefined;
         if (this.ws === ws && this.state === WebSocketState.CONNECTING) {
           console.error(`[${this.name}] Handshake timeout after ${this.options.connectionTimeout}ms`);
           this.dropConnection("Handshake timeout");
         }
-      }, this.options.connectionTimeout);
+      });
 
       // Connection opened
       ws.onopen = () => {
@@ -277,7 +294,7 @@ export class WebSocketTransport implements Transport {
         // error frame, which the client ignores.
         this.serverProtocol = undefined;
         ws.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
-        this.setState(WebSocketState.CONNECTED);
+        this.setState(WebSocketState.CONNECTED, "open");
         console.error(`[${this.name}] Connected to ${this.options.url}`);
 
         if (this.options.onConnect) {
@@ -354,9 +371,7 @@ export class WebSocketTransport implements Transport {
   private failPending(reason: string): void {
     for (const pending of this.pendingRequests.values()) {
       pending.queue.fail(new Error(reason));
-      if (pending.timeout) {
-        clearTimeout(pending.timeout);
-      }
+      pending.timeout?.();
     }
     this.pendingRequests.clear();
   }
@@ -373,7 +388,7 @@ export class WebSocketTransport implements Transport {
     // An intentional close() must not reconnect (BUGS-2026-07 H6)
     const reconnect = this.options.reconnect;
     const willReconnect = !this.closing && reconnect.enabled && this.reconnectAttempts < reconnect.maxAttempts;
-    this.setState(willReconnect ? WebSocketState.RECONNECTING : WebSocketState.DISCONNECTED);
+    this.setState(willReconnect ? WebSocketState.RECONNECTING : WebSocketState.DISCONNECTED, willReconnect ? "drop" : "give-up");
 
     console.error(`[${this.name}] Disconnected${reason ? `: ${reason}` : ""}`);
 
@@ -393,11 +408,11 @@ export class WebSocketTransport implements Transport {
    */
   private scheduleReconnect(): void {
     if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer();
     }
 
     this.reconnectAttempts++;
-    this.setState(WebSocketState.RECONNECTING);
+    this.setState(WebSocketState.RECONNECTING, "drop");
 
     const delay = reconnectDelay(this.reconnectAttempts, this.options.reconnect);
 
@@ -407,11 +422,11 @@ export class WebSocketTransport implements Transport {
       this.options.onReconnecting(this.reconnectAttempts);
     }
 
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectTimer = this.clock.after(delay, () => {
       this.reconnectTimer = undefined;
       // connect() returns at once in RECONNECTING only for CONNECTING/CONNECTED
-      this.connect();
-    }, delay);
+      this.connect("reconnect-due");
+    });
   }
 
   /**
@@ -420,7 +435,9 @@ export class WebSocketTransport implements Transport {
   private startHeartbeat(): void {
     this.stopHeartbeat();
 
-    this.heartbeatTimer = setInterval(() => {
+    // One timer for each interval, on the clock (roadmap R35: before, setInterval)
+    const tick = (): void => {
+      this.heartbeatTimer = this.clock.after(this.options.heartbeat.interval, tick);
       // One ping at a time: a new ping must not replace the timeout of an unanswered one
       if (this.state === WebSocketState.CONNECTED && this.ws && !this.heartbeatTimeout) {
         // Send ping
@@ -431,14 +448,15 @@ export class WebSocketTransport implements Transport {
         this.ws.send(JSON.stringify(ping));
 
         // Set timeout for pong. The connection drops after `misses` pings without a pong.
-        this.heartbeatTimeout = setTimeout(() => {
+        this.heartbeatTimeout = this.clock.after(this.options.heartbeat.timeout, () => {
           this.heartbeatTimeout = undefined;
           if (++this.heartbeatMisses < this.options.heartbeat.misses) return;
           console.warn(`[${this.name}] Heartbeat timeout - dropping connection`);
           this.dropConnection("Heartbeat timeout");
-        }, this.options.heartbeat.timeout);
+        });
       }
-    }, this.options.heartbeat.interval);
+    };
+    this.heartbeatTimer = this.clock.after(this.options.heartbeat.interval, tick);
   }
 
   /**
@@ -447,7 +465,7 @@ export class WebSocketTransport implements Transport {
   /** Stop the time limit of the handshake. */
   private clearHandshakeTimer(): void {
     if (this.handshakeTimer) {
-      clearTimeout(this.handshakeTimer);
+      this.handshakeTimer();
       this.handshakeTimer = undefined;
     }
   }
@@ -455,11 +473,11 @@ export class WebSocketTransport implements Transport {
   private stopHeartbeat(): void {
     this.heartbeatMisses = 0;
     if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer();
       this.heartbeatTimer = undefined;
     }
     if (this.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout);
+      this.heartbeatTimeout();
       this.heartbeatTimeout = undefined;
     }
   }
@@ -506,7 +524,7 @@ export class WebSocketTransport implements Transport {
     if (message.type === "pong") {
       this.heartbeatMisses = 0;
       if (this.heartbeatTimeout) {
-        clearTimeout(this.heartbeatTimeout);
+        this.heartbeatTimeout();
         this.heartbeatTimeout = undefined;
       }
       return;
@@ -549,7 +567,7 @@ export class WebSocketTransport implements Transport {
 
     // The first frame arrived: the request timeout ends. A stream can stay open longer.
     if (pending.timeout) {
-      clearTimeout(pending.timeout);
+      pending.timeout();
       pending.timeout = undefined;
     }
 
@@ -667,7 +685,7 @@ export class WebSocketTransport implements Transport {
 
     const queue = new ItemQueue<ResponseItem<unknown>>();
     const pending: PendingRequest = { messageId: message.id, queue };
-    pending.timeout = setTimeout(() => {
+    pending.timeout = this.clock.after(this.options.requestTimeout, () => {
       if (this.pendingRequests.get(wireId) !== pending) return;
       this.pendingRequests.delete(wireId);
       this.sendCancel(wireId);
@@ -676,13 +694,13 @@ export class WebSocketTransport implements Transport {
       // so a retry middleware must not repeat it (deep dive TRN-8)
       queue.push(errorItem(message.id, "TIMEOUT", `Request timeout after ${this.options.requestTimeout}ms`, false));
       queue.end();
-    }, this.options.requestTimeout);
+    });
     this.pendingRequests.set(wireId, pending);
 
     const onAbort = (): void => {
       if (this.pendingRequests.get(wireId) !== pending) return;
       this.pendingRequests.delete(wireId);
-      if (pending.timeout) clearTimeout(pending.timeout);
+      pending.timeout?.();
       this.sendCancel(wireId);
       queue.push(abortedItem(message.id));
       queue.end();
@@ -707,7 +725,7 @@ export class WebSocketTransport implements Transport {
       }
     } finally {
       message.signal?.removeEventListener("abort", onAbort);
-      if (pending.timeout) clearTimeout(pending.timeout);
+      pending.timeout?.();
       if (this.pendingRequests.get(wireId) === pending) {
         // The reader stopped before the end: the server stops the stream
         this.pendingRequests.delete(wireId);
@@ -747,7 +765,7 @@ export class WebSocketTransport implements Transport {
 
     return new Promise((resolve, reject) => {
       const finish = (error?: Error): void => {
-        clearTimeout(timeout);
+        timeout();
         this.stateListeners.delete(check);
         signal?.removeEventListener("abort", onAbort);
         if (error) reject(error);
@@ -759,7 +777,7 @@ export class WebSocketTransport implements Transport {
       };
       // The caller aborted: send() then gives the ABORTED item
       const onAbort = (): void => finish();
-      const timeout = setTimeout(() => finish(new Error("Connection timeout")), this.options.connectionTimeout);
+      const timeout = this.clock.after(this.options.connectionTimeout, () => finish(new Error("Connection timeout")));
       this.stateListeners.add(check);
       signal?.addEventListener("abort", onAbort, { once: true });
     });
@@ -819,14 +837,14 @@ export class WebSocketTransport implements Transport {
    */
   async close(): Promise<void> {
     this.closing = true;
-    this.setState(WebSocketState.DISCONNECTING);
+    this.setState(WebSocketState.DISCONNECTING, "close");
     this.stopHeartbeat();
     this.clearHandshakeTimer();
     this.incoming?.abortAll();
     this.incoming = undefined;
 
     if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer();
       this.reconnectTimer = undefined;
     }
 
@@ -842,7 +860,7 @@ export class WebSocketTransport implements Transport {
     }
 
     this.failPending("WebSocket connection closed");
-    this.setState(WebSocketState.DISCONNECTED);
+    this.setState(WebSocketState.DISCONNECTED, "closed");
     if (hadSocket && this.options.onDisconnect) {
       this.options.onDisconnect("closed");
     }

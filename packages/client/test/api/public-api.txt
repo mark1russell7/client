@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 410 names
+## . (dist/index.d.ts): 421 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -16,12 +16,14 @@ BatchExecutor: dist/client/batch-executor.d.ts#BatchExecutor
 type BatchItem: dist/client/batch-executor.d.ts#BatchItem
 type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
 type BrowserGuardOptions: dist/server/browser-guard.d.ts#BrowserGuardOptions
+CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
 type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
+type Cancel: dist/clock.d.ts#Cancel
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
 type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
@@ -36,6 +38,7 @@ ClientError: dist/client/types.d.ts#ClientError
 type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
+type Clock: dist/clock.d.ts#Clock
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
@@ -104,6 +107,11 @@ type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransport
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+type MachineDocument: dist/machines.d.ts#MachineDocument
+type MachineDuration: dist/machines.d.ts#MachineDuration
+type MachineTimer: dist/machines.d.ts#MachineTimer
+type MachineTransition: dist/machines.d.ts#MachineTransition
+type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -220,6 +228,7 @@ type TypedEventBus: dist/events/types.d.ts#TypedEventBus
 UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
 type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
@@ -382,11 +391,13 @@ proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
 protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
 rawInputRule: dist/procedures/ref.d.ts#rawInputRule
+realClock: dist/clock.d.ts#realClock
 reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
 registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
 registerModule: dist/procedures/discovery.d.ts#registerModule
 registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+replayTransitions: dist/machines.d.ts#replayTransitions
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
@@ -417,7 +428,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 393 names
+## ./browser (dist/browser.d.ts): 404 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -428,12 +439,14 @@ type BatchExecutionResult: dist/client/batch-executor.d.ts#BatchExecutionResult
 BatchExecutor: dist/client/batch-executor.d.ts#BatchExecutor
 type BatchItem: dist/client/batch-executor.d.ts#BatchItem
 type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
+CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
 type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
+type Cancel: dist/clock.d.ts#Cancel
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
 type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
@@ -448,6 +461,7 @@ ClientError: dist/client/types.d.ts#ClientError
 type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
+type Clock: dist/clock.d.ts#Clock
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
@@ -511,6 +525,11 @@ type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransport
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
+type MachineDocument: dist/machines.d.ts#MachineDocument
+type MachineDuration: dist/machines.d.ts#MachineDuration
+type MachineTimer: dist/machines.d.ts#MachineTimer
+type MachineTransition: dist/machines.d.ts#MachineTransition
+type MachineTransitionDef: dist/machines.d.ts#MachineTransitionDef
 type Message: dist/client/types.d.ts#Message
 type Metadata: dist/client/types.d.ts#Metadata
 type Method: dist/client/types.d.ts#Method
@@ -627,6 +646,7 @@ type TypedEventBus: dist/events/types.d.ts#TypedEventBus
 UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
 type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
@@ -779,11 +799,13 @@ proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
 protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
 rawInputRule: dist/procedures/ref.d.ts#rawInputRule
+realClock: dist/clock.d.ts#realClock
 reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
 registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
 registerModule: dist/procedures/discovery.d.ts#registerModule
 registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+replayTransitions: dist/machines.d.ts#replayTransitions
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
@@ -1445,6 +1467,8 @@ export interface WebSocketTransportOptions {
     onServerRequest?: ServerRequestHandler;
     serve?: RequestHandler;
     onEvent?: EventHandler;
+    clock?: Clock;
+    onTransition?: (transition: MachineTransition) => void;
 }
 
 ### dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
@@ -1903,6 +1927,9 @@ export interface CircuitBreakerOptions {
     halfOpenMaxRequests?: number;
     isFailure?: (error: Error) => boolean;
     onStateChange?: (oldState: CircuitState, newState: CircuitState) => void;
+    clock?: Clock;
+    onTransition?: (transition: MachineTransition) => void;
+    name?: string;
 }
 
 ### dist/client/middleware/circuit-breaker.d.ts#CircuitBreakerStats
@@ -2013,6 +2040,7 @@ export declare function resilience(options: ResilienceOptions): TypedClientMiddl
 ### dist/client/middleware/retry.d.ts#RetryOptions
 export interface RetryOptions {
     maxRetries?: number;
+    clock?: Clock;
     retryDelay?: Duration;
     backoffMultiplier?: number;
     maxDelay?: Duration;
@@ -2336,6 +2364,20 @@ export declare function keyToMethod(key: MethodKey): Method;
 ### dist/client/validation/types.d.ts#methodToKey
 export declare function methodToKey(method: Method): MethodKey;
 
+### dist/clock.d.ts#Cancel
+export type Cancel = (() => void) & {
+    unref?: () => void;
+};
+
+### dist/clock.d.ts#Clock
+export interface Clock {
+    now(): number;
+    after(ms: number, run: () => void): Cancel;
+}
+
+### dist/clock.d.ts#realClock
+export declare const realClock: Clock;
+
 ### dist/duration.d.ts#Duration
 export type Duration = Quantity & {
     readonly unit: TimeUnit;
@@ -2518,6 +2560,83 @@ export interface TypedEventBus<TChannels extends ChannelMap> {
 
 ### dist/events/types.d.ts#Unsubscribe
 export type Unsubscribe = () => void;
+
+### dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
+export declare const CIRCUIT_BREAKER_MACHINE: MachineDocument;
+
+### dist/machines.d.ts#MachineDocument
+export interface MachineDocument {
+    readonly format: "mark1russell7.machine/1";
+    readonly id: string;
+    readonly title: string;
+    readonly layer: "self";
+    readonly version: string;
+    readonly sources: ReadonlyArray<{
+        readonly ref: string;
+        readonly rung: "implemented";
+    }>;
+    readonly states: Readonly<Record<string, {
+        readonly initial?: boolean;
+        readonly final?: boolean;
+        readonly note?: string;
+    }>>;
+    readonly events: Readonly<Record<string, {
+        readonly kind: "rx" | "tx" | "app" | "timer" | "local";
+        readonly note?: string;
+    }>>;
+    readonly knobs: Readonly<Record<string, {
+        readonly key: string;
+        readonly scope: string;
+        readonly unit: string | null;
+        readonly default: number | null;
+    }>>;
+    readonly timers: Readonly<Record<string, MachineTimer>>;
+    readonly transitions: readonly MachineTransitionDef[];
+}
+
+### dist/machines.d.ts#MachineDuration
+export interface MachineDuration {
+    readonly knob: string;
+    readonly unit: string;
+}
+
+### dist/machines.d.ts#MachineTimer
+export interface MachineTimer {
+    readonly duration: MachineDuration;
+    readonly arms: readonly string[];
+    readonly cancels?: readonly string[] | undefined;
+    readonly fires: string;
+    readonly backoff?: {
+        readonly resets: readonly string[];
+    } | undefined;
+    readonly note?: string | undefined;
+}
+
+### dist/machines.d.ts#MachineTransition
+export interface MachineTransition {
+    readonly machine: string;
+    readonly instance: string;
+    readonly from: string;
+    readonly on: string;
+    readonly to: string;
+    readonly at: number;
+}
+
+### dist/machines.d.ts#MachineTransitionDef
+export interface MachineTransitionDef {
+    readonly id: string;
+    readonly from: string | readonly string[];
+    readonly on: string | readonly string[];
+    readonly to: string;
+    readonly timer?: string | undefined;
+    readonly note?: string | undefined;
+}
+
+### dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
+export declare const WEBSOCKET_CONNECTION_MACHINE: MachineDocument;
+
+### dist/machines.d.ts#replayTransitions
+export declare function replayTransitions(machine: MachineDocument, events: readonly MachineTransition[]): string[];
 
 ### dist/middleware/compose.d.ts#bundle
 export declare function bundle<TAsync extends boolean = false>(...middleware: Middleware<any, any, any, TAsync>[]): Middleware<any, any, any, TAsync>;

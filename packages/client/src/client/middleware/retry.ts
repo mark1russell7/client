@@ -7,7 +7,8 @@
 
 import type { ClientRunner, ClientContext, Method, ResponseItem, TypedClientMiddleware } from "../types.js";
 import type { RetryContext } from "./contexts.js";
-import { abortedItem, deliveryOf, monotonicNow, retryAfterOf, sleep, thrownItem } from "./items.js";
+import { abortedItem, deliveryOf, retryAfterOf, sleep, thrownItem } from "./items.js";
+import { realClock, type Clock } from "../../clock.js";
 import { IDEMPOTENCY_KEY_METADATA, idempotencyKeyOf, newIdempotencyKey } from "../../procedures/idempotency.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
@@ -21,6 +22,12 @@ export interface RetryOptions {
    * @default 3
    */
   maxRetries?: number;
+
+  /**
+   * The clock of the backoff and of the budget (roadmap R35). The default is the clock of the
+   * platform. A test gives a fake clock.
+   */
+  clock?: Clock;
 
   /**
    * Base delay for exponential backoff, for example `ms(500)`.
@@ -182,7 +189,8 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
   const budget = options.budget === false ? undefined : { ratio: options.budget?.ratio ?? 0.2, minPerSecond: options.budget?.minPerSecond ?? 10 };
   const budgetCap = budget ? Math.max(1, budget.ratio * 100) : 0;
   let balance = budgetCap;
-  let secondStart = monotonicNow();
+  const clock = options.clock ?? realClock;
+  let secondStart = clock.now();
   let retriesThisSecond = 0;
   /** This function takes one retry from the budget, or gives false when the budget is empty. */
   const takeRetry = (): boolean => {
@@ -191,7 +199,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
       balance -= 1;
       return true;
     }
-    const now = monotonicNow();
+    const now = clock.now();
     if (now - secondStart >= 1000) {
       secondStart = now;
       retriesThisSecond = 0;
@@ -323,7 +331,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
         }
 
         // The backoff stops at once when the caller aborts (deep dive TRN-8)
-        if (!(await sleep(delay, signal))) {
+        if (!(await sleep(delay, signal, clock))) {
           yield abortedItem<TRes>(context.message.id);
           return;
         }

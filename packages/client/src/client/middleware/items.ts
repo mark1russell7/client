@@ -8,6 +8,7 @@
  */
 
 import type { ResponseItem } from "../types.js";
+import { realClock, type Clock } from "../../clock.js";
 
 /** This function makes an error item. */
 export function errorItem<TRes>(id: string, code: string, message: string, retryable: boolean): ResponseItem<TRes> {
@@ -163,17 +164,18 @@ export function thrownItem<TRes>(id: string, error: unknown): ResponseItem<TRes>
  * This function waits `ms` milliseconds. It returns false at once when the signal aborts (deep
  * dive TRN-8: before, the backoff of the retry middleware ignored the signal).
  */
-export function sleep(ms: number, signal?: AbortSignal): Promise<boolean> {
+export function sleep(ms: number, signal?: AbortSignal, clock: Clock = realClock): Promise<boolean> {
   if (signal?.aborted) return Promise.resolve(false);
   return new Promise((resolve) => {
     const onAbort = (): void => {
-      clearTimeout(timer);
+      cancel();
       resolve(false);
     };
-    const timer = setTimeout(() => {
+    // The clock of the caller (roadmap R35): a test gives a fake clock
+    const cancel = clock.after(Math.max(0, ms), () => {
       signal?.removeEventListener("abort", onAbort);
       resolve(true);
-    }, Math.max(0, ms));
+    });
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 }

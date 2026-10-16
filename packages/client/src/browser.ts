@@ -306,6 +306,11 @@ export {
   checkEffects,
 } from "./procedures/capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects, INFERRED_EFFECTS_METADATA_KEY, inferredEffectsOf, effectsValue } from "./procedures/effects.js";
+// The clock of the timers, and the state machines as data (roadmap R35)
+export { realClock } from "./clock.js";
+export type { Cancel, Clock } from "./clock.js";
+export { WEBSOCKET_CONNECTION_MACHINE, CIRCUIT_BREAKER_MACHINE, replayTransitions } from "./machines.js";
+export type { MachineDocument, MachineTransition, MachineTransitionDef, MachineTimer, MachineDuration } from "./machines.js";
 // The default times of the core, as data (roadmap R34)
 export { TIMER_DEFAULTS } from "./timers.js";
 export type { TimerDefaults } from "./timers.js";

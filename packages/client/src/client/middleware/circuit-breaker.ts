@@ -13,7 +13,9 @@
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { CircuitBreakerContext } from "./contexts.js";
 import { optionalMs, type Duration } from "../../duration.js";
-import { isAvailabilityFailure, monotonicNow } from "./items.js";
+import { isAvailabilityFailure } from "./items.js";
+import { realClock, type Cancel, type Clock } from "../../clock.js";
+import { CIRCUIT_BREAKER_MACHINE, type MachineTransition } from "../../machines.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
 
 /**
@@ -70,6 +72,21 @@ export interface CircuitBreakerOptions {
    * Callback when circuit state changes.
    */
   onStateChange?: (oldState: CircuitState, newState: CircuitState) => void;
+
+  /**
+   * The clock of the window and of the reset (roadmap R35). The default is the clock of the
+   * platform. A test gives a fake clock.
+   */
+  clock?: Clock;
+
+  /**
+   * This function gets each change of the state, with its event, as a transition of
+   * `CIRCUIT_BREAKER_MACHINE` (roadmap R35). A test replays them against the document.
+   */
+  onTransition?: (transition: MachineTransition) => void;
+
+  /** The name of the breaker in its transitions. The default is "circuit-breaker". */
+  name?: string;
 }
 
 /**
@@ -148,23 +165,26 @@ export function createCircuitBreakerMiddleware(
   let totalRequests = 0;
   let probesInFlight = 0;
   let lastStateChange = Date.now();
-  let resetTimer: ReturnType<typeof setTimeout> | null = null;
+  let resetTimer: Cancel | null = null;
+  const clock = options.clock ?? realClock;
+  const instance = options.name ?? "circuit-breaker";
 
   /**
-   * Change circuit state.
+   * Change circuit state. `on` is the event of `CIRCUIT_BREAKER_MACHINE`.
    */
-  function setState(newState: CircuitState): void {
+  function setState(newState: CircuitState, on: string): void {
     const oldState = state;
     state = newState;
     if (oldState !== newState) lastStateChange = Date.now();
 
-    if (oldState !== newState && onStateChange) {
-      onStateChange(oldState, newState);
+    if (oldState !== newState) {
+      options.onTransition?.({ machine: CIRCUIT_BREAKER_MACHINE.id, instance, from: oldState, on, to: newState, at: clock.now() });
+      onStateChange?.(oldState, newState);
     }
 
     // Clear reset timer when moving to CLOSED
     if (newState === "CLOSED" && resetTimer) {
-      clearTimeout(resetTimer);
+      resetTimer();
       resetTimer = null;
     }
   }
@@ -174,7 +194,7 @@ export function createCircuitBreakerMiddleware(
    */
   function recordFailure(error: Error): void {
     // The window uses a monotonic clock: a change of the wall clock does not move it (R12)
-    const now = monotonicNow();
+    const now = clock.now();
 
     // Add failure
     failures.push({ at: now, timestamp: Date.now(), error });
@@ -185,11 +205,11 @@ export function createCircuitBreakerMiddleware(
     if (state === "HALF_OPEN") {
       // Any failure while testing reopens the circuit immediately — don't wait for the full
       // failureThreshold. See documentation/BUGS-2026-07.md (H11).
-      setState("OPEN");
+      setState("OPEN", "probe-failure");
       successes = 0;
       scheduleReset();
     } else if (state === "CLOSED" && failures.length >= failureThreshold) {
-      setState("OPEN");
+      setState("OPEN", "failure-threshold");
       scheduleReset();
     }
   }
@@ -202,13 +222,13 @@ export function createCircuitBreakerMiddleware(
       successes++;
       if (successes >= successThreshold) {
         // Enough successes - close circuit
-        setState("CLOSED");
+        setState("CLOSED", "probe-successes");
         failures = [];
         successes = 0;
       }
     } else if (state === "CLOSED") {
       // Clear old failures on success
-      const now = monotonicNow();
+      const now = clock.now();
       failures = failures.filter((f) => now - f.at < failureWindow);
     }
   }
@@ -218,15 +238,15 @@ export function createCircuitBreakerMiddleware(
    */
   function scheduleReset(): void {
     if (resetTimer) {
-      clearTimeout(resetTimer);
+      resetTimer();
     }
 
-    resetTimer = setTimeout(() => {
+    resetTimer = clock.after(resetTimeout, () => {
       if (state === "OPEN") {
-        setState("HALF_OPEN");
+        setState("HALF_OPEN", "reset-timeout");
         successes = 0;
       }
-    }, resetTimeout);
+    });
     // Don't keep the event loop alive just for the reset timer. See BUGS-2026-07.md (M4).
     resetTimer.unref?.();
   }
@@ -249,7 +269,7 @@ export function createCircuitBreakerMiddleware(
   }
 
   function getStats(): CircuitBreakerStats {
-    const now = monotonicNow();
+    const now = clock.now();
     return {
       state,
       failures: failures.filter((f) => now - f.at < failureWindow).length,
@@ -267,7 +287,7 @@ export function createCircuitBreakerMiddleware(
       totalRequests++;
       // The state for the other middlewares (CircuitBreakerContext)
       const writeState = (): void => {
-        const now = monotonicNow();
+        const now = clock.now();
         context.message.metadata["circuitBreaker"] = {
           state,
           failures: failures.filter((f) => now - f.at < failureWindow).length,

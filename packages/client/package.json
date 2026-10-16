@@ -103,7 +103,9 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@mark1russell7/algebra": "^0.2.0",
     "@mark1russell7/cue": "^1.0.0",
+    "@mark1russell7/service": "^0.2.0",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
     "@types/express": "^5.0.0",

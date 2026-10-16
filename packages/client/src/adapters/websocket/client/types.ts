@@ -5,6 +5,8 @@
  */
 
 import type { Duration } from "../../../duration.js";
+import type { Clock } from "../../../clock.js";
+import type { MachineTransition } from "../../../machines.js";
 
 import type { RequestHandler } from "../../../server/types.js";
 
@@ -154,6 +156,18 @@ export interface WebSocketTransportOptions {
    * Called when the server pushes an event to a subscribed topic.
    */
   onEvent?: EventHandler;
+
+  /**
+   * The clock of each timer of the transport: the handshake, the requests, the heartbeat and the
+   * reconnect (roadmap R35). The default is the clock of the platform. A test gives a fake clock.
+   */
+  clock?: Clock;
+
+  /**
+   * This function gets each change of the state, with its event, as a transition of
+   * `WEBSOCKET_CONNECTION_MACHINE` (roadmap R35). A test replays them against the document.
+   */
+  onTransition?: (transition: MachineTransition) => void;
 }
 
 /**
