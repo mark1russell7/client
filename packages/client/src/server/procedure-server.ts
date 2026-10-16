@@ -6,7 +6,7 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { Method, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
+import type { Method, Principal, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import type {
   AnyProcedure,
@@ -91,6 +91,21 @@ export interface ProcedureServerOptions extends ServerOptions {
    * same result. `false` turns this off. The default keeps 1000 results for 10 minutes.
    */
   idempotency?: IdempotencyOptions | false | undefined;
+
+  /**
+   * The token of the server (roadmap R18). Each request with credentials (a network request)
+   * must present it as its bearer token, or the server answers `UNAUTHORIZED`. Before, only the
+   * Express middleware of the peer examined the token, so a `ProcedureServer` with the HTTP or
+   * WebSocket transport of the core and the token of a host policy accepted each request.
+   */
+  token?: string | undefined;
+
+  /**
+   * This function gives the principal of a request, or undefined to refuse it with
+   * `UNAUTHORIZED`. It runs after the token check. The capability function can read
+   * `request.principal`.
+   */
+  authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
 }
 
 /**
@@ -102,6 +117,17 @@ export const STREAM_METADATA_KEY = "stream";
 /** True when a stream response can run without an end (roadmap R15). */
 export function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
   return response.metadata?.[STREAM_METADATA_KEY] === "unbounded";
+}
+
+/**
+ * True when the presented token is the expected one. The comparison takes the same time for each
+ * presented token of the same length, so the time does not tell the token.
+ */
+export function tokenMatches(expected: string, presented: string | undefined): boolean {
+  if (presented === undefined || presented.length !== expected.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index++) difference |= expected.charCodeAt(index) ^ presented.charCodeAt(index);
+  return difference === 0;
 }
 
 /** The options of `ProcedureServer.stop()`. */
@@ -243,6 +269,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private draining = false;
   /** The calls in flight, a stream until its end */
   private inFlight = 0;
+  /** The token of the server, and its authenticate function (R18) */
+  private readonly token: string | undefined;
+  private readonly authenticate: ProcedureServerOptions["authenticate"];
   /** The functions that `stop()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
 
@@ -260,6 +289,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       admitItem: options.admitItem,
     };
     this.idempotency = options.idempotency === false ? undefined : new IdempotencyCache(options.idempotency ?? {});
+    this.token = options.token;
+    this.authenticate = options.authenticate;
 
     // Configure collections
     if (options.collections) {
@@ -427,6 +458,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         metadata: {},
       };
     }
+    const refusal = await this.admit(request);
+    if (refusal) return refusal;
     this.inFlight++;
     let response: ServerResponse<unknown> | undefined;
     try {
@@ -454,6 +487,34 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       };
     }
     return response;
+  }
+
+  /**
+   * The token check and the principal of a request (roadmap R18). A network request (with
+   * credentials) must present the token. The authenticate function gives the principal. The
+   * function gives an UNAUTHORIZED response, or undefined when the request passes.
+   */
+  private async admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+    const unauthorized = (message: string): ServerResponse<unknown> => ({
+      id: request.id,
+      status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
+      metadata: {},
+    });
+    if (this.token !== undefined && request.credentials !== undefined) {
+      if (!tokenMatches(this.token, request.credentials.bearer)) return unauthorized("Unauthorized: this server requires its token");
+      request.principal = { id: "token", via: "token" };
+    }
+    if (this.authenticate) {
+      let principal: Principal | undefined;
+      try {
+        principal = await this.authenticate(request);
+      } catch {
+        principal = undefined;
+      }
+      if (!principal) return unauthorized("Unauthorized: the server did not accept the credentials");
+      request.principal = principal;
+    }
+    return undefined;
   }
 
   /** One call in flight ended: `stop()` can go on when it was the last one. */

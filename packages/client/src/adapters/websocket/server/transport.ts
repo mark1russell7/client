@@ -8,7 +8,7 @@
 import type { IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
-import type { Server } from "../../../server/server.js";
+import type { RequestHandler } from "../../../server/types.js";
 import type {
   WebSocketServerTransportOptions,
   WebSocketMessage,
@@ -18,6 +18,7 @@ import type {
 import { withoutInternalKeys } from "../../metadata.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { optionalMs } from "../../../duration.js";
+import { credentialsOf, withoutSecretHeaders } from "../../../server/credentials.js";
 
 /**
  * WebSocket server transport adapter.
@@ -111,7 +112,7 @@ export class WebSocketServerTransport implements ServerTransport {
     authenticate?: WebSocketServerTransportOptions["authenticate"];
     onConnection?: WebSocketServerTransportOptions["onConnection"];
   };
-  private server: Server;
+  private server: RequestHandler;
   private connections: Set<WebSocket> = new Set();
 
   /** The heartbeat of the server, or undefined when it is off (roadmap R3) */
@@ -139,7 +140,7 @@ export class WebSocketServerTransport implements ServerTransport {
   private connectHandlers: ConnectionEventHandler[] = [];
   private disconnectHandlers: ConnectionEventHandler[] = [];
 
-  constructor(server: Server, options: WebSocketServerTransportOptions) {
+  constructor(server: RequestHandler, options: WebSocketServerTransportOptions) {
     this.server = server;
     this.options = {
       server: options.server,
@@ -460,9 +461,12 @@ export class WebSocketServerTransport implements ServerTransport {
         // Add connection info
         connectionId,
         remoteAddress: req.socket.remoteAddress,
-        headers: req.headers,
+        // The upgrade headers without their secrets (roadmap R18)
+        headers: withoutSecretHeaders(req.headers as Record<string, unknown>),
       },
       signal: controller.signal,
+      // The credentials of the connection: the bearer token of its upgrade (R18)
+      credentials: credentialsOf(req),
     };
 
     try {

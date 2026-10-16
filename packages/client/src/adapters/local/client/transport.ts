@@ -15,6 +15,35 @@ import { narrowCapability } from "../../../procedures/capability.js";
 import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
 
+/** The value of `untilAborted` when the signal aborts first. */
+const ABORTED: unique symbol = Symbol("aborted");
+
+/** The value of a promise, or ABORTED when the signal aborts first. The promise runs on. */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T | typeof ABORTED> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    promise.catch(() => undefined);
+    return Promise.resolve(ABORTED);
+  }
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => {
+      promise.catch(() => undefined);
+      resolve(ABORTED);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 function successItem<TRes>(id: string, payload: unknown): ResponseItem<TRes> {
   return { id, status: { type: "success", code: 200 }, payload: payload as TRes, metadata: {} };
 }
@@ -151,24 +180,38 @@ export class LocalTransport implements Transport {
           typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs >= 0
             ? narrowCapability(this.capability, { timeoutMs }, this.clearanceOrder)
             : this.capability;
-        const output = await invokeProcedure(procedure, message.payload, {
+        const output = await untilAborted(invokeProcedure(procedure, message.payload, {
           registry: this.registry,
           metadata: message.metadata,
           signal: message.signal,
           ...(this.interceptors ? { interceptors: this.interceptors } : {}),
           ...(capability ? { capability } : {}),
           ...(this.clearanceOrder ? { clearanceOrder: this.clearanceOrder } : {}),
-        });
+        }), message.signal);
+        if (output === ABORTED) {
+          // The caller stops waiting at once, as over HTTP and WebSocket (the conformance suite
+          // of roadmap R18 found this: before, a local call waited for its handler)
+          yield errorItem<TRes>(message.id, "ABORTED", "Request was aborted");
+          return;
+        }
         if (output.kind === "stream") values = output.items;
         else value = output.value;
       } else {
         // Execute handler (may be sync, async or an async generator)
-        const result = await handler!(message.payload, message);
+        const result = await untilAborted(Promise.resolve(handler!(message.payload, message)), message.signal);
+        if (result === ABORTED) {
+          yield errorItem<TRes>(message.id, "ABORTED", "Request was aborted");
+          return;
+        }
         if (isAsyncIterable(result)) values = result;
         else value = result;
       }
 
       if (values === undefined) {
+        if (message.signal?.aborted) {
+          yield errorItem<TRes>(message.id, "ABORTED", "Request was aborted");
+          return;
+        }
         yield successItem<TRes>(message.id, value);
         return;
       }
@@ -189,6 +232,7 @@ export class LocalTransport implements Transport {
   async close(): Promise<void> {
     // No resources to clean up
   }
+
 
   /**
    * Clear all handlers.

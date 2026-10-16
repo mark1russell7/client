@@ -29,6 +29,43 @@ export interface ServerRequest<TReq = unknown> {
 
   /** Abort signal for cancellation */
   signal?: AbortSignal;
+
+  /**
+   * The credentials that a network transport read from the request: the bearer token of an
+   * `Authorization` header, or of the `token` query of a WebSocket connection (roadmap R18). They
+   * are not in the metadata, so a handler and a nested call do not see them. A request without
+   * credentials comes from this process (a direct `handle()`, MCP over stdio).
+   */
+  credentials?: Credentials | undefined;
+
+  /** The principal of the request: who sends it. `ProcedureServer` sets it when it authenticates the request. */
+  principal?: Principal | undefined;
+}
+
+/** The credentials of a request. */
+export interface Credentials {
+  /** The bearer token that the request presents. */
+  readonly bearer?: string | undefined;
+}
+
+/** Who sends a request (roadmap R18). */
+export interface Principal {
+  /** The id of the principal. With the token of a host: "token". */
+  readonly id: string;
+  /** How the server authenticated it: "token", or the name of an authenticate function. */
+  readonly via: string;
+  /** More facts about the principal, from an authenticate function. */
+  readonly claims?: Readonly<Record<string, unknown>> | undefined;
+}
+
+/**
+ * The contract of a server transport (roadmap R18): a transport turns each protocol request
+ * into a `ServerRequest` (with its signal and its credentials), gives it to `handle()`, and turns
+ * the `ServerResponse` back (a value, a stream or an error). `Server` and `ProcedureServer`
+ * satisfy it, and a test can give a function.
+ */
+export interface RequestHandler {
+  handle(request: ServerRequest): Promise<ServerResponse>;
 }
 
 /**

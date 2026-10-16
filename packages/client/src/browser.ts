@@ -75,7 +75,9 @@ export {
 // ============================================================================
 export { Server } from "./server/server.js";
 export type { ServerOptions } from "./server/server.js";
-export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./server/procedure-server.js";
+export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream, tokenMatches } from "./server/procedure-server.js";
+// The credentials of a network request (roadmap R18)
+export { credentialsOf, bearerOf, withoutSecretHeaders } from "./server/credentials.js";
 // The procedures of a host: host.health, host.info, host.metrics (roadmap R19)
 export { hostProcedures } from "./server/host-procedures.js";
 export type { HostSource } from "./server/host-procedures.js";
@@ -88,6 +90,9 @@ export { pathToMethod, methodToPath } from "./server/method.js";
 export type {
   ServerRequest,
   ServerResponse,
+  RequestHandler,
+  Credentials,
+  Principal,
   ServerHandler,
   ServerMiddleware,
   ServerContext,

@@ -155,6 +155,8 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(registry ? { registry } : {}),
     ...(policy.expose ? { expose: policy.expose } : {}),
     strictCalls: policy.strictCalls,
+    // The token of the policy: ProcedureServer examines it for each network request (R18)
+    ...(policy.token !== undefined ? { token: policy.token } : {}),
     ...(policy.interceptors.length > 0 ? { interceptors: policy.interceptors } : {}),
     ...(policy.capabilityOf ? { capability: policy.capabilityOf } : {}),
     ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),

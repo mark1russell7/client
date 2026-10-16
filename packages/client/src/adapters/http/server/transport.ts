@@ -10,12 +10,13 @@ import { createServer } from "http";
 import type { Server as HttpServer } from "http";
 import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
 import type { Metadata } from "../../../client/types.js";
-import type { Server } from "../../../server/index.js";
+import type { RequestHandler } from "../../../server/types.js";
 import { HTTPMethod, HTTPHeaders, decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
+import { bearerOf, withoutSecretHeaders } from "../../../server/credentials.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
@@ -131,7 +132,7 @@ export class HttpServerTransport implements ServerTransport {
     corsOptions: HttpServerTransportOptions["corsOptions"] | undefined;
     httpServer: HttpServer | undefined;
   };
-  private server: Server;
+  private server: RequestHandler;
   /** The controllers of the requests in progress: stop() aborts them (deep dive TRN-15) */
   private openRequests = new Set<AbortController>();
   private stopped = false;
@@ -139,7 +140,7 @@ export class HttpServerTransport implements ServerTransport {
   /** The browser checks of each procedure call (see `server/browser-guard.ts`) */
   private readonly guard: BrowserGuardOptions;
 
-  constructor(server: Server, options: HttpServerTransportOptions = {}) {
+  constructor(server: RequestHandler, options: HttpServerTransportOptions = {}) {
     this.server = server;
     const basePath = options.basePath ?? "/api";
     this.options = {
@@ -449,11 +450,14 @@ export class HttpServerTransport implements ServerTransport {
     const id =
       (req.headers["x-request-id"] as string) ??
       `req-${Date.now()}-${Math.random()}`;
+    const bearer = bearerOf(req.headers["authorization"]);
 
     // Build metadata from headers and query params. The flattened query parameters cannot
     // replace headers, query or params (before, "?headers=x" replaced metadata.headers).
+    // The headers without the secrets: the credentials go in request.credentials, not in the
+    // metadata, so a handler and a nested call do not see them (roadmap R18)
     const metadata: Metadata = {
-      headers: req.headers as Record<string, string>,
+      headers: withoutSecretHeaders(req.headers as Record<string, string>),
       query: req.query,
       params: req.params,
     };
@@ -530,6 +534,8 @@ export class HttpServerTransport implements ServerTransport {
       method,
       payload,
       metadata,
+      // A network request: ProcedureServer examines the token (roadmap R18)
+      credentials: bearer === undefined ? {} : { bearer },
     };
   }
 
