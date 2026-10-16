@@ -8,10 +8,12 @@
  * The scaffolded code compiles with the strict options of the workspace (deep dive CLI-13):
  * - the handler names its unused input `_input` (noUnusedParameters);
  * - types.ts is created, or gets `import { z } from "zod"`, when it needs it;
- * - the registration goes into the defineModule([...]) array of src/module.ts. A package of the
- *   old kind, without module.ts, gets it in the registerProcedures([...]) array of src/register.ts.
+ * - the registration goes into the list that defineModule gets in src/module.ts: an array literal,
+ *   or the array of a variable that module.ts declares. A package of the old kind, without
+ *   module.ts, gets it in the registerProcedures([...]) array of src/register.ts.
  * A name whose path, file, types or registration exists already is an error, and nothing is
  * written. Before, "a.b.c" and "a.c" wrote the same file, and existing types were reused silently.
+ * A module whose list procedure.new cannot find is an error too, and nothing is written.
  */
 
 import { join } from "node:path";
@@ -219,40 +221,213 @@ export function ensureNamedImports(source: string, moduleName: string, names: st
   return addImports(source, [`import { ${names.join(", ")} } from "${moduleName}";\n`]);
 }
 
-/** The index of the bracket that closes the bracket at `open` (strings are skipped) */
+/** The index after the string or comment that starts at `i`, or `i` when code starts there */
+function skipNonCode(source: string, i: number): number {
+  const ch = source[i];
+  if (ch === "/" && source[i + 1] === "/") {
+    const end = source.indexOf("\n", i);
+    return end === -1 ? source.length : end;
+  }
+  if (ch === "/" && source[i + 1] === "*") {
+    const end = source.indexOf("*/", i + 2);
+    return end === -1 ? source.length : end + 2;
+  }
+  if (ch === '"' || ch === "'" || ch === "`") {
+    for (let j = i + 1; j < source.length; j++) {
+      if (source[j] === "\\") j++;
+      else if (source[j] === ch) return j + 1;
+    }
+    return source.length;
+  }
+  return i;
+}
+
+/** For each character of the source: true when it is code, false in a string or a comment */
+function codeMask(source: string): boolean[] {
+  const mask = new Array<boolean>(source.length).fill(true);
+  for (let i = 0; i < source.length; i++) {
+    const skip = skipNonCode(source, i);
+    if (skip !== i) {
+      mask.fill(false, i, skip);
+      i = skip - 1;
+    }
+  }
+  return mask;
+}
+
+/** The index of the bracket that closes the bracket at `open` (strings and comments are skipped) */
 function closingBracket(source: string, open: number): number {
   let depth = 0;
-  let quote: string | undefined;
   for (let i = open; i < source.length; i++) {
-    const ch = source[i]!;
-    if (quote) {
-      if (ch === "\\") i++;
-      else if (ch === quote) quote = undefined;
+    const skip = skipNonCode(source, i);
+    if (skip !== i) {
+      i = skip - 1;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
-    else if (ch === "[") depth++;
+    const ch = source[i];
+    if (ch === "[") depth++;
     else if (ch === "]" && --depth === 0) return i;
   }
   return -1;
 }
 
-/**
- * Add an item to the array of the first defineModule("name", [...]), registerProcedures([...]) or
- * registerAll([...]) call. Returns undefined when the source has no such call.
- */
-export function addToRegistration(source: string, item: string): string | undefined {
-  // The first call in code, not in a comment
-  const call = [...source.matchAll(/\b(defineModule|registerProcedures|registerAll)\s*\(/g)].find((match) => {
-    const lineStart = source.lastIndexOf("\n", match.index) + 1;
-    const before = source.slice(lineStart, match.index).trim();
-    return !before.startsWith("*") && !before.startsWith("/*") && !before.includes("//");
-  });
-  if (!call) {
-    return undefined;
+/** The start and the end of one argument of a call, without the spaces and comments around it */
+interface ArgumentRange {
+  start: number;
+  end: number;
+}
+
+/** The arguments of the call whose "(" is at `open`. Undefined when the call does not end. */
+function callArguments(source: string, open: number): ArgumentRange[] | undefined {
+  const args: ArgumentRange[] = [];
+  let depth = 0;
+  let first = -1;
+  let last = -1;
+  const push = (): void => {
+    if (first !== -1) args.push({ start: first, end: last });
+    first = -1;
+    last = -1;
+  };
+  for (let i = open; i < source.length; i++) {
+    const skip = skipNonCode(source, i);
+    if (skip !== i) {
+      // A string is a part of the argument. A comment is not.
+      if (source[i] !== "/") {
+        if (first === -1) first = i;
+        last = skip;
+      }
+      i = skip - 1;
+      continue;
+    }
+    const ch = source[i]!;
+    if (/\s/.test(ch)) continue;
+    if (ch === "(" || ch === "[" || ch === "{") {
+      if (++depth === 1) continue;
+    } else if (ch === ")" || ch === "]" || ch === "}") {
+      if (--depth === 0) {
+        push();
+        return args;
+      }
+    } else if (ch === "," && depth === 1) {
+      push();
+      continue;
+    }
+    if (first === -1) first = i;
+    last = i + 1;
   }
-  const open = source.indexOf("[", call.index);
-  const close = open === -1 ? -1 : closingBracket(source, open);
+  return undefined;
+}
+
+/**
+ * The index of the line where the statement at `index` starts, above its leading comments: code
+ * that goes there comes before the statement.
+ */
+function statementStart(source: string, index: number): number {
+  let start = source.lastIndexOf("\n", index - 1) + 1;
+  for (;;) {
+    const before = source.slice(0, start).replace(/\s*$/, "");
+    if (before.endsWith("*/")) {
+      const comment = before.lastIndexOf("/*");
+      if (comment === -1) return start;
+      start = source.lastIndexOf("\n", comment - 1) + 1;
+      continue;
+    }
+    const lineStart = before.lastIndexOf("\n") + 1;
+    if (before.length > 0 && before.slice(lineStart).trimStart().startsWith("//")) {
+      start = lineStart;
+      continue;
+    }
+    return start;
+  }
+}
+
+/** The declaration of `name` in code as an array literal: the start of the statement and the "[" */
+function arrayDeclaration(source: string, name: string, mask: boolean[]): { statement: number; open: number } | undefined {
+  const escaped = name.replace(/\$/g, "\\$");
+  const pattern = new RegExp(`(?<![\\w$.])(?:const|let|var)\\s+${escaped}\\s*(?::[^=;]*)?=\\s*\\[`, "g");
+  for (const match of source.matchAll(pattern)) {
+    if (mask[match.index]) {
+      return { statement: statementStart(source, match.index), open: match.index + match[0].length - 1 };
+    }
+  }
+  return undefined;
+}
+
+/** The argument of each call that holds the procedures */
+const LIST_ARGUMENT: Readonly<Record<string, number>> = { defineModule: 1, registerProcedures: 0, registerAll: 0 };
+
+/** The source with the item in the list, and the place for the definition of the item */
+export interface RegistrationEdit {
+  source: string;
+  /** The definition of the item goes before this index, so that the list can use it */
+  before: number;
+}
+
+/** An argument as a short text for a message */
+function shortText(text: string): string {
+  const line = text.replace(/\s+/g, " ");
+  return line.length > 60 ? `${line.slice(0, 57)}...` : line;
+}
+
+/**
+ * Add an item to the list of procedures of the first defineModule("name", list),
+ * registerProcedures(list) or registerAll(list) call. The list is an array literal, the variable of
+ * an array that this file declares, or `[...variable]`. Gives the reason as an error when the
+ * source has no such list. Before, the item went into the first array after the call, also when
+ * that array was the argument of `registerModules` (the ics and geo packages).
+ */
+export function addToRegistration(source: string, item: string): RegistrationEdit | { error: string } {
+  const mask = codeMask(source);
+  // The first call in code, not in a comment or a string, and not the declaration of the function
+  const call = [...source.matchAll(/\b(defineModule|registerProcedures|registerAll)\s*\(/g)].find(
+    (match) => mask[match.index] && !/\bfunction\s*$/.test(source.slice(0, match.index))
+  );
+  if (!call) {
+    return { error: "the file has no defineModule, registerProcedures or registerAll call" };
+  }
+  const fn = call[1]!;
+  const args = callArguments(source, call.index + call[0].length - 1);
+  const list = args?.[LIST_ARGUMENT[fn]!];
+  if (!list) {
+    return { error: `the ${fn} call has no list of procedures` };
+  }
+  const text = source.slice(list.start, list.end);
+
+  // The definition goes before the code that registers the procedures: the module, the register
+  // function or the call
+  const anchor =
+    /^export\s+const\s+\w+\s*(:\s*\w+\s*)?=\s*defineModule\s*\(|^(export\s+)?(async\s+)?function\s+register\w*\s*\(|^\s*(registerProcedures|PROCEDURE_REGISTRY\.registerAll)\s*\(/m.exec(
+      source
+    );
+  const callStatement = anchor && anchor.index <= call.index ? anchor.index : statementStart(source, call.index);
+
+  let target: { open: number; before: number } | undefined;
+  if (text.startsWith("[") && closingBracket(source, list.start) === list.end - 1) {
+    // [...variable]: the item goes into the array of the variable, when this file declares it
+    const spread = /^\[\s*\.\.\.\s*([A-Za-z_$][\w$]*)\s*,?\s*\]$/.exec(text);
+    const declared = spread ? arrayDeclaration(source, spread[1]!, mask) : undefined;
+    target = declared ? { open: declared.open, before: declared.statement } : { open: list.start, before: callStatement };
+  } else if (/^[A-Za-z_$][\w$]*$/.test(text)) {
+    const declared = arrayDeclaration(source, text, mask);
+    if (!declared) {
+      return { error: `${fn} gets "${text}", and this file does not declare "${text}" as an array` };
+    }
+    target = { open: declared.open, before: declared.statement };
+  } else {
+    return { error: `${fn} gets "${shortText(text)}", which is not an array or a variable of this file` };
+  }
+
+  const updated = insertItem(source, target.open, item);
+  if (updated === undefined) {
+    return { error: `the list of ${fn} has no closing bracket` };
+  }
+  // The item goes after the place of the definition, so that index does not move
+  return { source: updated, before: target.before };
+}
+
+/** Add an item to the array whose "[" is at `open`. Undefined when the array does not end. */
+function insertItem(source: string, open: number, item: string): string | undefined {
+  const close = closingBracket(source, open);
   if (close === -1) {
     return undefined;
   }
@@ -312,26 +487,28 @@ register();
 
 /**
  * Put the procedure into module.ts (or register.ts): its imports, its definition, and its place
- * in the array of the module. Returns undefined when the file has no such array.
+ * in the list of procedures of the module. Gives the reason as an error when the file has no such
+ * list (see `addToRegistration`).
  */
-export function registerSource(source: string, layout: ProcedureLayout, description: string, importPath: string): string | undefined {
+export function registerSource(
+  source: string,
+  layout: ProcedureLayout,
+  description: string,
+  importPath: string
+): string | { error: string } {
   const { camelName, pascalName } = layout;
-  const withArray = addToRegistration(source, `${camelName}Procedure`);
-  if (withArray === undefined) {
-    return undefined;
+  const edit = addToRegistration(source, `${camelName}Procedure`);
+  if ("error" in edit) {
+    return edit;
   }
-  let updated = ensureNamedImports(withArray, "@procedures/client", ["createProcedure", "zodAdapter"]);
-  updated = addImports(updated, [
+  // The definition goes before the list that uses it, then the imports go after the last import
+  const withDefinition =
+    edit.source.slice(0, edit.before) + generateRegistration(layout, description) + edit.source.slice(edit.before);
+  const updated = ensureNamedImports(withDefinition, "@procedures/client", ["createProcedure", "zodAdapter"]);
+  return addImports(updated, [
     `import { ${camelName} } from "${importPath}";\n`,
     `import { ${pascalName}InputSchema, ${pascalName}OutputSchema, type ${pascalName}Input, type ${pascalName}Output } from "./types.js";\n`,
   ]);
-  // The definition goes before the module, or before the code that registers the procedures
-  const anchor =
-    /^export\s+const\s+\w+\s*(:\s*\w+\s*)?=\s*defineModule\s*\(|^(export\s+)?(async\s+)?function\s+register\w*\s*\(|^\s*(registerProcedures|PROCEDURE_REGISTRY\.registerAll)\s*\(/m.exec(
-      updated
-    );
-  const at = anchor ? anchor.index : updated.length;
-  return updated.slice(0, at) + generateRegistration(layout, description) + updated.slice(at);
 }
 
 /**
@@ -401,6 +578,13 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
   }
   const registerBase = existingRegister ?? REGISTER_TEMPLATE;
   const newRegister = registerSource(registerBase, layout, description, importPath);
+  // Without the list of the module, the procedure would not be registered: write nothing
+  if (typeof newRegister !== "string") {
+    return fail(
+      `${registerFile} has no list of procedures that procedure.new can change: ${newRegister.error}. ` +
+        `Nothing was written. Give the module an array of procedures in ${registerName}, and start procedure.new again.`
+    );
+  }
 
   if (input.dryRun) {
     const [indexExists] = await Promise.all([pathExists(namespaceIndex, ctx)]);
@@ -416,15 +600,13 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
       modified: [
         ...(indexExists ? [namespaceIndex] : []),
         ...(existingTypes !== undefined ? [typesFile] : []),
-        ...(existingRegister !== undefined && newRegister !== undefined ? [registerFile] : []),
+        ...(existingRegister !== undefined ? [registerFile] : []),
       ],
       operations: [
         `Would create procedure file: ${procedureFile}`,
         `Would create/update index: ${namespaceIndex}`,
         existingTypes === undefined ? `Would create ${typesFile}` : `Would append types to: ${typesFile}`,
-        newRegister === undefined
-          ? `Would not change ${registerFile}: it has no defineModule or registerProcedures array`
-          : `Would register the procedure in: ${registerFile}`,
+        `Would register the procedure in: ${registerFile}`,
       ],
       errors: [],
     };
@@ -473,17 +655,11 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
     }
 
     // Step 4: Register the procedure
-    if (newRegister === undefined) {
-      operations.push(
-        `${registerName} has no defineModule or registerProcedures array: add ${camelName}Procedure to the module in ${registerFile}`
-      );
-    } else {
-      operations.push(`${existingRegister === undefined ? "Creating" : "Updating"} registration: ${registerFile}`);
-      await writeText(registerFile, newRegister, ctx);
-      (existingRegister === undefined ? created : modified).push(registerFile);
-      if (existingRegister === undefined) {
-        operations.push(`Export the procedures from src/index.ts, and give the package a "./register" entry (see lib new)`);
-      }
+    operations.push(`${existingRegister === undefined ? "Creating" : "Updating"} registration: ${registerFile}`);
+    await writeText(registerFile, newRegister, ctx);
+    (existingRegister === undefined ? created : modified).push(registerFile);
+    if (existingRegister === undefined) {
+      operations.push(`Export the procedures from src/index.ts, and give the package a "./register" entry (see lib new)`);
     }
 
     operations.push(`Next: implement ${segments.join(".")} in ${procedureFile}, then run pnpm build`);
