@@ -10,6 +10,7 @@ import { anyOutput, arrayOutput, booleanOutput, numberOutput } from "./outputs.j
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 import { PURE_EFFECTS, withEffects } from "../effects.js";
+import { isPlainObject } from "../ref.js";
 
 /**
  * This function gives the own field `key` of an item, or undefined. A field of the prototype
@@ -301,9 +302,46 @@ interface UniqueInput {
 }
 
 const UniqueInputSchema = z.object({
-  items: z.array(z.unknown()).describe("The array"),
-  key: z.string().optional().describe("The key (a field name of the items)"),
+  items: z.array(z.unknown()).describe("The array. Equal JSON values are duplicates: objects and arrays compare by value."),
+  key: z.string().optional().describe("The key (a field name of the items). The values of the field compare by value."),
 });
+
+/**
+ * This function gives a function that makes a text key for a value: two equal JSON values get
+ * the same key. An array compares by its items in order, and a plain object by its own fields in
+ * any order. A number and its string get different keys. Another object (a `Date`, a `Map`) and
+ * a symbol compare by identity.
+ */
+function valueKeys(): (value: unknown) => string {
+  const identities = new Map<unknown, number>();
+  const identity = (value: unknown): string => {
+    let id = identities.get(value);
+    if (id === undefined) {
+      id = identities.size;
+      identities.set(value, id);
+    }
+    return `#${id}`;
+  };
+  const keyOf = (value: unknown, parents: Set<unknown>): string => {
+    if (typeof value === "string") return JSON.stringify(value);
+    // -0 and 0 are one value, and NaN is one value, as in a Set
+    if (typeof value === "number") return Object.is(value, -0) ? "0" : String(value);
+    if (typeof value === "bigint") return `${value}n`;
+    if (value === null || value === undefined || typeof value === "boolean") return String(value);
+    // A cycle is not JSON: its object compares by identity
+    if (parents.has(value) || (!Array.isArray(value) && !isPlainObject(value))) return identity(value);
+    parents.add(value);
+    const text = Array.isArray(value)
+      ? `[${value.map((item) => keyOf(item, parents)).join(",")}]`
+      : `{${Object.keys(value)
+          .sort()
+          .map((field) => `${JSON.stringify(field)}:${keyOf(value[field], parents)}`)
+          .join(",")}}`;
+    parents.delete(value);
+    return text;
+  };
+  return (value) => keyOf(value, new Set());
+}
 
 type UniqueProcedure = Procedure<UniqueInput, unknown[], { description: string; tags: string[] }>;
 
@@ -312,20 +350,19 @@ const uniqueProcedure: UniqueProcedure = defineProcedure({
   input: UniqueInputSchema,
   output: arrayOutput("The items without duplicates"),
   metadata: {
-    description: "Remove duplicate values (optionally by key)",
+    description: "Remove duplicate values (optionally by key). It compares by value and keeps the first item of each value.",
     tags: ["core", "array"],
   },
   handler: async (input: UniqueInput): Promise<unknown[]> => {
-    if (input.key) {
-      const seen = new Set<unknown>();
-      return input.items.filter((item) => {
-        const val = fieldOf(item, input.key!);
-        if (seen.has(val)) return false;
-        seen.add(val);
-        return true;
-      });
-    }
-    return [...new Set(input.items)];
+    // Before, objects compared by reference, so two equal objects both stayed (catalog test, R29)
+    const keyOf = valueKeys();
+    const seen = new Set<string>();
+    return input.items.filter((item) => {
+      const key = keyOf(input.key ? fieldOf(item, input.key) : item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   },
 });
 
@@ -623,8 +660,8 @@ interface FilterInput {
   value?: unknown | undefined;
   /** Values to match (any of these) */
   values?: unknown[] | undefined;
-  /** Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith' */
-  match?: 'equals' | 'not' | 'in' | 'notIn' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte' | undefined;
+  /** Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte' */
+  match?:'equals' | 'not' | 'in' | 'notIn' | 'contains' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte' | undefined;
   /** Invert the filter */
   invert?: boolean | undefined;
 }
@@ -634,7 +671,7 @@ const FilterInputSchema = z.object({
   key: z.string().optional().describe("Property to match against"),
   value: z.unknown().optional().describe("Value to match (equality check)"),
   values: z.array(z.unknown()).optional().describe("Values to match (any of these)"),
-  match: z.enum(["equals", "not", "in", "notIn", "contains", "startsWith", "endsWith", "gt", "gte", "lt", "lte"]).optional().describe("Match mode: 'equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith'"),
+  match: z.enum(["equals", "not", "in", "notIn", "contains", "startsWith", "endsWith", "gt", "gte", "lt", "lte"]).optional().describe("Match mode (default 'equals'): 'equals' and 'not' compare with value, 'in' and 'notIn' with values. 'contains', 'startsWith' and 'endsWith' compare strings. 'gt', 'gte', 'lt' and 'lte' compare numbers."),
   invert: z.boolean().optional().describe("Invert the filter"),
 });
 

@@ -5,7 +5,7 @@
       "values": {
         "type": "array",
         "items": {},
-        "description": "The values or calls to evaluate"
+        "description": "The values to evaluate. This procedure does not run calls: a call is an object, thus truthy. client.and and client.or run calls."
       }
     },
     "required": [
@@ -33,7 +33,7 @@
       "values": {
         "type": "array",
         "items": {},
-        "description": "The values or calls to evaluate"
+        "description": "The values to evaluate. This procedure does not run calls: a call is an object, thus truthy. client.and and client.or run calls."
       }
     },
     "required": [
@@ -120,7 +120,7 @@
       "values": {
         "type": "array",
         "items": {},
-        "description": "The values or calls to evaluate"
+        "description": "The values to evaluate. This procedure does not run calls: a call is an object, thus truthy. client.and and client.or run calls."
       }
     },
     "required": [
@@ -132,7 +132,7 @@
     "type": "object",
     "properties": {
       "value": {
-        "description": "The value or call to negate"
+        "description": "The value to negate. This procedure does not run a call: a call is an object, thus truthy."
       }
     },
     "additionalProperties": {}

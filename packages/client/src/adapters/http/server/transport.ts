@@ -17,7 +17,7 @@ import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { bearerOf, withoutSecretHeaders } from "../../../server/request-auth.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
@@ -42,10 +42,9 @@ class BodyError extends Error {
 
 /** The code and message of a thrown error, with its retryable flag (deep dive TRN-7). */
 function errorOf(error: unknown): { code: string; message: string; retryable: boolean } {
-  const code = (error as { code?: unknown } | undefined)?.code;
   const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
   return {
-    code: typeof code === "string" ? code : "HANDLER_ERROR",
+    code: errorCodeOf(error),
     message: error instanceof Error ? error.message : String(error),
     retryable: typeof retryable === "boolean" ? retryable : false,
   };

@@ -204,7 +204,7 @@ const fsCopyProcedure = createProcedure()
   .input(zodAdapter<CopyInput>(CopyInputSchema))
   .output(zodAdapter<CopyOutput>(CopyOutputSchema))
   .meta({
-    description: "Copy file or directory",
+    description: "Copy file or directory. Without overwrite, it refuses an existing destination (EEXIST).",
     args: ["src", "dest"],
     shorts: { recursive: "r", overwrite: "o" },
     output: "json",

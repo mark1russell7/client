@@ -151,10 +151,14 @@ const modProcedure: ModProcedure = defineProcedure({
   input: ModInputSchema,
   output: numberOutput("The remainder of a divided by b"),
   metadata: {
-    description: "Modulo (remainder of a / b)",
+    description: "Modulo (remainder of a / b). It refuses b = 0, as client.divide does.",
     tags: ["core", "math"],
   },
   handler: async (input: ModInput): Promise<number> => {
+    // Before, b = 0 gave NaN, and client.divide refused it (catalog test, roadmap R29)
+    if (input.b === 0) {
+      throw new Error("Division by zero");
+    }
     return input.a % input.b;
   },
 });
