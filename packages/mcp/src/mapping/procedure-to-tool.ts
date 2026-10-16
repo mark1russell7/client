@@ -4,7 +4,7 @@
  * Converts procedures from PROCEDURE_REGISTRY to MCP tool definitions.
  */
 
-import { toolHints, type AnyProcedure, type ProcedurePath } from "@procedures/client";
+import { inferredEffectsOf, isDataDriven, toolHints, type AnyProcedure, type Effects, type ProcedurePath } from "@procedures/client";
 import type { McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
@@ -36,6 +36,34 @@ function extractMetadata(procedure: AnyProcedure): ProcedureMetadata {
   };
 }
 
+/** A list in words: "a", "a and b", "a, b and c". */
+function listText(names: readonly string[]): string {
+  if (names.length === 0) return "nothing";
+  if (names.length === 1) return names[0]!;
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The sentence of the effects that the host found for the body of a defined procedure
+ * (`inferredEffects`, roadmap R22): "It reads fs and changes nothing."
+ */
+export function effectsSentence(effects: Effects): string {
+  return `It reads ${listText(effects.reads ?? [])} and changes ${listText(effects.writes ?? [])}.`;
+}
+
+/**
+ * The description of a tool. A data-driven procedure with `inferredEffects` (a procedure that
+ * `procedure.define` made on a host that checked its body) gets the sentence of its effects
+ * (roadmap R23). The description of another procedure does not change.
+ */
+export function toolDescription(procedure: AnyProcedure): string {
+  const description = extractMetadata(procedure).description ?? `Call ${procedure.path.join(".")}`;
+  const inferred = isDataDriven(procedure) ? inferredEffectsOf(procedure) : undefined;
+  if (!inferred) return description;
+  const sentence = description.trimEnd();
+  return `${/[.!?]$/.test(sentence) ? sentence : `${sentence}.`} ${effectsSentence(inferred)}`;
+}
+
 /**
  * Convert a single procedure to an MCP tool definition.
  *
@@ -54,7 +82,7 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
 
   const tool: McpTool = {
     name: toolName,
-    description: meta.description ?? `Call ${cacheKey}`,
+    description: toolDescription(procedure),
     inputSchema: cachedToolInputSchema(procedure.input, cacheKey),
     procedurePath: procedure.path,
   };

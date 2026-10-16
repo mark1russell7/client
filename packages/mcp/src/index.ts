@@ -43,6 +43,8 @@ export {
   sanitizePath,
   procedureToMcpTool,
   proceduresToMcpTools,
+  toolDescription,
+  effectsSentence,
   toToolDefinition,
   createToolMap,
   findToolByPath,

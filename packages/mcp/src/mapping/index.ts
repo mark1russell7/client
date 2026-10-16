@@ -14,6 +14,8 @@ export {
 export {
   procedureToMcpTool,
   proceduresToMcpTools,
+  toolDescription,
+  effectsSentence,
   toToolDefinition,
   createToolMap,
   findToolByPath,

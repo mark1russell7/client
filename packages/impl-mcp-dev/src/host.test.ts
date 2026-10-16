@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { PROCEDURE_REGISTRY, hiddenReach, pathToKey, type AnyProcedure } from "@procedures/client";
-import { exposeRule, mergeSurfaces } from "@procedures/mcp-server";
+import { exposeRule, mergeSurfaces, procedureToMcpTool } from "@procedures/mcp-server";
 import { createDevToolsHost, type DevToolsHost } from "./host.js";
 
 const keys = (procedures: readonly AnyProcedure[]): string[] => procedures.map((procedure) => pathToKey(procedure.path)).sort();
@@ -54,6 +54,22 @@ describe("the dev-tools host", () => {
     expect(host.policy.strictCalls).toBe(true);
     expect(host.surface?.namespaces).toContain("docker");
     expect(host.policy.expose!(["shell", "exec"])).toBe(false);
+  });
+
+  it("gives the tool of a defined procedure a description with the effects of its body (roadmap R23)", async () => {
+    const response = await host.server.handle({
+      id: "r23",
+      method: { service: "procedure", operation: "define" },
+      payload: { path: ["r23", "names"], aggregation: { $proc: ["procedure", "list"], input: {} }, metadata: { description: "List the procedures" } },
+      metadata: {},
+    });
+    expect(response.status).toMatchObject({ type: "success" });
+    const defined = host.registry.get(["r23", "names"]);
+    expect(defined).toBeDefined();
+    const tool = procedureToMcpTool(defined!);
+    expect(tool.description).toBe("List the procedures. It reads registry and changes nothing.");
+    expect(tool.annotations).toMatchObject({ readOnlyHint: true });
+    host.registry.unregister(["r23", "names"]);
   });
 });
 
