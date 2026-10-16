@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 279 across 46 namespaces. Loaded 41 package register(s).
+**Total procedures:** 285 across 46 namespaces. Loaded 43 package register(s).
 
 ## Namespaces
 
@@ -12,7 +12,6 @@
 - [`archive.*`](#archive) — 3 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
 - [`client.*`](#client) — 15 procedure(s)
-- [`core.*`](#core) — 1 procedure(s)
 - [`cue.*`](#cue) — 5 procedure(s)
 - [`dag.*`](#dag) — 1 procedure(s)
 - [`db.*`](#db) — 7 procedure(s)
@@ -48,6 +47,7 @@
 - [`shell.*`](#shell) — 4 procedure(s)
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
+- [`sqlite.*`](#sqlite) — 7 procedure(s)
 - [`systems.*`](#systems) — 1 procedure(s)
 - [`tailscale.*`](#tailscale) — 1 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
@@ -97,12 +97,6 @@
 | `client.throw` | Throw an error |
 | `client.tryCatch` | Try/catch wrapper for procedures |
 
-## core
-
-| Procedure | Description |
-|-----------|-------------|
-| `core.catch` | Execute a procedure with error handling |
-
 ## cue
 
 | Procedure | Description |
@@ -123,13 +117,13 @@
 
 | Procedure | Description |
 |-----------|-------------|
-| `db.backup` | Copy a database to a new file (it does not replace a file) |
-| `db.execute` | Execute a SQL statement (INSERT, UPDATE, DELETE) |
-| `db.migrate` | Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction |
-| `db.query` | Execute a SQL SELECT query (read only: a statement that changes data fails) |
-| `db.schema` | The columns, indexes and foreign keys of a table (read only) |
-| `db.tables` | The tables and views of a database (read only: a missing file is an error) |
-| `db.transaction` | Run statements in one transaction: they all take effect, or none does |
+| `db.backup` | Deprecated: use sqlite.backup. Copy a database to a new file (it does not replace a file) |
+| `db.execute` | Deprecated: use sqlite.execute. Execute a SQL statement (INSERT, UPDATE, DELETE) |
+| `db.migrate` | Deprecated: use sqlite.migrate. Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction |
+| `db.query` | Deprecated: use sqlite.query. Execute a SQL SELECT query (read only: a statement that changes data fails) |
+| `db.schema` | Deprecated: use sqlite.schema. The columns, indexes and foreign keys of a table (read only) |
+| `db.tables` | Deprecated: use sqlite.tables. The tables and views of a database (read only: a missing file is an error) |
+| `db.transaction` | Deprecated: use sqlite.transaction. Run statements in one transaction: they all take effect, or none does |
 
 ## docker
 
@@ -521,6 +515,18 @@
 |-----------|-------------|
 | `splay.bridge.health` | Health check for client-splay bridge |
 | `splay.bridge.info` | Get client-splay bridge information |
+
+## sqlite
+
+| Procedure | Description |
+|-----------|-------------|
+| `sqlite.backup` | Copy a database to a new file (it does not replace a file) |
+| `sqlite.execute` | Execute a SQL statement (INSERT, UPDATE, DELETE) |
+| `sqlite.migrate` | Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction |
+| `sqlite.query` | Execute a SQL SELECT query (read only: a statement that changes data fails) |
+| `sqlite.schema` | The columns, indexes and foreign keys of a table (read only) |
+| `sqlite.tables` | The tables and views of a database (read only: a missing file is an error) |
+| `sqlite.transaction` | Run statements in one transaction: they all take effect, or none does |
 
 ## systems
 
