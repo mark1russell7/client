@@ -83,7 +83,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | fixed | `bc70357`, `95b660d` |
 | R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
-| R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
+| R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | fixed: 10 cells hold in CI, systems PR #16 is a draft until PR #14 merges | systems `07fdbf1`, `ff8300e`, `dcfdb9b`, `c2d7994` |
 | R37 | 8 | The service abstraction of `systems` in the client | M–L | fixed: the clock, the heartbeat, the backoff and `replay` | systems PR #15 (`ba06091`), client `061fa22` |
 | R38 | 9 | `@procedures/http` | S–M | fixed, not an MCP tool | `a6b01a9` |
 | R39 | 9 | JSON and YAML transforms | S | fixed, the pure ones are MCP tools | `a6b01a9`, `1779d96` |
@@ -480,6 +480,29 @@ The state of the WebSocket connection and of the circuit breaker become machine 
 
 A driver for a procedures WebSocket pair in the harness of `systems`. A nightly cell calibrates the heartbeat and the reconnect times under real network faults.
 
+**Result.** Systems PR #16 (harness 0.8.0, algebra 0.6.0) adds these parts:
+
+- A detection by the program. The driver writes a line before each ping and before each drop, and the kernel stamps the two writes. The reference is the first ping without an answer.
+- A measurement of each reconnect wait.
+- A client and a target that run `@procedures/client` 0.2.3 on Node 24.21.0.
+- The catalog `WS` of 10 cells. All 10 cells hold in three CI runs, and no run is void.
+
+| Cell | Prediction | Medians |
+|---|---|---|
+| Idle, black hole, heartbeat 2 s and 1 s | a drop in [0.998, 1.003] s | 1.0025 to 1.0028 s |
+| A call in flight, black hole | the same | 1.0023 to 1.0026 s |
+| Idle, the server frozen | the same | 1.0024 to 1.0027 s |
+| Idle, a stall of 1 s | silence, and the pong in [1.604, 1.697] s | 1.650 to 1.660 s |
+| Idle, the server stops with a FIN, three refused tries | the reconnect waits 0.5, 1 and 2 s | 500.3, 1000.4 and 2001.5 ms |
+| Idle, `tcp_retries2` 3, pong timeout 10 s | the kernel first, in [3, 6.416] s | 6.160 to 6.184 s |
+
+The findings:
+
+- A drop left its socket open. The global `WebSocket` has only `close()`, which waits for the answer of a dead peer. The socket stays until the kernel stops it: 924.6 s with the default settings. The option `webSocket` of the client takes the class of the `ws` package, and a drop then calls `terminate()`.
+- The server of 0.2.3 has no heartbeat, so only the kernel finds a dead client, and only with a reply in flight. The heartbeat of the server (R3) is on main, and its cell waits for the next release.
+- The heartbeat band holds near its top. The timers of Node use almost all of their modelled lateness.
+- A reconnect after an error of the kernel comes 2 to 4.5 ms later than after a drop by the heartbeat. Approximately 1.7 ms of that is the `console.error` in `onerror`.
+
 ### R37. The service abstraction
 
 A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. The service package is a declaration of a service as data and three runtimes: `lint` (the timer law), `start` (health) and `run` (the lifecycle). The root entry works in a browser. `./testing` and `./redis` need Node.
@@ -577,4 +600,6 @@ The review found code that is a candidate for removal or a move. These items nee
     - `timeout.ts`: the guards of `composeAbortSignals` for an empty list and for one signal that is aborted. The fallback without `AbortSignal.any` runs only in an old browser, because the package needs Node 22.
     - `timeout.ts`: the checks of `timedOut()` on lines 172 and 181. Since R30, an abort always comes first.
     - `circuit-breaker.ts`: the stop of the reset timer at the close, and the check of a waiting reset timer in `scheduleReset`.
+  - The WebSocket client in Node uses the global `WebSocket` by default, and a drop then waits for the kernel. A default of the `ws` class in Node needs a separate entry, because the browser entry cannot import `ws`.
+  - The next release of `@procedures/client` brings the heartbeat of the server (R3) to the harness cells of R36.
   - The fs root decides by the real path. A link from outside the root that leads into the root is accepted, because it reaches only files in the root. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
