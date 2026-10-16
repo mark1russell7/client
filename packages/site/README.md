@@ -16,6 +16,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 - Undo and Redo (`Ctrl+Z`, `Ctrl+Shift+Z`) go through the edits. Each edit is also an entry of the browser history, so the Back button returns to the previous program.
 - The Composer marks a `$ref` whose name is not in scope, a call of an unknown procedure, and a list of calls that runs as a chain. It shows NaN, Infinity and undefined in a result.
 - The TypeScript tab gives code that runs with Node: a test runs it for each example.
+- The Saved button saves the program under a name, and opens a saved program. `IndexedDbProgramStore` of `@procedures/store/indexeddb` keeps the programs in the browser. Without IndexedDB, a store in memory keeps them until the page closes. The store loads only when you open the saved programs.
 
 ## How it works
 

@@ -89,6 +89,28 @@ test.describe("the Composer", () => {
     await expect(page.locator(".result-value")).toHaveText("17");
   });
 
+  test("a saved program stays in the browser, and it opens again (roadmap R45)", async ({ page }) => {
+    await open(page, "composer/?example=nested");
+    await page.getByRole("textbox", { name: "b", exact: true }).last().fill("10");
+    await expect(page.locator(".result-value")).toHaveText("22");
+
+    await page.getByRole("button", { name: "Saved", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Saved programs" });
+    await expect(panel).toContainText("IndexedDB");
+    await panel.getByRole("textbox", { name: "Name" }).fill("my.nested");
+    await panel.getByRole("button", { name: "Save the program" }).click();
+    await expect(panel.getByRole("status")).toHaveText("Saved my.nested.");
+
+    // Another program in a new load of the page: IndexedDB keeps the saved program
+    await open(page, "composer/?example=chain");
+    await expect(page.locator(".status-ok")).toBeVisible();
+    await page.getByRole("button", { name: "Saved", exact: true }).click();
+    await panel.getByRole("button", { name: "Open my.nested" }).click();
+    await expect(page.locator(".result-value")).toHaveText("22");
+    await expect(page).toHaveURL(/\?p=/);
+    await expect(panel).toHaveCount(0);
+  });
+
   test("the TypeScript tab gives code that runs with Node", async ({ page }) => {
     await open(page, "composer/?example=map");
     await expect(page.locator(".status-ok")).toBeVisible();
