@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@stryker-mutator/vitest-runner@10.0.0': 9bfdb3546d46d7fb7aced15177f6fd1ecc2e83fa997122f5629ad41e66f4d25b
+
 importers:
 
   .:
@@ -384,7 +387,7 @@ importers:
         version: 10.0.0(@types/node@22.20.5)
       '@stryker-mutator/vitest-runner':
         specifier: 10.0.0
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@22.20.5))(vitest@5.0.3)
+        version: 10.0.0(patch_hash=9bfdb3546d46d7fb7aced15177f6fd1ecc2e83fa997122f5629ad41e66f4d25b)(@stryker-mutator/core@10.0.0(@types/node@22.20.5))(vitest@5.0.3)
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
@@ -5900,7 +5903,7 @@ snapshots:
 
   '@stryker-mutator/util@10.0.0': {}
 
-  '@stryker-mutator/vitest-runner@10.0.0(@stryker-mutator/core@10.0.0(@types/node@22.20.5))(vitest@5.0.3)':
+  '@stryker-mutator/vitest-runner@10.0.0(patch_hash=9bfdb3546d46d7fb7aced15177f6fd1ecc2e83fa997122f5629ad41e66f4d25b)(@stryker-mutator/core@10.0.0(@types/node@22.20.5))(vitest@5.0.3)':
     dependencies:
       '@stryker-mutator/api': 10.0.0
       '@stryker-mutator/core': 10.0.0(@types/node@22.20.5)
