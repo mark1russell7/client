@@ -93,6 +93,11 @@ interface Rule {
   readonly kind: FindingKind;
   readonly pattern: RegExp;
   readonly keep?: (match: string) => boolean;
+  /**
+   * A term in upper case and in lower case. A line that contains neither cannot match the term,
+   * so the scan does not start its pattern. With hundreds of terms, this makes the scan fast.
+   */
+  readonly cheap?: { readonly upper: string; readonly lower: string };
 }
 
 /** This function makes the scanner of the options. The scanner of a text gives its findings. */
@@ -107,7 +112,7 @@ function createScanner(options: ScanOptions): (text: string) => Finding[] {
       const key = term.toLowerCase();
       if (term.length === 0 || seen.has(key) || allowed.has(key)) continue;
       seen.add(key);
-      rules.push({ kind: "term", pattern: termPattern(term) });
+      rules.push({ kind: "term", pattern: termPattern(term), cheap: { upper: term.toUpperCase(), lower: key } });
     }
   }
   if (kinds.has("email")) rules.push({ kind: "email", pattern: EMAIL_PATTERN, keep: (match) => !EXAMPLE_EMAIL.test(match) });
@@ -118,7 +123,10 @@ function createScanner(options: ScanOptions): (text: string) => Finding[] {
   return (text: string): Finding[] => {
     const findings: Finding[] = [];
     text.split(/\r?\n/).forEach((content, index) => {
+      const upper = content.toUpperCase();
+      const lower = content.toLowerCase();
       for (const rule of rules) {
+        if (rule.cheap !== undefined && !upper.includes(rule.cheap.upper) && !lower.includes(rule.cheap.lower)) continue;
         for (const match of content.matchAll(rule.pattern)) {
           const value = match[0];
           if (allowed.has(value.toLowerCase()) || (rule.keep !== undefined && !rule.keep(value))) continue;

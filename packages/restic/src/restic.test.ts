@@ -108,6 +108,16 @@ describe("runRestic", () => {
     expect(starts[1]!.options.env).toBeUndefined();
   });
 
+  it("gives maxOutputBytes to the runner, and tells which output lost bytes", async () => {
+    const { starts, run } = fakeRunner([{ stdout: "x", truncated: { stdout: true, stderr: false } }, {}]);
+    const cut = await runRestic({ path: ["ls"], positional: ["latest"], json: false }, { run, maxOutputBytes: 1024 });
+    expect(starts[0]!.options.maxOutputBytes).toBe(1024);
+    expect(cut.truncated).toEqual({ stdout: true, stderr: false });
+    const whole = await runRestic({ path: ["ls"], positional: ["latest"], json: false }, { run });
+    expect("maxOutputBytes" in starts[1]!.options).toBe(false);
+    expect(whole.truncated).toBeUndefined();
+  });
+
   it("throws when restic does not start, and refuses --password-command", async () => {
     const { run } = fakeRunner([{ exitCode: 1, success: false, error: "spawn restic ENOENT" }]);
     await expect(runRestic({ path: ["version"] }, { run })).rejects.toThrow("restic did not start: spawn restic ENOENT");

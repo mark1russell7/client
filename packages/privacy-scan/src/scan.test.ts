@@ -78,6 +78,17 @@ describe("scanText", () => {
     expect(scanText("first\r\nsecond Fooville\r\n", { terms: ["Fooville"] })).toEqual([{ kind: "term", line: 2, column: 8, match: "Fooville" }]);
   });
 
+  it("finds a term in each case also with letters outside ASCII (the quick check before the pattern)", () => {
+    const text = ["ÉLODIE wrote", "élodie wrote", "Élodie wrote", "elodie wrote", "STRAßE 1", "strasse 2"].join("\n");
+    const found = scanText(text, { terms: ["Élodie", "Straße"], kinds: ["term"] });
+    expect(found.map((f) => [f.line, f.match])).toEqual([
+      [1, "ÉLODIE"],
+      [2, "élodie"],
+      [3, "Élodie"],
+      [5, "STRAßE"],
+    ]);
+  });
+
   it("finds nothing in a text without private data", () => {
     expect(scanText("Version 1.2.3 of the build, at 10:30 on line 42.")).toEqual([]);
   });
