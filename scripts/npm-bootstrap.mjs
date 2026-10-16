@@ -27,7 +27,11 @@
 // The direct publish shows this 429 as EOTP: npm sends the request again with the used 2FA. So
 // the script reads the npm log of a failed publish, and tells when the cause is the 429.
 //
-// Options: --dry-run, --publish, --approve, --trust, --deprecate-old, --otp <code>,
+// After the first release from the workflow, --lock sets "Require two-factor authentication and
+// disallow tokens" on each package (`npm access set mfa=publish`). The trusted publisher of the
+// workflow still publishes: it uses no token.
+//
+// Options: --dry-run, --publish, --approve, --trust, --deprecate-old, --lock, --otp <code>,
 //          --only <name,name> (a part of the packages).
 
 import { spawnSync } from "node:child_process";
@@ -46,6 +50,7 @@ const value = (name) => {
 const dryRun = flag("--dry-run");
 const trust = flag("--trust");
 const approve = flag("--approve");
+const lock = flag("--lock");
 const publishDirect = flag("--publish");
 const deprecateOld = flag("--deprecate-old");
 const otp = value("--otp");
@@ -174,6 +179,24 @@ if (deprecateOld) {
   if (waiting.length > 0) {
     console.log(`${waiting.length} old packages wait for their new package. Start the command again after its publish.`);
   }
+  process.exit(0);
+}
+
+// --lock: require the 2FA for each publish and refuse tokens
+if (lock) {
+  const failures = [];
+  for (const pkg of packages) {
+    const args = ["access", "set", "mfa=publish", pkg.name, ...(otp ? ["--otp", otp] : [])];
+    console.log(`npm ${args.join(" ")}`);
+    if (dryRun) continue;
+    if (interactive(args) !== 0) failures.push(pkg.name);
+  }
+  if (failures.length > 0) {
+    console.error(`\n${failures.length} packages are not locked: ${failures.join(", ")}`);
+    console.error(`Start the command again with --only ${failures.join(",")}`);
+    process.exit(1);
+  }
+  console.log(dryRun ? `\nThe dry run printed ${packages.length} commands.` : `\n${packages.length} packages require the 2FA and refuse tokens.`);
   process.exit(0);
 }
 

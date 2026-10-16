@@ -84,7 +84,11 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 
 - Each run in the GitHub environment `npm` waits for the approval of the owner. The environment exists already.
 - In the settings of the repository, turn on `Allow GitHub Actions to create and approve pull requests`. The release workflow opens the version pull request.
-- After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package on npmjs.com.
+- After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
+
+  ```sh
+  node scripts/npm-bootstrap.mjs --lock
+  ```
 
 ### 6. Point the old packages to the new names
 
