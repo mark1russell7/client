@@ -1,0 +1,16 @@
+program mode=body input=b0:input
+  chain root @""
+    step -> b1
+      call t.add operand @"/input/steps/0"
+        object @"/input/steps/0/input"
+          key "a"
+            ref "input.x" -> b0:input @"/input/steps/0/input/a"
+          key "b"
+            literal data 1 @"/input/steps/0/input/b"
+    step -> b2
+      call t.write operand @"/input/steps/1"
+        object @"/input/steps/1/input"
+          key "key"
+            literal data "k" @"/input/steps/1/input/key"
+          key "value"
+            ref "$last" -> b1 @"/input/steps/1/input/value"

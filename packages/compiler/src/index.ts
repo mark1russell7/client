@@ -1,0 +1,25 @@
+// The root registers nothing: import "<package>/register", or give the module to createRegistry()
+export * from "./module.js";
+export * from "./types.js";
+export { checkProgram, compileProgram } from "./program.js";
+export type { CheckOptions, CheckResult, CompileOptions, CompileResult, MustEffects } from "./program.js";
+export { manifestFacts, registryFacts, withDefinitions, coreProcedureOf, entryTakesRawInput } from "./facts.js";
+export type { ProcedureFacts, RegistryLike, FactsOptions, Definition } from "./facts.js";
+export { normalize, findDefinitions, MAX_REF_DEPTH } from "./normalize.js";
+export type { NormalizeOptions, NormalizeResult } from "./normalize.js";
+export { resolveScopes } from "./scopes.js";
+export { inferEffects, toEffects, NO_EFFECTS, UNKNOWN_EFFECTS } from "./effects.js";
+export type { EffectSummary, EffectsAnalysis, MayEffects, MustEffects as MustEffectSets, BodyEffects } from "./effects.js";
+export { checkCalls } from "./checks.js";
+export { checkShape, shapeOf } from "./schema.js";
+export type { Shape, SchemaIssue } from "./schema.js";
+export { foldProgram } from "./fold.js";
+export { compileClosure } from "./codegen-closure.js";
+export { emitText } from "./codegen-text.js";
+export type { ProgramText, SourceMapLine, TextOptions } from "./codegen-text.js";
+export { printIR } from "./print.js";
+export { hasErrors, sortDiagnostics } from "./diagnostics.js";
+export type { Diagnostic, DiagnosticCode, Severity } from "./diagnostics.js";
+export { childPointer, childrenOf, isCallLike, isControl, walk } from "./ir.js";
+export type * from "./ir.js";
+export type { CompiledProgram, ProgramContext, RuntimeFrame } from "./runtime.js";

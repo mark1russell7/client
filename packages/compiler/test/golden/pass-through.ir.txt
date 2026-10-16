@@ -1,0 +1,16 @@
+program mode=exec
+  chain root passThrough initial=b0 @""
+    initialInput
+      object @"/input/initialInput"
+        key "start"
+          call t.num nested @"/input/initialInput/start"
+            literal data {"value":1} @"/input/initialInput/start/input"
+    step -> b1
+      call t.echo operand extra={"cwd":"/repo"} @"/input/steps/0"
+        ref "$passed" -> b0 @"/input/steps/0/input"
+    step -> b2
+      call t.echo operand extra={"cwd":"/repo"} @"/input/steps/1"
+        ref "$passed" -> b1 @"/input/steps/1/input"
+    step -> b3
+      call t.num operand extra={"cwd":"/repo"} @"/input/steps/2"
+        literal data {"value":5} @"/input/steps/2/input"

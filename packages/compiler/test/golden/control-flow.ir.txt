@@ -1,0 +1,62 @@
+program mode=exec
+  chain root @""
+    step -> b0:old
+      call t.read operand @"/input/steps/0"
+        literal data {"key":"k"} @"/input/steps/0/input"
+    step -> b1
+      conditional operand @"/input/steps/1"
+        call t.truth operand @"/input/steps/1/input/condition"
+          object @"/input/steps/1/input/condition/input"
+            key "value"
+              ref "old" -> b0:old @"/input/steps/1/input/condition/input/value"
+        then
+          call t.write operand @"/input/steps/1/input/then"
+            literal data {"key":"k","value":1} @"/input/steps/1/input/then/input"
+        else
+          literal data "same" @"/input/steps/1/input/else"
+    step -> b3
+      try operand error=b2:error @"/input/steps/2"
+        call t.fail operand @"/input/steps/2/input/try"
+          literal data {"message":"disk full"} @"/input/steps/2/input/try/input"
+        catch
+          object @"/input/steps/2/input/catch"
+            key "message"
+              ref "error" -> b2:error @"/input/steps/2/input/catch/message"
+    step -> b6
+      map operand item=b4:n index=b5:index @"/input/steps/3"
+        items list(3)
+          literal data 1 @"/input/steps/3/input/items/0"
+          literal data 2 @"/input/steps/3/input/items/1"
+          literal data 3 @"/input/steps/3/input/items/2"
+        fn
+          call t.add operand @"/input/steps/3/input/fn"
+            object @"/input/steps/3/input/fn/input"
+              key "a"
+                ref "n" -> b4:n @"/input/steps/3/input/fn/input/a"
+              key "b"
+                ref "index" -> b5:index @"/input/steps/3/input/fn/input/b"
+    step -> b10
+      reduce operand acc=b7:acc item=b8:item index=b9:index @"/input/steps/4"
+        items list(2)
+          literal data 1 @"/input/steps/4/input/items/0"
+          literal data 2 @"/input/steps/4/input/items/1"
+        initial
+          literal data 0 @"/input/steps/4/input/initial"
+        fn
+          call t.add operand @"/input/steps/4/input/fn"
+            object @"/input/steps/4/input/fn/input"
+              key "a"
+                ref "acc" -> b7:acc @"/input/steps/4/input/fn/input/a"
+              key "b"
+                ref "item" -> b8:item @"/input/steps/4/input/fn/input/b"
+    step -> b11
+      parallel operand concurrency=1 failFast=false @"/input/steps/5"
+        call t.num operand @"/input/steps/5/input/tasks/0"
+          literal data {"value":1} @"/input/steps/5/input/tasks/0/input"
+        call t.num operand @"/input/steps/5/input/tasks/1"
+          literal data {"value":2} @"/input/steps/5/input/tasks/1/input"
+    step -> b12
+      and operand @"/input/steps/6"
+        literal data true @"/input/steps/6/input/values/0"
+        call t.truth operand @"/input/steps/6/input/values/1"
+          literal data {"value":0} @"/input/steps/6/input/values/1/input"

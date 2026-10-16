@@ -1,0 +1,19 @@
+program mode=exec
+  chain root @""
+    step -> b0:sum
+      call client.add operand @"/input/steps/0"
+        literal data {"a":1,"b":2} @"/input/steps/0/input"
+    step -> b1
+      call client.multiply operand @"/input/steps/1"
+        object @"/input/steps/1/input"
+          key "a"
+            ref "sum" -> b0:sum @"/input/steps/1/input/a"
+          key "b"
+            literal data 10 @"/input/steps/1/input/b"
+    step -> b2
+      call client.add operand @"/input/steps/2"
+        object @"/input/steps/2/input"
+          key "a"
+            ref "$last" -> b1 @"/input/steps/2/input/a"
+          key "b"
+            ref "sum" -> b0:sum @"/input/steps/2/input/b"

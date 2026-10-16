@@ -1,0 +1,15 @@
+program mode=exec
+  call client.identity root @""
+    object @"/input"
+      key "value"
+        chain implicit nested @"/input/value"
+          step -> b0
+            call t.num operand @"/input/value/0"
+              literal data {"name":"a","value":1} @"/input/value/0/input"
+          step -> b1
+            call t.add operand @"/input/value/1"
+              object @"/input/value/1/input"
+                key "a"
+                  ref "$last" -> b0 @"/input/value/1/input/a"
+                key "b"
+                  literal data 2 @"/input/value/1/input/b"
