@@ -535,20 +535,29 @@ describe("rate limit on fake timers", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("gives one token to each waiting request when the drain runs late, and keeps the other tokens", async () => {
+  it("keeps the order of the queue when the drain runs late, and keeps the tokens that the queue did not use", async () => {
     const { transport, ran } = recording();
-    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 2, window: ms(1000), strategy: "queue" }));
-    const calls = ["a", "b", "c"].map((name) => client.call(method, { name }));
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 3, window: ms(1000), strategy: "queue" }));
+    const calls = ["a", "b", "c", "d"].map((name) => client.call(method, { name }));
     await vi.advanceTimersByTimeAsync(0);
+    expect(ran).toEqual(["a 0", "b 0", "c 0"]);
     // A busy event loop: the clock goes on, and the timer of the drain runs late
     vi.setSystemTime(Date.now() + 5000);
-    await vi.advanceTimersByTimeAsync(500);
+    // The tokens are back, but a new request waits behind the queued request
+    calls.push(client.call(method, { name: "e" }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ran).toEqual(["a 0", "b 0", "c 0"]);
+    await vi.advanceTimersByTimeAsync(334);
     await Promise.all(calls);
-    expect(ran).toEqual(["a 0", "b 0", "c 5500"]);
-    const free = track(client.call(method, { name: "d" }));
+    expect(ran).toEqual(["a 0", "b 0", "c 0", "d 5334", "e 5334"]);
+    const free = track(client.call(method, { name: "f" }));
     await vi.advanceTimersByTimeAsync(0);
     expect(free).toEqual({ settled: true, value: null });
-    expect(ran).toEqual(["a 0", "b 0", "c 5500", "d 5500"]);
+    expect(ran).toEqual(["a 0", "b 0", "c 0", "d 5334", "e 5334", "f 5334"]);
+  });
+
+  it("names the option of a time that is not a duration", () => {
+    expect(() => createRateLimitMiddleware({ window: 1000 as never })).toThrow(/^window must be a duration/);
   });
 
   it("rejects a request when the queue is full, and counts the rejections", async () => {
