@@ -5,9 +5,13 @@
  *
  * Registers fs.* procedures with the client system.
  * This file is referenced by package.json's client.procedures field.
+ *
+ * `fsModule` operates on each path. `createFsModule({ root })` gives the same procedures, and
+ * each path of their input must be in the root (roadmap R33, `root.ts`).
  */
 
-import { createProcedure, zodAdapter, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { HANDLER_NAMES, rootedHandlers } from "./handlers.js";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
 import { exists } from "./procedures/fs/exists.js";
@@ -255,11 +259,42 @@ export const fsModule: ProcedureModule = defineModule("@procedures/fs", [
 
 export default fsModule;
 
+/** The options of `createFsModule()`. */
+export interface FsModuleOptions {
+  /**
+   * The folder that confines each path of the procedures (roadmap R33). A relative path of an
+   * input starts at the root. A path outside the root gives `FORBIDDEN` with the reason
+   * `outside-root`. A relative root starts at the working folder of the process. Without a root,
+   * the procedures operate on each path, as `fsModule` does.
+   */
+  root?: string | undefined;
+}
+
+/**
+ * This function gives the module of this package. Without `root`, it gives `fsModule`. With
+ * `root`, it gives a module with the same name and procedures, whose handlers confine each path
+ * of the input to the root. A host gives it to `createRegistry()` before its bundles, so it
+ * replaces the `fsModule` that the bundles require (the first module of a name counts).
+ */
+export function createFsModule(options: FsModuleOptions = {}): ProcedureModule {
+  if (options.root === undefined) return fsModule;
+  const handlers = rootedHandlers(options.root);
+  const procedures = fsModule.procedures.map((procedure): AnyProcedure => {
+    const key = procedure.path.join(".");
+    const name = HANDLER_NAMES[key];
+    // A procedure without a rooted handler would operate outside the root
+    if (name === undefined) throw new Error(`The root of @procedures/fs has no handler for ${key}: add it to rootedHandlers()`);
+    return { ...procedure, handler: handlers[name] as AnyProcedure["handler"] };
+  });
+  return defineModule("@procedures/fs", procedures);
+}
+
 /**
  * This function registers the procedures of @procedures/fs, and of the modules that it requires, in
  * a registry. The default is the global registry. Importing this file registers nothing: the
- * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9). With
+ * `options.root`, each path of an input must be in the root.
  */
-export function registerFsProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
-  registerModules(registry, [fsModule]);
+export function registerFsProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY, options: FsModuleOptions = {}): void {
+  registerModules(registry, [createFsModule(options)]);
 }

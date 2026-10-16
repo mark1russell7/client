@@ -61,16 +61,22 @@ export type InvocationErrorCode =
   /** The capability of the call does not permit it (CAPABILITIES-2026-10). `reason` tells why. */
   | "FORBIDDEN";
 
+/**
+ * The reason of a `FORBIDDEN` error. It is a refusal of the capability, or `outside-root`: the
+ * input has a path outside the root of the host (`createFsModule({ root })` of `@procedures/fs`).
+ */
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root";
+
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
   override readonly name = "InvocationError";
   readonly code: InvocationErrorCode;
   readonly path: ProcedurePath;
   readonly retryable: boolean = false;
-  /** The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded` or `clearance`. */
-  readonly reason: CapabilityRefusalReason | undefined;
+  /** The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance` or `outside-root`. */
+  readonly reason: ForbiddenReason | undefined;
 
-  constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: CapabilityRefusalReason) {
+  constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: ForbiddenReason) {
     super(message);
     this.code = code;
     this.path = path;
