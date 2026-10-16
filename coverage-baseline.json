@@ -239,12 +239,6 @@
     "functions": 3.7,
     "branches": 0.7
   },
-  "@procedures/repo-cli": {
-    "lines": 21.8,
-    "statements": 22.3,
-    "functions": 28.5,
-    "branches": 16.9
-  },
   "@procedures/restic": {
     "lines": 88.8,
     "statements": 90.1,
