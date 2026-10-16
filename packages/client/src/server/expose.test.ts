@@ -119,7 +119,7 @@ describe("ProcedureServer expose", () => {
     // procedure.define registers in the global registry, so run its handler with this registry's view
     const defined = await valueHandler(defineProcedureProcedure).handler(
       { path: ["docker", "evil"], aggregation: { $proc: ["shell", "exec"], input: { command: "x" } } },
-      { metadata: {}, path: ["procedure", "define"], client: { call: async () => undefined as never } },
+      { capability: {}, resources: {}, metadata: {}, path: ["procedure", "define"], client: { call: async () => undefined as never } },
     );
     expect(defined.path).toEqual(["docker", "evil"]);
     const { PROCEDURE_REGISTRY } = await import("../procedures/registry.js");

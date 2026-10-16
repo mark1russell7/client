@@ -29,6 +29,8 @@ const vitestRunProcedure = createProcedure()
   .output(zodAdapter<VitestRunOutput>(VitestRunOutputSchema))
   .meta({
     description: "Run vitest tests once (no shell; uses the project's own vitest)",
+    // The test files are code of the project. The reports go to a temporary folder.
+    effects: { reads: ["fs"], writes: ["fs", "process"] },
     // Positional field names, and field -> short flag (the convention mark's CLI parser reads)
     args: ["cwd"],
     shorts: { coverage: "c" },
@@ -43,6 +45,7 @@ const vitestCoverageProcedure = createProcedure()
   .output(zodAdapter<VitestRunOutput>(VitestRunOutputSchema))
   .meta({
     description: "Run vitest once with coverage, and check a minimum line coverage (no shell)",
+    effects: { reads: ["fs"], writes: ["fs", "process"] },
     args: ["cwd"],
     shorts: { threshold: "t" },
     output: "json",
@@ -56,6 +59,7 @@ const vitestWatchProcedure = createProcedure()
   .output(zodAdapter<VitestWatchOutput>(VitestWatchOutputSchema))
   .meta({
     description: "Start vitest in watch mode (no shell; uses the project's own vitest)",
+    effects: { reads: ["fs"], writes: ["process", "jobs"] },
     args: ["cwd"],
     shorts: {},
     output: "json",
@@ -69,6 +73,9 @@ const vitestStopProcedure = createProcedure()
   .output(zodAdapter<VitestStopOutput>(VitestStopOutputSchema))
   .meta({
     description: "Stop a vitest watch process (all of them without an id)",
+    // It stops processes of the process registry of client-shell, and starts none
+    // It stops a job of the host: a watch process that vitest.watch started
+    effects: { reads: ["jobs"], writes: ["jobs"], idempotent: true },
     args: ["id"],
     shorts: {},
     output: "json",
@@ -82,6 +89,7 @@ const vitestListProcedure = createProcedure()
   .output(zodAdapter<VitestListOutput>(VitestListOutputSchema))
   .meta({
     description: "List the vitest watch processes of this host",
+    effects: { reads: ["jobs"], writes: [] },
     args: [],
     shorts: {},
     output: "json",

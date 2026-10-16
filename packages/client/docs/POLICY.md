@@ -1,6 +1,6 @@
 # Call policy and interceptors
 
-This document tells how a host controls which procedures a caller can reach, and how code runs around each invocation. The code is in `src/procedures/policy.ts`, `src/procedures/invoke.ts` and `src/procedures/interceptors.ts`.
+This document tells how a host controls which procedures a caller can reach, and how code runs around each invocation. The code is in `src/procedures/policy.ts`, `src/procedures/invoke.ts` and `src/procedures/interceptors.ts`. What the reached procedures can do (their data, side effects and time) is the subject of [CAPABILITIES.md](./CAPABILITIES.md).
 
 ## The problem
 

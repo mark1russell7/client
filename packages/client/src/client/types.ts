@@ -5,6 +5,7 @@
  * These types work across HTTP, gRPC, WebSocket, and local transports.
  */
 
+import type { Capability, ClearanceOrder } from "../procedures/types.js";
 import type { EventBus } from "../events/types.js";
 import type { Interceptor } from "../procedures/invoke.js";
 import type { ErrorMetadata } from "./errors/index.js";
@@ -358,4 +359,14 @@ export interface ClientOptions {
    * `procedures/interceptors.ts`). A remote call goes through the middlewares, not these.
    */
   interceptors?: readonly Interceptor[];
+
+  /**
+   * The capability of the local invocations of this client and of their nested calls
+   * (CAPABILITIES-2026-10). Without it: no limits. A page that runs programs of its visitors
+   * gives a read-only one.
+   */
+  capability?: Capability;
+
+  /** The order of the clearance values of the capability. */
+  clearanceOrder?: ClearanceOrder;
 }

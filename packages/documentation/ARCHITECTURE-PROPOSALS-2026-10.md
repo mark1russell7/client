@@ -193,11 +193,11 @@ The private application of [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md) 
 
 ## P10. Invocation capabilities
 
-> **Proposal** (2026-10-13). The owner approved the direction: the mechanism goes into `@procedures/client`. The design is in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md).
+> **Approved** (2026-10-13), with the default answers. Phases A to C are done on branch `capabilities`, phase D is in progress. The design and the decisions are in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md).
 
 Each invocation runs with a capability: reach, effects, clearance and deadline. A nested call gets the same capability or a narrower one. Procedures declare their effects, and the host calculates the capability from its authentication. The MCP tool hints, a read-only MCP session and a data gate for a private application come from the same mechanism.
 
-Effort: M per phase, four phases. Status: waiting for the owner's answers to the four questions of the document.
+Effort: M per phase, four phases.
 
 ## Suggested order
 

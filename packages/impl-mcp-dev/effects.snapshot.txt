@@ -1,0 +1,62 @@
+client.all: read only
+client.and: no hints (its operands decide)
+client.any: read only
+client.chain: no hints (its operands decide)
+client.conditional: no hints (its operands decide)
+client.constant: read only
+client.identity: read only
+client.map: no hints (its operands decide)
+client.none: read only
+client.not: read only
+client.or: no hints (its operands decide)
+client.parallel: no hints (its operands decide)
+client.reduce: no hints (its operands decide)
+client.throw: read only
+client.tryCatch: no hints (its operands decide)
+cue.add: destructive, idempotent
+cue.generate: destructive, idempotent
+cue.init: destructive, idempotent
+cue.remove: destructive, idempotent
+cue.validate: read only
+db.execute: destructive
+db.query: destructive
+docker.build: additive, open world
+docker.compose.down: destructive, idempotent
+docker.compose.up: destructive, open world
+docker.exec: destructive, open world
+docker.logs: read only
+docker.ps: read only
+docker.pull: additive, idempotent, open world
+docker.rm: destructive
+docker.run: destructive, open world
+docker.stop: destructive, idempotent
+lib.audit: additive, idempotent
+lib.new: additive, open world
+lib.rename: destructive
+lib.scan: read only
+logs.query: additive, idempotent
+logs.store: additive
+mongo.collections.create: additive, open world
+mongo.collections.drop: destructive, idempotent, open world
+mongo.collections.list: read only, open world
+mongo.collections.stats: read only, open world
+mongo.database.info: read only, open world
+mongo.database.ping: read only, open world
+mongo.documents.aggregate: destructive, open world
+mongo.documents.count: read only, open world
+mongo.documents.delete: destructive, open world
+mongo.documents.find: read only, open world
+mongo.documents.get: read only, open world
+mongo.documents.insert: additive, open world
+mongo.documents.update: destructive, open world
+mongo.indexes.create: additive, idempotent, open world
+mongo.indexes.drop: destructive, open world
+mongo.indexes.list: read only, open world
+procedure.define: no hints (its operands decide)
+procedure.delete: destructive
+procedure.export: read only
+procedure.get: read only
+procedure.list: read only
+procedure.new: additive
+vitest.coverage: destructive, open world
+vitest.run: destructive, open world

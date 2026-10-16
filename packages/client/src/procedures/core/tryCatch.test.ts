@@ -59,7 +59,7 @@ describe("tryCatch procedure", () => {
 
   beforeEach(() => {
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["test", "tryCatch"],
@@ -286,7 +286,7 @@ describe("tryCatch procedure", () => {
 
   describe("without client context", () => {
     it("works without client in context", async () => {
-      const noClientCtx: ProcedureContext = {
+      const noClientCtx: ProcedureContext = { capability: {}, resources: {},
         metadata: {},
         path: ["test", "tryCatch"],
         client: undefined as any,

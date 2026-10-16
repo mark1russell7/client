@@ -56,3 +56,39 @@ describe("the dev-tools host", () => {
     expect(host.policy.expose!(["shell", "exec"])).toBe(false);
   });
 });
+
+describe("the read-only dev-tools host (CAPABILITIES-2026-10)", () => {
+  let readOnly: DevToolsHost;
+
+  beforeAll(async () => {
+    readOnly = await createDevToolsHost({
+      bundles: ["@procedures/bundle-mcp"],
+      serverName: "test",
+      serverVersion: "0",
+      debug: false,
+      toolTimeoutMs: 0,
+      readOnly: true,
+    });
+  });
+
+  it("exposes only the procedures that declare that they change nothing", () => {
+    const exposed = readOnly.registry.getAll().filter((procedure) => procedure.handler && readOnly.policy.expose!(procedure.path));
+    expect(exposed.length).toBeGreaterThan(0);
+    for (const procedure of exposed) {
+      expect((procedure.metadata as { effects?: { writes?: unknown } }).effects?.writes, pathToKey(procedure.path)).toEqual([]);
+    }
+    expect(readOnly.policy.expose!(["client", "chain"])).toBe(true);
+    expect(readOnly.policy.expose!(["procedure", "define"])).toBe(false);
+  });
+
+  it("refuses a procedure that changes something, also in a chain", async () => {
+    const define = await readOnly.server.handle({
+      id: "1",
+      method: { service: "client", operation: "chain" },
+      payload: { steps: [{ $proc: ["procedure", "define"], input: { path: ["x", "y"], aggregation: { $proc: ["client", "identity"], input: {} } } }] },
+      metadata: {},
+    });
+    expect(define.status.type).toBe("error");
+    expect(readOnly.registry.get(["x", "y"])).toBeUndefined();
+  });
+});

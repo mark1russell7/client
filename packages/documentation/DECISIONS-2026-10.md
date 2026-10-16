@@ -13,6 +13,20 @@ This log records the decisions I made while working without the owner present. E
 
 <!-- newest first -->
 
+### Invocation capabilities: the implementation (owner approval 2026-10-13)
+
+The owner accepted the default answers of CAPABILITIES-2026-10 and gave the rest of the decisions to the implementation, for generality and the long term. The proposal lists the 14 decisions. The judgment calls that a user sees:
+
+- **`ctx.capability` and `ctx.resources` are required fields of `ProcedureContext`.** A handler gets typed resources without `?`. A test that makes a context by hand adds `capability: {}` and `resources: {}`.
+- **A procedure of code with declared effects answers for its nested calls.** The admission does not examine them again, as `metadata.calls` already does for the reach. Without this rule, a read-only session cannot start `git.status`, because it uses `shell.run`.
+- **The output filter examines only the output that leaves the host.** A nested result is not filtered, so a parent never gets a stream with holes.
+- **`git.remote` is two procedures** (CAP-5 in the status). A caller of `git.remote` with `url` calls `git.remote.set` now.
+- **The four findings CAP-1 to CAP-4** stay open, or are a decision (CAP-4): the declarations tell the truth about the code, and a read-only session refuses those procedures.
+
+Three agents declared the effects of the packages in parallel, and each decision that they were not sure of is in this list or in the proposal.
+
+Reverse: `git revert` of the merge. The capability is optional: a host without one operates as before.
+
 ### An import registers nothing (owner decision 2026-10-13, P9 option C)
 
 The owner chose option C of [P9](./ARCHITECTURE-PROPOSALS-2026-10.md#p9-registration-without-side-effects-p2-option-3). It replaces the rule "Every package root registers its procedures" below. The packages go to 0.2.0 (a changeset records it).

@@ -6,6 +6,7 @@
     "packages/cli/src/**/*.{ts,tsx}",
     "packages/cli/*.config.{ts,mts}",
     "packages/documentation/*.md",
+    "packages/client/docs/CAPABILITIES.md",
     "packages/bundle-dev/README.md",
     "packages/bundle-mcp/README.md",
     "packages/client-cli/README.md",

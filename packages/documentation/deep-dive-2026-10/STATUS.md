@@ -186,6 +186,18 @@ The documentation fork checked each document against the code and ran each examp
 | NPM-4 | low | fixed | | Owner decision (2026-10-12): the three generator scripts of `client-vitest` are deleted (git history keeps them). |
 | NPM-5 | | done | `11820e6`, `ef6a327` | Owner decision (2026-10-12): the monorepo packages are `@procedures/*` (the scope `@client` belongs to an npm user). `scripts/check-scope.mjs` refuses an old name. MiniMongo and the `cue` schema use the new names. The 22 `@mark1russell7/*` 0.1.0 versions on npm get a deprecation that names the new package (`npm-bootstrap.mjs --deprecate-old`). The npm organization `procedures` exists (2026-10-12). npm refuses the first publish of the 30 packages with HTTP 429: the account made 25 new packages that day. A support request asks for a higher limit. |
 
+## Capabilities (2026-10-13)
+
+The effect declarations of phase D (CAPABILITIES-2026-10) read each handler. These items are what the reading found. A read-only session refuses each procedure of CAP-1 to CAP-3, which is correct for the code as it is.
+
+| ID | Severity | Status | Commit | Note |
+|---|---|---|---|---|
+| CAP-1 | medium | open | | `db.query` starts any SQL statement and saves the file: it is not read only. A check that refuses statements that change data makes it read only. |
+| CAP-2 | medium | open | | `mongo.documents.aggregate` permits `$out` and `$merge`, which write. A refusal of those two stages makes it read only. |
+| CAP-3 | low | open | | `logs.query` starts the migrations, so the first query makes the database file and its table. |
+| CAP-4 | low | decision | | The git procedures that start hooks (`commit`, `push`, `pull`, `checkout`) write `process`. A `reference-transaction` hook starts also on `branch`, `fetch` and `stash`: those do not declare `process`. |
+| CAP-5 | low | fixed | | `git.remote` read and wrote: with `url`, it set the URL. So `lib.scan`, which only reads the URL, had to declare that it writes. It is two procedures now: `git.remote` reads, `git.remote.set` writes. |
+
 ## Architecture roadmap
 
 | Item | Status | Commit | Note |
@@ -200,7 +212,7 @@ The documentation fork checked each document against the code and ran each examp
 | 2.1 Standard Schema, real schemas for exposed procedures | done | `580a72a`, `8306c1e`, `830af9c`, `b223979`, `448141d` | zod 4 everywhere. The core takes any Standard Schema validator. `jsonSchemaOf()` serves MCP, `mark` and the site. Every tool has a real input schema. Every procedure has a real output schema (`448141d` for the 100 core procedures and the 20 core tools), and the MCP server sends structured output for each tool with an object result. |
 | 2.2 `commandProcedure()` and the wrapper migration | done | `6638311` | As `runCommand`. |
 | 2.3 One `host` package | done | `115d438`, `78758c1`, `9c3875a` | One host policy (`hostPolicy()`: expose rule, `strictCalls`, token, browser checks, interceptors) for the three hosts. `mark serve` and `mark mcp` make `mark` the one bin. The `server` and `mcp-dev-tools` bins stay as aliases, and `impl-mcp-dev/dist/server.js` serves the same 62 tools. |
-| 3.1 Modules without side effects | done | `b38edf1`, `0bc8c08` | Each package has a side-effect-free `./module` entry, and `createRegistry(...modules)` builds a registry. The hosts build their own registries. Owner decision P2 stays: importing a package root still registers it. |
+| 3.1 Modules without side effects | done | `b38edf1`, `0bc8c08`, `76d0d64` | Each package has a side-effect-free `./module` entry, and `createRegistry(...modules)` builds a registry. The hosts build their own registries. Since 2026-10-13 (owner decision, P9 option C) an import of a package root registers nothing either: the `./register` entry registers, and `scripts/check-side-effects.mjs` pins it. |
 | 3.2 A program store | done | `0fe2fbc`, `6567e2d` | The new package `client-store`: `ProgramStore` (memory, JSON file, collection storage). `procedure.store`/`load`/`sync` store programs, and a loaded program is data-driven again. |
 | 3.3 The collections rebuild (P8) | done | `52a5f68`, `0fe2fbc` | The contract tests and the defects are done. The core no longer depends on `client-collections`: it depends only on `ws` and `zod`. |
 | 3.4 A slimmer core | done | `0fe2fbc`, `1303677` | Storage moved to `client-store`, components to `client-splay`. The `dist` of `client` is 12% smaller, and the browser entry has 157 exports, not 193. |

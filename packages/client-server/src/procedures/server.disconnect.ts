@@ -3,7 +3,7 @@
  * Disconnects from a remote peer
  */
 
-import { createProcedure, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerDisconnectOutputSchema } from "../output-schemas.js";
 import { serverDisconnectInputSchema } from "../input-schemas.js";
@@ -16,12 +16,16 @@ const serverDisconnectOutputSchema = wrapSchema<ServerDisconnectOutput>(ServerDi
 export const serverDisconnectProcedure: Procedure<
   ServerDisconnectInput,
   ServerDisconnectOutput,
-  { description: string }
+  { description: string; effects: Effects }
 > = createProcedure()
   .path(["server", "disconnect"])
   .input(serverDisconnectInputSchema)
   .output(serverDisconnectOutputSchema)
-  .meta({ description: "Disconnect from a remote peer", args: ["connectionId"] })
+  .meta({
+    description: "Disconnect from a remote peer",
+    effects: { reads: ["network"], writes: ["network"], idempotent: true },
+    args: ["connectionId"],
+  })
   .handler(async (input: ServerDisconnectInput) => {
     const success = await disconnect(input.connectionId);
     return { success };

@@ -300,6 +300,7 @@ const FIXED_DOCS = [
   { slug: "transports", file: "client/docs/ADAPTERS.md", section: "Client library", seoTitle: "Transports: HTTP, WebSocket and local adapters" },
   { slug: "middleware", file: "client/docs/MIDDLEWARE.md", section: "Client library", seoTitle: "Middleware: retry, timeout, cache and circuit breaker" },
   { slug: "policy", file: "client/docs/POLICY.md", section: "Client library", seoTitle: "Call policy and interceptors: expose, calls and strictCalls" },
+  { slug: "capabilities", file: "client/docs/CAPABILITIES.md", section: "Client library", seoTitle: "Capabilities: effects, clearances and deadlines for each call" },
 ];
 
 /**

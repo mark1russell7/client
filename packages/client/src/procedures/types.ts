@@ -69,8 +69,99 @@ export interface ProcedureMetadata {
    */
   calls?: readonly string[];
 
+  /**
+   * The side effects of the procedure (CAPABILITIES-2026-10). A host with a restriction of
+   * effects refuses a procedure without this declaration.
+   */
+  effects?: Effects;
+
   /** Custom metadata fields */
   [key: string]: unknown;
+}
+
+// =============================================================================
+// Capabilities (CAPABILITIES-2026-10)
+// =============================================================================
+
+/**
+ * The side effects of a procedure. The resource names are strings that the application chooses.
+ * The standard names are `fs` (the files of the host), `network` (systems outside the host),
+ * `process` (it starts any program) and `registry` (the procedure registry).
+ */
+export interface Effects {
+  /** The resources that the procedure reads. Absent: not known. */
+  readonly reads?: readonly string[];
+  /** The resources that the procedure changes. An empty list: it changes nothing. Absent: not known. */
+  readonly writes?: readonly string[];
+  /** True: a second call with the same input changes nothing more. The default is false. */
+  readonly idempotent?: boolean;
+  /**
+   * True: the procedure can delete or overwrite data that it did not make. The default is true for
+   * a procedure that writes, as in MCP. A procedure that writes only new data declares false.
+   */
+  readonly destructive?: boolean;
+}
+
+/** The effects that a capability permits. An absent field permits everything of its kind. */
+export interface PermittedEffects {
+  /** The resources that a call can read: names, or `"any"`. */
+  readonly reads?: readonly string[] | "any";
+  /** The resources that a call can change: names, or `"any"`. An empty list: no change. */
+  readonly writes?: readonly string[] | "any";
+  /** False: a call cannot start a destructive procedure. */
+  readonly destructive?: boolean;
+}
+
+/**
+ * The types that an application gives to the framework, by declaration merging:
+ *
+ * ```ts
+ * declare module "@procedures/client" {
+ *   interface Register {
+ *     clearance: "public" | "shared" | "private";
+ *     resources: { world: World };
+ *   }
+ * }
+ * ```
+ */
+export interface Register {}
+
+/** The type of a clearance value: `Register["clearance"]`, or `unknown`. */
+export type ClearanceOf = Register extends { clearance: infer C } ? C : unknown;
+
+/** The type of `ctx.resources`: `Register["resources"]`, or a record of unknown values. */
+export type ResourcesOf = Register extends { resources: infer R } ? R : Readonly<Record<string, unknown>>;
+
+/**
+ * The permissions of one invocation. A nested call gets the same capability or a narrower one,
+ * and only the host makes a capability (from its authentication). The object is frozen.
+ */
+export interface Capability<C = ClearanceOf> {
+  /** The data that the call can see. Absent: no limit. The application gives the order. */
+  readonly clearance?: C;
+  /** The effects that the call and its nested calls can have. Absent: all effects. */
+  readonly effects?: PermittedEffects;
+  /** The time (milliseconds since the epoch) at which the call and its nested calls stop. */
+  readonly deadline?: number;
+}
+
+/**
+ * A request for a narrower capability (a nested call, an interceptor). The framework calculates
+ * the result, so a request for more has no effect.
+ */
+export interface CapabilityRequest<C = ClearanceOf> {
+  clearance?: C;
+  effects?: PermittedEffects;
+  /** The time from now, in milliseconds. The result is the earlier of the two deadlines. */
+  timeoutMs?: number;
+}
+
+/** The order of clearance values: a partial order with a meet (the highest common lower value). */
+export interface ClearanceOrder<C = ClearanceOf> {
+  /** True when `a` is the same as or lower than `b`. */
+  leq(a: C, b: C): boolean;
+  /** The highest value that is the same as or lower than both. */
+  meet(a: C, b: C): C;
 }
 
 // =============================================================================
@@ -172,6 +263,18 @@ export interface ProcedureContext {
    * `hydrateInput`, so a trace sees the events of its own program only.
    */
   onRef?: ((event: HydrationEvent) => void) | undefined;
+
+  /**
+   * The capability of this invocation (CAPABILITIES-2026-10): its clearance, permitted effects
+   * and deadline. The nested calls of `ctx.client` get it, or a narrower one. Frozen.
+   */
+  capability: Capability;
+
+  /**
+   * The resources that the host gives to this invocation, for its capability: a view of a
+   * database for a lower clearance, for example. Empty when the host gives none.
+   */
+  resources: ResourcesOf;
 }
 
 /**
@@ -195,7 +298,8 @@ export interface ProcedureClient {
    */
   call<TInput = unknown, TOutput = unknown>(
     path: ProcedurePath,
-    input: TInput
+    input: TInput,
+    options?: NestedCallOptions
   ): Promise<TOutput>;
 
   /**
@@ -205,8 +309,15 @@ export interface ProcedureClient {
    */
   stream?<TInput = unknown, TOutput = unknown>(
     path: ProcedurePath,
-    input: TInput
+    input: TInput,
+    options?: NestedCallOptions
   ): AsyncIterable<TOutput>;
+}
+
+/** The options of one nested call. */
+export interface NestedCallOptions {
+  /** A narrower capability for the nested call. A request for more has no effect. */
+  narrow?: CapabilityRequest | undefined;
 }
 
 // =============================================================================

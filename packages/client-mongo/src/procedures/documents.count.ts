@@ -3,7 +3,7 @@
  * Count documents matching a filter
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -34,12 +34,15 @@ const countOutputSchema = zodAdapter<CountOutput>(
 export const countProcedure: Procedure<
   CountInput,
   CountOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "count"])
   .input(countInputSchema)
   .output(countOutputSchema)
-  .meta({ description: "Count documents matching a filter" })
+  .meta({
+    description: "Count documents matching a filter",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: CountInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

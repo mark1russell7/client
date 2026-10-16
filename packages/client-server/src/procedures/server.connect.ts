@@ -3,7 +3,7 @@
  * Connects to a remote peer for bidirectional RPC
  */
 
-import { createProcedure, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerConnectOutputSchema } from "../output-schemas.js";
 import { serverConnectInputSchema } from "../input-schemas.js";
@@ -16,12 +16,17 @@ const serverConnectOutputSchema = wrapSchema<ServerConnectOutput>(ServerConnectO
 export const serverConnectProcedure: Procedure<
   ServerConnectInput,
   ServerConnectOutput,
-  { description: string }
+  { description: string; effects: Effects }
 > = createProcedure()
   .path(["server", "connect"])
   .input(serverConnectInputSchema)
   .output(serverConnectOutputSchema)
-  .meta({ description: "Connect to a remote peer for bidirectional RPC", args: ["address"] })
+  .meta({
+    description: "Connect to a remote peer for bidirectional RPC",
+    // It opens a new connection to a remote peer and reads the procedures of that peer
+    effects: { reads: ["network"], writes: ["network"], destructive: false },
+    args: ["address"],
+  })
   .handler(async (input: ServerConnectInput) => {
     const connectOptions: Parameters<typeof connect>[0] = {
       address: input.address,

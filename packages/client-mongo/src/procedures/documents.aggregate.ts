@@ -3,7 +3,7 @@
  * Run an aggregation pipeline
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields, documentObject } from "./input-schemas.js";
 import { z } from "zod";
@@ -47,12 +47,16 @@ const aggregateOutputSchema = zodAdapter<AggregateOutput>(
 export const aggregateProcedure: Procedure<
   AggregateInput,
   AggregateOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "aggregate"])
   .input(aggregateInputSchema)
   .output(aggregateOutputSchema)
-  .meta({ description: "Run an aggregation pipeline" })
+  .meta({
+    description: "Run an aggregation pipeline",
+    // A $out or $merge stage of the pipeline writes to a collection, and $out replaces it
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"] },
+  })
   .handler(async (input: AggregateInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

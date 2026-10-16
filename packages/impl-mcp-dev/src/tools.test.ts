@@ -9,6 +9,9 @@
  *
  * If you change the exposed tools on purpose, update tools.snapshot.txt (one tool name per
  * line, sorted): copy the "received" list from the failure message.
+ *
+ * effects.snapshot.txt pins the hints of each tool, from the declared effects of its procedure
+ * (CAPABILITIES-2026-10): what the client is told that each tool reads, changes or destroys.
  */
 
 import { describe, it, expect } from "vitest";
@@ -21,13 +24,30 @@ import { fileURLToPath } from "node:url";
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+interface ToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 interface RpcResponse {
   result?: {
-    tools?: Array<{ name: string }>;
+    tools?: Array<{ name: string; annotations?: ToolAnnotations }>;
     nextCursor?: string;
     content?: Array<{ type: string; text: string }>;
     isError?: boolean;
   };
+}
+
+/** The hints of a tool in words: "read only", or what it does when it changes something. */
+function hintsOf(annotations: ToolAnnotations | undefined): string {
+  if (!annotations || Object.keys(annotations).length === 0) return "no hints (its operands decide)";
+  if (annotations.readOnlyHint) return annotations.openWorldHint ? "read only, open world" : "read only";
+  const parts = [annotations.destructiveHint === false ? "additive" : "destructive"];
+  if (annotations.idempotentHint) parts.push("idempotent");
+  if (annotations.openWorldHint) parts.push("open world");
+  return parts.join(", ");
 }
 
 /** This function starts the built server over stdio, runs `use` with a request function, then stops the server. */
@@ -81,6 +101,23 @@ describe("dev-tools MCP server", () => {
     });
 
     expect(tools).toEqual(expected);
+  }, 60_000);
+
+  it("gives each tool the hints of effects.snapshot.txt", async () => {
+    const expected = readFileSync(join(packageDir, "effects.snapshot.txt"), "utf8").trim().split(/\r?\n/);
+
+    const lines = await withServer(async (request) => {
+      const result: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const response = await request("tools/list", cursor ? { cursor } : {});
+        for (const tool of response.result?.tools ?? []) result.push(`${tool.name}: ${hintsOf(tool.annotations)}`);
+        cursor = response.result?.nextCursor;
+      } while (cursor);
+      return result.sort();
+    });
+
+    expect(lines).toEqual(expected);
   }, 60_000);
 
   it("does not let client.chain call a procedure that is not a tool (shell.exec)", async () => {

@@ -34,6 +34,8 @@ const viteDevProcedure = createProcedure()
   .output(zodAdapter<ViteDevOutput>(ViteDevOutputSchema))
   .meta({
     description: "Start Vite dev server",
+    // vite runs the config and the plugins of the project, and the server listens on a port
+    effects: { reads: ["fs"], writes: ["network", "process", "server"] },
     args: ["cwd"],
     shorts: { port: "p", host: "h" },
     output: "json",
@@ -47,6 +49,8 @@ const viteBuildProcedure = createProcedure()
   .output(zodAdapter<ViteBuildOutput>(ViteBuildOutputSchema))
   .meta({
     description: "Build for production",
+    // vite runs the config and the plugins of the project, and writes the output folder
+    effects: { reads: ["fs"], writes: ["fs", "process"] },
     args: ["cwd"],
     shorts: { outDir: "o", mode: "m" },
     output: "json",
@@ -60,6 +64,7 @@ const vitePreviewProcedure = createProcedure()
   .output(zodAdapter<VitePreviewOutput>(VitePreviewOutputSchema))
   .meta({
     description: "Preview production build",
+    effects: { reads: ["fs"], writes: ["network", "process", "server"] },
     args: ["cwd"],
     shorts: { port: "p" },
     output: "json",
@@ -73,6 +78,7 @@ const viteStopProcedure = createProcedure()
   .output(zodAdapter<ViteStopOutput>(ViteStopOutputSchema))
   .meta({
     description: "Stop a running Vite server",
+    effects: { reads: ["server"], writes: ["server"], idempotent: true },
     args: ["serverId"],
     shorts: {},
     output: "json",

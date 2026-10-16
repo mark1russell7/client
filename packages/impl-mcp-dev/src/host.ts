@@ -16,6 +16,9 @@ import {
   ProcedureServer,
   createRegistry,
   registerClientProcedures,
+  capabilityRefusal,
+  narrowCapability,
+  surfaceRule,
   hostPolicy,
   procedureServerOptions,
   type HostPolicy,
@@ -86,10 +89,23 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
   const registry = loaded.global ? PROCEDURE_REGISTRY : createRegistry(...loaded.modules);
   // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool
   const surface = mergeSurfaces(loaded.surfaces);
+  // Read only: the tools are the procedures that the capability permits, so the list shows only
+  // what a call can start (CAPABILITIES-2026-10)
+  const readOnly = config.readOnly === true;
+  const capability = readOnly ? narrowCapability(undefined, { effects: { writes: [] } }) : undefined;
+  const surfaceExpose = surface ? surfaceRule(surface) : undefined;
+  const expose = capability
+    ? (path: string[]): boolean => {
+        if (surfaceExpose && !surfaceExpose(path)) return false;
+        const procedure = registry.get(path);
+        return procedure !== undefined && capabilityRefusal(procedure, capability) === undefined;
+      }
+    : surface;
   const policy = hostPolicy({
-    ...(surface ? { expose: surface } : {}),
+    ...(expose ? { expose } : {}),
     strictCalls: true,
     timeoutMs: config.toolTimeoutMs,
+    ...(readOnly ? { readOnly: true } : {}),
   });
   const server = new ProcedureServer(procedureServerOptions(policy, registry));
   return { registry, surface, policy, server };

@@ -59,7 +59,7 @@ describe("parallel procedure", () => {
 
   beforeEach(() => {
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["test", "parallel"],
@@ -214,7 +214,7 @@ describe("parallel procedure", () => {
 
   describe("without client context", () => {
     it("works without client in context", async () => {
-      const noClientCtx: ProcedureContext = {
+      const noClientCtx: ProcedureContext = { capability: {}, resources: {},
         metadata: {},
         path: ["test", "parallel"],
         client: undefined as any,

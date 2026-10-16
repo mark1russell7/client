@@ -5,7 +5,7 @@
 
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerStatusOutputSchema } from "../output-schemas.js";
 import { serverStatusInputSchema } from "../input-schemas.js";
@@ -50,13 +50,15 @@ function formatUptime(startedAt: string): string {
 export const serverStatusProcedure: Procedure<
   ServerStatusInput,
   ServerStatusOutput,
-  { description: string; output: string }
+  { description: string; effects: Effects; output: string }
 > = createProcedure()
   .path(["server", "status"])
   .input(serverStatusInputSchema)
   .output(serverStatusOutputSchema)
   .meta({
     description: "Get CLI server status",
+    // It deletes the lockfile of a server that does not answer
+    effects: { reads: ["fs", "server"], writes: ["fs"], idempotent: true },
     args: [],
     shorts: { port: "p" },
     output: "text",

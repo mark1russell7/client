@@ -12,10 +12,14 @@
  *   procedures (a host for an outside caller sets it).
  * - `timeoutMs`: the time limit of each call from a caller (not of its nested calls).
  * - `token`, `browser`: the checks of the network transports (`client-server` applies them).
+ * - `capability`, `readOnly`, `clearanceOrder`, `resources`, `admitItem`: the capability of each
+ *   call and what the host gives for it (CAPABILITIES-2026-10).
  */
 
-import type { ProcedurePath } from "../procedures/types.js";
-import type { Interceptor } from "../procedures/invoke.js";
+import type { Capability, ClearanceOrder, ProcedurePath, ResourcesOf } from "../procedures/types.js";
+import type { Interceptor, Invocation } from "../procedures/invoke.js";
+import { narrowCapability } from "../procedures/capability.js";
+import type { ServerRequest } from "./types.js";
 import { timeoutInterceptor } from "../procedures/interceptors.js";
 import type { BrowserGuardOptions } from "./browser-guard.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
@@ -67,6 +71,20 @@ export interface HostPolicyOptions {
   token?: string | undefined;
   /** The browser checks of the network transports (`allowedOrigins`, `allowedHosts`, `allowGet`). */
   browser?: BrowserGuardOptions | undefined;
+  /**
+   * The capability of each call from a caller: one value, or a function of the request. The
+   * function reads only what the transport authenticated (the token, a session), not a claim of
+   * the caller. Without it: no limits.
+   */
+  capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
+  /** True: the callers start only the procedures that change nothing (`effects.writes` is empty). */
+  readOnly?: boolean | undefined;
+  /** The order of the clearance values. */
+  clearanceOrder?: ClearanceOrder | undefined;
+  /** The resources of each invocation for its capability (`ctx.resources`). */
+  resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
+  /** The filter of the output that leaves the host. */
+  admitItem?: ((item: unknown, invocation: Invocation) => boolean) | undefined;
 }
 
 /** What a host lets its callers do. */
@@ -76,6 +94,22 @@ export interface HostPolicy {
   readonly interceptors: readonly Interceptor[];
   readonly token: string | undefined;
   readonly browser: BrowserGuardOptions;
+  /** The capability of a call from a caller, or undefined for no limits. */
+  readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
+  readonly clearanceOrder: ClearanceOrder | undefined;
+  readonly resources: ((invocation: Invocation) => ResourcesOf) | undefined;
+  readonly admitItem: ((item: unknown, invocation: Invocation) => boolean) | undefined;
+}
+
+/** The capability function of a policy: the capability of the options, narrowed by `readOnly`. */
+function capabilityOfOptions(options: HostPolicyOptions): HostPolicy["capabilityOf"] {
+  const { capability, readOnly } = options;
+  if (capability === undefined && !readOnly) return undefined;
+  const readOnlyRequest = readOnly ? { effects: { writes: [] as readonly string[] } } : undefined;
+  return (request) => {
+    const base = typeof capability === "function" ? (request ? capability(request) : undefined) : capability;
+    return readOnlyRequest ? narrowCapability(base, readOnlyRequest, options.clearanceOrder) : base;
+  };
 }
 
 function exposeOf(options: HostPolicyOptions): ((path: ProcedurePath) => boolean) | undefined {
@@ -106,6 +140,10 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
     interceptors,
     token: options.token,
     browser: options.browser ?? {},
+    capabilityOf: capabilityOfOptions(options),
+    clearanceOrder: options.clearanceOrder,
+    resources: options.resources,
+    admitItem: options.admitItem,
   };
 }
 
@@ -117,5 +155,9 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(policy.expose ? { expose: policy.expose } : {}),
     strictCalls: policy.strictCalls,
     ...(policy.interceptors.length > 0 ? { interceptors: policy.interceptors } : {}),
+    ...(policy.capabilityOf ? { capability: policy.capabilityOf } : {}),
+    ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),
+    ...(policy.resources ? { resources: policy.resources } : {}),
+    ...(policy.admitItem ? { admitItem: policy.admitItem } : {}),
   };
 }

@@ -3,7 +3,7 @@
  * Drop an index from a collection
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { collectionFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -33,12 +33,15 @@ const dropIndexOutputSchema = zodAdapter<DropIndexOutput>(
 export const dropIndexProcedure: Procedure<
   DropIndexInput,
   DropIndexOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "indexes", "drop"])
   .input(dropIndexInputSchema)
   .output(dropIndexOutputSchema)
-  .meta({ description: "Drop an index from a collection" })
+  .meta({
+    description: "Drop an index from a collection",
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"] },
+  })
   .handler(async (input: DropIndexInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
 

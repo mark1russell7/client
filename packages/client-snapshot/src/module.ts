@@ -48,6 +48,9 @@ const snapshotCreateProcedure = createProcedure()
   .output(zodAdapter<SnapshotCreateOutput>(SnapshotCreateOutputSchema))
   .meta({
     description: "Create environment snapshot and upload to S3",
+    // It writes the archive to a new folder of the temporary directory and to new S3 keys with a
+    // unique id, so it replaces no data
+    effects: { reads: ["fs", "s3", "network"], writes: ["fs", "s3", "network"], destructive: false },
     args: ["name"],
     shorts: { bucket: "b", preset: "p", description: "d" },
     output: "json",
@@ -63,6 +66,8 @@ const snapshotListProcedure = createProcedure()
   .output(zodAdapter<SnapshotListOutput>(SnapshotListOutputSchema))
   .meta({
     description: "List available snapshots in S3 bucket",
+    // It downloads the metadata files into memory, not to a file
+    effects: { reads: ["s3", "network"], writes: [] },
     args: [],
     shorts: { bucket: "b", prefix: "p", maxResults: "n" },
     output: "json",
@@ -78,6 +83,8 @@ const snapshotRestoreProcedure = createProcedure()
   .output(zodAdapter<SnapshotRestoreOutput>(SnapshotRestoreOutputSchema))
   .meta({
     description: "Restore environment from S3 snapshot",
+    // With overwrite: true, a restored folder replaces the existing folder
+    effects: { reads: ["fs", "s3", "network"], writes: ["fs"] },
     args: ["id"],
     shorts: { bucket: "b", targetPath: "t", overwrite: "f" },
     output: "json",
@@ -93,6 +100,8 @@ const snapshotDiffProcedure = createProcedure()
   .output(zodAdapter<SnapshotDiffOutput>(SnapshotDiffOutputSchema))
   .meta({
     description: "Compare current state against a snapshot",
+    // It reads the repositories with git queries that change nothing
+    effects: { reads: ["fs", "s3", "network"], writes: [] },
     args: ["id"],
     shorts: { bucket: "b" },
     output: "json",
@@ -108,6 +117,7 @@ const snapshotDeleteProcedure = createProcedure()
   .output(zodAdapter<SnapshotDeleteOutput>(SnapshotDeleteOutputSchema))
   .meta({
     description: "Delete a snapshot from S3",
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"] },
     args: ["id"],
     shorts: { bucket: "b" },
     output: "json",

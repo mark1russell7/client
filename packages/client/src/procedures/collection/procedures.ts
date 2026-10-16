@@ -84,6 +84,8 @@ function getStorage<T>(ctx: ProcedureContext): ReturnType<NonNullable<ProcedureC
  */
 export function createCollectionProcedures(collectionName: string): AnyProcedure[] {
   const basePath = ["collections", collectionName];
+  // Each collection is a resource of its own (CAPABILITIES-2026-10): a capability can permit one
+  const resource = `collection:${collectionName}`;
 
   return [
     // Get
@@ -92,6 +94,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: getInputSchema,
       output: getOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [] },
         description: `Get item from ${collectionName} by ID`,
         tags: ["collections", collectionName, "read"],
       },
@@ -107,6 +110,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: setInputSchema,
       output: setOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Set item in ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
@@ -122,6 +126,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: deleteInputSchema,
       output: deleteOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Delete item from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
@@ -137,6 +142,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: hasInputSchema,
       output: hasOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [] },
         description: `Check if item exists in ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
@@ -152,6 +158,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: getAllInputSchema,
       output: getAllOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [] },
         description: `Get all items from ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
@@ -167,6 +174,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: sizeInputSchema,
       output: sizeOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [] },
         description: `Get number of items in ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
@@ -182,6 +190,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: clearInputSchema,
       output: clearOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Clear all items from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
@@ -197,6 +206,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: getBatchInputSchema,
       output: getBatchOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [] },
         description: `Get multiple items from ${collectionName}`,
         tags: ["collections", collectionName, "read", "batch"],
       },
@@ -214,6 +224,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: setBatchInputSchema,
       output: setBatchOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Set multiple items in ${collectionName}`,
         tags: ["collections", collectionName, "write", "batch"],
       },
@@ -233,6 +244,7 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       input: deleteBatchInputSchema,
       output: deleteBatchOutputSchema,
       metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Delete multiple items from ${collectionName}`,
         tags: ["collections", collectionName, "write", "batch"],
       },

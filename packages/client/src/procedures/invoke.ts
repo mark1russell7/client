@@ -13,14 +13,24 @@
  * Interceptors run around each invocation, the nested calls too (roadmap 1.2): policy, tracing,
  * timeouts and metrics for every host. `interceptors.ts` has a timeout, a tracing and a metrics
  * interceptor.
+ *
+ * Each invocation operates with a capability (CAPABILITIES-2026-10, `capability.ts`). A nested
+ * call gets the same capability or a narrower one. The admission refuses a procedure whose
+ * declared effects the capability does not permit (`FORBIDDEN`). The host can give resources
+ * for the capability (`ctx.resources`) and a filter of the output that leaves the host.
  */
 
 import type {
   AnyProcedure,
+  Capability,
+  CapabilityRequest,
+  ClearanceOrder,
+  NestedCallOptions,
   ProcedureClient,
   ProcedureContext,
   ProcedurePath,
   RepositoryProvider,
+  ResourcesOf,
 } from "./types.js";
 import { pathToKey } from "./types.js";
 import { validateSchema } from "./schema.js";
@@ -28,6 +38,8 @@ import type { ProcedureRegistry } from "./registry.js";
 import { PROCEDURE_REGISTRY } from "./registry.js";
 import { nestedCallRefusal } from "./policy.js";
 import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
+import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
+import { timeoutInterceptor } from "./interceptors.js";
 import type { EventBus } from "../events/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
@@ -45,7 +57,9 @@ export type InvocationErrorCode =
   | "OUTPUT_VALIDATION_ERROR"
   | "NO_OUTPUT"
   | "ABORTED"
-  | "TIMEOUT";
+  | "TIMEOUT"
+  /** The capability of the call does not permit it (CAPABILITIES-2026-10). `reason` tells why. */
+  | "FORBIDDEN";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -53,11 +67,14 @@ export class InvocationError extends Error {
   readonly code: InvocationErrorCode;
   readonly path: ProcedurePath;
   readonly retryable: boolean = false;
+  /** The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded` or `clearance`. */
+  readonly reason: CapabilityRefusalReason | undefined;
 
-  constructor(code: InvocationErrorCode, message: string, path: ProcedurePath) {
+  constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: CapabilityRefusalReason) {
     super(message);
     this.code = code;
     this.path = path;
+    this.reason = reason;
   }
 }
 
@@ -108,6 +125,20 @@ export interface InvokeOptions {
   interceptors?: readonly Interceptor[] | undefined;
   /** The invocation whose handler makes this call. The context client sets it for a nested call. */
   parent?: Invocation | undefined;
+  /**
+   * The capability of the call: its clearance, permitted effects and deadline. The host makes it
+   * from its authentication. The nested calls get it, or a narrower one. Absent: no limits.
+   */
+  capability?: Capability | undefined;
+  /** The order of the clearance values. Narrowing two different clearances needs it. */
+  clearanceOrder?: ClearanceOrder | undefined;
+  /** The resources of an invocation for its capability (`ctx.resources`). */
+  resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
+  /**
+   * The filter of the output that leaves the host (the call of the host, not its nested calls).
+   * It drops a refused stream item. A refused value gives `FORBIDDEN` (reason `clearance`).
+   */
+  admitItem?: ((item: unknown, invocation: Invocation) => boolean) | undefined;
 }
 
 // =============================================================================
@@ -130,12 +161,16 @@ export interface Invocation {
   readonly parent: Invocation | undefined;
   /** 0 for a call of a host, 1 for its nested calls, and so on. */
   readonly depth: number;
+  /** The capability of the invocation (frozen). */
+  readonly capability: Capability;
 }
 
 /** The changes that an interceptor gives to the next step: the handler and the nested calls get them. */
 export interface InvocationChanges {
   signal?: AbortSignal | undefined;
   metadata?: Record<string, unknown> | undefined;
+  /** A request for a narrower capability. The framework calculates the result: it is never wider. */
+  capability?: CapabilityRequest | undefined;
 }
 
 /** The rest of the chain: the next interceptors, then the validation and the handler. */
@@ -256,8 +291,15 @@ export async function invokeProcedure<TOutput = unknown>(
     signal: options.signal,
     parent: options.parent,
     depth: options.parent ? options.parent.depth + 1 : 0,
+    capability: options.capability ?? UNLIMITED_CAPABILITY,
   };
-  const interceptors = options.interceptors ?? [];
+  // A deadline that the parent does not have (from a host, a request or a narrowed nested call)
+  // ends the invocation at that time, as the timeout interceptor does
+  const deadline = invocation.capability.deadline;
+  const ownDeadline = deadline !== undefined && options.parent?.capability.deadline !== deadline;
+  const interceptors = ownDeadline
+    ? [timeoutInterceptor({ ms: Math.max(0, deadline - Date.now()), appliesTo: () => true }), ...(options.interceptors ?? [])]
+    : (options.interceptors ?? []);
   if (interceptors.length === 0) return runInvocation<TOutput>(invocation, options);
 
   const dispatch = (index: number, current: Invocation, currentOptions: InvokeOptions): Promise<ProcedureOutput<unknown>> => {
@@ -269,8 +311,16 @@ export async function invokeProcedure<TOutput = unknown>(
         ...current,
         signal: changes.signal ?? current.signal,
         metadata: changes.metadata ?? current.metadata,
+        capability: changes.capability
+          ? narrowCapability(current.capability, changes.capability, currentOptions.clearanceOrder)
+          : current.capability,
       };
-      return dispatch(index + 1, changed, { ...currentOptions, signal: changed.signal, metadata: changed.metadata });
+      return dispatch(index + 1, changed, {
+        ...currentOptions,
+        signal: changed.signal,
+        metadata: changed.metadata,
+        capability: changed.capability,
+      });
     });
   };
   return dispatch(0, invocation, options) as Promise<ProcedureOutput<TOutput>>;
@@ -281,6 +331,14 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
   const { procedure, path, input } = invocation;
   const handler = procedure.handler!;
   if (options.signal?.aborted) throw abortError(path);
+
+  // The admission: before the input validation, so a refused call learns nothing from its input
+  const parent = invocation.parent;
+  if (!parent || examinesNestedCall(parent.procedure, parent.capability, invocation.capability)) {
+    const refusal = capabilityRefusal(procedure, invocation.capability);
+    if (refusal?.reason === "deadline") throw new InvocationError("TIMEOUT", refusal.message, path);
+    if (refusal) throw new InvocationError("FORBIDDEN", refusal.message, path, refusal.reason);
+  }
 
   let data: unknown = input;
   if (!options.inputValidated) {
@@ -301,11 +359,32 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
   }
 
   // The handler starts here, before the first await (the site's trace depends on it)
-  const result: unknown = await handler(data, createProcedureContext(procedure, options, invocation));
+  const result: unknown = await handler(data, createProcedureContext(procedure, { ...options, capability: invocation.capability }, invocation));
+  // The output filter examines only what leaves the host
+  const admit = invocation.depth === 0 ? options.admitItem : undefined;
   if (isAsyncIterable(result)) {
-    return { kind: "stream", items: validatedItems(procedure, result, options.signal) as AsyncGenerator<TOutput, void, undefined> };
+    const items = validatedItems(procedure, result, options.signal);
+    return {
+      kind: "stream",
+      items: (admit ? admittedItems(items, admit, invocation) : items) as AsyncGenerator<TOutput, void, undefined>,
+    };
   }
-  return { kind: "value", value: (await validateOutput(procedure, result)) as TOutput };
+  const value = await validateOutput(procedure, result);
+  if (admit && !admit(value, invocation)) {
+    throw new InvocationError("FORBIDDEN", `The clearance of the call does not permit the output of ${pathToKey(path)}`, path, "clearance");
+  }
+  return { kind: "value", value: value as TOutput };
+}
+
+/** The items that the output filter of the host admits. */
+async function* admittedItems(
+  items: AsyncGenerator<unknown, void, undefined>,
+  admit: (item: unknown, invocation: Invocation) => boolean,
+  invocation: Invocation,
+): AsyncGenerator<unknown, void, undefined> {
+  for await (const item of items) {
+    if (admit(item, invocation)) yield item;
+  }
 }
 
 /** This function finds the procedure at a path in the registry of the options, then runs it. */
@@ -379,6 +458,8 @@ export function createProcedureContext(
     path: procedure.path,
     client,
     registry: options.registry ?? PROCEDURE_REGISTRY,
+    capability: options.capability ?? UNLIMITED_CAPABILITY,
+    resources: invocation && options.resources ? options.resources(invocation) : (EMPTY_RESOURCES as ResourcesOf),
   };
   if (options.signal) context.signal = options.signal;
   if (options.repository) context.repository = options.repository;
@@ -391,23 +472,35 @@ export function createProcedureContext(
   return context;
 }
 
+/** The resources of an invocation when the host gives none. */
+const EMPTY_RESOURCES = Object.freeze({});
+
 /** The client of a procedure's context: it runs the nested calls from the registry. */
 function registryClient(caller: AnyProcedure, options: InvokeOptions): ProcedureClient {
-  const start = <TOutput>(path: ProcedurePath, input: unknown): Promise<ProcedureOutput<TOutput>> => {
+  const start = <TOutput>(path: ProcedurePath, input: unknown, callOptions?: NestedCallOptions): Promise<ProcedureOutput<TOutput>> => {
     // The call policy of the host, with the immediate caller (BUGS-2026-07 H18, deep dive MCP-3).
     // It runs before the lookup, so a refused path tells nothing about the procedure.
     const refusal = nestedCallRefusal(caller, path, options);
     if (refusal) {
       return Promise.reject(new InvocationError(refusal.code, refusal.message, path));
     }
-    return invokePath<TOutput>(path, input, options);
+    // A nested call gets the capability of its caller, or a narrower one that it asks for
+    const narrow = callOptions?.narrow;
+    if (!narrow) return invokePath<TOutput>(path, input, options);
+    let capability: Capability;
+    try {
+      capability = narrowCapability(options.capability, narrow, options.clearanceOrder);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return invokePath<TOutput>(path, input, { ...options, capability });
   };
   return {
-    async call<TInput, TOutput>(path: ProcedurePath, input: TInput): Promise<TOutput> {
-      return outputValue(await start<TOutput>(path, input), path);
+    async call<TInput, TOutput>(path: ProcedurePath, input: TInput, callOptions?: NestedCallOptions): Promise<TOutput> {
+      return outputValue(await start<TOutput>(path, input, callOptions), path);
     },
-    stream<TInput, TOutput>(path: ProcedurePath, input: TInput): AsyncIterable<TOutput> {
-      return streamOutput(() => start<TOutput>(path, input));
+    stream<TInput, TOutput>(path: ProcedurePath, input: TInput, callOptions?: NestedCallOptions): AsyncIterable<TOutput> {
+      return streamOutput(() => start<TOutput>(path, input, callOptions));
     },
   };
 }

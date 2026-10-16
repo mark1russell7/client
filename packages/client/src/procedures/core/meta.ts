@@ -23,6 +23,7 @@ import {
 } from "../ref.js";
 import { callOperand } from "./operands.js";
 import { PROCEDURE_REGISTRY } from "../registry.js";
+import { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "../effects.js";
 
 // =============================================================================
 // Import Procedure
@@ -352,12 +353,16 @@ const lookupProcedure: LookupProcedure = defineProcedure({
  * All meta procedures (before namespacing).
  */
 const metaProceduresRaw: AnyProcedure[] = [
-  importProcedure as AnyProcedure,
-  exportProcedure as AnyProcedure,
-  evalProcedure as AnyProcedure,
-  parseJsonProcedure as AnyProcedure,
-  stringifyJsonProcedure as AnyProcedure,
-  lookupProcedure as AnyProcedure,
+  // These parse, serialize or run programs: no effects of their own (CAPABILITIES-2026-10)
+  ...withEffects(PURE_EFFECTS, [
+    importProcedure as AnyProcedure,
+    exportProcedure as AnyProcedure,
+    evalProcedure as AnyProcedure,
+    parseJsonProcedure as AnyProcedure,
+    stringifyJsonProcedure as AnyProcedure,
+  ]),
+  // It reads the registry
+  ...withEffects(REGISTRY_READ_EFFECTS, [lookupProcedure as AnyProcedure]),
 ];
 
 /**

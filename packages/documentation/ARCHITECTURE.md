@@ -86,6 +86,7 @@ The warm mode removes the start time of Node for a command. `mark` reads a manif
 - `strictCalls`: a procedure of code without `metadata.calls` can use only exposed procedures.
 - `timeoutMs`: the time limit of each call from a caller.
 - `token` and `browser`: the checks of the network transports.
+- `capability`, `readOnly`, `clearanceOrder`, `resources` and `admitItem`: the capability of each call. A capability limits the data that a call can see, its side effects and its time. A nested call gets the same capability or a narrower one. The guide is [CAPABILITIES.md](../client/docs/CAPABILITIES.md).
 
 `procedureServerOptions()` gives the policy to a `ProcedureServer`, and `createPeer({ policy })` gives it to a peer. The MCP server uses the tool surface of its bundles, `strictCalls` and a time limit. The procedure server uses its token and its `--expose` list. The warm server uses its token.
 

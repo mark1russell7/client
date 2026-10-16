@@ -11,6 +11,7 @@
 export type {
   JsonSchema,
   McpToolDefinition,
+  McpToolAnnotations,
   McpTool,
   McpContentItem,
   McpToolResult,

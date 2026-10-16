@@ -361,18 +361,34 @@ export interface GitInitOutput {
 
 export const GitRemoteInputSchema: z.ZodObject<{
   name: z.ZodDefault<z.ZodOptional<z.ZodString>>;
-  url: z.ZodOptional<z.ZodString>;
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Remote name (default: origin) */
   name: z.string().optional().default("origin").describe("Remote name (default: origin)"),
-  /** New URL to set (if provided, sets the URL; otherwise gets it) */
-  url: z.string().optional().describe("New URL to set (if provided, sets the URL; otherwise gets it)"),
   /** Working directory */
   cwd: z.string().optional().describe("Working directory"),
 });
 
 export type GitRemoteInput = z.infer<typeof GitRemoteInputSchema>;
+
+/**
+ * The input of git.remote.set. Before 0.2.0, `git.remote` with `url` set the URL: one procedure
+ * read and wrote, so a reader of the URL had to declare that it writes (CAPABILITIES-2026-10).
+ */
+export const GitRemoteSetInputSchema: z.ZodObject<{
+  name: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+  url: z.ZodString;
+  cwd: z.ZodOptional<z.ZodString>;
+}> = z.object({
+  /** Remote name (default: origin) */
+  name: z.string().optional().default("origin").describe("Remote name (default: origin)"),
+  /** The URL of the remote: it replaces the URL, or adds the remote when it is missing */
+  url: z.string().describe("The URL of the remote: it replaces the URL, or adds the remote when it is missing"),
+  /** Working directory */
+  cwd: z.string().optional().describe("Working directory"),
+});
+
+export type GitRemoteSetInput = z.infer<typeof GitRemoteSetInputSchema>;
 
 export interface GitRemoteOutput {
   /** Remote name */

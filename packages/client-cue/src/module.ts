@@ -48,6 +48,8 @@ const cueInitProcedure = createProcedure()
   .meta({
     description: "Initialize dependencies.json with a preset",
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
+    // With `force`, it overwrites dependencies.json. A second call writes the same preset again.
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
     args: [],
     shorts: { preset: "p", force: "f", cwd: "C" },
     output: "json",
@@ -64,6 +66,8 @@ const cueAddProcedure = createProcedure()
   .meta({
     description: "Add a feature to dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write"],
+    // It writes dependencies.json again with only `$schema` and `dependencies`. Other fields go.
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
     args: ["feature"],
     shorts: { cwd: "C" },
     output: "json",
@@ -80,6 +84,7 @@ const cueRemoveProcedure = createProcedure()
   .meta({
     description: "Remove a feature from dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write"],
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
     args: ["feature"],
     shorts: { cwd: "C" },
     output: "json",
@@ -96,6 +101,9 @@ const cueGenerateProcedure = createProcedure()
   .meta({
     description: "Generate config files from dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
+    // The cue program evaluates the CUE files of @mark1russell7/cue, not code of the project.
+    // The procedure rewrites package.json, tsconfig.json and .gitignore.
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
     args: [],
     shorts: { cwd: "C" },
     output: "json",
@@ -112,6 +120,7 @@ const cueValidateProcedure = createProcedure()
   .meta({
     description: "Validate dependencies.json",
     calls: ["fs.exists", "fs.read"],
+    effects: { reads: ["fs"], writes: [] },
     args: [],
     shorts: { cwd: "C" },
     output: "json",

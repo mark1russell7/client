@@ -203,6 +203,15 @@ export {
 } from "./procedures/index.js";
 
 export type {
+  Effects,
+  PermittedEffects,
+  Register,
+  ClearanceOf,
+  ResourcesOf,
+  Capability,
+  CapabilityRequest,
+  ClearanceOrder,
+  NestedCallOptions,
   Procedure,
   AnyProcedure,
   ProcedurePath,
@@ -268,6 +277,24 @@ export type {
   Interceptor,
 } from "./procedures/invoke.js";
 export { callMatches, validateCalls, declaredCalls, nestedCallRefusal, hasCallPolicy, hiddenReach } from "./procedures/policy.js";
+// Capabilities (CAPABILITIES-2026-10)
+export {
+  STANDARD_RESOURCES,
+  UNLIMITED_CAPABILITY,
+  ladder,
+  effectsOf,
+  isReadOnly,
+  isDestructive,
+  isOpenWorld,
+  toolHints,
+  narrowCapability,
+  capabilityRefusal,
+  examinesNestedCall,
+  explainInvocation,
+  checkEffects,
+} from "./procedures/capability.js";
+export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./procedures/effects.js";
+export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./procedures/capability.js";
 export type { CallPolicy, CallRefusal, HiddenCall } from "./procedures/policy.js";
 export { timeoutInterceptor, tracingInterceptor, metricsInterceptor } from "./procedures/interceptors.js";
 export type {

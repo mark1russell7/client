@@ -3,7 +3,7 @@
  * List all outbound connections to remote peers
  */
 
-import { createProcedure, type Procedure } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerConnectionsOutputSchema } from "../output-schemas.js";
 import { serverConnectionsInputSchema } from "../input-schemas.js";
@@ -37,13 +37,15 @@ const serverConnectionsOutputSchema = wrapSchema<ServerConnectionsOutput>(Server
 export const serverConnectionsProcedure: Procedure<
   ServerConnectionsInput,
   ServerConnectionsOutput,
-  { description: string; output: string }
+  { description: string; effects: Effects; output: string }
 > = createProcedure()
   .path(["server", "connections"])
   .input(serverConnectionsInputSchema)
   .output(serverConnectionsOutputSchema)
   .meta({
     description: "List outbound connections to remote peers",
+    // It reads the connections that server.connect opened, and sends nothing
+    effects: { reads: ["network"], writes: [] },
     output: "json",
   })
   .handler(async (): Promise<ServerConnectionsOutput> => {

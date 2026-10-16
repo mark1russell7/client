@@ -427,6 +427,7 @@ server: only the tools of the bundles, strict nested calls, and a time limit for
 Options:
   --bundles <list>      Comma-separated bundles (default: MCP_BUNDLES, or @procedures/bundle-mcp)
   --tool-timeout <ms>   The time limit of each tool call (default: MCP_TOOL_TIMEOUT_MS, or 600000)
+  --read-only           Only the tools that change nothing (default: MCP_READ_ONLY)
   --debug               Write debug lines to stderr
   -h, --help            Show this help
 
@@ -458,6 +459,8 @@ async function startMcp(args: string[]): Promise<void> {
       const ms = Number(value());
       if (!Number.isFinite(ms) || ms < 0) throw new Error(`--tool-timeout needs a number of milliseconds`);
       config.toolTimeoutMs = ms;
+    } else if (name === "--read-only") {
+      config.readOnly = true;
     } else if (name === "--debug") {
       config.debug = true;
     } else {

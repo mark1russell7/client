@@ -3,7 +3,7 @@
  * Health check and connectivity test
  */
 
-import { createProcedure, zodAdapter, type Procedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { databaseFor, type ScopeInput } from "../scope.js";
 import { scopeFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -31,12 +31,15 @@ const pingOutputSchema = zodAdapter<PingOutput>(
 export const pingProcedure: Procedure<
   PingInput,
   PingOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "database", "ping"])
   .input(pingInputSchema)
   .output(pingOutputSchema)
-  .meta({ description: "Health check and connectivity test" })
+  .meta({
+    description: "Health check and connectivity test",
+    effects: { reads: ["mongo", "network"], writes: [] },
+  })
   .handler(async (input: PingInput, ctx: ProcedureContext) => {
     const db = await databaseFor(input, ctx);
 

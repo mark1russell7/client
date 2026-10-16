@@ -9,6 +9,7 @@ import { z } from "zod";
 import { numberOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
+import { PURE_EFFECTS, withEffects } from "../effects.js";
 
 // =============================================================================
 // Add Procedure
@@ -440,7 +441,8 @@ const mathProceduresRaw: AnyProcedure[] = [
 /**
  * All math procedures namespaced under "client".
  */
-export const mathProcedures: AnyProcedure[] = namespace(["client"], mathProceduresRaw);
+// Each one calculates its output from its input: no reads, no changes (CAPABILITIES-2026-10)
+export const mathProcedures: AnyProcedure[] = namespace(["client"], withEffects(PURE_EFFECTS, mathProceduresRaw));
 
 /**
  * Math procedures module for registration.

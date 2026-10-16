@@ -26,6 +26,8 @@ const procedureNewProcedure = createProcedure()
   .meta({
     description: "Scaffold a new procedure with types and registration boilerplate",
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
+    // It refuses a name that collides, makes new files and adds lines to the existing files
+    effects: { reads: ["fs", "registry"], writes: ["fs"], destructive: false },
     args: ["name"],
     shorts: { namespace: "n", description: "d", path: "p", dryRun: "D" },
     output: "text",

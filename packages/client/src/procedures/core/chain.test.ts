@@ -59,7 +59,7 @@ describe("chain procedure", () => {
 
   beforeEach(() => {
     mockClient = createTestMockClient();
-    ctx = {
+    ctx = { capability: {}, resources: {},
       client: mockClient as any,
       metadata: {},
       path: ["test", "chain"],
@@ -291,7 +291,7 @@ describe("chain procedure", () => {
   describe("without client context", () => {
     it("returns resolved input when no client", async () => {
       // Create a context WITHOUT a client
-      const noClientCtx: ProcedureContext = {
+      const noClientCtx: ProcedureContext = { capability: {}, resources: {},
         metadata: {},
         path: ["test", "chain"],
         client: undefined as any,

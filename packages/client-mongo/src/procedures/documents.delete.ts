@@ -3,7 +3,7 @@
  * Delete documents matching a filter
  */
 
-import { createProcedure, type Procedure, type ProcedureContext, zodAdapter } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext, zodAdapter } from "@procedures/client";
 import { collectionFor } from "../scope.js";
 import { described, scopeFields, targetFields } from "./input-schemas.js";
 import { z } from "zod";
@@ -33,12 +33,15 @@ const deleteOutputSchema = zodAdapter<DeleteOutput>(
 export const deleteProcedure: Procedure<
   DeleteInput,
   DeleteOutput,
-  { description: string }
+  { description: string; effects?: Effects }
 > = createProcedure()
   .path(["mongo", "documents", "delete"])
   .input(deleteInputSchema)
   .output(deleteOutputSchema)
-  .meta({ description: "Delete documents matching a filter" })
+  .meta({
+    description: "Delete documents matching a filter",
+    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"] },
+  })
   .handler(async (input: DeleteInput, ctx: ProcedureContext) => {
     const { collection } = await collectionFor(input, ctx);
     const filter = targetFilter(input);
