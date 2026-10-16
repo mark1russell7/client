@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
-import { headerSafe } from "./notify.js";
+import { headerSafe, sendNotification } from "./notify.js";
 import { notifyProcedures } from "./procedures.js";
 
 const registry = new ProcedureRegistry();
@@ -49,5 +49,28 @@ describe("notify.send", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("no", { status: 429 })));
     await expect(send({ topic: "t", title: "x", message: "y" })).rejects.toThrow(/HTTP 429/);
     await expect(send({ topic: "a/b", title: "x", message: "y" })).rejects.toThrow();
+  });
+});
+
+describe("sendNotification with the fetch option", () => {
+  it("uses the fetch of the caller, and keeps its error as the cause", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("the global fetch was used"))));
+    const bodies: string[] = [];
+    await sendNotification(
+      { topic: "t", title: "x", message: "y" },
+      {
+        timeoutMs: 1_000,
+        fetch: async (_url, init) => {
+          bodies.push(init.body);
+          return { ok: true, status: 200 };
+        },
+      }
+    );
+    expect(bodies).toEqual(["y"]);
+
+    const failure = new Error("fetch failed");
+    const request = sendNotification({ topic: "t", title: "x", message: "y" }, { timeoutMs: 1_000, fetch: async () => Promise.reject(failure) });
+    await expect(request).rejects.toThrow(/did not answer: the request failed/);
+    await expect(request).rejects.toHaveProperty("cause", failure);
   });
 });

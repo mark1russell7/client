@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
+import { drivingRoute, geocode } from "./geo.js";
 import { geoProcedures } from "./procedures.js";
 
 const registry = new ProcedureRegistry();
@@ -57,5 +58,28 @@ describe("geo.route", () => {
     await expect(call(["geo", "route"], { from: { lat: 91, lon: 0 }, to: { lat: 0, lon: 0 } })).rejects.toThrow();
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ code: "NoRoute" })));
     await expect(call(["geo", "route"], { from: { lat: 0, lon: 0 }, to: { lat: 1, lon: 1 } })).rejects.toThrow(/no route \(NoRoute\)/);
+  });
+});
+
+describe("the fetch option", () => {
+  it("uses the fetch of the caller in place of the global fetch", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("the global fetch was used"))));
+    const urls: string[] = [];
+    const fetchJson = async (url: string) => {
+      urls.push(url);
+      return url.includes("/search?")
+        ? { ok: true, status: 200, json: async () => [{ lat: "1.5", lon: "2.5", display_name: "Made-up Place" }] }
+        : { ok: true, status: 200, json: async () => ({ code: "Ok", routes: [{ distance: 2_000, duration: 120 }] }) };
+    };
+    expect(await geocode("x", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: fetchJson })).toEqual({ lat: 1.5, lon: 2.5, displayName: "Made-up Place" });
+    expect(await drivingRoute({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, { timeoutMs: 1_000, fetch: fetchJson })).toEqual({ km: 2, minutes: 2 });
+    expect(urls).toHaveLength(2);
+  });
+
+  it("keeps the error of the fetch as the cause", async () => {
+    const failure = Object.assign(new Error("fetch failed"), { cause: { code: "ECONNREFUSED" } });
+    const request = geocode("x", { userAgent: "my-app/1.0", timeoutMs: 1_000, fetch: async () => Promise.reject(failure) });
+    await expect(request).rejects.toThrow(/Nominatim did not answer: the request failed/);
+    await expect(request).rejects.toHaveProperty("cause", failure);
   });
 });

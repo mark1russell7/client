@@ -24,19 +24,34 @@ export const NOMINATIM_URL = "https://nominatim.openstreetmap.org";
 /** The public OSRM demonstration server. It has a fair-use limit. A self-hosted OSRM has the same API. */
 export const OSRM_URL = "https://router.project-osrm.org";
 
+/**
+ * The part of `fetch` that this package uses. A host or a test can give its own function, for
+ * example a fetch with a cache or a recorder. The default is the global `fetch`.
+ */
+export type FetchJson = (
+  url: string,
+  init: { headers: Record<string, string>; signal: AbortSignal }
+) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+
 /** This function gets a JSON document, with a time limit and the signal of the call. */
 export async function getJson(
   url: string,
-  options: { timeoutMs: number; signal?: AbortSignal | undefined; headers?: Record<string, string> },
+  options: {
+    timeoutMs: number;
+    signal?: AbortSignal | undefined;
+    headers?: Record<string, string>;
+    fetch?: FetchJson | undefined;
+  },
   service: string
 ): Promise<unknown> {
   const signals = [AbortSignal.timeout(options.timeoutMs), ...(options.signal ? [options.signal] : [])];
-  let response: Response;
+  const fetchJson: FetchJson = options.fetch ?? fetch;
+  let response: Awaited<ReturnType<FetchJson>>;
   try {
-    response = await fetch(url, { signal: AbortSignal.any(signals), headers: { accept: "application/json", ...options.headers } });
+    response = await fetchJson(url, { signal: AbortSignal.any(signals), headers: { accept: "application/json", ...options.headers } });
   } catch (error) {
     const reason = (error as { name?: string }).name === "TimeoutError" ? `no answer in ${options.timeoutMs} ms` : "the request failed";
-    throw new Error(`${service} did not answer: ${reason}`);
+    throw new Error(`${service} did not answer: ${reason}`, { cause: error });
   }
   if (!response.ok) throw new Error(`${service} gave HTTP ${response.status}`);
   return response.json();
@@ -54,13 +69,14 @@ export async function geocode(
     baseUrl?: string | undefined;
     timeoutMs: number;
     signal?: AbortSignal | undefined;
+    fetch?: FetchJson | undefined;
   }
 ): Promise<GeocodeResult | undefined> {
   const params = new URLSearchParams({ format: "jsonv2", limit: "1", q: query });
   if (options.countryCodes !== undefined) params.set("countrycodes", options.countryCodes);
   const rows = (await getJson(
     `${options.baseUrl ?? NOMINATIM_URL}/search?${params.toString()}`,
-    { timeoutMs: options.timeoutMs, signal: options.signal, headers: { "user-agent": options.userAgent } },
+    { timeoutMs: options.timeoutMs, signal: options.signal, headers: { "user-agent": options.userAgent }, fetch: options.fetch },
     "Nominatim"
   )) as Array<{ lat?: string; lon?: string; display_name?: string }>;
   const first = Array.isArray(rows) ? rows[0] : undefined;
@@ -74,11 +90,11 @@ export async function geocode(
 export async function drivingRoute(
   from: Point,
   to: Point,
-  options: { baseUrl?: string | undefined; timeoutMs: number; signal?: AbortSignal | undefined }
+  options: { baseUrl?: string | undefined; timeoutMs: number; signal?: AbortSignal | undefined; fetch?: FetchJson | undefined }
 ): Promise<RouteResult> {
   const body = (await getJson(
     `${options.baseUrl ?? OSRM_URL}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`,
-    { timeoutMs: options.timeoutMs, signal: options.signal },
+    { timeoutMs: options.timeoutMs, signal: options.signal, fetch: options.fetch },
     "OSRM"
   )) as { code?: string; routes?: Array<{ duration?: number; distance?: number }> };
   const route = body.routes?.[0];
