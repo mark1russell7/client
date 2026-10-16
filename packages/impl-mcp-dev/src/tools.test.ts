@@ -12,12 +12,16 @@
  *
  * effects.snapshot.txt pins the hints of each tool, from the declared effects of its procedure
  * (CAPABILITIES-2026-10): what the client is told that each tool reads, changes or destroys.
+ *
+ * schemas.snapshot.json pins the input JSON Schema of each tool (roadmap R30): Claude reads it to
+ * call the tool. The file is too large to copy from a failure message: to accept an intended
+ * change, start the test with UPDATE_TOOL_SCHEMAS=1 and review the diff of the file.
  */
 
 import { describe, it, expect } from "vitest";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,11 +37,27 @@ interface ToolAnnotations {
 
 interface RpcResponse {
   result?: {
-    tools?: Array<{ name: string; annotations?: ToolAnnotations }>;
+    tools?: Array<{ name: string; annotations?: ToolAnnotations; inputSchema?: unknown }>;
     nextCursor?: string;
     content?: Array<{ type: string; text: string }>;
     isError?: boolean;
   };
+}
+
+/**
+ * A schema without the home folder of this machine: a description can name a default path in it
+ * (the database of the sqlite tools). The path gets `<home>` and the separator `/`.
+ */
+function portable(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value
+      .split(homedir())
+      .join("<home>")
+      .replace(/<home>[^\s)]*/g, (path) => path.replace(/\\/g, "/"));
+  }
+  if (Array.isArray(value)) return value.map(portable);
+  if (value !== null && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, portable(item)]));
+  return value;
 }
 
 /** The hints of a tool in words: "read only", or what it does when it changes something. */
@@ -118,6 +138,26 @@ describe("dev-tools MCP server", () => {
     });
 
     expect(lines).toEqual(expected);
+  }, 60_000);
+
+  it("gives each tool the input schema of schemas.snapshot.json", async () => {
+    const schemas = await withServer(async (request) => {
+      const result: Array<[string, unknown]> = [];
+      let cursor: string | undefined;
+      do {
+        const response = await request("tools/list", cursor ? { cursor } : {});
+        for (const tool of response.result?.tools ?? []) result.push([tool.name, tool.inputSchema]);
+        cursor = response.result?.nextCursor;
+      } while (cursor);
+      // The order of the code units: the same on each machine
+      return portable(Object.fromEntries(result.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
+    });
+
+    const file = join(packageDir, "schemas.snapshot.json");
+    if (process.env["UPDATE_TOOL_SCHEMAS"] === "1") writeFileSync(file, `${JSON.stringify(schemas, null, 2)}\n`);
+    expect(existsSync(file), "schemas.snapshot.json is missing: start the test with UPDATE_TOOL_SCHEMAS=1").toBe(true);
+    // JSON.parse ignores the line ends, so a checkout with CRLF gives the same value
+    expect(schemas).toEqual(JSON.parse(readFileSync(file, "utf8")));
   }, 60_000);
 
   it("does not let client.chain call a procedure that is not a tool (shell.exec)", async () => {

@@ -94,8 +94,10 @@ export type ErrorPattern = {
 const ERROR_PATTERNS : ErrorPattern[] = [
   {
     code: ErrorCode.ABORTED,
+    // The reason of AbortSignal.timeout() is a TimeoutError with the message "The operation was
+    // aborted due to timeout": it is a timeout (roadmap R30: before, it was ABORTED)
     detect: (name: string, message: string) =>
-      name === "aborterror" || message.includes("abort"),
+      name === "aborterror" || (name !== "timeouterror" && message.includes("abort")),
   },
   {
     code: ErrorCode.TIMEOUT,
@@ -124,19 +126,21 @@ const ERROR_PATTERNS : ErrorPattern[] = [
       message.includes("network") ||
       message.includes("connection"),
   },
-  {
-    code: ErrorCode.PARSE_ERROR,
-    detect: (_name: string, message: string) =>
-      message.includes("parse") ||
-      message.includes("json") ||
-      message.includes("unexpected token"),
-  },
+  // Before the parse errors: "Converting circular structure to JSON" names JSON too (roadmap R30:
+  // before, it was PARSE_ERROR)
   {
     code: ErrorCode.SERIALIZE_ERROR,
     detect: (_name: string, message: string) =>
       message.includes("serialize") ||
       message.includes("stringify") ||
       message.includes("circular"),
+  },
+  {
+    code: ErrorCode.PARSE_ERROR,
+    detect: (_name: string, message: string) =>
+      message.includes("parse") ||
+      message.includes("json") ||
+      message.includes("unexpected token"),
   },
 ] as const satisfies ErrorPattern[];
 

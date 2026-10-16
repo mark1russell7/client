@@ -6,7 +6,7 @@
  */
 
 import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
-import { ABORTED_FIRST, errorItem, nextOrAbort, withDelivery } from "./items.js";
+import { ABORTED_FIRST, abortedItem, errorItem, nextOrAbort, withDelivery } from "./items.js";
 import type { TimeoutContext } from "./contexts.js";
 import { deadlineOf, narrowDeadline, restoreDeadline } from "../deadline.js";
 import { resilience } from "./resilience.js";
@@ -119,7 +119,8 @@ function composeAbortSignals(...signals: (AbortSignal | undefined)[]): {
 /**
  * Run `next` with a timeout. When the time runs out, the request's signal aborts, and the
  * reader gets one TIMEOUT error item in place of the transport's ABORTED item or thrown error.
- * The middleware does not wait for a transport that ignores the signal.
+ * The middleware does not wait for a transport that ignores the signal: not after the timeout,
+ * and not after an abort of the caller, which gives an ABORTED item.
  *
  * Before, the middleware waited for a thrown error, but the transports yield error items: the
  * reader got "ABORTED" (not retryable), so a per-attempt timeout with retry never retried, and
@@ -153,12 +154,15 @@ async function* runWithTimeout<TReq, TRes>(
   let phase: "running" | "done" | "abandoned" = "running";
   try {
     for (;;) {
-      const result = await nextOrAbort(iterator, timeoutController.signal);
+      // The timeout and the abort of the caller both end the wait (roadmap R30: before, the wait
+      // ignored the abort of the caller, so a transport that ignored the signal kept the caller
+      // waiting until the timeout, and the caller got TIMEOUT for its own abort)
+      const result = await nextOrAbort(iterator, composedController.signal);
       if (result === ABORTED_FIRST) {
         phase = "abandoned";
-        // The transport did not stop in time: end it in the background, and give the timeout
+        // The transport did not stop in time: end it in the background, and give the timeout or the abort
         void Promise.resolve(iterator.return?.()).catch(() => undefined);
-        yield timeoutItem();
+        yield timedOut() ? timeoutItem() : abortedItem<TRes>(context.message.id);
         return;
       }
       if (result.done) {
