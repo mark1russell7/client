@@ -11,7 +11,7 @@
 
 ### Key Features
 
-- **Comprehensive Docker Coverage**: Run, build, pull, exec, stop, rm, ps, logs commands
+- **Comprehensive Docker Coverage**: Run, build, pull, push, tag, exec, stop, rm, ps, logs, images, inspect, volume, network and prune commands
 - **Docker Compose Support**: Up and down operations for multi-container applications
 - **Type-Safe Inputs**: Zod schemas for all inputs with full TypeScript support
 - **Shell Integration**: Leverages `client-shell` for reliable CLI execution
@@ -267,7 +267,8 @@ Run a Docker container.
   env?: Record<string, string>; // Environment variables
   detach?: boolean;           // Run in background (default: false)
   rm?: boolean;               // Auto-remove when stopped (default: false)
-  command?: string;           // Command to run in container
+  command?: string;           // Command to run in container, split at whitespace
+  args?: string[];            // The command as a list: each item is one argument (not with command)
   cwd?: string;               // Working directory for command
   timeout?: number;           // Command timeout in ms
 }
@@ -346,7 +347,8 @@ Execute a command in a running container.
 ```typescript
 {
   container: string;          // Required: Container name or ID
-  command: string;            // Required: Command to execute
+  command?: string;           // Command to execute, split at whitespace
+  args?: string[];            // The command as a list: each item is one argument. Give command or args
   interactive?: boolean;      // Allocate stdin (default: false)
   tty?: boolean;              // Allocate pseudo-TTY (default: false)
   workdir?: string;           // Working directory inside container
@@ -515,6 +517,41 @@ await client.exec(["docker", "compose", "down"], {
   removeOrphans: true,
   rmi: "local",
 });
+```
+
+### More procedures (roadmap R41)
+
+Each procedure gives the common output type, and takes `cwd` and `timeout`. A failed command does not throw. A name, an image or a service that starts with `-` is refused, because docker reads it as an option. The effects column shows `metadata.effects`.
+
+| Procedure | Input | Effects |
+|---|---|---|
+| `docker.compose.ps` | `file`, `services`, `all`, `format` | reads docker and fs |
+| `docker.compose.logs` | `file`, `services`, `tail`, `since`, `timestamps` | reads docker and fs |
+| `docker.compose.build` | `file`, `services`, `noCache`, `pull`, `buildArgs` | reads docker, fs and network, writes docker and process, not destructive |
+| `docker.compose.restart` | `file`, `services`, `time` | reads docker and fs, writes docker |
+| `docker.images` | `repository`, `all`, `filter`, `format` | reads docker |
+| `docker.inspect` | `targets` (one or more), `type`, `format` | reads docker |
+| `docker.volume.list` | `filter`, `format` | reads docker |
+| `docker.volume.create` | `name`, `driver`, `labels` | writes docker, not destructive, idempotent |
+| `docker.volume.remove` | `volumes` (one or more), `force` | writes docker, destructive, idempotent |
+| `docker.network.list` | `filter`, `format` | reads docker |
+| `docker.network.create` | `name`, `driver`, `internal`, `labels` | writes docker, not destructive, idempotent |
+| `docker.network.remove` | `networks` (one or more) | writes docker, destructive, idempotent |
+| `docker.tag` | `source`, `target` | writes docker, idempotent |
+| `docker.push` | `image`, `allTags` | reads docker and network, writes network, idempotent |
+| `docker.prune` | `kind`, `all`, `volumes`, `filter`, `confirm` | writes docker, destructive, idempotent |
+
+- `docker.inspect` gives `data`: the parsed JSON of docker. With `format`, docker writes text, and `data` is absent.
+- `docker.compose.logs` does not follow the logs. It gives the lines that exist.
+- `docker.prune` needs `confirm: true`. The removed objects and their data are lost. The `kind` is `system` (the default), `container`, `image`, `volume`, `network` or `builder`.
+- `docker.tag` moves the name from another image. `docker.push` replaces the image of the tag in the registry.
+
+`docker.run` and `docker.exec` take `args`, a list of arguments, in place of `command`. Docker gets each item as one argument, so an argument can contain spaces and quotes. `command` still works, split at whitespace. The two together are an error.
+
+```typescript
+await client.exec(["docker", "exec"], { container: "db", args: ["psql", "-c", "SELECT 'a b'"] });
+const { data } = await client.exec(["docker", "inspect"], { targets: ["db"], type: "container" });
+await client.exec(["docker", "prune"], { kind: "image", all: true, confirm: true });
 ```
 
 ## Types

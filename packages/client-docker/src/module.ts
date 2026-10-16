@@ -4,7 +4,10 @@
  * Procedure Registration for Docker operations
  *
  * Provides docker.run, docker.build, docker.pull, docker.exec, docker.stop,
- * docker.rm, docker.ps, docker.logs, docker.compose.up, docker.compose.down procedures.
+ * docker.rm, docker.ps, docker.logs, docker.compose.up, docker.compose.down procedures, and since
+ * roadmap R41 docker.compose.ps/logs/build/restart, docker.images, docker.inspect,
+ * docker.volume.list/create/remove, docker.network.list/create/remove, docker.tag, docker.push
+ * and docker.prune.
  */
 
 
@@ -49,6 +52,83 @@ import {
   DockerLogsOutputSchema,
 } from "./types.js";
 import type { ProcedureContext } from "@procedures/client";
+import { dockerComposePs } from "./procedures/docker/compose/ps.js";
+import { dockerComposeLogs } from "./procedures/docker/compose/logs.js";
+import { dockerComposeBuild } from "./procedures/docker/compose/build.js";
+import { dockerComposeRestart } from "./procedures/docker/compose/restart.js";
+import { dockerImages } from "./procedures/docker/images.js";
+import { dockerInspect } from "./procedures/docker/inspect.js";
+import { dockerVolumeList } from "./procedures/docker/volume/list.js";
+import { dockerVolumeCreate } from "./procedures/docker/volume/create.js";
+import { dockerVolumeRemove } from "./procedures/docker/volume/remove.js";
+import { dockerNetworkList } from "./procedures/docker/network/list.js";
+import { dockerNetworkCreate } from "./procedures/docker/network/create.js";
+import { dockerNetworkRemove } from "./procedures/docker/network/remove.js";
+import { dockerTag } from "./procedures/docker/tag.js";
+import { dockerPush } from "./procedures/docker/push.js";
+import { dockerPrune } from "./procedures/docker/prune.js";
+import {
+  DockerComposePsInputSchema,
+  DockerComposePsOutputSchema,
+  type DockerComposePsInput,
+  type DockerComposePsOutput,
+  DockerComposeLogsInputSchema,
+  DockerComposeLogsOutputSchema,
+  type DockerComposeLogsInput,
+  type DockerComposeLogsOutput,
+  DockerComposeBuildInputSchema,
+  DockerComposeBuildOutputSchema,
+  type DockerComposeBuildInput,
+  type DockerComposeBuildOutput,
+  DockerComposeRestartInputSchema,
+  DockerComposeRestartOutputSchema,
+  type DockerComposeRestartInput,
+  type DockerComposeRestartOutput,
+  DockerImagesInputSchema,
+  DockerImagesOutputSchema,
+  type DockerImagesInput,
+  type DockerImagesOutput,
+  DockerInspectInputSchema,
+  DockerInspectOutputSchema,
+  type DockerInspectInput,
+  type DockerInspectOutput,
+  DockerVolumeListInputSchema,
+  DockerVolumeListOutputSchema,
+  type DockerVolumeListInput,
+  type DockerVolumeListOutput,
+  DockerVolumeCreateInputSchema,
+  DockerVolumeCreateOutputSchema,
+  type DockerVolumeCreateInput,
+  type DockerVolumeCreateOutput,
+  DockerVolumeRemoveInputSchema,
+  DockerVolumeRemoveOutputSchema,
+  type DockerVolumeRemoveInput,
+  type DockerVolumeRemoveOutput,
+  DockerNetworkListInputSchema,
+  DockerNetworkListOutputSchema,
+  type DockerNetworkListInput,
+  type DockerNetworkListOutput,
+  DockerNetworkCreateInputSchema,
+  DockerNetworkCreateOutputSchema,
+  type DockerNetworkCreateInput,
+  type DockerNetworkCreateOutput,
+  DockerNetworkRemoveInputSchema,
+  DockerNetworkRemoveOutputSchema,
+  type DockerNetworkRemoveInput,
+  type DockerNetworkRemoveOutput,
+  DockerTagInputSchema,
+  DockerTagOutputSchema,
+  type DockerTagInput,
+  type DockerTagOutput,
+  DockerPushInputSchema,
+  DockerPushOutputSchema,
+  type DockerPushInput,
+  type DockerPushOutput,
+  DockerPruneInputSchema,
+  DockerPruneOutputSchema,
+  type DockerPruneInput,
+  type DockerPruneOutput,
+} from "./types.js";
 
 // =============================================================================
 // Procedures
@@ -236,6 +316,237 @@ const dockerComposeDownProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// Roadmap R41: compose ps, logs, build, restart, images, inspect, volumes, networks, tag, push, prune
+// =============================================================================
+
+const dockerComposePsProcedure = createProcedure()
+  .path(["docker", "compose", "ps"])
+  .input(zodAdapter<DockerComposePsInput>(DockerComposePsInputSchema))
+  .output(zodAdapter<DockerComposePsOutput>(DockerComposePsOutputSchema))
+  .meta({
+    description: "List the containers of a compose project",
+    calls: ["shell.run"],
+    // Docker reads the compose file
+    effects: { reads: ["docker", "fs"], writes: [] },
+    args: ["services"],
+    shorts: { file: "f", all: "a", format: "F" },
+    output: "json",
+  })
+  .handler(async (input: DockerComposePsInput, ctx: ProcedureContext): Promise<DockerComposePsOutput> => dockerComposePs(input, ctx))
+  .build();
+
+const dockerComposeLogsProcedure = createProcedure()
+  .path(["docker", "compose", "logs"])
+  .input(zodAdapter<DockerComposeLogsInput>(DockerComposeLogsInputSchema))
+  .output(zodAdapter<DockerComposeLogsOutput>(DockerComposeLogsOutputSchema))
+  .meta({
+    description: "Get the logs of the services of a compose project (without follow)",
+    calls: ["shell.run"],
+    effects: { reads: ["docker", "fs"], writes: [] },
+    args: ["services"],
+    shorts: { file: "f", tail: "n", timestamps: "t" },
+    output: "json",
+  })
+  .handler(async (input: DockerComposeLogsInput, ctx: ProcedureContext): Promise<DockerComposeLogsOutput> => dockerComposeLogs(input, ctx))
+  .build();
+
+const dockerComposeBuildProcedure = createProcedure()
+  .path(["docker", "compose", "build"])
+  .input(zodAdapter<DockerComposeBuildInput>(DockerComposeBuildInputSchema))
+  .output(zodAdapter<DockerComposeBuildOutput>(DockerComposeBuildOutputSchema))
+  .meta({
+    description: "Build the images of the services of a compose project",
+    calls: ["shell.run"],
+    // As docker.build: the RUN steps are code of the project, and docker pulls the base images.
+    // The tags go to the new images, and the earlier images stay.
+    effects: { reads: ["docker", "fs", "network"], writes: ["docker", "process"], destructive: false },
+    args: ["services"],
+    shorts: { file: "f" },
+    output: "json",
+  })
+  .handler(async (input: DockerComposeBuildInput, ctx: ProcedureContext): Promise<DockerComposeBuildOutput> => dockerComposeBuild(input, ctx))
+  .build();
+
+const dockerComposeRestartProcedure = createProcedure()
+  .path(["docker", "compose", "restart"])
+  .input(zodAdapter<DockerComposeRestartInput>(DockerComposeRestartInputSchema))
+  .output(zodAdapter<DockerComposeRestartOutput>(DockerComposeRestartOutputSchema))
+  .meta({
+    description: "Restart the services of a compose project",
+    calls: ["shell.run"],
+    // A restart stops the processes of the services. Each call restarts them again.
+    effects: { reads: ["docker", "fs"], writes: ["docker"] },
+    args: ["services"],
+    shorts: { file: "f", time: "t" },
+    output: "json",
+  })
+  .handler(async (input: DockerComposeRestartInput, ctx: ProcedureContext): Promise<DockerComposeRestartOutput> => dockerComposeRestart(input, ctx))
+  .build();
+
+const dockerImagesProcedure = createProcedure()
+  .path(["docker", "images"])
+  .input(zodAdapter<DockerImagesInput>(DockerImagesInputSchema))
+  .output(zodAdapter<DockerImagesOutput>(DockerImagesOutputSchema))
+  .meta({
+    description: "List images",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: [] },
+    args: ["repository"],
+    shorts: { all: "a", filter: "f", format: "F" },
+    output: "json",
+  })
+  .handler(async (input: DockerImagesInput, ctx: ProcedureContext): Promise<DockerImagesOutput> => dockerImages(input, ctx))
+  .build();
+
+const dockerInspectProcedure = createProcedure()
+  .path(["docker", "inspect"])
+  .input(zodAdapter<DockerInspectInput>(DockerInspectInputSchema))
+  .output(zodAdapter<DockerInspectOutput>(DockerInspectOutputSchema))
+  .meta({
+    description: "Give the details of containers, images, volumes or networks: data has the JSON of docker",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: [] },
+    args: ["targets"],
+    shorts: { type: "T", format: "F" },
+    output: "json",
+  })
+  .handler(async (input: DockerInspectInput, ctx: ProcedureContext): Promise<DockerInspectOutput> => dockerInspect(input, ctx))
+  .build();
+
+const dockerVolumeListProcedure = createProcedure()
+  .path(["docker", "volume", "list"])
+  .input(zodAdapter<DockerVolumeListInput>(DockerVolumeListInputSchema))
+  .output(zodAdapter<DockerVolumeListOutput>(DockerVolumeListOutputSchema))
+  .meta({
+    description: "List volumes",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: [] },
+    shorts: { filter: "f", format: "F" },
+    output: "json",
+  })
+  .handler(async (input: DockerVolumeListInput, ctx: ProcedureContext): Promise<DockerVolumeListOutput> => dockerVolumeList(input, ctx))
+  .build();
+
+const dockerVolumeCreateProcedure = createProcedure()
+  .path(["docker", "volume", "create"])
+  .input(zodAdapter<DockerVolumeCreateInput>(DockerVolumeCreateInputSchema))
+  .output(zodAdapter<DockerVolumeCreateOutput>(DockerVolumeCreateOutputSchema))
+  .meta({
+    description: "Create a volume. A volume that exists stays as it is",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: ["docker"], destructive: false, idempotent: true },
+    args: ["name"],
+    shorts: { driver: "d" },
+    output: "json",
+  })
+  .handler(async (input: DockerVolumeCreateInput, ctx: ProcedureContext): Promise<DockerVolumeCreateOutput> => dockerVolumeCreate(input, ctx))
+  .build();
+
+const dockerVolumeRemoveProcedure = createProcedure()
+  .path(["docker", "volume", "remove"])
+  .input(zodAdapter<DockerVolumeRemoveInput>(DockerVolumeRemoveInputSchema))
+  .output(zodAdapter<DockerVolumeRemoveOutput>(DockerVolumeRemoveOutputSchema))
+  .meta({
+    description: "Remove volumes. Their data is lost",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: ["docker"], destructive: true, idempotent: true },
+    args: ["volumes"],
+    shorts: { force: "f" },
+    output: "json",
+  })
+  .handler(async (input: DockerVolumeRemoveInput, ctx: ProcedureContext): Promise<DockerVolumeRemoveOutput> => dockerVolumeRemove(input, ctx))
+  .build();
+
+const dockerNetworkListProcedure = createProcedure()
+  .path(["docker", "network", "list"])
+  .input(zodAdapter<DockerNetworkListInput>(DockerNetworkListInputSchema))
+  .output(zodAdapter<DockerNetworkListOutput>(DockerNetworkListOutputSchema))
+  .meta({
+    description: "List networks",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: [] },
+    shorts: { filter: "f", format: "F" },
+    output: "json",
+  })
+  .handler(async (input: DockerNetworkListInput, ctx: ProcedureContext): Promise<DockerNetworkListOutput> => dockerNetworkList(input, ctx))
+  .build();
+
+const dockerNetworkCreateProcedure = createProcedure()
+  .path(["docker", "network", "create"])
+  .input(zodAdapter<DockerNetworkCreateInput>(DockerNetworkCreateInputSchema))
+  .output(zodAdapter<DockerNetworkCreateOutput>(DockerNetworkCreateOutputSchema))
+  .meta({
+    description: "Create a network. A name that exists is an error",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: ["docker"], destructive: false, idempotent: true },
+    args: ["name"],
+    shorts: { driver: "d" },
+    output: "json",
+  })
+  .handler(async (input: DockerNetworkCreateInput, ctx: ProcedureContext): Promise<DockerNetworkCreateOutput> => dockerNetworkCreate(input, ctx))
+  .build();
+
+const dockerNetworkRemoveProcedure = createProcedure()
+  .path(["docker", "network", "remove"])
+  .input(zodAdapter<DockerNetworkRemoveInput>(DockerNetworkRemoveInputSchema))
+  .output(zodAdapter<DockerNetworkRemoveOutput>(DockerNetworkRemoveOutputSchema))
+  .meta({
+    description: "Remove networks",
+    calls: ["shell.run"],
+    effects: { reads: ["docker"], writes: ["docker"], destructive: true, idempotent: true },
+    args: ["networks"],
+    output: "json",
+  })
+  .handler(async (input: DockerNetworkRemoveInput, ctx: ProcedureContext): Promise<DockerNetworkRemoveOutput> => dockerNetworkRemove(input, ctx))
+  .build();
+
+const dockerTagProcedure = createProcedure()
+  .path(["docker", "tag"])
+  .input(zodAdapter<DockerTagInput>(DockerTagInputSchema))
+  .output(zodAdapter<DockerTagOutput>(DockerTagOutputSchema))
+  .meta({
+    description: "Give an image another name. An image that had the name loses it",
+    calls: ["shell.run"],
+    // The name moves from another image, so it is destructive
+    effects: { reads: ["docker"], writes: ["docker"], idempotent: true },
+    args: ["source", "target"],
+    output: "json",
+  })
+  .handler(async (input: DockerTagInput, ctx: ProcedureContext): Promise<DockerTagOutput> => dockerTag(input, ctx))
+  .build();
+
+const dockerPushProcedure = createProcedure()
+  .path(["docker", "push"])
+  .input(zodAdapter<DockerPushInput>(DockerPushInputSchema))
+  .output(zodAdapter<DockerPushOutput>(DockerPushOutputSchema))
+  .meta({
+    description: "Push an image to a registry. The registry replaces an image with the same tag",
+    calls: ["shell.run"],
+    // A write to the registry: it replaces the image of the tag there
+    effects: { reads: ["docker", "network"], writes: ["network"], idempotent: true },
+    args: ["image"],
+    shorts: { allTags: "a" },
+    output: "json",
+  })
+  .handler(async (input: DockerPushInput, ctx: ProcedureContext): Promise<DockerPushOutput> => dockerPush(input, ctx))
+  .build();
+
+const dockerPruneProcedure = createProcedure()
+  .path(["docker", "prune"])
+  .input(zodAdapter<DockerPruneInput>(DockerPruneInputSchema))
+  .output(zodAdapter<DockerPruneOutput>(DockerPruneOutputSchema))
+  .meta({
+    description: "Remove unused containers, images, volumes, networks or build cache. It needs confirm: true",
+    calls: ["shell.run"],
+    // The removed objects and their data are lost. A second call finds less to remove.
+    effects: { reads: ["docker"], writes: ["docker"], destructive: true, idempotent: true },
+    shorts: { kind: "k", all: "a", filter: "f" },
+    output: "json",
+  })
+  .handler(async (input: DockerPruneInput, ctx: ProcedureContext): Promise<DockerPruneOutput> => dockerPrune(input, ctx))
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -254,6 +565,21 @@ export const dockerModule: ProcedureModule = defineModule("@procedures/docker", 
     dockerLogsProcedure,
     dockerComposeUpProcedure,
     dockerComposeDownProcedure,
+    dockerComposePsProcedure,
+    dockerComposeLogsProcedure,
+    dockerComposeBuildProcedure,
+    dockerComposeRestartProcedure,
+    dockerImagesProcedure,
+    dockerInspectProcedure,
+    dockerVolumeListProcedure,
+    dockerVolumeCreateProcedure,
+    dockerVolumeRemoveProcedure,
+    dockerNetworkListProcedure,
+    dockerNetworkCreateProcedure,
+    dockerNetworkRemoveProcedure,
+    dockerTagProcedure,
+    dockerPushProcedure,
+    dockerPruneProcedure,
   ], [shellModule]);
 
 export default dockerModule;

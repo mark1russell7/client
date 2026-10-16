@@ -5,7 +5,7 @@
  */
 
 import type { ProcedureContext } from "@procedures/client";
-import { dockerArg, runDocker, words } from "./shared.js";
+import { commandWords, dockerArg, runDocker } from "./shared.js";
 import type { DockerExecInput, DockerCommandOutput } from "../../types.js";
 
 /**
@@ -30,7 +30,12 @@ export async function dockerExec(
     }
 
     args.push(dockerArg("container", input.container));
-    args.push(...words(input.command));
+    // The command: args as they are, or command split at whitespace
+    const command = commandWords(input);
+    if (command.length === 0) {
+      throw new Error("docker.exec needs command or args");
+    }
+    args.push(...command);
 
     return runDocker(args, input, ctx);
   }
