@@ -12,14 +12,45 @@ import type { AnyProcedure, Procedure } from "../types.js";
 import { PURE_EFFECTS, withEffects } from "../effects.js";
 
 // =============================================================================
+// Helpers: own keys only (roadmap R6)
+// =============================================================================
+
+/** The path segments that reach a prototype. The registry refuses them in paths too. */
+const PROTOTYPE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * The segments of a dotted path. A segment that reaches a prototype is an error: before,
+ * `client.set` with the path `__proto__.x` changed the prototype of its result (roadmap R6).
+ */
+function segmentsOf(path: string): string[] {
+  const parts = path.split(".");
+  for (const part of parts) {
+    if (PROTOTYPE_KEYS.has(part)) {
+      throw new Error(`The path "${path}" has the segment "${part}", which reaches a prototype`);
+    }
+  }
+  return parts;
+}
+
+function hasOwn(obj: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+/** This function sets an own data property: a "__proto__" key of the data stays data. */
+function put(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
+}
+
+// =============================================================================
 // Helper: Get nested value by path
 // =============================================================================
 
 function getByPath(obj: unknown, path: string): unknown {
-  const parts = path.split(".");
+  const parts = segmentsOf(path);
   let current: unknown = obj;
   for (const part of parts) {
-    if (current === null || current === undefined) {
+    // Only own fields: before, "toString" gave a function of the prototype
+    if (current === null || typeof current !== "object" || !hasOwn(current, part)) {
       return undefined;
     }
     current = (current as Record<string, unknown>)[part];
@@ -33,22 +64,22 @@ function getByPath(obj: unknown, path: string): unknown {
 
 function setByPath(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
   const result = { ...obj };
-  const parts = path.split(".");
+  const parts = segmentsOf(path);
   let current: Record<string, unknown> = result;
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!;
-    if (!(part in current) || typeof current[part] !== "object" || current[part] === null) {
-      current[part] = {};
+    if (!hasOwn(current, part) || typeof current[part] !== "object" || current[part] === null) {
+      put(current, part, {});
     } else {
-      current[part] = { ...(current[part] as Record<string, unknown>) };
+      put(current, part, { ...(current[part] as Record<string, unknown>) });
     }
     current = current[part] as Record<string, unknown>;
   }
 
   const lastPart = parts[parts.length - 1];
   if (lastPart !== undefined) {
-    current[lastPart] = value;
+    put(current, lastPart, value);
   }
   return result;
 }
@@ -139,16 +170,17 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
       typeof source[key] === "object" &&
       source[key] !== null &&
       !Array.isArray(source[key]) &&
+      hasOwn(result, key) &&
       typeof result[key] === "object" &&
       result[key] !== null &&
       !Array.isArray(result[key])
     ) {
-      result[key] = deepMerge(
+      put(result, key, deepMerge(
         result[key] as Record<string, unknown>,
         source[key] as Record<string, unknown>
-      );
+      ));
     } else {
-      result[key] = source[key];
+      put(result, key, source[key]);
     }
   }
   return result;
@@ -166,7 +198,8 @@ const mergeProcedure: MergeProcedure = defineProcedure({
     if (input.deep) {
       return input.objects.reduce((acc, obj) => deepMerge(acc, obj), {});
     }
-    return Object.assign({}, ...input.objects);
+    // Object.assign sets a "__proto__" key of the data as the prototype: spread keeps it data
+    return input.objects.reduce<Record<string, unknown>>((acc, obj) => ({ ...acc, ...obj }), {});
   },
 });
 
@@ -307,8 +340,9 @@ const pickProcedure: PickProcedure = defineProcedure({
   handler: async (input: PickInput): Promise<Record<string, unknown>> => {
     const result: Record<string, unknown> = {};
     for (const key of input.keys) {
-      if (key in input.object) {
-        result[key] = input.object[key];
+      // Only own fields: before, "toString" picked a function of the prototype
+      if (hasOwn(input.object, key)) {
+        put(result, key, input.object[key]);
       }
     }
     return result;
@@ -344,7 +378,7 @@ const omitProcedure: OmitProcedure = defineProcedure({
     const result: Record<string, unknown> = {};
     for (const key of Object.keys(input.object)) {
       if (!keysToOmit.has(key)) {
-        result[key] = input.object[key];
+        put(result, key, input.object[key]);
       }
     }
     return result;
