@@ -135,10 +135,11 @@ describe("route() overrides and validation errors (deep dive CORE-14)", () => {
 
     await client.route({ route: { remote: { op: {} } }, middlewares: { retry: { attempts: 2 } } });
 
-    expect(sends).toBe(3);
+    // attempts counts the tries: the first try and one retry (R12: before, it counted retries)
+    expect(sends).toBe(2);
   });
 
-  it("maps timeout.ms to timeout.overall", async () => {
+  it("passes timeout.overall to the timeout middleware", async () => {
     const reg = new ProcedureRegistry();
     let metadata: Record<string, unknown> = {};
     reg.register(

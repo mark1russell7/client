@@ -7,7 +7,7 @@
 
 import type { ClientRunner, ClientContext, Method, ResponseItem, TypedClientMiddleware } from "../types.js";
 import type { RetryContext } from "./contexts.js";
-import { abortedItem, deliveryOf, sleep, thrownItem } from "./items.js";
+import { abortedItem, deliveryOf, monotonicNow, retryAfterOf, sleep, thrownItem } from "./items.js";
 import { IDEMPOTENCY_KEY_METADATA, idempotencyKeyOf, newIdempotencyKey } from "../../procedures/idempotency.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
 
@@ -41,11 +41,21 @@ export interface RetryOptions {
   maxDelay?: Duration;
 
   /**
-   * Maximum jitter as a fraction of the delay (0-1).
-   * Adds randomness to prevent thundering herd.
-   * @default 0.1 (10% jitter)
+   * The random part of each delay, from 0 to 1. With 1 (full jitter), the delay is a random time
+   * from 0 to the backoff, so the clients that failed together do not retry together. 0 gives the
+   * backoff exactly.
+   * @default 1 (full jitter; roadmap R12: before, 0.1 gave a delay within 10 percent of the backoff)
    */
   jitter?: number;
+
+  /**
+   * The retry budget of this middleware: each call adds `ratio` of a retry to the budget, and each
+   * retry takes one. When the budget is empty, an error goes to the caller without a retry, so a
+   * failing service gets at most `ratio` more requests, not `maxRetries` times more. Besides the
+   * budget, `minPerSecond` retries a second are always allowed. `false` turns the budget off.
+   * @default { ratio: 0.2, minPerSecond: 10 }
+   */
+  budget?: { ratio?: number; minPerSecond?: number } | false;
 
   /**
    * The calls that the middleware can send again after a try with an indeterminate outcome: the
@@ -125,7 +135,7 @@ export interface RetryOptions {
 export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMiddleware<RetryContext, {}> {
   const defaultRetryDelay = optionalMs(options.retryDelay, "retryDelay") ?? 1000;
   const {
-    jitter: defaultJitter = 0.1,
+    jitter: defaultJitter = 1,
     shouldRetry: customShouldRetry,
     onBeforeRetry,
     onAfterRetry,
@@ -156,11 +166,40 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
     return out;
   };
 
-  /** The backoff delay of an attempt: exponential, with jitter, at most the maximum delay */
+  /**
+   * The backoff delay of an attempt: exponential, at most the maximum delay, with the random part
+   * of `jitter` (full jitter by default).
+   */
   const backoffDelay = (attempt: number, overrides: ReturnType<typeof overridesOf>): number => {
     const baseDelay = (overrides.delay ?? defaultRetryDelay) * Math.pow(overrides.backoffMultiplier ?? defaultMultiplier, attempt);
-    const jitterAmount = defaultJitter * baseDelay * (Math.random() * 2 - 1);
-    return Math.max(0, Math.min(overrides.maxDelay ?? defaultMaxDelay, baseDelay + jitterAmount));
+    const capped = Math.min(overrides.maxDelay ?? defaultMaxDelay, baseDelay);
+    const jitter = Math.min(1, Math.max(0, defaultJitter));
+    return Math.max(0, capped * (1 - jitter * Math.random()));
+  };
+
+  // The retry budget (R12): a balance of retries that each call fills by `ratio`
+  const budget = options.budget === false ? undefined : { ratio: options.budget?.ratio ?? 0.2, minPerSecond: options.budget?.minPerSecond ?? 10 };
+  const budgetCap = budget ? Math.max(1, budget.ratio * 100) : 0;
+  let balance = budgetCap;
+  let secondStart = monotonicNow();
+  let retriesThisSecond = 0;
+  /** This function takes one retry from the budget, or gives false when the budget is empty. */
+  const takeRetry = (): boolean => {
+    if (!budget) return true;
+    if (balance >= 1) {
+      balance -= 1;
+      return true;
+    }
+    const now = monotonicNow();
+    if (now - secondStart >= 1000) {
+      secondStart = now;
+      retriesThisSecond = 0;
+    }
+    if (retriesThisSecond < budget.minPerSecond) {
+      retriesThisSecond++;
+      return true;
+    }
+    return false;
   };
 
   /** True when the call can go again after an indeterminate try: the call says so, or the option. */
@@ -176,7 +215,10 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
       // Read from metadata first (user-provided context), then fall back to options
       const given = context.message.metadata.retry;
       const overrides = overridesOf(given);
-      const maxRetries = overrides.maxAttempts ?? defaultMaxRetries;
+      // maxAttempts counts the attempts: the first try and the retries (R12: before, the override
+      // was used as the number of retries, against its name and its documentation)
+      const maxRetries = overrides.maxAttempts !== undefined ? Math.max(0, overrides.maxAttempts - 1) : defaultMaxRetries;
+      if (budget) balance = Math.min(budgetCap, balance + budget.ratio);
       const idempotent = isIdempotent(context.message.method, context.message.metadata.retry);
       const shouldRetryItem = (item: ResponseItem<TRes>, attempt: number): boolean => {
         const wanted = customShouldRetry
@@ -198,7 +240,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
         context.message.metadata.retry = {
           ...(typeof given === "object" && given !== null ? (given as object) : {}),
           attempt,
-          maxAttempts: maxRetries,
+          maxAttempts: maxRetries + 1,
           idempotent,
         };
         // Each attempt gets its own request id. The id correlates the frames of one attempt
@@ -251,7 +293,15 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
           return;
         }
 
-        let delay = backoffDelay(attempt, overrides);
+        // The budget is empty: the error goes to the caller (R12)
+        if (!takeRetry()) {
+          yield retryItem;
+          if (onAfterRetry) await onAfterRetry(false, attempt);
+          return;
+        }
+
+        // A server that asks for a wait (Retry-After) gets at least that wait (R12)
+        let delay = Math.max(backoffDelay(attempt, overrides), retryAfterOf(retryItem) ?? 0);
 
         // Before retry hook
         if (onBeforeRetry) {

@@ -306,14 +306,16 @@ interface RetryOptions {
   retryDelay?: number;          // default: 1000ms (the base delay)
   backoffMultiplier?: number;   // default: 2
   maxDelay?: number;            // default: no limit
-  jitter?: number;              // default: 0.1 (a fraction of the delay)
+  jitter?: number;              // default: 1 (full jitter: a random delay from 0 to the backoff)
+  budget?: { ratio?: number; minPerSecond?: number } | false;  // default: 0.2 of the calls, at least 10 a second
   // After a try with an indeterminate outcome (a reset, the timeout of one try), only an
   // idempotent call goes again: true, or a function such as idempotentIn(registry)
   idempotent?: boolean | ((method: Method) => boolean | undefined);
   shouldRetry?: (item: ResponseItem<unknown>, attempt: number) => boolean;
 }
 
-// The overrides of one call, in its context or as route() overrides
+// A Retry-After of the server makes the delay at least that long.
+// The overrides of one call, in its context or as route() overrides (maxAttempts counts the tries)
 client.withContext({ retry: { maxAttempts: 5, delay: ms(200), backoffMultiplier: 3, maxDelay: seconds(2), idempotent: true } });
 ```
 

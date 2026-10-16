@@ -12,7 +12,21 @@ import type {
 } from "../../../client/types.js";
 
 import type { HttpTransportOptions } from "./types.js";
-import { DELIVERY_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
+import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
+
+/**
+ * The wait that an error response asks for, in milliseconds: `retryAfterMs` of the body of the
+ * server transport, or else the Retry-After header (seconds, or an HTTP date).
+ */
+function retryAfterMsOf(header: string | null, body: unknown): number | undefined {
+  const fromBody = (body as { retryAfterMs?: unknown } | null | undefined)?.retryAfterMs;
+  if (typeof fromBody === "number" && Number.isFinite(fromBody) && fromBody >= 0) return fromBody;
+  if (header === null || header.trim() === "") return undefined;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const date = Date.parse(header);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
@@ -155,6 +169,10 @@ export class HttpTransport implements Transport {
       // the client kept only the HTTP status ("HTTP 500").
       const status = this.httpStatusToUniversal(response.status as HTTPStatus, responseBody);
       finished = true;
+      if (status.type === "error") {
+        const retryAfter = retryAfterMsOf(response.headers.get("Retry-After"), responseBody);
+        if (retryAfter !== undefined) metadata[RETRY_AFTER_METADATA_KEY] = retryAfter;
+      }
 
       // Yield single response item
       yield {

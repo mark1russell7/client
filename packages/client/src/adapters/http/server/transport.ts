@@ -551,10 +551,16 @@ export class HttpServerTransport implements ServerTransport {
       }
       res.json(payload);
     } else {
+      // The wait that the error asks for: a Retry-After header in seconds, and the exact
+      // milliseconds in the body (R12)
+      const retryAfterMs = metadata["retry-after"];
+      const hasRetryAfter = typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0;
+      if (hasRetryAfter) res.setHeader("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
       res.json({
         error: status.message,
         code: status.code,
         retryable: status.retryable,
+        ...(hasRetryAfter ? { retryAfterMs } : {}),
       });
     }
   }

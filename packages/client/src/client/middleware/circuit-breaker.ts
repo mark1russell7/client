@@ -13,6 +13,7 @@
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { CircuitBreakerContext } from "./contexts.js";
 import { optionalMs, type Duration } from "../../duration.js";
+import { isAvailabilityFailure, monotonicNow } from "./items.js";
 
 /**
  * Circuit breaker state.
@@ -30,14 +31,14 @@ export interface CircuitBreakerOptions {
   failureThreshold?: number;
 
   /**
-   * Time window for counting failures (in milliseconds).
-   * @default 10000 (10 seconds)
+   * Time window for counting failures.
+   * @default 10 seconds
    */
   failureWindow?: Duration;
 
   /**
-   * Time to wait before attempting to close circuit (in milliseconds).
-   * @default 30000 (30 seconds)
+   * Time to wait before attempting to close circuit.
+   * @default 30 seconds
    */
   resetTimeout?: Duration;
 
@@ -56,8 +57,11 @@ export interface CircuitBreakerOptions {
 
   /**
    * Custom error predicate.
-   * Return true if error should count as failure.
-   * @default All errors count as failures
+   * Return true if error should count as failure. An error that is not a failure counts as
+   * nothing: not a failure and not a success.
+   * @default `isAvailabilityFailure`: only UNAVAILABLE, TIMEOUT, a stopped server, a gateway
+   * error and network errors count. An abort or a validation error does not (roadmap R12: before,
+   * every error counted, so a caller that aborted could open the circuit).
    */
   isFailure?: (error: Error) => boolean;
 
@@ -71,6 +75,9 @@ export interface CircuitBreakerOptions {
  * Failure record for tracking errors.
  */
 interface FailureRecord {
+  /** The time of the monotonic clock: the window uses it */
+  at: number;
+  /** The wall-clock time, for the statistics */
   timestamp: number;
   error: Error;
 }
@@ -127,7 +134,7 @@ export function createCircuitBreakerMiddleware(
   const {
     failureThreshold = 5,
     successThreshold = 2,
-    isFailure = () => true,
+    isFailure = isAvailabilityFailure,
     onStateChange,
   } = options;
   const halfOpenMaxRequests = options.halfOpenMaxRequests ?? successThreshold;
@@ -165,13 +172,14 @@ export function createCircuitBreakerMiddleware(
    * Record a failure.
    */
   function recordFailure(error: Error): void {
-    const now = Date.now();
+    // The window uses a monotonic clock: a change of the wall clock does not move it (R12)
+    const now = monotonicNow();
 
     // Add failure
-    failures.push({ timestamp: now, error });
+    failures.push({ at: now, timestamp: Date.now(), error });
 
     // Remove old failures outside window
-    failures = failures.filter((f) => now - f.timestamp < failureWindow);
+    failures = failures.filter((f) => now - f.at < failureWindow);
 
     if (state === "HALF_OPEN") {
       // Any failure while testing reopens the circuit immediately — don't wait for the full
@@ -199,8 +207,8 @@ export function createCircuitBreakerMiddleware(
       }
     } else if (state === "CLOSED") {
       // Clear old failures on success
-      const now = Date.now();
-      failures = failures.filter((f) => now - f.timestamp < failureWindow);
+      const now = monotonicNow();
+      failures = failures.filter((f) => now - f.at < failureWindow);
     }
   }
 
@@ -240,10 +248,10 @@ export function createCircuitBreakerMiddleware(
   }
 
   function getStats(): CircuitBreakerStats {
-    const now = Date.now();
+    const now = monotonicNow();
     return {
       state,
-      failures: failures.filter((f) => now - f.timestamp < failureWindow).length,
+      failures: failures.filter((f) => now - f.at < failureWindow).length,
       successes,
       totalRequests,
       lastFailureTime: failures.length > 0 ? failures[failures.length - 1]!.timestamp : null,
@@ -258,10 +266,10 @@ export function createCircuitBreakerMiddleware(
       totalRequests++;
       // The state for the other middlewares (CircuitBreakerContext)
       const writeState = (): void => {
-        const now = Date.now();
+        const now = monotonicNow();
         context.message.metadata["circuitBreaker"] = {
           state,
-          failures: failures.filter((f) => now - f.timestamp < failureWindow).length,
+          failures: failures.filter((f) => now - f.at < failureWindow).length,
           successes,
         };
       };

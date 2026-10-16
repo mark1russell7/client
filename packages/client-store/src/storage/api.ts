@@ -335,7 +335,9 @@ export class ApiStorage<T> implements CollectionStorage<T> {
 
     // The signal goes in the call options, so the transport can stop the request too. (Before,
     // it went into the metadata, and the timeout was dropped: deep dive CORE-9.)
-    const callOptions: CallOptions<unknown> = {};
+    // The storage retries itself: one attempt for a retry middleware of the client, so 3 attempts
+    // here and 4 there cannot make 12 calls (roadmap R12)
+    const callOptions: CallOptions<unknown> = { context: { retry: { maxAttempts: 1 } } };
     if (signal) callOptions.signal = signal;
     const call = this.client.call<unknown, TRes>(method, payload, callOptions);
     return untilAborted(call, signal, () =>

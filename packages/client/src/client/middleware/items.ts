@@ -36,6 +36,46 @@ export function withDelivery<TRes>(item: ResponseItem<TRes>, delivery: Delivery)
   return { ...item, metadata: { ...item.metadata, [DELIVERY_METADATA_KEY]: delivery } };
 }
 
+/** The metadata key of the time that the server asks a client to wait before a retry, in milliseconds. */
+export const RETRY_AFTER_METADATA_KEY = "retry-after";
+
+/** The time that an error item asks a client to wait before a retry, in milliseconds, or undefined. */
+export function retryAfterOf(item: ResponseItem<unknown>): number | undefined {
+  const value = item.metadata?.[RETRY_AFTER_METADATA_KEY];
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/**
+ * The error codes that say that the service is not available: the server is down, busy, slow or
+ * stopping, or the network failed. A circuit breaker counts only these (roadmap R12). An abort,
+ * a validation error, a refusal or an error of the handler says nothing about the health of the
+ * service.
+ */
+const AVAILABILITY_CODES = new Set([
+  "UNAVAILABLE",
+  "TIMEOUT",
+  "SERVER_STOPPED",
+  "SERVICE_UNAVAILABLE",
+  "BAD_GATEWAY",
+  "GATEWAY_TIMEOUT",
+  "NETWORK_ERROR",
+  "CONNECTION_REFUSED",
+  "STREAM_ENDED",
+]);
+
+/** True when an error says that the service is not available (see AVAILABILITY_CODES). */
+export function isAvailabilityFailure(error: unknown): boolean {
+  const code = (error as { code?: unknown } | undefined)?.code;
+  if (typeof code === "string" && AVAILABILITY_CODES.has(code)) return true;
+  return isNetworkError(error);
+}
+
+/** The time of a monotonic clock in milliseconds: a change of the wall clock does not move it. */
+export function monotonicNow(): number {
+  const performance = (globalThis as { performance?: { now(): number } }).performance;
+  return performance ? performance.now() : Date.now();
+}
+
 /** The delivery of a failed try, or undefined for an answer of the server. */
 export function deliveryOf(item: ResponseItem<unknown>): Delivery | undefined {
   const delivery = item.metadata?.[DELIVERY_METADATA_KEY];

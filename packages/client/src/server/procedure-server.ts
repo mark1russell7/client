@@ -133,6 +133,10 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
   const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
   // A refusal of the capability says why (CAPABILITIES-2026-10)
   const reason = error instanceof InvocationError ? error.reason : undefined;
+  // An error can ask the client to wait before a retry: retryAfterMs, in milliseconds (R12)
+  const retryAfterMs = (error as { retryAfterMs?: unknown } | undefined)?.retryAfterMs;
+  const metadata: Record<string, unknown> = reason ? { reason } : {};
+  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) metadata["retry-after"] = retryAfterMs;
   return {
     id,
     status: {
@@ -141,7 +145,7 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
       message: error instanceof Error ? error.message : String(error),
       retryable: typeof retryable === "boolean" ? retryable : false,
     },
-    metadata: reason ? { reason } : {},
+    metadata,
   };
 }
 
