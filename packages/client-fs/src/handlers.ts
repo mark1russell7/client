@@ -20,6 +20,10 @@ import { copy } from "./procedures/fs/copy.js";
 import { move } from "./procedures/fs/move.js";
 import { glob } from "./procedures/fs/glob.js";
 import { readJson } from "./procedures/fs/json.js";
+import { fsWriteJson } from "./procedures/fs/write-json.js";
+import { fsHash } from "./procedures/fs/hash.js";
+import { fsTemp } from "./procedures/fs/temp.js";
+import { fsWatch } from "./procedures/fs/watch.js";
 import { inRoot, isOutsideRoot, outsideRoot, realPathIsInside, resolveRoot, type ResolvedRoot } from "./root.js";
 import type {
   ReadInput,
@@ -44,6 +48,14 @@ import type {
   GlobOutput,
   ReadJsonInput,
   ReadJsonOutput,
+  FsWriteJsonInput,
+  FsWriteJsonOutput,
+  FsHashInput,
+  FsHashOutput,
+  FsTempInput,
+  FsTempOutput,
+  FsWatchInput,
+  FsWatchOutput,
 } from "./types.js";
 
 /** One handler for each file procedure. */
@@ -59,6 +71,10 @@ export interface FsHandlers {
   move: (input: MoveInput) => Promise<MoveOutput>;
   glob: (input: GlobInput) => Promise<GlobOutput>;
   readJson: (input: ReadJsonInput) => Promise<ReadJsonOutput>;
+  writeJson: (input: FsWriteJsonInput) => Promise<FsWriteJsonOutput>;
+  hash: (input: FsHashInput) => Promise<FsHashOutput>;
+  temp: (input: FsTempInput) => Promise<FsTempOutput>;
+  watch: (input: FsWatchInput, ctx?: { signal?: AbortSignal | undefined }) => AsyncGenerator<FsWatchOutput, void, undefined>;
 }
 
 /**
@@ -77,6 +93,10 @@ export const HANDLER_NAMES: Readonly<Record<string, keyof FsHandlers>> = {
   "fs.move": "move",
   "fs.glob": "glob",
   "fs.read.json": "readJson",
+  "fs.write.json": "writeJson",
+  "fs.hash": "hash",
+  "fs.temp": "temp",
+  "fs.watch": "watch",
 };
 
 /**
@@ -132,6 +152,23 @@ export function rootedHandlers(root: string): FsHandlers {
     readJson: async (input) => {
       const { inside } = await check("read.json");
       return readJson({ ...input, path: await inside(input.path) });
+    },
+    writeJson: async (input) => {
+      const { inside } = await check("write.json");
+      return fsWriteJson({ ...input, path: await inside(input.path) });
+    },
+    hash: async (input) => {
+      const { inside } = await check("hash");
+      return fsHash({ ...input, path: await inside(input.path) });
+    },
+    // The temporary folders of a root are in its folder .tmp, so they stay inside the root
+    temp: async (input) => {
+      const { inside } = await check("temp");
+      return fsTemp(input, await inside(".tmp"));
+    },
+    watch: async function* (input, ctx) {
+      const { inside } = await check("watch");
+      yield* fsWatch({ ...input, path: await inside(input.path) }, ctx?.signal);
     },
     copy: async (input) => {
       const { inside } = await check("copy");

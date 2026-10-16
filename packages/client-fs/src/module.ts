@@ -69,6 +69,28 @@ import {
   GlobOutputSchema,
   ReadJsonOutputSchema,
 } from "./types.js";
+import { fsWriteJson } from "./procedures/fs/write-json.js";
+import { fsHash } from "./procedures/fs/hash.js";
+import { fsTemp } from "./procedures/fs/temp.js";
+import { fsWatch } from "./procedures/fs/watch.js";
+import {
+  FsWriteJsonInputSchema,
+  FsWriteJsonOutputSchema,
+  FsHashInputSchema,
+  FsHashOutputSchema,
+  FsTempInputSchema,
+  FsTempOutputSchema,
+  FsWatchInputSchema,
+  FsWatchOutputSchema,
+  type FsWriteJsonInput,
+  type FsWriteJsonOutput,
+  type FsHashInput,
+  type FsHashOutput,
+  type FsTempInput,
+  type FsTempOutput,
+  type FsWatchInput,
+  type FsWatchOutput,
+} from "./types.js";
 
 // =============================================================================
 // Procedure Definitions
@@ -235,6 +257,68 @@ const fsReadJsonProcedure = createProcedure()
   .handler(readJson)
   .build();
 
+// fs.write.json, fs.hash, fs.temp and fs.watch (roadmap R44)
+
+const fsWriteJsonProcedure = createProcedure()
+  .path(["fs", "write.json"])
+  .input(zodAdapter<FsWriteJsonInput>(FsWriteJsonInputSchema))
+  .output(zodAdapter<FsWriteJsonOutput>(FsWriteJsonOutputSchema))
+  .meta({
+    description: "Write a value as a JSON file, with a rename at the end",
+    args: ["path"],
+    shorts: {},
+    output: "json",
+    // It replaces the file: destructive, and the same input gives the same file
+    effects: { reads: [], writes: ["fs"], destructive: true, idempotent: true },
+  })
+  .handler(fsWriteJson)
+  .build();
+
+const fsHashProcedure = createProcedure()
+  .path(["fs", "hash"])
+  .input(zodAdapter<FsHashInput>(FsHashInputSchema))
+  .output(zodAdapter<FsHashOutput>(FsHashOutputSchema))
+  .meta({
+    description: "The hash of a file",
+    args: ["path"],
+    shorts: { algorithm: "a" },
+    output: "json",
+    effects: READS_FILES,
+  })
+  .handler((input: FsHashInput) => fsHash(input))
+  .build();
+
+const fsTempProcedure = createProcedure()
+  .path(["fs", "temp"])
+  .input(zodAdapter<FsTempInput>(FsTempInputSchema))
+  .output(zodAdapter<FsTempOutput>(FsTempOutputSchema))
+  .meta({
+    description: "Make a temporary folder",
+    args: [],
+    shorts: {},
+    output: "json",
+    // It makes a new folder each time, and changes nothing that exists
+    effects: { reads: [], writes: ["fs"], destructive: false, idempotent: false },
+  })
+  .handler((input: FsTempInput) => fsTemp(input))
+  .build();
+
+const fsWatchProcedure = createProcedure()
+  .path(["fs", "watch"])
+  .input(zodAdapter<FsWatchInput>(FsWatchInputSchema))
+  .output(zodAdapter<FsWatchOutput>(FsWatchOutputSchema))
+  .meta({
+    description: "The changes of a file or folder, as a stream",
+    args: ["path"],
+    shorts: { recursive: "r" },
+    output: "streaming",
+    effects: READS_FILES,
+    // The stream has no end: it stops when the reader stops (roadmap R15)
+    stream: { unbounded: true },
+  })
+  .handler(((input: FsWatchInput, ctx?: { signal?: AbortSignal }) => fsWatch(input, ctx?.signal)) as never)
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
@@ -255,6 +339,10 @@ export const fsModule: ProcedureModule = defineModule("@procedures/fs", [
     fsMoveProcedure,
     fsGlobProcedure,
     fsReadJsonProcedure,
+    fsWriteJsonProcedure,
+    fsHashProcedure,
+    fsTempProcedure,
+    fsWatchProcedure,
   ]);
 
 export default fsModule;

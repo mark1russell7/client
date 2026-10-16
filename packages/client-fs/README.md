@@ -18,7 +18,7 @@ File system operations as RPC procedures. Read, write, copy, move, glob files an
 - **Zod validation**: Runtime type safety on all inputs
 
 The package has 11 procedures. Its register entry (`import "@procedures/fs/register"`) registers them:
-`fs.read`, `fs.write`, `fs.exists`, `fs.stat`, `fs.mkdir`, `fs.rm`, `fs.readdir`, `fs.copy`, `fs.move`, `fs.glob`, `fs.read.json`
+`fs.read`, `fs.write`, `fs.exists`, `fs.stat`, `fs.mkdir`, `fs.rm`, `fs.readdir`, `fs.copy`, `fs.move`, `fs.glob`, `fs.read.json`, `fs.write.json`, `fs.hash`, `fs.temp`, `fs.watch`
 
 ## Architecture
 
@@ -576,6 +576,36 @@ const result = await client.exec(
 
 const pkg = result.data as PackageJson;
 console.log(pkg.name, pkg.version);
+```
+
+#### `fs.write.json`
+
+The procedure writes a value as a JSON file, with 2 spaces of indent and a line break at the end. It writes a file next to the target first, then renames it. Thus a reader sees the old file or the whole new file.
+
+```typescript
+await client.exec(["fs", "write.json"], { path: "./data.json", value: { a: 1 }, indent: 2 });
+```
+
+#### `fs.hash`
+
+The procedure gives the hash of a file as hexadecimal text: `sha256` (the default), `sha512`, `sha1` or `md5`. It reads the file as a stream.
+
+```typescript
+const { hash, size } = await client.exec(["fs", "hash"], { path: "./archive.tgz" });
+```
+
+#### `fs.temp`
+
+The procedure makes a new folder in the temporary folder of the system, and gives its path. With a root, the folder is in the folder `.tmp` of the root. The `prefix` has letters, digits, dots, underscores and hyphens only.
+
+#### `fs.watch`
+
+The procedure gives the changes of a file or folder as a stream. Each item has the `event` (`rename` or `change`) and the `filename`. The stream has no end: it stops when the reader stops or the call aborts. The platform decides the details, so one change can give two items.
+
+```typescript
+for await (const change of client.execStream(["fs", "watch"], { path: "./src", recursive: true })) {
+  console.log(change.event, change.filename);
+}
 ```
 
 ## Usage Examples

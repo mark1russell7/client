@@ -405,3 +405,109 @@ export const ReadJsonOutputSchema: z.ZodType<ReadJsonOutput> = z.looseObject({
   data: z.unknown().describe("The parsed JSON value"),
   stats: StatOutputSchema.describe("The stats of the file"),
 });
+
+
+// =============================================================================
+// fs.write.json, fs.hash, fs.temp and fs.watch (roadmap R44)
+// =============================================================================
+
+export interface FsWriteJsonInput {
+  /** The path of the file */
+  path: string;
+  /** The value to write */
+  value?: unknown;
+  /** The spaces of the indent (default 2) */
+  indent?: number | undefined;
+}
+
+export interface FsWriteJsonOutput {
+  path: string;
+  bytesWritten: number;
+}
+
+export const FsWriteJsonInputSchema: z.ZodType<FsWriteJsonInput> = z.object({
+  path: z.string().describe("The path of the file"),
+  value: z.unknown().describe("The value to write as JSON"),
+  indent: z.number().int().min(0).max(10).optional().describe("The spaces of the indent (default 2)"),
+});
+
+export const FsWriteJsonOutputSchema: z.ZodType<FsWriteJsonOutput> = z.looseObject({
+  path: z.string().describe("The path of the file"),
+  bytesWritten: z.number().describe("The bytes of the file"),
+});
+
+export type HashAlgorithm = "sha256" | "sha512" | "sha1" | "md5";
+
+export interface FsHashInput {
+  path: string;
+  /** The algorithm (default sha256) */
+  algorithm?: HashAlgorithm | undefined;
+}
+
+export interface FsHashOutput {
+  path: string;
+  algorithm: HashAlgorithm;
+  /** The hash, as hexadecimal text */
+  hash: string;
+  /** The bytes of the file */
+  size: number;
+}
+
+export const FsHashInputSchema: z.ZodType<FsHashInput> = z.object({
+  path: z.string().describe("The path of the file"),
+  algorithm: z.enum(["sha256", "sha512", "sha1", "md5"]).optional().describe("The algorithm (default sha256)"),
+});
+
+export const FsHashOutputSchema: z.ZodType<FsHashOutput> = z.looseObject({
+  path: z.string().describe("The path of the file"),
+  algorithm: z.enum(["sha256", "sha512", "sha1", "md5"]).describe("The algorithm"),
+  hash: z.string().describe("The hash, as hexadecimal text"),
+  size: z.number().describe("The bytes of the file"),
+});
+
+export interface FsTempInput {
+  /** The start of the name of the folder (default "procedures-") */
+  prefix?: string | undefined;
+}
+
+export interface FsTempOutput {
+  /** The path of the new folder */
+  path: string;
+}
+
+export const FsTempInputSchema: z.ZodType<FsTempInput> = z.object({
+  prefix: z
+    .string()
+    .regex(/^[A-Za-z0-9._-]{0,40}$/, "letters, digits, dot, underscore and hyphen only")
+    .optional()
+    .describe('The start of the name of the folder (default "procedures-")'),
+});
+
+export const FsTempOutputSchema: z.ZodType<FsTempOutput> = z.looseObject({
+  path: z.string().describe("The path of the new folder"),
+});
+
+export interface FsWatchInput {
+  /** The file or folder to watch */
+  path: string;
+  /** Also the changes in the subfolders */
+  recursive?: boolean | undefined;
+}
+
+/** One change: an item of the stream of fs.watch. */
+export interface FsWatchOutput {
+  /** "rename" for a file that appears or goes away, "change" for a change of its content */
+  event: "rename" | "change";
+  /** The name of the file, relative to the path, when the platform gives it */
+  filename: string | null;
+}
+
+export const FsWatchInputSchema: z.ZodType<FsWatchInput> = z.object({
+  path: z.string().describe("The file or folder to watch"),
+  recursive: z.boolean().optional().describe("Also the changes in the subfolders"),
+});
+
+export const FsWatchOutputSchema: z.ZodType<FsWatchOutput> = z.looseObject({
+  event: z.enum(["rename", "change"]).describe('"rename" for a file that appears or goes away, "change" for its content'),
+  filename: z.string().nullable().describe("The name of the file, relative to the path, when the platform gives it"),
+});

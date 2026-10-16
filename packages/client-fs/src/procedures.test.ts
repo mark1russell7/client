@@ -275,7 +275,17 @@ const DECLARED: Record<string, Effects> = {
   "fs.rm": { reads: ["fs"], writes: ["fs"], idempotent: true },
   "fs.copy": { reads: ["fs"], writes: ["fs"], idempotent: true },
   "fs.move": { reads: ["fs"], writes: ["fs"], idempotent: true },
+  "fs.write.json": { reads: [], writes: ["fs"], destructive: true, idempotent: true },
+  "fs.hash": { reads: ["fs"], writes: [] },
+  "fs.temp": { reads: [], writes: ["fs"], destructive: false, idempotent: false },
+  "fs.watch": { reads: ["fs"], writes: [] },
 };
+
+/**
+ * The procedures that the loop below does not run in the folder of a test: fs.temp writes in the
+ * temporary folder of the system, and fs.watch is a stream without an end (more.test.ts has their tests).
+ */
+const NOT_IN_FOLDER = new Set(["fs.temp", "fs.watch"]);
 
 /** An input for each procedure in the folder of a test. */
 const INPUTS: Record<string, (folder: string) => Record<string, unknown>> = {
@@ -290,6 +300,10 @@ const INPUTS: Record<string, (folder: string) => Record<string, unknown>> = {
   "fs.rm": (folder) => ({ path: join(folder, "sub"), recursive: true }),
   "fs.copy": (folder) => ({ src: join(folder, "sub"), dest: join(folder, "sub-copy") }),
   "fs.move": (folder) => ({ src: join(folder, "a.txt"), dest: join(folder, "moved.txt") }),
+  "fs.write.json": (folder) => ({ path: join(folder, "written.json"), value: { a: 1 } }),
+  "fs.hash": (folder) => ({ path: join(folder, "a.txt") }),
+  "fs.temp": () => ({}),
+  "fs.watch": (folder) => ({ path: folder }),
 };
 
 describe("the effects of the file procedures", () => {
@@ -300,6 +314,7 @@ describe("the effects of the file procedures", () => {
   });
 
   for (const [key, effects] of Object.entries(DECLARED)) {
+    if (NOT_IN_FOLDER.has(key)) continue;
     const reader = effects.writes?.length === 0;
     it(`${key} ${reader ? "changes nothing" : "changes the folder"}${effects.idempotent ? ", and a second call changes nothing more" : ""}`, async () => {
       const before = tree(dir);

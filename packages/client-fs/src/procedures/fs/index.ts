@@ -9,3 +9,7 @@ export { copy } from "./copy.js";
 export { move } from "./move.js";
 export { glob } from "./glob.js";
 export { readJson } from "./json.js";
+export { fsWriteJson } from "./write-json.js";
+export { fsHash } from "./hash.js";
+export { fsTemp } from "./temp.js";
+export { fsWatch } from "./watch.js";
