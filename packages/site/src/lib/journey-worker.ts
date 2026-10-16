@@ -1,19 +1,25 @@
 /**
  * The worker of the call's journey: it runs `runJourney` away from the page, so the page loads no
  * copy of the client runtime for it.
+ *
+ * The worker serves the procedure `site.journey` over a `PortTransport` of `@procedures/client`
+ * (roadmap R27). Before, the page and the worker had a protocol of their own.
  */
 
-import { runJourney, type Host, type Journey } from "./journey";
+import { PortTransport, type RequestHandler, type ServerResponse } from "@procedures/client/browser";
+import { runJourney, type Host } from "./journey";
 
-export type JourneyRequest = { id: number; host: Host };
-export type JourneyMessage = { id: number; journey: Journey };
+/** The input of `site.journey`. */
+export type JourneyInput = { host: Host };
 
-const port = self as unknown as {
-  postMessage(message: JourneyMessage): void;
-  onmessage: ((event: MessageEvent<JourneyRequest>) => void) | null;
+const journeys: RequestHandler = {
+  async handle(request): Promise<ServerResponse> {
+    if (request.method.service !== "site" || request.method.operation !== "journey") {
+      return { id: request.id, status: { type: "error", code: "NOT_FOUND", message: "This worker serves only site.journey", retryable: false }, metadata: {} };
+    }
+    const journey = await runJourney((request.payload as JourneyInput).host);
+    return { id: request.id, status: { type: "success", code: 200 }, payload: journey, metadata: {} };
+  },
 };
 
-port.onmessage = (event) => {
-  const { id, host } = event.data;
-  void runJourney(host).then((journey) => port.postMessage({ id, journey }));
-};
+new PortTransport(self, { serve: journeys });

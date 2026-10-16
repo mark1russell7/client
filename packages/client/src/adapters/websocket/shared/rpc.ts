@@ -153,7 +153,7 @@ export interface OutgoingCallsOptions {
   send: (frame: WebSocketMessage) => void;
   /** True while the socket is open. */
   isOpen: () => boolean;
-  /** The time until the first frame of a call, in milliseconds. */
+  /** The time until the first frame of a call, in milliseconds. 0 or less: no limit. */
   requestTimeoutMs: number;
   /** The number of stream items that the reader can hold. */
   streamWindow: number;
@@ -193,7 +193,8 @@ export class OutgoingCalls {
     const window = this.options.streamWindow;
     const queue = new ItemQueue<ResponseItem<unknown>>();
     const pending: PendingCall = { messageId: message.id, queue };
-    pending.timeout = setTimeout(() => {
+    const limited = Number.isFinite(this.options.requestTimeoutMs) && this.options.requestTimeoutMs > 0;
+    if (limited) pending.timeout = setTimeout(() => {
       if (this.pending.get(wireId) !== pending) return;
       this.pending.delete(wireId);
       this.sendCancel(wireId);

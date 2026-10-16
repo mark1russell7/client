@@ -304,6 +304,9 @@ export {
   checkEffects,
 } from "./procedures/capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./procedures/effects.js";
+// The transport over a message port: a Web Worker, a MessageChannel (roadmap R27)
+export { PortTransport } from "./adapters/port/transport.js";
+export type { PortLike, PortTransportOptions } from "./adapters/port/transport.js";
 // The W3C trace context: one trace from the client to the handler (roadmap R16)
 export { TRACEPARENT_METADATA_KEY, formatTraceparent, parseTraceparent, newTraceId, newSpanId, isW3cIds } from "./tracing/traceparent.js";
 export type { TraceContext } from "./tracing/traceparent.js";

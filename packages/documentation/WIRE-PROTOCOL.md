@@ -82,6 +82,14 @@ Each message is one JSON object, a frame. Each frame has an `id` and a `type`. T
 - The client sends `{"type":"ping"}` frames, and the server answers with `{"type":"pong"}`.
 - The server sends WebSocket ping control frames. A connection that misses two pongs one after the other closes.
 
+## Message port
+
+`PortTransport` sends the frames of the WebSocket table over a message port: a Web Worker, a `MessageChannel` or a `worker_threads` port (roadmap R27).
+
+- A port sends objects, not text, so a frame is an object without JSON.
+- A port has no `hello` frame and no heartbeat. The two sides are parts of one application, and they come from one build.
+- A call over a port has no time limit. The `signal` of a call stops it.
+
 ## Error codes
 
 Each face gives the same code for the same failure. `packages/client/src/protocol.ts` holds the list (`ERROR_CODES`). An error of a handler with a code of its own keeps that code, and HTTP gives it the status 500.

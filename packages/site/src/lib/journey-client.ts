@@ -1,26 +1,22 @@
 /**
- * The page side of the call's journey. It asks the worker for the journey of a host. Without a
- * Web Worker (an old browser), it runs the journey on the page.
+ * The page side of the call's journey. It calls the procedure `site.journey` of the worker over a
+ * `PortTransport` (roadmap R27). Without a Web Worker (an old browser), it runs the journey on
+ * the page.
  */
 
+import { PortTransport } from "@procedures/client/browser";
 import type { Host, Journey } from "./journey-info";
-import type { JourneyMessage, JourneyRequest } from "./journey-worker";
+import type { JourneyInput } from "./journey-worker";
 
 export class JourneyClient {
-  private worker: Worker | null = null;
+  private worker: { worker: Worker; transport: PortTransport } | null = null;
   private nextId = 0;
-  private readonly waiting = new Map<number, (journey: Journey) => void>();
 
-  private spawn(): Worker | null {
+  private spawn(): { worker: Worker; transport: PortTransport } | null {
     if (typeof Worker === "undefined") return null;
     try {
       const worker = new Worker(new URL("./journey-worker.ts", import.meta.url), { type: "module" });
-      worker.onmessage = (event: MessageEvent<JourneyMessage>) => {
-        const finish = this.waiting.get(event.data.id);
-        this.waiting.delete(event.data.id);
-        finish?.(event.data.journey);
-      };
-      return worker;
+      return { worker, transport: new PortTransport(worker) };
     } catch {
       return null;
     }
@@ -28,21 +24,24 @@ export class JourneyClient {
 
   /** This function gives the journey of one call over a host. */
   async run(host: Host): Promise<Journey> {
-    const worker = (this.worker ??= this.spawn());
-    if (!worker) {
+    const spawned = (this.worker ??= this.spawn());
+    if (!spawned) {
       const { runJourney } = await import("./journey");
       return runJourney(host);
     }
-    const id = ++this.nextId;
-    return new Promise<Journey>((resolve) => {
-      this.waiting.set(id, resolve);
-      worker.postMessage({ id, host } satisfies JourneyRequest);
-    });
+    const message = { id: String(++this.nextId), method: { service: "site", operation: "journey" }, payload: { host } satisfies JourneyInput, metadata: {} };
+    for await (const item of spawned.transport.send<JourneyInput, Journey>(message)) {
+      if (item.status.type === "error") throw new Error(item.status.message);
+      return item.payload;
+    }
+    throw new Error("The journey worker sent no answer");
   }
 
   dispose(): void {
-    this.worker?.terminate();
+    if (this.worker) {
+      this.worker.worker.terminate();
+      void this.worker.transport.close();
+    }
     this.worker = null;
-    this.waiting.clear();
   }
 }
