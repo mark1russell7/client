@@ -95,8 +95,8 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | open | |
 | R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | open | |
 | R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | open | |
-| R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | open | |
-| R49 | 9 | Packages from jarvis, wave 2: `restic.run` and `tailscale.run` (the jarvis session builds them) | S | open | |
+| R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | fixed by the jarvis session, with an opt-in bundle for MCP | `5e2ba76`, `382b0fd`, `120be4c`, `4055a3d` |
+| R49 | 9 | Packages from jarvis, wave 2: `restic.run` and `tailscale.run` (the jarvis session builds them) | S | fixed by the jarvis session, not tools | `5e2ba76` |
 
 ## Tier 1: defects and gates
 
@@ -517,7 +517,8 @@ The review found code that is a candidate for removal or a move. These items nee
 - `client.import` gives `success: true` for JSON that is not a procedure reference, for example `42`.
 - `client.stringifyJson` and `client.export` fail with `OUTPUT_VALIDATION_ERROR` for a missing value.
 - Small inconsistencies of the core: `client.mod` gives `NaN` for zero and `client.divide` refuses zero. `client.unique` compares objects by reference. `client.isObject` gives true for a `Date`. The `match` description of `client.filter` lists 7 of its 11 modes.
-- The packages of R48 and R49 need a first npm publish from the computer of the owner, one time for each new package.
+- Each new package needs one first npm publish from the computer of the owner. CI publishes the later releases. The new packages are `compiler`, `systems`, `bundle-assistant`, the eight packages of R48 and R49, and the new packages of R38 to R46.
+- The tools of the assistant are in the opt-in bundle `@procedures/bundle-assistant`, not in `bundle-mcp`. `ics.fetch`, `mail.headers` and `notify.send` are not tools, because they can carry data out or read private mail.
 - The code of a handler error (R30): `WIRE-PROTOCOL.md` says that the server keeps it. `errorResponse` and `LocalTransport` change it to `HANDLER_ERROR` for a value, and keep it for a stream. The HTTP status follows the code.
 - `ERROR_REGISTRY` of `client/errors` does not agree with `ERROR_CODES` of R25 (`INTERNAL_ERROR` and `TIMEOUT`). One list goes away, or it comes from the other.
 - A duplicate stream frame gives a duplicate item, because the frames have no sequence numbers.
