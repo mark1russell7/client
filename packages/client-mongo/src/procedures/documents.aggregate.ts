@@ -44,6 +44,32 @@ const aggregateOutputSchema = zodAdapter<AggregateOutput>(
   })
 );
 
+/** The stages that write to a collection. A read-only procedure refuses them (CAP-2). */
+const WRITING_STAGES = ["$out", "$merge"];
+
+/**
+ * The first stage that writes, or undefined. The search also goes into the pipelines of
+ * `$facet`, `$lookup` and `$unionWith`.
+ */
+export function writingStage(pipeline: unknown): string | undefined {
+  if (Array.isArray(pipeline)) {
+    for (const stage of pipeline) {
+      const found = writingStage(stage);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (pipeline === null || typeof pipeline !== "object") return undefined;
+  for (const [key, value] of Object.entries(pipeline)) {
+    if (WRITING_STAGES.includes(key)) return key;
+    if (value !== null && typeof value === "object") {
+      const found = writingStage(value);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
 export const aggregateProcedure: Procedure<
   AggregateInput,
   AggregateOutput,
@@ -53,11 +79,16 @@ export const aggregateProcedure: Procedure<
   .input(aggregateInputSchema)
   .output(aggregateOutputSchema)
   .meta({
-    description: "Run an aggregation pipeline",
-    // A $out or $merge stage of the pipeline writes to a collection, and $out replaces it
-    effects: { reads: ["mongo", "network"], writes: ["mongo", "network"] },
+    description: "Run an aggregation pipeline (read only: $out and $merge are refused)",
+    // The procedure refuses $out and $merge, so it only reads (CAP-2). Before, it declared that
+    // it writes, and a read-only session refused every aggregation.
+    effects: { reads: ["mongo", "network"], writes: [] },
   })
   .handler(async (input: AggregateInput, ctx: ProcedureContext) => {
+    const stage = writingStage(input.pipeline);
+    if (stage) {
+      throw new Error(`mongo.documents.aggregate is read only: the stage ${stage} writes to a collection`);
+    }
     const { collection } = await collectionFor(input, ctx);
 
     const results = await collection

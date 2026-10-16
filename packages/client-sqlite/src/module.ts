@@ -15,6 +15,7 @@ import {
   execute,
   lastInsertRowId,
   runMigrations,
+  tableExists,
   type Migration,
 } from "@mark1russell7/docker-sqlite";
 import {
@@ -173,15 +174,17 @@ const dbQueryProcedure = createProcedure()
   .input(dbQueryInputSchema)
   .output(dbQueryOutputSchema)
   .meta({
-    description: "Execute a SQL SELECT query",
-    // The SQL is not limited to SELECT: the first statement runs, and the file keeps its changes
-    effects: { reads: ["fs"], writes: ["fs"] },
+    description: "Execute a SQL SELECT query (read only: a statement that changes data fails)",
+    // PRAGMA query_only refuses each statement that changes the database, so the procedure only
+    // reads (CAP-1). Before, any statement ran, and the file kept its changes.
+    effects: { reads: ["fs"], writes: [] },
   })
   .handler(async (input: DbQueryInput): Promise<DbQueryOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
     const params = input.params ?? [];
 
     return withConnection({ dbPath }, (db) => {
+      db.run("PRAGMA query_only = 1");
       const result = query(db, input.sql, params);
       return {
         columns: result.columns,
@@ -287,16 +290,18 @@ const logsQueryProcedure = createProcedure()
   .output(logsQueryOutputSchema)
   .meta({
     description: "Query log entries from the database",
-    // It makes the database file and the logs table when they are missing
-    effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true },
+    // A missing file or table gives no entries, and the query makes neither (CAP-3). Before, the
+    // first query made the database file and its table.
+    effects: { reads: ["fs"], writes: [] },
   })
   .handler(async (input: LogsQueryInput): Promise<LogsQueryOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
 
-    // Ensure table exists
-    await ensureLogsTable(dbPath);
-
     return withConnection({ dbPath }, (db) => {
+      if (!tableExists(db, "logs")) {
+        return { logs: [] };
+      }
+      db.run("PRAGMA query_only = 1");
       const conditions: string[] = [];
       const params: unknown[] = [];
 
