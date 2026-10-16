@@ -429,7 +429,7 @@ Nightly mutation tests on the resolver, the capabilities, the policy and the mid
 
 **Result.** `.github/workflows/nightly.yml` has five jobs:
 
-- `mutation`: Stryker on the resolver, the capabilities, the expose rule and the middleware. The report is an artifact. A score below 72 % fails the run.
+- `mutation`: Stryker on the resolver, the capabilities, the expose rule and the middleware. The report is an artifact. A score below 79 % fails the run. The floor only goes up, as the floors of the coverage do.
 - `bench`: the benchmarks of the core with the `bench` fixture of vitest 5. The earlier results are the results of the last nightly run.
 - `soak`: 10 minutes of calls, streams, aborts, calls of the server and reconnects. The maps of the two sides must be empty, and the heap must stay flat.
 - `live`: the `mongo.*` procedures against MongoDB 7, and the `docker.*` procedures against the Docker of the runner.
