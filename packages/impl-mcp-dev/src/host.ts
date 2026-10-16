@@ -113,8 +113,9 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
 }
 
 /**
- * This function starts the dev-tools MCP server over stdio. stdout carries the protocol, so
- * `console.log` goes to stderr from here on (BUGS-2026-07 Bug5).
+ * This function starts the dev-tools MCP server over stdio, or over Streamable HTTP with
+ * `config.http` (roadmap R26). Over stdio, stdout carries the protocol, so `console.log` goes to
+ * stderr from here on (BUGS-2026-07 Bug5).
  */
 export async function startDevToolsServer(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
   // Defense-in-depth for the stdio transport: a stray console.log (from a procedure handler or a
@@ -130,7 +131,16 @@ export async function startDevToolsServer(config: McpServerConfig = loadConfig()
   const host = await createDevToolsHost(config);
   const expose = host.policy.expose;
   const transport = new McpServerTransport(host.server, {
-    transport: "stdio",
+    ...(config.http
+      ? {
+          transport: "http" as const,
+          httpOptions: {
+            port: config.http.port,
+            ...(config.http.host ? { host: config.http.host } : {}),
+            ...(config.http.token ? { token: config.http.token } : {}),
+          },
+        }
+      : { transport: "stdio" as const }),
     serverInfo: {
       name: config.serverName,
       version: config.serverVersion,
@@ -144,5 +154,7 @@ export async function startDevToolsServer(config: McpServerConfig = loadConfig()
   if (config.debug) {
     console.error(`[mcp-server] Started with ${transport.getState().toolCount} tools`);
   }
+  const url = transport.getState().url;
+  if (url) console.error(`[mcp-server] Streamable HTTP at ${url}${config.http?.token ? " (send Authorization: Bearer <token>)" : ""}`);
   return host;
 }

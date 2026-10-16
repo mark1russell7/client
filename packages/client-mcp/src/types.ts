@@ -12,6 +12,22 @@ import type { Duration } from "@procedures/client";
 /**
  * SSE transport configuration options.
  */
+/** The options of the Streamable HTTP transport (roadmap R26). */
+export interface HttpTransportOptions {
+  /** Port to listen on (default: 3003) */
+  port?: number | undefined;
+  /** Host to bind to (default: "127.0.0.1": only this computer can reach the tools) */
+  host?: string | undefined;
+  /** The path of the MCP endpoint (default: "/mcp") */
+  path?: string | undefined;
+  /** A secret that each request must send as `Authorization: Bearer <token>` */
+  token?: string | undefined;
+  /** Browser origins that can call the server, besides loopback origins */
+  allowedOrigins?: string[] | undefined;
+  /** An HTTP server to answer on, in place of a server of the transport (it does not listen then) */
+  server?: import("node:http").Server | undefined;
+}
+
 export interface SseTransportOptions {
   /** Port to listen on (default: 3002) */
   port?: number;
@@ -27,8 +43,14 @@ export interface SseTransportOptions {
  * MCP Server Transport configuration options.
  */
 export interface McpServerTransportOptions {
-  /** Transport type: stdio or sse (default: "stdio") */
-  transport?: "stdio" | "sse";
+  /**
+   * Transport type (default: "stdio"). "http" is Streamable HTTP, the HTTP transport of the
+   * current MCP specification (roadmap R26). "sse" is not implemented.
+   */
+  transport?: "stdio" | "sse" | "http";
+
+  /** The options of the Streamable HTTP transport. */
+  httpOptions?: HttpTransportOptions | undefined;
 
   /** Procedure registry to use (defaults to PROCEDURE_REGISTRY) */
   registry?: ProcedureRegistry;
@@ -68,5 +90,7 @@ export interface McpServerTransportState {
   /** Number of registered tools */
   toolCount: number;
   /** Transport type in use */
-  transport: "stdio" | "sse";
+  transport: "stdio" | "sse" | "http";
+  /** The URL of the Streamable HTTP endpoint, when the transport is "http" */
+  url?: string;
 }

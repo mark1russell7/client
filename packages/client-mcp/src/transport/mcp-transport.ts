@@ -23,6 +23,7 @@ import {
 import type { McpServerTransportOptions, McpServerTransportState } from "../types.js";
 import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
+import { createHttpTransport, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
 
 /**
@@ -85,6 +86,11 @@ export class McpServerTransport implements ServerTransport {
   private tools: Map<string, McpTool> = new Map();
   private registerListener: ((procedure: unknown) => void) | undefined;
   private unregisterListener: ((procedure: unknown) => void) | undefined;
+  /** The Streamable HTTP transport and its URL, when the transport is "http" (R26) */
+  private http: McpHttpTransport | undefined;
+  /** The MCP servers of the sessions of the Streamable HTTP transport */
+  private readonly sessionServers = new Set<McpServer>();
+  private httpUrl: string | undefined;
   /** A pending list_changed notification: a burst of registrations sends one */
   private listChangedTimer: ReturnType<typeof setTimeout> | undefined;
   /** The limits of a stream that can run without an end, the time in milliseconds (R15) */
@@ -113,25 +119,32 @@ export class McpServerTransport implements ServerTransport {
 
     // Create MCP server with capabilities. The tool list follows the registry: when it changes,
     // the server sends notifications/tools/list_changed (deep dive roadmap 0.4)
-    this.mcpServer = new McpServer(this.options.serverInfo, {
-      capabilities: {
-        tools: { listChanged: true },
-      },
-    });
-
-    // Setup request handlers
-    this.setupHandlers();
+    this.mcpServer = this.createSdkServer();
 
     // The registry listeners are attached in start() and removed in stop(): attaching them here
     // leaked them for a transport that never started or failed to start (BUGS-2026-07 L28)
   }
 
   /**
+   * An MCP server of the SDK with the handlers of this transport. The stdio transport has one, and
+   * each session of the Streamable HTTP transport has one of its own (roadmap R26).
+   */
+  private createSdkServer(): McpServer {
+    const server = new McpServer(this.options.serverInfo, {
+      capabilities: {
+        tools: { listChanged: true },
+      },
+    });
+    this.setupHandlers(server);
+    return server;
+  }
+
+  /**
    * Setup MCP request handlers.
    */
-  private setupHandlers(): void {
+  private setupHandlers(server: McpServer): void {
     // ListToolsRequestSchema -> List all procedures as tools
-    this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+    server.setRequestHandler(ListToolsRequestSchema, async () => {
       this.log("ListToolsRequest received");
 
       const tools = Array.from(this.tools.values()).map(toToolDefinition);
@@ -142,7 +155,7 @@ export class McpServerTransport implements ServerTransport {
     });
 
     // CallToolRequestSchema -> Execute procedure
-    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const { name, arguments: args } = request.params;
 
       this.log(`CallToolRequest: ${name}`);
@@ -338,6 +351,7 @@ export class McpServerTransport implements ServerTransport {
     this.listChangedTimer = setTimeout(() => {
       this.listChangedTimer = undefined;
       if (!this.running) return;
+      for (const sessionServer of this.sessionServers) sessionServer.sendToolListChanged().catch(() => undefined);
       this.mcpServer.sendToolListChanged().catch((error: unknown) => {
         this.log(`list_changed failed: ${error instanceof Error ? error.message : String(error)}`);
       });
@@ -371,13 +385,22 @@ export class McpServerTransport implements ServerTransport {
 
     try {
       // Create appropriate transport
-      let transport: SdkTransport;
+      let transport: SdkTransport | undefined;
       if (this.options.sdkTransport) {
         transport = this.options.sdkTransport;
         this.log("Using the given transport");
       } else if (this.options.transport === "stdio") {
         transport = createStdioTransport();
         this.log("Using stdio transport");
+      } else if (this.options.transport === "http") {
+        // Streamable HTTP (roadmap R26): an MCP server of its own for each session
+        this.http = createHttpTransport(this.options.httpOptions ?? {}, async (sessionTransport) => {
+          const sessionServer = this.createSdkServer();
+          this.sessionServers.add(sessionServer);
+          sessionServer.onclose = () => this.sessionServers.delete(sessionServer);
+          await sessionServer.connect(sessionTransport as unknown as SdkTransport);
+        });
+        transport = undefined;
       } else if (this.options.transport === "sse") {
         transport = createSseTransport(this.options.sseOptions);
         this.log(`Using SSE transport on ${this.options.sseOptions?.path ?? "/mcp/sse"}`);
@@ -386,9 +409,15 @@ export class McpServerTransport implements ServerTransport {
       }
 
       // Connect MCP server to transport
-      await this.mcpServer.connect(transport);
+      if (transport) await this.mcpServer.connect(transport);
+      if (this.http) {
+        this.httpUrl = await this.http.listen();
+        this.log(`Using Streamable HTTP at ${this.httpUrl}`);
+      }
     } catch (error) {
       this.removeRegistryListeners();
+      await this.http?.close().catch(() => undefined);
+      this.http = undefined;
       throw error;
     }
 
@@ -412,6 +441,11 @@ export class McpServerTransport implements ServerTransport {
     }
 
     await this.mcpServer.close();
+    await this.http?.close();
+    for (const sessionServer of this.sessionServers) await sessionServer.close().catch(() => undefined);
+    this.sessionServers.clear();
+    this.http = undefined;
+    this.httpUrl = undefined;
     this.running = false;
     this.log("MCP server stopped");
   }
@@ -431,6 +465,7 @@ export class McpServerTransport implements ServerTransport {
       running: this.running,
       toolCount: this.tools.size,
       transport: this.options.transport,
+      ...(this.httpUrl ? { url: this.httpUrl } : {}),
     };
   }
 

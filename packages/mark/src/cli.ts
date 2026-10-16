@@ -443,7 +443,8 @@ export async function executeArgs(
 
 const MCP_HELP = `Usage: mark mcp [options]
 
-Start the dev-tools MCP server over stdio (the server of Claude Code's MCP configuration).
+Start the dev-tools MCP server over stdio (the server of Claude Code's MCP configuration), or
+over Streamable HTTP with --http.
 It has a registry of its own, from the modules of its bundles, and the host policy of an MCP
 server: only the tools of the bundles, strict nested calls, and a time limit for each call.
 
@@ -451,6 +452,9 @@ Options:
   --bundles <list>      Comma-separated bundles (default: MCP_BUNDLES, or @procedures/bundle-mcp)
   --tool-timeout <ms>   The time limit of each tool call (default: MCP_TOOL_TIMEOUT_MS, or 600000)
   --read-only           Only the tools that change nothing (default: MCP_READ_ONLY)
+  --http <port>         Serve over Streamable HTTP on this port, not over stdio (MCP_HTTP_PORT)
+  --host <host>         The address of --http (default: 127.0.0.1, only this computer)
+  --token <token>       A secret that each HTTP request must send as a bearer token
   --debug               Write debug lines to stderr
   -h, --help            Show this help
 
@@ -484,6 +488,14 @@ async function startMcp(args: string[]): Promise<void> {
       config.toolTimeoutMs = ms;
     } else if (name === "--read-only") {
       config.readOnly = true;
+    } else if (name === "--http") {
+      const port = Number(value());
+      if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("--http needs a port number");
+      config.http = { ...config.http, port };
+    } else if (name === "--host") {
+      config.http = { port: config.http?.port ?? 3003, ...config.http, host: value() };
+    } else if (name === "--token") {
+      config.http = { port: config.http?.port ?? 3003, ...config.http, token: value() };
     } else if (name === "--debug") {
       config.debug = true;
     } else {
@@ -553,7 +565,8 @@ async function run(argv: string[]): Promise<void> {
     await runServer(commandArgs, { resolveFrom: [process.cwd(), markDir] });
     return;
   }
-  if (command === "mcp" && commandArgs.every((arg) => arg.startsWith("-"))) {
+  // `mark mcp` and `mark mcp --option value`: the server. `mark mcp <procedure>`: an mcp.* command.
+  if (command === "mcp" && (commandArgs.length === 0 || commandArgs[0]!.startsWith("-"))) {
     await startMcp(commandArgs);
     return;
   }
