@@ -87,6 +87,8 @@ export const mcpNamespaces: readonly string[] = [
  *   processes. A tool call does not leave a process running, so the three stay out (deep dive WRP-4);
  * - `docker.prune` deletes in bulk, `docker.volume.remove` deletes the data of a volume, and
  *   `docker.push` can carry an image out to any registry (roadmap R41);
+ * - `mongo.watch` is a stream without an end, `mongo.documents.bulk` and `db.transaction` change
+ *   data in bulk, and `db.migrate` and `db.backup` change or copy the database file (roadmap R44);
  * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@procedures/store`
  *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
  *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
@@ -97,6 +99,11 @@ export const mcpExclude: readonly string[] = [
   "docker.prune",
   "docker.push",
   "docker.volume.remove",
+  "db.backup",
+  "db.migrate",
+  "db.transaction",
+  "mongo.documents.bulk",
+  "mongo.watch",
   "vitest.watch",
   "vitest.stop",
   "vitest.list",

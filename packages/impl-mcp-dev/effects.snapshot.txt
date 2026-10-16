@@ -20,6 +20,8 @@ cue.remove: destructive, idempotent
 cue.validate: read only
 db.execute: destructive
 db.query: read only
+db.schema: read only
+db.tables: read only
 docker.build: additive, open world
 docker.compose.build: additive, open world
 docker.compose.down: destructive, idempotent
@@ -48,6 +50,7 @@ json.patch: read only
 json.query: read only
 json.validate: read only
 lib.audit: additive, idempotent
+lib.graph: read only
 lib.new: additive, open world
 lib.rename: destructive
 lib.scan: read only
@@ -62,6 +65,8 @@ mongo.database.ping: read only, open world
 mongo.documents.aggregate: read only, open world
 mongo.documents.count: read only, open world
 mongo.documents.delete: destructive, open world
+mongo.documents.distinct: read only, open world
+mongo.documents.explain: read only, open world
 mongo.documents.find: read only, open world
 mongo.documents.get: read only, open world
 mongo.documents.insert: additive, open world

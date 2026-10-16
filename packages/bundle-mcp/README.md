@@ -16,20 +16,21 @@ npm install @procedures/bundle-mcp
 - `mcpExclude`: procedures of those namespaces that are not tools.
   - `vitest.watch`, `vitest.stop` and `vitest.list` manage processes that live longer than a tool call.
   - `docker.prune` deletes in bulk, and `docker.volume.remove` deletes the data of a volume. `docker.push` can carry an image out to any registry.
+  - `mongo.watch` is a stream without an end. `mongo.documents.bulk` and `db.transaction` change data in bulk. `db.migrate` and `db.backup` change or copy the database file.
   - `procedure.store`, `procedure.load`, `procedure.sync`, `procedure.remote` and `procedure.register` need a procedure store, and the MCP server has none.
 
-The result is 86 tools (October 2026):
+The result is 91 tools (October 2026):
 
 | Namespace | Tools |
 |---|---|
 | `client` | 15: the control-flow procedures (`chain`, `parallel`, `conditional`, `tryCatch`, `map`, `reduce`, `and`, `or`) and `all`, `any`, `none`, `not`, `identity`, `constant`, `throw` |
 | `cue` | 5: `add`, `generate`, `init`, `remove`, `validate` |
-| `db` | 2: `execute`, `query` |
+| `db` | 4: `execute`, `query`, `schema`, `tables` |
 | `docker` | 22: `build`, `compose.build`, `compose.down`, `compose.logs`, `compose.ps`, `compose.restart`, `compose.up`, `exec`, `images`, `inspect`, `logs`, `network.create`, `network.list`, `network.remove`, `ps`, `pull`, `rm`, `run`, `stop`, `tag`, `volume.create`, `volume.list` |
 | `json` | 5: `diff`, `merge`, `patch`, `query`, `validate`. They are pure. |
-| `lib` | 4: `audit`, `new`, `rename`, `scan` |
+| `lib` | 5: `audit`, `graph`, `new`, `rename`, `scan` |
 | `logs` | 2: `query`, `store` |
-| `mongo` | 16: the `collections`, `database`, `documents` and `indexes` procedures |
+| `mongo` | 18: the `collections`, `database`, `documents` and `indexes` procedures, with `documents.distinct` and `documents.explain` |
 | `procedure` | 7: `define`, `delete`, `export`, `get`, `list`, `manifest`, `new` |
 | `program` | 4: `check`, `compile`, `diagram`, `explain`. They examine a program before it starts. The program stays data. |
 | `vitest` | 2: `coverage`, `run` |

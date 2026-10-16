@@ -20,6 +20,8 @@ cue.remove
 cue.validate
 db.execute
 db.query
+db.schema
+db.tables
 docker.build
 docker.compose.build
 docker.compose.down
@@ -48,6 +50,7 @@ json.patch
 json.query
 json.validate
 lib.audit
+lib.graph
 lib.new
 lib.rename
 lib.scan
@@ -62,6 +65,8 @@ mongo.database.ping
 mongo.documents.aggregate
 mongo.documents.count
 mongo.documents.delete
+mongo.documents.distinct
+mongo.documents.explain
 mongo.documents.find
 mongo.documents.get
 mongo.documents.insert
