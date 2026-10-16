@@ -414,8 +414,8 @@ export const ReadJsonOutputSchema: z.ZodType<ReadJsonOutput> = z.looseObject({
 export interface FsWriteJsonInput {
   /** The path of the file */
   path: string;
-  /** The value to write */
-  value?: unknown;
+  /** The value to write (required: null writes null) */
+  value: unknown;
   /** The spaces of the indent (default 2) */
   indent?: number | undefined;
 }

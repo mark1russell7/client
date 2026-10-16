@@ -21,7 +21,11 @@ export async function fsWriteJson(input: FsWriteJsonInput): Promise<FsWriteJsonO
     await writeFile(temporary, content, "utf8");
     await rename(temporary, input.path);
   } catch (error) {
-    await rm(temporary, { force: true }).catch(() => undefined);
+    try {
+      await rm(temporary, { force: true });
+    } catch {
+      // The error of the write counts, not the error of the cleanup
+    }
     throw error;
   }
   return { path: input.path, bytesWritten: Buffer.byteLength(content, "utf8") };
