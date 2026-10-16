@@ -360,9 +360,15 @@ importers:
 
   packages/client:
     dependencies:
+      '@mark1russell7/algebra':
+        specifier: ^0.5.0
+        version: 0.5.0(zod@4.6.5)
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.5)
+      '@mark1russell7/service':
+        specifier: ^0.4.0
+        version: 0.4.0(zod@4.6.5)
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -373,15 +379,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@mark1russell7/algebra':
-        specifier: ^0.2.0
-        version: 0.2.0(zod@4.6.5)
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
-      '@mark1russell7/service':
-        specifier: ^0.2.0
-        version: 0.2.0(zod@4.6.5)
       '@stryker-mutator/core':
         specifier: 10.0.0
         version: 10.0.0(@types/node@22.20.5)
@@ -1552,8 +1552,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@mark1russell7/service':
-        specifier: ^0.2.0
-        version: 0.2.0(zod@4.6.5)
+        specifier: ^0.4.0
+        version: 0.4.0(zod@4.6.5)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1776,8 +1776,8 @@ importers:
   packages/systems:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.2.0
-        version: 0.2.0(zod@4.6.5)
+        specifier: ^0.4.0
+        version: 0.4.0(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2789,8 +2789,8 @@ packages:
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/algebra@0.2.0':
-    resolution: {integrity: sha512-b33A8cHvRgBZBeCB3aTqFLnBZNQep/uc7G1YQAy4mxVXULtp7mLqznmW34CEoD3kbRg63tJFk48db4oBBROdsw==}
+  '@mark1russell7/algebra@0.5.0':
+    resolution: {integrity: sha512-rNKCWvZBGDUYtA1BOPftPY7+zG6LWdISWrjkZwsHf3IS4bfz6JCeWVpJ0LV/vEvNRz1OnVjh9WgwoEUn1Y4cCQ==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -2804,12 +2804,6 @@ packages:
     resolution: {integrity: sha512-iDJU4B8hYy8bGtoAiBhUxvf1ZTnBsyBHHlylpZx/qcbh3/sAaSFZPrIeqCvJJClRc5dYBEtUV1mBkRZDDvqEzg==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/quantity@0.1.0':
-    resolution: {integrity: sha512-gUjecziGv4y6CxWjGZb9Z4WIeuS/OEZMTvdH2X1Qv/QGft/kHYtaiqfkz/kT+ScqHV4ak/eWQ9WAlzWQvrH7Rg==}
-    engines: {node: '>=22.19'}
-    peerDependencies:
-      zod: ^4.1.0
-
   '@mark1russell7/quantity@0.2.0':
     resolution: {integrity: sha512-pE2OganjbhstZgoeLVu5YRVQq6bOnV/5T4GYuJhIu0+PF77+DwpfrIZonhNNfEZHz/P4ioiwFowbIwxPq9VkSA==}
     engines: {node: '>=22.19'}
@@ -2819,8 +2813,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.2.0':
-    resolution: {integrity: sha512-KaoEkJZixvZocnQ2EpqEVC38oHf1WiRajg4p4GE0xfzXAisWb7mQu4cz0WBvkZvjNYBQrCG6Um2vezk5GjX6TA==}
+  '@mark1russell7/service@0.4.0':
+    resolution: {integrity: sha512-Zby/XIGWTWax927/pkQgeY9ljlzLmBkUnTlDcpGDKnNpEmXhM0WpnK948hnDqvUd2bwXM3/CcM2cYQDAaTA+2A==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -5657,9 +5651,9 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.2.0(zod@4.6.5)':
+  '@mark1russell7/algebra@0.5.0(zod@4.6.5)':
     dependencies:
-      '@mark1russell7/quantity': 0.1.0(zod@4.6.5)
+      '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
       zod: 4.6.5
 
   '@mark1russell7/cue@1.0.0': {}
@@ -5669,18 +5663,14 @@ snapshots:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
 
-  '@mark1russell7/quantity@0.1.0(zod@4.6.5)':
-    dependencies:
-      zod: 4.6.5
-
   '@mark1russell7/quantity@0.2.0(zod@4.6.5)':
     optionalDependencies:
       zod: 4.6.5
 
-  '@mark1russell7/service@0.2.0(zod@4.6.5)':
+  '@mark1russell7/service@0.4.0(zod@4.6.5)':
     dependencies:
-      '@mark1russell7/algebra': 0.2.0(zod@4.6.5)
-      '@mark1russell7/quantity': 0.1.0(zod@4.6.5)
+      '@mark1russell7/algebra': 0.5.0(zod@4.6.5)
+      '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
       zod: 4.6.5
 
   '@mark1russell7/splay@0.1.0': {}

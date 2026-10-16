@@ -13,6 +13,8 @@ minimumReleaseAgeExclude:
   - "@mark1russell7/algebra@0.2.0"
   - "@mark1russell7/service@0.2.0"
   - "@mark1russell7/quantity@0.2.0"
+  - "@mark1russell7/algebra@0.5.0"
+  - "@mark1russell7/service@0.4.0"
 
 patchedDependencies:
   '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch

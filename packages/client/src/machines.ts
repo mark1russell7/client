@@ -7,10 +7,11 @@
  *
  * The code reports each change of its state as a `MachineTransition` (the option `onTransition`).
  * `replayTransitions()` replays the reports of a run against a document, so a test finds each
- * change that the document does not allow. `systems` plans to move `replay` into `algebra`
- * (roadmap R37). Then this function uses it.
+ * change that the document does not allow. It uses `replay` of `@mark1russell7/algebra/replay`
+ * (roadmap R37). That entry imports nothing else, and it has 418 bytes of gzip.
  */
 
+import { replay } from "@mark1russell7/algebra/replay";
 import { TIMER_DEFAULTS } from "./timers.js";
 
 /** A change of state that the code reports. It has the fields of a lifecycle event of `@mark1russell7/service`. */
@@ -175,26 +176,11 @@ export const CIRCUIT_BREAKER_MACHINE: MachineDocument = {
   ],
 };
 
-const asList = (value: string | readonly string[]): readonly string[] => (typeof value === "string" ? [value] : value);
-
 /**
  * This function replays the reported transitions of one document. Each instance starts in the
  * state that its first transition leaves. Each transition must leave the state where the replay
  * is, and the document must allow it. The function gives each disagreement.
  */
 export function replayTransitions(machine: MachineDocument, events: readonly MachineTransition[]): string[] {
-  const problems: string[] = [];
-  const at = new Map<string, string>();
-  for (const event of events) {
-    if (event.machine !== machine.id) continue;
-    const where = at.get(event.instance) ?? event.from;
-    if (machine.states[event.from] === undefined) problems.push(`${event.instance}: the state ${event.from} is not in ${machine.id}`);
-    if (event.from !== where) problems.push(`${event.instance}: the code left ${event.from} on ${event.on}, but the replay is in ${where}`);
-    const allowed = machine.transitions.some(
-      (each) => asList(each.from).includes(event.from) && asList(each.on).includes(event.on) && each.to === event.to,
-    );
-    if (!allowed) problems.push(`${event.instance}: ${machine.id} has no transition from ${event.from} on ${event.on} to ${event.to}`);
-    at.set(event.instance, event.to);
-  }
-  return problems;
+  return replay(machine, events, { machine: machine.id });
 }

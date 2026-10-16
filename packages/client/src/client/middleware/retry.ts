@@ -9,6 +9,7 @@ import type { ClientRunner, ClientContext, Method, ResponseItem, TypedClientMidd
 import type { RetryContext } from "./contexts.js";
 import { abortedItem, deliveryOf, retryAfterOf, sleep, thrownItem } from "./items.js";
 import { realClock, type Clock } from "../../clock.js";
+import { backoffDelay } from "@mark1russell7/service/backoff";
 import { IDEMPOTENCY_KEY_METADATA, idempotencyKeyOf, newIdempotencyKey } from "../../procedures/idempotency.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
@@ -175,15 +176,20 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
   };
 
   /**
-   * The backoff delay of an attempt: exponential, at most the maximum delay, with the random part
-   * of `jitter` (full jitter by default).
+   * The backoff delay of an attempt (from 0): exponential, at most the maximum delay, with the
+   * random part of `jitter` (full jitter by default). The backoff is `backoffDelay` of
+   * `@mark1russell7/service/backoff` (roadmap R37), whose tries start at 1.
    */
-  const backoffDelay = (attempt: number, overrides: ReturnType<typeof overridesOf>): number => {
-    const baseDelay = (overrides.delay ?? defaultRetryDelay) * Math.pow(overrides.backoffMultiplier ?? defaultMultiplier, attempt);
-    const capped = Math.min(overrides.maxDelay ?? defaultMaxDelay, baseDelay);
-    const jitter = Math.min(1, Math.max(0, defaultJitter));
-    return Math.max(0, capped * (1 - jitter * Math.random()));
-  };
+  const retryDelayOf = (attempt: number, overrides: ReturnType<typeof overridesOf>): number =>
+    backoffDelay(
+      {
+        base: overrides.delay ?? defaultRetryDelay,
+        factor: overrides.backoffMultiplier ?? defaultMultiplier,
+        cap: overrides.maxDelay ?? defaultMaxDelay,
+        jitter: { kind: "subtract", fraction: Math.min(1, Math.max(0, defaultJitter)) },
+      },
+      attempt + 1,
+    );
 
   // The retry budget (R12): a balance of retries that each call fills by `ratio`
   const budget = options.budget === false ? undefined : { ratio: options.budget?.ratio ?? 0.2, minPerSecond: options.budget?.minPerSecond ?? 10 };
@@ -310,7 +316,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
         }
 
         // A server that asks for a wait (Retry-After) gets at least that wait (R12)
-        let delay = Math.max(backoffDelay(attempt, overrides), retryAfterOf(retryItem) ?? 0);
+        let delay = Math.max(retryDelayOf(attempt, overrides), retryAfterOf(retryItem) ?? 0);
 
         // Before retry hook
         if (onBeforeRetry) {

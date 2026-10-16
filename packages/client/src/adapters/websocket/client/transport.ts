@@ -16,6 +16,8 @@ import { optionalMs } from "../../../duration.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
+import { heartbeat, type Heartbeat } from "@mark1russell7/service/heartbeat";
+import { backoffDelay } from "@mark1russell7/service/backoff";
 import type { MachineTransition } from "../../../machines.js";
 import { WEBSOCKET_CONNECTION_MACHINE } from "../../../machines.js";
 
@@ -134,15 +136,25 @@ function legacyHandler(onServerRequest: ServerRequestHandler | undefined): Reque
  * The delay before a reconnect try (from 1): an exponential backoff up to `maxDelay`, with a
  * random part. With `jitter: 1` (full jitter, the default), the delay is a random time from 0 to
  * the backoff, so the clients of a server that restarted do not come back at the same moments
- * (roadmap R3).
+ * (roadmap R3). The backoff is `backoffDelay` of `@mark1russell7/service/backoff` (roadmap R37).
  */
 export function reconnectDelay(
   attempt: number,
   options: { initialDelay: number; backoffMultiplier: number; maxDelay: number; jitter: number },
   random: () => number = Math.random,
 ): number {
-  const backoff = Math.min(options.initialDelay * Math.pow(options.backoffMultiplier, attempt - 1), options.maxDelay);
-  return Math.round(backoff * (1 - options.jitter * random()));
+  return Math.round(
+    backoffDelay(
+      {
+        base: options.initialDelay,
+        factor: options.backoffMultiplier,
+        cap: options.maxDelay,
+        jitter: { kind: "subtract", fraction: options.jitter },
+      },
+      attempt,
+      random,
+    ),
+  );
 }
 
 export class WebSocketTransport implements Transport {
@@ -191,14 +203,12 @@ export class WebSocketTransport implements Transport {
   private closing = false;
   private reconnectAttempts = 0;
   private reconnectTimer: Cancel | undefined = undefined;
-  private heartbeatTimer: Cancel | undefined = undefined;
-  private heartbeatTimeout: Cancel | undefined = undefined;
+  /** The heartbeat of the connection: `heartbeat` of `@mark1russell7/service/heartbeat` (roadmap R37) */
+  private heartbeat: Heartbeat | undefined = undefined;
   /** The clock of each timer of the transport (roadmap R35) */
   private readonly clock: Clock;
   /** The observer of the changes of the state (roadmap R35) */
   private readonly transitionHandler: ((transition: MachineTransition) => void) | undefined;
-  /** The pings without a pong, one after the other */
-  private heartbeatMisses = 0;
   /** The protocol version of the server, from its hello, or undefined (an older server) (R25) */
   private serverProtocol: number | undefined;
   /** The calls that the server sends on the current socket, served by `serve` (roadmap R24) */
@@ -430,38 +440,32 @@ export class WebSocketTransport implements Transport {
   }
 
   /**
-   * Start heartbeat to keep connection alive.
+   * Start the heartbeat of the connection: a ping each interval on the clock, one ping at a time.
+   * A ping without a pong at its timeout is a miss. The connection drops after `misses` misses in
+   * sequence. A ping whose send throws is a miss too.
    */
   private startHeartbeat(): void {
     this.stopHeartbeat();
-
-    // One timer for each interval, on the clock (roadmap R35: before, setInterval)
-    const tick = (): void => {
-      this.heartbeatTimer = this.clock.after(this.options.heartbeat.interval, tick);
-      // One ping at a time: a new ping must not replace the timeout of an unanswered one
-      if (this.state === WebSocketState.CONNECTED && this.ws && !this.heartbeatTimeout) {
-        // Send ping
+    this.heartbeat = heartbeat({
+      interval: this.options.heartbeat.interval,
+      timeout: this.options.heartbeat.timeout,
+      misses: this.options.heartbeat.misses,
+      clock: this.clock,
+      due: () => this.state === WebSocketState.CONNECTED && this.ws !== null,
+      ping: () => {
         const ping: WebSocketMessage = {
           id: `ping-${Date.now()}`,
           type: "ping",
         };
-        this.ws.send(JSON.stringify(ping));
-
-        // Set timeout for pong. The connection drops after `misses` pings without a pong.
-        this.heartbeatTimeout = this.clock.after(this.options.heartbeat.timeout, () => {
-          this.heartbeatTimeout = undefined;
-          if (++this.heartbeatMisses < this.options.heartbeat.misses) return;
-          console.warn(`[${this.name}] Heartbeat timeout - dropping connection`);
-          this.dropConnection("Heartbeat timeout");
-        });
-      }
-    };
-    this.heartbeatTimer = this.clock.after(this.options.heartbeat.interval, tick);
+        this.ws?.send(JSON.stringify(ping));
+      },
+      onDead: () => {
+        console.warn(`[${this.name}] Heartbeat timeout - dropping connection`);
+        this.dropConnection("Heartbeat timeout");
+      },
+    });
   }
 
-  /**
-   * Stop heartbeat.
-   */
   /** Stop the time limit of the handshake. */
   private clearHandshakeTimer(): void {
     if (this.handshakeTimer) {
@@ -470,16 +474,10 @@ export class WebSocketTransport implements Transport {
     }
   }
 
+  /** Stop the heartbeat: its ticks, its timeout and its count of misses. */
   private stopHeartbeat(): void {
-    this.heartbeatMisses = 0;
-    if (this.heartbeatTimer) {
-      this.heartbeatTimer();
-      this.heartbeatTimer = undefined;
-    }
-    if (this.heartbeatTimeout) {
-      this.heartbeatTimeout();
-      this.heartbeatTimeout = undefined;
-    }
+    this.heartbeat?.stop();
+    this.heartbeat = undefined;
   }
 
   /**
@@ -522,11 +520,7 @@ export class WebSocketTransport implements Transport {
 
     // Handle pong (heartbeat response)
     if (message.type === "pong") {
-      this.heartbeatMisses = 0;
-      if (this.heartbeatTimeout) {
-        this.heartbeatTimeout();
-        this.heartbeatTimeout = undefined;
-      }
+      this.heartbeat?.answer();
       return;
     }
 

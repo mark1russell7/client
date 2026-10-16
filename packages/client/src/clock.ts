@@ -3,40 +3,19 @@
  * read the time and start their timers only through a clock. Thus a test gives a fake clock, and
  * the timing is exact and repeatable.
  *
- * The interface has the shape of the `Clock` of `@mark1russell7/service`: a clock of that package
- * fits here, also its `fakeClock` of `@mark1russell7/service/testing`.
+ * The clock comes from `@mark1russell7/service/clock` (roadmap R37). The entry imports nothing
+ * else, and it has 228 bytes of gzip. The `fakeClock` of `@mark1russell7/service/testing` fits here.
+ * A `Cancel` of the platform also has `unref`. The circuit breaker uses it for its reset: a breaker
+ * must not keep a process alive for its reset time (BUGS-2026-07 M4).
  */
 
-/** This function stops a timer that `Clock.after` started. A second call does nothing. */
-export type Cancel = (() => void) & {
-  /**
-   * The timer does not keep a Node process alive. The circuit breaker uses it for its reset: a
-   * breaker must not keep a process alive for its reset time (BUGS-2026-07 M4).
-   */
-  unref?: () => void;
-};
+import { platformClock, type Cancel, type Clock } from "@mark1russell7/service/clock";
 
-/** A monotonic clock, and timers on it. */
-export interface Clock {
-  /** This method gives the monotonic time, in milliseconds. A step of the wall clock does not move it. */
-  now(): number;
-  /** This method starts `run` after `ms` milliseconds, and gives the function that stops it. */
-  after(ms: number, run: () => void): Cancel;
-}
+export type { Cancel, Clock };
 
 /**
  * The clock of the platform: `performance.now()` and `setTimeout`. Its timers keep a Node process
- * alive, as `setTimeout` does: a script that waits for a retry does not end during the wait.
+ * alive, as `setTimeout` does: a script that waits for a retry does not end during the wait. The
+ * `realClock` of the service package is different: its timers do not keep a process alive.
  */
-export const realClock: Clock = {
-  now: () => {
-    const performance = (globalThis as { performance?: { now(): number } }).performance;
-    return performance ? performance.now() : Date.now();
-  },
-  after(ms, run) {
-    const timer = setTimeout(run, Math.max(0, ms));
-    const cancel: Cancel = () => clearTimeout(timer);
-    cancel.unref = () => (timer as { unref?: () => void }).unref?.();
-    return cancel;
-  },
-};
+export const realClock: Clock = platformClock();
