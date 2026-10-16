@@ -70,7 +70,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R20 | 4 | `@procedures/compiler`: the IR and `program.check` | M | fixed (the host check is in R22) | `9bc2ddb` |
 | R21 | 4 | `program.compile` and the equivalence tests | M | fixed | `9bc2ddb` |
 | R22 | 4 | The interpreter and the site use the IR of the compiler | M | fixed (the plan changed: see R22) | `f5ed492`, `a70d445`, `6c688e1` |
-| R23 | 4 | Outputs of the compiler: diagrams, tool descriptions, typed SDK, `procedure.explain` | M | open | |
+| R23 | 4 | Outputs of the compiler: diagrams, tool descriptions, typed SDK, `procedure.explain` | M | fixed | `6bf62d4`, `29a7b29` |
 | R24 | 5 | The bidirectional peer | M–L | fixed | `b2a3e3a` |
 | R25 | 5 | Wire protocol v1 | M | fixed | `21f7743` |
 | R26 | 5 | MCP Streamable HTTP | M | fixed | `3d24d5b`, `b42f3c8` |
@@ -91,7 +91,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R41 | 9 | More pnpm and docker operations | M | open | |
 | R42 | 9 | `@procedures/gh` | M | open | |
 | R43 | 9 | npm registry procedures | S–M | open | |
-| R44 | 9 | More operations for fs, mongo, sqlite, s3, node and lib | M | open | |
+| R44 | 9 | More operations for fs, mongo, sqlite, s3, node and lib | M | in progress: the fs part is done | `f23c7ad` |
 | R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | open | |
 | R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | open | |
 | R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | open | |
@@ -318,6 +318,8 @@ Three parts read programs today: the interpreter, the analysis of the site and t
 - The MCP tool description of a defined procedure, from its effects and schemas.
 - A typed SDK and an OpenRPC document from the manifest (R17).
 - `procedure.explain`, which wraps `explainInvocation`.
+
+**Result.** `@procedures/compiler` gives a Mermaid flowchart of a program (`toMermaid`, `diagramProgram`, the procedure `program.diagram`), an explanation of each call under a capability (`explainProgram`, the procedure `program.explain`), an OpenRPC 1.3 document (`toOpenRpc`, `sdk.openrpc`) and a typed SDK without imports (`toTypeScriptSdk`, `sdk.typescript`). The tool description of a defined procedure tells the effects of its body. The MCP host has 67 tools. The namespace `sdk` is not a tool namespace.
 
 ## Tier 5: the bidirectional peer and the wire
 
