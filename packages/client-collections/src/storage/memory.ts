@@ -30,6 +30,7 @@ function newEpoch(): string {
  * - No persistence (data lost on restart)
  * - Memory-bound (limited by available RAM)
  * - Returns Promises for API consistency with remote storage
+ * - Each error is a rejected promise: an error of a `find` predicate does not throw at once
  * - A change log: `getChangesSince(version)` gives the changes after a version (roadmap R28)
  *
  * @example
@@ -62,27 +63,27 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   // ═══ Read Operations ═══
   //
 
-  get(id: string): Promise<T | undefined> {
-    return Promise.resolve(this.data.get(id));
+  async get(id: string): Promise<T | undefined> {
+    return this.data.get(id);
   }
 
-  getAll(): Promise<T[]> {
-    return Promise.resolve(Array.from(this.data.values()));
+  async getAll(): Promise<T[]> {
+    return Array.from(this.data.values());
   }
 
-  getEntries(): Promise<Array<[string, T]>> {
-    return Promise.resolve(Array.from(this.data.entries()));
+  async getEntries(): Promise<Array<[string, T]>> {
+    return Array.from(this.data.entries());
   }
 
   /**
    * The changes after a version (roadmap R28). A version of another storage, of a closed
    * storage, or older than the dropped deletes gives all items (`full: true`).
    */
-  getChangesSince(since?: string): Promise<StorageChanges<T>> {
+  async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const version = `${this.epoch}:${this.seq}`;
     const from = this.parseVersion(since);
     if (from === undefined || from < this.floor) {
-      return Promise.resolve({ version, full: true, changed: Array.from(this.data.entries()), deleted: [] });
+      return { version, full: true, changed: Array.from(this.data.entries()), deleted: [] };
     }
     const changed: Array<[string, T]> = [];
     for (const [id, at] of this.changedAt) {
@@ -92,62 +93,59 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
     for (const [id, at] of this.deletedAt) {
       if (at > from) deleted.push(id);
     }
-    return Promise.resolve({ version, full: false, changed, deleted });
+    return { version, full: false, changed, deleted };
   }
 
-  find(predicate: (item: T) => boolean): Promise<T[]> {
+  async find(predicate: (item: T) => boolean): Promise<T[]> {
     const results: T[] = [];
     for (const item of this.data.values()) {
       if (predicate(item)) {
         results.push(item);
       }
     }
-    return Promise.resolve(results);
+    return results;
   }
 
-  has(id: string): Promise<boolean> {
-    return Promise.resolve(this.data.has(id));
+  async has(id: string): Promise<boolean> {
+    return this.data.has(id);
   }
 
-  size(): Promise<number> {
-    return Promise.resolve(this.data.size);
+  async size(): Promise<number> {
+    return this.data.size;
   }
 
   //
   // ═══ Write Operations ═══
   //
 
-  set(id: string, value: T): Promise<void> {
+  async set(id: string, value: T): Promise<void> {
     this.data.set(id, value);
     this.noteSet(id);
-    return Promise.resolve();
   }
 
-  delete(id: string): Promise<boolean> {
+  async delete(id: string): Promise<boolean> {
     const existed = this.data.delete(id);
     if (existed) this.noteDelete(id);
-    return Promise.resolve(existed);
+    return existed;
   }
 
-  clear(): Promise<void> {
+  async clear(): Promise<void> {
     for (const id of this.data.keys()) this.noteDelete(id);
     this.data.clear();
-    return Promise.resolve();
   }
 
   //
   // ═══ Bulk Operations ═══
   //
 
-  setBatch(items: Array<[string, T]>): Promise<void> {
+  async setBatch(items: Array<[string, T]>): Promise<void> {
     for (const [id, value] of items) {
       this.data.set(id, value);
       this.noteSet(id);
     }
-    return Promise.resolve();
   }
 
-  deleteBatch(ids: string[]): Promise<number> {
+  async deleteBatch(ids: string[]): Promise<number> {
     let deleted = 0;
     for (const id of ids) {
       if (this.data.delete(id)) {
@@ -155,10 +153,10 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
         deleted++;
       }
     }
-    return Promise.resolve(deleted);
+    return deleted;
   }
 
-  getBatch(ids: string[]): Promise<Map<string, T>> {
+  async getBatch(ids: string[]): Promise<Map<string, T>> {
     const result = new Map<string, T>();
     for (const id of ids) {
       const value = this.data.get(id);
@@ -166,14 +164,14 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
         result.set(id, value);
       }
     }
-    return Promise.resolve(result);
+    return result;
   }
 
   //
   // ═══ Lifecycle & Metadata ═══
   //
 
-  close(): Promise<void> {
+  async close(): Promise<void> {
     // No cleanup needed for in-memory storage
     this.data.clear();
     // A new epoch: a version of the closed storage gives all items
@@ -182,22 +180,21 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
     this.epoch = newEpoch();
     this.seq = 0;
     this.floor = 0;
-    return Promise.resolve();
   }
 
-  getMetadata(): Promise<StorageMetadata> {
+  async getMetadata(): Promise<StorageMetadata> {
     // Rough memory estimation:
     // Each entry has ~overhead of 100 bytes (key string + Map entry overhead)
     const estimatedEntrySize = 100;
     const memoryUsage = this.data.size * estimatedEntrySize;
 
-    return Promise.resolve({
+    return {
       type: "memory",
       size: this.data.size,
       stats: {
         memoryUsage,
       },
-    });
+    };
   }
 
   //

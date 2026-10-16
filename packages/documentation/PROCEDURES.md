@@ -300,9 +300,9 @@
 | Procedure | Description |
 |-----------|-------------|
 | `http.json` | Send a GET or a POST of JSON and give the parsed JSON response |
-| `http.ndjson` | Read an NDJSON response as a stream of parsed lines |
+| `http.ndjson` | Read an NDJSON response to a GET or a POST as a stream of parsed lines |
 | `http.request` | Send an HTTP request and give the status, the headers and the body |
-| `http.sse` | Read a stream of server-sent events |
+| `http.sse` | Read the server-sent events of a GET or a POST as a stream |
 
 ## ics
 
@@ -405,7 +405,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `node.kill` | Kill a spawned Node.js process |
-| `node.logs` | The output of a process of node.spawn: the last 64 KiB of stdout and stderr |
+| `node.logs` | The output of a process of node.spawn: the last 64 KiB of stdout and stderr, or with follow a stream of its lines |
 | `node.run` | Run a Node.js script and wait for completion |
 | `node.spawn` | Spawn a long-running Node.js process |
 | `node.status` | Get status of running Node.js processes |

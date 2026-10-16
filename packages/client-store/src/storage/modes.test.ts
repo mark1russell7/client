@@ -126,7 +126,9 @@ describe("the four modes (R28)", () => {
     const hybrid = hybridOf(remote, { mode });
     await hybrid.set("a", { n: 1 });
     expect(await entriesOf(remote.data as unknown as CollectionStorage<Item>)).toEqual(expected.remote);
-    expect((await hybrid.getMetadata()).size).toBe(Object.keys(expected.local).length);
+    expect((await hybrid.getMetadata()).stats?.["localSize"]).toBe(Object.keys(expected.local).length);
+    // The size of the metadata is the size of the storage, also in remote-only mode
+    expect((await hybrid.getMetadata()).size).toBe(1);
     expect(hybrid.getPendingOpsCount()).toBe(expected.pending);
     expect(hybrid.getMode()).toBe(mode);
     expect((await hybrid.getMetadata()).stats?.["mode"]).toBe(mode);
@@ -211,7 +213,7 @@ describe("setMode (R28)", () => {
 
     remote.down = false;
     await hybrid.setMode("remote-only");
-    expect((await hybrid.getMetadata()).size).toBe(0);
+    expect((await hybrid.getMetadata()).stats?.["localSize"]).toBe(0);
     expect(await hybrid.get("a")).toEqual({ n: 1 });
   });
 
@@ -247,7 +249,7 @@ describe("setMode (R28)", () => {
     release();
     expect((await reading).map((item) => item.n).sort()).toEqual([1, 2]);
     await switching;
-    expect((await hybrid.getMetadata()).size).toBe(2);
+    expect((await hybrid.getMetadata()).stats?.["localSize"]).toBe(2);
     // The sync after remote-only asks for all items
     expect(remote.calls).toContain("changes:-");
   });

@@ -93,6 +93,12 @@ export interface HttpJsonOutput {
 // =============================================================================
 
 export interface HttpStreamInput extends HttpTarget {
+  /** GET, or POST. The default is POST with `body` or `json`, and GET without them. */
+  method?: "GET" | "POST" | undefined;
+  /** A body of text for a POST. */
+  body?: string | undefined;
+  /** A body of JSON for a POST: the procedure sets `content-type: application/json`. */
+  json?: unknown;
   /** The time of the whole stream, in milliseconds. The default is no limit. */
   timeoutMs?: number | undefined;
   /** The longest time without data, in milliseconds. The default is no limit. */

@@ -96,6 +96,23 @@ interface PendingRequest {
  * const client = new Client({ transport });
  * ```
  */
+/** The `readyState` of an open socket. The global `WebSocket` and the `ws` package use the same number. */
+const OPEN = 1;
+
+/**
+ * The error handler of a socket that the transport left. A `WebSocket` of the `ws` package that
+ * closes during its handshake emits an error. Without a handler, that error ends the process.
+ */
+const ignoreError = (): void => undefined;
+
+/** This function removes the handlers of the transport from a socket, and keeps `ignoreError`. */
+function detach(ws: WebSocket): void {
+  ws.onopen = null;
+  ws.onmessage = null;
+  ws.onclose = null;
+  ws.onerror = ignoreError;
+}
+
 function errorItem<TRes>(id: string, code: string, message: string, retryable: boolean): ResponseItem<TRes> {
   return { id, status: { type: "error", code, message, retryable }, payload: null as TRes, metadata: {} };
 }
@@ -368,10 +385,7 @@ export class WebSocketTransport implements Transport {
     const ws = this.ws;
     this.ws = null;
     if (ws) {
-      ws.onopen = null;
-      ws.onmessage = null;
-      ws.onclose = null;
-      ws.onerror = null;
+      detach(ws);
       try {
         // A socket of the ws package ends at once. close() waits for the answer of a peer that can
         // be dead (finding of roadmap R36).
@@ -500,7 +514,7 @@ export class WebSocketTransport implements Transport {
     return new IncomingCalls({
       handler,
       send: (frame) => ws.send(JSON.stringify(frame)),
-      isOpen: () => this.ws === ws && ws.readyState === WebSocket.OPEN,
+      isOpen: () => this.ws === ws && ws.readyState === OPEN,
       // A call of the server that this client opened: the client trusts it, so it has no
       // credentials (a ProcedureServer applies no token to it)
       requestOf: (frame, signal) => ({
@@ -854,10 +868,7 @@ export class WebSocketTransport implements Transport {
     if (this.ws) {
       const ws = this.ws;
       this.ws = null;
-      ws.onopen = null;
-      ws.onmessage = null;
-      ws.onclose = null;
-      ws.onerror = null;
+      detach(ws);
       ws.close();
     }
 

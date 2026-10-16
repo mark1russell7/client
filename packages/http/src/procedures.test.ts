@@ -158,6 +158,23 @@ function routes(req: IncomingMessage, res: ServerResponse, body: string): void {
       res.writeHead(200, { "content-type": "text/event-stream; charset=utf-8" });
       res.end(`: hello\n\nevent: start\ndata: ${req.headers["last-event-id"] ?? "none"}\n\nid: 42\ndata: line 1\ndata: line 2\n\n`);
       return;
+    case "/sse/chat": {
+      // An LLM API: the answer to a POST as server-sent events, one event for each word
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain" });
+        res.end("POST only");
+        return;
+      }
+      const { prompt } = JSON.parse(body) as { prompt: string };
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      for (const word of prompt.split(" ")) res.write(`event: delta\ndata: ${JSON.stringify({ text: word })}\n\n`);
+      res.end("event: done\ndata: [DONE]\n\n");
+      return;
+    }
+    case "/ndjson/echo":
+      res.writeHead(200, { "content-type": "application/x-ndjson" });
+      res.end(`${JSON.stringify({ method: req.method, type: req.headers["content-type"] ?? null, body })}\n`);
+      return;
     case "/sse/wrong-type":
       res.writeHead(200, { "content-type": "text/plain" });
       res.end("data: x\n\n");
@@ -233,8 +250,12 @@ async function call<T>(key: string, input: unknown, options: { at?: ProcedureReg
   return outputValue(output, path);
 }
 
-async function stream<T>(key: string, input: unknown, options: { at?: ProcedureRegistry; signal?: AbortSignal } = {}): Promise<AsyncGenerator<T, void, undefined>> {
-  const output = await invokePath<T>(key.split("."), input, { registry: options.at ?? registry, ...(options.signal ? { signal: options.signal } : {}) });
+async function stream<T>(key: string, input: unknown, options: { at?: ProcedureRegistry; signal?: AbortSignal; deadline?: number } = {}): Promise<AsyncGenerator<T, void, undefined>> {
+  const output = await invokePath<T>(key.split("."), input, {
+    registry: options.at ?? registry,
+    ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.deadline !== undefined ? { capability: { deadline: options.deadline } } : {}),
+  });
   if (output.kind !== "stream") throw new Error(`${key} gave a value, not a stream`);
   return output.items;
 }
@@ -270,8 +291,9 @@ describe("the module", () => {
     const meta = (key: string) => registry.get(key.split("."))!.metadata as Record<string, unknown>;
     expect(meta("http.request")["effects"]).toEqual({ reads: ["network"], writes: ["network"] });
     expect(meta("http.json")["effects"]).toEqual({ reads: ["network"], writes: ["network"] });
-    expect(meta("http.ndjson")["effects"]).toEqual({ reads: ["network"], writes: [] });
-    expect(meta("http.sse")["effects"]).toEqual({ reads: ["network"], writes: [] });
+    // The streams send a POST too, and a POST can change remote data
+    expect(meta("http.ndjson")["effects"]).toEqual({ reads: ["network"], writes: ["network"] });
+    expect(meta("http.sse")["effects"]).toEqual({ reads: ["network"], writes: ["network"] });
     expect(meta("http.ndjson")["stream"]).toEqual({ unbounded: true });
     expect(meta("http.sse")["stream"]).toEqual({ unbounded: true });
     expect(meta("http.request")["stream"]).toBeUndefined();
@@ -597,6 +619,65 @@ describe("http.sse", () => {
       { event: "message", data: '{"n":1}', id: "1" },
       { event: "message", data: '{"n":2}', id: "2" },
     ]);
+    await closing;
+  });
+});
+
+describe("the streams of a POST", () => {
+  it("http.sse gives the events of the answer to a POST of JSON, as an LLM API sends them", async () => {
+    const events = await collect(
+      await stream<HttpSseOutput>("http.sse", { url: `${base}/sse/chat`, json: { prompt: "one two three" }, headers: { Authorization: "Bearer key" } }),
+    );
+    expect(events).toEqual([
+      { event: "delta", data: '{"text":"one"}' },
+      { event: "delta", data: '{"text":"two"}' },
+      { event: "delta", data: '{"text":"three"}' },
+      { event: "done", data: "[DONE]" },
+    ]);
+    const request = seen.get("/sse/chat")!;
+    expect(request).toMatchObject({ method: "POST", body: '{"prompt":"one two three"}' });
+    expect(request.headers).toMatchObject({ "content-type": "application/json", accept: "text/event-stream", authorization: "Bearer key" });
+    expect(request.headers["content-length"]).toBe(String(Buffer.byteLength('{"prompt":"one two three"}')));
+  });
+
+  it("http.ndjson sends a POST of text or JSON, a POST without a body, and a GET", async () => {
+    const echo = async (input: Record<string, unknown>) => collect(await stream("http.ndjson", { url: `${base}/ndjson/echo`, ...input }));
+    expect(await echo({ body: "hello" })).toEqual([{ method: "POST", type: "text/plain; charset=utf-8", body: "hello" }]);
+    // A header of the input replaces the content type of the body
+    expect(await echo({ json: { a: 1 }, headers: { "Content-Type": "application/vnd.api+json" } })).toEqual([
+      { method: "POST", type: "application/vnd.api+json", body: '{"a":1}' },
+    ]);
+    expect(await echo({ method: "POST" })).toEqual([{ method: "POST", type: null, body: "" }]);
+    expect(await echo({})).toEqual([{ method: "GET", type: null, body: "" }]);
+  });
+
+  it("refuses two bodies, a GET with a body, another method, and a body above the limit of the module", async () => {
+    expect((await failure(stream("http.sse", { url: `${base}/sse/chat`, body: "a", json: 1 }))).message).toMatch(/http\.sse: give only one of body and json/);
+    expect((await failure(stream("http.ndjson", { url: `${base}/ndjson/echo`, method: "GET", json: 1 }))).message).toMatch(/a GET request has no body/);
+    expect(await failure(stream("http.sse", { url: `${base}/sse/chat`, method: "PUT", json: 1 }))).toMatchObject({ code: "VALIDATION_ERROR" });
+    const small = createRegistry(createHttpModule({ allow: ["127.0.0.1"], resolve, maxRequestBytes: 8 }));
+    expect(await failure(stream("http.sse", { url: `${base}/sse/chat`, json: { prompt: "a long prompt" } }, { at: small }))).toMatchObject({ code: "REQUEST_TOO_LARGE" });
+  });
+
+  it("keeps the host check, the time limits, the deadline and the abort for a POST", async () => {
+    // The default module refuses loopback before a connection: the server sees no POST
+    seen.delete("/sse/chat");
+    await refusal(stream("http.sse", { url: `${base}/sse/chat`, json: { prompt: "x" } }, { at: createRegistry(httpModule) }));
+    expect(seen.has("/sse/chat")).toBe(false);
+
+    const timed = await stream("http.sse", { url: `${base}/sse/endless`, json: { prompt: "x" }, timeoutMs: 100 });
+    expect(await failure(collect(timed))).toMatchObject({ code: "TIMEOUT" });
+
+    const late = await stream("http.ndjson", { url: `${base}/ndjson/endless`, body: "x" }, { deadline: Date.now() + 100 });
+    expect(await failure(collect(late))).toMatchObject({ code: "TIMEOUT" });
+
+    const closing = closedPromise("/sse/endless");
+    const controller = new AbortController();
+    const events = await stream<HttpSseOutput>("http.sse", { url: `${base}/sse/endless`, json: { prompt: "x" } }, { signal: controller.signal });
+    expect((await events.next()).value).toEqual({ event: "message", data: '{"n":1}', id: "1" });
+    expect(seen.get("/sse/endless")).toMatchObject({ method: "POST", body: '{"prompt":"x"}' });
+    controller.abort();
+    expect(await failure(collect(events))).toMatchObject({ code: "ABORTED" });
     await closing;
   });
 });

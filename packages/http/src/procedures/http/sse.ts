@@ -1,17 +1,18 @@
 /**
  * http.sse procedure
  *
- * Read a stream of server-sent events. The procedure sends a GET with
- * `accept: text/event-stream`, and each event is one item: its type, its data and the last event
- * ID. The procedure does not connect again after the end of the stream. To continue, a caller
- * sends the last ID in `lastEventId`. The stream can run without an end (roadmap R15).
+ * Read a stream of server-sent events. The procedure sends a GET, or a POST with a body of JSON or
+ * text, with `accept: text/event-stream`. An LLM API sends its answer to a POST as such a stream.
+ * Each event is one item: its type, its data and the last event ID. The procedure does not
+ * connect again after the end of the stream. To continue, a caller sends the last ID in
+ * `lastEventId`. The stream can run without an end (roadmap R15).
  *
  * The call waits for the status of the response. A refused host, a failed connection, a status
  * outside 200 to 299 and another content type fail the call itself, before the first item.
  */
 
 import { HttpError } from "../../errors.js";
-import { DEFAULT_ITEM_BYTES, DEFAULT_SETTINGS, exchange, headerText, isOk, prepare, statusError, touching, type Exchange, type HttpSettings } from "../../exchange.js";
+import { DEFAULT_ITEM_BYTES, DEFAULT_SETTINGS, exchange, headerText, isOk, prepareStream, statusError, touching, type Exchange, type HttpSettings } from "../../exchange.js";
 import { sseEvents } from "../../parsers.js";
 import { CallScope, type ScopeContext } from "../../scope.js";
 import type { HttpSseInput, HttpSseOutput } from "../../types.js";
@@ -43,7 +44,7 @@ async function* events(opened: Exchange, scope: CallScope, maxEventBytes: number
 export async function httpSse(input: HttpSseInput, ctx: ScopeContext = {}, settings: HttpSettings = DEFAULT_SETTINGS): Promise<AsyncGenerator<HttpSseOutput, void, undefined>> {
   const headers: Record<string, string> = { accept: "text/event-stream", "cache-control": "no-cache" };
   if (input.lastEventId !== undefined) headers["last-event-id"] = input.lastEventId;
-  const prepared = prepare({ ...input, method: "GET" }, PATH, settings, { headers });
+  const prepared = prepareStream(input, PATH, settings, headers);
   const scope = new CallScope(PATH, ctx, { timeoutMs: input.timeoutMs, idleTimeoutMs: input.idleTimeoutMs });
   let opened: Exchange | undefined;
   try {

@@ -267,7 +267,13 @@ interface WebSocketTransportOptions {
     timeout?: number;    // default: 5000ms
     misses?: number;     // default: 1; pings without a pong that drop the connection
   };
+  webSocket?: WebSocketClass;  // the class of the sockets; default: the global WebSocket
 }
+
+// In Node, import the transport of the Node entry. Its sockets are of the `ws` package, so a
+// drop ends a socket at once with terminate(). The global WebSocket has only close(): with a
+// dead peer, its socket stays open until the kernel stops it (924.6 s in the cells of R36).
+import { WebSocketTransport } from "@procedures/client/node";
 
 // The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
 new WebSocketServerTransport(server, { server: http, heartbeat: { interval: seconds(30), misses: 2 } });
@@ -586,6 +592,13 @@ import { Client } from "@procedures/client/client";
 import { ... } from "@procedures/client/procedures";
 import { ... } from "@procedures/client/events";
 ```
+
+| Entry | Use |
+|---|---|
+| `@procedures/client` | Node. The browser entry and the server transports. Its `WebSocketTransport` uses the global `WebSocket`. |
+| `@procedures/client/browser` | A browser bundle. It does not import `http` or `ws`. |
+| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. |
+| `@procedures/client/register` | It registers the core procedures in the global registry. |
 
 ## Procedure Auto-Discovery
 

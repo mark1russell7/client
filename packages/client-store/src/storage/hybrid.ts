@@ -829,15 +829,23 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
   }
 
+  /**
+   * The metadata of the storage. `size` is the result of `size()`: the number of items of the
+   * storage, also in `remote-only` mode. `stats.localSize` is the number of items of the local
+   * copy. Before, `size` was the size of the local copy, which `remote-only` keeps empty (found by
+   * the contract suite of `@procedures/collections/testing`).
+   */
   async getMetadata(): Promise<StorageMetadata> {
+    const currentSize = await this.size();
+    const localSize = await this.local.size();
     const totalOps = this.stats.cacheHits + this.stats.cacheMisses;
     const hitRate = totalOps > 0 ? (this.stats.cacheHits / totalOps) * 100 : 0;
-    const currentSize = await this.local.size();
 
     return {
       type: "hybrid",
       size: currentSize,
       stats: {
+        localSize,
         hitRate: Math.round(hitRate * 100) / 100,
         cacheHits: this.stats.cacheHits,
         cacheMisses: this.stats.cacheMisses,
