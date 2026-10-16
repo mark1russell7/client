@@ -67,10 +67,12 @@ if (packages.length === 0) {
 
 /**
  * This function starts an npm command with the terminal of the user, so that npm can open the
- * browser for the 2FA and wait. It gives the exit code.
+ * browser for the 2FA and wait. It gives the exit code. With `logsDir`, npm writes its log there.
+ * The folder goes in `npm_config_logs_dir`, because `npm trust` refuses the flag `--logs-dir`.
  */
-function interactive(args) {
-  return spawnSync("npm", args, { cwd: root, stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
+function interactive(args, logsDir) {
+  const env = logsDir ? { ...process.env, npm_config_logs_dir: logsDir } : process.env;
+  return spawnSync("npm", args, { cwd: root, env, stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
 }
 
 /** This function tells if an npm log in a folder has a line that matches the pattern. */
@@ -253,7 +255,7 @@ if (trust) {
     if (dryRun) continue;
     // The npm log tells the HTTP status. After `--lock`, `npm trust list` also asks for the 2FA.
     const logs = mkdtempSync(join(tmpdir(), "client-trust-"));
-    const status = interactive([...args, "--logs-dir", logs]);
+    const status = interactive(args, logs);
     const conflict = status !== 0 && npmLogs(logs, /409 Conflict/);
     rmSync(logs, { recursive: true, force: true });
     if (status !== 0) {
@@ -319,12 +321,16 @@ try {
       // In the terminal, so that npm can open the browser for the 2FA
       const logs = join(out, "logs");
       mkdirSync(logs);
-      const publishArgs = ["publish", tgz, "--access", "public", "--provenance=false", "--logs-dir", logs, ...(otp ? ["--otp", otp] : [])];
+      const publishArgs = ["publish", tgz, "--access", "public", "--provenance=false", ...(otp ? ["--otp", otp] : [])];
       if (dryRun) publishArgs.push("--dry-run");
       console.log(`npm publish ${pkg.name}@${pkg.version}`);
-      if (interactive(publishArgs) === 0) {
+      if (interactive(publishArgs, logs) === 0) {
         staged.push(`${pkg.name}@${pkg.version}`);
         console.log(`${dryRun ? "would publish" : "published"} ${pkg.name}@${pkg.version}`);
+      } else if (npmLogs(logs, /cannot publish over the previously published version/)) {
+        // npm shows a new package some minutes after its publish, so `npm view` did not find it
+        skipped.push(`${pkg.name}@${pkg.version}`);
+        console.log(`skip  ${pkg.name}@${pkg.version}: on npm (npm does not show it yet)`);
       } else {
         failed.push(pkg.name);
         if (rateLimited(logs)) {
