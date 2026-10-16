@@ -281,6 +281,7 @@ export type {
   InvokeOptions,
   ProcedureOutput,
   InvocationErrorCode,
+  ForbiddenReason,
   Invocation,
   InvocationChanges,
   InvocationNext,

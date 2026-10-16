@@ -102,6 +102,45 @@ Since 0.2.0, an import of the package registers nothing. To register its procedu
 import "@procedures/fs/register";
 ```
 
+## Confine the paths to a root
+
+A host can give the file procedures a root folder. Then each path of each input must be in the root.
+
+```ts
+import { createRegistry } from "@procedures/client";
+import { createFsModule } from "@procedures/fs/module";
+import { bundleDevModule } from "@procedures/bundle-dev/module";
+
+// The module with the root comes first: it replaces the fsModule that the bundle requires
+const registry = createRegistry(createFsModule({ root: "/work/project" }), bundleDevModule);
+```
+
+`registerFsProcedures(registry, { root })` registers the procedures with the root in one registry.
+
+### Rules
+
+- A relative path starts at the root, not at the working folder of the process.
+- An absolute path in the root is correct.
+- The procedures refuse a path outside the root. The error has the code `FORBIDDEN` and the reason `outside-root`. A server sends the reason in the metadata key `reason`.
+- These paths are outside the root: a path that goes up with `..`, an absolute path in another folder and a path on another drive.
+- The procedures refuse a symlink or a junction that goes out of the root. The check uses the real path of the input (`fs.realpath`).
+- For a path that does not exist, the check uses the real path of the nearest folder above it. Thus a write or `fs.mkdir` cannot go out of the root through a symlinked folder.
+- The check follows a symlink to its target, also when the target does not exist, because a write follows the symlink too.
+- Each path input of each procedure gets the check: `path`, `src`, `dest` and the `cwd` of `fs.glob`.
+- `fs.glob` refuses an absolute pattern, a pattern that starts with a drive and a pattern with a `..` segment. It also removes each match whose real path is outside the root.
+- `fs.readdir` with `includeStats` gives no stats for an entry that goes out of the root.
+- The procedures get the absolute path, so the paths of the output are absolute.
+- On Windows, the check ignores the case of the letters, and `/` and `\` are equal.
+- A relative root starts at the working folder of the process when `createFsModule()` starts.
+- If the root does not exist, each procedure fails with the code `ENOENT`.
+- Without a root, the procedures operate on each path as before. `createFsModule()` gives `fsModule`.
+
+### Limits
+
+- The check and the operation are two steps. The check does not see a symlink that a process changes between the two steps.
+- The root applies only to the `fs.*` procedures. A package that uses `node:fs` directly does not get the root. Examples are `git.*` and `lib.*`.
+- The root does not replace the permissions of the operating system.
+
 ## API Reference
 
 ### File Operations
@@ -843,6 +882,9 @@ client-fs/
 │   ├── types.ts                  # Zod schemas + TypeScript types
 │   ├── register.ts               # Auto-registration
 │   ├── index.ts                  # Main entry point
+│   ├── module.ts                 # fsModule, createFsModule({ root })
+│   ├── root.ts                   # The check of a path against the root
+│   ├── handlers.ts               # The handlers with a root
 │   ├── procedures/
 │   │   ├── fs.ts                 # Barrel export
 │   │   └── fs/
