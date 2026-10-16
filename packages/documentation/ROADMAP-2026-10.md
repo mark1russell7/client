@@ -84,7 +84,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
 | R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
-| R37 | 8 | The service abstraction of `systems` in the client | M–L | open | |
+| R37 | 8 | The service abstraction of `systems` in the client | M–L | fixed: the clock, the heartbeat, the backoff and `replay` | systems PR #15 (`ba06091`), client `f4fe0f8` |
 | R38 | 9 | `@procedures/http` | S–M | fixed, not an MCP tool | `a6b01a9` |
 | R39 | 9 | JSON and YAML transforms | S | fixed, the pure ones are MCP tools | `a6b01a9`, `1779d96` |
 | R40 | 9 | More git operations, and `git.branch` in three procedures | S–M | fixed | `4cad9ab` |
@@ -491,6 +491,20 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 - The dependency direction stays: the client depends on the general packages of npm, and `systems` does not know `@procedures`.
 - The sizes, compressed: `quantity` 4.2 kB, the root of `service` 17.2 kB, the browser entry of the client 49.6 kB.
 - `quantity` 0.1.0 imports zod at its root and makes schemas there, so a bundler cannot remove zod. A bundle that imports the Durations gets approximately 95 kB of gzip. The client depends on zod already, so only a small bundle feels it, for example the port transport (R27). A change for service 0.3.0: a root entry of `quantity` without zod.
+
+**Result.** `quantity` 0.2.0 has a root without zod. Service 0.4.0 and algebra 0.5.0 (systems PR #15) have four small entries without `node:` and without zod:
+
+| Entry | Content | gzip |
+|---|---|---|
+| `@mark1russell7/service/clock` | `platformClock`, `realClock`, `Clock`, `Cancel` | 228 B |
+| `@mark1russell7/service/heartbeat` | `heartbeat`, `detectionTime` | 779 B |
+| `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` | 648 B |
+| `@mark1russell7/algebra/replay` | `replay` with open machine names | 418 B |
+
+- The Redis client of service uses the heartbeat and the backoff. Its tests did not change, and a new workflow runs them against a real Redis 7.4.
+- The client uses the four entries: the clock, the heartbeat of the WebSocket client, `reconnectDelay`, the retry middleware and `replayTransitions`. The delays are the same, and a property test of service compares the heartbeat with the old code of the client on 300 schedules.
+- The heartbeat of the WebSocket server stays in the client. It has one interval for all its sockets and a count of misses for each socket.
+- Not adopted yet: `run()` for the stop of the Node packages, and `start()` for the health checks of the peer.
 
 ## Tier 9: new packages and procedures
 
