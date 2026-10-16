@@ -1,5 +1,11 @@
 # @procedures/client
 
+## 0.2.1
+
+### Patch Changes
+
+- a9dc8c8: `admitItem`, the output filter of a capability, can give a promise: a filter that looks up the clearance of a record waits for it. The type is `AdmitItem`.
+
 ## 0.2.0
 
 ### Minor Changes
