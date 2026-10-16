@@ -471,6 +471,11 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     return this.inFlight;
   }
 
+  /** True while `stop()` waits for the calls in flight: the server refuses new calls. */
+  get stopping(): boolean {
+    return this.draining;
+  }
+
   /**
    * Run a keyed call one time. The run continues when its caller goes away, so that the next try
    * gets its result: only the deadline of the call and the stop of the server end it. A stream

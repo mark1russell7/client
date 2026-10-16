@@ -14,6 +14,8 @@ import {
   defaultServerUrlStrategy,
   defaultUrlPattern,
   procedureServerOptions,
+  hostProcedures,
+  metricsInterceptor,
   type BrowserGuardOptions,
   type HostPolicy,
   type Method,
@@ -57,6 +59,11 @@ export interface PeerOptions {
   registry?: ProcedureRegistry;
   /** The procedures that the peer serves (see `exposeRule`). Without it, the peer serves every procedure. */
   expose?: ((path: ProcedurePath) => boolean) | undefined;
+  /**
+   * The peer counts the calls of each procedure, and `host.metrics` gives the counts (roadmap
+   * R19). The default is true.
+   */
+  metrics?: boolean | undefined;
   /**
    * The policy of the host (`hostPolicy()` of the core, roadmap 2.3): the expose rule, the call
    * rule, the interceptors (a time limit), the token of each network transport that has none of
@@ -114,13 +121,27 @@ class PeerImpl implements Peer {
     this.registry = options.registry ?? PROCEDURE_REGISTRY;
     this.browser = policy?.browser ?? {};
 
-    // Create procedure server
+    // Create procedure server. The metrics interceptor counts each call for host.metrics (R19).
+    const metrics = options.metrics === false ? undefined : metricsInterceptor();
+    const serverOptions = policy ? procedureServerOptions(policy, this.registry) : {};
+    const interceptors = [...(serverOptions.interceptors ?? []), ...(metrics ? [metrics.interceptor] : [])];
     this.server = new ProcedureServer({
-      ...(policy ? procedureServerOptions(policy, this.registry) : {}),
+      ...serverOptions,
+      ...(interceptors.length > 0 ? { interceptors } : {}),
       autoRegister: options.autoRegister ?? true,
       registry: this.registry,
       ...(options.expose ? { expose: options.expose } : {}),
     });
+    // host.health, host.info and host.metrics: pinned on the server, not in the registry (R19)
+    this.server.registerProcedures(
+      hostProcedures({
+        id: this.id,
+        startedAt: this.startTime,
+        server: this.server,
+        endpoints: () => this.getEndpoints(),
+        ...(metrics ? { metrics } : {}),
+      })
+    );
   }
 
   async start(): Promise<void> {
