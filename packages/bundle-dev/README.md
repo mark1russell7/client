@@ -26,7 +26,7 @@ const packages = await client.exec(["lib", "scan"], {});
 | `client-fs` | 15 `fs.*` procedures: `read`, `read.json`, `write`, `write.json`, `exists`, `stat`, `mkdir`, `readdir`, `rm`, `copy`, `move`, `glob`, `hash`, `temp`, `watch` |
 | `client-cli` | `cli.run` |
 | `client-pnpm` | `pnpm.install`, `pnpm.add`, `pnpm.remove`, `pnpm.link`, `pnpm.run`, `pnpm.store.path` |
-| `client-lib` | `lib.scan`, `lib.new`, `lib.audit`, `lib.rename`, `lib.graph`, `ecosystem.procedures`, `core.catch` |
+| `client-lib` | `lib.scan`, `lib.new`, `lib.audit`, `lib.rename`, `lib.graph`, `ecosystem.procedures` |
 | `client-git` | 26 `git.*` procedures |
 | `client-dag` | `dag.traverse`. It uses `lib.scan` of `client-lib`. |
 | `client-procedure` | `procedure.new`, `procedure.export` |

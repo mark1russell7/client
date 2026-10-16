@@ -265,49 +265,7 @@ export interface LibAuditOutput {
   };
 }
 
-// The types of dag.traverse are in @procedures/dag.
-
-// =============================================================================
-// core.catch Types
-// =============================================================================
-
-export const CoreCatchInputSchema: z.ZodObject<{
-  try: z.ZodUnknown;
-  handler: z.ZodOptional<z.ZodUnknown>;
-  cwd: z.ZodOptional<z.ZodString>;
-}> = z.object({
-  /**
-   * Procedure ref to try executing.
-   * Should use $when: "catch" so it's not auto-executed during hydration.
-   *
-   * Example:
-   * ```json
-   * { "$proc": ["git", "commit"], "input": { "message": "auto" }, "$when": "catch" }
-   * ```
-   */
-  try: z.unknown().describe("Procedure ref to try executing. Should use $when: \"catch\" so it's not auto-executed during hydration. Example: ```json { \"$proc\": [\"git\", \"commit\"], \"input\": { \"message\": \"auto\" }, \"$when\": \"catch\" } ```"),
-  /**
-   * Handler procedure ref called on error.
-   * Receives StepResultInfo (success, error, proc) merged with its input.
-   * Should return ContinueDecision { continue: boolean }.
-   */
-  handler: z.unknown().optional().describe("Handler procedure ref called on error. Receives StepResultInfo (success, error, proc) merged with its input. Should return ContinueDecision { continue: boolean }."),
-  /** Working directory for procedure execution */
-  cwd: z.string().optional().describe("Working directory for procedure execution"),
-});
-
-export type CoreCatchInput = z.infer<typeof CoreCatchInputSchema>;
-
-export interface CoreCatchOutput {
-  /** Whether the try succeeded */
-  success: boolean;
-  /** Result from try (if success) or handler decision */
-  result?: unknown | undefined;
-  /** Error message if failed */
-  error?: string | undefined;
-  /** Whether execution should continue (from handler) */
-  continue: boolean;
-}
+// The types of dag.traverse are in @procedures/dag. core.catch is removed: use client.tryCatch.
 
 // =============================================================================
 // Output schemas (roadmap 2.1)
@@ -416,13 +374,6 @@ export const LibAuditOutputSchema: z.ZodType<LibAuditOutput> = z.looseObject({
       invalid: z.number().describe("The number of packages that fail"),
     })
     .describe("The counts"),
-});
-
-export const CoreCatchOutputSchema: z.ZodType<CoreCatchOutput> = z.looseObject({
-  success: z.boolean().describe("True when the try operand succeeded"),
-  result: z.unknown().optional().describe("The result of try, or the decision of the handler"),
-  error: z.string().optional().describe("The error of try, when it failed"),
-  continue: z.boolean().describe("True when the caller can continue"),
 });
 
 // =============================================================================

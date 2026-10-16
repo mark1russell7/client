@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, RUNS_REFS_TAG, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import gitModule from "@procedures/git/module";
 import fsModule from "@procedures/fs/module";
 import {
@@ -24,13 +24,11 @@ import {
   type EcosystemProceduresInput,
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
-import { coreCatch } from "./procedures/core/index.js";
 import {
   LibScanInputSchema,
   LibRenameInputSchema,
   LibNewInputSchema,
   LibAuditInputSchema,
-  CoreCatchInputSchema,
   type LibScanInput,
   type LibScanOutput,
   type LibRenameInput,
@@ -39,13 +37,10 @@ import {
   type LibNewOutput,
   type LibAuditInput,
   type LibAuditOutput,
-  type CoreCatchInput,
-  type CoreCatchOutput,
   LibScanOutputSchema,
   LibRenameOutputSchema,
   LibNewOutputSchema,
   LibAuditOutputSchema,
-  CoreCatchOutputSchema,
 } from "./types.js";
 import { LibGraphInputSchema, LibGraphOutputSchema, type LibGraphInput, type LibGraphOutput } from "./types.js";
 import type { ProcedureContext } from "@procedures/client";
@@ -166,29 +161,7 @@ const ecosystemProceduresProcedure = createProcedure()
   .build();
 
 // dag.traverse is in the module of @procedures/dag. It calls lib.scan of this module.
-
-// =============================================================================
-// core.* Procedures
-// =============================================================================
-
-const coreCatchProcedure = createProcedure()
-  .path(["core", "catch"])
-  .input(zodAdapter<CoreCatchInput>(CoreCatchInputSchema))
-  .output(zodAdapter<CoreCatchOutput>(CoreCatchOutputSchema))
-  .meta({
-    description: "Execute a procedure with error handling",
-    // It runs the procedure refs of its input: a server with an expose rule limits what they call
-    tags: [RUNS_REFS_TAG],
-    // Control flow: no effects of its own. The admission examines each nested call.
-    effects: { reads: [], writes: [] },
-    args: [],
-    shorts: {},
-    output: "json",
-  })
-  .handler(async (input: CoreCatchInput, ctx: ProcedureContext): Promise<CoreCatchOutput> => {
-    return coreCatch(input, ctx);
-  })
-  .build();
+// core.catch is removed: client.tryCatch of @procedures/client does the same.
 
 // =============================================================================
 // Registration
@@ -207,8 +180,6 @@ export const libModule: ProcedureModule = defineModule("@procedures/lib", [
     libGraphProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
-    // core.* procedures
-    coreCatchProcedure,
   ], [fsModule, gitModule]);
 
 export default libModule;

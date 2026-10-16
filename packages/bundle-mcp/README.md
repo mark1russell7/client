@@ -51,7 +51,7 @@ A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedur
 
 ## The packages of the bundle
 
-`register.ts` imports `client-lib`, `client-dag`, `client-procedure`, `compiler`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite` and `client-vitest`. Their dependencies register `shell.*`, `fs.*` and `git.*`. `client-lib` also registers `core.catch` and `ecosystem.procedures`, and `client-dag` registers `dag.traverse`. These procedures are registered but are not tools.
+`register.ts` imports `client-lib`, `client-dag`, `client-procedure`, `compiler`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite` and `client-vitest`. Their dependencies register `shell.*`, `fs.*` and `git.*`. `client-lib` also registers `ecosystem.procedures`, and `client-dag` registers `dag.traverse`. These procedures are registered but are not tools.
 
 ## Use
 

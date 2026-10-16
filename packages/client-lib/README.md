@@ -6,7 +6,7 @@
 npm install @procedures/lib
 ```
 
-`client-lib` gives the procedures that manage the packages of the monorepo, and a runner of programs.
+`client-lib` gives the procedures that manage the packages of the monorepo.
 
 | Procedure | Function |
 |---|---|
@@ -16,11 +16,13 @@ npm install @procedures/lib
 | `lib.rename` | Rename a package in each file of the workspace |
 | `lib.graph` | Give the dependency graph of the workspace packages, with its cycles |
 | `ecosystem.procedures` | List the procedures of the packages |
-| `core.catch` | Start a deferred call, and give the error to a handler call |
 
 Until October 2026, `client-lib` also had `lib.install`, `lib.pull` and `lib.refresh`, for one repository per package. The monorepo does not need them, and they are gone ([DECISIONS-2026-10.md](../documentation/DECISIONS-2026-10.md)).
 
-In version 0.3.0 and before, `client-lib` also had `dag.traverse`. It moved to [`client-dag`](../client-dag) (`@procedures/dag`), with the same name. It gets the packages from `lib.scan` of this package. Thus a host registers the two modules.
+In version 0.3.0 and before, `client-lib` also had two runners of programs:
+
+- `dag.traverse` moved to [`client-dag`](../client-dag) (`@procedures/dag`), with the same name. It gets the packages from `lib.scan` of this package. Thus a host registers the two modules.
+- `core.catch` is removed. It did the same as `client.tryCatch` of `@procedures/client`. Use `client.tryCatch`.
 
 ## Use
 
@@ -89,19 +91,6 @@ node packages/mark/dist/cli.js lib graph
 ## `ecosystem.procedures`
 
 Input: `rootPath`, `namespace` and `includeMetadata`. The output lists the procedures of the packages that have a `client.procedures` field.
-
-## `core.catch`
-
-`core.catch` starts the `try` call. When it fails, `core.catch` starts the `handler` call with the error in its input (`success: false`, `error`, `proc`). Give both calls `$when: "catch"`, so that they wait for this runner.
-
-```typescript
-await client.exec(["core", "catch"], {
-  try: { $proc: ["git", "commit"], input: { message: "auto" }, $when: "catch" },
-  handler: { $proc: ["client", "identity"], input: { value: { continue: true } }, $when: "catch" },
-});
-```
-
-The output gives `success`, `result`, `error` and `continue`. The calls of the `try` input start inside the error handling (deep dive DATA-22).
 
 ## Related packages
 
