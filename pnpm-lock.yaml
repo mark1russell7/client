@@ -191,6 +191,28 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/archive:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      tar:
+        specifier: ^7.5.0
+        version: 7.5.22
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/bundle-assistant:
     dependencies:
       '@procedures/client':
@@ -1008,6 +1030,25 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/env:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/exif:
     dependencies:
       '@procedures/client':
@@ -1174,6 +1215,28 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/llm:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/json':
+        specifier: workspace:*
+        version: link:../json
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/mail:
     dependencies:
       '@procedures/client':
@@ -1253,6 +1316,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/archive':
+        specifier: workspace:*
+        version: link:../archive
       '@procedures/bundle-assistant':
         specifier: workspace:*
         version: link:../bundle-assistant
@@ -1271,6 +1337,9 @@ importers:
       '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
+      '@procedures/env':
+        specifier: workspace:*
+        version: link:../env
       '@procedures/exif':
         specifier: workspace:*
         version: link:../exif
@@ -1295,6 +1364,9 @@ importers:
       '@procedures/json':
         specifier: workspace:*
         version: link:../json
+      '@procedures/llm':
+        specifier: workspace:*
+        version: link:../llm
       '@procedures/mail':
         specifier: workspace:*
         version: link:../mail
@@ -1316,6 +1388,9 @@ importers:
       '@procedures/s3':
         specifier: workspace:*
         version: link:../client-s3
+      '@procedures/schedule':
+        specifier: workspace:*
+        version: link:../schedule
       '@procedures/snapshot':
         specifier: workspace:*
         version: link:../client-snapshot
@@ -1443,6 +1518,31 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/schedule:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/store':
+        specifier: workspace:*
+        version: link:../client-store
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@mark1russell7/service':
+        specifier: ^0.2.0
+        version: 0.2.0(zod@4.6.5)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/server:
     dependencies:
       '@procedures/client':
@@ -1492,6 +1592,9 @@ importers:
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
+      '@procedures/archive':
+        specifier: workspace:*
+        version: link:../archive
       '@procedures/bundle-assistant':
         specifier: workspace:*
         version: link:../bundle-assistant
@@ -1516,6 +1619,9 @@ importers:
       '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
+      '@procedures/env':
+        specifier: workspace:*
+        version: link:../env
       '@procedures/exif':
         specifier: workspace:*
         version: link:../exif
@@ -1543,6 +1649,9 @@ importers:
       '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib
+      '@procedures/llm':
+        specifier: workspace:*
+        version: link:../llm
       '@procedures/mail':
         specifier: workspace:*
         version: link:../mail
@@ -1579,6 +1688,9 @@ importers:
       '@procedures/s3':
         specifier: workspace:*
         version: link:../client-s3
+      '@procedures/schedule':
+        specifier: workspace:*
+        version: link:../schedule
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
