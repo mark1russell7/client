@@ -17,8 +17,10 @@ MCP_BUNDLES=@procedures/bundle-mcp,@procedures/bundle-assistant mark mcp
 | Tool | What it does |
 |---|---|
 | `ics.parse`, `ics.occurrences` | They read a calendar file and its repeated events. They are pure. |
+| `ics.write` | It writes a calendar file from events. It is pure. |
 | `mail.parse` | It reads the headers and the text of a message. It is pure. |
 | `geo.geocode`, `geo.route` | They read one public service each. |
+| `geo.distance`, `geo.geohash` | They give the distance between two points and the geohash of a point. They are pure. |
 | `weather.forecast` | It reads one public service. |
 | `exif.read` | It reads the date and the place of a photo on the host. |
 

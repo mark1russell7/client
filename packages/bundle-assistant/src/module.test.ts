@@ -7,7 +7,18 @@ import { describe, expect, it } from "vitest";
 import { createRegistry, effectsOf, surfaceRule } from "@procedures/client";
 import { bundleAssistantModule, mcpExclude, mcpNamespaces } from "./module.js";
 
-const TOOLS = ["exif.read", "geo.geocode", "geo.route", "ics.occurrences", "ics.parse", "mail.parse", "weather.forecast"];
+const TOOLS = [
+  "exif.read",
+  "geo.distance",
+  "geo.geocode",
+  "geo.geohash",
+  "geo.route",
+  "ics.occurrences",
+  "ics.parse",
+  "ics.write",
+  "mail.parse",
+  "weather.forecast",
+];
 
 describe("bundle-assistant", () => {
   const registry = createRegistry(bundleAssistantModule);

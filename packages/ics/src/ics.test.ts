@@ -31,6 +31,13 @@ describe("parseIcs", () => {
     expect(event?.summary).toBe("A, B; C");
     expect(event?.location).toBe("1 Main St\nRoom 2");
     expect(unescapeText("a\\\\b")).toBe("a\\b");
+    // An escaped backslash before an "n" is not a line break
+    expect(unescapeText("C:\\\\new")).toBe("C:\\new");
+  });
+
+  it("decodes the escapes of a UID", () => {
+    const [event] = parseIcs(calendar(["UID:a\\,b\\;c", "DTSTART:20261020T150000Z"]));
+    expect(event?.uid).toBe("a,b;c");
   });
 
   it("puts an all-day event at noon UTC of its date, so each zone reads the same date", () => {

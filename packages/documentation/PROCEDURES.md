@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 279 across 46 namespaces. Loaded 41 package register(s).
+**Total procedures:** 282 across 46 namespaces. Loaded 41 package register(s).
 
 ## Namespaces
 
@@ -21,11 +21,11 @@
 - [`env.*`](#env) — 3 procedure(s)
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
-- [`geo.*`](#geo) — 2 procedure(s)
+- [`geo.*`](#geo) — 4 procedure(s)
 - [`gh.*`](#gh) — 13 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
-- [`ics.*`](#ics) — 3 procedure(s)
+- [`ics.*`](#ics) — 4 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
 - [`lib.*`](#lib) — 5 procedure(s)
 - [`llm.*`](#llm) — 2 procedure(s)
@@ -205,7 +205,9 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `geo.distance` | Give the great-circle distance between two points in kilometres (haversine), without the network |
 | `geo.geocode` | Find the coordinates of an address or a place name (OpenStreetMap Nominatim) |
+| `geo.geohash` | Give the geohash of a point and the cell of that geohash, without the network |
 | `geo.route` | Give the time and the distance of a drive between two points (OSRM) |
 
 ## gh
@@ -293,6 +295,7 @@
 | `ics.fetch` | Get a calendar feed and read its events |
 | `ics.occurrences` | Give the occurrences of the events of an iCalendar text in a time window, recurrences included |
 | `ics.parse` | Read the events of an iCalendar text |
+| `ics.write` | Write an iCalendar text from events: escaped text, folded lines and CRLF line ends |
 
 ## json
 
