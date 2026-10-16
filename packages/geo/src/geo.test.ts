@@ -46,7 +46,7 @@ describe("geo.geocode", () => {
 
 describe("geo.route", () => {
   it("gives the kilometres and the minutes of the first route", async () => {
-    const fetchMock = vi.fn(async () => Response.json({ code: "Ok", routes: [{ distance: 12_345, duration: 1_234 }] }));
+    const fetchMock = vi.fn(async (_url: string) => Response.json({ code: "Ok", routes: [{ distance: 12_345, duration: 1_234 }] }));
     vi.stubGlobal("fetch", fetchMock);
     const result = await call(["geo", "route"], { from: { lat: 1, lon: 2 }, to: { lat: 3, lon: 4 } });
     expect(result).toEqual({ km: 12.3, minutes: 21 });
