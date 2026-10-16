@@ -109,6 +109,18 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 4. Start the workflow again. It does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
 5. If the publish stops, start the workflow again. It skips the versions that are on npm.
 
+### The OIDC exchange of npm
+
+On 2026-10-16, npm refuses the OIDC exchange of this repository with "package not found". The cause is the immutable OIDC subject of GitHub ([npm/cli#9969](https://github.com/npm/cli/issues/9969)). New repositories get this subject. The general repositories are older, and they are not affected.
+
+Until npm corrects the exchange, publish each release from the computer of the owner:
+
+1. Merge the version pull request, or start `pnpm changeset version` and commit the result.
+2. Start `git pull`, `pnpm install` and `pnpm build`.
+3. In a terminal, start `node scripts/npm-bootstrap.mjs --publish`. npm opens the browser for the 2FA.
+
+A version from the computer has no provenance statement.
+
 ## A new public package
 
 1. Make it with `lib new`, as `client/CLAUDE.md` tells.

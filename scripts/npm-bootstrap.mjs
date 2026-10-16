@@ -74,13 +74,18 @@ function interactive(args) {
   return spawnSync("npm", args, { cwd: root, stdio: "inherit", shell: process.platform === "win32" }).status ?? 1;
 }
 
-/** This function tells if the npm logs in a folder show HTTP 429, the limit of new packages. */
-function rateLimited(logsDir) {
+/** This function tells if an npm log in a folder has a line that matches the pattern. */
+function npmLogs(logsDir, pattern) {
   try {
-    return readdirSync(logsDir).some((f) => /failed with 429|code E429/.test(readFileSync(join(logsDir, f), "utf8")));
+    return readdirSync(logsDir).some((f) => pattern.test(readFileSync(join(logsDir, f), "utf8")));
   } catch {
     return false;
   }
+}
+
+/** This function tells if the npm logs in a folder show HTTP 429, the limit of new packages. */
+function rateLimited(logsDir) {
+  return npmLogs(logsDir, /failed with 429|code E429/);
 }
 
 /**
@@ -246,9 +251,14 @@ if (trust) {
     if (otp) args.push("--otp", otp);
     console.log(`npm ${args.join(" ")}`);
     if (dryRun) continue;
-    if (interactive(args) !== 0) {
+    // The npm log tells the HTTP status. After `--lock`, `npm trust list` also asks for the 2FA.
+    const logs = mkdtempSync(join(tmpdir(), "client-trust-"));
+    const status = interactive([...args, "--logs-dir", logs]);
+    const conflict = status !== 0 && npmLogs(logs, /409 Conflict/);
+    rmSync(logs, { recursive: true, force: true });
+    if (status !== 0) {
       // npm refuses a second trust with HTTP 409: then the package trusts the workflow, which is correct
-      if (trustsWorkflow(pkg.name)) {
+      if (conflict || trustsWorkflow(pkg.name)) {
         console.log(`  ${pkg.name} trusts ${WORKFLOW} (npm refused a second trust).`);
       } else {
         failures.push(pkg.name);

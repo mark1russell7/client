@@ -59,7 +59,8 @@ try {
     if (inActions) args.push("--provenance");
     if (dryRun) args.push("--dry-run");
     const result = spawnSync("npm", args, { cwd: root, encoding: "utf8", shell: process.platform === "win32" });
-    const lines = `${result.stdout}\n${result.stderr}`.split("\n");
+    // The lines of the npm log, without the file list of the tarball
+    const lines = `${result.stdout}\n${result.stderr}`.split("\n").filter((l) => !/^npm notice\s+[\d.]+\s*[kMG]?B /.test(l));
     for (const line of lines.filter((l) => /oidc|provenance|transparency/i.test(l))) console.log(`      ${line.trim()}`);
 
     if (result.status === 0) {
@@ -68,7 +69,12 @@ try {
     } else {
       failed = pkg.name;
       console.error(`FAIL  ${pkg.name}@${pkg.version}`);
-      for (const line of lines.filter((l) => /error|http fetch (PUT|POST)/i.test(l)).slice(-30)) console.error(`      ${line.trim()}`);
+      for (const line of lines.filter((l) => /^npm (error|http fetch (PUT|POST))/.test(l)).slice(-15)) console.error(`      ${line.trim()}`);
+      if (lines.some((l) => /OIDC token exchange error - package not found/.test(l))) {
+        console.error("npm refused the OIDC exchange. This repository uses the immutable OIDC subject of GitHub, and the npm");
+        console.error("exchange refuses it (https://github.com/npm/cli/issues/9969, open on 2026-10-16). Until npm corrects it,");
+        console.error("publish from the computer of the owner: node scripts/npm-bootstrap.mjs --publish");
+      }
       break;
     }
   }

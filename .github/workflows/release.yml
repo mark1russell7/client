@@ -11,6 +11,10 @@ name: Release
 # each run. npm trusts this workflow for each package (trusted publishing with OIDC, no token):
 #   node scripts/npm-bootstrap.mjs --trust
 # packages/documentation/RELEASE.md tells the one-time bootstrap and the release steps.
+#
+# On 2026-10-16 npm refuses the OIDC exchange of this repository ("package not found"): the
+# repository has the immutable OIDC subject of GitHub (npm/cli#9969). Until npm corrects it, the
+# owner publishes from a computer: node scripts/npm-bootstrap.mjs --publish
 on:
   workflow_dispatch:
 
