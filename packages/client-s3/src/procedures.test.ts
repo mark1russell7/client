@@ -14,13 +14,16 @@ import { Readable } from "node:stream";
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
+  CopyObjectCommand,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   NoSuchBucket,
   NoSuchKey,
   NoSuchUpload,
+  NotFound,
   PutObjectCommand,
   S3ServiceException,
   UploadPartCommand,
@@ -147,6 +150,41 @@ class FakeS3 {
       // S3 answers 204 also for a missing key
       this.bucket(input["Bucket"]).delete(input["Key"]);
       return { $metadata };
+    }
+    if (command instanceof HeadObjectCommand) {
+      // A HEAD answer has no body: a missing bucket and a missing key are both a 404 NotFound
+      const object = this.buckets.get(input["Bucket"])?.get(input["Key"]);
+      if (!object) throw new NotFound({ message: "UnknownError", $metadata: { httpStatusCode: 404 } });
+      return {
+        ContentLength: object.body.length,
+        ContentType: object.contentType,
+        ETag: `"${object.etag}"`,
+        LastModified: object.lastModified,
+        Metadata: object.metadata ?? {},
+        $metadata,
+      };
+    }
+    if (command instanceof CopyObjectCommand) {
+      // The copy source is "bucket/key" with a URL-encoded key, and maybe "?versionId=..."
+      const source = String(input["CopySource"]).split("?")[0]!;
+      const cut = source.indexOf("/");
+      const sourceKey = decodeURIComponent(source.slice(cut + 1));
+      const original = this.bucket(source.slice(0, cut)).get(sourceKey);
+      if (!original) throw new NoSuchKey({ message: "The specified key does not exist.", $metadata });
+      const target = this.bucket(input["Bucket"]);
+      if (input["IfNoneMatch"] === "*" && target.has(input["Key"])) {
+        throw new S3ServiceException({ name: "PreconditionFailed", $fault: "client", message: "At least one of the pre-conditions you specified did not hold", $metadata: { httpStatusCode: 412 } });
+      }
+      const replace = input["MetadataDirective"] === "REPLACE";
+      const copy: StoredObject = {
+        body: Buffer.from(original.body),
+        contentType: replace ? input["ContentType"] : original.contentType,
+        metadata: replace ? input["Metadata"] : original.metadata,
+        etag: original.etag,
+        lastModified: new Date(),
+      };
+      target.set(input["Key"], copy);
+      return { CopyObjectResult: { ETag: `"${copy.etag}"`, LastModified: copy.lastModified }, $metadata };
     }
     if (command instanceof CreateMultipartUploadCommand) {
       this.bucket(input["Bucket"]);
@@ -350,6 +388,75 @@ describe("s3.delete", () => {
   });
 });
 
+describe("s3.head (R44)", () => {
+  it("gives the metadata of an object without its content", async () => {
+    await call(["s3", "upload"], { bucket: "b", key: "doc.json", body: '{"a":1}', contentType: "application/json", metadata: { owner: "me" } });
+    s3.sent.length = 0;
+    const head = await call<Record<string, unknown>>(["s3", "head"], { bucket: "b", key: "doc.json" });
+    expect(head).toMatchObject({ exists: true, contentLength: 7, contentType: "application/json", etag: md5(Buffer.from('{"a":1}')), metadata: { owner: "me" } });
+    expect(new Date(head["lastModified"] as string).toISOString()).toBe(head["lastModified"]);
+    expect(s3.sent).toEqual(["HeadObjectCommand"]);
+  });
+
+  it("gives exists: false for a missing key and a missing bucket (a 404)", async () => {
+    expect(await call(["s3", "head"], { bucket: "b", key: "missing" })).toEqual({ exists: false });
+    expect(await call(["s3", "head"], { bucket: "missing", key: "k" })).toEqual({ exists: false });
+  });
+
+  it("passes on an error that is not a 404, and validates its input", async () => {
+    const original = s3.send.bind(s3);
+    s3.send = async () => {
+      throw new S3ServiceException({ name: "AccessDenied", $fault: "client", message: "Access Denied", $metadata: { httpStatusCode: 403 } });
+    };
+    await expect(call(["s3", "head"], { bucket: "b", key: "k" })).rejects.toThrow("Access Denied");
+    s3.send = original;
+    await expect(call(["s3", "head"], { bucket: "b", key: "" })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});
+
+describe("s3.copy (R44)", () => {
+  it("copies an object in its bucket, with its metadata", async () => {
+    await call(["s3", "upload"], { bucket: "b", key: "dir/a b.txt", body: "hello", contentType: "text/plain", metadata: { k: "v" } });
+    const result = await call<Record<string, unknown>>(["s3", "copy"], { bucket: "b", sourceKey: "dir/a b.txt", key: "copy.txt" });
+    expect(result).toMatchObject({ etag: md5(Buffer.from("hello")), location: "s3://b/copy.txt" });
+    expect(typeof result["lastModified"]).toBe("string");
+    const copy = s3.buckets.get("b")!.get("copy.txt")!;
+    expect(copy.body.toString()).toBe("hello");
+    expect(copy).toMatchObject({ contentType: "text/plain", metadata: { k: "v" } });
+  });
+
+  it("copies into another bucket, and replaces the metadata with contentType or metadata", async () => {
+    await seed("a.txt");
+    s3.buckets.set("other", new Map());
+    await call(["s3", "copy"], { sourceBucket: "b", sourceKey: "a.txt", bucket: "other", key: "a.txt", contentType: "text/csv", metadata: { n: "1" } });
+    expect(s3.buckets.get("other")!.get("a.txt")).toMatchObject({ contentType: "text/csv", metadata: { n: "1" } });
+    expect(s3.buckets.get("b")!.has("a.txt")).toBe(true);
+  });
+
+  it("replaces the destination, unless overwrite is false", async () => {
+    await seed("a.txt", "b.txt");
+    await call(["s3", "copy"], { bucket: "b", sourceKey: "a.txt", key: "b.txt" });
+    expect(s3.buckets.get("b")!.get("b.txt")!.body.toString()).toBe("content of a.txt");
+    await expect(call(["s3", "copy"], { bucket: "b", sourceKey: "a.txt", key: "b.txt", overwrite: false })).rejects.toMatchObject({ name: "PreconditionFailed" });
+    await call(["s3", "copy"], { bucket: "b", sourceKey: "a.txt", key: "new.txt", overwrite: false });
+    expect(s3.buckets.get("b")!.has("new.txt")).toBe(true);
+  });
+
+  it("fails for a missing source, and sends the version id of the source", async () => {
+    await expect(call(["s3", "copy"], { bucket: "b", sourceKey: "missing", key: "x" })).rejects.toBeInstanceOf(NoSuchKey);
+    await seed("a.txt");
+    const sent: string[] = [];
+    const original = s3.send.bind(s3);
+    s3.send = async (command: { input: object }) => {
+      sent.push(String((command.input as Record<string, unknown>)["CopySource"]));
+      return original(command);
+    };
+    await call(["s3", "copy"], { bucket: "b", sourceKey: "a.txt", sourceVersionId: "v 1", key: "x" });
+    s3.send = original;
+    expect(sent).toEqual(["b/a.txt?versionId=v%201"]);
+  });
+});
+
 describe("s3.multipart.*", () => {
   it("uploads the parts, in any order, and completes the object", async () => {
     const init = await call<{ uploadId: string; bucket: string; key: string }>(["s3", "multipart", "init"], { bucket: "b", key: "big.bin", contentType: "application/octet-stream" });
@@ -427,7 +534,16 @@ const DECLARED: Record<string, Effects> = {
   "s3.multipart.upload": { reads: ["s3", "network"], writes: ["s3", "network"], idempotent: true },
   "s3.multipart.complete": { reads: ["s3", "network"], writes: ["s3", "network"] },
   "s3.multipart.abort": { reads: ["s3", "network"], writes: ["s3", "network"] },
+  "s3.head": { reads: ["s3", "network"], writes: [] },
+  "s3.copy": { reads: ["s3", "network"], writes: ["s3", "network"], destructive: true, idempotent: true },
+  "s3.presign": { reads: ["fs", "network"], writes: [] },
 };
+
+/**
+ * The procedures that the loop below does not run against the fake: s3.presign sends no request,
+ * and it needs a real S3 client (presign.test.ts has its tests).
+ */
+const NO_REQUEST = new Set(["s3.presign"]);
 
 /** An input for each procedure, in a bucket with the object `a.txt` and the upload `upload-1`. */
 function effectsInput(key: string): Record<string, unknown> {
@@ -447,6 +563,10 @@ function effectsInput(key: string): Record<string, unknown> {
       return { ...upload, parts: [{ partNumber: 1, etag: md5(Buffer.from("part one")) }] };
     case "s3.multipart.abort":
       return upload;
+    case "s3.head":
+      return { bucket: "b", key: "a.txt" };
+    case "s3.copy":
+      return { bucket: "b", sourceKey: "a.txt", key: "a-copy.txt" };
     default:
       return { bucket: "b" };
   }
@@ -466,6 +586,7 @@ describe("the effects of the s3 procedures", () => {
   });
 
   for (const [key, effects] of Object.entries(DECLARED)) {
+    if (NO_REQUEST.has(key)) continue;
     const changesS3 = effects.writes?.includes("s3") === true;
     it(`${key} ${changesS3 ? "changes the bucket" : "leaves the bucket as it is"}, and sends its request to S3`, async () => {
       const path = key.split(".");
