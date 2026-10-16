@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, parse } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ProcedureContext } from "@procedures/client";
 import { libNew } from "@procedures/lib";
@@ -19,6 +19,20 @@ import { procedureNew } from "@procedures/procedure";
 import "@procedures/procedure/register";
 
 const markModules = realpathSync(fileURLToPath(new URL("../node_modules", import.meta.url)));
+
+/**
+ * The parent of the temporary workspace: the temporary folder of the system, when it is on the
+ * drive of the checkout. The Windows runner of GitHub has its temporary folder on C: and the
+ * checkout on D:. There, the compile of the new package did not find its dependencies through the
+ * junction to another drive. Then the workspace goes in `node_modules/.cache` of mark.
+ */
+function scaffoldParent(): string {
+  const temp = tmpdir();
+  if (parse(temp).root.toLowerCase() === parse(markModules).root.toLowerCase()) return temp;
+  const cache = join(markModules, ".cache");
+  mkdirSync(cache, { recursive: true });
+  return cache;
+}
 
 type Handler = (input: Record<string, unknown>) => unknown;
 
@@ -83,7 +97,7 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
   const ctx = diskContext();
 
   beforeAll(async () => {
-    root = mkdtempSync(join(tmpdir(), "mark-scaffold-"));
+    root = mkdtempSync(join(scaffoldParent(), "mark-scaffold-"));
     writeFileSync(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
     mkdirSync(join(root, "packages"));
     link(join(markModules, "@mark1russell7", "cue"), join(root, "node_modules", "@mark1russell7", "cue"));
