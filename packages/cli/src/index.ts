@@ -32,7 +32,7 @@ async function main(): Promise<void> {
 }
 
 function printHelp(): void {
-  const lines: string[] = ["Usage: pnpm <group> <subcommand> [args]", "", "Groups:"];
+  const lines: string[] = ["Usage: repo-cli <group> <subcommand> [args]", "", "Groups:"];
   for (const [g, subs] of Object.entries(commands)) {
     lines.push(`  ${g}: ${Object.keys(subs).join(", ")}`);
   }

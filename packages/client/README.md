@@ -600,22 +600,19 @@ import { ... } from "@procedures/client/events";
 | `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. |
 | `@procedures/client/register` | It registers the core procedures in the global registry. |
 
-## Procedure Auto-Discovery
+## Procedure Discovery
 
-Packages can declare procedures in `package.json`:
+A package declares its procedures in `package.json`:
 
 ```json
 {
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "scripts": {
-    "postinstall": "client-registry announce"
   }
 }
 ```
 
-When installed, the package announces its procedures in `.client-registry.json`. Run `client-registry discover` to generate a file that imports the register entry of each announced package.
+The `mark` CLI finds the packages by the `client.procedures` field. An app imports the `/register` entry of each package that it uses, for example `import "@procedures/fs/register"`.
 
 ## Type-Safe Middleware
 

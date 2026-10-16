@@ -22,7 +22,7 @@ A program is JSON that names procedures and their inputs. [PROGRAM-FORMAT.md](./
 | Bundles | `bundle-dev`, `bundle-mcp` | Sets of packages. `bundle-mcp` also gives the tool list of the MCP server. |
 | Hosts | `mark`, `client-server`, `server`, `client-mcp`, `mcp`, `impl-mcp-dev` | The CLI, the peer server and the MCP server |
 | Website | `site` | The website, with the Composer |
-| Repository tool | `cli` | The template commands of the repository (`pnpm package`, `pnpm template`) |
+| Repository tool | `cli` | The command runner of the template. It has no commands: `lib new` makes the packages, and `lib.rename` renames them. |
 
 [PACKAGES.md](./PACKAGES.md) lists each package with its procedures and dependencies. [PROCEDURES.md](./PROCEDURES.md) lists each procedure. A script makes both files from the built packages.
 

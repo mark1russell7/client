@@ -72,9 +72,6 @@
       "import": "./dist/server/index.js"
     }
   },
-  "bin": {
-    "client-registry": "./dist/procedures/cli/index.js"
-  },
   "files": [
     "dist",
     "src",

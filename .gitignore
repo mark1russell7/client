@@ -64,9 +64,6 @@ dist/
 .coverage
 coverage/
 
-# The registry file that `client-registry announce` writes at the workspace root
-.client-registry.json
-
 # Node / JS
 node_modules/
 .npm

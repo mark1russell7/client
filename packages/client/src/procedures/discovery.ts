@@ -1,13 +1,11 @@
 /**
  * Procedure Registration Helpers
  *
- * Manual registration helpers for procedures. For compile-time auto-discovery,
- * use the CLI: `npx client-registry discover`
+ * These helpers add procedures to the global registry.
  *
- * Libraries that depend on client should:
- * 1. Add `"client": { "procedures": "./dist/register.js" }` to package.json
- * 2. Create a register.ts that uses createAndRegister()
- * 3. Consumers run `npx client-registry discover` to generate imports
+ * A package with procedures declares `"client": { "procedures": "./dist/register.js" }` in its
+ * `package.json`. Its `src/register.ts` registers its module. `mark` finds the packages by the
+ * `client.procedures` field, and an app imports the `/register` entry of each package that it uses.
  */
 
 import { PROCEDURE_REGISTRY } from "./registry.js";

@@ -170,19 +170,12 @@ async function* runWithTimeout<TReq, TRes>(
         phase = "done";
         return;
       }
-      if (result.value.status.type === "error" && timedOut()) {
-        // The transport saw the aborted signal and reported ABORTED: it is a timeout
-        yield timeoutItem();
-        return;
-      }
+      // An item or an error of the transport comes before the abort. `nextOrAbort` adds its abort
+      // listener before it calls `next()`, so a later abort gives ABORTED_FIRST, not an item.
       yield result.value;
     }
   } catch (error) {
     phase = "done";
-    if (timedOut()) {
-      yield timeoutItem();
-      return;
-    }
     throw error;
   } finally {
     clearTimeout(timeoutId);

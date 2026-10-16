@@ -219,7 +219,12 @@ export interface UserCreateOutput {
 export { userCreate } from "./create.js";
 ```
 
-4. **Registration** (added to `src/register.ts`: the imports, the definition, and the item of the `registerProcedures([...])` array):
+4. **Registration**: the imports, the definition, and the item of the list of procedures go into `src/module.ts`. The list is the second argument of `defineModule`:
+   - an array literal: `defineModule("@procedures/demo", [userCreateProcedure])`
+   - a variable that `src/module.ts` declares as an array: `const procedures = [userCreateProcedure]`
+   - a spread of such a variable: `defineModule("@procedures/demo", [...procedures])`. The item goes into the array of the variable.
+
+   The definition goes before the list that uses it. When the list comes from another file or from a function, `procedure.new` fails and writes nothing. A package of the old kind, without `src/module.ts`, gets the procedure in the `registerProcedures([...])` array of `src/register.ts`:
 ```typescript
 import { createProcedure, outputSchema, registerProcedures, zodAdapter } from "@procedures/client";
 import { userCreate } from "./procedures/user/create.js";
@@ -243,7 +248,7 @@ export function register(): void {
 }
 ```
 
-If `src/register.ts` has no `registerProcedures([...])` or `registerAll([...])` call, the operations say what to add.
+If the file has no list that `procedure.new` can change, the result has `success: false`, the error gives the reason, and no file changes.
 
 #### `procedure.list`
 

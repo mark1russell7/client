@@ -1102,17 +1102,20 @@ export async function commit(
 
 ## Configuration
 
-### Auto-Registration
+### Registration
 
-Procedures are automatically registered when the package is loaded:
+An import of the package root registers nothing. Import the `./register` entry to register the procedures in the global registry:
+
+```typescript
+import "@procedures/git/register";
+```
+
+The `client.procedures` field of `package.json` names that entry. `mark` finds the package by this field:
 
 ```json
 {
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "scripts": {
-    "postinstall": "client-registry announce"
   }
 }
 ```
