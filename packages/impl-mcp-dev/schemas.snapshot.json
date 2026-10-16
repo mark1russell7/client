@@ -376,6 +376,48 @@
       "tag"
     ]
   },
+  "docker.compose.build": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "description": "Compose file path",
+        "type": "string"
+      },
+      "services": {
+        "description": "The services (default: all)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "noCache": {
+        "description": "Do not use cache when building",
+        "type": "boolean"
+      },
+      "pull": {
+        "description": "Pull newer versions of the base images",
+        "type": "boolean"
+      },
+      "buildArgs": {
+        "description": "Build arguments",
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
   "docker.compose.down": {
     "type": "object",
     "properties": {
@@ -398,6 +440,106 @@
           "all",
           "local"
         ]
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
+  "docker.compose.logs": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "description": "Compose file path",
+        "type": "string"
+      },
+      "services": {
+        "description": "The services (default: all)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "tail": {
+        "description": "The number of lines from the end of each log",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "since": {
+        "description": "Only the logs after this time, for example 10m or 2026-10-16T10:00:00",
+        "type": "string"
+      },
+      "timestamps": {
+        "description": "Show timestamps",
+        "type": "boolean"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
+  "docker.compose.ps": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "description": "Compose file path",
+        "type": "string"
+      },
+      "services": {
+        "description": "The services (default: all)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "all": {
+        "description": "Also the stopped containers",
+        "type": "boolean"
+      },
+      "format": {
+        "description": "A Go template or json for the output (--format)",
+        "type": "string"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
+  "docker.compose.restart": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "description": "Compose file path",
+        "type": "string"
+      },
+      "services": {
+        "description": "The services (default: all)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "time": {
+        "description": "Seconds to wait for the stop before killing",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
       },
       "cwd": {
         "description": "Working directory",
@@ -453,8 +595,15 @@
         "description": "Container name or ID"
       },
       "command": {
-        "type": "string",
-        "description": "Command to execute"
+        "description": "Command to execute, split at whitespace. For an argument with spaces, use args",
+        "type": "string"
+      },
+      "args": {
+        "description": "The command as a list of arguments, each one as it is (not with command)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       },
       "interactive": {
         "description": "Run interactively",
@@ -488,8 +637,74 @@
       }
     },
     "required": [
-      "container",
-      "command"
+      "container"
+    ]
+  },
+  "docker.images": {
+    "type": "object",
+    "properties": {
+      "repository": {
+        "description": "Only the images of this repository, for example nginx or nginx:1.27",
+        "type": "string"
+      },
+      "all": {
+        "description": "Also the intermediate images",
+        "type": "boolean"
+      },
+      "filter": {
+        "description": "A filter of docker, for example label=app or dangling=true",
+        "type": "string"
+      },
+      "format": {
+        "description": "A Go template or json for the output (--format)",
+        "type": "string"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
+  "docker.inspect": {
+    "type": "object",
+    "properties": {
+      "targets": {
+        "minItems": 1,
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "The names or the IDs of the objects"
+      },
+      "type": {
+        "description": "The type of the objects (default: any type)",
+        "type": "string",
+        "enum": [
+          "container",
+          "image",
+          "volume",
+          "network"
+        ]
+      },
+      "format": {
+        "description": "A Go template for the output. Without it, the output is JSON, and data has it",
+        "type": "string"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    },
+    "required": [
+      "targets"
     ]
   },
   "docker.logs": {
@@ -522,6 +737,89 @@
     },
     "required": [
       "container"
+    ]
+  },
+  "docker.network.create": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The network name"
+      },
+      "driver": {
+        "description": "The network driver (default: bridge)",
+        "type": "string"
+      },
+      "internal": {
+        "description": "No access to networks outside the host",
+        "type": "boolean"
+      },
+      "labels": {
+        "description": "Labels",
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  },
+  "docker.network.list": {
+    "type": "object",
+    "properties": {
+      "filter": {
+        "description": "A filter of docker, for example label=app or dangling=true",
+        "type": "string"
+      },
+      "format": {
+        "description": "A Go template or json for the output (--format)",
+        "type": "string"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
+  "docker.network.remove": {
+    "type": "object",
+    "properties": {
+      "networks": {
+        "minItems": 1,
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "The network names or IDs"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    },
+    "required": [
+      "networks"
     ]
   },
   "docker.ps": {
@@ -648,8 +946,15 @@
         "type": "boolean"
       },
       "command": {
-        "description": "Command to run in container",
+        "description": "Command to run in container, split at whitespace. For an argument with spaces, use args",
         "type": "string"
+      },
+      "args": {
+        "description": "The command as a list of arguments, each one as it is (not with command)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       },
       "cwd": {
         "description": "Working directory",
@@ -690,6 +995,83 @@
     "required": [
       "containers"
     ]
+  },
+  "docker.tag": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "type": "string",
+        "description": "The image, for example app:latest or an image ID"
+      },
+      "target": {
+        "type": "string",
+        "description": "The new name, for example registry.example.com/app:1.0. An image with this name loses it"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    },
+    "required": [
+      "source",
+      "target"
+    ]
+  },
+  "docker.volume.create": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "description": "The volume name (default: a random name)",
+        "type": "string"
+      },
+      "driver": {
+        "description": "The volume driver (default: local)",
+        "type": "string"
+      },
+      "labels": {
+        "description": "Labels",
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
+  },
+  "docker.volume.list": {
+    "type": "object",
+    "properties": {
+      "filter": {
+        "description": "A filter of docker, for example label=app or dangling=true",
+        "type": "string"
+      },
+      "format": {
+        "description": "A Go template or json for the output (--format)",
+        "type": "string"
+      },
+      "cwd": {
+        "description": "Working directory",
+        "type": "string"
+      },
+      "timeout": {
+        "description": "Timeout in milliseconds",
+        "type": "number"
+      }
+    }
   },
   "lib.audit": {
     "type": "object",

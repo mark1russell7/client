@@ -21,15 +21,27 @@ cue.validate: read only
 db.execute: destructive
 db.query: read only
 docker.build: additive, open world
+docker.compose.build: additive, open world
 docker.compose.down: destructive, idempotent
+docker.compose.logs: read only
+docker.compose.ps: read only
+docker.compose.restart: destructive
 docker.compose.up: destructive, open world
 docker.exec: destructive, open world
+docker.images: read only
+docker.inspect: read only
 docker.logs: read only
+docker.network.create: additive, idempotent
+docker.network.list: read only
+docker.network.remove: destructive, idempotent
 docker.ps: read only
 docker.pull: additive, idempotent, open world
 docker.rm: destructive
 docker.run: destructive, open world
 docker.stop: destructive, idempotent
+docker.tag: destructive, idempotent
+docker.volume.create: additive, idempotent
+docker.volume.list: read only
 lib.audit: additive, idempotent
 lib.new: additive, open world
 lib.rename: destructive

@@ -80,6 +80,8 @@ export const mcpNamespaces: readonly string[] = [
  * Procedures of the exposed namespaces that are not tools all the same:
  * - `vitest.watch` starts a long-running process. `vitest.stop` and `vitest.list` manage these
  *   processes. A tool call does not leave a process running, so the three stay out (deep dive WRP-4);
+ * - `docker.prune` deletes in bulk, `docker.volume.remove` deletes the data of a volume, and
+ *   `docker.push` can carry an image out to any registry (roadmap R41);
  * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@procedures/store`
  *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
  *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
@@ -87,6 +89,9 @@ export const mcpNamespaces: readonly string[] = [
  *   with no handler (deep dive CORE-16, DATA-10).
  */
 export const mcpExclude: readonly string[] = [
+  "docker.prune",
+  "docker.push",
+  "docker.volume.remove",
   "vitest.watch",
   "vitest.stop",
   "vitest.list",
