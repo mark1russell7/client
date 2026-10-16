@@ -47,7 +47,7 @@ Wave 1 (2026-10-08) fixed the findings in seven parallel branches, one for each 
 | CORE-14 | medium | fixed | `92980cb` | The documented override keys map to the middleware keys. Leaves after a validation error come back as `SKIPPED`. |
 | CORE-15 | low–medium | fixed | `f40d27c` | The event bus defects are fixed. Each procedure context has a bus (`Client` option `bus`, or the global bus). |
 | CORE-16 / DATA-10 | low–medium | fixed | `8d1e7f3`, `6567e2d` | `procedure.store`/`load`/`sync` work on a program store (`client-store`) and fail with `NOT_CONFIGURED` without one. Decision: `procedure.remote connect` stays `NOT_IMPLEMENTED`, because a storage that a procedure makes at run time would give it network reach. |
-| CORE-17 | low | fixed | `6b05f8f`, `065436b` | discover follows the exports map. announce locks and writes atomically, also under Windows file contention. |
+| CORE-17 | low | fixed | `6b05f8f`, `065436b` | discover follows the exports map. announce locks and writes atomically, also under Windows file contention. On 2026-10-16 the owner removed the `client-registry` command: `mark` finds the packages, and the `/register` entries register them. |
 | Low items | low | fixed | `e2bbe2c`, `8a9e7c7` | `continueOnError`, race cancellation, the stream buffer options, `outputMode: "batch"`, child components through `invokeProcedure`, `isStreamingFactory`, the `unregister` event on override, `Client.exec(ref, input)`. |
 
 ## Transports, server and middleware

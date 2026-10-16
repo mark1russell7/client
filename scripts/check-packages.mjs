@@ -166,7 +166,7 @@ console.log(names.length + " packages import and register nothing, " + ${JSON.st
           continue;
         }
         // A server bin waits for requests: only examine that it exists
-        if (bin === "mcp-dev-tools" || bin === "client-registry") continue;
+        if (bin === "mcp-dev-tools") continue;
         try {
           run("node", [file, "--help"], app, true);
           console.log(`  ok   ${bin} --help`);

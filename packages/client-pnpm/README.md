@@ -578,12 +578,11 @@ export function registerPnpmProcedures(): void;
 {
   "client": {
     "procedures": "./dist/register.js"
-  },
-  "scripts": {
-    "postinstall": "client-registry announce"
   }
 }
 ```
+
+The `mark` CLI finds the package by this field. An app registers the procedures with `import "@procedures/pnpm/register"`.
 
 ### Build Scripts
 
