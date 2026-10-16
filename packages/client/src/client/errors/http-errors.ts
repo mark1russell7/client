@@ -8,6 +8,7 @@
 import { ErrorCategory, ErrorSeverity, type ErrorMetadata } from "./types.js";
 import { ErrorCode } from "./codes.js";
 import { HTTPStatus } from "./http-status.js";
+import { httpStatusOf } from "../../protocol.js";
 
 /**
  * Helper to create HTTP error metadata.
@@ -595,6 +596,10 @@ export function httpStatusToErrorCode(status: number): ErrorCode {
  * ```
  */
 export function errorCodeToHTTPStatus(code: ErrorCode): HTTPStatus {
+  // A code of the wire protocol has the status of ERROR_CODES: before, TIMEOUT gave 408 here and
+  // 504 on the wire
+  const protocolStatus = httpStatusOf(code);
+  if (protocolStatus !== undefined) return protocolStatus as HTTPStatus;
   // Build map from HTTP_STATUS_ERROR_MAP
   const entry = HTTP_STATUS_ERROR_MAP.find(([, errorCode]) => errorCode === code);
   return entry?.[0] ?? HTTPStatus.INTERNAL_SERVER_ERROR;

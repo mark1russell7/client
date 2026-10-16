@@ -86,7 +86,7 @@ The check ignores `format` and the other annotations, as the standard tells. The
 
 ## Errors
 
-Each error is a `JsonError`. A server sends it with the code `HANDLER_ERROR` and the message. The field `code` tells the kind:
+Each error is a `JsonError`. A server sends it with its code and its message, and HTTP gives it the status 500. The field `code` tells the kind:
 
 | Code | Cause |
 |---|---|

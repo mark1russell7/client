@@ -184,7 +184,7 @@ export const orMetadata: LogicMetadata = {
  * Metadata for the NOT operator.
  */
 export const notMetadata: LogicMetadata = {
-  description: "Logical NOT",
+  description: "Logical NOT of a value",
   tags: ["core", "logic"],
   arity: "unary",
   commutative: false, // n/a for unary

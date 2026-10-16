@@ -213,6 +213,8 @@ console.error(formatError(error, true)); // include stack trace
 2. Add metadata to `ERROR_REGISTRY` in `registry.ts` or `HTTP_ERROR_REGISTRY` in `http-errors.ts`
 3. If HTTP-related, add to `HTTP_STATUS_ERROR_MAP` in `http-errors.ts`
 
+`ERROR_CODES` of the wire protocol (`src/protocol.ts`, `WIRE-PROTOCOL.md`) is the source of the codes of the protocol. `ERROR_REGISTRY` has an entry for each of them, and that entry takes its HTTP status and its retry flag from `ERROR_CODES`. To add a code of the protocol, add it to `ERROR_CODES`. A code without texts in `registry.ts` gets the meaning of the protocol as its texts. `defineProtocolError` gives a code of the protocol its own texts.
+
 Example:
 ```typescript
 // 1. Add to ErrorCode enum

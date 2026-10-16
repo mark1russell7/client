@@ -402,6 +402,8 @@ interface ReaddirEntry {
 
 Copy a file or directory.
 
+Without `overwrite`, an existing destination is an error with the code `EEXIST`, and the copy changes nothing. This applies to a file and to a folder. With `overwrite`, the copy replaces the files at the destination.
+
 ```typescript
 // Copy file
 await client.exec(
@@ -430,7 +432,7 @@ interface CopyInput {
   src: string;
   dest: string;
   recursive?: boolean;       // Default: true
-  overwrite?: boolean;       // Default: false
+  overwrite?: boolean;       // Default: false. Without it, an existing destination is an error (EEXIST)
 }
 ```
 

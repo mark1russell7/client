@@ -84,9 +84,16 @@ const ConditionalInputSchema = z.looseObject({
 const LogicInputSchema = z.looseObject({
   values: z.array(z.unknown()).describe("The operands, in order: values or calls. The evaluation stops at the deciding value."),
 });
-const NotInputSchema = z.looseObject({ value: operand("The value or call to negate") });
+// not, all, any and none take values (roadmap R29, the owner's choice). They do not run a call in
+// their operands: a call is an object, thus truthy. In a program, the calls of their input run
+// first, as for each procedure that is not control flow. client.and and client.or run calls.
+const NotInputSchema = z.looseObject({
+  value: operand("The value to negate. This procedure does not run a call: a call is an object, thus truthy."),
+});
 const VariadicBoolInputSchema = z.looseObject({
-  values: z.array(z.unknown()).describe("The values or calls to evaluate"),
+  values: z
+    .array(z.unknown())
+    .describe("The values to evaluate. This procedure does not run calls: a call is an object, thus truthy. client.and and client.or run calls."),
 });
 const MapInputSchema = z.looseObject({
   items: operand("The array, or a call that gives it"),

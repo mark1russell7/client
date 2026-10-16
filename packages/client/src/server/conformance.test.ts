@@ -80,6 +80,27 @@ function registryOf(seen: Seen): ProcedureRegistry {
           return "ended";
         })
         .build(),
+      // A handler error, with the code of the input or without a code (WIRE-PROTOCOL.md: the
+      // server keeps the code of a handler error)
+      createProcedure()
+        .path(["conf", "fail"])
+        .input(z.object({ code: z.string().optional() }))
+        .output(z.string())
+        .meta({ effects: read })
+        .handler(async (input: { code?: string | undefined }) => {
+          throw Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code });
+        })
+        .build(),
+      createProcedure()
+        .path(["conf", "failStream"])
+        .input(z.object({ code: z.string().optional() }))
+        .output(z.number())
+        .meta({ effects: read })
+        .handler(async function* (input: { code?: string | undefined }) {
+          yield 1;
+          throw Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code });
+        } as never)
+        .build(),
     ],
   });
 }
@@ -191,6 +212,46 @@ describe.each(faces)("the conformance of $name (R18)", (face) => {
     const until = Date.now() + 2000;
     while (seen.aborted === 0 && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 10));
     expect(seen.aborted).toBe(1);
+  });
+
+  it("keeps the code of a handler error for a value and for a stream, and gives HANDLER_ERROR without a code", async () => {
+    const client = await face.client(fresh());
+    await expect(client.call(pathToMethod(["conf", "fail"]), { code: "E_CUSTOM" })).rejects.toMatchObject({ code: "E_CUSTOM", message: "it failed" });
+    await expect(client.call(pathToMethod(["conf", "fail"]), {})).rejects.toMatchObject({ code: "HANDLER_ERROR", message: "it failed" });
+    const read = async (code?: string): Promise<number[]> => {
+      const items: number[] = [];
+      for await (const item of client.stream<unknown, number>(pathToMethod(["conf", "failStream"]), code === undefined ? {} : { code })) items.push(item);
+      return items;
+    };
+    await expect(read("E_CUSTOM")).rejects.toMatchObject({ code: "E_CUSTOM", message: "it failed" });
+    await expect(read()).rejects.toMatchObject({ code: "HANDLER_ERROR" });
+  });
+});
+
+describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
+  it("follows the code: the status of ERROR_CODES for a code of the protocol, and 500 for another code", async () => {
+    const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true });
+    const app = express();
+    const http = createServer(app);
+    server.addTransport(new HttpServerTransport(server, { app, httpServer: http }));
+    await server.start();
+    const port = await listen(http);
+    cleanups.push(async () => {
+      await server.stop();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const post = async (body: unknown) => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/conf/fail`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+    };
+    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", error: "it failed" } });
+    expect(await post({ code: "E_CUSTOM" })).toMatchObject({ status: 500, body: { code: "E_CUSTOM", error: "it failed" } });
+    expect(await post({})).toMatchObject({ status: 500, body: { code: "HANDLER_ERROR", error: "it failed" } });
   });
 });
 
