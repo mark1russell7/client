@@ -52,7 +52,8 @@ async function start(token?: string): Promise<string> {
 
 async function connect(url: string, headers: Record<string, string> = {}): Promise<McpClient> {
   const client = new McpClient({ name: "test", version: "0" });
-  await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers } }));
+  // The SDK types do not agree with exactOptionalPropertyTypes
+  await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers } }) as never);
   cleanups.push(() => client.close());
   return client;
 }
