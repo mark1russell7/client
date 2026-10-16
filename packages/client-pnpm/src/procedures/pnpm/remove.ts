@@ -5,7 +5,7 @@
  */
 
 import type { ProcedureContext } from "@procedures/client";
-import { pnpmArg, runPnpm } from "./shared.js";
+import { pnpmArg, runPnpm, selectionArgs } from "./shared.js";
 import type { PnpmRemoveInput, PnpmCommandOutput } from "../../types.js";
 
 /**
@@ -22,7 +22,7 @@ export async function pnpmRemove(
   ctx: ProcedureContext
 ): Promise<PnpmCommandOutput> {
   {
-    const args: string[] = ["remove", ...input.packages.map((p) => pnpmArg("package", p))];
+    const args: string[] = [...selectionArgs(input), "remove", ...input.packages.map((p) => pnpmArg("package", p))];
 
     // Add flags
     if (input.global) args.push("--global");

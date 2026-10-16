@@ -5,7 +5,7 @@
  */
 
 import type { ProcedureContext } from "@procedures/client";
-import { pnpmArg, runPnpm } from "./shared.js";
+import { pnpmArg, runPnpm, selectionArgs } from "./shared.js";
 import type { PnpmRunInput, PnpmCommandOutput } from "../../types.js";
 
 /**
@@ -29,7 +29,7 @@ export async function pnpmRun(
   ctx: ProcedureContext
 ): Promise<PnpmCommandOutput> {
   {
-    const args: string[] = ["run", pnpmArg("script", input.script)];
+    const args: string[] = [...selectionArgs(input), "run", pnpmArg("script", input.script)];
 
     // Add additional arguments
     if (input.args && input.args.length > 0) {

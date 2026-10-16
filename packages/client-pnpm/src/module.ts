@@ -29,6 +29,38 @@ import {
   PnpmStorePathOutputSchema,
 } from "./types.js";
 import type { ProcedureContext } from "@procedures/client";
+import { pnpmExec } from "./procedures/pnpm/exec.js";
+import { pnpmList } from "./procedures/pnpm/list.js";
+import { pnpmWhy } from "./procedures/pnpm/why.js";
+import { pnpmOutdated } from "./procedures/pnpm/outdated.js";
+import { pnpmUpdate } from "./procedures/pnpm/update.js";
+import { pnpmPack } from "./procedures/pnpm/pack.js";
+import {
+  PnpmExecInputSchema,
+  PnpmExecOutputSchema,
+  type PnpmExecInput,
+  type PnpmExecOutput,
+  PnpmListInputSchema,
+  PnpmListOutputSchema,
+  type PnpmListInput,
+  type PnpmListOutput,
+  PnpmWhyInputSchema,
+  PnpmWhyOutputSchema,
+  type PnpmWhyInput,
+  type PnpmWhyOutput,
+  PnpmOutdatedInputSchema,
+  PnpmOutdatedOutputSchema,
+  type PnpmOutdatedInput,
+  type PnpmOutdatedOutput,
+  PnpmUpdateInputSchema,
+  PnpmUpdateOutputSchema,
+  type PnpmUpdateInput,
+  type PnpmUpdateOutput,
+  PnpmPackInputSchema,
+  PnpmPackOutputSchema,
+  type PnpmPackInput,
+  type PnpmPackOutput,
+} from "./types.js";
 
 // =============================================================================
 // Procedures
@@ -40,6 +72,7 @@ const pnpmInstallProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Install packages using pnpm",
+    calls: ["shell.run"],
     // pnpm reads the npm registry, rewrites node_modules and the lockfile, and runs the
     // lifecycle scripts and the pnpmfile of the project
     effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
@@ -57,6 +90,7 @@ const pnpmAddProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Add packages using pnpm",
+    calls: ["shell.run"],
     effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     args: ["packages"],
     shorts: { cwd: "C", dev: "D", global: "g" },
@@ -73,6 +107,7 @@ const pnpmRemoveProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Remove packages using pnpm",
+    calls: ["shell.run"],
     // pnpm resolves the remaining dependencies again, so it can read the npm registry
     effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     args: ["packages"],
@@ -90,6 +125,7 @@ const pnpmLinkProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Link packages using pnpm",
+    calls: ["shell.run"],
     effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
     shorts: { cwd: "C", global: "g" },
     output: "json",
@@ -105,6 +141,7 @@ const pnpmRunProcedure = createProcedure()
   .output(zodAdapter<PnpmCommandOutput>(PnpmCommandOutputSchema))
   .meta({
     description: "Run package scripts using pnpm",
+    calls: ["shell.run"],
     // A package script is code of the project: it can do anything
     effects: { reads: ["fs"], writes: ["process"] },
     args: ["script"],
@@ -134,6 +171,106 @@ const pnpmStorePathProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// Roadmap R41: exec, list, why, outdated, update, pack
+// =============================================================================
+
+const pnpmExecProcedure = createProcedure()
+  .path(["pnpm", "exec"])
+  .input(zodAdapter<PnpmExecInput>(PnpmExecInputSchema))
+  .output(zodAdapter<PnpmExecOutput>(PnpmExecOutputSchema))
+  .meta({
+    description: "Run a program of the dependencies (node_modules/.bin) with pnpm exec",
+    calls: ["shell.run"],
+    // The program is any program of the dependencies: it can do anything, as pnpm.run
+    effects: { reads: ["fs"], writes: ["process"] },
+    args: ["command", "args"],
+    shorts: { cwd: "C", recursive: "r" },
+    output: "json",
+  })
+  .handler(async (input: PnpmExecInput, ctx: ProcedureContext): Promise<PnpmExecOutput> => pnpmExec(input, ctx))
+  .build();
+
+const pnpmListProcedure = createProcedure()
+  .path(["pnpm", "list"])
+  .input(zodAdapter<PnpmListInput>(PnpmListInputSchema))
+  .output(zodAdapter<PnpmListOutput>(PnpmListOutputSchema))
+  .meta({
+    description: "List the installed packages: data is the JSON of pnpm list --json",
+    calls: ["shell.run"],
+    // It reads package.json, the lockfile and node_modules
+    effects: { reads: ["fs"], writes: [] },
+    args: ["packages"],
+    shorts: { cwd: "C", depth: "d", recursive: "r" },
+    output: "json",
+  })
+  .handler(async (input: PnpmListInput, ctx: ProcedureContext): Promise<PnpmListOutput> => pnpmList(input, ctx))
+  .build();
+
+const pnpmWhyProcedure = createProcedure()
+  .path(["pnpm", "why"])
+  .input(zodAdapter<PnpmWhyInput>(PnpmWhyInputSchema))
+  .output(zodAdapter<PnpmWhyOutput>(PnpmWhyOutputSchema))
+  .meta({
+    description: "Show the packages that depend on a package: data is the JSON of pnpm why --json",
+    calls: ["shell.run"],
+    effects: { reads: ["fs"], writes: [] },
+    args: ["packages"],
+    shorts: { cwd: "C", depth: "d", recursive: "r" },
+    output: "json",
+  })
+  .handler(async (input: PnpmWhyInput, ctx: ProcedureContext): Promise<PnpmWhyOutput> => pnpmWhy(input, ctx))
+  .build();
+
+const pnpmOutdatedProcedure = createProcedure()
+  .path(["pnpm", "outdated"])
+  .input(zodAdapter<PnpmOutdatedInput>(PnpmOutdatedInputSchema))
+  .output(zodAdapter<PnpmOutdatedOutput>(PnpmOutdatedOutputSchema))
+  .meta({
+    description: "List the outdated packages: data is the JSON of pnpm outdated",
+    calls: ["shell.run"],
+    // pnpm reads the versions of the npm registry
+    effects: { reads: ["fs", "network"], writes: [] },
+    args: ["packages"],
+    shorts: { cwd: "C", recursive: "r" },
+    output: "json",
+  })
+  .handler(async (input: PnpmOutdatedInput, ctx: ProcedureContext): Promise<PnpmOutdatedOutput> => pnpmOutdated(input, ctx))
+  .build();
+
+const pnpmUpdateProcedure = createProcedure()
+  .path(["pnpm", "update"])
+  .input(zodAdapter<PnpmUpdateInput>(PnpmUpdateInputSchema))
+  .output(zodAdapter<PnpmUpdateOutput>(PnpmUpdateOutputSchema))
+  .meta({
+    description: "Update packages to their newest versions in the ranges, or with latest to the latest versions",
+    calls: ["shell.run"],
+    // As pnpm.install: the registry, node_modules, the lockfile and the lifecycle scripts
+    effects: { reads: ["fs", "network"], writes: ["fs", "process"] },
+    args: ["packages"],
+    shorts: { cwd: "C", latest: "L", recursive: "r" },
+    output: "json",
+  })
+  .handler(async (input: PnpmUpdateInput, ctx: ProcedureContext): Promise<PnpmUpdateOutput> => pnpmUpdate(input, ctx))
+  .build();
+
+const pnpmPackProcedure = createProcedure()
+  .path(["pnpm", "pack"])
+  .input(zodAdapter<PnpmPackInput>(PnpmPackInputSchema))
+  .output(zodAdapter<PnpmPackOutput>(PnpmPackOutputSchema))
+  .meta({
+    description: "Make a tarball of the package: data gives its file name and files",
+    calls: ["shell.run"],
+    // It writes the tarball (it replaces a tarball of the same name), and pnpm runs the prepack,
+    // prepare and postpack scripts of the package
+    effects: { reads: ["fs"], writes: ["fs", "process"] },
+    args: [],
+    shorts: { cwd: "C", destination: "d", dryRun: "n" },
+    output: "json",
+  })
+  .handler(async (input: PnpmPackInput, ctx: ProcedureContext): Promise<PnpmPackOutput> => pnpmPack(input, ctx))
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -148,6 +285,12 @@ export const pnpmModule: ProcedureModule = defineModule("@procedures/pnpm", [
     pnpmLinkProcedure,
     pnpmRunProcedure,
     pnpmStorePathProcedure,
+    pnpmExecProcedure,
+    pnpmListProcedure,
+    pnpmWhyProcedure,
+    pnpmOutdatedProcedure,
+    pnpmUpdateProcedure,
+    pnpmPackProcedure,
   ], [shellModule]);
 
 export default pnpmModule;

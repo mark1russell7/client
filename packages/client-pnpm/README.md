@@ -3,11 +3,11 @@
 [![npm version](https://img.shields.io/npm/v/@procedures/pnpm.svg)](https://www.npmjs.com/package/@procedures/pnpm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> PNPM package manager wrapper - exposes `pnpm.install`, `pnpm.add`, `pnpm.remove`, `pnpm.link`, `pnpm.run`, and `pnpm.store.path` as type-safe RPC procedures.
+> PNPM package manager wrapper - exposes `pnpm.install`, `pnpm.add`, `pnpm.remove`, `pnpm.link`, `pnpm.run`, `pnpm.exec`, `pnpm.list`, `pnpm.why`, `pnpm.outdated`, `pnpm.update`, `pnpm.pack` and `pnpm.store.path` as type-safe RPC procedures.
 
 ## Overview
 
-`@procedures/pnpm` wraps pnpm package manager commands as RPC procedures through the client system. It provides 6 procedures for package management operations including installation, adding/removing packages, linking local packages, running scripts, and accessing the pnpm store.
+`@procedures/pnpm` wraps pnpm package manager commands as RPC procedures through the client system. It provides 12 procedures for package management operations including installation, adding/removing packages, linking local packages, running scripts and programs, the dependency tree, updates, tarballs, and accessing the pnpm store.
 
 This package follows the **CLI Wrapper Pattern** using `client-shell` for command execution with full type safety via Zod schemas.
 
@@ -39,8 +39,9 @@ graph TB
 
 ```mermaid
 graph LR
-    A[client-pnpm<br/>6 Procedures] --> B[Package Management<br/>pnpm.install<br/>pnpm.add<br/>pnpm.remove]
-    A --> C[Development<br/>pnpm.link<br/>pnpm.run]
+    A[client-pnpm<br/>12 Procedures] --> B[Package Management<br/>pnpm.install<br/>pnpm.add<br/>pnpm.remove<br/>pnpm.update]
+    A --> C[Development<br/>pnpm.link<br/>pnpm.run<br/>pnpm.exec<br/>pnpm.pack]
+    A --> E[Dependency Tree<br/>pnpm.list<br/>pnpm.why<br/>pnpm.outdated]
     A --> D[Store Management<br/>pnpm.store.path]
 
     style A fill:#e1f5ff
@@ -354,6 +355,33 @@ console.log(`Exists: ${store.exists}`);
 console.log(`Platform: ${store.platform}`);
 ```
 
+### Workspace selection, and more commands (roadmap R41)
+
+`pnpm.install`, `pnpm.add`, `pnpm.remove`, `pnpm.run`, `pnpm.exec`, `pnpm.list`, `pnpm.why`, `pnpm.outdated` and `pnpm.update` take two more fields:
+
+- `filter`: a list of pnpm selectors. Each one becomes `--filter=<selector>` before the command. With `=`, a selector that starts with `-` or `!` stays a selector.
+- `recursive`: `true` adds `--recursive`. The command runs in each package of the workspace.
+
+| Procedure | Input | Output | Effects |
+|---|---|---|---|
+| `pnpm.exec` | `command`, `args` | the result of pnpm | reads fs, writes process |
+| `pnpm.list` | `packages`, `depth`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm list --json` | reads fs |
+| `pnpm.why` | `packages` (one or more), `depth`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm why --json` | reads fs |
+| `pnpm.outdated` | `packages`, `prod`, `dev` | the result, and `data`: the JSON of `pnpm outdated --format json` | reads fs and network |
+| `pnpm.update` | `packages`, `latest`, `prod`, `dev` | the result of pnpm | reads fs and network, writes fs and process |
+| `pnpm.pack` | `destination`, `dryRun` | the result, and `data`: the JSON of `pnpm pack --json` | reads fs, writes fs and process |
+
+- The result of pnpm has `exitCode`, `stdout`, `stderr`, `success` and `duration`. A failed command does not throw.
+- `pnpm.exec` puts `--` before the program. pnpm reads no option after it, and no shell reads the arguments.
+- `pnpm.outdated` gives `success: true` for exit code 1 when the output is JSON. pnpm exits with 1 when a package is outdated.
+- `pnpm.pack` runs the `prepack`, `prepare` and `postpack` scripts of the package. With `dryRun`, pnpm writes no tarball.
+
+```typescript
+await client.exec(["pnpm", "run"], { script: "build", filter: ["@scope/app..."] });
+await client.exec(["pnpm", "exec"], { command: "tsc", args: ["--noEmit"], recursive: true });
+const { data } = await client.exec(["pnpm", "outdated"], { recursive: true });
+```
+
 ## Complete Procedure List
 
 | Procedure | Description |
@@ -363,6 +391,12 @@ console.log(`Platform: ${store.platform}`);
 | `pnpm.remove` | Remove packages from project |
 | `pnpm.link` | Link local packages for development |
 | `pnpm.run` | Run package.json scripts |
+| `pnpm.exec` | Run a program of the dependencies |
+| `pnpm.list` | List the installed packages as JSON |
+| `pnpm.why` | Show the packages that depend on a package |
+| `pnpm.outdated` | List the outdated packages |
+| `pnpm.update` | Update packages |
+| `pnpm.pack` | Make a tarball of the package |
 | `pnpm.store.path` | Get pnpm store path |
 
 ## Usage Examples

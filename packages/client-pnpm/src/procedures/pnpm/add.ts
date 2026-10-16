@@ -5,7 +5,7 @@
  */
 
 import type { ProcedureContext } from "@procedures/client";
-import { pnpmArg, runPnpm } from "./shared.js";
+import { pnpmArg, runPnpm, selectionArgs } from "./shared.js";
 import type { PnpmAddInput, PnpmCommandOutput } from "../../types.js";
 
 /**
@@ -29,7 +29,7 @@ export async function pnpmAdd(
   ctx: ProcedureContext
 ): Promise<PnpmCommandOutput> {
   {
-    const args: string[] = ["add", ...input.packages.map((p) => pnpmArg("package", p))];
+    const args: string[] = [...selectionArgs(input), "add", ...input.packages.map((p) => pnpmArg("package", p))];
 
     // Add flags
     if (input.dev) args.push("--save-dev");

@@ -5,7 +5,7 @@
  */
 
 import type { ProcedureContext } from "@procedures/client";
-import { pnpmArg, runPnpm } from "./shared.js";
+import { pnpmArg, runPnpm, selectionArgs } from "./shared.js";
 import type { PnpmInstallInput, PnpmCommandOutput } from "../../types.js";
 
 /**
@@ -27,7 +27,7 @@ export async function pnpmInstall(
   ctx: ProcedureContext
 ): Promise<PnpmCommandOutput> {
   {
-    const args: string[] = ["install"];
+    const args: string[] = [...selectionArgs(input), "install"];
 
     // Add packages if specified
     if (input.packages && input.packages.length > 0) {

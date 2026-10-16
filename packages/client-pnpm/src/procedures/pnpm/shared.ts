@@ -12,7 +12,7 @@
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
-import type { PnpmCommandOutput } from "../../types.js";
+import type { PnpmCommandOutput, PnpmJsonOutput } from "../../types.js";
 
 /** A value that pnpm reads as an argument (a package, a script, a path): it must not start with "-". */
 export function pnpmArg(name: string, value: string): string {
@@ -20,6 +20,23 @@ export function pnpmArg(name: string, value: string): string {
     throw new Error(`Invalid ${name} (starts with "-"): ${value}`);
   }
   return value;
+}
+
+/** The selection of the workspace packages of a command (roadmap R41). */
+export interface PnpmSelection {
+  filter?: string[] | undefined;
+  recursive?: boolean | undefined;
+}
+
+/**
+ * The selection options, before the command: `--filter=<selector>` for each selector, and
+ * `--recursive`. With "=", pnpm reads each selector as the value of `--filter`, also when it
+ * starts with "-" or "!".
+ */
+export function selectionArgs(input: PnpmSelection): string[] {
+  const args = (input.filter ?? []).map((selector) => `--filter=${selector}`);
+  if (input.recursive) args.push("--recursive");
+  return args;
 }
 
 /** The program and the first arguments that start pnpm without a shell. */
@@ -82,4 +99,25 @@ export async function runPnpm(
       duration: Date.now() - startTime,
     };
   }
+}
+
+/**
+ * This function runs `pnpm <args>` for a command that writes JSON, and gives `data`: the parsed
+ * standard output. Output that is not JSON gives no `data`. It does not throw.
+ */
+export async function runPnpmJson(
+  args: string[],
+  input: { cwd?: string | undefined; timeout?: number | undefined },
+  ctx: ProcedureContext
+): Promise<PnpmJsonOutput> {
+  const result: PnpmJsonOutput = await runPnpm(args, input, ctx);
+  const text = result.stdout.trim();
+  if (text.startsWith("{") || text.startsWith("[")) {
+    try {
+      result.data = JSON.parse(text);
+    } catch {
+      // Not JSON: stdout has the text
+    }
+  }
+  return result;
 }
