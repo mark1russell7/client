@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
+    inputs:
+      only:
+        description: "The jobs to run, for example mutation,windows (empty: all of them)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -19,6 +24,7 @@ concurrency:
 jobs:
   mutation:
     name: Mutation tests (Stryker)
+    if: ${{ !inputs.only || contains(inputs.only, 'mutation') }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -44,6 +50,7 @@ jobs:
 
   bench:
     name: Benchmarks
+    if: ${{ !inputs.only || contains(inputs.only, 'bench') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -79,6 +86,7 @@ jobs:
 
   soak:
     name: WebSocket soak (10 minutes)
+    if: ${{ !inputs.only || contains(inputs.only, 'soak') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -100,6 +108,7 @@ jobs:
 
   live:
     name: Real MongoDB and Docker
+    if: ${{ !inputs.only || contains(inputs.only, 'live') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -131,6 +140,7 @@ jobs:
 
   windows:
     name: Windows (Node 24)
+    if: ${{ !inputs.only || contains(inputs.only, 'windows') }}
     runs-on: windows-latest
     timeout-minutes: 45
     defaults:

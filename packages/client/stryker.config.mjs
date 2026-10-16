@@ -8,6 +8,10 @@
  * `resilience()`. The report is an artifact of the workflow. The score does not fail the run yet:
  * the first reports give the floor.
  *
+ * Stryker runs in place: it changes the files of the checkout and puts them back at the end. Its
+ * sandbox copy rewrites `tsconfig.json` with the JavaScript API of TypeScript, and TypeScript 7
+ * does not have that API. Run it only in CI, because a stopped run can leave a mutant in a file.
+ *
  * @type {import("@stryker-mutator/api/core").PartialStrykerOptions}
  */
 export default {
@@ -35,4 +39,5 @@ export default {
   timeoutMS: 30_000,
   concurrency: 4,
   tempDirName: ".stryker-tmp",
+  inPlace: true,
 };

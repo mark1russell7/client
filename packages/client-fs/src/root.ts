@@ -121,14 +121,18 @@ export async function realPathIsInside(root: ResolvedRoot, absolute: string): Pr
 
 /**
  * This function gives the absolute path of `path` in the root. A relative path starts at the
- * root. A path outside the root gives `FORBIDDEN` with the reason `outside-root`.
+ * root. The real path decides: a path whose real path is outside the real path of the root gives
+ * `FORBIDDEN` with the reason `outside-root`.
  */
 export async function inRoot(root: ResolvedRoot, path: string, procedure: ProcedurePath): Promise<string> {
   const absolute = resolve(root.folder, path);
-  if (!isInside(root.folder, absolute) && !isInside(root.real, absolute)) {
+  const real = await realPathOf(absolute);
+  // A path counts as inside by its given form or by its real form. On Windows, the two forms of a
+  // folder can differ by more than the links: a short 8.3 name (RUNNER~1) has a long real name.
+  if (!isInside(root.folder, absolute) && !isInside(root.real, absolute) && !isInside(root.real, real)) {
     throw outsideRoot(procedure, `the path ${JSON.stringify(path)} is outside the root ${root.folder}`);
   }
-  if (!(await realPathIsInside(root, absolute))) {
+  if (!isInside(root.real, real)) {
     throw outsideRoot(procedure, `the path ${JSON.stringify(path)} leads out of the root ${root.folder} through a symlink`);
   }
   return absolute;
