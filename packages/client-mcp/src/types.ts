@@ -7,6 +7,7 @@
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpToolFilter } from "@procedures/mcp";
+import type { Duration } from "@procedures/client";
 
 /**
  * SSE transport configuration options.
@@ -49,6 +50,13 @@ export interface McpServerTransportOptions {
 
   /** Enable debug logging */
   debug?: boolean;
+
+  /**
+   * The limits of a stream that can run without an end (`stream: { unbounded: true }` of its
+   * procedure): the tool stops it at the first one and gives the items that it has (roadmap R15).
+   * @default { items: 100, time: seconds(30) }
+   */
+  streamLimits?: { items?: number; time?: Duration } | undefined;
 }
 
 /**

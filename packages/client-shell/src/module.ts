@@ -95,6 +95,8 @@ const shellStreamProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
     streaming: true,
+    // A program can print without an end (tail -f, a server): roadmap R15
+    stream: { unbounded: true },
     effects: RUNS_PROGRAM,
   })
   .handler(shellStream)

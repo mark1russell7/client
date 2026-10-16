@@ -20,6 +20,11 @@ import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/b
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
 
+/** True when a stream response can run without an end (`STREAM_METADATA_KEY` of procedure-server.ts). */
+function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
+  return response.metadata?.["stream"] === "unbounded";
+}
+
 /** The metadata keys that the transport sets: a query parameter or a header cannot replace them. */
 const RESERVED_METADATA = new Set(["headers", "query", "params"]);
 
@@ -359,6 +364,26 @@ export class HttpServerTransport implements ServerTransport {
     signal: AbortSignal
   ): Promise<void> {
     const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
+
+    if (!ndjson && isUnboundedStream(response)) {
+      // The last item of a stream without an end never comes: refuse the call, and end the stream
+      // (roadmap R15: before, the request waited until a timeout)
+      void Promise.resolve(stream[Symbol.asyncIterator]().return?.()).catch(() => undefined);
+      this.serverResponseToHttp(
+        {
+          id: response.id,
+          status: {
+            type: "error",
+            code: "NOT_ACCEPTABLE",
+            message: `This procedure gives a stream that can run without an end. Send "Accept: ${NDJSON}" to read its items.`,
+            retryable: false,
+          },
+          metadata: {},
+        },
+        res
+      );
+      return;
+    }
 
     if (!ndjson) {
       let last: { value: unknown } | undefined;

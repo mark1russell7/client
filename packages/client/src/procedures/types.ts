@@ -75,6 +75,14 @@ export interface ProcedureMetadata {
    */
   effects?: Effects;
 
+  /**
+   * The stream of the procedure (roadmap R15). `unbounded: true`: the stream can run without an
+   * end (a `follow` of logs, the output of a server process). A face that collects a stream
+   * refuses such a call or stops it at a limit: HTTP without NDJSON refuses it, and MCP stops it
+   * at its stream limits.
+   */
+  stream?: { readonly unbounded?: boolean } | undefined;
+
   /** Custom metadata fields */
   [key: string]: unknown;
 }

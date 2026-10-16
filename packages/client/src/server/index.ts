@@ -37,7 +37,7 @@
 export { Server } from "./server.js";
 export type { ServerOptions } from "./server.js";
 
-export { ProcedureServer, createProcedureServer } from "./procedure-server.js";
+export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./procedure-server.js";
 export type { ProcedureServerOptions, StorageConfig, StopOptions } from "./procedure-server.js";
 export { pathToMethod, methodToPath } from "./method.js";
 export {

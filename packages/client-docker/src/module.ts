@@ -186,6 +186,8 @@ const dockerLogsProcedure = createProcedure()
     description: "Get container logs",
     calls: ["shell.run", "shell.stream"],
     effects: { reads: ["docker"], writes: [] },
+    // With follow, the stream runs as long as the container (roadmap R15)
+    stream: { unbounded: true },
     args: ["container"],
     shorts: { follow: "f", tail: "n", timestamps: "t" },
     output: "json",

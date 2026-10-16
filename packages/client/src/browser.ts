@@ -75,7 +75,7 @@ export {
 // ============================================================================
 export { Server } from "./server/server.js";
 export type { ServerOptions } from "./server/server.js";
-export { ProcedureServer, createProcedureServer } from "./server/procedure-server.js";
+export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./server/procedure-server.js";
 export type { ProcedureServerOptions, StorageConfig, StopOptions } from "./server/procedure-server.js";
 export {
   HandlerNotFoundError,

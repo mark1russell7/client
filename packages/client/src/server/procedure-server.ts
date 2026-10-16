@@ -93,6 +93,17 @@ export interface ProcedureServerOptions extends ServerOptions {
   idempotency?: IdempotencyOptions | false | undefined;
 }
 
+/**
+ * The metadata key of a stream response whose procedure declares `stream: { unbounded: true }`.
+ * Its value is "unbounded".
+ */
+export const STREAM_METADATA_KEY = "stream";
+
+/** True when a stream response can run without an end (roadmap R15). */
+export function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
+  return response.metadata?.[STREAM_METADATA_KEY] === "unbounded";
+}
+
 /** The options of `ProcedureServer.stop()`. */
 export interface StopOptions {
   /**
@@ -527,7 +538,14 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         admitItem,
       });
       if (output.kind === "stream") {
-        return { id: request.id, status: { type: "success", code: 200 }, stream: output.items, metadata: {} };
+        // The faces that collect a stream read this mark (roadmap R15)
+        const unbounded = (procedure.metadata as { stream?: { unbounded?: boolean } } | undefined)?.stream?.unbounded === true;
+        return {
+          id: request.id,
+          status: { type: "success", code: 200 },
+          stream: output.items,
+          metadata: unbounded ? { [STREAM_METADATA_KEY]: "unbounded" } : {},
+        };
       }
       return { id: request.id, status: { type: "success", code: 200 }, payload: output.value, metadata: {} };
     } catch (error) {

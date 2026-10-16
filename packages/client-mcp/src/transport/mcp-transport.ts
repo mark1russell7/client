@@ -23,6 +23,7 @@ import {
 import type { McpServerTransportOptions, McpServerTransportState } from "../types.js";
 import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
+import { optionalMs } from "@procedures/client";
 
 /**
  * Generate a unique request ID.
@@ -86,6 +87,8 @@ export class McpServerTransport implements ServerTransport {
   private unregisterListener: ((procedure: unknown) => void) | undefined;
   /** A pending list_changed notification: a burst of registrations sends one */
   private listChangedTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The limits of a stream that can run without an end, the time in milliseconds (R15) */
+  private readonly streamLimits: { items: number; timeMs: number };
 
   constructor(server: Server, options: McpServerTransportOptions = {}) {
     this.server = server;
@@ -96,6 +99,10 @@ export class McpServerTransport implements ServerTransport {
         version: "1.0.0",
       },
       ...options,
+    };
+    this.streamLimits = {
+      items: Math.max(1, options.streamLimits?.items ?? 100),
+      timeMs: optionalMs(options.streamLimits?.time, "streamLimits.time") ?? 30_000,
     };
     // The registry of the server, when it has one (a ProcedureServer with an explicit registry):
     // before, the tools came from the global registry, also when the server served another one
@@ -175,7 +182,8 @@ export class McpServerTransport implements ServerTransport {
 
         // Convert to MCP result
         if (response.status.type === "success" && response.stream) {
-          return await this.streamResult(response.stream, extra);
+          const unbounded = response.metadata?.["stream"] === "unbounded";
+          return await this.streamResult(response.stream, extra, unbounded);
         }
         if (response.status.type === "success") {
           const structured = tool.outputSchema ? structuredContentOf(response.payload) : undefined;
@@ -222,14 +230,25 @@ export class McpServerTransport implements ServerTransport {
     extra: {
       _meta?: { progressToken?: string | number | undefined } | undefined;
       sendNotification: (notification: ServerNotification) => Promise<void>;
-    }
+    },
+    unbounded = false
   ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
     const progressToken = extra._meta?.progressToken;
     const blocks: Array<{ type: "text"; text: string }> = [];
     let count = 0;
+    // A stream that can run without an end stops at the first limit (roadmap R15: before, a
+    // docker.logs with follow ended only at the time limit of the tool call)
+    const limits = this.streamLimits;
+    const started = Date.now();
+    let stoppedBy: string | undefined;
     try {
       for await (const item of stream) {
         count++;
+        if (unbounded && (count > limits.items || Date.now() - started > limits.timeMs)) {
+          stoppedBy = count > limits.items ? `${limits.items} items` : `${Math.round(limits.timeMs / 1000)} seconds`;
+          count--;
+          break;
+        }
         const text = toText(item);
         blocks.push({ type: "text", text });
         if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
@@ -248,6 +267,9 @@ export class McpServerTransport implements ServerTransport {
     }
     if (count > MAX_STREAM_BLOCKS) {
       blocks.unshift({ type: "text", text: `(${count} items: the first ${count - MAX_STREAM_BLOCKS} are not shown)` });
+    }
+    if (stoppedBy) {
+      blocks.push({ type: "text", text: `(The stream can run without an end, so the tool stopped it after ${stoppedBy}.)` });
     }
     if (count === 0) blocks.push({ type: "text", text: "(no items)" });
     return { content: blocks };
