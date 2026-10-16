@@ -83,6 +83,7 @@ const PROTOCOL_CATEGORIES: Readonly<Record<ProtocolErrorCode, ErrorCategory>> = 
   UNAVAILABLE: ErrorCategory.SERVER,
   CONNECTION_CLOSED: ErrorCategory.NETWORK,
   CONNECTION_NOT_FOUND: ErrorCategory.CLIENT,
+  TOPIC_NOT_FOUND: ErrorCategory.CLIENT,
 };
 
 /**

@@ -20,7 +20,7 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 | `procedure-timeout` | request | The remaining time of the caller, in milliseconds. The server uses it only to make its deadline earlier. |
 | `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. |
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
-| `reason` | response | The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`, `deadline`, `outside-root` (a path outside the root of `@procedures/fs`) or `host-not-allowed` (a URL host that `@procedures/http` refuses). |
+| `reason` | response | The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`, `deadline`, `outside-root` (a path outside the root of `@procedures/fs`), `host-not-allowed` (a URL host that `@procedures/http` refuses) or `topic-not-allowed` (a topic that the publisher of the events refuses). |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
 | `stream` | response | The value `unbounded`: the stream can run without an end. |
 
@@ -82,6 +82,22 @@ Each message is one JSON object, a frame. Each frame has an `id` and a `type`. T
 - The client sends `{"type":"ping"}` frames, and the server answers with `{"type":"pong"}`.
 - The server sends WebSocket ping control frames. A connection that misses two pongs one after the other closes.
 
+### Reserved frame types
+
+- The type `event` is reserved. No side of v1 sends it. The WebSocket client gives such a frame to its `onEvent` handler, for a server outside this repository.
+- The server answers a frame of an unknown type with an `error` frame that has the id of that frame. The client ignores such a frame.
+
+## Remote events
+
+A peer subscribes to the topics of the event bus of another peer with a call of the procedure `events.subscribe`. [EVENTS.md](./EVENTS.md) specifies the design. The subscription uses the frames of a call, so it adds no frame type to v1:
+
+- The request has the input `{"topics":[...]}`, with 1 to 64 topic names.
+- The answer is a stream without an end. The first item is `{"type":"subscribed","topics":[...]}`. Each other item is `{"type":"event","topic":...,"data":...,"seq":...}`, with `dropped` after a loss.
+- The `credit` of the request is the backpressure. When the queue of a subscription is full, the publisher drops its oldest event.
+- A `cancel` is the unsubscribe. A closed connection ends each subscription of the connection.
+- A topic outside the topic rule of the host gives `TOPIC_NOT_FOUND`. A topic that the publisher refuses gives `FORBIDDEN` with the reason `topic-not-allowed`.
+- Over HTTP, the subscription is an NDJSON stream. Without NDJSON, the server answers `NOT_ACCEPTABLE`.
+
 ## Message port
 
 `PortTransport` sends the frames of the WebSocket table over a message port: a Web Worker, a `MessageChannel` or a `worker_threads` port (roadmap R27).
@@ -123,6 +139,7 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `UNAVAILABLE` | 503 | yes | The server cannot take the call at this time: it stops, or it is busy. |
 | `CONNECTION_CLOSED` | 503 | yes | The connection closed before the call left. |
 | `CONNECTION_NOT_FOUND` | 404 | no | The server has no connection with this id. |
+| `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 
 ## MCP
 

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "hello",
+    "type": "hello",
+    "protocol": 1
+  },
+  {
+    "id": "<id 1>",
+    "type": "request",
+    "method": {
+      "service": "events",
+      "operation": "subscribe"
+    },
+    "payload": {
+      "topics": [
+        "orders.created"
+      ]
+    },
+    "metadata": {},
+    "credit": 64
+  },
+  {
+    "id": "<id 1>",
+    "type": "cancel"
+  }
+]

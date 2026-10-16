@@ -411,6 +411,19 @@ export type {
   EventWaitOptions,
   ChannelMap,
 } from "./events/index.js";
+// The remote events: a peer subscribes to the topics of the bus of another peer (EVENTS.md)
+export { EventPublisher, topicMatcher, EVENTS_SUBSCRIBE_PATH, SubscriptionError, remoteEvents, subscribeRemote } from "./events/index.js";
+export type {
+  EventPublisherOptions,
+  TopicRule,
+  TopicCall,
+  EventItem,
+  RemoteEvent,
+  RemoteEventHandler,
+  RemoteEventsOptions,
+  SubscribeOptions,
+  Subscription,
+} from "./events/index.js";
 
 // ============================================================================
 // Components (serializable UI descriptors) moved to @procedures/splay, the UI package

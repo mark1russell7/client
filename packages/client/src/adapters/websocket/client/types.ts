@@ -152,8 +152,10 @@ export interface WebSocketTransportOptions {
   serve?: RequestHandler;
 
   /**
-   * Handler for subscription events.
-   * Called when the server pushes an event to a subscribed topic.
+   * This handler gets each event of each subscription of this transport (`subscribe()` and
+   * `events()`), with the id of its subscription (`documentation/EVENTS.md`). It is a wrapper: the
+   * handler of a subscription gets the same events. It also gets an `event` frame of a server
+   * outside this repository. No side of protocol v1 sends that frame.
    */
   onEvent?: EventHandler;
 
@@ -286,7 +288,8 @@ export type ServerRequestHandler = (
 ) => Promise<unknown>;
 
 /**
- * Handler for subscription events.
+ * The handler of the `onEvent` option: it gets the topic, the data and the id of the subscription
+ * of each event.
  */
 export type EventHandler = (
   topic: string,

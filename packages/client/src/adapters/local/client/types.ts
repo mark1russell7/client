@@ -8,6 +8,7 @@ import type { Message, Method } from "../../../client/types.js";
 import type { ProcedureRegistry } from "../../../procedures/registry.js";
 import type { Interceptor } from "../../../procedures/invoke.js";
 import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
+import type { EventPublisher } from "../../../events/publisher.js";
 
 /**
  * Handler function for a method.
@@ -65,4 +66,10 @@ export interface LocalTransportOptions {
 
   /** The order of the clearance values of the capability. */
   clearanceOrder?: ClearanceOrder | undefined;
+
+  /**
+   * The publisher of the remote events (`documentation/EVENTS.md`). The transport serves its
+   * procedure `events.subscribe`, and its procedures get its bus as `ctx.bus`.
+   */
+  events?: EventPublisher | undefined;
 }

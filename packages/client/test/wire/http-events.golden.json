@@ -1,0 +1,56 @@
+{
+  "stream": {
+    "status": 200,
+    "contentType": "application/x-ndjson",
+    "lines": [
+      {
+        "type": "item",
+        "payload": {
+          "type": "subscribed",
+          "topics": [
+            "orders.created"
+          ]
+        }
+      },
+      {
+        "type": "item",
+        "payload": {
+          "type": "event",
+          "topic": "orders.created",
+          "data": {
+            "order": 1
+          },
+          "seq": 1
+        }
+      }
+    ]
+  },
+  "unknownTopic": {
+    "status": 404,
+    "contentType": "application/json",
+    "body": {
+      "error": "The host has no topic \"users.created\"",
+      "code": "TOPIC_NOT_FOUND",
+      "retryable": false
+    }
+  },
+  "refusedTopic": {
+    "status": 403,
+    "contentType": "application/json",
+    "body": {
+      "error": "The capability of the call does not permit the topic \"secret.plans\"",
+      "code": "FORBIDDEN",
+      "retryable": false,
+      "reason": "topic-not-allowed"
+    }
+  },
+  "withoutNdjson": {
+    "status": 406,
+    "contentType": "application/json",
+    "body": {
+      "error": "This procedure gives a stream that can run without an end. Send \"Accept: application/x-ndjson\" to read its items.",
+      "code": "NOT_ACCEPTABLE",
+      "retryable": false
+    }
+  }
+}

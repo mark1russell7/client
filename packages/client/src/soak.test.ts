@@ -3,9 +3,11 @@
  * the nightly workflow gives it 10 minutes.
  *
  * Clients send a mix of calls for the whole time: values, streams that the reader stops, aborts,
- * calls of the server to the client, and reconnects. At the end, each call has an answer, the
- * maps of the two sides are empty, and the heap grew less than a limit. Node runs the test with
- * `--expose-gc`, so the heap is measured after a collection.
+ * calls of the server to the client, short subscriptions to remote events, and reconnects. Each
+ * client also keeps one subscription for the whole time: it resubscribes after each reconnect
+ * (`documentation/EVENTS.md`). At the end, each call has an answer, the maps of the two sides are
+ * empty, no listener stays on the bus, and the heap grew less than a limit. Node runs the test
+ * with `--expose-gc`, so the heap is measured after a collection.
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,6 +21,7 @@ import { createProcedure } from "./procedures/define.js";
 import { createRegistry } from "./procedures/module.js";
 import { ProcedureServer } from "./server/procedure-server.js";
 import { pathToMethod } from "./server/method.js";
+import { createEventBus } from "./events/bus.js";
 
 const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
 /** The growth of the heap that the test allows, in megabytes. */
@@ -74,7 +77,10 @@ function registry() {
 
 describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
   it(`keeps its maps empty and its heap flat for ${minutes} minutes`, async () => {
-    const host = new ProcedureServer({ registry: registry(), autoRegister: true });
+    // The remote events (EVENTS.md): each client keeps one subscription for the whole time, and
+    // makes short ones in its loop
+    const bus = createEventBus();
+    const host = new ProcedureServer({ registry: registry(), autoRegister: true, events: { bus, topics: ["soak.*"] } });
     const http = createServer();
     const wsServer = new WebSocketServerTransport(host, { server: http, path: "/ws" });
     host.addTransport(wsServer);
@@ -98,6 +104,17 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
       return check();
     };
     await until(() => transports.every((transport) => transport.isConnected()));
+
+    // The long subscriptions: they resubscribe after each reconnect
+    const ticks = transports.map(() => 0);
+    const confirmations = transports.map(() => 0);
+    const reconnectsOf = transports.map(() => 0);
+    const subscriptions = transports.map((transport, index) =>
+      transport.subscribe("soak.ticks", () => void ticks[index]!++, { onSubscribed: () => void confirmations[index]!++ }),
+    );
+    await Promise.all(subscriptions.map((subscription) => subscription.ready));
+    let tick = 0;
+    const ticker = setInterval(() => host.publish("soak.ticks", ++tick), 20);
     await sleep(500);
     const heapBefore = heapMb();
 
@@ -111,8 +128,21 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
           if (step % 500 === 0) {
             // A reconnect: the connection drops, and the client opens a new one
             counts.reconnects++;
+            reconnectsOf[index]!++;
             (transport as unknown as { ws?: { close(): void } }).ws?.close();
             await until(() => transport.isConnected());
+          } else if (step % 17 === 0) {
+            // A short subscription: the confirmation, one event, the unsubscribe
+            const topic = `soak.echo.${index}`;
+            let got = false;
+            const subscription = transport.subscribe(topic, (data) => void (got = got || data === step));
+            try {
+              await subscription.ready;
+              host.publish(topic, step);
+              if (!(await until(() => got, 5000))) throw new Error("the event of a short subscription did not come");
+            } finally {
+              subscription();
+            }
           } else if (step % 7 === 0) {
             for await (const item of client.stream<unknown, number>(pathToMethod(["soak", "count"]), { to: 1000 })) {
               if (item === 3) break;
@@ -139,14 +169,19 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     };
     await Promise.all(clients.map((_, index) => loop(index)));
 
+    // The long subscriptions end: their calls leave the maps of the two sides
+    clearInterval(ticker);
+    const publisherBefore = host.publisher!.subscriptions;
+    for (const subscription of subscriptions) subscription();
     await sleep(1000);
     const heapAfter = heapMb();
+    const events = { ticks, confirmations, reconnectsOf, publisherBefore, publisherAfter: host.publisher!.subscriptions, channels: bus.channels() };
     const pending = transports.map((transport) => (transport as unknown as { pendingRequests: Map<string, unknown> }).pendingRequests.size);
     const channels = (wsServer as unknown as {
       channels: Map<string, { incoming: { size: number; credits: Map<string, unknown> }; outgoing: { size: number } }>;
     }).channels;
     const serverMaps = [...channels.values()].map((channel) => channel.incoming.size + channel.incoming.credits.size + channel.outgoing.size);
-    console.log(JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps }));
+    console.log(JSON.stringify({ ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, pending, serverMaps, events }));
 
     for (const transport of transports) await transport.close();
     await host.stop();
@@ -160,5 +195,14 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     expect(serverMaps.every((size) => size === 0)).toBe(true);
     expect(host.callsInFlight).toBe(0);
     expect(heapAfter - heapBefore).toBeLessThan(HEAP_LIMIT_MB);
+    // Each long subscription got events, and it resubscribed after each reconnect of its client
+    for (let index = 0; index < transports.length; index++) {
+      expect(ticks[index]).toBeGreaterThan(0);
+      expect(confirmations[index]).toBeGreaterThanOrEqual(reconnectsOf[index]! + 1);
+    }
+    // The open subscriptions are only the long ones, and no listener stays after the unsubscribe
+    expect(events.publisherBefore).toBe(transports.length);
+    expect(events.publisherAfter).toBe(0);
+    expect(events.channels).toEqual([]);
   }, (minutes + 2) * 60_000);
 });

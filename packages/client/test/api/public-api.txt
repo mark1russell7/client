@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 421 names
+## . (dist/index.d.ts): 436 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -50,6 +50,7 @@ type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOpti
 type Duration: dist/duration.d.ts#Duration
 ERROR_CODES: dist/protocol.d.ts#ERROR_CODES
 ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
+EVENTS_SUBSCRIBE_PATH: dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
 type Effects: dist/procedures/types.d.ts#Effects
 type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
 ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
@@ -61,6 +62,9 @@ ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
 EventBus: dist/events/bus.d.ts#DefaultEventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
+type EventItem: dist/events/remote.d.ts#EventItem
+EventPublisher: dist/events/publisher.d.ts#EventPublisher
+type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
@@ -173,6 +177,9 @@ type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
 type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
+type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
+type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
@@ -212,6 +219,9 @@ type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
+type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
+type Subscription: dist/events/remote.d.ts#Subscription
+SubscriptionError: dist/events/remote.d.ts#SubscriptionError
 TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
 TIMER_DEFAULTS: dist/timers.d.ts#TIMER_DEFAULTS
 TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
@@ -221,6 +231,8 @@ type TimeoutOverride: dist/client/call-types.d.ts#TimeoutOverride
 type TimerDefaults: dist/timers.d.ts#TimerDefaults
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
 type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
+type TopicCall: dist/events/publisher.d.ts#TopicCall
+type TopicRule: dist/events/publisher.d.ts#TopicRule
 type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
 type TracingInterceptorOptions: dist/procedures/interceptors.d.ts#TracingInterceptorOptions
 type Transport: dist/client/types.d.ts#Transport
@@ -397,6 +409,7 @@ registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
 registerModule: dist/procedures/discovery.d.ts#registerModule
 registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+remoteEvents: dist/events/remote.d.ts#remoteEvents
 replayTransitions: dist/machines.d.ts#replayTransitions
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
@@ -407,6 +420,7 @@ seconds: dist/duration.d.ts#seconds
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 streamOutput: dist/procedures/invoke.d.ts#streamOutput
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
+subscribeRemote: dist/events/remote.d.ts#subscribeRemote
 surfaceRule: dist/server/host-policy.d.ts#surfaceRule
 takesRawInput: dist/procedures/ref.d.ts#takesRawInput
 throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
@@ -415,6 +429,7 @@ toJson: dist/procedures/ref.d.ts#toJson
 toMs: dist/duration.d.ts#toMs
 tokenMatches: dist/server/procedure-server.d.ts#tokenMatches
 toolHints: dist/procedures/capability.d.ts#toolHints
+topicMatcher: dist/events/publisher.d.ts#topicMatcher
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
@@ -428,7 +443,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 404 names
+## ./browser (dist/browser.d.ts): 419 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -473,6 +488,7 @@ type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOpti
 type Duration: dist/duration.d.ts#Duration
 ERROR_CODES: dist/protocol.d.ts#ERROR_CODES
 ERROR_REGISTRY: dist/client/errors/registry.d.ts#ERROR_REGISTRY
+EVENTS_SUBSCRIBE_PATH: dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
 type Effects: dist/procedures/types.d.ts#Effects
 type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
 ErrorCategory: dist/client/errors/types.d.ts#ErrorCategory
@@ -484,6 +500,9 @@ ErrorSeverity: dist/client/errors/types.d.ts#ErrorSeverity
 EventBus: dist/events/bus.d.ts#DefaultEventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
+type EventItem: dist/events/remote.d.ts#EventItem
+EventPublisher: dist/events/publisher.d.ts#EventPublisher
+type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
@@ -591,6 +610,9 @@ type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
 type RegistryListener: dist/procedures/types.d.ts#RegistryListener
+type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
+type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
+type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
@@ -630,6 +652,9 @@ type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
+type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
+type Subscription: dist/events/remote.d.ts#Subscription
+SubscriptionError: dist/events/remote.d.ts#SubscriptionError
 TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
 TIMER_DEFAULTS: dist/timers.d.ts#TIMER_DEFAULTS
 TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
@@ -639,6 +664,8 @@ type TimeoutOverride: dist/client/call-types.d.ts#TimeoutOverride
 type TimerDefaults: dist/timers.d.ts#TimerDefaults
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
 type ToolSurface: dist/server/host-policy.d.ts#ToolSurface
+type TopicCall: dist/events/publisher.d.ts#TopicCall
+type TopicRule: dist/events/publisher.d.ts#TopicRule
 type TraceContext: dist/tracing/traceparent.d.ts#TraceContext
 type TracingInterceptorOptions: dist/procedures/interceptors.d.ts#TracingInterceptorOptions
 type Transport: dist/client/types.d.ts#Transport
@@ -805,6 +832,7 @@ registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
 registerModule: dist/procedures/discovery.d.ts#registerModule
 registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
+remoteEvents: dist/events/remote.d.ts#remoteEvents
 replayTransitions: dist/machines.d.ts#replayTransitions
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
@@ -814,6 +842,7 @@ seconds: dist/duration.d.ts#seconds
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 streamOutput: dist/procedures/invoke.d.ts#streamOutput
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
+subscribeRemote: dist/events/remote.d.ts#subscribeRemote
 surfaceRule: dist/server/host-policy.d.ts#surfaceRule
 takesRawInput: dist/procedures/ref.d.ts#takesRawInput
 throwProcedure: dist/procedures/core/index.d.ts#throwProcedure
@@ -822,6 +851,7 @@ toJson: dist/procedures/ref.d.ts#toJson
 toMs: dist/duration.d.ts#toMs
 tokenMatches: dist/server/procedure-server.d.ts#tokenMatches
 toolHints: dist/procedures/capability.d.ts#toolHints
+topicMatcher: dist/events/publisher.d.ts#topicMatcher
 tracingInterceptor: dist/procedures/interceptors.d.ts#tracingInterceptor
 tryCatchProcedure: dist/procedures/core/index.d.ts#tryCatchProcedure
 typedAnySchema: dist/procedures/core/schemas.d.ts#typedAnySchema
@@ -971,18 +1001,35 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 24 names
+## ./events (dist/events/index.d.ts): 44 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type DefaultChannels: dist/events/types.d.ts#DefaultChannels
 DefaultEventBus: dist/events/bus.d.ts#DefaultEventBus
+EVENTS_SUBSCRIBE_PATH: dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
 type Event: dist/events/types.d.ts#Event
 type EventBus: dist/events/types.d.ts#EventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
+type EventItem: dist/events/remote.d.ts#EventItem
+EventPublisher: dist/events/publisher.d.ts#EventPublisher
+type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
+type EventTransport: dist/events/remote.d.ts#EventTransport
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
+MAX_SUBSCRIPTION_TOPICS: dist/events/publisher.d.ts#MAX_SUBSCRIPTION_TOPICS
+MAX_TOPIC_LENGTH: dist/events/publisher.d.ts#MAX_TOPIC_LENGTH
 type ProcedureChannels: dist/events/types.d.ts#ProcedureChannels
+type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
+type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
+type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
+type SubscribeInput: dist/events/remote.d.ts#SubscribeInput
+type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
+type Subscription: dist/events/remote.d.ts#Subscription
+SubscriptionError: dist/events/remote.d.ts#SubscriptionError
+type SubscriptionHooks: dist/events/remote.d.ts#SubscriptionHooks
 type SystemChannels: dist/events/types.d.ts#SystemChannels
+type TopicCall: dist/events/publisher.d.ts#TopicCall
+type TopicRule: dist/events/publisher.d.ts#TopicRule
 type TypedEventBus: dist/events/types.d.ts#TypedEventBus
 type Unsubscribe: dist/events/types.d.ts#Unsubscribe
 createChannelPrefix: dist/events/bus.d.ts#createChannelPrefix
@@ -994,8 +1041,11 @@ forwardChannel: dist/events/bus.d.ts#forwardChannel
 getGlobalEventBus: dist/events/bus.d.ts#getGlobalEventBus
 mapChannel: dist/events/bus.d.ts#mapChannel
 mergeChannels: dist/events/bus.d.ts#mergeChannels
+remoteEvents: dist/events/remote.d.ts#remoteEvents
 resetGlobalEventBus: dist/events/bus.d.ts#resetGlobalEventBus
+subscribeRemote: dist/events/remote.d.ts#subscribeRemote
 throttleChannel: dist/events/bus.d.ts#throttleChannel
+topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
 ## ./procedures (dist/procedures/index.d.ts): 201 names
@@ -1350,6 +1400,7 @@ export interface LocalTransportOptions {
     interceptors?: readonly Interceptor[] | undefined;
     capability?: Capability | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
+    events?: EventPublisher | undefined;
 }
 
 ### dist/adapters/mock/client/builder.d.ts#mockBuilder
@@ -1437,6 +1488,8 @@ export declare class WebSocketTransport implements Transport {
     readonly name = "websocket";
     constructor(options: WebSocketTransportOptions);
     send<TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
+    subscribe<T = unknown>(topics: string | readonly string[], handler: RemoteEventHandler<T>, options?: SubscribeOptions): Subscription;
+    events<T = unknown>(topics: string | readonly string[], options?: RemoteEventsOptions): AsyncIterable<RemoteEvent<T>>;
     close(): Promise<void>;
     getServerProtocol(): number | undefined;
     getState(): WebSocketState;
@@ -1501,6 +1554,8 @@ export declare class WebSocketServerTransport implements ServerTransport {
     sendToConnection(connectionId: string, message: WebSocketMessage): void;
     callConnection<TReq, TRes>(connectionId: string, message: Message<TReq>): AsyncIterable<ResponseItem<TRes>>;
     transportFor(connectionId: string): Transport;
+    subscribe<T = unknown>(connectionId: string, topics: string | readonly string[], handler: RemoteEventHandler<T>, options?: SubscribeOptions): Subscription;
+    events<T = unknown>(connectionId: string, topics: string | readonly string[], options?: RemoteEventsOptions): AsyncIterable<RemoteEvent<T>>;
     callClient(connectionId: string, path: string[], input: unknown, timeout?: number): Promise<unknown>;
     onConnect(handler: ConnectionEventHandler): () => void;
     onDisconnect(handler: ConnectionEventHandler): () => void;
@@ -2467,6 +2522,125 @@ export declare function throttleChannel<T>(bus: EventBus, source: string, target
 ### dist/events/bus.d.ts#withEventBusSignal
 export declare function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus;
 
+### dist/events/publisher.d.ts#EventPublisher
+export declare class EventPublisher {
+    readonly bus: EventBus;
+    readonly procedure: AnyProcedure;
+    constructor(options: EventPublisherOptions);
+    publish<T>(topic: string, data: T): void;
+    get subscriptions(): number;
+    end(): void;
+}
+
+### dist/events/publisher.d.ts#EventPublisherOptions
+export interface EventPublisherOptions {
+    bus?: EventBus | undefined;
+    topics: TopicRule;
+    allow?: ((topic: string, call: TopicCall) => boolean) | undefined;
+    buffer?: number | undefined;
+}
+
+### dist/events/publisher.d.ts#MAX_SUBSCRIPTION_TOPICS
+export declare const MAX_SUBSCRIPTION_TOPICS = 64;
+
+### dist/events/publisher.d.ts#MAX_TOPIC_LENGTH
+export declare const MAX_TOPIC_LENGTH = 256;
+
+### dist/events/publisher.d.ts#TopicCall
+export interface TopicCall {
+    readonly capability: Capability;
+    readonly metadata: Readonly<Record<string, unknown>>;
+}
+
+### dist/events/publisher.d.ts#TopicRule
+export type TopicRule = readonly string[] | ((topic: string) => boolean);
+
+### dist/events/publisher.d.ts#topicMatcher
+export declare function topicMatcher(rule: TopicRule): (topic: string) => boolean;
+
+### dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
+export declare const EVENTS_SUBSCRIBE_PATH: readonly ["events", "subscribe"];
+
+### dist/events/remote.d.ts#EventItem
+export type EventItem = {
+    readonly type: "subscribed";
+    readonly topics: readonly string[];
+} | {
+    readonly type: "event";
+    readonly topic: string;
+    readonly data: unknown;
+    readonly seq: number;
+    readonly dropped?: number | undefined;
+};
+
+### dist/events/remote.d.ts#EventTransport
+export type EventTransport = Pick<Transport, "send">;
+
+### dist/events/remote.d.ts#RemoteEvent
+export interface RemoteEvent<T = unknown> {
+    readonly topic: string;
+    readonly data: T;
+    readonly seq: number;
+    readonly dropped: number;
+    readonly subscription: string;
+}
+
+### dist/events/remote.d.ts#RemoteEventHandler
+export type RemoteEventHandler<T = unknown> = (data: T, event: RemoteEvent<T>) => void | Promise<void>;
+
+### dist/events/remote.d.ts#RemoteEventsOptions
+export interface RemoteEventsOptions {
+    signal?: AbortSignal | undefined;
+    resubscribe?: boolean | undefined;
+    backoff?: ((attempt: number) => number) | undefined;
+    onSubscribed?: ((topics: readonly string[]) => void) | undefined;
+    metadata?: Record<string, unknown> | undefined;
+}
+
+### dist/events/remote.d.ts#SubscribeInput
+export interface SubscribeInput {
+    readonly topics: readonly string[];
+}
+
+### dist/events/remote.d.ts#SubscribeOptions
+export interface SubscribeOptions extends RemoteEventsOptions {
+    onError?: ((error: SubscriptionError) => void) | undefined;
+}
+
+### dist/events/remote.d.ts#Subscription
+export interface Subscription {
+    (): void;
+    readonly ready: Promise<void>;
+    readonly id: string;
+}
+
+### dist/events/remote.d.ts#SubscriptionError
+export declare class SubscriptionError extends Error {
+    readonly code: string;
+    readonly retryable: boolean;
+    readonly reason?: string | undefined;
+    readonly name = "SubscriptionError";
+    constructor(
+    code: string, message: string,
+    retryable: boolean,
+    reason?: string | undefined);
+}
+
+### dist/events/remote.d.ts#SubscriptionHooks
+export interface SubscriptionHooks {
+    readonly lifetime?: AbortSignal | undefined;
+    readonly ready?: ((signal: AbortSignal) => Promise<void>) | undefined;
+    readonly backoff?: ((attempt: number) => number) | undefined;
+    readonly onEvent?: ((event: RemoteEvent) => void) | undefined;
+    readonly resubscribe?: boolean | undefined;
+}
+
+### dist/events/remote.d.ts#remoteEvents
+export declare function remoteEvents<T = unknown>(transport: EventTransport, topics: string | readonly string[], options?: RemoteEventsOptions, hooks?: SubscriptionHooks): AsyncIterable<RemoteEvent<T>>;
+
+### dist/events/remote.d.ts#subscribeRemote
+export declare function subscribeRemote<T = unknown>(transport: EventTransport, topics: string | readonly string[], handler: RemoteEventHandler<T>, options?: SubscribeOptions, hooks?: SubscriptionHooks): Subscription;
+
 ### dist/events/types.d.ts#ChannelMap
 export interface ChannelMap {
     [channel: string]: unknown;
@@ -3136,7 +3310,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -3882,7 +4056,7 @@ export declare const PROTOCOL_HEADER = "Procedures-Protocol";
 export declare const PROTOCOL_VERSION = 1;
 
 ### dist/protocol.d.ts#ProtocolErrorCode
-export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND";
+export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND";
 
 ### dist/protocol.d.ts#httpStatusOf
 export declare function httpStatusOf(code: unknown): number | undefined;
@@ -4001,6 +4175,7 @@ export declare function pathToMethod(path: readonly string[]): Method;
 
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider {
+    readonly publisher: EventPublisher | undefined;
     constructor(options?: ProcedureServerOptions);
     getStorage<T>(collection: string): CollectionStorage<T>;
     hasCollection(collection: string): boolean;
@@ -4019,6 +4194,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
+    publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     stop(options?: StopOptions): Promise<void>;
 }
@@ -4038,6 +4214,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     idempotency?: IdempotencyOptions | false | undefined;
     token?: string | undefined;
     authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
+    events?: EventPublisherOptions | EventPublisher | undefined;
 }
 
 ### dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
