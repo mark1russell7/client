@@ -14,6 +14,7 @@ import {
   parseProcedureJson,
   stringifyProcedureJson,
   isAnyProcedureRef,
+  isProcedureRef,
   isOutputRef,
   isPlainObject,
   resolveOutputRef,
@@ -58,18 +59,37 @@ const ImportOutputSchema = z.looseObject({
 
 type ImportProcedure = Procedure<ImportInput, ImportOutput, { description: string; tags: string[] }>;
 
+/**
+ * This function gives true for the runtime form of a procedure reference whose path is a list of
+ * texts. `client.import` accepts only such a value at the top level.
+ */
+function isImportableRef(value: unknown): boolean {
+  if (!isProcedureRef(value)) return false;
+  const path = (value as { path?: unknown }).path;
+  return Array.isArray(path) && path.length > 0 && path.every((segment) => typeof segment === "string");
+}
+
 const importProcedure: ImportProcedure = defineProcedure({
   path: ["import"],
   input: ImportInputSchema,
   output: ImportOutputSchema,
   metadata: {
-    description: "Parse procedure aggregation from JSON string",
+    description:
+      "Parse a procedure reference ({ $proc, input }) from JSON text. Other JSON, for example a number or a list, gives success false.",
     tags: ["core", "meta"],
   },
   handler: async (input: ImportInput): Promise<ImportOutput> => {
     try {
       if (input.json) {
         const procedure = parseProcedureJson(input.json);
+        // Before, each JSON value gave success true, for example 42 (catalog test, roadmap R29)
+        if (!isImportableRef(procedure)) {
+          return {
+            procedure: null,
+            success: false,
+            error: "The JSON is not a procedure reference. A reference is an object whose $proc is a list of texts.",
+          };
+        }
         return { procedure, success: true };
       }
       if (input.path) {
@@ -107,8 +127,19 @@ interface ExportInput {
   pretty?: boolean | undefined;
 }
 
+/**
+ * This function gives a schema of a required value: undefined has no JSON text, so the input
+ * schema refuses it with `VALIDATION_ERROR`. Before, the call failed with
+ * `OUTPUT_VALIDATION_ERROR` (catalog test, roadmap R29).
+ */
+const definedValue = (description: string) =>
+  z
+    .unknown()
+    .refine((value) => value !== undefined, { message: "The value is missing: undefined has no JSON text" })
+    .describe(description);
+
 const ExportInputSchema = z.object({
-  procedure: z.unknown().optional().describe("Procedure reference to serialize"),
+  procedure: definedValue("The procedure reference to serialize. The procedure refuses a missing value (undefined) with VALIDATION_ERROR, because undefined has no JSON text."),
   pretty: z.boolean().optional().describe("Pretty print JSON output"),
 });
 
@@ -134,13 +165,15 @@ const exportProcedure: ExportProcedure = defineProcedure({
   input: ExportInputSchema,
   output: ExportOutputSchema,
   metadata: {
-    description: "Serialize procedure aggregation to JSON string",
+    description: "Serialize a procedure reference to JSON text. It refuses a missing procedure (undefined) with VALIDATION_ERROR.",
     // The refs of the input are data: exec() must not run them (deep dive CORE-5)
     tags: ["core", "meta", RAW_INPUT_TAG],
   },
   handler: async (input: ExportInput): Promise<ExportOutput> => {
     try {
-      const json = stringifyProcedureJson(input.procedure, input.pretty ? 2 : undefined);
+      const json = stringifyProcedureJson(input.procedure, input.pretty ? 2 : undefined) as string | undefined;
+      // A function or a symbol has no JSON text either: an error result, not an invalid output
+      if (json === undefined) return { json: "", success: false, error: "The procedure has no JSON text" };
       return { json, success: true };
     } catch (error) {
       return {
@@ -268,7 +301,7 @@ interface StringifyJsonInput {
 }
 
 const StringifyJsonInputSchema = z.object({
-  value: z.unknown().optional().describe("Value to stringify"),
+  value: definedValue("The value to write as JSON. The procedure refuses a missing value (undefined) with VALIDATION_ERROR, because undefined has no JSON text."),
   pretty: z.boolean().optional().describe("Pretty print with indentation"),
   indent: z.union([z.number(), z.string()]).optional().describe("Custom indentation (number of spaces or string)"),
 });
@@ -280,13 +313,16 @@ const stringifyJsonProcedure: StringifyJsonProcedure = defineProcedure({
   input: StringifyJsonInputSchema,
   output: stringOutput("The JSON text"),
   metadata: {
-    description: "Stringify value to JSON (with procedure ref support)",
+    description: "Stringify value to JSON (with procedure ref support). It refuses a missing value (undefined) with VALIDATION_ERROR.",
     // The refs of the input are data: exec() must not run them (deep dive CORE-5)
     tags: ["core", "meta", RAW_INPUT_TAG],
   },
   handler: async (input: StringifyJsonInput): Promise<string> => {
     const indent = input.pretty ? (input.indent ?? 2) : input.indent;
-    return stringifyProcedureJson(input.value, indent as number);
+    const json = stringifyProcedureJson(input.value, indent as number) as string | undefined;
+    // A function or a symbol has no JSON text either: a clear error, not an invalid output
+    if (json === undefined) throw new Error("The value has no JSON text");
+    return json;
   },
 });
 
