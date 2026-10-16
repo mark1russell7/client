@@ -275,6 +275,7 @@ export type {
   InvocationChanges,
   InvocationNext,
   Interceptor,
+  AdmitItem,
 } from "./procedures/invoke.js";
 export { callMatches, validateCalls, declaredCalls, nestedCallRefusal, hasCallPolicy, hiddenReach } from "./procedures/policy.js";
 // Capabilities (CAPABILITIES-2026-10)

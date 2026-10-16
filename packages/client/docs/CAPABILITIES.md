@@ -99,7 +99,7 @@ hostPolicy({
 });
 ```
 
-The output filter drops a refused stream item. A refused single value gives `FORBIDDEN` with the reason `clearance`. The filter examines only the output that leaves the host, not the results of nested calls.
+The output filter drops a refused stream item. A refused single value gives `FORBIDDEN` with the reason `clearance`. The filter can give a promise, so it can look up the clearance of a record. The filter examines only the output that leaves the host, not the results of nested calls.
 
 ## Nested calls
 

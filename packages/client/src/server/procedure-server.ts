@@ -17,7 +17,7 @@ import type {
 import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
-import { InvocationError, invokeProcedure, type Interceptor, type Invocation } from "../procedures/invoke.js";
+import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ResourcesOf } from "../procedures/types.js";
 import { TIMEOUT_METADATA_KEY, narrowCapability } from "../procedures/capability.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
@@ -81,7 +81,7 @@ export interface ProcedureServerOptions extends ServerOptions {
   /** The resources of each invocation for its capability (`ctx.resources`). */
   resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
   /** The filter of the output that leaves the server. */
-  admitItem?: ((item: unknown, invocation: Invocation) => boolean) | undefined;
+  admitItem?: AdmitItem | undefined;
 }
 
 /** The capability of a request with the remaining time of its caller, when it sends one. */

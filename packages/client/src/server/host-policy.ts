@@ -17,7 +17,7 @@
  */
 
 import type { Capability, ClearanceOrder, ProcedurePath, ResourcesOf } from "../procedures/types.js";
-import type { Interceptor, Invocation } from "../procedures/invoke.js";
+import type { AdmitItem, Interceptor, Invocation } from "../procedures/invoke.js";
 import { narrowCapability } from "../procedures/capability.js";
 import type { ServerRequest } from "./types.js";
 import { timeoutInterceptor } from "../procedures/interceptors.js";
@@ -84,7 +84,7 @@ export interface HostPolicyOptions {
   /** The resources of each invocation for its capability (`ctx.resources`). */
   resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
   /** The filter of the output that leaves the host. */
-  admitItem?: ((item: unknown, invocation: Invocation) => boolean) | undefined;
+  admitItem?: AdmitItem | undefined;
 }
 
 /** What a host lets its callers do. */
@@ -98,7 +98,7 @@ export interface HostPolicy {
   readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
   readonly clearanceOrder: ClearanceOrder | undefined;
   readonly resources: ((invocation: Invocation) => ResourcesOf) | undefined;
-  readonly admitItem: ((item: unknown, invocation: Invocation) => boolean) | undefined;
+  readonly admitItem: AdmitItem | undefined;
 }
 
 /** The capability function of a policy: the capability of the options, narrowed by `readOnly`. */

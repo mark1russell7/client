@@ -138,8 +138,14 @@ export interface InvokeOptions {
    * The filter of the output that leaves the host (the call of the host, not its nested calls).
    * It drops a refused stream item. A refused value gives `FORBIDDEN` (reason `clearance`).
    */
-  admitItem?: ((item: unknown, invocation: Invocation) => boolean) | undefined;
+  admitItem?: AdmitItem | undefined;
 }
+
+/**
+ * The output filter of a host. It can look up data (the clearance of a record), so it can give a
+ * promise.
+ */
+export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 // =============================================================================
 // Interceptors
@@ -370,7 +376,7 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
     };
   }
   const value = await validateOutput(procedure, result);
-  if (admit && !admit(value, invocation)) {
+  if (admit && !(await admit(value, invocation))) {
     throw new InvocationError("FORBIDDEN", `The clearance of the call does not permit the output of ${pathToKey(path)}`, path, "clearance");
   }
   return { kind: "value", value: value as TOutput };
@@ -379,11 +385,11 @@ async function runInvocation<TOutput>(invocation: Invocation, options: InvokeOpt
 /** The items that the output filter of the host admits. */
 async function* admittedItems(
   items: AsyncGenerator<unknown, void, undefined>,
-  admit: (item: unknown, invocation: Invocation) => boolean,
+  admit: AdmitItem,
   invocation: Invocation,
 ): AsyncGenerator<unknown, void, undefined> {
   for await (const item of items) {
-    if (admit(item, invocation)) yield item;
+    if (await admit(item, invocation)) yield item;
   }
 }
 

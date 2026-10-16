@@ -253,6 +253,20 @@ describe("invocations under a capability", () => {
     expect(items.map((item) => (item as { id: number }).id)).toEqual([1, 3]);
   });
 
+  it("waits for an output filter that gives a promise (a lookup)", async () => {
+    const registry = makeRegistry();
+    const capability = narrowCapability<Level>(undefined, { clearance: "shared" });
+    const admitItem = async (item: unknown, invocation: { capability: Capability }): Promise<boolean> => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return order.leq((item as { level: Level }).level, invocation.capability.clearance as Level);
+    };
+    const items: unknown[] = [];
+    for await (const item of outputItems(await invokePath(["records", "list"], {}, { registry, capability, admitItem }))) items.push(item);
+    expect(items.map((item) => (item as { id: number }).id)).toEqual([1, 3]);
+    const error = await refusal(run(registry, ["files", "read"], {}, { admitItem: async () => false }));
+    expect(error.reason).toBe("clearance");
+  });
+
   it("refuses a single value that the output filter refuses", async () => {
     const registry = makeRegistry();
     const error = await refusal(run(registry, ["files", "read"], {}, { admitItem: () => false }));
