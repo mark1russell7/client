@@ -93,6 +93,8 @@ class PeerImpl implements Peer {
   private transports: TransportConfig[];
   private endpoints: PeerEndpoint[] = [];
   private started = false;
+  /** The HTTP servers that the peer made for its WebSocket transports: `stop()` closes them */
+  private ownedServers: Array<import("node:http").Server> = [];
   private registry: ProcedureRegistry;
   private startTime: number = Date.now();
 
@@ -160,7 +162,9 @@ class PeerImpl implements Peer {
     const express = (await import("express")).default;
 
     const app = express();
-    app.use(express.json());
+    // No body parser here: the transport reads the body itself, with bodyLimit, and accepts each
+    // JSON value (roadmap R5). Before, the strict parser of express refused a bare value (a
+    // number, a string, null) with 400, and its limit of 100 kB replaced bodyLimit.
 
     const port = config.port ?? 3000;
     // Loopback by default so the full procedure registry (incl. shell.run / fs.write) is not
@@ -227,6 +231,7 @@ class PeerImpl implements Peer {
       allowedOrigins: this.browser.allowedOrigins ?? ((origin) => originAllowed(origin, config.corsOrigins)),
       ...(this.browser.allowedHosts ? { allowedHosts: this.browser.allowedHosts } : {}),
       allowGet: this.browser.allowGet ?? config.urlStrategy === "rest",
+      ...(config.bodyLimit !== undefined ? { bodyLimit: config.bodyLimit } : {}),
     });
 
     this.server.addTransport(httpTransport);
@@ -290,6 +295,7 @@ class PeerImpl implements Peer {
       httpServer.close();
       throw error;
     }
+    this.ownedServers.push(httpServer);
 
     this.endpoints.push({
       type: "websocket",
@@ -300,6 +306,19 @@ class PeerImpl implements Peer {
   async stop(): Promise<void> {
     if (!this.started) return;
     await this.server.stop();
+    // The HTTP servers of the WebSocket transports: before, they stayed open, so the port stayed
+    // bound after stop() (roadmap R5)
+    const owned = this.ownedServers;
+    this.ownedServers = [];
+    await Promise.all(
+      owned.map(
+        (httpServer) =>
+          new Promise<void>((resolve) => {
+            httpServer.close(() => resolve());
+            httpServer.closeAllConnections();
+          }),
+      ),
+    );
     this.started = false;
     this.endpoints = [];
   }

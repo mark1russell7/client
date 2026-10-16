@@ -21,6 +21,8 @@ export interface HttpTransportConfig {
   urlStrategy?: "rest" | "rpc" | undefined;
   /** A secret that every request must send as `Authorization: Bearer <token>` */
   token?: string | undefined;
+  /** The largest request body in bytes. The default is 1 MiB. */
+  bodyLimit?: number | undefined;
 }
 
 export interface WebSocketTransportConfig {

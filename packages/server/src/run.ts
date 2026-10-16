@@ -194,9 +194,21 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
   }
   console.log("\nPress Ctrl+C to stop the server.");
 
+  // The peer stops before the process exits, with a limit of 10 seconds. A failed stop exits
+  // with 1, and a second signal exits at once (roadmap R5).
+  let stopping = false;
   const stop = (): void => {
+    if (stopping) process.exit(1);
+    stopping = true;
     console.log("\nShutting down...");
-    running.peer.stop().finally(() => process.exit(0));
+    setTimeout(() => process.exit(1), 10_000).unref();
+    running.peer.stop().then(
+      () => process.exit(0),
+      (error: unknown) => {
+        console.error(`The server did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      },
+    );
   };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);

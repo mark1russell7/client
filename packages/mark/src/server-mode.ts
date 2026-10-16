@@ -131,11 +131,24 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   }
   print.info("\nPress Ctrl+C to stop.");
 
-  // Handle shutdown
+  // Handle shutdown: the peer stops (its requests end and its ports close) before the process
+  // exits, with a limit of 10 seconds. A second signal exits at once. Before, the process exited
+  // without a stop (roadmap R5).
+  let stopping = false;
   const cleanup = async () => {
+    if (stopping) process.exit(1);
+    stopping = true;
     print.info("\nStopping server...");
     removeLockfileForPort(port);
-    process.exit(0);
+    const limit = setTimeout(() => process.exit(1), 10_000);
+    limit.unref();
+    try {
+      await peer.stop();
+      process.exit(0);
+    } catch (error) {
+      print.error(`The server did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
   };
 
   process.on("SIGINT", cleanup);
