@@ -376,7 +376,7 @@ interface S3DeleteOutput {
 
 #### `s3.head`
 
-The procedure gives the metadata of an object without its content: the size, the content type, the ETag, the time of the last change and the user metadata. A 404 gives `exists: false`. S3 gives no body with a 404 to a HEAD request, so a missing bucket also gives `exists: false`.
+The procedure gives the metadata of an object without its content. The metadata is the size, the content type, the ETag, the time of the last change and the user metadata. A 404 gives `exists: false`. S3 gives no body with a 404 to a HEAD request, so a missing bucket also gives `exists: false`.
 
 ```typescript
 const head = await client.exec(["s3", "head"], { bucket: "my-bucket", key: "files/report.pdf" });
@@ -385,7 +385,9 @@ if (head.exists) console.log(head.contentLength, head.etag);
 
 #### `s3.copy`
 
-The procedure copies an object inside S3. The bytes do not go through the host. The copy replaces the object of the destination key. With `overwrite: false`, S3 refuses the copy when the destination key exists. The source bucket is the destination bucket when the input does not give `sourceBucket`. With `contentType` or `metadata`, the copy gets new metadata. Without them, it keeps the metadata of the source. One request copies an object of 5 GiB or less.
+The procedure copies an object inside S3. The bytes do not go through the host. The copy replaces the object of the destination key. With `overwrite: false`, S3 refuses the copy when the destination key exists. One request copies an object of 5 GiB or less.
+
+The source bucket is the destination bucket when the input does not give `sourceBucket`. With `contentType` or `metadata`, the copy gets new metadata. Without them, it keeps the metadata of the source.
 
 ```typescript
 await client.exec(["s3", "copy"], {

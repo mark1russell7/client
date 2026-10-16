@@ -232,24 +232,15 @@ const { status, exitCode, output } = await client.exec(["node", "logs"], {
 });
 ```
 
-**Input Schema:**
+The input has these fields:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `processId` | `string` | Yes | The process ID that `node.spawn` gave |
-| `lines` | `number` | No | Only the last lines of the output |
-| `stripAnsi` | `boolean` | No | Remove the ANSI escape codes (colors) from the output |
+- `processId` (necessary): the process ID that `node.spawn` gave.
+- `lines`: give only the last lines of the output.
+- `stripAnsi`: remove the ANSI escape codes (colors) from the output.
 
-**Output Schema:**
+The output has the `processId`, the `status` (`running`, `exited` or `error`), the `exitCode` of an ended process and the `output`.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `processId` | `string` | The process ID |
-| `status` | `"running" \| "exited" \| "error"` | The state of the process |
-| `exitCode` | `number` | The exit code, when the process exited |
-| `output` | `string` | The end of the output |
-
-The procedure knows only the processes of the host that runs it. stdout and stderr come through two pipes, so the order of their lines in `output` is the order of their arrival. A process that `node.spawn` did not start is an error. The procedure has no stream: a stream of new output needs a subscription to the process registry of `client-shell`.
+The procedure knows only the processes of its host. The process writes to two pipes, stdout and stderr. Thus `output` has their lines in the order of their arrival. A process that `node.spawn` did not start is an error. The procedure has no stream: a stream of new output needs a subscription to the process registry of `client-shell`.
 
 ## Process Lifecycle
 

@@ -292,7 +292,7 @@ const schema = await client.exec(["db", "schema"], { dbPath: "./app.db", table: 
 
 #### `db.transaction`
 
-The procedure runs a list of statements in one transaction. When one statement fails, it rolls back the transaction, and the file stays as it was. The `params` of a statement bind to one statement. Without `params`, one `sql` can hold several statements. A statement that gives rows (`SELECT`, or `RETURNING`) gives its `rows` in its result. The procedure refuses `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `RELEASE`, because it runs the transaction itself.
+The procedure puts a list of statements in one transaction. When one statement fails, it rolls back the transaction, and the file stays as it was. The `params` of a statement bind to one statement. Without `params`, one `sql` can hold several statements. A statement that gives rows (`SELECT`, or `RETURNING`) gives its `rows` in its result. The procedure refuses `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `RELEASE`, because it controls the transaction itself.
 
 ```typescript
 const { results, changes } = await client.exec(["db", "transaction"], {
@@ -310,7 +310,7 @@ const { results, changes } = await client.exec(["db", "transaction"], {
 The procedure applies the numbered migrations that the database does not have, in the order of their numbers. The migrations come from a `folder` or from a list (`migrations`). In a folder, each migration is a file `<number>_<name>.sql`, for example `001_create_users.sql`. The procedure ignores the files that do not end in `.sql`.
 
 - The table `schema_migrations` (or the `table` of the input) records each applied migration and the sha256 of its SQL.
-- The pending migrations run in one transaction. When one fails, the procedure applies none of them.
+- The pending migrations are in one transaction. When one fails, the procedure applies none of them.
 - A second call applies nothing, and does not write the file.
 - When the SQL of an applied migration changes, the procedure refuses the call. The sha256 reads CRLF line ends as LF.
 - A migration must not hold `BEGIN`, `COMMIT` or `ROLLBACK`.
@@ -326,7 +326,7 @@ const { applied, skipped, version } = await client.exec(["db", "migrate"], {
 
 The procedure copies a database to a new file (`to`). It does not replace a file, and it does not write the source. With `vacuum: true`, it compacts the copy.
 
-This package runs SQLite in WebAssembly (sql.js). The database is in the memory of the module, and `VACUUM INTO` and the backup API of SQLite write into the file system of the module, not to the disk. Thus the procedure writes the image of the database (its `export()`). It takes the image in the file queue of the database, where no other call of the process changes it. It writes the image to a file next to the target, checks it with `PRAGMA integrity_check`, and then renames it.
+This package uses SQLite in WebAssembly (sql.js). The database is in the memory of the module. `VACUUM INTO` and the backup API of SQLite write into the file system of the module, not to the disk. Thus the procedure writes the image of the database (its `export()`). It takes the image in the file queue of the database, where no other call of the process changes it. It writes the image to a file next to the target, checks it with `PRAGMA integrity_check`, and then renames it.
 
 ```typescript
 const { path, bytes } = await client.exec(["db", "backup"], { dbPath: "./app.db", to: "./backups/app-2026-10-16.db" });

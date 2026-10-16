@@ -771,7 +771,7 @@ The ids in `insertedIds` and `upsertedIds` are text, and their keys are the inde
 
 ##### `mongo.documents.explain`
 
-The procedure gives the plan of a find or of an aggregation pipeline. With `pipeline`, it explains an aggregation. Without `pipeline`, it explains a find with `query`, `projection`, `sort` and `limit`. The verbosity `queryPlanner` (the default) gives the plan only. The verbosities `executionStats` and `allPlansExecution` also run the plan and give its statistics. As `documents.aggregate` does, the procedure refuses `$out` and `$merge`.
+The procedure gives the plan of a find or of an aggregation pipeline. With `pipeline`, it explains an aggregation. Without `pipeline`, it explains a find with `query`, `projection`, `sort` and `limit`. The verbosity `queryPlanner` (the default) gives the plan only. With the verbosities `executionStats` and `allPlansExecution`, the server also does the plan and gives its statistics. As `documents.aggregate` does, the procedure refuses `$out` and `$merge`.
 
 ```typescript
 const { operation, plan } = await client.exec(["mongo", "documents", "explain"], {
