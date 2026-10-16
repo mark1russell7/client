@@ -29,7 +29,7 @@ export type JsonErrorCode =
   /** The JSON Schema is not a schema. */
   | "INVALID_SCHEMA";
 
-/** An error of a procedure of this package. A server sends it with the code `HANDLER_ERROR`. */
+/** An error of a procedure of this package. A server sends it with its own code, for example `NOT_JSON`. */
 export class JsonError extends Error {
   override readonly name = "JsonError";
 

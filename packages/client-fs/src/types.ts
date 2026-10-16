@@ -229,8 +229,12 @@ export const CopyInputSchema: z.ZodObject<{
   dest: z.string().describe("Destination path"),
   /** Copy directories recursively (default: true) */
   recursive: z.boolean().optional().default(true).describe("Copy directories recursively (default: true)"),
-  /** Overwrite existing files (default: false) */
-  overwrite: z.boolean().optional().default(false).describe("Overwrite existing files (default: false)"),
+  /** Replace an existing destination (default: false). Without it, an existing destination is an error. */
+  overwrite: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Replace an existing destination (default: false). Without it, an existing destination is an error (EEXIST), and the copy changes nothing."),
 });
 
 export type CopyInput = z.infer<typeof CopyInputSchema>;

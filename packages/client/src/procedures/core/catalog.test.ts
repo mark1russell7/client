@@ -53,6 +53,11 @@ const runtimeRef = (name: string, input: unknown): Record<string | symbol, unkno
   input,
 });
 
+/** A date, and an object that refers to itself, for the examples of `client.unique` in the process. */
+const epoch = new Date(0);
+const loop: Record<string, unknown> = {};
+loop["self"] = loop;
+
 const ada = { name: "ada", team: "a", age: 36 };
 const bob = { name: "bob", team: "b", age: 41 };
 const people = [ada, bob];
@@ -190,11 +195,9 @@ const CATALOG: Record<string, readonly Example[]> = {
     { note: "negates a falsy value", input: { value: 0 }, output: true },
     { note: "a missing value is falsy", input: {}, output: true },
     {
-      note: "negates the result of a call",
+      note: "does not run a call: a call is an object, thus truthy",
       input: { value: call("eq", { a: 1, b: 2 }) },
-      output: true,
-      defect:
-        "The schema says 'The value or call to negate', but a host call does not run the call. A call is an object, thus it is truthy.",
+      output: false,
     },
   ],
   "client.all": [
@@ -202,10 +205,9 @@ const CATALOG: Record<string, readonly Example[]> = {
     { note: "false when one value is falsy", input: { values: [1, 0] }, output: false },
     { note: "no values give true", input: { values: [] }, output: true },
     {
-      note: "evaluates a call",
+      note: "does not run a call: a call is an object, thus truthy",
       input: { values: [call("eq", { a: 1, b: 2 })] },
-      output: false,
-      defect: "The schema says 'The values or calls to evaluate', but a host call does not run the calls. A call is truthy.",
+      output: true,
     },
   ],
   "client.any": [
@@ -213,10 +215,9 @@ const CATALOG: Record<string, readonly Example[]> = {
     { note: "false when no value is truthy", input: { values: [0, false, null] }, output: false },
     { note: "no values give false", input: { values: [] }, output: false },
     {
-      note: "evaluates a call",
+      note: "does not run a call: a call is an object, thus truthy",
       input: { values: [call("eq", { a: 1, b: 2 })] },
-      output: false,
-      defect: "The schema says 'The values or calls to evaluate', but a host call does not run the calls. A call is truthy.",
+      output: true,
     },
   ],
   "client.none": [
@@ -224,10 +225,9 @@ const CATALOG: Record<string, readonly Example[]> = {
     { note: "false when one value is truthy", input: { values: [0, 1] }, output: false },
     { note: "no values give true", input: { values: [] }, output: true },
     {
-      note: "evaluates a call",
+      note: "does not run a call: a call is an object, thus truthy",
       input: { values: [call("eq", { a: 1, b: 2 })] },
-      output: true,
-      defect: "The schema says 'The values or calls to evaluate', but a host call does not run the calls. A call is truthy.",
+      output: false,
     },
   ],
   "client.map": [
@@ -343,7 +343,7 @@ const CATALOG: Record<string, readonly Example[]> = {
   "client.mod": [
     { note: "gives the remainder of a divided by b", input: { a: 7, b: 3 }, output: 1 },
     { note: "the remainder has the sign of a", input: { a: -7, b: 3 }, output: -1 },
-    { note: "b = 0 gives NaN", input: { a: 5, b: 0 }, output: NaN },
+    { note: "refuses a division by zero, as client.divide does", input: { a: 5, b: 0 }, error: "Division by zero" },
   ],
   "client.abs": [
     { note: "gives the absolute value", input: { value: -3 }, output: 3 },
@@ -526,6 +526,9 @@ const CATALOG: Record<string, readonly Example[]> = {
     { note: "true for an object", input: { value: { a: 1 } }, output: true },
     { note: "false for an array", input: { value: [] }, output: false },
     { note: "false for null", input: { value: null }, output: false },
+    { note: "true for an object without a prototype", input: { value: Object.create(null) as object }, output: true },
+    { note: "false for a Date", input: { value: new Date(0) }, output: false },
+    { note: "false for a Map", input: { value: new Map() }, output: false },
   ],
   "client.isString": [
     { note: "true for a string", input: { value: "x" }, output: true },
@@ -668,6 +671,30 @@ const CATALOG: Record<string, readonly Example[]> = {
       input: { items: [{ id: 1, n: "a" }, { id: 1, n: "b" }, { id: 2, n: "c" }], key: "id" },
       output: [{ id: 1, n: "a" }, { id: 2, n: "c" }],
     },
+    {
+      note: "compares objects by value, in any order of their fields, and keeps the first",
+      input: { items: [{ a: 1, b: [1, 2] }, { a: 2 }, { b: [1, 2], a: 1 }, { a: 2 }] },
+      output: [{ a: 1, b: [1, 2] }, { a: 2 }],
+    },
+    {
+      note: "compares arrays by value, in the order of their items",
+      input: { items: [[1, 2], [2, 1], [1, 2], []] },
+      output: [[1, 2], [2, 1], []],
+    },
+    {
+      note: "a nested number and its string are different",
+      input: { items: [{ a: 1 }, { a: "1" }, [null], [undefined]] },
+      output: [{ a: 1 }, { a: "1" }, [null], [undefined]],
+    },
+    {
+      note: "key compares the values of the field by value",
+      input: { items: [{ id: { n: 1 }, x: 1 }, { id: { n: 1 }, x: 2 }, { id: { n: 2 }, x: 3 }], key: "id" },
+      output: [{ id: { n: 1 }, x: 1 }, { id: { n: 2 }, x: 3 }],
+    },
+    { note: "0 and -0 are one value, and NaN is one value, as in a Set", input: { items: [0, -0, NaN, NaN] }, output: [0, NaN] },
+    { note: "a bigint and its number are different", input: { items: [1n, 1n, 1] }, output: [1n, 1] },
+    { note: "a Date compares by identity", input: { items: [epoch, epoch, new Date(0)] }, output: [epoch, new Date(0)] },
+    { note: "an object with a cycle compares its cycle by identity", input: { items: [loop, loop, { self: {} }] }, output: [loop, { self: {} }] },
   ],
   "client.groupBy": [
     { note: "groups the items by the value of the key", input: { items: people, key: "team" }, output: { a: [ada], b: [bob] } },
@@ -796,9 +823,22 @@ const CATALOG: Record<string, readonly Example[]> = {
     {
       note: "JSON that is not a procedure reference is not a success",
       input: { json: "42" },
-      output: expect.objectContaining({ success: false }),
-      defect:
-        "The schema says success is 'True when the text is a valid procedure reference', but each JSON value gives success true.",
+      output: { procedure: null, success: false, error: expect.stringContaining("not a procedure reference") },
+    },
+    {
+      note: "an object without $proc is not a procedure reference",
+      input: { json: '{"a":1}' },
+      output: { procedure: null, success: false, error: expect.stringContaining("not a procedure reference") },
+    },
+    {
+      note: "a list of calls is not one procedure reference",
+      input: { json: '[{"$proc":["client","add"]}]' },
+      output: { procedure: null, success: false, error: expect.stringContaining("not a procedure reference") },
+    },
+    {
+      note: "the path of a reference is a list of texts",
+      input: { json: '{"$proc":["client",1]}' },
+      output: { procedure: null, success: false, error: expect.stringContaining("not a procedure reference") },
     },
   ],
   "client.export": [
@@ -820,6 +860,13 @@ const CATALOG: Record<string, readonly Example[]> = {
         success: true,
       },
     },
+    { note: "refuses a missing procedure: undefined has no JSON text", input: {}, error: "VALIDATION_ERROR" },
+    {
+      note: "a function has no JSON text: an error result",
+      input: { procedure: () => 1 },
+      output: { json: "", success: false, error: "The procedure has no JSON text" },
+    },
+    { note: "refuses a procedure that is undefined", input: { procedure: undefined }, error: "VALIDATION_ERROR" },
   ],
   "client.eval": [
     { note: "runs a path with the input", input: { procedure: ["client", "add"], input: { a: 1, b: 2 } }, output: 3 },
@@ -858,6 +905,10 @@ const CATALOG: Record<string, readonly Example[]> = {
       input: { value: { step: runtimeRef("add", { a: 1, b: 2 }) } },
       output: '{"step":{"$proc":["client","add"],"input":{"a":1,"b":2}}}',
     },
+    { note: "null is a value", input: { value: null }, output: "null" },
+    { note: "refuses a missing value: undefined has no JSON text", input: {}, error: "VALIDATION_ERROR" },
+    { note: "refuses a value that is undefined", input: { value: undefined }, error: "VALIDATION_ERROR" },
+    { note: "refuses a function: it has no JSON text", input: { value: () => 1 }, error: "no JSON text" },
   ],
   "client.lookup": [
     {
@@ -984,6 +1035,31 @@ describe("the defects that the catalog found (R29)", () => {
       properties?: Record<string, { description?: string }>;
     };
     expect(schema.properties?.["template"]?.description).toContain("{{name}}");
+  });
+
+  it("client.not, client.all, client.any and client.none describe their operands as values that they do not run", () => {
+    for (const [name, field] of [["not", "value"], ["all", "values"], ["any", "values"], ["none", "values"]] as const) {
+      const schema = jsonSchemaOf(registry.get(["client", name])!.input, { io: "input" }) as {
+        properties?: Record<string, { description?: string }>;
+      };
+      const description = schema.properties?.[field]?.description ?? "";
+      expect(description, name).not.toMatch(/or calls?\b/);
+      expect(description, name).toContain("does not run");
+    }
+  });
+
+  it("a program runs the calls of the input of client.all before client.all", async () => {
+    const output = await run("chain", { steps: [call("all", { values: [call("eq", { a: 1, b: 2 }), true] })] });
+    expect(output).toMatchObject({ final: false });
+  });
+
+  it("client.filter describes each of its match modes", () => {
+    const schema = jsonSchemaOf(registry.get(["client", "filter"])!.input, { io: "input" }) as {
+      properties?: Record<string, { description?: string; enum?: string[] }>;
+    };
+    const match = schema.properties?.["match"];
+    expect(match?.enum).toHaveLength(11);
+    for (const mode of match?.enum ?? []) expect(match?.description, mode).toContain(`'${mode}'`);
   });
 });
 

@@ -10,6 +10,7 @@ import { anyOutput, booleanOutput, stringOutput } from "./outputs.js";
 import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 import { PURE_EFFECTS, withEffects } from "../effects.js";
+import { isPlainObject } from "../ref.js";
 
 // =============================================================================
 // Typeof Procedure
@@ -168,11 +169,12 @@ const isObjectProcedure: IsObjectProcedure = defineProcedure({
   input: IsObjectInputSchema,
   output: booleanOutput("True for a plain object"),
   metadata: {
-    description: "Check if value is a plain object (not array, not null)",
+    description: "Check if value is a plain object (not array, not null, not a Date or another class instance)",
     tags: ["core", "type"],
   },
   handler: async (input: IsObjectInput): Promise<boolean> => {
-    return typeof input.value === "object" && input.value !== null && !Array.isArray(input.value);
+    // Before, a Date or a Map gave true (catalog test, roadmap R29)
+    return isPlainObject(input.value);
   },
 });
 

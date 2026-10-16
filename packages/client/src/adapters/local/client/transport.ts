@@ -14,6 +14,7 @@ import { TIMEOUT_METADATA_KEY } from "../../../client/deadline.js";
 import { narrowCapability } from "../../../procedures/capability.js";
 import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
+import { errorCodeOf } from "../../../protocol.js";
 
 /** The value of `untilAborted` when the signal aborts first. */
 const ABORTED: unique symbol = Symbol("aborted");
@@ -223,8 +224,9 @@ export class LocalTransport implements Transport {
         yield successItem<TRes>(message.id, item);
       }
     } catch (error) {
-      // The handler threw, or the invocation failed (its code: VALIDATION_ERROR, ABORTED and so on)
-      const code = error instanceof InvocationError ? error.code : "HANDLER_ERROR";
+      // The handler threw, or the invocation failed (its code: VALIDATION_ERROR, ABORTED and so
+      // on). A handler error keeps its own code, as on the other faces (WIRE-PROTOCOL.md).
+      const code = errorCodeOf(error);
       const item = errorItem<TRes>(message.id, code, error instanceof Error ? error.message : "Unknown error");
       // The reason of a FORBIDDEN error travels on each face (roadmap R25)
       if (error instanceof InvocationError && error.reason) item.metadata = { reason: error.reason };

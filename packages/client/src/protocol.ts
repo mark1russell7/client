@@ -50,8 +50,9 @@ export type ProtocolErrorCode =
 
 /**
  * The error codes of the protocol, on each face (HTTP, WebSocket, MCP, local). An error that a
- * handler throws with its own `code` keeps it. Such a code is not in this list, and HTTP gives it
- * the status 500.
+ * handler throws with its own `code` keeps it, for a value and for a stream (`errorCodeOf`). The
+ * HTTP status follows the code: the status of this list, the status of `ERROR_REGISTRY` for
+ * another known code, or 500.
  */
 export const ERROR_CODES: Readonly<Record<ProtocolErrorCode, ErrorCodeInfo>> = {
   NOT_FOUND: { http: 404, retryable: false, meaning: "No procedure has the path, or the host does not expose it" },
@@ -80,6 +81,16 @@ export const ERROR_CODES: Readonly<Record<ProtocolErrorCode, ErrorCodeInfo>> = {
 /** True when a code is an error code of the protocol. */
 export function isProtocolErrorCode(code: unknown): code is ProtocolErrorCode {
   return typeof code === "string" && Object.prototype.hasOwnProperty.call(ERROR_CODES, code);
+}
+
+/**
+ * The code of an error that a handler or an invocation throws, on each face: its own code when
+ * it is a string, or `HANDLER_ERROR`. An invocation error has a code of this list. Before, a
+ * value lost the own code of a handler error, and a stream kept it (roadmap R30).
+ */
+export function errorCodeOf(error: unknown): string {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  return typeof code === "string" ? code : "HANDLER_ERROR";
 }
 
 /** The HTTP status of an error code, or undefined for a code that is not in the list. */
