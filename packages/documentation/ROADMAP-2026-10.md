@@ -85,14 +85,14 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
 | R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
 | R37 | 8 | The service abstraction of `systems` in the client | M–L | open | |
-| R38 | 9 | `@procedures/http` | S–M | open | |
-| R39 | 9 | JSON and YAML transforms | S | open | |
-| R40 | 9 | More git operations, and `git.branch` in three procedures | S–M | open | |
-| R41 | 9 | More pnpm and docker operations | M | open | |
-| R42 | 9 | `@procedures/gh` | M | open | |
-| R43 | 9 | npm registry procedures | S–M | open | |
-| R44 | 9 | More operations for fs, mongo, sqlite, s3, node and lib | M | in progress: the fs part is done | `f23c7ad` |
-| R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | open | |
+| R38 | 9 | `@procedures/http` | S–M | fixed, not an MCP tool | `a6b01a9` |
+| R39 | 9 | JSON and YAML transforms | S | fixed, the pure ones are MCP tools | `a6b01a9`, `1779d96` |
+| R40 | 9 | More git operations, and `git.branch` in three procedures | S–M | fixed | `4cad9ab` |
+| R41 | 9 | More pnpm and docker operations | M | fixed, 12 docker tools | `14d85fe`, `2392f9e`, `c66f0c4` |
+| R42 | 9 | `@procedures/gh` | M | fixed | `49de6a8` |
+| R43 | 9 | npm registry procedures | S–M | fixed | `2bc7ce5` |
+| R44 | 9 | More operations for fs, mongo, sqlite, s3, node and lib | M | fixed, 5 read-only tools | `f23c7ad`, `ffb35f3`, `3aa6495`, `94dd2a0`, `04cfef8`, `4d3ff39`, `5b7b673` |
+| R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | fixed | `4ef0d44`, `4ec3898` |
 | R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | open | |
 | R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | fixed, and CI keeps them current | `596190d`, `2315ea9` |
 | R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | fixed by the jarvis session, with an opt-in bundle for MCP | `5e2ba76`, `382b0fd`, `120be4c`, `4055a3d` |
@@ -525,4 +525,13 @@ The review found code that is a candidate for removal or a move. These items nee
 - The description of the sqlite `dbPath` field shows the home folder of the computer to Claude.
 - R33: `fs.copy` keeps an existing destination and reports success. `git.isClean` gives true outside a repository. `git.init` with `bare` makes the repository again. `splay.bridge.info` gives the version `1.0.0`.
 - `mark procedure new` makes a procedure without `metadata.effects`. A default of "pure" can be false, so the author writes them. A host with a capability refuses a procedure without effects.
-- The fs root (R33) is not in `mark` or the MCP host. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
+- The fs root (R33) is not in `mark` or the MCP host.
+- Tier 9 found these points:
+  - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
+  - The `yaml` package 2.9.1 writes a block scalar wrong when its first line has only spaces. `yaml.stringify` quotes such a text. The bug goes to the authors of `yaml`.
+  - `http.ndjson` and `http.sse` take only GET, so the event stream of a POST, as an LLM API sends it, is not possible yet.
+  - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.
+  - `node.logs` has no follow stream, because the process registry of `client-shell` keeps its listeners private.
+  - `SqliteStorage` writes the whole database file after each write, because sql.js has no partial writes.
+  - A shared contract test suite for `CollectionStorage` does not exist. The storages copy the cases of `InMemoryStorage`.
+  - The MCP host has 91 tools. Some procedures can carry data out, change data in bulk, or run without an end. They are not tools: `http.*`, `docker.push`, `docker.prune`, `docker.volume.remove`, `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup`. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
