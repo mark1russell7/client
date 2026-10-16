@@ -5,9 +5,11 @@
  * Works with any transport!
  */
 
-import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
+import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
 import { ABORTED_FIRST, errorItem, nextOrAbort, withDelivery } from "./items.js";
 import type { TimeoutContext } from "./contexts.js";
+import { deadlineOf, narrowDeadline, restoreDeadline } from "../deadline.js";
+import { resilience } from "./resilience.js";
 
 /**
  * Timeout middleware options.
@@ -131,6 +133,10 @@ async function* runWithTimeout<TReq, TRes>(
 ): AsyncGenerator<ResponseItem<TRes>, void, undefined> {
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), ms);
+  // The overall timeout is the deadline of the call: the transport sends its remaining time to
+  // the server (roadmap R10). The timeout of one try is not: the server keeps a keyed write
+  // until the next try can get its result, and the request signal stops another call.
+  const deadlineBefore = retryable ? deadlineOf(context.message.metadata) : narrowDeadline(context.message.metadata, Date.now() + ms);
 
   // Compose with existing signal
   const originalSignal = context.message.signal;
@@ -174,6 +180,7 @@ async function* runWithTimeout<TReq, TRes>(
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    restoreDeadline(context.message.metadata, deadlineBefore);
     cleanup();
     // Restore the caller's original signal; we only swapped in the composed signal for this
     // attempt. Leaving the (possibly aborted) composed signal in place poisons subsequent
@@ -268,8 +275,12 @@ export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttemp
         return;
       }
 
+      // The limit of one try is at most the remaining time of the call (roadmap R10)
+      const deadline = deadlineOf(context.message.metadata);
+      const limit = deadline === undefined ? perAttempt : Math.max(0, Math.min(perAttempt, deadline - Date.now()));
+
       // A retry middleware outside this one can start a new attempt
-      yield* runWithTimeout(next, context, perAttempt, message, true);
+      yield* runWithTimeout(next, context, limit, message, true);
     };
   };
 }
@@ -277,34 +288,20 @@ export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttemp
 /**
  * Create combined timeout middleware with both overall and per-attempt timeouts.
  *
+ * @deprecated Use `resilience({ overall, perAttempt, retry })`. This function puts the two
+ * timeouts in one slot, so a retry middleware that you add with another `use()` cannot sit
+ * between them: the retry is outside both, or inside both. `resilience` puts the retry between
+ * them (roadmap R10).
+ *
  * @param options - Timeout configuration
  * @returns Middleware function
  *
  * @example
  * ```typescript
- * client.use(createCombinedTimeoutMiddleware({
- *   overall: 5000,     // 5 seconds total
- *   perAttempt: 1000   // 1 second per attempt
- * }));
+ * client.use(resilience({ overall: 5000, perAttempt: 1000, retry: { maxRetries: 2 } }));
  * ```
  */
 export function createCombinedTimeoutMiddleware(options: TimeoutOptions): TypedClientMiddleware<TimeoutContext, {}> {
   const { overall, perAttempt, message = "Request timeout" } = options;
-
-  return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
-    // Compose both timeout middlewares
-    let composed: ClientRunner<TReq, TRes> = next;
-
-    if (perAttempt) {
-      const perAttemptMiddleware = createTimeoutMiddleware({ perAttempt, message: `${message} (per-attempt)` }) as ClientMiddleware<TReq, TRes>;
-      composed = perAttemptMiddleware(composed);
-    }
-
-    if (overall) {
-      const overallMiddleware = createOverallTimeoutMiddleware({ overall, message: `${message} (overall)` }) as ClientMiddleware<TReq, TRes>;
-      composed = overallMiddleware(composed);
-    }
-
-    return composed;
-  };
+  return resilience({ overall, perAttempt, message }) as TypedClientMiddleware<TimeoutContext, {}>;
 }

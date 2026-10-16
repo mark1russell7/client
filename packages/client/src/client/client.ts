@@ -56,7 +56,8 @@ import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from ".
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { EventBus } from "../events/types.js";
-import { TIMEOUT_METADATA_KEY, narrowCapability } from "../procedures/capability.js";
+import { narrowCapability } from "../procedures/capability.js";
+import { TIMEOUT_METADATA_KEY, absorbTimeout, writeRemainingTime } from "./deadline.js";
 import type { Capability, ClearanceOrder, NestedCallOptions } from "../procedures/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { validateSchema } from "../procedures/schema.js";
@@ -744,6 +745,10 @@ export class Client<TContext = {}> {
       (message.metadata as any).__schema = opts.schema;
     }
 
+    // The remaining time of the caller becomes the deadline of the call: the client sends the
+    // remaining time again for each try (roadmap R10)
+    absorbTimeout(message.metadata);
+
     // Compose middleware chain
     const runner = this.composeMiddleware<TReq, TRes>();
 
@@ -771,6 +776,9 @@ export class Client<TContext = {}> {
     // Innermost function: call transport
     const self = this;
     const transportRunner: ClientRunner<TReq, TRes> = async function* (context: ClientContext<TReq>) {
+      // The remaining time of the deadline goes with each try, so the server stops the handler
+      // when this client stops waiting (roadmap R10)
+      writeRemainingTime(context.message.metadata);
       yield* self.transport.send<TReq, TRes>(context.message);
     };
 

@@ -58,6 +58,18 @@ export {
   createCombinedTimeoutMiddleware,
 } from "./middleware/timeout.js";
 export type { TimeoutOptions } from "./middleware/timeout.js";
+// The resilience preset and the deadline of a call (roadmap R10)
+export { resilience } from "./middleware/resilience.js";
+export type { ResilienceOptions, ResilienceContext } from "./middleware/resilience.js";
+export {
+  TIMEOUT_METADATA_KEY,
+  DEADLINE_METADATA_KEY,
+  deadlineOf,
+  narrowDeadline,
+  restoreDeadline,
+  absorbTimeout,
+  writeRemainingTime,
+} from "./deadline.js";
 
 export { createPaginationMiddleware, paginateAll } from "./middleware/pagination.js";
 export type { PaginationOptions } from "./middleware/pagination.js";

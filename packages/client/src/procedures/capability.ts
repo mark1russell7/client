@@ -30,11 +30,8 @@ import { callMatches } from "./policy.js";
 /** The standard resource names. An application adds its own names. */
 export const STANDARD_RESOURCES = ["fs", "network", "process", "registry"] as const;
 
-/**
- * The metadata key of the remaining time of a remote call, in milliseconds. A server uses it
- * only to make its deadline earlier.
- */
-export const TIMEOUT_METADATA_KEY = "procedure-timeout";
+// The metadata key of the remaining time of a remote call, in milliseconds (client/deadline.ts)
+export { TIMEOUT_METADATA_KEY } from "../client/deadline.js";
 
 /** The capability without limits: the capability of a host that sets none. */
 export const UNLIMITED_CAPABILITY: Capability = Object.freeze({});

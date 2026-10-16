@@ -100,6 +100,32 @@ const badClient = new Client(transport)
 
 ---
 
+## The resilience preset and the deadline
+
+`resilience()` puts the timeouts, the cache, the retry, the circuit breaker and the rate limit in the one order that works (roadmap R10). The first layer is the outermost one:
+
+1. The overall timeout covers the whole call, retries included.
+2. A cache hit makes no request.
+3. The retry starts each try.
+4. The circuit breaker counts each try.
+5. Each try takes a slot of the rate limit.
+6. The timeout of one try is inside the retry, so the retry can start the next try.
+
+```typescript
+import { resilience, idempotentIn } from "@procedures/client";
+
+client.use(
+  resilience({
+    overall: 10_000,
+    perAttempt: 3_000,
+    retry: { maxRetries: 2, idempotent: idempotentIn(registry) },
+    breaker: { failureThreshold: 5 },
+  }),
+);
+```
+
+A call has one deadline. The overall timeout and the remaining time that a caller gives (`procedure-timeout` in its context) set it. Each try sends the remaining time as `procedure-timeout`, and the server stops the handler at that time. The timeout of one try is at most the remaining time. It does not change the deadline of the server: a keyed write continues until the next try can get its result. `createCombinedTimeoutMiddleware` is the preset with the two timeouts only.
+
 ## Composition Utilities
 
 ### `compose(...middleware, runner)`

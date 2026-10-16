@@ -95,7 +95,7 @@ export interface HeaderConverter {
  * Implements standard conventions for converting metadata to headers:
  * - Auth: Bearer token, API key
  * - Tracing: X-Trace-Id, X-Span-Id format
- * - Timeouts: X-Timeout header
+ * - The deadline: `procedure-timeout` in X-Metadata (no X-Timeout header)
  * - Custom fields: Pass through as-is
  */
 export class DefaultHeaderConverter implements HeaderConverter {
@@ -131,10 +131,8 @@ export class DefaultHeaderConverter implements HeaderConverter {
       headers[HTTPHeaders.PARENT_SPAN_ID] = metadata.tracing.parentSpanId;
     }
 
-    // Timeouts
-    if (metadata.timeout?.overall) {
-      headers[HTTPHeaders.TIMEOUT] = String(metadata.timeout.overall);
-    }
+    // No X-Timeout: the remaining time of the deadline goes as procedure-timeout in X-Metadata,
+    // which the server uses (roadmap R10). The server ignored X-Timeout.
 
     const custom: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(metadata)) {
