@@ -82,7 +82,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | fixed (the first nightly run is open) | `26aad49` |
 | R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | fixed | `bc70357`, `95b660d` |
 | R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
-| R35 | 8 | State machines as data and an injectable monotonic clock | M | open | |
+| R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
 | R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
 | R37 | 8 | The service abstraction of `systems` in the client | M–L | open | |
 | R38 | 9 | `@procedures/http` | S–M | open | |
@@ -446,6 +446,8 @@ More tests for `client-git`, `client-splay`, `client-s3` and `client-fs`. `clien
 
 The state of the WebSocket connection and of the circuit breaker become machine definitions that a test can replay. An injectable monotonic clock replaces `Date.now` in the timers.
 
+**Result.** The retry, the circuit breaker and the WebSocket client take a `clock`. The `Clock` has the shape of the clock of `@mark1russell7/service`, so its `fakeClock` fits. `WEBSOCKET_CONNECTION_MACHINE` and `CIRCUIT_BREAKER_MACHINE` are documents of `algebra`, with knobs, events and timers. The code reports each transition, and a test replays the reports against the documents. The function `replayTransitions()` moves to `algebra` with R37.
+
 ### R36. A harness cell
 
 A driver for a procedures WebSocket pair in the harness of `systems`. A nightly cell calibrates the heartbeat and the reconnect times under real network faults.
@@ -512,4 +514,5 @@ The review found code that is a candidate for removal or a move. These items nee
 - A duplicate stream frame gives a duplicate item, because the frames have no sequence numbers.
 - The description of the sqlite `dbPath` field shows the home folder of the computer to Claude.
 - R33: `fs.copy` keeps an existing destination and reports success. `git.isClean` gives true outside a repository. `git.init` with `bare` makes the repository again. `splay.bridge.info` gives the version `1.0.0`.
+- `mark procedure new` makes a procedure without `metadata.effects`. A default of "pure" can be false, so the author writes them. A host with a capability refuses a procedure without effects.
 - The fs root (R33) is not in `mark` or the MCP host. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
