@@ -23,6 +23,7 @@ To make the two files again after a build, start `node packages/documentation/sc
 
 | Document | Content |
 |---|---|
+| [ROADMAP-2026-10.md](./ROADMAP-2026-10.md) | The roadmap of the architecture review of 2026-10-16: the items R1 to R47 in their order, with their status |
 | [deep-dive-2026-10/STATUS.md](./deep-dive-2026-10/STATUS.md) | The status of each finding of the October 2026 deep dive, and of the roadmap items |
 | [deep-dive-2026-10/](./deep-dive-2026-10/) | The reports of the deep dive, one for each area, and the architecture review with the roadmap |
 | [DECISIONS-2026-10.md](./DECISIONS-2026-10.md) | The decisions of the monorepo move and of the work after it, with how to reverse each one |
