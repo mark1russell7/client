@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, type ReactElement } from "react";
-import { LAYER_INFO, type BreakerState, type LabEvent, type LayerId } from "../lib/lab";
+import { LAYER_INFO, type BreakerState, type LabEvent, type LayerId } from "../lib/lab-info";
 
 const R_OUT = 190;
 const R_CORE = 44;

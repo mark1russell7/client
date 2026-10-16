@@ -77,6 +77,8 @@ function measure(pkg, reports) {
         `--coverage.reportsDirectory=${out}`,
         "--coverage.include=src/**",
         "--maxWorkers=2",
+        // A package without tests (a bundle, the documentation) has no coverage and no floor
+        "--passWithNoTests",
       ],
       { cwd: pkg.dir, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, FORCE_COLOR: "0" } },
     );
@@ -85,8 +87,12 @@ function measure(pkg, reports) {
     child.stderr.on("data", (chunk) => (log += chunk));
     child.on("close", (code) => {
       const summary = join(out, "coverage-summary.json");
-      if (code !== 0 || !existsSync(summary)) {
+      if (code !== 0) {
         resolve({ pkg, error: `the tests failed (exit ${code})`, log });
+        return;
+      }
+      if (!existsSync(summary)) {
+        resolve({ pkg, skipped: "no tests" });
         return;
       }
       const total = JSON.parse(readFileSync(summary, "utf8")).total;
@@ -103,7 +109,7 @@ async function runAll(packages, reports) {
       const pkg = packages[next++];
       const result = await measure(pkg, reports);
       results.push(result);
-      const text = result.error ?? METRICS.map((metric) => `${metric} ${result.totals[metric]}`).join(", ");
+      const text = result.error ?? result.skipped ?? METRICS.map((metric) => `${metric} ${result.totals[metric]}`).join(", ");
       console.log(`${pkg.folder}: ${text}`);
     }
   }
@@ -127,6 +133,7 @@ for (const result of results) {
     problems.push(`${result.pkg.folder}: ${result.error}\n${result.log.split("\n").slice(-30).join("\n")}`);
     continue;
   }
+  if (result.skipped) continue;
   const floor = baseline[result.pkg.name];
   if (!floor) {
     if (!update && !allowMissing) problems.push(`${result.pkg.folder}: no floor in coverage-baseline.json (start with --update)`);
@@ -142,7 +149,7 @@ for (const result of results) {
 if (update || out) {
   const next = { ...baseline };
   for (const result of results) {
-    if (result.error) continue;
+    if (result.error || result.skipped) continue;
     const old = baseline[result.pkg.name] ?? {};
     // A floor goes up to the current value, rounded down to one decimal, and never goes down
     next[result.pkg.name] = Object.fromEntries(

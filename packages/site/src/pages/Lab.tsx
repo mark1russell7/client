@@ -10,13 +10,15 @@ import {
   DEFAULT_FAULTS,
   DEFAULT_SETTINGS,
   LAYER_INFO,
-  Lab as LabEngine,
+  layersOf,
   type BreakerState,
   type Faults,
   type LabEvent,
   type LabSettings,
   type LayerId,
-} from "../lib/lab";
+} from "../lib/lab-info";
+// The engine (the client runtime) loads at the first request: the page itself stays small
+import type { Lab as LabEngine } from "../lib/lab";
 
 // ---------------------------------------------------------------------------
 // The record of each request, for the counters and the timeline
@@ -289,6 +291,9 @@ export function Lab(): ReactElement {
   const flushing = useRef(0);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const lab = useRef<LabEngine | null>(null);
+  /** The engine that loads now, for the settings of `settingsRef`. */
+  const loading = useRef<Promise<LabEngine> | null>(null);
+  const settingsRef = useRef(settings);
 
   const source: OnionHandle = useMemo(
     () => ({
@@ -369,16 +374,50 @@ export function Lab(): ReactElement {
     [flush, layerShort],
   );
 
-  // A new engine for each change of the layers: the middlewares start again with the settings
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+
+  /**
+   * The engine of the current settings. The first request loads it: the middlewares start again
+   * with each change of the layers.
+   */
+  const engine = useCallback((): Promise<LabEngine> => {
+    if (lab.current) return Promise.resolve(lab.current);
+    if (loading.current) return loading.current;
+    const wanted = settingsRef.current;
+    const promise = import("../lib/lab").then(({ Lab: Engine }) => {
+      if (loading.current !== promise) throw new Error("The settings changed while the engine loaded");
+      const created: LabEngine = new Engine(wanted, () => faultsRef.current, (event) => onEventRef.current(event, created.layers));
+      lab.current = created;
+      loading.current = null;
+      return created;
+    });
+    loading.current = promise;
+    return promise;
+  }, []);
+
+  /** This function sends a request with a key, when the engine is ready. */
+  const sendKey = useCallback(
+    (key: string): void => {
+      void engine()
+        .then((ready) => ready.send(key))
+        .catch(() => undefined);
+    },
+    [engine],
+  );
+
+  // A change of the layers ends the engine: the next request makes a new one
   useEffect(() => {
-    const engine = new LabEngine(settings, () => faultsRef.current, (event) => onEvent(event, engine.layers));
-    lab.current = engine;
-    stats.current = { ...emptyStats(engine.layers.length), sent: 0 };
+    settingsRef.current = settings;
+    lab.current?.dispose();
+    lab.current = null;
+    loading.current = null;
+    stats.current = { ...emptyStats(layersOf(settings).length), sent: 0 };
     records.current.clear();
     setBreaker("CLOSED");
     setVersion((version) => version + 1);
-    return () => engine.dispose();
-  }, [settings, onEvent]);
+  }, [settings]);
+  useEffect(() => () => lab.current?.dispose(), []);
 
   const nextKey = (): string => {
     keyCount.current++;
@@ -388,13 +427,13 @@ export function Lab(): ReactElement {
   };
 
   const send = (count = 1): void => {
-    for (let index = 0; index < count; index++) lab.current?.send(nextKey());
+    for (let index = 0; index < count; index++) sendKey(nextKey());
   };
 
   // Automatic traffic
   useEffect(() => {
     if (!auto) return;
-    const timer = setInterval(() => lab.current?.send(nextKey()), 1000 / rate);
+    const timer = setInterval(() => sendKey(nextKey()), 1000 / rate);
     return () => clearInterval(timer);
     // nextKey reads the refs and the key mode of this render
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -431,7 +470,7 @@ export function Lab(): ReactElement {
         setTimeout(() => {
           keyCount.current++;
           const key = chosen.keyMode === "one" ? "key-1" : `key-${keyCount.current}`;
-          lab.current?.send(key);
+          sendKey(key);
         }, delay + 60),
       );
     }
@@ -476,7 +515,7 @@ export function Lab(): ReactElement {
     updateSettings({ order });
   };
 
-  const layers = lab.current?.layers ?? [];
+  const layers = layersOf(settings);
   const s = stats.current;
   const shown = [...records.current.values()].slice(-TIMELINE_ROWS).reverse();
   const durations = [...records.current.values()].filter((record) => record.end !== undefined).map((record) => record.end! - record.start);
