@@ -6,7 +6,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { IDBFactory, type IDBDatabase } from "fake-indexeddb";
+import { IDBFactory, IDBDatabase } from "fake-indexeddb";
+
+/** The instances of the classes of fake-indexeddb: the package exports the classes as values. */
+type FakeFactory = InstanceType<typeof IDBFactory>;
+type FakeDatabase = InstanceType<typeof IDBDatabase>;
 import { InMemoryStorage } from "@procedures/collections";
 import { ms } from "@procedures/client";
 import { HybridStorage } from "../storage/hybrid.js";
@@ -33,8 +37,8 @@ function program(key: string, a = 1): StoredProgram {
 }
 
 /** This function writes a raw record in an object store, as another application or an old version does. */
-async function putRaw(factory: IDBFactory, database: string, store: string, value: unknown, key?: string): Promise<void> {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+async function putRaw(factory: FakeFactory, database: string, store: string, value: unknown, key?: string): Promise<void> {
+  const db = await new Promise<FakeDatabase>((resolve, reject) => {
     const request = factory.open(database, 1);
     request.onupgradeneeded = () => request.result.createObjectStore(store, store === "programs" ? { keyPath: "key" } : { autoIncrement: true });
     request.onsuccess = () => resolve(request.result);
