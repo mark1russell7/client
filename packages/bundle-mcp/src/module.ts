@@ -17,10 +17,10 @@
  * tools.snapshot.txt in impl-mcp-dev pins the result: a test compares the server's tools with it.
  *
  * This file has no side effects: the dev-tools server builds its own registry from
- * `bundleMcpModules`. `register.ts` imports the packages for the global registry.
+ * `bundleMcpModules`. `register.ts` registers the same modules in the global registry.
  */
 
-import { defineModule, type ProcedureModule } from "@procedures/client";
+import { clientModule, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import libModule from "@procedures/lib/module";
 import procedureModule from "@procedures/procedure/module";
 import cueModule from "@procedures/cue/module";
@@ -34,6 +34,8 @@ import vitestModule from "@procedures/vitest/module";
  * repository and shell procedures) come with them. Importing this file registers nothing.
  */
 export const bundleMcpModules: readonly ProcedureModule[] = [
+  // The control flow: the tool surface has the client namespace
+  clientModule,
   // Core orchestration
   libModule,
   procedureModule,
@@ -89,3 +91,12 @@ export const mcpExclude: readonly string[] = [
   "procedure.remote",
   "procedure.register",
 ];
+
+/**
+ * This function registers the procedures of @procedures/bundle-mcp, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerBundleMcpProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [bundleMcpModule]);
+}

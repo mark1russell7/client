@@ -54,7 +54,7 @@ export function usageCode(procedure: Pick<ProcedureInfo, "path" | "package" | "i
     `import { Client, LocalTransport, PROCEDURE_REGISTRY${core ? ", allCoreProcedures" : ""} } from "@procedures/client";`,
     ...(core
       ? ["", "for (const procedure of allCoreProcedures) {", "  if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);", "}"]
-      : [`import "${packageName}"; // registers its procedures`]),
+      : [`import "${packageName}/register"; // registers its procedures`]),
     "",
     "const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));",
     `const result = await client.exec(${JSON.stringify(procedure.path)}, ${inputCode(exampleInput(procedure))});`,

@@ -7,7 +7,7 @@
  * client-cli no longer registers these to avoid duplicates.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { procedureNew } from "./procedures/procedure/index.js";
 import { procedureRegistryProcedures } from "./procedures/procedure/registry.js";
 import {
@@ -48,3 +48,12 @@ export const procedureModule: ProcedureModule = defineModule("@procedures/proced
 ]);
 
 export default procedureModule;
+
+/**
+ * This function registers the procedures of @procedures/procedure, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerProcedureProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [procedureModule], { override: true });
+}

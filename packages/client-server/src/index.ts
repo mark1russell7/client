@@ -66,4 +66,4 @@ export {
 } from "./discovery/index.js";
 
 // Registration
-export { procedures, registerServerProcedures } from "./register.js";
+export { procedures, registerServerProcedures } from "./module.js";

@@ -38,7 +38,7 @@ describe("the usage of a procedure", () => {
 
   it("imports the package of another procedure", () => {
     const code = usageCode(procedureByKey("git.status")!, "@procedures/git");
-    expect(code).toContain('import "@procedures/git";');
+    expect(code).toContain('import "@procedures/git/register";');
     expect(code).toContain('client.exec(["git","status"], {})');
   });
 });

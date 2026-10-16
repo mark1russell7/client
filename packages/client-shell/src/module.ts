@@ -4,7 +4,7 @@
  * Procedure Registration for shell operations
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { shellRun } from "./procedures/shell/run.js";
 import { shellExec } from "./procedures/shell/exec.js";
 import { shellWhich } from "./procedures/shell/which.js";
@@ -100,3 +100,12 @@ export const shellModule: ProcedureModule = defineModule("@procedures/shell", [
   ]);
 
 export default shellModule;
+
+/**
+ * This function registers the procedures of @procedures/shell, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerShellProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [shellModule]);
+}

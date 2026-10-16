@@ -15,6 +15,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ProcedureContext } from "@procedures/client";
 import { libNew } from "@procedures/lib";
 import { procedureNew } from "@procedures/procedure";
+// The registry of mark has procedure.new: an import registers nothing (ARCHITECTURE-PROPOSALS-2026-10, P9)
+import "@procedures/procedure/register";
 
 const markModules = realpathSync(fileURLToPath(new URL("../node_modules", import.meta.url)));
 
@@ -113,8 +115,11 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
     expect(existsSync(join(packageDir, "src", "procedures", "demo", "api", "v2", "create.ts"))).toBe(true);
     expect(existsSync(join(packageDir, "src", "procedures", "solo", "solo.ts"))).toBe(true);
 
-    const register = readFileSync(join(packageDir, "src", "register.ts"), "utf8");
-    expect(register).toContain("registerProcedures([demoHelloProcedure, demoApiV2CreateProcedure, demoReadJsonProcedure, soloProcedure])");
+    // The procedures go into the module. The register entry and the root do not change.
+    const module = readFileSync(join(packageDir, "src", "module.ts"), "utf8");
+    expect(module).toContain('defineModule("@procedures/demo", [demoHelloProcedure, demoApiV2CreateProcedure, demoReadJsonProcedure, soloProcedure])');
+    expect(readFileSync(join(packageDir, "src", "register.ts"), "utf8")).toContain("registerDemoProcedures();");
+    expect(readFileSync(join(packageDir, "src", "index.ts"), "utf8")).not.toContain("register.js");
     expect(readFileSync(join(packageDir, "src", "types.ts"), "utf8")).toContain('import { z } from "zod";');
 
     const result = compile(packageDir);
@@ -123,9 +128,9 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
   }, 120000);
 
   it("gives a new procedure real input and output schemas, so its results are validated", async () => {
-    const register = readFileSync(join(packageDir, "src", "register.ts"), "utf8");
-    expect(register).toContain("zodAdapter<DemoHelloOutput>(DemoHelloOutputSchema)");
-    expect(register).not.toContain("outputSchema<");
+    const module = readFileSync(join(packageDir, "src", "module.ts"), "utf8");
+    expect(module).toContain("zodAdapter<DemoHelloOutput>(DemoHelloOutputSchema)");
+    expect(module).not.toContain("outputSchema<");
 
     const types = (await import(pathToFileURL(join(packageDir, "src", "types.ts")).href)) as Record<
       string,
@@ -137,7 +142,7 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
   }, 120000);
 
   it("refuses a name that collides, and writes nothing", async () => {
-    const before = readFileSync(join(packageDir, "src", "register.ts"), "utf8");
+    const before = readFileSync(join(packageDir, "src", "module.ts"), "utf8");
 
     const again = await procedureNew({ name: "demo.hello", path: packageDir, dryRun: false }, ctx);
     expect(again.success).toBe(false);
@@ -154,6 +159,6 @@ describe.skipIf(!cueInstalled && !process.env["CI"])("lib new + procedure new", 
     expect(registered.success).toBe(false);
     expect(registered.errors[0]).toContain("registered at procedure.new already");
 
-    expect(readFileSync(join(packageDir, "src", "register.ts"), "utf8")).toBe(before);
+    expect(readFileSync(join(packageDir, "src", "module.ts"), "utf8")).toBe(before);
   }, 120000);
 });

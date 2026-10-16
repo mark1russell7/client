@@ -24,6 +24,7 @@ The packages need Node.js 22 or later. They are ES modules.
 ```ts
 import { z } from "zod";
 import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures, createProcedure, zodAdapter } from "@procedures/client";
+import "@procedures/client/register"; // the control flow: client.chain and the others
 
 // A procedure: a path, a typed input and output, and a handler
 PROCEDURE_REGISTRY.register(

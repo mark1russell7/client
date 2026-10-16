@@ -1,10 +1,10 @@
 /**
  * Procedure modules and explicit registries (architecture review, roadmap 3.1).
  *
- * Importing a package root registers its procedures in the global `PROCEDURE_REGISTRY`
- * (DECISIONS-2026-10, "Every package root registers its procedures"). That stays. A host that
- * wants its own registry uses the module of each package instead: the `./module` entry of a
- * package exports its procedures as data, and importing it registers nothing.
+ * Importing a package registers nothing (ARCHITECTURE-PROPOSALS-2026-10, P9). A host with its own
+ * registry gives it the module of each package: the `./module` entry exports the procedures as
+ * data. The global `PROCEDURE_REGISTRY` gets the procedures of a package from its `./register`
+ * entry (`import "@procedures/git/register"`).
  *
  * ```ts
  * import { createRegistry, Client, LocalTransport } from "@procedures/client";
@@ -18,16 +18,15 @@
  * rule of a server all use the registry of the invocation (`ctx.registry`).
  */
 
-import { ProcedureRegistry, RegistryError } from "./registry.js";
+import { PROCEDURE_REGISTRY, ProcedureRegistry, RegistryError } from "./registry.js";
 import { coreProcedures } from "./core/index.js";
 import { metaProcedures as definitionProcedures } from "./define-procedure.js";
 import type { AnyProcedure, ProcedureModule, RegistrationOptions } from "./types.js";
 
 /**
- * The procedures that `@procedures/client` registers in the global registry when it is
- * imported: the control flow (`client.chain`, `client.map` and the others) and
- * `procedure.define`/`get`/`list`/`delete`. `createRegistry()` always registers this module, so an
- * explicit registry has what the global registry has.
+ * The procedures of `@procedures/client`: the control flow (`client.chain`, `client.map` and the
+ * others) and `procedure.define`/`get`/`list`/`delete`. `createRegistry()` always registers this
+ * module. `import "@procedures/client/register"` registers it in the global registry.
  */
 export const clientModule: ProcedureModule = {
   name: "@procedures/client",
@@ -104,4 +103,15 @@ export function registerModules(
  */
 export function createRegistry(...modules: ModuleInput[]): ProcedureRegistry {
   return registerModules(new ProcedureRegistry(), [clientModule, ...modules]);
+}
+
+/**
+ * This function registers the procedures of `clientModule` in a registry: the global registry by
+ * default. A procedure that the registry has already stays. The `./register` entry of the package
+ * starts this function.
+ */
+export function registerClientProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  for (const procedure of clientModule.procedures) {
+    if (!registry.has(procedure.path)) registry.register(procedure);
+  }
 }

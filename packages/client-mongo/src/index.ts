@@ -135,7 +135,7 @@ export type { MongoStorageOptions } from "./storage/index.js";
 // Procedure Registration
 // =============================================================================
 
-export { registerMongoProcedures, procedures } from "./register.js";
+export { registerMongoProcedures, procedures } from "./module.js";
 
 // =============================================================================
 // Individual Procedures (for direct import if needed)

@@ -4,7 +4,7 @@
  * Procedure Registration for Node.js process management
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { nodeRun } from "./procedures/node/run.js";
 import { nodeSpawn } from "./procedures/node/spawn.js";
 import { nodeKill } from "./procedures/node/kill.js";
@@ -101,3 +101,12 @@ export const nodeModule: ProcedureModule = defineModule("@procedures/node", [
   ]);
 
 export default nodeModule;
+
+/**
+ * This function registers the procedures of @procedures/node, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerNodeProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [nodeModule]);
+}

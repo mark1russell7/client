@@ -50,4 +50,4 @@ export { shellRun, shellExec, shellWhich, shellStream } from "./procedures/shell
 export * from "./command/index.js";
 
 // Registration
-export { registerShellProcedures } from "./register.js";
+export { registerShellProcedures } from "./module.js";

@@ -73,7 +73,7 @@ yarn add @procedures/git
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/git"; // registers its procedures
+import "@procedures/git/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -969,7 +969,7 @@ graph LR
 
 ```typescript
 // bundle-dev/src/register.ts
-import "@procedures/git"; // registers its procedures
+import "@procedures/git/register"; // registers its procedures
 
 // client-lib uses git procedures internally
 import { gitStatus, gitAdd, gitCommit } from "@procedures/git";

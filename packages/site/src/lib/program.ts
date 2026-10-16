@@ -268,9 +268,10 @@ export function toTypeScript(program: Json, packageOf: (key: string) => string |
   }
   return [
     `import { Client, LocalTransport, PROCEDURE_REGISTRY, allCoreProcedures, proc } from "@procedures/client";`,
-    ...[...packages].sort().map((name) => `import "${name}"; // registers its procedures`),
+    `import "@procedures/client/register"; // registers the control flow (client.chain and the others)`,
+    ...[...packages].sort().map((name) => `import "${name}/register"; // registers its procedures`),
     ``,
-    `// The core procedures (client.*) are not in the registry by default`,
+    `// The other core procedures (client.add and the others) are not in the registry by default`,
     `for (const procedure of allCoreProcedures) {`,
     `  if (!PROCEDURE_REGISTRY.has(procedure.path)) PROCEDURE_REGISTRY.register(procedure);`,
     `}`,

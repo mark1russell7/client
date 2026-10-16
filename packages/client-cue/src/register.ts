@@ -1,21 +1,11 @@
 /**
- * Importing this file registers the procedures of @procedures/cue in the global registry
- * (DECISIONS-2026-10, "Every package root registers its procedures"). The procedures as data
- * are in `module.ts`, which registers nothing: a host with its own registry uses that one.
+ * Importing this file registers the procedures of @procedures/cue, and of the modules that it
+ * requires, in the global registry: `import "@procedures/cue/register"`. The package root and the
+ * `./module` entry register nothing (ARCHITECTURE-PROPOSALS-2026-10, P9).
  */
 
-// The cue procedures read and write files through fs.*: register them wherever cue.* runs.
-// (Over the MCP server, fs.* was not registered, so every cue tool failed: deep dive WRP-3.)
-import "@procedures/fs";
-
-import { registerProcedures } from "@procedures/client";
-import { cueModule } from "./module.js";
+import { registerCueProcedures } from "./module.js";
 
 export * from "./module.js";
 
-export function registerCueProcedures(): void {
-  registerProcedures(cueModule.procedures);
-}
-
-// Auto-register when this module is loaded
 registerCueProcedures();

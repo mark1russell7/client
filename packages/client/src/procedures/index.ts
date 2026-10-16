@@ -61,6 +61,7 @@ export {
   moduleClosure,
   registerModules,
   createRegistry,
+  registerClientProcedures,
 } from "./module.js";
 export type { ModuleInput } from "./module.js";
 
@@ -202,27 +203,9 @@ export type {
 // procedures moved to @procedures/store (roadmap 3.2): the program store.
 
 // =============================================================================
-// Auto-register core procedures
+// Registration
 // =============================================================================
 
-import { coreProcedures as _coreProcedures } from "./core/index.js";
-import { metaProcedures as _metaProcedures } from "./define-procedure.js";
-import { PROCEDURE_REGISTRY } from "./registry.js";
-
-// Register core procedures when this module is imported
-// This ensures client.* procedures are available without explicit registration
-try {
-  for (const proc of _coreProcedures) {
-    if (!PROCEDURE_REGISTRY.has(proc.path)) {
-      PROCEDURE_REGISTRY.register(proc);
-    }
-  }
-  // Also register meta-procedures
-  for (const proc of _metaProcedures) {
-    if (!PROCEDURE_REGISTRY.has(proc.path)) {
-      PROCEDURE_REGISTRY.register(proc);
-    }
-  }
-} catch {
-  // Ignore errors during auto-registration (e.g., if already registered)
-}
+// Importing this package registers nothing (ARCHITECTURE-PROPOSALS-2026-10, P9). The
+// "./register" entry registers the procedures of `clientModule` in the global registry, and
+// `createRegistry()` adds them to each new registry.

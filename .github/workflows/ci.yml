@@ -51,6 +51,9 @@ jobs:
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
       - name: Check the package scope
         run: node scripts/check-scope.mjs
+      # Importing a package registers nothing: only its ./register entry does (2026-10-13, P9)
+      - name: Check the side effects of the imports
+        run: node scripts/check-side-effects.mjs
       # Each package against the template of `lib new`. The step reads the JSON result, because
       # `mark` exits with 0 also for `success: false` (deep dive CLI-8).
       - name: Audit the packages

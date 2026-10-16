@@ -10,7 +10,7 @@ npm install @procedures/bundle-dev
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/bundle-dev"; // registers the procedures of the packages below
+import "@procedures/bundle-dev/register"; // registers the procedures of the packages below
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

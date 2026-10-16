@@ -25,5 +25,4 @@
  * ```
  */
 
-// Re-export register for convenience
-export * from "./register.js";
+export * from "./module.js";

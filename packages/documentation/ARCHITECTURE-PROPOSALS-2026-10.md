@@ -164,7 +164,7 @@ Effort: L. Status: waiting. The site and streaming are first.
 
 ## P9. Registration without side effects (P2 option 3)
 
-> **Decided on 2026-10-13** (owner: option C below). It reverses the 2026-10-08 rule "Every package root registers its procedures" (DECISIONS-2026-10). The change is breaking, so the packages go to 0.2.0.
+> **Decided on 2026-10-13** (owner: option C below), **done on branch `explicit-registration`**. It reverses the 2026-10-08 rule "Every package root registers its procedures" (DECISIONS-2026-10 has the details and the judgment calls). The change is breaking, so the packages go to 0.2.0.
 
 **Problem.** Importing a package root registers its procedures in the global registry. A measurement on 2026-10-13:
 

@@ -59,7 +59,7 @@ These parts moved here from `@procedures/client` (roadmap 3.2):
 - The synced registry (`createSyncedRegistry()`, `SyncedProcedureRegistry`), the serialization of procedures, and the dynamic handler loader with an allowlist (`createDynamicHandlerLoader`).
 - `procedure.register`, which registers a procedure from a handler reference.
 
-Importing the package registers its procedures.
+Importing `@procedures/store/register` registers its procedures. An import of the package root registers nothing.
 
 ## License
 

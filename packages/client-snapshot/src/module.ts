@@ -6,7 +6,7 @@
  * Provides snapshot.create, snapshot.list, snapshot.restore, snapshot.diff, snapshot.delete procedures.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import type { ProcedureContext } from "@procedures/client";
 import {
   snapshotCreate,
@@ -134,3 +134,12 @@ export const snapshotModule: ProcedureModule = defineModule("@procedures/snapsho
   ]);
 
 export default snapshotModule;
+
+/**
+ * This function registers the procedures of @procedures/snapshot, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerSnapshotProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [snapshotModule]);
+}

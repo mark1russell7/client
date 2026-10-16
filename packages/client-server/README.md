@@ -155,7 +155,7 @@ await peer.stop();
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/peer"; // registers its procedures
+import "@procedures/peer/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
@@ -591,7 +591,7 @@ Configure CORS for HTTP transport:
 The `bundle-dev` package includes `client-server` for development workflows:
 
 ```typescript
-import "@procedures/bundle-dev"; // registers its procedures
+import "@procedures/bundle-dev/register"; // registers its procedures
 
 // server.* procedures are now available
 await client.exec(["server", "create"], { ... });
@@ -603,7 +603,7 @@ Combine with other client packages for complete functionality:
 
 ```typescript
 // Start a server that exposes git procedures
-import "@procedures/git"; // registers its procedures
+import "@procedures/git/register"; // registers its procedures
 import { createPeer } from "@procedures/peer";
 
 const peer = await createPeer({

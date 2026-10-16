@@ -8,6 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 import { Client, LocalTransport, PROCEDURE_REGISTRY, createRefScope, invokeProcedure, outputValue, withScope } from "@procedures/client";
+// The chain of the core, and this package (an import registers nothing: P9)
+import "@procedures/client/register";
 import "../../register.js";
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));

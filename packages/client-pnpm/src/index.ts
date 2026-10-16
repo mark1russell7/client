@@ -54,4 +54,4 @@ export {
 export { resolvePnpm } from "./procedures/pnpm/shared.js";
 
 // Registration
-export { registerPnpmProcedures } from "./register.js";
+export { registerPnpmProcedures } from "./module.js";

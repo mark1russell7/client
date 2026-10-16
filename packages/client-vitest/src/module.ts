@@ -2,7 +2,7 @@
  * Module (no side effects): the vitest procedures as data, for `createRegistry()`.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import {
   VitestCoverageInputSchema,
   VitestListInputSchema,
@@ -102,3 +102,12 @@ export const vitestModule: ProcedureModule = defineModule("@procedures/vitest", 
 ]);
 
 export default vitestModule;
+
+/**
+ * This function registers the procedures of @procedures/vitest, and of the modules that it requires, in
+ * a registry. The default is the global registry. Importing this file registers nothing: the
+ * `./register` entry starts this function (ARCHITECTURE-PROPOSALS-2026-10, P9).
+ */
+export function registerVitestProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY): void {
+  registerModules(registry, [vitestModule]);
+}

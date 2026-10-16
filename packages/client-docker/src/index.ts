@@ -72,4 +72,4 @@ export {
 } from "./procedures/docker/index.js";
 
 // Registration
-export { registerDockerProcedures } from "./register.js";
+export { registerDockerProcedures } from "./module.js";

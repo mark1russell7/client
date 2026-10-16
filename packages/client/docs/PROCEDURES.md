@@ -329,7 +329,7 @@ Add to `package.json`:
 }
 ```
 
-Procedures auto-register when the package is imported.
+The `./register` entry of the package registers the procedures: `import "my-package/register"`. An import of the package root registers nothing.
 
 ---
 

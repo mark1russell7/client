@@ -106,7 +106,7 @@ The scaffolded code compiles with the strict options of the workspace. A name wh
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/procedure"; // registers its procedures
+import "@procedures/procedure/register"; // registers its procedures
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

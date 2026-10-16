@@ -4,8 +4,7 @@
  * Library management procedures for the workspace - scan, new, audit, rename.
  */
 
-// Importing the package registers its procedures, as in the other client packages (BUGS-2026-07 H18)
-import "./register.js";
+export * from "./module.js";
 
 // Re-export types
 export * from "./types.js";

@@ -15,6 +15,7 @@ import {
   PROCEDURE_REGISTRY,
   ProcedureServer,
   createRegistry,
+  registerClientProcedures,
   hostPolicy,
   procedureServerOptions,
   type HostPolicy,
@@ -62,6 +63,8 @@ export async function loadBundles(bundles: readonly string[]): Promise<LoadedBun
 
 /** The old way, for a bundle without a module entry: import each `register.js`. */
 async function loadBundlesGlobally(bundles: readonly string[]): Promise<LoadedBundles> {
+  // The global registry gets the control flow only from this call (ARCHITECTURE-PROPOSALS-2026-10, P9)
+  registerClientProcedures();
   const surfaces: BundleSurfaceModule[] = [];
   for (const bundle of bundles) {
     surfaces.push((await import(`${bundle}/register.js`)) as BundleSurfaceModule);

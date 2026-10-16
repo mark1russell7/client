@@ -8,7 +8,8 @@
  * The scaffolded code compiles with the strict options of the workspace (deep dive CLI-13):
  * - the handler names its unused input `_input` (noUnusedParameters);
  * - types.ts is created, or gets `import { z } from "zod"`, when it needs it;
- * - the registration goes into src/register.ts.
+ * - the registration goes into the defineModule([...]) array of src/module.ts. A package of the
+ *   old kind, without module.ts, gets it in the registerProcedures([...]) array of src/register.ts.
  * A name whose path, file, types or registration exists already is an error, and nothing is
  * written. Before, "a.b.c" and "a.c" wrote the same file, and existing types were reused silently.
  */
@@ -237,12 +238,12 @@ function closingBracket(source: string, open: number): number {
 }
 
 /**
- * Add an item to the array of the first registerProcedures([...]) or registerAll([...]) call.
- * Returns undefined when the source has no such call.
+ * Add an item to the array of the first defineModule("name", [...]), registerProcedures([...]) or
+ * registerAll([...]) call. Returns undefined when the source has no such call.
  */
 export function addToRegistration(source: string, item: string): string | undefined {
   // The first call in code, not in a comment
-  const call = [...source.matchAll(/\b(registerProcedures|registerAll)\s*\(/g)].find((match) => {
+  const call = [...source.matchAll(/\b(defineModule|registerProcedures|registerAll)\s*\(/g)].find((match) => {
     const lineStart = source.lastIndexOf("\n", match.index) + 1;
     const before = source.slice(lineStart, match.index).trim();
     return !before.startsWith("*") && !before.startsWith("/*") && !before.includes("//");
@@ -273,7 +274,7 @@ export function addToRegistration(source: string, item: string): string | undefi
 }
 
 /**
- * The procedure definition that goes into register.ts
+ * The procedure definition that goes into module.ts (or register.ts)
  */
 function generateRegistration(layout: ProcedureLayout, description: string): string {
   const { segments, camelName, pascalName } = layout;
@@ -310,8 +311,8 @@ register();
 `;
 
 /**
- * Put the procedure into register.ts: its imports, its definition, and its place in the
- * registration array. Returns undefined when register.ts has no registration call.
+ * Put the procedure into module.ts (or register.ts): its imports, its definition, and its place
+ * in the array of the module. Returns undefined when the file has no such array.
  */
 export function registerSource(source: string, layout: ProcedureLayout, description: string, importPath: string): string | undefined {
   const { camelName, pascalName } = layout;
@@ -324,8 +325,11 @@ export function registerSource(source: string, layout: ProcedureLayout, descript
     `import { ${camelName} } from "${importPath}";\n`,
     `import { ${pascalName}InputSchema, ${pascalName}OutputSchema, type ${pascalName}Input, type ${pascalName}Output } from "./types.js";\n`,
   ]);
-  // The definition goes before the code that registers the procedures
-  const anchor = /^(export\s+)?(async\s+)?function\s+register\w*\s*\(|^\s*(registerProcedures|PROCEDURE_REGISTRY\.registerAll)\s*\(/m.exec(updated);
+  // The definition goes before the module, or before the code that registers the procedures
+  const anchor =
+    /^export\s+const\s+\w+\s*(:\s*\w+\s*)?=\s*defineModule\s*\(|^(export\s+)?(async\s+)?function\s+register\w*\s*\(|^\s*(registerProcedures|PROCEDURE_REGISTRY\.registerAll)\s*\(/m.exec(
+      updated
+    );
   const at = anchor ? anchor.index : updated.length;
   return updated.slice(0, at) + generateRegistration(layout, description) + updated.slice(at);
 }
@@ -357,7 +361,7 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
   const procedureFile = join(procedureDir, `${fileBase}.ts`);
   const namespaceIndex = join(namespacePath, "index.ts");
   const typesFile = join(srcPath, "types.ts");
-  const registerFile = join(srcPath, "register.ts");
+  const moduleFile = join(srcPath, "module.ts");
   const relativeFile = [...folders, fileBase].join("/");
   const importPath = `./procedures/${namespace}/${relativeFile}.js`;
 
@@ -372,7 +376,8 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
   });
 
   // Check every collision before anything is written
-  if (PROCEDURE_REGISTRY.has(segments)) {
+  // The registry of the invocation (a host with its own registry), else the global one
+  if ((ctx.registry ?? PROCEDURE_REGISTRY).has(segments)) {
     return fail(`A procedure is registered at ${segments.join(".")} already. Choose another name.`);
   }
   if (await pathExists(procedureFile, ctx)) {
@@ -384,10 +389,14 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
       `types.ts already has types named ${pascalName}: the name ${segments.join(".")} collides with another procedure. Choose another name.`
     );
   }
-  const existingRegister = await readText(registerFile, ctx);
+  // The procedures go into module.ts. A package of the old kind, without it, has them in register.ts.
+  const existingModule = await readText(moduleFile, ctx);
+  const registerFile = existingModule !== undefined ? moduleFile : join(srcPath, "register.ts");
+  const registerName = existingModule !== undefined ? "module.ts" : "register.ts";
+  const existingRegister = existingModule ?? (await readText(registerFile, ctx));
   if (existingRegister !== undefined) {
     if (existingRegister.includes(JSON.stringify(segments)) || new RegExp(`\\b${camelName}Procedure\\b`).test(existingRegister)) {
-      return fail(`register.ts already registers ${segments.join(".")} (or ${camelName}Procedure). Choose another name.`);
+      return fail(`${registerName} already registers ${segments.join(".")} (or ${camelName}Procedure). Choose another name.`);
     }
   }
   const registerBase = existingRegister ?? REGISTER_TEMPLATE;
@@ -414,7 +423,7 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
         `Would create/update index: ${namespaceIndex}`,
         existingTypes === undefined ? `Would create ${typesFile}` : `Would append types to: ${typesFile}`,
         newRegister === undefined
-          ? `Would not change ${registerFile}: it has no registerProcedures([...]) call`
+          ? `Would not change ${registerFile}: it has no defineModule or registerProcedures array`
           : `Would register the procedure in: ${registerFile}`,
       ],
       errors: [],
@@ -466,14 +475,14 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
     // Step 4: Register the procedure
     if (newRegister === undefined) {
       operations.push(
-        `register.ts has no registerProcedures([...]) call: add ${camelName}Procedure to the registration of ${registerFile}`
+        `${registerName} has no defineModule or registerProcedures array: add ${camelName}Procedure to the module in ${registerFile}`
       );
     } else {
       operations.push(`${existingRegister === undefined ? "Creating" : "Updating"} registration: ${registerFile}`);
       await writeText(registerFile, newRegister, ctx);
       (existingRegister === undefined ? created : modified).push(registerFile);
       if (existingRegister === undefined) {
-        operations.push(`Import ./register.js from src/index.ts, so importing the package registers its procedures`);
+        operations.push(`Export the procedures from src/index.ts, and give the package a "./register" entry (see lib new)`);
       }
     }
 

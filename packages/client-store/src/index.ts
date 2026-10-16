@@ -15,5 +15,5 @@ export * from "./storage/index.js";
 export * from "./program-store/index.js";
 export { ProcedureStoreError, type ProcedureStoreErrorCode } from "./errors.js";
 export { procedureStorageModule, procedureStorageProcedures } from "./procedures.js";
-export * from "./register.js";
+export * from "./module.js";
 export * from "./types.js";

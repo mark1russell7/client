@@ -15,4 +15,4 @@ export { cueGenerate } from "./procedures/cue/generate.js";
 export { cueValidate } from "./procedures/cue/validate.js";
 
 // Registration
-export { registerCueProcedures } from "./register.js";
+export { registerCueProcedures } from "./module.js";

@@ -22,7 +22,7 @@ All five procedures are tools of the MCP server.
 
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
-import "@procedures/cue"; // registers cue.* and fs.*
+import "@procedures/cue/register"; // registers cue.* and fs.*
 
 const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 

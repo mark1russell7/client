@@ -57,7 +57,7 @@ export { DEFAULT_DB_PATH, LOG_LEVELS } from "./types.js";
 // Registration
 // =============================================================================
 
-export { registerSqliteProcedures } from "./register.js";
+export { registerSqliteProcedures } from "./module.js";
 
 // =============================================================================
 // Re-export docker-sqlite utilities for direct use

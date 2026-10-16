@@ -6,6 +6,8 @@
 
 import { describe, it, expect } from "vitest";
 import { PROCEDURE_REGISTRY, invokeProcedure, outputValue } from "@procedures/client";
+// A host with the core procedure.* and this package (an import registers nothing: P9)
+import "@procedures/client/register";
 import "./register.js";
 
 async function run(key: string, input: unknown): Promise<unknown> {
