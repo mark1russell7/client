@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 46. **Procedures:** 193. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 48. **Procedures:** 253. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -19,15 +19,15 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/collections` | `packages/client-collections` | Collections for TypeScript: ArrayList, LinkedList, ArrayDeque, HashMap, LinkedHashMap, TreeMap (red-black), PriorityQueue, LRU and TTL maps, async queues, channels and collectors, tested with fast-check. | — | — |
 | `@procedures/cue` | `packages/client-cue` | cue-config as procedures: generate package.json, tsconfig.json and .gitignore from CUE feature presets, add and remove features, and validate projects. | `cue.*` (5) | `client`, `fs`, `shell`, `@mark1russell7/cue` *(general)* |
 | `@procedures/dag` | `packages/client-dag` | Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. | — | — |
-| `@procedures/docker` | `packages/client-docker` | Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, stop, rm, compose up and down, run with argv and no shell injection. | `docker.*` (10) | `client`, `shell` |
+| `@procedures/docker` | `packages/client-docker` | Docker and Docker Compose as typed procedures: ps, run, exec, logs (streaming), build, pull, push, tag, images, inspect, volumes, networks, prune, stop, rm, compose up, down, ps, logs, build and restart, run with argv and no shell injection. | `docker.*` (25) | `client`, `shell` |
 | `@procedures/fs` | `packages/client-fs` | File system procedures: read, write, copy, move, glob, exists, mkdir and JSON read and write, callable in process, over RPC or from Claude through MCP. | `fs.*` (15) | `client` |
-| `@procedures/git` | `packages/client-git` | Git as 26 typed procedures: status, diff, log, add, commit, push, pull, branch, checkout, stash and more, run with argv, async and abortable. | `git.*` (27) | `client`, `shell` |
+| `@procedures/git` | `packages/client-git` | Git as 45 typed procedures: status, diff, log, show, blame, commit, push, pull, branch, tag, merge, rebase, worktree, stash and more, run with argv, async and abortable. | `git.*` (46) | `client`, `shell` |
 | `@procedures/lib` | `packages/client-lib` | Workspace procedures for pnpm monorepos: scan the packages, scaffold a new package, audit packages against a template, rename across the workspace, and program runners. | `lib.*` (4), `ecosystem.*` (1), `dag.*` (1), `core.*` (1) | `client`, `dag`, `fs`, `git`, `pnpm`, `shell` |
 | `@procedures/mcp-server` | `packages/client-mcp` | Model Context Protocol server transport: serve typed procedures as MCP tools to Claude and other MCP clients, with streaming progress, list_changed and an expose policy. | `mcp.*` (2) | `mcp` |
 | `@procedures/mongo` | `packages/client-mongo` | MongoDB as typed procedures: documents, collections, indexes, aggregation and database info, with a lazy connection and safe update and delete targets. | `mongo.*` (16) | `client`, `collections` |
 | `@procedures/node` | `packages/client-node` | Node.js process procedures: run scripts, spawn and manage long-running processes, with output caps and process-tree cleanup. | `node.*` (4) | `client`, `shell` |
 | `@procedures/playground` | `packages/client-playground` | A typed fluent API to write procedure programs in TypeScript (proc, ref, run) with autocomplete, then run them with the client. | — | `client` |
-| `@procedures/pnpm` | `packages/client-pnpm` | pnpm commands as typed procedures: install, add, remove, run and link, run with argv and option-injection guards. | `pnpm.*` (6) | `client`, `shell` |
+| `@procedures/pnpm` | `packages/client-pnpm` | pnpm commands as typed procedures: install, add, remove, run, exec, list, why, outdated, update, pack and link, with --filter and -r, run with argv and option-injection guards. | `pnpm.*` (12) | `client`, `shell` |
 | `@procedures/procedure` | `packages/client-procedure` | Procedure scaffolding and management: procedure.new writes typed procedure files, plus get, list, define and the procedure store. | `procedure.*` (2) | `client` |
 | `@procedures/s3` | `packages/client-s3` | AWS S3 as typed procedures: upload, download with safe part files, list, delete and multipart uploads. | `s3.*` (9) | `client` |
 | `@procedures/peer` | `packages/client-server` | Serve procedures: HTTP and WebSocket peers with token authentication, browser checks, an expose list, server.create, status and stop, and manifests. | `server.*` (8), `manifest.*` (1), `_discovery.*` (1) | `client` |
@@ -42,14 +42,16 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/documentation` | `packages/documentation` | — | — | — |
 | `@procedures/exif` | `packages/exif` | When and where a JPEG photo was taken, from its EXIF block (time, offset, GPS), without a dependency. | `exif.*` (1) | `client` |
 | `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim) and the time and distance of a drive (OSRM). | `geo.*` (2) | `client` |
+| `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs, releases and issues, with an argument list and no shell. | `gh.*` (13) | `client`, `shell` |
 | `@procedures/http` | `packages/http` | HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call. | `http.*` (4) | `client` |
 | `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader without dependencies: the events of a calendar and their occurrences in a time window, recurrences included. | `ics.*` (3) | `client` |
-| `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 67 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `mcp-server` |
+| `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 79 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `mcp-server` |
 | `@procedures/json` | `packages/json` | Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back. | `json.*` (5), `yaml.*` (2) | `client`, `compiler` |
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
 | `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `cli-run`, `client`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
 | `@procedures/notify` | `packages/notify` | Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address. | `notify.*` (1) | `client` |
+| `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. | `npm.*` (7) | `client`, `shell` |
 | `@procedures/restic` | `packages/restic` | The restic backup program as one procedure: backup, snapshots, restore and forget, with JSON output and no secret as input. | `restic.*` (1) | `client`, `shell` |
 | `@procedures/server` | `packages/server` | A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list. | — | `client`, `peer` |
 | `@procedures/site` | `packages/site` | The website of the client ecosystem: the Composer, the procedure catalog and the architecture map | — | `client` |
