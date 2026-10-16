@@ -5,8 +5,8 @@
  * Stryker changes the code of the files of `mutate` one change at a time (a mutant), and runs the
  * tests that cover the change. A mutant that no test kills is a gap in the tests. The files are
  * the resolver of references, the capabilities, the expose rule and the middleware of
- * `resilience()`. The report is an artifact of the workflow. The score does not fail the run yet:
- * the first reports give the floor.
+ * `resilience()`. The report is an artifact of the workflow. A score below the floor fails the run.
+ * The floor is 72: the first full report had 72.6 % (nightly run 38945671443).
  *
  * Stryker runs in place: it changes the files of the checkout and puts them back at the end. Its
  * sandbox copy rewrites `tsconfig.json` with the JavaScript API of TypeScript, and TypeScript 7
@@ -35,7 +35,7 @@ export default {
   reporters: ["clear-text", "progress", "html", "json"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
-  thresholds: { high: 80, low: 60, break: null },
+  thresholds: { high: 80, low: 60, break: 72 },
   timeoutMS: 30_000,
   concurrency: 4,
   tempDirName: ".stryker-tmp",

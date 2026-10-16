@@ -79,7 +79,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R29 | 7 | Testing stage 1: property tests and a catalog test of the core procedures | M | fixed | `06d9e52`, `0c627f8`, `ddea529` |
 | R30 | 7 | Testing stage 2: faults, contracts and leaks | L | fixed | `bd0b626` |
 | R31 | 7 | Coverage with a ratchet | S | fixed (the first floors come from CI) | `26aad49` |
-| R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | fixed (the first nightly run is open) | `26aad49` |
+| R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | fixed, the five nightly jobs pass | `26aad49`, `3c40d2d`, `a7db4a6` |
 | R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | fixed | `bc70357`, `95b660d` |
 | R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
@@ -429,11 +429,20 @@ Nightly mutation tests on the resolver, the capabilities, the policy and the mid
 
 **Result.** `.github/workflows/nightly.yml` has five jobs:
 
-- `mutation`: Stryker on the resolver, the capabilities, the expose rule and the middleware. The report is an artifact, and the score does not fail the run yet.
+- `mutation`: Stryker on the resolver, the capabilities, the expose rule and the middleware. The report is an artifact. A score below 72 % fails the run.
 - `bench`: the benchmarks of the core with the `bench` fixture of vitest 5. The earlier results are the results of the last nightly run.
 - `soak`: 10 minutes of calls, streams, aborts, calls of the server and reconnects. The maps of the two sides must be empty, and the heap must stay flat.
 - `live`: the `mongo.*` procedures against MongoDB 7, and the `docker.*` procedures against the Docker of the runner.
 - `windows`: the build, the type checks, the tests and the end-to-end tests of `mark`.
+
+The input `only` of the workflow runs some of the jobs, for example `mutation,windows`. The first runs found these defects, which are fixed:
+
+- Stryker 10.0.0 rewrote `tsconfig.json` with the JavaScript API of TypeScript, which TypeScript 7 does not have. Stryker runs in place for that reason.
+- The vitest runner of Stryker selected the tests of a mutant with the names joined by spaces. Vitest 5 joins them with `>`, so only 4 of 1909 mutants died. A `pnpm patch` accepts both. The score went to 72.6 %.
+- On the Windows runner, the fs root refused a path by its short name (`RUNNER~1`). A zip archive kept a link target with `\`. The pnpm procedures did not find pnpm 12.
+- On the Windows runner, the scaffold test of `mark` did not compile its new package through a junction from C: to D:.
+
+The weakest files of the mutation report are `timeout.ts` (48.9 %), `rate-limit.ts` (60.8 %) and `deadline.ts` (61.1 %). Their surviving mutants show where the tests are weak.
 
 ### R33. The thin packages
 
