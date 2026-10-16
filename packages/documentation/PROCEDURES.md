@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 253 across 42 namespaces. Loaded 37 package register(s).
+**Total procedures:** 267 across 42 namespaces. Loaded 37 package register(s).
 
 ## Namespaces
 
@@ -14,7 +14,7 @@
 - [`core.*`](#core) — 1 procedure(s)
 - [`cue.*`](#cue) — 5 procedure(s)
 - [`dag.*`](#dag) — 1 procedure(s)
-- [`db.*`](#db) — 2 procedure(s)
+- [`db.*`](#db) — 7 procedure(s)
 - [`docker.*`](#docker) — 25 procedure(s)
 - [`ecosystem.*`](#ecosystem) — 1 procedure(s)
 - [`exif.*`](#exif) — 1 procedure(s)
@@ -25,20 +25,20 @@
 - [`http.*`](#http) — 4 procedure(s)
 - [`ics.*`](#ics) — 3 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
-- [`lib.*`](#lib) — 4 procedure(s)
+- [`lib.*`](#lib) — 5 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`mail.*`](#mail) — 2 procedure(s)
 - [`manifest.*`](#manifest) — 1 procedure(s)
 - [`mcp.*`](#mcp) — 2 procedure(s)
-- [`mongo.*`](#mongo) — 16 procedure(s)
-- [`node.*`](#node) — 4 procedure(s)
+- [`mongo.*`](#mongo) — 20 procedure(s)
+- [`node.*`](#node) — 5 procedure(s)
 - [`notify.*`](#notify) — 1 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
 - [`procedure.*`](#procedure) — 12 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
-- [`s3.*`](#s3) — 9 procedure(s)
+- [`s3.*`](#s3) — 12 procedure(s)
 - [`sdk.*`](#sdk) — 2 procedure(s)
 - [`server.*`](#server) — 8 procedure(s)
 - [`shell.*`](#shell) — 4 procedure(s)
@@ -111,8 +111,13 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `db.backup` | Copy a database to a new file (it does not replace a file) |
 | `db.execute` | Execute a SQL statement (INSERT, UPDATE, DELETE) |
+| `db.migrate` | Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction |
 | `db.query` | Execute a SQL SELECT query (read only: a statement that changes data fails) |
+| `db.schema` | The columns, indexes and foreign keys of a table (read only) |
+| `db.tables` | The tables and views of a database (read only: a missing file is an error) |
+| `db.transaction` | Run statements in one transaction: they all take effect, or none does |
 
 ## docker
 
@@ -284,6 +289,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `lib.audit` | Audit ecosystem packages for issues |
+| `lib.graph` | The dependency graph of the workspace packages: nodes, workspace: edges, cycles and build levels |
 | `lib.new` | Create a new package in the ecosystem |
 | `lib.rename` | Rename a package across the ecosystem |
 | `lib.scan` | Scan for packages in the git directory |
@@ -326,8 +332,11 @@
 | `mongo.database.info` | Get database information and statistics |
 | `mongo.database.ping` | Health check and connectivity test |
 | `mongo.documents.aggregate` | Run an aggregation pipeline (read only: $out and $merge are refused) |
+| `mongo.documents.bulk` | Several writes in one request: insertOne, updateOne, updateMany, deleteOne and deleteMany, in order by default |
 | `mongo.documents.count` | Count documents matching a filter |
 | `mongo.documents.delete` | Delete documents matching a filter |
+| `mongo.documents.distinct` | The distinct values of a field in the documents that match a filter |
+| `mongo.documents.explain` | The plan of a find or an aggregation pipeline (read only: $out and $merge are refused) |
 | `mongo.documents.find` | Find documents with pagination and filtering |
 | `mongo.documents.get` | Get a single document by ID |
 | `mongo.documents.insert` | Insert one or more documents |
@@ -335,12 +344,14 @@
 | `mongo.indexes.create` | Create an index on a collection |
 | `mongo.indexes.drop` | Drop an index from a collection |
 | `mongo.indexes.list` | List indexes on a collection |
+| `mongo.watch` | The changes of a collection or a database, as a stream without an end (a change stream needs a replica set) |
 
 ## node
 
 | Procedure | Description |
 |-----------|-------------|
 | `node.kill` | Kill a spawned Node.js process |
+| `node.logs` | The output of a process of node.spawn: the last 64 KiB of stdout and stderr |
 | `node.run` | Run a Node.js script and wait for completion |
 | `node.spawn` | Spawn a long-running Node.js process |
 | `node.status` | Get status of running Node.js processes |
@@ -416,14 +427,17 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `s3.copy` | Copy an object inside S3 (it replaces the destination, unless overwrite is false) |
 | `s3.delete` | Delete object from S3 bucket |
 | `s3.download` | Download content from S3 bucket |
+| `s3.head` | The metadata of an object, without its content (exists: false for a 404) |
 | `s3.list` | List objects in S3 bucket |
 | `s3.listAll` | List ALL objects in S3 bucket, following continuation tokens (unbounded by 1000) |
 | `s3.multipart.abort` | Abort multipart upload and clean up parts |
 | `s3.multipart.complete` | Complete multipart upload by assembling parts |
 | `s3.multipart.init` | Initialize multipart upload for large files |
 | `s3.multipart.upload` | Upload a part in multipart upload |
+| `s3.presign` | A presigned URL for a GET or a PUT of an object, with an expiry in seconds |
 | `s3.upload` | Upload content to S3 bucket |
 
 ## sdk
