@@ -122,3 +122,60 @@ export interface GhIssueCommentInput extends GhCommonInput {
   body: string;
 }
 export type GhIssueCommentOutput = GhCreatedOutput;
+
+export interface GhWorkflowRunInput extends GhCommonInput {
+  /** The name, the file name or the id of the workflow */
+  workflow: string;
+  /** The branch or the tag to run the workflow on (default: the default branch) */
+  ref?: string | undefined;
+  /** The inputs of the workflow. Each one goes to gh as `-f key=value`. */
+  inputs?: Record<string, string> | undefined;
+}
+export interface GhWorkflowRunOutput {
+  workflow: string;
+  ref?: string | undefined;
+  /** The URL of the new run, when gh prints it */
+  url?: string | undefined;
+  /** The id of the new run, when gh prints its URL */
+  run?: number | undefined;
+}
+
+export interface GhRunDownloadInput extends GhCommonInput {
+  /** The id of the run */
+  run: number;
+  /** Only the artifacts with these names */
+  names?: string[] | undefined;
+  /** Only the artifacts with names that match these glob patterns */
+  patterns?: string[] | undefined;
+  /** The folder for the artifacts (default: the folder where gh runs) */
+  dir?: string | undefined;
+}
+export interface GhRunDownloadOutput {
+  run: number;
+  /** The folder of the artifacts */
+  dir: string;
+}
+
+/** A value of a field of gh.api. A string goes as `-f`, another value as `-F` (gh converts its type). */
+export type GhApiFieldValue = string | number | boolean | null;
+
+/** The HTTP methods of gh.api. */
+export type GhApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export interface GhApiInput extends GhCommonInput {
+  /** The endpoint, for example `repos/{owner}/{repo}/pulls` or `graphql` */
+  endpoint: string;
+  /** The HTTP method (default GET) */
+  method?: GhApiMethod | undefined;
+  /** The parameters. GET sends them in the query, the other methods in the JSON body. */
+  fields?: Record<string, GhApiFieldValue> | undefined;
+  /** A JSON body. gh reads it from a temporary file (`--input`). */
+  body?: unknown;
+  /** Get all the pages of the result */
+  paginate?: boolean | undefined;
+}
+export interface GhApiOutput {
+  /** The parsed JSON of the response. An empty response gives null. */
+  data: unknown;
+}
+

@@ -108,6 +108,10 @@ interface GitStatusInput {
   cwd?: string;
   /** Also give `lines` in the format of `git status --short` (default: false) */
   short?: boolean;
+  /** Only the files of these pathspecs (`git status -- <paths>`) */
+  paths?: string[];
+  /** `--untracked-files`: "no", "normal" (a new folder is one entry) or "all" (each file) */
+  untrackedFiles?: "no" | "normal" | "all";
 }
 
 interface GitStatusFile {
@@ -136,7 +140,14 @@ const status = await client.exec(["git", "status"], { cwd: "./my-repo" });
 console.log(`On branch ${status.branch}`);
 console.log(`${status.ahead} commits ahead, ${status.behind} behind`);
 console.log(`${status.files.length} changed files`);
+
+// Each new file under notes/, one entry for each file
+const notes = await client.exec(["git", "status"], { cwd: "./my-repo", paths: ["notes"], untrackedFiles: "all" });
 ```
+
+- Without `paths` and `untrackedFiles`, the procedure starts the same git command as before.
+- After `--`, git reads each path as a pathspec. A path that starts with `-` is not an option.
+- Without `untrackedFiles: "all"`, git gives a new folder as one entry, for example `notes/`.
 
 #### `git.log`
 
@@ -347,6 +358,8 @@ interface GitCommitInput {
   all?: boolean;
   /** Amend the last commit (default: false) */
   amend?: boolean;
+  /** Commit only these pathspecs, as they are in the working tree (`git commit -- <paths>`) */
+  paths?: string[];
   /** Working directory */
   cwd?: string;
 }
@@ -369,6 +382,17 @@ const commit = await client.exec(["git", "commit"], {
 });
 console.log(`Created commit ${commit.hash}`);
 ```
+
+With `paths`, the commit has only those paths, as they are in the working tree. The other staged changes stay in the index:
+
+```typescript
+await client.exec(["git", "add"], { paths: ["ledger/new.ndjson"] });
+await client.exec(["git", "commit"], { message: "ledger: the day", paths: ["ledger"] });
+```
+
+- With `paths`, a change of a tracked file counts, staged or not. When no tracked file of the paths changed, the output has `skipped: true`.
+- git does not commit an untracked file. Add a new file with `git.add` first.
+- git refuses `-a` with paths. Thus `all` and `paths` together give an error.
 
 #### `git.checkout`
 
@@ -1118,6 +1142,22 @@ import { gitStatus, gitCommit, gitPush } from "@procedures/git";
 const status = await gitStatus({ cwd: "./repo" });
 await gitCommit({ message: "feat: new feature", cwd: "./repo" });
 await gitPush({ remote: "origin", cwd: "./repo" }, { signal: AbortSignal.timeout(60_000) });
+```
+
+### The git runner and the porcelain parser
+
+The package root also exports the functions that the procedures use:
+
+- `git(args, { cwd, signal, input, env })` starts git with an argument list and gives its stdout. It throws a `GitError` when git fails.
+- `parsePorcelainV1(output)` reads the output of `git status --porcelain=v1 -z`.
+- Each entry has `xy` (the two status letters), the exact `path`, `status` and `staged`. A rename or a copy also has `from`.
+- `classifyStatus(xy)` gives the `status` and `staged` of two status letters.
+
+```typescript
+import { git, parsePorcelainV1 } from "@procedures/git";
+
+const output = await git(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "ledger"], { cwd: "./repo" });
+const untracked = parsePorcelainV1(output).filter((entry) => entry.status === "untracked");
 ```
 
 ### Custom Registration

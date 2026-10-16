@@ -10,22 +10,8 @@
  */
 
 import { git, zFields, type GitContext } from "./run.js";
+import { classifyStatus as classify } from "./porcelain.js";
 import type { GitStatusInput, GitStatusOutput, GitStatusFile } from "../../types.js";
-
-/** The status of one entry, from its two status letters (index, then work tree). */
-function classify(xy: string): Pick<GitStatusFile, "status" | "staged"> {
-  const index = xy[0];
-  const worktree = xy[1];
-  if (index === "A") return { status: "added", staged: true };
-  if (index === "D") return { status: "deleted", staged: true };
-  if (index === "R") return { status: "renamed", staged: true };
-  if (index === "C") return { status: "copied", staged: true };
-  if (index === "M" || index === "T") return { status: "modified", staged: true };
-  if (worktree === "D") return { status: "deleted", staged: false };
-  if (worktree === "A") return { status: "added", staged: false };
-  if (worktree === "R") return { status: "renamed", staged: false };
-  return { status: "modified", staged: false };
-}
 
 /** The text after the first `count` space-separated fields of a line. */
 function afterFields(line: string, count: number): string {
@@ -35,10 +21,16 @@ function afterFields(line: string, count: number): string {
 }
 
 /**
- * Get git status
+ * This function gives the git status. With `paths`, it gives only the files of those pathspecs.
+ * With `untrackedFiles`, git lists the untracked files in that mode: "all" lists each file of a
+ * new folder.
  */
 export async function gitStatus(input: GitStatusInput, ctx: GitContext = {}): Promise<GitStatusOutput> {
-  const output = await git(["status", "--porcelain=v2", "--branch", "-z"], { cwd: input.cwd, signal: ctx.signal });
+  const args = ["status", "--porcelain=v2", "--branch", "-z"];
+  if (input.untrackedFiles !== undefined) args.push(`--untracked-files=${input.untrackedFiles}`);
+  // After "--", git reads each value as a pathspec, also a value that starts with "-"
+  if (input.paths !== undefined && input.paths.length > 0) args.push("--", ...input.paths);
+  const output = await git(args, { cwd: input.cwd, signal: ctx.signal });
 
   let branch = "HEAD";
   let ahead = 0;
