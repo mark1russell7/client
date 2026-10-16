@@ -1,0 +1,29 @@
+[
+  {
+    "id": "hello",
+    "type": "hello",
+    "protocol": 1
+  },
+  {
+    "id": "<id 1>",
+    "type": "request",
+    "method": {
+      "service": "wire",
+      "operation": "count"
+    },
+    "payload": {
+      "to": 40
+    },
+    "metadata": {},
+    "credit": 64
+  },
+  {
+    "id": "<id 1>",
+    "type": "credit",
+    "credit": 32
+  },
+  {
+    "id": "<id 1>",
+    "type": "cancel"
+  }
+]

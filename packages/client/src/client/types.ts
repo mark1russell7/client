@@ -26,7 +26,13 @@ export interface Method {
   /** Operation name (e.g., "get", "create", "update", "delete", "watch") */
   operation: string;
 
-  /** Optional version (e.g., "v1", "v2") */
+  /**
+   * Optional version (e.g., "v1", "v2").
+   *
+   * @deprecated The wire protocol (v1, roadmap R25) has no version of a procedure: the server
+   * ignores this field. A URL strategy can put it in the path. Use a new path for a procedure
+   * that changes in a way that is not compatible.
+   */
   version?: string;
 }
 

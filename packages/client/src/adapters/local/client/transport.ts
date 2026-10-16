@@ -225,7 +225,10 @@ export class LocalTransport implements Transport {
     } catch (error) {
       // The handler threw, or the invocation failed (its code: VALIDATION_ERROR, ABORTED and so on)
       const code = error instanceof InvocationError ? error.code : "HANDLER_ERROR";
-      yield errorItem<TRes>(message.id, code, error instanceof Error ? error.message : "Unknown error");
+      const item = errorItem<TRes>(message.id, code, error instanceof Error ? error.message : "Unknown error");
+      // The reason of a FORBIDDEN error travels on each face (roadmap R25)
+      if (error instanceof InvocationError && error.reason) item.metadata = { reason: error.reason };
+      yield item;
     }
   }
 

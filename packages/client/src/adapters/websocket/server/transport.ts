@@ -22,6 +22,7 @@ import { withoutInternalKeys } from "../../metadata.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { optionalMs } from "../../../duration.js";
 import { credentialsOf, withoutSecretHeaders } from "../../../server/request-auth.js";
+import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 
 /**
  * WebSocket server transport adapter.
@@ -364,6 +365,20 @@ export class WebSocketServerTransport implements ServerTransport {
     }
     // A pong answers a ping of the server: nothing to do
     if (message.type === "pong") return;
+
+    // The hello of the client: the protocol version (roadmap R25)
+    if (message.type === "hello") {
+      const version = protocolVersionOf(message.protocol);
+      const connection = this.trackedConnections.get(connectionId);
+      if (connection && version !== undefined) connection.metadata = { ...connection.metadata, protocol: version };
+      if (version !== undefined && version > PROTOCOL_VERSION) {
+        this.sendError(ws, message.id || "hello", `This server speaks the protocol ${PROTOCOL_VERSION}, and the client uses ${version}`, "PROTOCOL_VERSION");
+        ws.close(1002, "protocol version");
+        return;
+      }
+      this.send(ws, { id: message.id || "hello", type: "hello", protocol: PROTOCOL_VERSION });
+      return;
+    }
 
     const channel = this.channels.get(connectionId);
     if (!channel) return;

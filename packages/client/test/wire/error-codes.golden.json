@@ -1,0 +1,86 @@
+{
+  "NOT_FOUND": {
+    "http": 404,
+    "retryable": false
+  },
+  "NO_HANDLER": {
+    "http": 404,
+    "retryable": false
+  },
+  "NOT_EXPOSED": {
+    "http": 403,
+    "retryable": false
+  },
+  "NOT_DECLARED": {
+    "http": 403,
+    "retryable": false
+  },
+  "FORBIDDEN": {
+    "http": 403,
+    "retryable": false
+  },
+  "UNAUTHORIZED": {
+    "http": 401,
+    "retryable": false
+  },
+  "VALIDATION_ERROR": {
+    "http": 400,
+    "retryable": false
+  },
+  "INVALID_REQUEST": {
+    "http": 400,
+    "retryable": false
+  },
+  "PROTOCOL_VERSION": {
+    "http": 400,
+    "retryable": false
+  },
+  "OUTPUT_VALIDATION_ERROR": {
+    "http": 500,
+    "retryable": false
+  },
+  "NO_OUTPUT": {
+    "http": 500,
+    "retryable": false
+  },
+  "HANDLER_ERROR": {
+    "http": 500,
+    "retryable": false
+  },
+  "INTERNAL_ERROR": {
+    "http": 500,
+    "retryable": false
+  },
+  "NOT_ACCEPTABLE": {
+    "http": 406,
+    "retryable": false
+  },
+  "DUPLICATE": {
+    "http": 409,
+    "retryable": false
+  },
+  "DUPLICATE_REQUEST": {
+    "http": 409,
+    "retryable": false
+  },
+  "ABORTED": {
+    "http": 499,
+    "retryable": false
+  },
+  "TIMEOUT": {
+    "http": 504,
+    "retryable": false
+  },
+  "UNAVAILABLE": {
+    "http": 503,
+    "retryable": true
+  },
+  "CONNECTION_CLOSED": {
+    "http": 503,
+    "retryable": true
+  },
+  "CONNECTION_NOT_FOUND": {
+    "http": 404,
+    "retryable": false
+  }
+}

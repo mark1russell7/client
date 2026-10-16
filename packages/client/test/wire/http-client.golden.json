@@ -1,0 +1,13 @@
+[
+  {
+    "method": "POST",
+    "url": "/api/wire/echo",
+    "headers": {
+      "content-type": "application/json",
+      "accept": "application/x-ndjson, application/json",
+      "procedures-protocol": "1",
+      "x-metadata": "{\"tenant\":\"a\"}"
+    },
+    "body": "{\"text\":\"hi\"}"
+  }
+]

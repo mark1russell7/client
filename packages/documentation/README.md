@@ -16,6 +16,7 @@ This folder holds the documents of the client monorepo. The table tells what eac
 |---|---|
 | [PACKAGES.md](./PACKAGES.md) | Each package, its procedures and its dependencies. A script makes it. |
 | [PROCEDURES.md](./PROCEDURES.md) | Each registered procedure with its description. A script makes it. |
+| [WIRE-PROTOCOL.md](./WIRE-PROTOCOL.md) | Wire protocol v1: the HTTP and WebSocket formats, the metadata keys and the error codes |
 
 To make the two files again after a build, start `node packages/documentation/scripts/generate-packages.mjs` and `node packages/documentation/scripts/generate-procedures.mjs`. Do not edit them by hand.
 

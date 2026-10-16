@@ -175,7 +175,10 @@ export interface WebSocketMessage<T = unknown> {
   id: string;
 
   /** Message type */
-  type: "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
+  type: "hello" | "request" | "response" | "error" | "stream" | "cancel" | "credit" | "ping" | "pong" | "server-request" | "server-response" | "event";
+
+  /** The protocol version of a `hello` frame (roadmap R25). */
+  protocol?: number;
 
   /** RPC method (for requests) */
   method?: {

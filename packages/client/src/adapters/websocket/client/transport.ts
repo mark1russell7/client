@@ -13,6 +13,7 @@ import { IncomingCalls } from "../shared/rpc.js";
 import type { RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
+import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 
 /**
  * Pending request waiting for response.
@@ -190,6 +191,8 @@ export class WebSocketTransport implements Transport {
   private heartbeatTimeout: ReturnType<typeof setTimeout> | undefined = undefined;
   /** The pings without a pong, one after the other */
   private heartbeatMisses = 0;
+  /** The protocol version of the server, from its hello, or undefined (an older server) (R25) */
+  private serverProtocol: number | undefined;
   /** The calls that the server sends on the current socket, served by `serve` (roadmap R24) */
   private incoming: IncomingCalls | undefined;
   /** The time limit of the handshake of the socket that opens now */
@@ -269,6 +272,10 @@ export class WebSocketTransport implements Transport {
         if (this.ws !== ws) return;
         this.clearHandshakeTimer();
         this.reconnectAttempts = 0;
+        // The protocol version of this client (roadmap R25). An older server answers with an
+        // error frame, which the client ignores.
+        this.serverProtocol = undefined;
+        ws.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
         this.setState(WebSocketState.CONNECTED);
         console.error(`[${this.name}] Connected to ${this.options.url}`);
 
@@ -478,6 +485,12 @@ export class WebSocketTransport implements Transport {
   }
 
   private handleMessage(message: WebSocketMessage): void {
+    // The hello of the server, or the error of an older server that does not know it (R25)
+    if (message.id === "hello" && (message.type === "hello" || message.type === "error")) {
+      if (message.type === "hello") this.serverProtocol = protocolVersionOf(message.protocol);
+      else if (message.error?.code === "PROTOCOL_VERSION") this.options.onError?.(new Error(message.error.message));
+      return;
+    }
     // A call of the server, its cancel or its credit (roadmap R24)
     if ((message.type === "request" || message.type === "cancel" || message.type === "credit") && this.incoming?.receive(message)) {
       return;
@@ -828,6 +841,14 @@ export class WebSocketTransport implements Transport {
     if (hadSocket && this.options.onDisconnect) {
       this.options.onDisconnect("closed");
     }
+  }
+
+  /**
+   * The protocol version of the server: from its hello, or undefined before the hello or for a
+   * server older than protocol v1 (roadmap R25).
+   */
+  getServerProtocol(): number | undefined {
+    return this.serverProtocol;
   }
 
   /**

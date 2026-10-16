@@ -1,0 +1,35 @@
+{
+  "value": {
+    "status": 200,
+    "protocol": "1",
+    "contentType": "application/json",
+    "body": "{\"text\":\"hi\"}"
+  },
+  "stream": {
+    "status": 200,
+    "protocol": "1",
+    "contentType": "application/x-ndjson",
+    "body": "{\"type\":\"item\",\"payload\":1}\n{\"type\":\"item\",\"payload\":2}\n{\"type\":\"done\"}\n"
+  },
+  "forbidden": {
+    "status": 403,
+    "protocol": "1",
+    "contentType": "application/json",
+    "body": "{\"error\":\"wire.write changes data, and this call changes nothing\",\"code\":\"FORBIDDEN\",\"retryable\":false,\"reason\":\"effects-exceeded\"}"
+  },
+  "notFound": {
+    "status": 404,
+    "protocol": "1",
+    "contentType": "application/json",
+    "body": "{\"error\":\"No handler found for wire.missing\",\"code\":\"NOT_FOUND\",\"retryable\":false}"
+  },
+  "newerVersion": {
+    "status": 400,
+    "body": {
+      "error": "This server speaks the protocol 1, and the request uses 2",
+      "code": "PROTOCOL_VERSION",
+      "retryable": false,
+      "protocol": 1
+    }
+  }
+}

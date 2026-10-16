@@ -1,0 +1,132 @@
+{
+  "sent": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "c1",
+      "type": "request",
+      "method": {
+        "service": "wire",
+        "operation": "echo"
+      },
+      "payload": {
+        "text": "hi"
+      },
+      "metadata": {}
+    },
+    {
+      "id": "c2",
+      "type": "request",
+      "method": {
+        "service": "wire",
+        "operation": "count"
+      },
+      "payload": {
+        "to": 2
+      },
+      "metadata": {},
+      "credit": 64
+    },
+    {
+      "id": "c3",
+      "type": "request",
+      "method": {
+        "service": "wire",
+        "operation": "echo"
+      },
+      "payload": {
+        "text": 5
+      },
+      "metadata": {}
+    },
+    {
+      "id": "c4",
+      "type": "request",
+      "method": {
+        "service": "wire",
+        "operation": "write"
+      },
+      "payload": {},
+      "metadata": {}
+    }
+  ],
+  "received": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "<id 1>",
+      "type": "response",
+      "payload": {
+        "text": "hi"
+      },
+      "metadata": {},
+      "status": {
+        "type": "success",
+        "code": 200
+      }
+    },
+    {
+      "id": "<id 2>",
+      "type": "stream",
+      "payload": 1,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 2>",
+      "type": "stream",
+      "payload": 2,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 2>",
+      "type": "stream",
+      "stream": {
+        "done": true
+      }
+    },
+    {
+      "id": "<id 3>",
+      "type": "error",
+      "metadata": {},
+      "status": {
+        "type": "error",
+        "code": "VALIDATION_ERROR",
+        "message": "<message>",
+        "retryable": false
+      },
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "<message>",
+        "retryable": false
+      }
+    },
+    {
+      "id": "<id 4>",
+      "type": "error",
+      "metadata": {
+        "reason": "effects-exceeded"
+      },
+      "status": {
+        "type": "error",
+        "code": "FORBIDDEN",
+        "message": "wire.write changes data, and this call changes nothing",
+        "retryable": false
+      },
+      "error": {
+        "code": "FORBIDDEN",
+        "message": "wire.write changes data, and this call changes nothing",
+        "retryable": false
+      }
+    }
+  ]
+}

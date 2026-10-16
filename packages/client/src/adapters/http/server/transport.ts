@@ -17,6 +17,7 @@ import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { bearerOf, withoutSecretHeaders } from "../../../server/request-auth.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
@@ -69,24 +70,6 @@ function write(res: Response, chunk: string, signal: AbortSignal): Promise<void>
     signal.addEventListener("abort", done, { once: true });
   });
 }
-
-/**
- * The HTTP status of the error codes of a procedure invocation (they are not in the error
- * registry, so before, a validation error was a 500).
- */
-const INVOCATION_HTTP_STATUS: Record<string, number> = {
-  VALIDATION_ERROR: 400,
-  NOT_EXPOSED: 403,
-  NOT_DECLARED: 403,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  NO_HANDLER: 404,
-  ABORTED: 499,
-  TIMEOUT: 504,
-  OUTPUT_VALIDATION_ERROR: 500,
-  NO_OUTPUT: 500,
-  HANDLER_ERROR: 500,
-};
 
 /**
  * HTTP server transport adapter for Express.
@@ -205,6 +188,7 @@ export class HttpServerTransport implements ServerTransport {
           HTTPHeaders.SPAN_ID,
           HTTPHeaders.PARENT_SPAN_ID,
           "traceparent",
+          PROTOCOL_HEADER,
           HTTPHeaders.METADATA,
           "collection",
           "collectionName",
@@ -262,6 +246,18 @@ export class HttpServerTransport implements ServerTransport {
    * Converts to unified RPC format, processes, and sends response.
    */
   private async handleHttpRequest(req: Request, res: Response): Promise<void> {
+    // The protocol version of this server, on each response (roadmap R25)
+    res.setHeader(PROTOCOL_HEADER, String(PROTOCOL_VERSION));
+    const version = protocolVersionOf(req.headers[PROTOCOL_HEADER.toLowerCase()]);
+    if (version !== undefined && version > PROTOCOL_VERSION) {
+      res.status(400).json({
+        error: `This server speaks the protocol ${PROTOCOL_VERSION}, and the request uses ${version}`,
+        code: "PROTOCOL_VERSION",
+        retryable: false,
+        protocol: PROTOCOL_VERSION,
+      });
+      return;
+    }
     if (this.stopped) {
       res.status(503).json({ error: "Server stopped", code: "SERVER_STOPPED", retryable: true });
       return;
@@ -555,7 +551,7 @@ export class HttpServerTransport implements ServerTransport {
       // HTTP status via the error registry rather than parseInt (which yields NaN -> 500, so every
       // error became a 500). See documentation/BUGS-2026-07.md (M7).
       const mapped =
-        INVOCATION_HTTP_STATUS[status.code] ??
+        httpStatusOf(status.code) ??
         (ERROR_REGISTRY as Record<string, { httpStatus?: number }>)[status.code]?.httpStatus;
       httpStatusCode = mapped ?? (status.type === "success" ? 200 : 500);
     } else if (typeof status.code === "number") {
@@ -587,11 +583,14 @@ export class HttpServerTransport implements ServerTransport {
       const retryAfterMs = metadata["retry-after"];
       const hasRetryAfter = typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0;
       if (hasRetryAfter) res.setHeader("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+      // The reason of a FORBIDDEN error travels on each face (roadmap R25)
+      const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
       res.json({
         error: status.message,
         code: status.code,
         retryable: status.retryable,
         ...(hasRetryAfter ? { retryAfterMs } : {}),
+        ...(reason !== undefined ? { reason } : {}),
       });
     }
   }

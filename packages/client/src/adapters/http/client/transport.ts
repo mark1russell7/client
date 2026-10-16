@@ -48,6 +48,7 @@ import {
   createErrorFromException,
 } from "../shared/index.js";
 import { optionalMs } from "../../../duration.js";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION } from "../../../protocol.js";
 
 /**
  * HTTP Client Transport
@@ -139,6 +140,8 @@ export class HttpTransport implements Transport {
           [HTTPHeaders.CONTENT_TYPE]: "application/json",
           // A streaming procedure answers with NDJSON; other procedures with JSON
           Accept: `${NDJSON}, application/json`,
+          // The protocol version of this client (roadmap R25)
+          [PROTOCOL_HEADER]: String(PROTOCOL_VERSION),
           ...this.defaultHeaders,
           ...metadataHeaders,
         },
@@ -172,6 +175,9 @@ export class HttpTransport implements Transport {
       if (status.type === "error") {
         const retryAfter = retryAfterMsOf(response.headers.get("Retry-After"), responseBody);
         if (retryAfter !== undefined) metadata[RETRY_AFTER_METADATA_KEY] = retryAfter;
+        // The reason of a FORBIDDEN error (roadmap R25)
+        const reason = (responseBody as { reason?: unknown } | null | undefined)?.reason;
+        if (typeof reason === "string") metadata["reason"] = reason;
       }
 
       // Yield single response item

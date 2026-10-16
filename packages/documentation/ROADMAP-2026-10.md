@@ -437,3 +437,4 @@ The review found code that is a candidate for removal or a move. These items nee
 - `server.start`, `server.stop` and `server.status` are in the peer package, and they belong to the host.
 - The sqlite package uses the general namespace `db.*`.
 - `packages/client-snapshot/.github/workflows/ci.yml` is old, and GitHub does not start it.
+- The `event` frame of the WebSocket client: the server does not send it, and nothing subscribes. R24 made the calls bidirectional. Events in the two directions need a design of topics and subscriptions, or the frame goes away.

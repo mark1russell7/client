@@ -194,14 +194,17 @@ export class McpServerTransport implements ServerTransport {
             ...(structured ? { structuredContent: structured } : {}),
           };
         } else {
+          // The code and the reason of the error travel on each face (roadmap R25)
+          const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
           return {
             content: [
               {
                 type: "text" as const,
-                text: response.status.message ?? "Unknown error",
+                text: `${response.status.message ?? "Unknown error"}${reason ? ` (reason: ${reason})` : ""}`,
               },
             ],
             isError: true,
+            _meta: { code: response.status.code, ...(reason ? { reason } : {}) },
           };
         }
       } catch (error) {
