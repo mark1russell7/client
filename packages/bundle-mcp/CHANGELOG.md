@@ -1,5 +1,19 @@
 # @procedures/bundle-mcp
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [370b51a]
+  - @procedures/client@0.2.2
+  - @procedures/cue@0.2.2
+  - @procedures/docker@0.2.2
+  - @procedures/lib@0.2.2
+  - @procedures/mongo@0.2.2
+  - @procedures/procedure@0.2.2
+  - @procedures/sqlite@0.2.2
+  - @procedures/vitest@0.2.2
+
 ## 0.2.1
 
 ### Patch Changes

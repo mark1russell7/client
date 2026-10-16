@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/node",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Node.js process procedures: run scripts, spawn and manage long-running processes, with output caps and process-tree cleanup.",
   "keywords": [
     "node",
