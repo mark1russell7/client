@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 157 across 26 namespaces. Loaded 20 package register(s).
+**Total procedures:** 182 across 37 namespaces. Loaded 33 package register(s).
 
 ## Namespaces
 
@@ -17,23 +17,34 @@
 - [`db.*`](#db) — 2 procedure(s)
 - [`docker.*`](#docker) — 10 procedure(s)
 - [`ecosystem.*`](#ecosystem) — 1 procedure(s)
-- [`fs.*`](#fs) — 11 procedure(s)
-- [`git.*`](#git) — 26 procedure(s)
+- [`exif.*`](#exif) — 1 procedure(s)
+- [`fs.*`](#fs) — 15 procedure(s)
+- [`geo.*`](#geo) — 2 procedure(s)
+- [`git.*`](#git) — 27 procedure(s)
+- [`ics.*`](#ics) — 3 procedure(s)
 - [`lib.*`](#lib) — 4 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
+- [`mail.*`](#mail) — 2 procedure(s)
 - [`manifest.*`](#manifest) — 1 procedure(s)
 - [`mcp.*`](#mcp) — 2 procedure(s)
 - [`mongo.*`](#mongo) — 16 procedure(s)
 - [`node.*`](#node) — 4 procedure(s)
+- [`notify.*`](#notify) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 6 procedure(s)
-- [`procedure.*`](#procedure) — 11 procedure(s)
+- [`procedure.*`](#procedure) — 12 procedure(s)
+- [`program.*`](#program) — 4 procedure(s)
+- [`restic.*`](#restic) — 1 procedure(s)
 - [`s3.*`](#s3) — 9 procedure(s)
+- [`sdk.*`](#sdk) — 2 procedure(s)
 - [`server.*`](#server) — 8 procedure(s)
 - [`shell.*`](#shell) — 4 procedure(s)
 - [`snapshot.*`](#snapshot) — 5 procedure(s)
 - [`splay.*`](#splay) — 2 procedure(s)
+- [`systems.*`](#systems) — 1 procedure(s)
+- [`tailscale.*`](#tailscale) — 1 procedure(s)
 - [`vite.*`](#vite) — 4 procedure(s)
 - [`vitest.*`](#vitest) — 5 procedure(s)
+- [`weather.*`](#weather) — 1 procedure(s)
 
 ---
 
@@ -96,7 +107,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `db.execute` | Execute a SQL statement (INSERT, UPDATE, DELETE) |
-| `db.query` | Execute a SQL SELECT query |
+| `db.query` | Execute a SQL SELECT query (read only: a statement that changes data fails) |
 
 ## docker
 
@@ -119,6 +130,12 @@
 |-----------|-------------|
 | `ecosystem.procedures` | List all procedures across the ecosystem |
 
+## exif
+
+| Procedure | Description |
+|-----------|-------------|
+| `exif.read` | Read when and where a JPEG photo was taken (EXIF time and GPS position) |
+
 ## fs
 
 | Procedure | Description |
@@ -126,6 +143,7 @@
 | `fs.copy` | Copy file or directory |
 | `fs.exists` | Check if file or directory exists |
 | `fs.glob` | Find files matching glob pattern |
+| `fs.hash` | The hash of a file |
 | `fs.mkdir` | Create directory |
 | `fs.move` | Move or rename file/directory |
 | `fs.read` | Read file contents |
@@ -133,7 +151,17 @@
 | `fs.readdir` | Read directory contents |
 | `fs.rm` | Remove file or directory |
 | `fs.stat` | Get file or directory stats |
+| `fs.temp` | Make a temporary folder |
+| `fs.watch` | The changes of a file or folder, as a stream |
 | `fs.write` | Write content to file |
+| `fs.write.json` | Write a value as a JSON file, with a rename at the end |
+
+## geo
+
+| Procedure | Description |
+|-----------|-------------|
+| `geo.geocode` | Find the coordinates of an address or a place name (OpenStreetMap Nominatim) |
+| `geo.route` | Give the time and the distance of a drive between two points (OSRM) |
 
 ## git
 
@@ -156,7 +184,8 @@
 | `git.log` | Show commit log |
 | `git.pull` | Pull from remote |
 | `git.push` | Push to remote |
-| `git.remote` | Get or set remote URLs |
+| `git.remote` | Get the URL of a remote |
+| `git.remote.set` | Set the URL of a remote, or add the remote |
 | `git.stash.apply` | Apply stash without removing |
 | `git.stash.drop` | Drop a stash |
 | `git.stash.export` | Export stash as patch for snapshot storage |
@@ -165,6 +194,14 @@
 | `git.stash.pop` | Pop stash (apply and remove) |
 | `git.stash.push` | Push changes to stash |
 | `git.status` | Get git status |
+
+## ics
+
+| Procedure | Description |
+|-----------|-------------|
+| `ics.fetch` | Get a calendar feed and read its events |
+| `ics.occurrences` | Give the occurrences of the events of an iCalendar text in a time window, recurrences included |
+| `ics.parse` | Read the events of an iCalendar text |
 
 ## lib
 
@@ -181,6 +218,13 @@
 |-----------|-------------|
 | `logs.query` | Query log entries from the database |
 | `logs.store` | Store a log entry in the database |
+
+## mail
+
+| Procedure | Description |
+|-----------|-------------|
+| `mail.headers` | Give the headers of the recent messages of an IMAP mailbox, read only (no message becomes read) |
+| `mail.parse` | Read the headers, the addresses and the text of a raw email message |
 
 ## manifest
 
@@ -205,7 +249,7 @@
 | `mongo.collections.stats` | Get collection statistics |
 | `mongo.database.info` | Get database information and statistics |
 | `mongo.database.ping` | Health check and connectivity test |
-| `mongo.documents.aggregate` | Run an aggregation pipeline |
+| `mongo.documents.aggregate` | Run an aggregation pipeline (read only: $out and $merge are refused) |
 | `mongo.documents.count` | Count documents matching a filter |
 | `mongo.documents.delete` | Delete documents matching a filter |
 | `mongo.documents.find` | Find documents with pagination and filtering |
@@ -225,6 +269,12 @@
 | `node.spawn` | Spawn a long-running Node.js process |
 | `node.status` | Get status of running Node.js processes |
 
+## notify
+
+| Procedure | Description |
+|-----------|-------------|
+| `notify.send` | Send a push notification through ntfy |
+
 ## pnpm
 
 | Procedure | Description |
@@ -243,14 +293,30 @@
 | `procedure.define` | Define a new procedure from an aggregation |
 | `procedure.delete` | Delete a runtime-defined procedure |
 | `procedure.export` | Export a procedure definition as JSON |
-| `procedure.get` | Get a procedure definition by path |
-| `procedure.list` | List all registered procedures |
-| `procedure.load` | Load procedures from storage into registry |
+| `procedure.get` | Describe a procedure by path or key |
+| `procedure.list` | List the registered procedures |
+| `procedure.load` | Define the stored programs again (procedure.define), after a restart |
+| `procedure.manifest` | The manifest of the registry: each exposed procedure with its schemas and effects |
 | `procedure.new` | Scaffold a new procedure with types and registration boilerplate |
 | `procedure.register` | Register a procedure at runtime |
-| `procedure.remote` | Configure remote procedure registry connection |
-| `procedure.store` | Persist a procedure definition to storage |
-| `procedure.sync` | Synchronize procedure registry with storage |
+| `procedure.remote` | The status of the program store of the registry |
+| `procedure.store` | Write the program of a procedure that procedure.define made to the program store |
+| `procedure.sync` | Synchronize the runtime-defined procedures of the registry with the program store |
+
+## program
+
+| Procedure | Description |
+|-----------|-------------|
+| `program.check` | Check a program before it runs: names, procedures, inputs, the capability and the effects |
+| `program.compile` | Compile a program to a JavaScript function that makes the same calls in the same order |
+| `program.diagram` | Draw a program as a Mermaid flowchart: the order of the calls, the control flow and the names |
+| `program.explain` | Explain a program before it runs: its effects, each call with the answer of the capability, and the problems |
+
+## restic
+
+| Procedure | Description |
+|-----------|-------------|
+| `restic.run` | Run a restic command (backup, snapshots, restore, forget, check) |
 
 ## s3
 
@@ -265,6 +331,13 @@
 | `s3.multipart.init` | Initialize multipart upload for large files |
 | `s3.multipart.upload` | Upload a part in multipart upload |
 | `s3.upload` | Upload content to S3 bucket |
+
+## sdk
+
+| Procedure | Description |
+|-----------|-------------|
+| `sdk.openrpc` | Describe the exposed procedures as an OpenRPC 1.3 document |
+| `sdk.typescript` | Write a typed TypeScript SDK for the exposed procedures |
 
 ## server
 
@@ -305,6 +378,18 @@
 | `splay.bridge.health` | Health check for client-splay bridge |
 | `splay.bridge.info` | Get client-splay bridge information |
 
+## systems
+
+| Procedure | Description |
+|-----------|-------------|
+| `systems.timers` | The verdicts of the timer law for the timer settings of an application |
+
+## tailscale
+
+| Procedure | Description |
+|-----------|-------------|
+| `tailscale.run` | Run a tailscale command (status, ip, serve, up, down) |
+
 ## vite
 
 | Procedure | Description |
@@ -323,4 +408,10 @@
 | `vitest.run` | Run vitest tests once (no shell; uses the project's own vitest) |
 | `vitest.stop` | Stop a vitest watch process (all of them without an id) |
 | `vitest.watch` | Start vitest in watch mode (no shell; uses the project's own vitest) |
+
+## weather
+
+| Procedure | Description |
+|-----------|-------------|
+| `weather.forecast` | Give the weather forecast of a point for each day, and optionally each hour (Open-Meteo) |
 
