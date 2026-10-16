@@ -30,6 +30,10 @@
     "packages/archive/README.md",
     "packages/ios-backup/README.md",
     "packages/privacy-scan/README.md",
+    "packages/pdf/README.md",
+    "packages/pdf/src/**/*.ts",
+    "packages/claude-cli/README.md",
+    "packages/claude-cli/src/**/*.ts",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [

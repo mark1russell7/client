@@ -29,6 +29,8 @@
       "@procedures/tailscale",
       "@procedures/ios-backup",
       "@procedures/privacy-scan",
+      "@procedures/pdf",
+      "@procedures/claude-cli",
       "@procedures/cue",
       "@procedures/dag",
       "@procedures/docker",
