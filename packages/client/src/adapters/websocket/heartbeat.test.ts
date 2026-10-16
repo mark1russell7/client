@@ -126,6 +126,35 @@ describe("the heartbeat of the client", () => {
   }
 });
 
+describe("a dropped socket (finding of R36)", () => {
+  it("ends at once with terminate() when its class has it, not with close()", async () => {
+    const server = await silentServer();
+    const calls: string[] = [];
+    class Recording extends WsClient {
+      override terminate(): void {
+        calls.push("terminate");
+        super.terminate();
+      }
+      override close(...args: Parameters<WsClient["close"]>): void {
+        calls.push("close");
+        super.close(...args);
+      }
+    }
+    const reasons: Array<string | undefined> = [];
+    const transport = new WebSocketTransport({
+      url: server.url,
+      webSocket: Recording,
+      heartbeat: { interval: ms(30), timeout: ms(10), misses: 1 },
+      reconnect: { enabled: false },
+      onDisconnect: (reason) => reasons.push(reason),
+    });
+    cleanups.push(() => transport.close());
+    await waitFor(() => reasons.length > 0, 2000);
+    expect(reasons).toEqual(["Heartbeat timeout"]);
+    expect(calls).toEqual(["terminate"]);
+  });
+});
+
 describe("the heartbeat of the server", () => {
   async function startServer(heartbeat: { interval: Duration; misses: number }) {
     const rpc = new Server();

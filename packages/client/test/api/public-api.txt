@@ -838,7 +838,7 @@ zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 ## ./register (dist/register.d.ts): 0 names
 
 
-## ./client (dist/client/index.d.ts): 123 names
+## ./client (dist/client/index.d.ts): 124 names
 
 type AuthOptions: dist/client/middleware/auth.d.ts#AuthOptions
 type BaseCaller: dist/client/typed.d.ts#BaseCaller
@@ -908,6 +908,7 @@ type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
 ValidationError: dist/client/validation/types.d.ts#ValidationError
 type ValidationMode: dist/client/validation/middleware.d.ts#ValidationMode
 type ValidationPhase: dist/client/validation/types.d.ts#ValidationPhase
+type WebSocketClass: dist/adapters/websocket/client/types.d.ts#WebSocketClass
 WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
 WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
@@ -1431,6 +1432,9 @@ export declare class WebSocketTransport implements Transport {
     isConnected(): boolean;
 }
 
+### dist/adapters/websocket/client/types.d.ts#WebSocketClass
+export type WebSocketClass = new (url: string) => unknown;
+
 ### dist/adapters/websocket/client/types.d.ts#WebSocketState
 export declare enum WebSocketState {
     CONNECTING = "CONNECTING",
@@ -1469,6 +1473,7 @@ export interface WebSocketTransportOptions {
     onEvent?: EventHandler;
     clock?: Clock;
     onTransition?: (transition: MachineTransition) => void;
+    webSocket?: WebSocketClass;
 }
 
 ### dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport

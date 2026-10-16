@@ -29,7 +29,7 @@ export { LocalTransport } from "../adapters/local/client/index.js";
 export type { LocalTransportOptions, Handler } from "../adapters/local/client/index.js";
 
 export { WebSocketTransport } from "../adapters/websocket/client/index.js";
-export type { WebSocketTransportOptions } from "../adapters/websocket/client/index.js";
+export type { WebSocketTransportOptions, WebSocketClass } from "../adapters/websocket/client/index.js";
 // WebSocketState is a runtime enum — export as a value (not type-only) so consumers can compare
 // transport.getState() === WebSocketState.CONNECTED. See documentation/BUGS-2026-07.md (L1).
 export { WebSocketState } from "../adapters/websocket/client/index.js";

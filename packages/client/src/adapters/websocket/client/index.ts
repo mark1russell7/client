@@ -7,6 +7,7 @@
 // Types
 export type {
   WebSocketTransportOptions,
+  WebSocketClass,
   WebSocketMessage,
   ServerRequestMessage,
   ServerRequestHandler,

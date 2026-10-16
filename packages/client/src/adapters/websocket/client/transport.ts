@@ -6,7 +6,7 @@
  */
 
 import type { Transport, Message, ResponseItem } from "../../../client/types.js";
-import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler } from "./types.js";
+import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler, WebSocketClass } from "./types.js";
 import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
@@ -207,6 +207,8 @@ export class WebSocketTransport implements Transport {
   private heartbeat: Heartbeat | undefined = undefined;
   /** The clock of each timer of the transport (roadmap R35) */
   private readonly clock: Clock;
+  /** The class of the sockets, or undefined for the global `WebSocket` (finding of roadmap R36) */
+  private readonly webSocketClass: WebSocketClass | undefined;
   /** The observer of the changes of the state (roadmap R35) */
   private readonly transitionHandler: ((transition: MachineTransition) => void) | undefined;
   /** The protocol version of the server, from its hello, or undefined (an older server) (R25) */
@@ -245,6 +247,7 @@ export class WebSocketTransport implements Transport {
       onEvent: options.onEvent,
     };
     this.clock = options.clock ?? realClock;
+    this.webSocketClass = options.webSocket;
     this.transitionHandler = options.onTransition;
 
     // Auto-connect
@@ -279,7 +282,8 @@ export class WebSocketTransport implements Transport {
     this.setState(WebSocketState.CONNECTING, on);
 
     try {
-      const ws = new WebSocket(this.options.url);
+      const WebSocketClass = (this.webSocketClass ?? WebSocket) as typeof WebSocket;
+      const ws = new WebSocketClass(this.options.url);
       this.ws = ws;
       // The calls of the server on this socket (roadmap R24)
       this.incoming = this.servedCallsOf(ws);
@@ -369,7 +373,11 @@ export class WebSocketTransport implements Transport {
       ws.onclose = null;
       ws.onerror = null;
       try {
-        ws.close();
+        // A socket of the ws package ends at once. close() waits for the answer of a peer that can
+        // be dead (finding of roadmap R36).
+        const terminate = (ws as { terminate?: () => void }).terminate;
+        if (typeof terminate === "function") terminate.call(ws);
+        else ws.close();
       } catch {
         // The socket is unusable: nothing more to do
       }

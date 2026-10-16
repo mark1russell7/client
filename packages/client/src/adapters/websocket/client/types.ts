@@ -168,7 +168,18 @@ export interface WebSocketTransportOptions {
    * `WEBSOCKET_CONNECTION_MACHINE` (roadmap R35). A test replays them against the document.
    */
   onTransition?: (transition: MachineTransition) => void;
+
+  /**
+   * The class of the sockets. The default is the global `WebSocket`. In Node, give the `WebSocket`
+   * of the `ws` package: a drop then ends its socket at once with `terminate()`. The global
+   * `WebSocket` has only `close()`, which waits for the answer of the peer. With a dead peer, the
+   * socket stays open until the kernel stops it, at most 15 minutes (the harness cells of R36).
+   */
+  webSocket?: WebSocketClass;
 }
+
+/** A class of WebSockets: the global `WebSocket`, or the `WebSocket` of the `ws` package. */
+export type WebSocketClass = new (url: string) => unknown;
 
 /**
  * WebSocket connection state.
