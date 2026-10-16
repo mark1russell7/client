@@ -342,6 +342,31 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/claude-cli:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/cli:
     dependencies:
       '@clack/prompts':
@@ -1215,6 +1240,28 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/ios-backup:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/json:
     dependencies:
       '@procedures/client':
@@ -1356,6 +1403,9 @@ importers:
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
+      '@procedures/claude-cli':
+        specifier: workspace:*
+        version: link:../claude-cli
       '@procedures/compiler':
         specifier: workspace:*
         version: link:../compiler
@@ -1392,6 +1442,9 @@ importers:
       '@procedures/ics':
         specifier: workspace:*
         version: link:../ics
+      '@procedures/ios-backup':
+        specifier: workspace:*
+        version: link:../ios-backup
       '@procedures/json':
         specifier: workspace:*
         version: link:../json
@@ -1413,6 +1466,12 @@ importers:
       '@procedures/npm':
         specifier: workspace:*
         version: link:../npm
+      '@procedures/pdf':
+        specifier: workspace:*
+        version: link:../pdf
+      '@procedures/privacy-scan':
+        specifier: workspace:*
+        version: link:../privacy-scan
       '@procedures/restic':
         specifier: workspace:*
         version: link:../restic
@@ -1507,6 +1566,53 @@ importers:
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/pdf:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/privacy-scan:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -1641,6 +1747,9 @@ importers:
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
+      '@procedures/claude-cli':
+        specifier: workspace:*
+        version: link:../claude-cli
       '@procedures/cli-run':
         specifier: workspace:*
         version: link:../client-cli
@@ -1683,6 +1792,9 @@ importers:
       '@procedures/ics':
         specifier: workspace:*
         version: link:../ics
+      '@procedures/ios-backup':
+        specifier: workspace:*
+        version: link:../ios-backup
       '@procedures/json':
         specifier: workspace:*
         version: link:../json
@@ -1713,12 +1825,18 @@ importers:
       '@procedures/npm':
         specifier: workspace:*
         version: link:../npm
+      '@procedures/pdf':
+        specifier: workspace:*
+        version: link:../pdf
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
       '@procedures/pnpm':
         specifier: workspace:*
         version: link:../client-pnpm
+      '@procedures/privacy-scan':
+        specifier: workspace:*
+        version: link:../privacy-scan
       '@procedures/procedure':
         specifier: workspace:*
         version: link:../client-procedure

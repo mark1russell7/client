@@ -2,13 +2,14 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/ics",
   "version": "0.3.0",
-  "description": "An iCalendar (RFC 5545) reader without dependencies: the events of a calendar and their occurrences in a time window, recurrences included.",
+  "description": "An iCalendar (RFC 5545) reader and writer without dependencies: the events of a calendar, their occurrences in a time window with the recurrences, and a calendar from events.",
   "keywords": [
     "ics",
     "icalendar",
     "calendar",
     "rrule",
     "recurrence",
+    "writer",
     "procedures"
   ],
   "homepage": "https://mark1russell7.github.io/client/",

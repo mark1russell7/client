@@ -7,26 +7,30 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createProcedure, createRegistry, defineModule, effectsOf, invokePath, outputValue, zodAdapter, type ProcedureRegistry } from "@procedures/client";
 import { ghModule } from "./module.js";
+import { existsSync, readFileSync } from "node:fs";
 import { GhError, urlOf } from "./procedures/gh/shared.js";
+import { jsonValues, parseGhApiOutput } from "./procedures/gh/api.js";
 
 interface ShellCall {
   command: string;
   args: string[];
   cwd?: string | undefined;
   timeout?: number | undefined;
+  env?: Record<string, string> | undefined;
 }
 
 /** A registry whose shell.run records each call and answers with the next scripted result. */
-function fake(results: Array<{ exitCode?: number; stdout?: string; stderr?: string }> = []) {
+function fake(results: Array<{ exitCode?: number; stdout?: string; stderr?: string }> = [], inspect?: (call: ShellCall) => void) {
   const calls: ShellCall[] = [];
   const shell = defineModule("@procedures/shell", [
     createProcedure()
       .path(["shell", "run"])
-      .input(zodAdapter<ShellCall>(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional() })))
+      .input(zodAdapter<ShellCall>(z.object({ command: z.string(), args: z.array(z.string()), cwd: z.string().optional(), timeout: z.number().optional(), env: z.record(z.string(), z.string()).optional() })))
       .output(zodAdapter<unknown>(z.unknown()))
       .meta({ effects: { reads: ["process"], writes: ["process"] } })
       .handler(async (input: ShellCall) => {
         calls.push(input);
+        inspect?.(input);
         const result = results.shift() ?? {};
         return { exitCode: result.exitCode ?? 0, stdout: result.stdout ?? "[]", stderr: result.stderr ?? "" };
       })
@@ -113,19 +117,113 @@ describe("the gh procedures (R42)", () => {
   it("declare the effects and the call of shell.run of each procedure", () => {
     const { registry } = fake();
     const gh = registry.getAll().filter((procedure) => procedure.path[0] === "gh");
-    expect(gh).toHaveLength(13);
+    expect(gh).toHaveLength(16);
+    const writesOf: Record<string, string[]> = { "gh.run.download": ["fs"], "gh.api": ["network"], "gh.workflow.run": ["network"] };
     for (const procedure of gh) {
+      const key = procedure.path.join(".");
       const effects = effectsOf(procedure)!;
-      expect(effects.reads, procedure.path.join(".")).toEqual(["network"]);
-      const writes = ["create", "comment", "rerun"].includes(procedure.path[2]!);
-      expect(effects.writes, procedure.path.join(".")).toEqual(writes ? ["network"] : []);
+      expect(effects.reads, key).toEqual(["network"]);
+      const writes = writesOf[key] ?? (["create", "comment", "rerun"].includes(procedure.path[2]!) ? ["network"] : []);
+      expect(effects.writes, key).toEqual(writes);
       expect((procedure.metadata as { calls?: string[] }).calls).toEqual(["shell.run"]);
     }
+    const flags = (key: string) => {
+      const effects = effectsOf(gh.find((procedure) => procedure.path.join(".") === key)!)!;
+      return { destructive: effects.destructive, idempotent: effects.idempotent };
+    };
+    // A method other than GET can replace or delete data: gh.api keeps the default, destructive
+    expect(flags("gh.api")).toEqual({ destructive: undefined, idempotent: undefined });
+    expect(flags("gh.workflow.run")).toEqual({ destructive: false, idempotent: false });
+    expect(flags("gh.run.download")).toEqual({ destructive: false, idempotent: false });
   });
 
   it("read the URL from the last line of the output", () => {
     expect(urlOf("a\nhttps://x/1\n")).toBe("https://x/1");
     expect(urlOf("no url")).toBe("no url");
     expect(new GhError("m", 2, "e")).toMatchObject({ exitCode: 2, stderr: "e", name: "GhError" });
+  });
+});
+
+describe("gh.workflow.run, gh.run.download and gh.api", () => {
+  it("start a workflow run with its ref and its inputs, and read the run from the URL that gh prints", async () => {
+    const { calls, call } = fake([{ stdout: "https://github.com/o/n/actions/runs/4242\n" }, { stdout: "" }]);
+    expect(await call("gh.workflow.run", { workflow: "cells.yml", repo: "o/n", ref: "stage-1", inputs: { file: "queue/a b.json", shards: "3", only: "-x" } })).toEqual({
+      workflow: "cells.yml",
+      ref: "stage-1",
+      url: "https://github.com/o/n/actions/runs/4242",
+      run: 4242,
+    });
+    expect(calls[0]!.args).toEqual(["workflow", "run", "cells.yml", "--repo", "o/n", "--ref", "stage-1", "-f", "file=queue/a b.json", "-f", "shards=3", "-f", "only=-x"]);
+    // An older gh, or GitHub without the run details, prints nothing: the output has no run
+    expect(await call("gh.workflow.run", { workflow: "ci.yml" })).toEqual({ workflow: "ci.yml" });
+    expect(calls[1]!.args).toEqual(["workflow", "run", "ci.yml"]);
+  });
+
+  it("download the artifacts of a run, by name, by pattern and into a folder", async () => {
+    const { calls, call } = fake([{ stdout: "" }, { stdout: "" }, { exitCode: 1, stderr: "no valid artifacts found to download" }]);
+    expect(await call("gh.run.download", { run: 77, repo: "o/n", names: ["records"], patterns: ["shard-*"], dir: "/tmp/into" })).toEqual({ run: 77, dir: "/tmp/into" });
+    expect(calls[0]!.args).toEqual(["run", "download", "77", "--repo", "o/n", "--name", "records", "--pattern", "shard-*", "--dir", "/tmp/into"]);
+    expect(await call("gh.run.download", { run: 78 })).toEqual({ run: 78, dir: "." });
+    expect(calls[1]!.args).toEqual(["run", "download", "78"]);
+    await expect(call("gh.run.download", { run: 79 })).rejects.toThrow("no valid artifacts");
+  });
+
+  it("call the API with an explicit method, string fields as -f and other fields as -F, and give the parsed JSON", async () => {
+    const { calls, call } = fake([{ stdout: '{"object":{"sha":"abc"}}' }, { stdout: '{"ref":"refs/heads/x"}' }]);
+    expect(await call("gh.api", { endpoint: "repos/{owner}/{repo}/branches/main", repo: "o/n" })).toEqual({ data: { object: { sha: "abc" } } });
+    // gh api has no --repo: the repository goes as GH_REPO, for the placeholders of the endpoint
+    expect(calls[0]!.args).toEqual(["api", "repos/{owner}/{repo}/branches/main", "--method", "GET"]);
+    expect(calls[0]!.env).toEqual({ GH_REPO: "o/n" });
+    await call("gh.api", { endpoint: "repos/o/n/refs", method: "POST", fields: { ref: "refs/heads/x", sha: "@not-a-file", force: false, count: 2, note: null } });
+    expect(calls[1]!.args).toEqual(["api", "repos/o/n/refs", "--method", "POST", "-f", "ref=refs/heads/x", "-f", "sha=@not-a-file", "-F", "force=false", "-F", "count=2", "-F", "note=null"]);
+    expect(calls[1]!.env).toBeUndefined();
+  });
+
+  it("send a JSON body from a temporary file, and remove the file after the call", async () => {
+    let seen: { path: string; text: string } | undefined;
+    const { calls, call } = fake([{ stdout: '{"content":{"path":"queue/x.json"}}' }, { exitCode: 1, stderr: "gh: Not Found (HTTP 404)" }], (input) => {
+      const at = input.args.indexOf("--input");
+      if (at >= 0) seen = { path: input.args[at + 1]!, text: readFileSync(input.args[at + 1]!, "utf8") };
+    });
+    const body = { message: "queue: 2 cells", branch: "stage-1", content: "W10=" };
+    expect(await call("gh.api", { endpoint: "repos/o/n/contents/queue/x.json", method: "PUT", body })).toEqual({ data: { content: { path: "queue/x.json" } } });
+    expect(calls[0]!.args.slice(0, 4)).toEqual(["api", "repos/o/n/contents/queue/x.json", "--method", "PUT"]);
+    expect(JSON.parse(seen!.text)).toEqual(body);
+    expect(existsSync(seen!.path)).toBe(false);
+    // A failed call removes the file too
+    await expect(call("gh.api", { endpoint: "repos/o/n/contents/y", method: "PUT", body: { a: 1 } })).rejects.toThrow("HTTP 404");
+    expect(existsSync(seen!.path)).toBe(false);
+  });
+
+  it("give null for an empty response, and join the pages of a paginated array", async () => {
+    const { calls, call } = fake([{ stdout: "" }, { stdout: '[{"id":1},{"id":2}]\n[{"id":3}]\n' }, { stdout: '{"total_count":1}{"total_count":1}' }]);
+    expect(await call("gh.api", { endpoint: "repos/o/n/refs/heads/x", method: "DELETE" })).toEqual({ data: null });
+    expect(await call("gh.api", { endpoint: "repos/o/n/pulls", paginate: true })).toEqual({ data: [{ id: 1 }, { id: 2 }, { id: 3 }] });
+    expect(calls[1]!.args).toEqual(["api", "repos/o/n/pulls", "--method", "GET", "--paginate"]);
+    expect(await call("gh.api", { endpoint: "search/issues", paginate: true, fields: { q: "is:open" } })).toEqual({ data: [{ total_count: 1 }, { total_count: 1 }] });
+  });
+
+  it("refuse values that gh would read as options, and a field name with =", async () => {
+    const { calls, call } = fake();
+    await expect(call("gh.api", { endpoint: "--hostname" })).rejects.toThrow('starts with "-"');
+    await expect(call("gh.api", { endpoint: "x", fields: { "a=b": "c" } })).rejects.toThrow("Invalid field name");
+    await expect(call("gh.api", { endpoint: "x", method: "TRACE" })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(call("gh.workflow.run", { workflow: "-x" })).rejects.toThrow('starts with "-"');
+    await expect(call("gh.workflow.run", { workflow: "ci.yml", inputs: { "": "x" } })).rejects.toThrow("Invalid input name");
+    await expect(call("gh.run.download", { run: 1, names: ["--all"] })).rejects.toThrow('starts with "-"');
+    expect(calls).toEqual([]);
+  });
+
+  it("read the output of gh api", () => {
+    expect(parseGhApiOutput("  \n")).toBeNull();
+    expect(parseGhApiOutput('{"a":1}')).toEqual({ a: 1 });
+    expect(parseGhApiOutput('{"a":1}', true)).toEqual([{ a: 1 }]);
+    expect(parseGhApiOutput("[1]", true)).toEqual([1]);
+    expect(() => parseGhApiOutput("[1][2]")).toThrow("gave no JSON");
+    expect(() => parseGhApiOutput("not json", true)).toThrow("gave no JSON");
+    // A bracket and an escaped quote in a string do not end a value
+    expect(jsonValues('[{"t":"a ] \\" } ["}]\n{"b":[]}')).toEqual([[{ t: 'a ] " } [' }], { b: [] }]);
+    expect(() => jsonValues('[1] "x"')).toThrow();
+    expect(() => jsonValues("[1")).toThrow("ends too early");
   });
 });

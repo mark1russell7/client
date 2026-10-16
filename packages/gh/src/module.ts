@@ -3,7 +3,8 @@
  *
  * Each procedure runs the GitHub CLI (`gh`) through `shell.run`, with an argument list and no
  * shell (roadmap R42). The reads declare `reads: ["network"]`. The procedures that make or change
- * something on GitHub declare `writes: ["network"]`.
+ * something on GitHub declare `writes: ["network"]`. `gh.run.download` writes files, so it
+ * declares `writes: ["fs"]`.
  *
  * Scaffold a procedure with: mark procedure new <name> --path packages/gh
  */
@@ -24,11 +25,23 @@ import { ghIssueList } from "./procedures/gh/issue/list.js";
 import { ghIssueView } from "./procedures/gh/issue/view.js";
 import { ghIssueCreate } from "./procedures/gh/issue/create.js";
 import { ghIssueComment } from "./procedures/gh/issue/comment.js";
+import { ghWorkflowRun } from "./procedures/gh/workflow/run.js";
+import { ghRunDownload } from "./procedures/gh/run/download.js";
+import { ghApi } from "./procedures/gh/api.js";
 
 /** A read of GitHub: it changes nothing. */
 const READS: Effects = { reads: ["network"], writes: [] };
 /** A write to GitHub that makes something new: not destructive, and a second call makes a second one. */
 const MAKES: Effects = { reads: ["network"], writes: ["network"], destructive: false, idempotent: false };
+/** A download from GitHub into files of the host. gh does not replace a file that exists, so it is not destructive. */
+const DOWNLOADS: Effects = { reads: ["network"], writes: ["fs"], destructive: false, idempotent: false };
+/**
+ * Any call of the GitHub API. The method is an input, and a procedure that writes by an input
+ * declares the writes (CAPABILITIES-2026-10, decision 14). PUT and DELETE can replace or remove
+ * data, so the declaration keeps the default: destructive. The temporary file of a body is not
+ * a file of the host that the call changes.
+ */
+const CALLS_API: Effects = { reads: ["network"], writes: ["network"] };
 
 const common = {
   repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "owner/name").optional().describe("The repository as owner/name (default: the repository of the folder)"),
@@ -151,6 +164,59 @@ const procedures: AnyProcedure[] = [
     MAKES,
     ghIssueComment,
     ["issue"],
+  ),
+  gh(
+    ["gh", "workflow", "run"],
+    "Start a workflow run (a workflow_dispatch event) on a branch or a tag, with the inputs of the workflow",
+    z.object({
+      ...common,
+      workflow: z.string().min(1).describe("The name, the file name or the id of the workflow"),
+      ref: z.string().min(1).optional().describe("The branch or the tag (default: the default branch)"),
+      inputs: z.record(z.string(), z.string()).optional().describe("The inputs of the workflow, each one as -f key=value"),
+    }),
+    z.object({
+      workflow: z.string().describe("The workflow"),
+      ref: z.string().optional().describe("The branch or the tag"),
+      url: z.string().optional().describe("The URL of the new run, when gh prints it"),
+      run: z.number().optional().describe("The id of the new run, when gh prints its URL"),
+    }),
+    MAKES,
+    ghWorkflowRun,
+    ["workflow"],
+  ),
+  gh(
+    ["gh", "run", "download"],
+    "Download the artifacts of a workflow run into a folder",
+    z.object({
+      ...common,
+      run: z.number().int().min(1).describe("The id of the run"),
+      names: z.array(z.string().min(1)).optional().describe("Only the artifacts with these names"),
+      patterns: z.array(z.string().min(1)).optional().describe("Only the artifacts with names that match these glob patterns"),
+      dir: z.string().min(1).optional().describe("The folder for the artifacts (default: the folder where gh runs)"),
+    }),
+    z.object({ run: z.number().describe("The id of the run"), dir: z.string().describe("The folder of the artifacts") }),
+    DOWNLOADS,
+    ghRunDownload,
+    ["run"],
+  ),
+  gh(
+    ["gh", "api"],
+    "Call the GitHub API and give the parsed JSON. A method other than GET can change or delete data",
+    z.object({
+      ...common,
+      endpoint: z.string().min(1).describe("The endpoint, for example repos/{owner}/{repo}/pulls or graphql"),
+      method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).optional().describe("The HTTP method (default GET)"),
+      fields: z
+        .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+        .optional()
+        .describe("The parameters: a string goes as -f, another value as -F. GET sends them in the query"),
+      body: z.unknown().optional().describe("A JSON body, sent with --input from a temporary file"),
+      paginate: z.boolean().optional().describe("Get all the pages. The pages of an array become one array"),
+    }),
+    z.object({ data: z.unknown().describe("The parsed JSON of the response (null when it is empty)") }),
+    CALLS_API,
+    ghApi,
+    ["endpoint"],
   ),
 ];
 
