@@ -1,0 +1,30 @@
+program mode=exec
+  chain root @""
+    step -> b0:two
+      call t.num operand @"/input/steps/0"
+        literal data {"value":2} @"/input/steps/0/input"
+    step -> b1
+      dynamic client.eval operand reason=runs-refs scope=[two=b0:two $last=b0:two] @"/input/steps/1"
+        literal data {"procedure":["t","add"],"input":{"a":{"$ref":"two"},"b":1}} @"/input/steps/1/input"
+        model
+          call t.add operand @"/input/steps/1/input"
+            object @"/input/steps/1/input/input"
+              key "a"
+                ref "two" -> b0:two @"/input/steps/1/input/input/a"
+              key "b"
+                literal data 1 @"/input/steps/1/input/input/b"
+    step -> b2
+      call t.echo operand @"/input/steps/2"
+        object @"/input/steps/2/input"
+          key "never"
+            literal never {"$proc":["t","write"],"input":{"key":"k"},"$when":"$never"} @"/input/steps/2/input/never"
+          key "parent"
+            deferred t.echo when="$parent" @"/input/steps/2/input/parent"
+              object @"/input/steps/2/input/parent/input"
+                key "now"
+                  call t.num nested @"/input/steps/2/input/parent/input/now"
+                    literal data {"value":3} @"/input/steps/2/input/parent/input/now/input"
+          key "literal"
+            literal literal {"$proc":["t","write"],"input":{}} @"/input/steps/2/input/literal"
+          key "schema"
+            literal literal {"$ref":"#/definitions/point"} @"/input/steps/2/input/schema"

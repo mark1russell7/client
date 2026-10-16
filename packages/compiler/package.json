@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@procedures/compiler",
+  "version": "0.2.3",
+  "description": "The compiler of procedure programs: it checks a JSON program before the first call (scopes, effects, schemas, capability) and writes it as a plain async function.",
+  "keywords": [
+    "compiler",
+    "procedures",
+    "static-analysis",
+    "effects",
+    "capabilities",
+    "codegen",
+    "workflow",
+    "dsl"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/compiler"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./module": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "sideEffects": [
+    "./dist/register.js"
+  ],
+  "devDependencies": {
+    "@mark1russell7/cue": "^1.0.0",
+    "fast-check": "^4.10.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "@procedures/client": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

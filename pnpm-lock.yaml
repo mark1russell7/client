@@ -916,6 +916,28 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/compiler:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/documentation:
     devDependencies:
       '@mark1russell7/cue':
@@ -1013,6 +1035,9 @@ importers:
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue

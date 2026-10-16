@@ -80,6 +80,7 @@
   "devDependencies": {
     "@procedures/bundle-dev": "workspace:*",
     "@procedures/bundle-mcp": "workspace:*",
+    "@procedures/compiler": "workspace:*",
     "@procedures/cue": "workspace:*",
     "@procedures/docker": "workspace:*",
     "@procedures/fs": "workspace:*",

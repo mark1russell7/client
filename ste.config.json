@@ -13,6 +13,8 @@
     "packages/client-cue/README.md",
     "packages/client-lib/README.md",
     "packages/client-vite/README.md",
+    "packages/compiler/README.md",
+    "packages/compiler/src/**/*.ts",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [
