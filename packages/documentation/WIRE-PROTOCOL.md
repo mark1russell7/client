@@ -20,7 +20,7 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 | `procedure-timeout` | request | The remaining time of the caller, in milliseconds. The server uses it only to make its deadline earlier. |
 | `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. |
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
-| `reason` | response | The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded` or `clearance`. |
+| `reason` | response | The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`, `deadline` or `outside-root` (a path outside the root of `@procedures/fs`). |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
 | `stream` | response | The value `unbounded`: the stream can run without an end. |
 

@@ -69,7 +69,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R19 | 3 | `host.health`, `host.info` and `host.metrics` | S | fixed | `07cc998` |
 | R20 | 4 | `@procedures/compiler`: the IR and `program.check` | M | fixed (the host check is in R22) | `9bc2ddb` |
 | R21 | 4 | `program.compile` and the equivalence tests | M | fixed | `9bc2ddb` |
-| R22 | 4 | The interpreter and the site use the IR of the compiler | M | open | |
+| R22 | 4 | The interpreter and the site use the IR of the compiler | M | in progress: the host check is done | `f5ed492` |
 | R23 | 4 | Outputs of the compiler: diagrams, tool descriptions, typed SDK, `procedure.explain` | M | open | |
 | R24 | 5 | The bidirectional peer | M–L | fixed | `b2a3e3a` |
 | R25 | 5 | Wire protocol v1 | M | fixed | `21f7743` |
@@ -77,10 +77,10 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R27 | 5 | A `MessagePort` transport for workers | S–M | fixed | `d81d0ed` |
 | R28 | 6 | The collection mode switch | L | fixed | `7873940` |
 | R29 | 7 | Testing stage 1: property tests and a catalog test of the core procedures | M | fixed | `06d9e52`, `0c627f8`, `ddea529` |
-| R30 | 7 | Testing stage 2: faults, contracts and leaks | L | open | |
+| R30 | 7 | Testing stage 2: faults, contracts and leaks | L | fixed | `bd0b626` |
 | R31 | 7 | Coverage with a ratchet | S | open | |
 | R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | open | |
-| R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | open | |
+| R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | fixed | `bc70357`, `95b660d` |
 | R34 | 8 | `@procedures/systems` and the timer law | M | open | |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | open | |
 | R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
@@ -305,6 +305,13 @@ Open points (for R22):
 
 Three parts read programs today: the interpreter, the analysis of the site and the compiler. The interpreter operates on the IR, and the site uses the passes of the compiler, so the three cannot disagree.
 
+**Progress.** The MCP host checks each program before its first step with `programCheckInterceptor()` (`f5ed492`). The tools `program.check` and `program.compile` are in `bundle-mcp`, and the host has 65 tools.
+
+**A change of the plan.** The interpreter stays the reference of the semantics, and it does not run the IR. The compiled code does not call the control-flow procedures, so their admission, interceptors and trace do not run in it. The equivalence property of R21 makes sure that the interpreter and the compiler agree. The rest of R22:
+
+- Done: `procedure.define` gets the check of its body from the interceptor. A body with an error does not become a procedure. The procedure keeps the effects of its body as `inferredEffects`, and its tool hints come from them.
+- Open: the site uses the passes of the compiler for its analysis, and the Composer shows the diagnostics.
+
 ### R23. Outputs of the compiler
 
 - A Mermaid diagram of a program.
@@ -394,6 +401,13 @@ Open points:
 - A snapshot of the tool schemas, the wire goldens of R25, and a snapshot of the public `.d.ts` API.
 - Tests of `client/errors`.
 
+**Result.** The test helpers are a seeded fault transport (`FAULT_SEED` replays a run) and an in-process TCP proxy. The tests examine the reconnect of the WebSocket client, the six layers of `resilience()` with fake timers, and 1,000 aborted calls on each transport. The snapshots are the tool schemas (`UPDATE_TOOL_SCHEMAS=1`) and the public API of `@procedures/client` (`UPDATE_API_SNAPSHOT=1`). The tests found four defects, which are fixed:
+
+- The timeout middleware did not stop its wait at an abort of the caller when the transport ignored the signal.
+- The WebSocket of Node 22 gives no close event after a failed handshake, so each reconnect waited for the handshake limit.
+- `createErrorFromException` gave ABORTED for `AbortSignal.timeout()` and PARSE_ERROR for a circular structure.
+- `isAvailabilityFailure` did not count `CONNECTION_CLOSED`.
+
 ### R31. Coverage
 
 `@vitest/coverage-v8` at the root, with thresholds that only go up.
@@ -405,6 +419,8 @@ Nightly mutation tests on the resolver, the capabilities, the policy and the mid
 ### R33. The thin packages
 
 More tests for `client-git`, `client-splay`, `client-s3` and `client-fs`. `client-fs` gets an optional root that confines each path.
+
+**Result.** Each procedure of the four packages has tests. The tests of `client-git` run real `git` in temporary repositories without the global configuration. The tests of `client-s3` use an S3 fake in memory. `createFsModule({ root })` confines each path of `fs.*`. It refuses `..`, an absolute path, another drive and a symbolic link out of the root. The error is `FORBIDDEN` with the reason `outside-root`. The tests found three defects, which are fixed. `git.commit` failed for an untracked file, `git.init` called `fs.exists` through the client, and a splay child used the global registry.
 
 ## Tier 8: systems
 
@@ -479,3 +495,9 @@ The review found code that is a candidate for removal or a move. These items nee
 - `client.stringifyJson` and `client.export` fail with `OUTPUT_VALIDATION_ERROR` for a missing value.
 - Small inconsistencies of the core: `client.mod` gives `NaN` for zero and `client.divide` refuses zero. `client.unique` compares objects by reference. `client.isObject` gives true for a `Date`. The `match` description of `client.filter` lists 7 of its 11 modes.
 - The packages of R48 and R49 need a first npm publish from the computer of the owner, one time for each new package.
+- The code of a handler error (R30): `WIRE-PROTOCOL.md` says that the server keeps it. `errorResponse` and `LocalTransport` change it to `HANDLER_ERROR` for a value, and keep it for a stream. The HTTP status follows the code.
+- `ERROR_REGISTRY` of `client/errors` does not agree with `ERROR_CODES` of R25 (`INTERNAL_ERROR` and `TIMEOUT`). One list goes away, or it comes from the other.
+- A duplicate stream frame gives a duplicate item, because the frames have no sequence numbers.
+- The description of the sqlite `dbPath` field shows the home folder of the computer to Claude.
+- R33: `fs.copy` keeps an existing destination and reports success. `git.isClean` gives true outside a repository. `git.init` with `bare` makes the repository again. `splay.bridge.info` gives the version `1.0.0`.
+- The fs root (R33) is not in `mark` or the MCP host. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
