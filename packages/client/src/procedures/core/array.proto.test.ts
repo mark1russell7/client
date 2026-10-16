@@ -18,7 +18,7 @@ function client(): Client {
 }
 
 const call = (name: string, input: unknown) => client().exec({ $proc: ["client", name], input });
-const items = [{ id: 1 }, { id: 2, toString: "own" }];
+const items: Array<Record<string, unknown>> = [{ id: 1 }, { id: 2, toString: "own" }];
 
 describe("the array procedures read only own fields (R29)", () => {
   it("client.count, client.pluck and client.partition", async () => {
