@@ -11,3 +11,6 @@ export { s3MultipartInit } from "./multipart-init.js";
 export { s3MultipartUpload } from "./multipart-upload.js";
 export { s3MultipartComplete } from "./multipart-complete.js";
 export { s3MultipartAbort } from "./multipart-abort.js";
+export { s3Head } from "./head.js";
+export { s3Copy } from "./copy.js";
+export { s3Presign } from "./presign.js";

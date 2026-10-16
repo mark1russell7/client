@@ -14,6 +14,7 @@ npm install @procedures/lib
 | `lib.new` | Make a package from the template |
 | `lib.audit` | Compare each package with the template |
 | `lib.rename` | Rename a package in each file of the workspace |
+| `lib.graph` | Give the dependency graph of the workspace packages, with its cycles |
 | `ecosystem.procedures` | List the procedures of the packages |
 | `dag.traverse` | Start a procedure for each package, in the order of their dependencies |
 | `core.catch` | Start a deferred call, and give the error to a handler call |
@@ -69,6 +70,20 @@ The output also has `flagNotices`: the procedure flags whose short form is also 
 ## `lib.rename`
 
 Input: `oldName`, `newName`, `rootPath` and `dryRun`. The procedure changes the package name, the dependencies, the imports and the dynamic imports in the workspace. The output lists each change and gives a summary.
+
+## `lib.graph`
+
+Input: `rootPath`. The procedure reads the `package.json` of each folder in `packages/` through `fs.readdir` and `fs.read.json`. It changes nothing.
+
+- `nodes` has one item for each package: `name`, `folder`, `version` and `private`.
+- `edges` has one item for each dependency with a `workspace:` specifier: `from`, `to`, `kind` and `spec`. The kinds are `dependencies`, `devDependencies`, `peerDependencies` and `optionalDependencies`.
+- `cycles` lists each cycle as the names of its packages. A package that depends on itself is also a cycle. `acyclic` is true when the list is empty.
+- `levels` is the build order of a graph without a cycle. The packages of level 0 depend on no workspace package. Each package of a level depends only on packages of lower levels.
+- `warnings` lists the folders that the procedure cannot read, and each `workspace:` dependency on a name that is not in the workspace.
+
+```sh
+node packages/mark/dist/cli.js lib graph
+```
 
 ## `ecosystem.procedures`
 

@@ -23,15 +23,15 @@ const packages = await client.exec(["lib", "scan"], {});
 | Package | Procedures |
 |---|---|
 | `client-shell` | `shell.run`, `shell.exec`, `shell.stream`, `shell.which` |
-| `client-fs` | 11 `fs.*` procedures: `read`, `read.json`, `write`, `exists`, `stat`, `mkdir`, `readdir`, `rm`, `copy`, `move`, `glob` |
+| `client-fs` | 15 `fs.*` procedures: `read`, `read.json`, `write`, `write.json`, `exists`, `stat`, `mkdir`, `readdir`, `rm`, `copy`, `move`, `glob`, `hash`, `temp`, `watch` |
 | `client-cli` | `cli.run` |
 | `client-pnpm` | `pnpm.install`, `pnpm.add`, `pnpm.remove`, `pnpm.link`, `pnpm.run`, `pnpm.store.path` |
-| `client-lib` | `lib.scan`, `lib.new`, `lib.audit`, `lib.rename`, `ecosystem.procedures`, `dag.traverse`, `core.catch` |
+| `client-lib` | `lib.scan`, `lib.new`, `lib.audit`, `lib.rename`, `lib.graph`, `ecosystem.procedures`, `dag.traverse`, `core.catch` |
 | `client-git` | 26 `git.*` procedures |
 | `client-dag` | none: it gives the graph algorithms that `dag.traverse` uses |
 | `client-procedure` | `procedure.new`, `procedure.export` |
 
-The bundle registers 57 procedures, and the core adds its own. [PROCEDURES.md](../documentation/PROCEDURES.md) describes each procedure.
+The bundle registers 62 procedures, and the core adds its own. [PROCEDURES.md](../documentation/PROCEDURES.md) describes each procedure.
 
 ## Where it is used
 

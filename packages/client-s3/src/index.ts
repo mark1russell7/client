@@ -35,6 +35,12 @@ export type {
   S3MultipartCompleteOutput,
   S3MultipartAbortInput,
   S3MultipartAbortOutput,
+  S3HeadInput,
+  S3HeadOutput,
+  S3CopyInput,
+  S3CopyOutput,
+  S3PresignInput,
+  S3PresignOutput,
 } from "./types.js";
 
 // Re-export schemas for external use
@@ -48,6 +54,10 @@ export {
   S3MultipartUploadInputSchema,
   S3MultipartCompleteInputSchema,
   S3MultipartAbortInputSchema,
+  S3HeadInputSchema,
+  S3CopyInputSchema,
+  S3PresignInputSchema,
+  MAX_PRESIGN_SECONDS,
 } from "./types.js";
 
 // Re-export S3 client utilities
@@ -69,4 +79,7 @@ export {
   s3MultipartUpload,
   s3MultipartComplete,
   s3MultipartAbort,
+  s3Head,
+  s3Copy,
+  s3Presign,
 } from "./procedures/s3/index.js";

@@ -14,6 +14,7 @@ Node.js process management procedures for the client ecosystem. Provides procedu
 │   await client.exec(["node", "spawn"], { script: "server.js" })             │
 │   await client.exec(["node", "kill"], { processId: "abc123" })              │
 │   await client.exec(["node", "status"], {})                                 │
+│   await client.exec(["node", "logs"], { processId: "abc123", lines: 50 })   │
 │                                                                              │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │
@@ -61,6 +62,8 @@ pnpm add @procedures/node
 ```
 
 ## Procedures
+
+The package has 5 procedures. Its register entry (`import "@procedures/node/register"`) registers them: `node.run`, `node.spawn`, `node.kill`, `node.status`, `node.logs`.
 
 ### node.run
 
@@ -216,6 +219,28 @@ for (const proc of result.processes) {
 | `pid` | `number` | System process ID |
 | `status` | `"running" \| "stopped"` | Process status |
 | `startedAt` | `string` | ISO timestamp when started |
+
+### node.logs
+
+The procedure gives the output of one process that `node.spawn` started. The process registry of `client-shell` reads the output of each process and keeps its end: the last 64 KiB of stdout and stderr together. Thus the procedure gives that end, also after the process ended. The registry keeps the records of the last 50 ended processes.
+
+```typescript
+const { status, exitCode, output } = await client.exec(["node", "logs"], {
+  processId: "node-abc123-1",
+  lines: 50,
+  stripAnsi: true,
+});
+```
+
+The input has these fields:
+
+- `processId` (necessary): the process ID that `node.spawn` gave.
+- `lines`: give only the last lines of the output.
+- `stripAnsi`: remove the ANSI escape codes (colors) from the output.
+
+The output has the `processId`, the `status` (`running`, `exited` or `error`), the `exitCode` of an ended process and the `output`.
+
+The procedure knows only the processes of its host. The process writes to two pipes, stdout and stderr. Thus `output` has their lines in the order of their arrival. A process that `node.spawn` did not start is an error. The procedure has no stream: a stream of new output needs a subscription to the process registry of `client-shell`.
 
 ## Process Lifecycle
 

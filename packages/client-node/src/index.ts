@@ -12,6 +12,7 @@ export { nodeRun } from "./procedures/node/run.js";
 export { nodeSpawn } from "./procedures/node/spawn.js";
 export { nodeKill } from "./procedures/node/kill.js";
 export { nodeStatus } from "./procedures/node/status.js";
+export { nodeLogs } from "./procedures/node/logs.js";
 
 // Export process manager
 export { processManager } from "./process-manager.js";

@@ -423,3 +423,148 @@ export const S3MultipartCompleteOutputSchema: z.ZodType<S3MultipartCompleteOutpu
 export const S3MultipartAbortOutputSchema: z.ZodType<S3MultipartAbortOutput> = z.looseObject({
   aborted: z.boolean().describe("True when the upload was aborted"),
 });
+
+// =============================================================================
+// s3.head, s3.copy and s3.presign (roadmap R44)
+// =============================================================================
+
+export interface S3HeadInput {
+  /** The bucket */
+  bucket: string;
+  /** The object key */
+  key: string;
+  /** A version of the object (default: the current version) */
+  versionId?: string | undefined;
+}
+
+export interface S3HeadOutput {
+  /** False when S3 answers 404: the key or the bucket does not exist */
+  exists: boolean;
+  /** The size of the object, in bytes */
+  contentLength?: number | undefined;
+  contentType?: string | undefined;
+  /** The ETag, without quotes */
+  etag?: string | undefined;
+  /** The time of the last change (ISO 8601) */
+  lastModified?: string | undefined;
+  versionId?: string | undefined;
+  storageClass?: string | undefined;
+  /** The user metadata of the object */
+  metadata?: Record<string, string> | undefined;
+}
+
+export const S3HeadInputSchema: z.ZodType<S3HeadInput> = z.object({
+  bucket: z.string().min(1).describe("The bucket"),
+  key: z.string().min(1).describe("The object key"),
+  versionId: z.string().optional().describe("A version of the object (default: the current version)"),
+});
+
+export const S3HeadOutputSchema: z.ZodType<S3HeadOutput> = z.looseObject({
+  exists: z.boolean().describe("False when S3 answers 404: the key or the bucket does not exist"),
+  contentLength: z.number().optional().describe("The size of the object, in bytes"),
+  contentType: z.string().optional().describe("The content type"),
+  etag: z.string().optional().describe("The ETag of the object, without quotes"),
+  lastModified: z.string().optional().describe("The time of the last change (ISO 8601)"),
+  versionId: z.string().optional().describe("The version id, when the bucket has versioning"),
+  storageClass: z.string().optional().describe("The storage class (S3 gives none for STANDARD)"),
+  metadata: z.record(z.string(), z.string()).optional().describe("The user metadata of the object"),
+});
+
+export interface S3CopyInput {
+  /** The bucket of the source (default: the bucket of the destination) */
+  sourceBucket?: string | undefined;
+  /** The key of the source */
+  sourceKey: string;
+  /** A version of the source (default: the current version) */
+  sourceVersionId?: string | undefined;
+  /** The bucket of the destination */
+  bucket: string;
+  /** The key of the destination */
+  key: string;
+  /** False: S3 refuses the copy when the destination key exists. The default is true. */
+  overwrite?: boolean | undefined;
+  /** A new content type. With it or with metadata, the copy replaces the metadata of the source. */
+  contentType?: string | undefined;
+  /** New user metadata. With it or with contentType, the copy replaces the metadata of the source. */
+  metadata?: Record<string, string> | undefined;
+}
+
+export interface S3CopyOutput {
+  /** The ETag of the copy, without quotes */
+  etag: string;
+  /** The time of the last change of the copy (ISO 8601) */
+  lastModified?: string | undefined;
+  /** The version id of the copy, when the bucket has versioning */
+  versionId?: string | undefined;
+  /** The version id of the source, when its bucket has versioning */
+  sourceVersionId?: string | undefined;
+  /** The S3 URI of the copy */
+  location: string;
+}
+
+export const S3CopyInputSchema: z.ZodType<S3CopyInput> = z.object({
+  sourceBucket: z.string().min(1).optional().describe("The bucket of the source (default: the bucket of the destination)"),
+  sourceKey: z.string().min(1).describe("The key of the source"),
+  sourceVersionId: z.string().optional().describe("A version of the source (default: the current version)"),
+  bucket: z.string().min(1).describe("The bucket of the destination"),
+  key: z.string().min(1).describe("The key of the destination"),
+  overwrite: z.boolean().optional().describe("False: S3 refuses the copy when the destination key exists. The default is true."),
+  contentType: z.string().optional().describe("A new content type: the copy then replaces the metadata of the source"),
+  metadata: z.record(z.string(), z.string()).optional().describe("New user metadata: the copy then replaces the metadata of the source"),
+});
+
+export const S3CopyOutputSchema: z.ZodType<S3CopyOutput> = z.looseObject({
+  etag: z.string().describe("The ETag of the copy, without quotes"),
+  lastModified: z.string().optional().describe("The time of the last change of the copy (ISO 8601)"),
+  versionId: z.string().optional().describe("The version id of the copy, when the bucket has versioning"),
+  sourceVersionId: z.string().optional().describe("The version id of the source, when its bucket has versioning"),
+  location: z.string().describe("The S3 URI of the copy (s3://bucket/key)"),
+});
+
+/** The longest expiry of a presigned URL: 7 days, the limit of Signature Version 4. */
+export const MAX_PRESIGN_SECONDS: number = 7 * 24 * 60 * 60;
+
+export interface S3PresignInput {
+  bucket: string;
+  key: string;
+  /** GET (download) or PUT (upload). The default is GET. */
+  method?: "GET" | "PUT" | undefined;
+  /** The seconds until the URL expires (default 900, the most 604800) */
+  expiresIn?: number | undefined;
+  /** PUT only: the content type that the upload must send */
+  contentType?: string | undefined;
+  /** GET only: a version of the object */
+  versionId?: string | undefined;
+}
+
+export interface S3PresignOutput {
+  /** The presigned URL */
+  url: string;
+  method: "GET" | "PUT";
+  /** The seconds until the URL expires */
+  expiresIn: number;
+  /** The time at which the URL expires (ISO 8601) */
+  expiresAt: string;
+}
+
+export const S3PresignInputSchema: z.ZodType<S3PresignInput> = z.object({
+  bucket: z.string().min(1).describe("The bucket"),
+  key: z.string().min(1).describe("The object key"),
+  method: z.enum(["GET", "PUT"]).optional().describe("GET (download) or PUT (upload). The default is GET."),
+  expiresIn: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_PRESIGN_SECONDS)
+    .optional()
+    .describe(`The seconds until the URL expires (default 900, the most ${MAX_PRESIGN_SECONDS})`),
+  contentType: z.string().optional().describe("PUT only: the content type that the upload must send"),
+  versionId: z.string().optional().describe("GET only: a version of the object"),
+});
+
+export const S3PresignOutputSchema: z.ZodType<S3PresignOutput> = z.looseObject({
+  url: z.string().describe("The presigned URL"),
+  method: z.enum(["GET", "PUT"]).describe("The HTTP method of the URL"),
+  expiresIn: z.number().describe("The seconds until the URL expires"),
+  expiresAt: z.string().describe("The time at which the URL expires (ISO 8601)"),
+});

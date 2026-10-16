@@ -20,6 +20,12 @@ export { updateProcedure } from "./documents.update.js";
 export { deleteProcedure } from "./documents.delete.js";
 export { countProcedure } from "./documents.count.js";
 export { aggregateProcedure } from "./documents.aggregate.js";
+export { distinctProcedure } from "./documents.distinct.js";
+export { bulkProcedure } from "./documents.bulk.js";
+export { explainProcedure } from "./documents.explain.js";
+
+// Change streams
+export { watchProcedure } from "./watch.js";
 
 // Index procedures
 export { listIndexesProcedure } from "./indexes.list.js";

@@ -43,6 +43,10 @@ import type { UpdateInput, UpdateOutput } from "./procedures/documents.update.js
 import type { DeleteInput, DeleteOutput } from "./procedures/documents.delete.js";
 import type { CountInput, CountOutput } from "./procedures/documents.count.js";
 import type { AggregateInput, AggregateOutput } from "./procedures/documents.aggregate.js";
+import type { DistinctInput, DistinctOutput } from "./procedures/documents.distinct.js";
+import type { BulkInput, BulkOutput } from "./procedures/documents.bulk.js";
+import type { ExplainInput, ExplainOutput } from "./procedures/documents.explain.js";
+import type { WatchInput, WatchChange } from "./procedures/watch.js";
 import type { ListIndexesInput, ListIndexesOutput } from "./procedures/indexes.list.js";
 import type { CreateIndexInput, CreateIndexOutput } from "./procedures/indexes.create.js";
 import type { DropIndexInput, DropIndexOutput } from "./procedures/indexes.drop.js";
@@ -72,6 +76,14 @@ export type {
   CountOutput,
   AggregateInput,
   AggregateOutput,
+  DistinctInput,
+  DistinctOutput,
+  BulkInput,
+  BulkOutput,
+  ExplainInput,
+  ExplainOutput,
+  WatchInput,
+  WatchChange,
   ListIndexesInput,
   ListIndexesOutput,
   CreateIndexInput,
@@ -108,12 +120,17 @@ export interface MongoProcedures {
       delete: { input: DeleteInput; output: DeleteOutput };
       count: { input: CountInput; output: CountOutput };
       aggregate: { input: AggregateInput; output: AggregateOutput };
+      distinct: { input: DistinctInput; output: DistinctOutput };
+      bulk: { input: BulkInput; output: BulkOutput };
+      explain: { input: ExplainInput; output: ExplainOutput };
     };
     indexes: {
       list: { input: ListIndexesInput; output: ListIndexesOutput };
       create: { input: CreateIndexInput; output: CreateIndexOutput };
       drop: { input: DropIndexInput; output: DropIndexOutput };
     };
+    /** A stream: the output is the type of one item */
+    watch: { input: WatchInput; output: WatchChange };
   };
 }
 
@@ -134,9 +151,13 @@ export type ProcedureInput<P extends readonly string[]> =
   P extends ["mongo", "documents", "delete"] ? DeleteInput :
   P extends ["mongo", "documents", "count"] ? CountInput :
   P extends ["mongo", "documents", "aggregate"] ? AggregateInput :
+  P extends ["mongo", "documents", "distinct"] ? DistinctInput :
+  P extends ["mongo", "documents", "bulk"] ? BulkInput :
+  P extends ["mongo", "documents", "explain"] ? ExplainInput :
   P extends ["mongo", "indexes", "list"] ? ListIndexesInput :
   P extends ["mongo", "indexes", "create"] ? CreateIndexInput :
   P extends ["mongo", "indexes", "drop"] ? DropIndexInput :
+  P extends ["mongo", "watch"] ? WatchInput :
   never;
 
 /**
@@ -156,7 +177,11 @@ export type ProcedureOutput<P extends readonly string[]> =
   P extends ["mongo", "documents", "delete"] ? DeleteOutput :
   P extends ["mongo", "documents", "count"] ? CountOutput :
   P extends ["mongo", "documents", "aggregate"] ? AggregateOutput :
+  P extends ["mongo", "documents", "distinct"] ? DistinctOutput :
+  P extends ["mongo", "documents", "bulk"] ? BulkOutput :
+  P extends ["mongo", "documents", "explain"] ? ExplainOutput :
   P extends ["mongo", "indexes", "list"] ? ListIndexesOutput :
   P extends ["mongo", "indexes", "create"] ? CreateIndexOutput :
   P extends ["mongo", "indexes", "drop"] ? DropIndexOutput :
+  P extends ["mongo", "watch"] ? WatchChange :
   never;

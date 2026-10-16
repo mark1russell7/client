@@ -200,6 +200,17 @@ export interface BulkUpdateOne {
 }
 
 /**
+ * Update operation of each matching document, for bulk write
+ */
+export interface BulkUpdateMany {
+  updateMany: {
+    filter: DocumentQuery;
+    update: DocumentUpdate;
+    upsert?: boolean;
+  };
+}
+
+/**
  * Delete operation for bulk write
  */
 export interface BulkDeleteOne {
@@ -209,9 +220,18 @@ export interface BulkDeleteOne {
 }
 
 /**
- * Bulk operation union type
+ * Delete operation of each matching document, for bulk write
  */
-export type BulkOperation = BulkInsertOne | BulkUpdateOne | BulkDeleteOne;
+export interface BulkDeleteMany {
+  deleteMany: {
+    filter: DocumentQuery;
+  };
+}
+
+/**
+ * Bulk operation union type: the operations of `mongo.documents.bulk`
+ */
+export type BulkOperation = BulkInsertOne | BulkUpdateOne | BulkUpdateMany | BulkDeleteOne | BulkDeleteMany;
 
 /**
  * Result of a bulk write operation

@@ -16,8 +16,8 @@ SQLite database operations via client procedures. Execute queries and store stru
 - **Migration support**: Schema versioning and migration utilities
 - **Default log database**: Pre-configured logging at `~/logs/cli/cli.db`
 
-The package has 4 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
-- **Database**: `db.query`, `db.execute`
+The package has 9 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
+- **Database**: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate`, `db.backup`
 - **Logs**: `logs.store`, `logs.query`
 
 ## Architecture
@@ -33,7 +33,7 @@ graph TB
         Register["register.ts<br/>(Auto-registers procedures)"]
 
         subgraph "Procedure Categories"
-            DB["Database Procedures<br/>db.query, db.execute"]
+            DB["Database Procedures<br/>db.query, db.execute, db.tables, db.schema,<br/>db.transaction, db.migrate, db.backup"]
             Logs["Log Procedures<br/>logs.store, logs.query"]
         end
 
@@ -271,6 +271,65 @@ await client.exec(
     params: [false]
   }
 );
+```
+
+#### `db.tables`
+
+The procedure lists the tables and the views of a database, without the internal `sqlite_` tables. Each item has the `name`, the `type` and the `sql` that made it. With `views: false`, it gives only the tables. The procedure only reads. A missing file is an error (`ENOENT`), and the procedure does not make it.
+
+```typescript
+const { tables } = await client.exec(["db", "tables"], { dbPath: "./app.db" });
+```
+
+#### `db.schema`
+
+The procedure gives the `columns`, the `indexes` and the `foreignKeys` of a table, or the columns of a view. The name of the table goes to SQLite as a bound value, not as SQL text. The procedure only reads.
+
+```typescript
+const schema = await client.exec(["db", "schema"], { dbPath: "./app.db", table: "users" });
+// schema.columns: [{ name: "id", type: "INTEGER", notNull: false, defaultValue: null, primaryKey: 1 }, ...]
+```
+
+#### `db.transaction`
+
+The procedure puts a list of statements in one transaction. When one statement fails, it rolls back the transaction, and the file stays as it was. The `params` of a statement bind to one statement. Without `params`, one `sql` can hold several statements. A statement that gives rows (`SELECT`, or `RETURNING`) gives its `rows` in its result. The procedure refuses `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `RELEASE`, because it controls the transaction itself.
+
+```typescript
+const { results, changes } = await client.exec(["db", "transaction"], {
+  dbPath: "./app.db",
+  statements: [
+    { sql: "UPDATE accounts SET balance = balance - ? WHERE id = ?", params: [10, 1] },
+    { sql: "UPDATE accounts SET balance = balance + ? WHERE id = ?", params: [10, 2] },
+    { sql: "SELECT id, balance FROM accounts" },
+  ],
+});
+```
+
+#### `db.migrate`
+
+The procedure applies the numbered migrations that the database does not have, in the order of their numbers. The migrations come from a `folder` or from a list (`migrations`). In a folder, each migration is a file `<number>_<name>.sql`, for example `001_create_users.sql`. The procedure ignores the files that do not end in `.sql`.
+
+- The table `schema_migrations` (or the `table` of the input) records each applied migration and the sha256 of its SQL.
+- The pending migrations are in one transaction. When one fails, the procedure applies none of them.
+- A second call applies nothing, and does not write the file.
+- When the SQL of an applied migration changes, the procedure refuses the call. The sha256 reads CRLF line ends as LF.
+- A migration must not hold `BEGIN`, `COMMIT` or `ROLLBACK`.
+
+```typescript
+const { applied, skipped, version } = await client.exec(["db", "migrate"], {
+  dbPath: "./app.db",
+  folder: "./migrations",
+});
+```
+
+#### `db.backup`
+
+The procedure copies a database to a new file (`to`). It does not replace a file, and it does not write the source. With `vacuum: true`, it compacts the copy.
+
+This package uses SQLite in WebAssembly (sql.js). The database is in the memory of the module. `VACUUM INTO` and the backup API of SQLite write into the file system of the module, not to the disk. Thus the procedure writes the image of the database (its `export()`). It takes the image in the file queue of the database, where no other call of the process changes it. It writes the image to a file next to the target, checks it with `PRAGMA integrity_check`, and then renames it.
+
+```typescript
+const { path, bytes } = await client.exec(["db", "backup"], { dbPath: "./app.db", to: "./backups/app-2026-10-16.db" });
 ```
 
 ### Log Procedures
@@ -708,7 +767,9 @@ export type {
 client-sqlite/
 ├── src/
 │   ├── types.ts              # Type definitions
-│   ├── register.ts           # Auto-registration + procedure implementations
+│   ├── module.ts             # The procedures as data, and the db.query, db.execute and logs.* handlers
+│   ├── register.ts           # The ./register entry: registers the module
+│   ├── procedures/db/        # db.tables, db.schema, db.transaction, db.migrate, db.backup
 │   └── index.ts              # Main entry point
 ├── dist/                     # Compiled output
 ├── package.json

@@ -3,7 +3,8 @@
  *
  * Procedure Registration for S3 operations
  *
- * Provides s3.upload, s3.download, s3.list, s3.delete, and s3.multipart.* procedures.
+ * Provides s3.upload, s3.download, s3.list, s3.delete, s3.head, s3.copy, s3.presign, and
+ * s3.multipart.* procedures.
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 
@@ -56,6 +57,23 @@ import {
   S3MultipartUploadOutputSchema,
   S3MultipartCompleteOutputSchema,
   S3MultipartAbortOutputSchema,
+} from "./types.js";
+import { s3Head } from "./procedures/s3/head.js";
+import { s3Copy } from "./procedures/s3/copy.js";
+import { s3Presign } from "./procedures/s3/presign.js";
+import {
+  S3HeadInputSchema,
+  S3HeadOutputSchema,
+  S3CopyInputSchema,
+  S3CopyOutputSchema,
+  S3PresignInputSchema,
+  S3PresignOutputSchema,
+  type S3HeadInput,
+  type S3HeadOutput,
+  type S3CopyInput,
+  type S3CopyOutput,
+  type S3PresignInput,
+  type S3PresignOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -202,6 +220,52 @@ const s3MultipartAbortProcedure = createProcedure()
   })
   .build();
 
+// s3.head, s3.copy and s3.presign (roadmap R44)
+
+const s3HeadProcedure = createProcedure()
+  .path(["s3", "head"])
+  .input(zodAdapter<S3HeadInput>(S3HeadInputSchema))
+  .output(zodAdapter<S3HeadOutput>(S3HeadOutputSchema))
+  .meta({
+    description: "The metadata of an object, without its content (exists: false for a 404)",
+    effects: { reads: ["s3", "network"], writes: [] },
+    shorts: { bucket: "b", key: "k" },
+    output: "json",
+  })
+  .handler(async (input: S3HeadInput): Promise<S3HeadOutput> => s3Head(input))
+  .build();
+
+const s3CopyProcedure = createProcedure()
+  .path(["s3", "copy"])
+  .input(zodAdapter<S3CopyInput>(S3CopyInputSchema))
+  .output(zodAdapter<S3CopyOutput>(S3CopyOutputSchema))
+  .meta({
+    description: "Copy an object inside S3 (it replaces the destination, unless overwrite is false)",
+    // The copy replaces the object of the destination key: destructive. The same input gives the
+    // same object again, so a second call changes nothing more.
+    effects: { reads: ["s3", "network"], writes: ["s3", "network"], destructive: true, idempotent: true },
+    shorts: { bucket: "b", key: "k" },
+    output: "json",
+  })
+  .handler(async (input: S3CopyInput): Promise<S3CopyOutput> => s3Copy(input))
+  .build();
+
+const s3PresignProcedure = createProcedure()
+  .path(["s3", "presign"])
+  .input(zodAdapter<S3PresignInput>(S3PresignInputSchema))
+  .output(zodAdapter<S3PresignOutput>(S3PresignOutputSchema))
+  .meta({
+    description: "A presigned URL for a GET or a PUT of an object, with an expiry in seconds",
+    // It sends no request to S3. It reads the credentials: the environment, the AWS files of the
+    // host (fs) or the instance metadata service (network). A call that cannot change s3 gets no
+    // PUT URL (see presign.ts).
+    effects: { reads: ["fs", "network"], writes: [] },
+    shorts: { bucket: "b", key: "k", method: "m", expiresIn: "e" },
+    output: "json",
+  })
+  .handler(async (input: S3PresignInput, ctx): Promise<S3PresignOutput> => s3Presign(input, ctx.capability))
+  .build();
+
 // =============================================================================
 // Registration
 // =============================================================================
@@ -220,6 +284,9 @@ export const s3Module: ProcedureModule = defineModule("@procedures/s3", [
     s3MultipartUploadProcedure,
     s3MultipartCompleteProcedure,
     s3MultipartAbortProcedure,
+    s3HeadProcedure,
+    s3CopyProcedure,
+    s3PresignProcedure,
   ]);
 
 export default s3Module;

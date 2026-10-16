@@ -49,9 +49,29 @@ export type {
   LogsQueryOutput,
   LogEntry,
   LogLevel,
+  DbTablesInput,
+  DbTablesOutput,
+  DbTableInfo,
+  DbSchemaInput,
+  DbSchemaOutput,
+  DbColumnInfo,
+  DbIndexInfo,
+  DbForeignKeyInfo,
+  DbStatement,
+  DbStatementResult,
+  DbTransactionInput,
+  DbTransactionOutput,
+  DbMigration,
+  DbMigrateInput,
+  DbMigrateOutput,
+  DbBackupInput,
+  DbBackupOutput,
 } from "./types.js";
 
 export { DEFAULT_DB_PATH, LOG_LEVELS } from "./types.js";
+
+// The db.* procedures of roadmap R44, for direct use
+export { dbTables, dbSchema, dbTransaction, dbMigrate, dbBackup } from "./procedures/db/index.js";
 
 // =============================================================================
 // Registration

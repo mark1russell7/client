@@ -3,7 +3,8 @@
  *
  * Procedure Registration for SQLite
  *
- * Registers database and logging procedures with the client system.
+ * Registers database and logging procedures with the client system: db.query, db.execute,
+ * db.tables, db.schema, db.transaction, db.migrate, db.backup, logs.store and logs.query.
  * This file is referenced by package.json's client.procedures field.
  */
 
@@ -31,6 +32,29 @@ import {
   type LogsQueryOutput,
   type LogEntry,
   type LogLevel,
+} from "./types.js";
+import { dbTables, dbSchema, dbTransaction, dbMigrate, dbBackup } from "./procedures/db/index.js";
+import {
+  DbTablesInputSchema,
+  DbTablesOutputSchema,
+  DbSchemaInputSchema,
+  DbSchemaOutputSchema,
+  DbTransactionInputSchema,
+  DbTransactionOutputSchema,
+  DbMigrateInputSchema,
+  DbMigrateOutputSchema,
+  DbBackupInputSchema,
+  DbBackupOutputSchema,
+  type DbTablesInput,
+  type DbTablesOutput,
+  type DbSchemaInput,
+  type DbSchemaOutput,
+  type DbTransactionInput,
+  type DbTransactionOutput,
+  type DbMigrateInput,
+  type DbMigrateOutput,
+  type DbBackupInput,
+  type DbBackupOutput,
 } from "./types.js";
 
 // =============================================================================
@@ -388,6 +412,83 @@ const logsQueryProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// db.tables, db.schema, db.transaction, db.migrate and db.backup (roadmap R44)
+// =============================================================================
+
+const dbTablesProcedure = createProcedure()
+  .path(["db", "tables"])
+  .input(zodAdapter<DbTablesInput>(DbTablesInputSchema))
+  .output(zodAdapter<DbTablesOutput>(DbTablesOutputSchema))
+  .meta({
+    description: "The tables and views of a database (read only: a missing file is an error)",
+    effects: { reads: ["fs"], writes: [] },
+    args: [],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: DbTablesInput): Promise<DbTablesOutput> => dbTables(input))
+  .build();
+
+const dbSchemaProcedure = createProcedure()
+  .path(["db", "schema"])
+  .input(zodAdapter<DbSchemaInput>(DbSchemaInputSchema))
+  .output(zodAdapter<DbSchemaOutput>(DbSchemaOutputSchema))
+  .meta({
+    description: "The columns, indexes and foreign keys of a table (read only)",
+    effects: { reads: ["fs"], writes: [] },
+    args: ["table"],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: DbSchemaInput): Promise<DbSchemaOutput> => dbSchema(input))
+  .build();
+
+const dbTransactionProcedure = createProcedure()
+  .path(["db", "transaction"])
+  .input(zodAdapter<DbTransactionInput>(DbTransactionInputSchema))
+  .output(zodAdapter<DbTransactionOutput>(DbTransactionOutputSchema))
+  .meta({
+    description: "Run statements in one transaction: they all take effect, or none does",
+    // The statements of the caller can change or delete any row
+    effects: { reads: ["fs"], writes: ["fs"] },
+    args: [],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: DbTransactionInput): Promise<DbTransactionOutput> => dbTransaction(input))
+  .build();
+
+const dbMigrateProcedure = createProcedure()
+  .path(["db", "migrate"])
+  .input(zodAdapter<DbMigrateInput>(DbMigrateInputSchema))
+  .output(zodAdapter<DbMigrateOutput>(DbMigrateOutputSchema))
+  .meta({
+    description: "Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction",
+    // A migration can drop a table: destructive. A second call applies nothing.
+    effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    args: [],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: DbMigrateInput): Promise<DbMigrateOutput> => dbMigrate(input))
+  .build();
+
+const dbBackupProcedure = createProcedure()
+  .path(["db", "backup"])
+  .input(zodAdapter<DbBackupInput>(DbBackupInputSchema))
+  .output(zodAdapter<DbBackupOutput>(DbBackupOutputSchema))
+  .meta({
+    description: "Copy a database to a new file (it does not replace a file)",
+    // It makes a new file, and never replaces one. A second call finds the file and fails.
+    effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: false },
+    args: ["to"],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: DbBackupInput): Promise<DbBackupOutput> => dbBackup(input))
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -400,6 +501,11 @@ export const sqliteModule: ProcedureModule = defineModule("@procedures/sqlite", 
     dbExecuteProcedure,
     logsStoreProcedure,
     logsQueryProcedure,
+    dbTablesProcedure,
+    dbSchemaProcedure,
+    dbTransactionProcedure,
+    dbMigrateProcedure,
+    dbBackupProcedure,
   ]);
 
 export default sqliteModule;
