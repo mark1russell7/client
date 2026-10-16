@@ -100,14 +100,10 @@ graph LR
 npm install @procedures/s3
 ```
 
-### Peer Dependencies
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
 
-```json
-{
-  "@procedures/client": "github:mark1russell7/client#main",
-  "@aws-sdk/client-s3": "^3.705.0",
-  "zod": "^3.24.0"
-}
+```ts
+import "@procedures/s3/register";
 ```
 
 ## Configuration

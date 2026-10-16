@@ -33,12 +33,12 @@ The core depends on no other package of the repository. The procedure components
 ## Installation
 
 ```bash
-npm install github:mark1russell7/client#main
+npm install @procedures/client
 ```
 
-**Peer Dependencies:**
-- `zod` ^3.0.0 (optional, for validation)
-- `express` ^4.0.0 || ^5.0.0 (optional, for HTTP server)
+npm installs `zod` and `ws` with it. The HTTP server transport needs `express` 4 or 5 (an optional peer dependency).
+
+`import "@procedures/client/register"` registers the control flow (`client.chain` and the others) and `procedure.define`, `get`, `list` and `delete` in the global registry. `createRegistry()` adds them to each new registry.
 
 ## Architecture
 

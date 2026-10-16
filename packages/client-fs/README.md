@@ -96,13 +96,10 @@ graph LR
 npm install @procedures/fs
 ```
 
-### Peer Dependencies
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
 
-```json
-{
-  "@procedures/client": "github:mark1russell7/client#main",
-  "zod": "^3.24.0"
-}
+```ts
+import "@procedures/fs/register";
 ```
 
 ## API Reference

@@ -125,13 +125,10 @@ sequenceDiagram
 npm install @procedures/mongo
 ```
 
-### Peer Dependencies
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
 
-```json
-{
-  "@procedures/client": "github:mark1russell7/client#main",
-  "mongodb": "^7.0.0"
-}
+```ts
+import "@procedures/mongo/register";
 ```
 
 ## Configuration

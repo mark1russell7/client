@@ -44,7 +44,7 @@ npm install @procedures/dag
 ## Installation
 
 ```bash
-npm install github:mark1russell7/client-dag#main
+npm install @procedures/dag
 ```
 
 ---

@@ -44,7 +44,13 @@ npm install @procedures/splay
 ## Installation
 
 ```bash
-npm install github:mark1russell7/client-splay#main
+npm install @procedures/splay
+```
+
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
+
+```ts
+import "@procedures/splay/register";
 ```
 
 ---

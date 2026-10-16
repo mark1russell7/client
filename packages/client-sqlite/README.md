@@ -126,13 +126,10 @@ sequenceDiagram
 npm install @procedures/sqlite
 ```
 
-### Peer Dependencies
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
 
-```json
-{
-  "@procedures/client": "github:mark1russell7/client#main",
-  "@mark1russell7/docker-sqlite": "github:mark1russell7/docker-sqlite#main"
-}
+```ts
+import "@procedures/sqlite/register";
 ```
 
 ## Configuration

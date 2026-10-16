@@ -46,7 +46,13 @@ npm install @procedures/vitest
 ## Installation
 
 ```bash
-npm install github:mark1russell7/client-vitest#main
+npm install @procedures/vitest
+```
+
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
+
+```ts
+import "@procedures/vitest/register";
 ```
 
 ---

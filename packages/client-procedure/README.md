@@ -30,12 +30,16 @@ This package simplifies procedure development by automating the creation of proc
 ## Installation
 
 ```bash
-npm install github:mark1russell7/client-procedure#main
+npm install @procedures/procedure
 ```
 
-**Dependencies:**
-- `@procedures/client` (peer dependency)
-- `zod` ^3.24.0
+Since 0.2.0, an import of the package registers nothing. To register its procedures in the global registry:
+
+```ts
+import "@procedures/procedure/register";
+```
+
+npm installs its dependencies, `@procedures/client` and `zod`.
 
 ## Architecture
 
