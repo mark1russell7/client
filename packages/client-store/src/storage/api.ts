@@ -42,6 +42,7 @@ export interface ApiStorageOptions {
   operations?: {
     get?: string;
     getAll?: string;
+    entries?: string;
     find?: string;
     has?: string;
     size?: string;
@@ -165,6 +166,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       operations: {
         get: "get",
         getAll: "getAll",
+        entries: "entries",
         find: "find",
         has: "has",
         size: "size",
@@ -200,6 +202,15 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       throw new Error(`${this.options.service}.getAll did not return an array`);
     }
     return values;
+  }
+
+  /** Every item with its id, from the `entries` procedure of the collection (roadmap R2). */
+  async getEntries(): Promise<Array<[string, T]>> {
+    const entries = await this.call<Array<{ id: string; value: T }>>("entries", {});
+    if (!Array.isArray(entries)) {
+      throw new Error(`${this.options.service}.entries did not return an array`);
+    }
+    return entries.map((entry) => [entry.id, entry.value]);
   }
 
   async find(predicate: (item: T) => boolean): Promise<T[]> {

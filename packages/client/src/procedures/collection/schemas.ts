@@ -336,6 +336,51 @@ export const getAllOutputSchema : ZodLike<unknown[]> = createSchema<unknown[]>((
 });
 
 // =============================================================================
+// Entries Operation Schemas
+// =============================================================================
+
+/**
+ * Input for entries operation - empty object.
+ */
+export interface EntriesInput {}
+
+export const entriesInputSchema : ZodLike<EntriesInput> = createSchema<EntriesInput>((data) => {
+  if (!isObject(data)) {
+    return {
+      success: false,
+      error: {
+        message: "Input must be an object",
+        errors: [{ path: [], message: "Input must be an object" }],
+      },
+    };
+  }
+  return { success: true, data: {} };
+});
+
+/** One item of a collection with its id. */
+export interface CollectionEntry {
+  id: string;
+  value: unknown;
+}
+
+/**
+ * Output for entries operation - each item with its id. A sync needs the ids: `getAll` gives
+ * only the values (roadmap R2).
+ */
+export const entriesOutputSchema : ZodLike<CollectionEntry[]> = createSchema<CollectionEntry[]>((data) => {
+  if (isArray(data) && data.every((entry) => isObject(entry) && isString(entry["id"]) && "value" in entry)) {
+    return { success: true, data: data as CollectionEntry[] };
+  }
+  return {
+    success: false,
+    error: {
+      message: "Output must be an array of { id, value } objects",
+      errors: [{ path: [], message: "Output must be an array of { id, value } objects" }],
+    },
+  };
+});
+
+// =============================================================================
 // Size Operation Schemas
 // =============================================================================
 

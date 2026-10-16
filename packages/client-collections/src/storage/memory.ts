@@ -38,6 +38,10 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
     return Promise.resolve(Array.from(this.data.values()));
   }
 
+  getEntries(): Promise<Array<[string, T]>> {
+    return Promise.resolve(Array.from(this.data.entries()));
+  }
+
   find(predicate: (item: T) => boolean): Promise<T[]> {
     const results: T[] = [];
     for (const item of this.data.values()) {

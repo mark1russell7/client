@@ -64,6 +64,11 @@ export class MongoStorage<T> implements CollectionStorage<T> {
     return docs.map((doc) => doc.data);
   }
 
+  async getEntries(): Promise<Array<[string, T]>> {
+    const docs = await (await this.getCollection()).find({}).toArray();
+    return docs.map((doc) => [doc._id, doc.data]);
+  }
+
   async find(predicate: (item: T) => boolean): Promise<T[]> {
     const all = await this.getAll();
     return all.filter(predicate);

@@ -36,7 +36,7 @@ export type { SerializeOptions, DeserializeOptions } from "./serialization.js";
 // The collection storages that need a Client (before: "@procedures/client/collections")
 export { ApiStorage } from "./api.js";
 export type { ApiStorageOptions } from "./api.js";
-export { HybridStorage } from "./hybrid.js";
+export { HybridStorage, PendingWriteError, QueueFullError, MissingKeysError } from "./hybrid.js";
 export type { HybridStorageOptions } from "./hybrid.js";
 
 // Adapter

@@ -847,6 +847,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

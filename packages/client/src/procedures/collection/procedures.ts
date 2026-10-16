@@ -18,6 +18,8 @@ import {
   hasOutputSchema,
   getAllInputSchema,
   getAllOutputSchema,
+  entriesInputSchema,
+  entriesOutputSchema,
   sizeInputSchema,
   sizeOutputSchema,
   clearInputSchema,
@@ -33,6 +35,7 @@ import {
   type DeleteInput,
   type HasInput,
   type GetAllInput,
+  type EntriesInput,
   type SizeInput,
   type ClearInput,
   type GetBatchInput,
@@ -165,6 +168,25 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       handler: async (_input: GetAllInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
         return storage.getAll();
+      },
+    }),
+
+    // Entries: each item with its id, for a sync (roadmap R2)
+    defineProcedure({
+      path: [...basePath, "entries"],
+      input: entriesInputSchema,
+      output: entriesOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [] },
+        description: `Get all items of ${collectionName} with their ids`,
+        tags: ["collections", collectionName, "read"],
+      },
+      handler: async (_input: EntriesInput, ctx: ProcedureContext) => {
+        const storage = getStorage(ctx);
+        if (!storage.getEntries) {
+          throw new Error(`The storage of ${collectionName} cannot give the ids of its items`);
+        }
+        return (await storage.getEntries()).map(([id, value]) => ({ id, value }));
       },
     }),
 

@@ -15,6 +15,11 @@ export interface CollectionStorage<T> {
   get(id: string): Promise<T | undefined>;
   /** Every item of the collection. */
   getAll(): Promise<T[]>;
+  /**
+   * Every item with its id. A sync needs the ids (roadmap R2). A storage that cannot give
+   * them does not have this method.
+   */
+  getEntries?(): Promise<Array<[string, T]>>;
   /** The items for which the predicate gives true. */
   find(predicate: (item: T) => boolean): Promise<T[]>;
   /** True when an item has this id. */
