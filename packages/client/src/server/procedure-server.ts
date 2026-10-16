@@ -21,6 +21,7 @@ import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, typ
 import type { Capability, ClearanceOrder, ResourcesOf } from "../procedures/types.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
+import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 
 // =============================================================================
@@ -90,6 +91,29 @@ export interface ProcedureServerOptions extends ServerOptions {
    * same result. `false` turns this off. The default keeps 1000 results for 10 minutes.
    */
   idempotency?: IdempotencyOptions | false | undefined;
+}
+
+/** The options of `ProcedureServer.stop()`. */
+export interface StopOptions {
+  /**
+   * The time for the calls in flight to end (roadmap R14). The server refuses new calls at once
+   * with a retryable `UNAVAILABLE`. When the time ends, the server aborts the calls that still
+   * run. Absent or 0: the server aborts them at once.
+   */
+  grace?: Duration | undefined;
+}
+
+/** A signal that aborts when one of the signals aborts. */
+function joinSignals(first: AbortSignal | undefined, second: AbortSignal): AbortSignal {
+  if (!first) return second;
+  const any = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any;
+  if (any) return any([first, second]);
+  const controller = new AbortController();
+  const abort = (): void => controller.abort();
+  if (first.aborted || second.aborted) controller.abort();
+  first.addEventListener("abort", abort, { once: true });
+  second.addEventListener("abort", abort, { once: true });
+  return controller.signal;
 }
 
 /** This function waits for a promise, or gives undefined when the signal aborts first. */
@@ -199,8 +223,17 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly capabilityOptions: Pick<ProcedureServerOptions, "capability" | "clearanceOrder" | "resources" | "admitItem">;
   /** The results of keyed calls, or undefined when the option turns them off (R1). */
   private readonly idempotency: IdempotencyCache<ServerResponse<unknown>> | undefined;
-  /** The signal of the server: `stop()` aborts it. A keyed call that lost its caller stops on it. */
+  /**
+   * The signal of the server: `stop()` aborts it. Each call gets it joined with its request
+   * signal (the request and connection scopes) and its deadline (roadmap R14).
+   */
   private lifetime = new AbortController();
+  /** True while `stop()` waits for the calls in flight: a new call gets UNAVAILABLE */
+  private draining = false;
+  /** The calls in flight, a stream until its end */
+  private inFlight = 0;
+  /** The functions that `stop()` waits on: each one runs when no call is in flight */
+  private idleWaiters: Array<() => void> = [];
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -375,9 +408,56 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * time for its key (R1).
    */
   private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
-    const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
-    if (key === undefined || isRepeatable(effectsOf(procedure))) return this.run(procedure, request, request.signal);
-    return this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${key}`);
+    if (this.draining) {
+      // The server stops: a client can send the call to another server, or again later (R14)
+      return {
+        id: request.id,
+        status: { type: "error", code: "UNAVAILABLE", message: "The server is stopping", retryable: true },
+        metadata: {},
+      };
+    }
+    this.inFlight++;
+    let response: ServerResponse<unknown> | undefined;
+    try {
+      const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
+      response =
+        key === undefined || isRepeatable(effectsOf(procedure))
+          ? await this.run(procedure, request, joinSignals(request.signal, this.lifetime.signal))
+          : await this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${key}`);
+    } finally {
+      // A stream is in flight until its end; another response is done now
+      if (!response?.stream) this.callEnded();
+    }
+    const stream = response.stream;
+    if (stream) {
+      const ended = (): void => this.callEnded();
+      response = {
+        ...response,
+        stream: (async function* () {
+          try {
+            yield* stream;
+          } finally {
+            ended();
+          }
+        })(),
+      };
+    }
+    return response;
+  }
+
+  /** One call in flight ended: `stop()` can go on when it was the last one. */
+  private callEnded(): void {
+    this.inFlight--;
+    if (this.inFlight === 0) {
+      const waiters = this.idleWaiters;
+      this.idleWaiters = [];
+      for (const waiter of waiters) waiter();
+    }
+  }
+
+  /** The number of calls in flight, streams included. */
+  get callsInFlight(): number {
+    return this.inFlight;
   }
 
   /**
@@ -528,10 +608,24 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   /**
    * Stop server and close storages.
    */
-  override async stop(): Promise<void> {
+  override async stop(options: StopOptions = {}): Promise<void> {
+    const graceMs = optionalMs(options.grace, "grace") ?? 0;
+    // A graceful stop: new calls get UNAVAILABLE, and the calls in flight have the grace time
+    // to end (roadmap R14). Before, the transports aborted every call at once.
+    this.draining = true;
+    if (graceMs > 0 && this.inFlight > 0) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, graceMs);
+        this.idleWaiters.push(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
     this.lifetime.abort();
-    // A server can start again: its next keyed calls get a new signal
+    // A server can start again: its next calls get a new signal
     this.lifetime = new AbortController();
+    this.draining = false;
     await super.stop();
     await this.closeStorages();
   }

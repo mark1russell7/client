@@ -9,7 +9,10 @@ import type { Handler, LocalTransportOptions } from "./types.js";
 import { methodKey } from "./types.js";
 import type { ProcedureRegistry } from "../../../procedures/registry.js";
 import type { AnyProcedure } from "../../../procedures/types.js";
-import { InvocationError, invokeProcedure, isAsyncIterable } from "../../../procedures/invoke.js";
+import { InvocationError, invokeProcedure, isAsyncIterable, type Interceptor } from "../../../procedures/invoke.js";
+import { TIMEOUT_METADATA_KEY } from "../../../client/deadline.js";
+import { narrowCapability } from "../../../procedures/capability.js";
+import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
 
 function successItem<TRes>(id: string, payload: unknown): ResponseItem<TRes> {
@@ -53,10 +56,16 @@ export class LocalTransport implements Transport {
   private readonly handlers = new Map<string, Handler>();
   private readonly throwOnMissing: boolean;
   private readonly registry: ProcedureRegistry | undefined;
+  private readonly interceptors: readonly Interceptor[] | undefined;
+  private readonly capability: Capability | undefined;
+  private readonly clearanceOrder: ClearanceOrder | undefined;
 
   constructor(options: LocalTransportOptions = {}) {
     this.throwOnMissing = options.throwOnMissing !== false;
     this.registry = options.registry;
+    this.interceptors = options.interceptors;
+    this.capability = options.capability;
+    this.clearanceOrder = options.clearanceOrder;
 
     // Register pre-configured handlers. A key without a version ("users.get") gets the
     // empty version, as methodKey() makes it: before, such a key was never found.
@@ -136,10 +145,19 @@ export class LocalTransport implements Transport {
       let values: AsyncIterable<unknown> | undefined;
       let value: unknown;
       if (procedure) {
+        // The interceptors, the capability and the deadline of the call, as on a server (R14)
+        const timeoutMs = message.metadata[TIMEOUT_METADATA_KEY];
+        const capability =
+          typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs >= 0
+            ? narrowCapability(this.capability, { timeoutMs }, this.clearanceOrder)
+            : this.capability;
         const output = await invokeProcedure(procedure, message.payload, {
           registry: this.registry,
           metadata: message.metadata,
           signal: message.signal,
+          ...(this.interceptors ? { interceptors: this.interceptors } : {}),
+          ...(capability ? { capability } : {}),
+          ...(this.clearanceOrder ? { clearanceOrder: this.clearanceOrder } : {}),
         });
         if (output.kind === "stream") values = output.items;
         else value = output.value;

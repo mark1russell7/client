@@ -76,7 +76,7 @@ export {
 export { Server } from "./server/server.js";
 export type { ServerOptions } from "./server/server.js";
 export { ProcedureServer, createProcedureServer } from "./server/procedure-server.js";
-export type { ProcedureServerOptions, StorageConfig } from "./server/procedure-server.js";
+export type { ProcedureServerOptions, StorageConfig, StopOptions } from "./server/procedure-server.js";
 export {
   HandlerNotFoundError,
   ServerError,
@@ -295,6 +295,8 @@ export {
   checkEffects,
 } from "./procedures/capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./procedures/effects.js";
+// The deadline of a call: the remaining time goes as procedure-timeout (roadmap R10)
+export { TIMEOUT_METADATA_KEY, DEADLINE_METADATA_KEY } from "./client/deadline.js";
 // Typed durations: each public option that is a time takes a Duration (roadmap R11)
 export { ms, seconds, minutes, hours, toMs, optionalMs, isDuration } from "./duration.js";
 export type { Duration, TimeUnit } from "./duration.js";

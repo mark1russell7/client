@@ -3,7 +3,7 @@
  * Call a procedure on a remote peer through an outbound connection
  */
 
-import { createProcedure, pathToMethod, type Effects, type Procedure } from "@procedures/client";
+import { TIMEOUT_METADATA_KEY, createProcedure, pathToMethod, type Effects, type Procedure, type ProcedureContext } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCallOutputSchema } from "../output-schemas.js";
 import { serverCallInputSchema } from "../input-schemas.js";
@@ -55,7 +55,7 @@ export const serverCallProcedure: Procedure<
     shorts: { connectionId: "c", address: "a" },
     output: "json",
   })
-  .handler(async (input: ServerCallInput): Promise<ServerCallOutput> => {
+  .handler(async (input: ServerCallInput, ctx?: ProcedureContext): Promise<ServerCallOutput> => {
     // Normalize path: accept dot-separated string or array
     const pathArray = typeof input.path === "string"
       ? input.path.split(".")
@@ -87,7 +87,12 @@ export const serverCallProcedure: Procedure<
     // (deep dive architecture review 3.3)
     const method = pathToMethod(pathArray);
 
-    const result = await client.call(method, input.input ?? {});
+    // The signal and the remaining time of this call go with the relayed call (roadmap R14)
+    const deadline = ctx?.capability?.deadline;
+    const result = await client.call(method, input.input ?? {}, {
+      ...(ctx?.signal ? { signal: ctx.signal } : {}),
+      ...(deadline !== undefined ? { context: { [TIMEOUT_METADATA_KEY]: Math.max(0, deadline - Date.now()) } } : {}),
+    });
 
     return {
       result,

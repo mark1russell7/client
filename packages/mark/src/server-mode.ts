@@ -10,6 +10,7 @@ import { print } from "./print.js";
 import { loadEcosystemRegistry } from "./ecosystem.js";
 import { randomBytes } from "node:crypto";
 import { writeLockfile, removeLockfileForPort, getLockfilePath, currentBuild } from "./lockfile.js";
+import { seconds } from "@procedures/client";
 
 export interface ServerModeOptions {
   port: number;
@@ -143,7 +144,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
     const limit = setTimeout(() => process.exit(1), 10_000);
     limit.unref();
     try {
-      await peer.stop();
+      // The calls in flight have 5 seconds to end (roadmap R14)
+      await peer.stop({ grace: seconds(5) });
       process.exit(0);
     } catch (error) {
       print.error(`The server did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`);

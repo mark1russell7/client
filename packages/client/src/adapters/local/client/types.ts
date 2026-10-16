@@ -6,6 +6,8 @@
 
 import type { Message, Method } from "../../../client/types.js";
 import type { ProcedureRegistry } from "../../../procedures/registry.js";
+import type { Interceptor } from "../../../procedures/invoke.js";
+import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
 
 /**
  * Handler function for a method.
@@ -47,4 +49,20 @@ export interface LocalTransportOptions {
    * The procedure runs through `invokeProcedure()`, as on a server.
    */
   registry?: ProcedureRegistry;
+
+  /**
+   * The interceptors of each procedure that the transport runs, as on a server: policy, tracing,
+   * timeouts, metrics (roadmap R14). Before, a local call had none.
+   */
+  interceptors?: readonly Interceptor[] | undefined;
+
+  /**
+   * The capability of each call. The remaining time that a call sends (`procedure-timeout`)
+   * makes its deadline earlier, as on a server: a `Client` with a timeout gives a local call a
+   * deadline too (roadmap R14).
+   */
+  capability?: Capability | undefined;
+
+  /** The order of the clearance values of the capability. */
+  clearanceOrder?: ClearanceOrder | undefined;
 }

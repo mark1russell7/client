@@ -149,11 +149,24 @@ interface CallerContext {
 /** The options of `exec()` and `execStream()`. */
 export interface ExecOptions {
   /**
+   * The signal of the program: an abort stops the call that runs, and the calls that did not
+   * start do not start (roadmap R14). Each nested call gets it.
+   */
+  signal?: AbortSignal | undefined;
+  /**
    * This function gets the hydration events of this program only: the refs that hydration runs,
    * also inside control flow and runners, with the call that gets each result. A trace uses it.
    * (`observeHydration()` gets the events of every program in the process.)
    */
   onRef?: ((event: HydrationEvent) => void) | undefined;
+}
+
+/** The caller context of `exec()` and `execStream()`: the observer and the signal. */
+function callerOf(options: ExecOptions): CallerContext {
+  const caller: CallerContext = {};
+  if (options.onRef) caller.onRef = options.onRef;
+  if (options.signal) caller.signal = options.signal;
+  return caller;
 }
 
 /**
@@ -479,7 +492,7 @@ export class Client<TContext = {}> {
     input?: unknown,
     options: ExecOptions = {}
   ): Promise<TOutput> {
-    const caller: CallerContext = options.onRef ? { onRef: options.onRef } : {};
+    const caller: CallerContext = callerOf(options);
     const { path, input: hydratedInput } = await this.prepareRef(refOrPath, input, caller);
     return this.execInternal<TOutput>(path, hydratedInput, caller);
   }
@@ -502,7 +515,7 @@ export class Client<TContext = {}> {
     options: ExecOptions = {}
   ): AsyncIterable<TOutput> {
     const self = this;
-    const caller: CallerContext = options.onRef ? { onRef: options.onRef } : {};
+    const caller: CallerContext = callerOf(options);
     return (async function* () {
       const { path, input: hydratedInput } = await self.prepareRef(refOrPath, input, caller);
       yield* self.execStreamInternal<TOutput>(path, hydratedInput, caller);
@@ -1171,11 +1184,9 @@ export class Client<TContext = {}> {
         yield* outputItems(await invokeProcedure(procedure, input, options));
         return;
       }
-      const callOptions: CallOptions<TContext> = { context: context.metadata as ClientContextInput<TContext> };
-      if (context.signal) {
-        callOptions.signal = context.signal;
-      }
-      yield* self.stream(self.pathToMethod(path), input, callOptions);
+      // The deadline of the capability goes with the call, as for exec() (roadmap R14: before, a
+      // remote leaf of route() sent the signal, not the deadline)
+      yield* self.stream(self.pathToMethod(path), input, self.remoteCallOptions({ metadata: context.metadata, signal: context.signal }));
     })();
   }
 

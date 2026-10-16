@@ -19,7 +19,7 @@ import {
   type Method,
 } from "@procedures/client";
 import type { Request } from "express";
-import type { ProcedurePath } from "@procedures/client";
+import type { ProcedurePath, StopOptions } from "@procedures/client";
 import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
 import { bearerToken, hostAllowed, originAllowed, tokenMatches } from "./security.js";
 
@@ -76,7 +76,8 @@ export interface Peer {
   /** Start all transports */
   start(): Promise<void>;
   /** Stop all transports */
-  stop(): Promise<void>;
+  /** Stop the peer. With `grace`, the calls in flight have that time to end (roadmap R14). */
+  stop(options?: StopOptions): Promise<void>;
   /** Get active endpoints */
   getEndpoints(): PeerEndpoint[];
   /** Get underlying server */
@@ -303,9 +304,9 @@ class PeerImpl implements Peer {
     });
   }
 
-  async stop(): Promise<void> {
+  async stop(options: StopOptions = {}): Promise<void> {
     if (!this.started) return;
-    await this.server.stop();
+    await this.server.stop(options);
     // The HTTP servers of the WebSocket transports: before, they stayed open, so the port stayed
     // bound after stop() (roadmap R5)
     const owned = this.ownedServers;

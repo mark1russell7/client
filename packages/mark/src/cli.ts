@@ -170,6 +170,21 @@ export interface ExecuteOptions {
 }
 
 /**
+ * A signal that aborts on the first Ctrl+C while a command runs in this process (roadmap R14):
+ * the procedure gets the abort (a shell command stops its process tree). A second Ctrl+C exits
+ * at once. `release()` removes the listener when the command ends.
+ */
+function interruptSignal(): { signal: AbortSignal; release: () => void } {
+  const controller = new AbortController();
+  const onInterrupt = (): void => {
+    if (controller.signal.aborted) process.exit(130);
+    controller.abort();
+  };
+  process.on("SIGINT", onInterrupt);
+  return { signal: controller.signal, release: () => process.off("SIGINT", onInterrupt) };
+}
+
+/**
  * Initialize the CLI context (load ecosystem, create client)
  * This is the expensive part (~4s). Call once, reuse many times.
  */
@@ -269,15 +284,18 @@ export async function executeArgs(
       fail('--json needs a procedure reference: an object with "$proc".');
       return;
     }
+    const interrupt = interruptSignal();
     try {
       const { client } = await local();
-      const result = await client.exec(parsedJson as Parameters<typeof client.exec>[0]);
+      const result = await client.exec(parsedJson as Parameters<typeof client.exec>[0], undefined, { signal: interrupt.signal });
       formatOutput(print as unknown as Print, result, "json");
       if (failureOf(result)) {
         process.exitCode = 1;
       }
     } catch (error) {
       fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      interrupt.release();
     }
     return;
   }
@@ -399,10 +417,15 @@ export async function executeArgs(
     // A streaming procedure gives many items: print each one when it arrives. A
     // request/response procedure gives one item, so its output does not change.
     let items = 0;
-    for await (const item of client.stream(method, validated)) {
-      if (spinner && items === 0) spinner.stop();
-      items++;
-      printItem(item);
+    const interrupt = interruptSignal();
+    try {
+      for await (const item of client.stream(method, validated, { signal: interrupt.signal })) {
+        if (spinner && items === 0) spinner.stop();
+        items++;
+        printItem(item);
+      }
+    } finally {
+      interrupt.release();
     }
 
     if (spinner) {

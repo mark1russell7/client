@@ -26,6 +26,7 @@ import { createPeer, type Peer, type PeerEndpoint } from "@procedures/peer";
 import serverModule from "@procedures/peer/module";
 import { parseConfig } from "./config.js";
 import type { ServerConfig } from "./types.js";
+import { seconds } from "@procedures/client";
 
 /** A package name and the subpath after it: "@a/b/register" gives ["@a/b", "./register"]. */
 function splitSpec(spec: string): { name: string; subpath: string } {
@@ -202,7 +203,8 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
     stopping = true;
     console.log("\nShutting down...");
     setTimeout(() => process.exit(1), 10_000).unref();
-    running.peer.stop().then(
+    // The calls in flight have 5 seconds to end (roadmap R14)
+    running.peer.stop({ grace: seconds(5) }).then(
       () => process.exit(0),
       (error: unknown) => {
         console.error(`The server did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`);
