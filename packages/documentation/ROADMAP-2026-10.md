@@ -67,8 +67,8 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R17 | 3 | One manifest type, built from the registry and the expose rule | M | fixed | `956e88b` |
 | R18 | 3 | A typed server-transport contract, a principal, the token in `ProcedureServer` | M | fixed | `b07bb50`, `6982e04` |
 | R19 | 3 | `host.health`, `host.info` and `host.metrics` | S | fixed | `07cc998` |
-| R20 | 4 | `@procedures/compiler`: the IR and `program.check` | M | open | |
-| R21 | 4 | `program.compile` and the equivalence tests | M | open | |
+| R20 | 4 | `@procedures/compiler`: the IR and `program.check` | M | fixed (the host check is in R22) | `9bc2ddb` |
+| R21 | 4 | `program.compile` and the equivalence tests | M | fixed | `9bc2ddb` |
 | R22 | 4 | The interpreter and the site use the IR of the compiler | M | open | |
 | R23 | 4 | Outputs of the compiler: diagrams, tool descriptions, typed SDK, `procedure.explain` | M | open | |
 | R24 | 5 | The bidirectional peer | M–L | fixed | `b2a3e3a` |
@@ -76,7 +76,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R26 | 5 | MCP Streamable HTTP | M | fixed | `3d24d5b`, `b42f3c8` |
 | R27 | 5 | A `MessagePort` transport for workers | S–M | fixed | `d81d0ed` |
 | R28 | 6 | The collection mode switch | L | fixed | `7873940` |
-| R29 | 7 | Testing stage 1: property tests and a catalog test of the core procedures | M | open | |
+| R29 | 7 | Testing stage 1: property tests and a catalog test of the core procedures | M | fixed | `06d9e52`, `0c627f8`, `ddea529` |
 | R30 | 7 | Testing stage 2: faults, contracts and leaks | L | open | |
 | R31 | 7 | Coverage with a ratchet | S | open | |
 | R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | open | |
@@ -95,6 +95,8 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R45 | 9 | A SQLite collection storage and an IndexedDB program store | M | open | |
 | R46 | 9 | `llm`, `schedule`, `env` and `archive` | M each | open | |
 | R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | open | |
+| R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | open | |
+| R49 | 9 | Packages from jarvis, wave 2: `restic.run` and `tailscale.run` (the jarvis session builds them) | S | open | |
 
 ## Tier 1: defects and gates
 
@@ -280,6 +282,8 @@ The client middleware and the server interceptors make two traces today. The cli
 - `program.check` gives the effects and a list of diagnostics with source pointers. A diagnostic is an unknown name, a refused call, a bad input or a `$never` trap.
 - The host starts `program.check` before it starts a program. It refuses a program that the capability refuses, before the first write.
 
+**Result.** `@procedures/compiler` has the IR, the passes and `checkProgram()`. The check works from a manifest, a registry or facts, so it works in a browser. It gives the effects that the program can have, the effects that it must have, and diagnostics with RFC 6901 pointers. The procedure `program.check` takes the program raw, so nothing in it runs. The host does not start the check yet: R22 adds it.
+
 ### R21. `program.compile`
 
 - The code generation writes a plain `async` function that calls `ctx.client.call` for each call. Each call keeps its validation, admission, deadline and interceptors.
@@ -287,6 +291,15 @@ The client middleware and the server interceptors make two traces today. The cli
 - A fold pass computes the pure parts with literal inputs.
 - The output is the code, a source map, the effects, the diagnostics and the hash of the registry.
 - Tests: golden outputs, and a property test that runs generated programs both ways and compares the results and the order of the calls.
+
+**Result.** `compileProgram()` gives a closure (no `eval`), the text of an ES module, a source map and the folded calls. The procedure `program.compile` gives the text. Control flow is inlined only when the manifest entry has the hash of the core procedure. Other data-driven procedures stay `dynamic`. Each test run sends approximately 2,200 random programs through the interpreter, the closure and the text. It compares the results, the errors and the order of the calls. An effects property compares the inferred effects with the observed effects.
+
+Open points (for R22):
+
+- The compiled code does not call the control-flow procedures, so their admission, interceptors and trace do not run. The leaf calls keep them.
+- The compiled code sends no hydration events.
+- The static check does not read the deadline, the clearance, `metadata.calls` or `strictCalls`.
+- A manifest has no body of a defined procedure, so a browser gets `effects-unknown` for it.
 
 ### R22. One semantics
 
@@ -369,6 +382,8 @@ Open points:
 - Property tests for the arguments of `mark` and the programs of the site.
 - One example test for each core procedure.
 
+**Result.** Property tests with fast-check examine these parts: the resolver of references, the narrowing of capabilities and the expose rule of the eight control-flow procedures. They also examine the command line of `mark` and the programs of the site. Four planted defects each fail a property. A random run found a defect of the model (the order of integer keys), not of the code. The catalog test has 285 examples for the 100 core procedures. It fails when a core procedure has no example. The catalog found four defects, which are fixed. `client.replace` read `$$` and `$&`, and `client.groupBy` failed for a group `constructor`. `client.arrPick` and seven other array procedures read fields of the prototype. The schema of `client.template` described `{name}`.
+
 ### R30. Stage 2
 
 - A seeded fault transport: latency, a drop before the first item, a drop in a stream, a hang that ignores the signal, duplicate frames.
@@ -443,6 +458,8 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 | R45 | A SQLite collection storage, and an IndexedDB program store for the site. |
 | R46 | `llm` (complete, structured), `schedule` (a cron that starts a stored program), `env` and secrets (not MCP tools), `archive`. |
 | R47 | Generate `PROCEDURES.md` and `PACKAGES.md` again. They say 157 procedures, and the registry has 158. |
+| R48 | Code from jarvis without personal data: `@procedures/ics` (parse, fetch, occurrences), `@procedures/mail` (parse, headers), `@procedures/geo` (geocode, route), `@procedures/weather` (forecast), `@procedures/exif` (read), `@procedures/notify` (send through ntfy). The jarvis session builds them. This session adds them to the bundles and the MCP snapshots. |
+| R49 | `restic.run` and `tailscale.run`: one procedure for each CLI tool, on `client-shell`. The jarvis session builds them. |
 
 ## Items for a decision
 
@@ -457,3 +474,8 @@ The review found code that is a candidate for removal or a move. These items nee
 - The sqlite package uses the general namespace `db.*`.
 - `packages/client-snapshot/.github/workflows/ci.yml` is old, and GitHub does not start it.
 - The `event` frame of the WebSocket client: the server does not send it, and nothing subscribes. R24 made the calls bidirectional. Events in the two directions need a design of topics and subscriptions, or the frame goes away.
+- `client.not`, `client.all`, `client.any` and `client.none` (R29): their schemas say "values or calls". A host does not run a call in their operands, and an object counts as true, so `client.all` of a false call gives true. One fix makes them control flow, as `and` and `or`. This changes the expose rule and the compiler. The other fix changes the schemas to "values". The catalog keeps the five examples as `it.fails`.
+- `client.import` gives `success: true` for JSON that is not a procedure reference, for example `42`.
+- `client.stringifyJson` and `client.export` fail with `OUTPUT_VALIDATION_ERROR` for a missing value.
+- Small inconsistencies of the core: `client.mod` gives `NaN` for zero and `client.divide` refuses zero. `client.unique` compares objects by reference. `client.isObject` gives true for a `Date`. The `match` description of `client.filter` lists 7 of its 11 modes.
+- The packages of R48 and R49 need a first npm publish from the computer of the owner, one time for each new package.
