@@ -1,0 +1,17 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["implicit chain"]
+    n1["t.num"]
+    n2["t.add"]
+  end
+  n3["client.identity"]
+  n4(["result"])
+  n1 --> n2
+  n2 --> n3
+  n0 --> n1
+  n3 --> n4
+  n1 -.->|"#36;last"| n2
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n1,n2,n3 call
+  class n0,n4 boundary

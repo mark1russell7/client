@@ -61,5 +61,7 @@ procedure.manifest
 procedure.new
 program.check
 program.compile
+program.diagram
+program.explain
 vitest.coverage
 vitest.run

@@ -81,7 +81,8 @@ export interface CompileResult extends CheckResult {
   readonly folded: readonly string[];
 }
 
-function baseFacts(options: CheckOptions): ProcedureFacts {
+/** The facts of the options: the facts, else the facts of the registry, else the facts of the manifest. */
+export function baseFacts(options: CheckOptions): ProcedureFacts {
   if (options.facts) return options.facts;
   if (options.registry) return registryFacts(options.registry, { expose: options.expose });
   if (options.manifest) return manifestFacts(options.manifest, { expose: options.expose });

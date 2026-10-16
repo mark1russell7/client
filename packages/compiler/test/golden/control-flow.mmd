@@ -1,0 +1,82 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["client.chain"]
+    n1["t.read<br/>#36;name old"]
+    n2["t.truth"]
+    n3{"client.conditional"}
+    n4["t.write"]
+    n5("#34;same#34;")
+    n6(("join"))
+    n7{{"client.tryCatch"}}
+    subgraph s1["try"]
+      n8["t.fail"]
+    end
+    n9("object (message)")
+    n10(("join"))
+    n11("items (3)")
+    n12{{"client.map<br/>each item (n, index)"}}
+    n13["t.add"]
+    n14(("join"))
+    n15("items (2)")
+    n16("0")
+    n17{{"client.reduce<br/>each item (acc, item, index)"}}
+    n18["t.add"]
+    n19(("join"))
+    n20{{"client.parallel<br/>concurrency 1"}}
+    n21["t.num"]
+    n22["t.num"]
+    n23(("join"))
+    n24{{"client.and"}}
+    n25("true")
+    n26["t.truth"]
+    n27(("join"))
+  end
+  n28(["result"])
+  n2 --> n3
+  n3 -->|"then"| n4
+  n4 --> n6
+  n3 -->|"else"| n5
+  n5 --> n6
+  n7 --> n8
+  n8 -->|"ok"| n10
+  s1 -->|"error"| n9
+  n9 --> n10
+  n11 --> n12
+  n12 -->|"each item"| n13
+  n13 -->|"next item"| n12
+  n12 -->|"done"| n14
+  n15 --> n16
+  n16 --> n17
+  n17 -->|"each item"| n18
+  n18 -->|"next item"| n17
+  n17 -->|"done"| n19
+  n20 --> n21
+  n21 --> n23
+  n20 --> n22
+  n22 --> n23
+  n24 --> n25
+  n25 -->|"true"| n26
+  n25 -->|"false (stop)"| n27
+  n26 --> n27
+  n1 --> n2
+  n6 --> n7
+  n10 --> n11
+  n14 --> n15
+  n19 --> n20
+  n23 --> n24
+  n0 --> n1
+  n27 --> n28
+  n1 -.->|"old"| n2
+  s1 -.->|"error"| n9
+  n12 -.->|"n"| n13
+  n12 -.->|"index"| n13
+  n17 -.->|"acc"| n18
+  n17 -.->|"item"| n18
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef control fill:#f1ebff,stroke:#6741d9,color:#1f1147
+  classDef value fill:#f8fafc,stroke:#94a3b8,color:#1e293b
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n1,n2,n4,n8,n13,n18,n21,n22,n26 call
+  class n3,n6,n7,n10,n12,n14,n17,n19,n20,n23,n24,n27 control
+  class n5,n9,n11,n15,n16,n25 value
+  class n0,n28 boundary

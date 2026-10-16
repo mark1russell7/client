@@ -216,6 +216,16 @@ const tool = procedureToMcpTool(fsReadProcedure);
 // }
 ```
 
+The description of a procedure that `procedure.define` made tells the effects of its body. The host finds these effects before the definition (`inferredEffects`). `toolDescription()` adds one sentence:
+
+```typescript
+// A defined procedure with the description "Write the report"
+toolDescription(defined);
+// "Write the report. It reads fs and registry and changes store."
+```
+
+The description of a procedure of code does not change.
+
 ---
 
 ### proceduresToMcpTools

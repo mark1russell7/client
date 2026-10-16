@@ -1,0 +1,50 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["client.chain"]
+    n1{{"client.parallel<br/>failFast"}}
+    n2["t.num"]
+    n3("#34;data#34;")
+    n4("#91;#93;")
+    n5(("join"))
+    n6["t.num"]
+    n7{{"client.reduce<br/>no fn (the initial value)"}}
+    n8["t.echo"]
+    n9{{"client.map<br/>each item (item, index)"}}
+    n10(("join"))
+    n11("true")
+    n12{"client.conditional"}
+    n13(("join"))
+    n14("#36;ref #36;last")
+    subgraph s1["client.chain"]
+      n15("no steps")
+    end
+  end
+  n16(["result"])
+  n1 --> n2
+  n2 --> n5
+  n1 --> n3
+  n3 --> n5
+  n1 --> n4
+  n4 --> n5
+  n6 --> n7
+  n8 --> n9
+  n9 -->|"done"| n10
+  n11 --> n12
+  n12 -->|"then (nothing)"| n13
+  n12 -->|"else (nothing)"| n13
+  n5 --> n6
+  n7 --> n8
+  n10 --> n11
+  n13 --> n14
+  n14 --> n15
+  n0 --> n1
+  n15 --> n16
+  n13 -.->|"#36;last"| n14
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef control fill:#f1ebff,stroke:#6741d9,color:#1f1147
+  classDef value fill:#f8fafc,stroke:#94a3b8,color:#1e293b
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n2,n6,n8 call
+  class n1,n5,n7,n9,n10,n12,n13 control
+  class n3,n4,n11,n14,n15 value
+  class n0,n16 boundary

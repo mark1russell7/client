@@ -1,0 +1,16 @@
+flowchart TD
+  n0(["input"])
+  subgraph s0["client.chain"]
+    n1["t.add"]
+    n2["t.write"]
+  end
+  n3(["result"])
+  n1 --> n2
+  n0 --> n1
+  n2 --> n3
+  n0 -.->|"input.x"| n1
+  n1 -.->|"#36;last"| n2
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n1,n2 call
+  class n0,n3 boundary

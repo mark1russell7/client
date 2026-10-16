@@ -40,7 +40,8 @@ export const bundleMcpModules: readonly ProcedureModule[] = [
   // Core orchestration
   libModule,
   procedureModule,
-  // program.check and program.compile: Claude checks a program before it runs it (roadmap R22)
+  // program.check, compile, diagram and explain: Claude examines a program before it runs it (roadmap R22, R23).
+  // The module also registers sdk.openrpc and sdk.typescript, but sdk is not in mcpNamespaces.
   compilerModule,
   cueModule,
   // Infrastructure

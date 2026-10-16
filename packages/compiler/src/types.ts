@@ -1,5 +1,6 @@
 /**
- * The types and schemas of the procedures of this package: `program.check` and `program.compile`.
+ * The types and schemas of the procedures of this package: `program.check`, `program.compile`,
+ * `program.diagram`, `program.explain`, `sdk.openrpc` and `sdk.typescript`.
  *
  * mark procedure new adds the types of each new procedure here.
  */
@@ -162,3 +163,156 @@ export const ProgramCompileOutputSchema: z.ZodType<ProgramCompileOutput> = z.obj
     .describe("The lines of the code that start a part of the program"),
   folded: z.array(z.string()).describe("The pointers of the calls that the fold pass computed"),
 }) as z.ZodType<ProgramCompileOutput>;
+
+// =============================================================================
+// program.diagram Types - Draw a program as a Mermaid flowchart
+// =============================================================================
+
+/** The input of `program.diagram`. */
+export interface ProgramDiagramInput {
+  program: unknown;
+  mode?: "exec" | "body" | undefined;
+  direction?: "TD" | "LR" | undefined;
+}
+
+export const ProgramDiagramInputSchema: z.ZodType<ProgramDiagramInput> = z.object({
+  program: ProgramField,
+  mode: ModeField,
+  direction: z.enum(["TD", "LR"]).optional().describe("The direction of the flowchart: TD (from the top down, the default) or LR (from left to right)"),
+}) as z.ZodType<ProgramDiagramInput>;
+
+/** The output of `program.diagram`. */
+export interface ProgramDiagramOutput {
+  mermaid: string;
+  diagnostics: Diagnostic[];
+}
+
+export const ProgramDiagramOutputSchema: z.ZodType<ProgramDiagramOutput> = z.object({
+  mermaid: z.string().describe("The Mermaid flowchart of the program. A node with an error has the class error."),
+  diagnostics: z.array(DiagnosticSchema).describe("The problems that the check found, in the order of the program"),
+}) as z.ZodType<ProgramDiagramOutput>;
+
+// =============================================================================
+// program.explain Types - Explain a program: its effects, each call and its refusal under the capability
+// =============================================================================
+
+/** The input of `program.explain`. */
+export type ProgramExplainInput = ProgramCheckInput;
+
+export const ProgramExplainInputSchema: z.ZodType<ProgramExplainInput> = z.object({
+  program: ProgramField,
+  capability: CapabilityInputSchema.optional(),
+  mode: ModeField,
+}) as z.ZodType<ProgramExplainInput>;
+
+/** The explanation of one call, in the output of `program.explain`. */
+export interface CallExplanationOutput {
+  key: string;
+  path: string[];
+  pointer: string;
+  kind: "call" | "control" | "dynamic";
+  effects?: EffectsOutput | undefined;
+  known: boolean;
+  exposed: boolean;
+  permitted: boolean;
+  reason?: "effects-undeclared" | "effects-exceeded" | "clearance" | "deadline" | "not-found" | undefined;
+  message: string;
+}
+
+const DeclaredEffectsSchema = z
+  .object({
+    reads: z.array(z.string()).optional().describe("The resources that the procedure can read. Absent: not declared."),
+    writes: z.array(z.string()).optional().describe("The resources that the procedure can change. Absent: not declared."),
+    destructive: z.boolean().optional().describe("True: the procedure can delete or overwrite data"),
+    idempotent: z.boolean().optional().describe("True: a second call with the same input changes nothing more"),
+  })
+  .describe("The effects that the procedure declares. Absent: the procedure declares none.");
+
+const CallExplanationSchema = z.object({
+  key: z.string().describe("The key of the procedure: its path with dots"),
+  path: z.array(z.string()).describe("The path of the procedure"),
+  pointer: z.string().describe("The JSON pointer of the call in the program"),
+  kind: z.enum(["call", "control", "dynamic"]).describe("call, a control-flow call, or a dynamic call whose input is a program"),
+  effects: DeclaredEffectsSchema.optional(),
+  known: z.boolean().describe("True when the host has a procedure at the path"),
+  exposed: z.boolean().describe("True when the host has the procedure and lets a program call it"),
+  permitted: z.boolean().describe("True when the capability permits the call"),
+  reason: z
+    .enum(["effects-undeclared", "effects-exceeded", "clearance", "deadline", "not-found"])
+    .optional()
+    .describe("The reason of a refusal, or not-found for a path without a procedure"),
+  message: z.string().describe("The answer of the capability in words"),
+});
+
+/** The output of `program.explain`. */
+export interface ProgramExplainOutput extends ProgramCheckOutput {
+  calls: CallExplanationOutput[];
+  summary: string;
+}
+
+export const ProgramExplainOutputSchema: z.ZodType<ProgramExplainOutput> = z.object({
+  ...checkOutputFields,
+  calls: z.array(CallExplanationSchema).describe("The calls of the program, in the order of the tree: a call comes before the calls of its input"),
+  summary: z.string().describe("The explanation in short sentences"),
+}) as z.ZodType<ProgramExplainOutput>;
+
+// =============================================================================
+// sdk.openrpc Types - Describe the procedures of the registry as an OpenRPC document
+// =============================================================================
+
+/** The input of `sdk.openrpc` and `sdk.typescript`. */
+export interface SdkInput {
+  namespace?: string | undefined;
+}
+
+const SdkInputSchema: z.ZodType<SdkInput> = z.object({
+  namespace: z.string().optional().describe("Only the procedures under this first path segment"),
+}) as z.ZodType<SdkInput>;
+
+/** The input of `sdk.openrpc`. */
+export type SdkOpenrpcInput = SdkInput;
+
+export const SdkOpenrpcInputSchema: z.ZodType<SdkOpenrpcInput> = SdkInputSchema;
+
+/** The output of `sdk.openrpc`: an OpenRPC 1.3 document. */
+export interface SdkOpenrpcOutput {
+  openrpc: string;
+  info: { title: string; version: string; description?: string | undefined };
+  methods: Array<Record<string, unknown>>;
+}
+
+export const SdkOpenrpcOutputSchema: z.ZodType<SdkOpenrpcOutput> = z.object({
+  openrpc: z.string().describe("The version of the OpenRPC specification"),
+  info: z
+    .object({
+      title: z.string().describe("The title of the document"),
+      version: z.string().describe("The version of the document: the hash of the manifest"),
+      description: z.string().optional().describe("The description of the document"),
+    })
+    .describe("The information about the document"),
+  methods: z
+    .array(z.record(z.string(), z.unknown()))
+    .describe("One method for each procedure, in the order of the names: params, result, x-path and x-effects"),
+}) as z.ZodType<SdkOpenrpcOutput>;
+
+// =============================================================================
+// sdk.typescript Types - Write a typed TypeScript SDK for the procedures of the registry
+// =============================================================================
+
+/** The input of `sdk.typescript`. */
+export type SdkTypescriptInput = SdkInput;
+
+export const SdkTypescriptInputSchema: z.ZodType<SdkTypescriptInput> = SdkInputSchema;
+
+/** The output of `sdk.typescript`. */
+export interface SdkTypescriptOutput {
+  code: string;
+  procedures: number;
+  registryHash: string;
+}
+
+export const SdkTypescriptOutputSchema: z.ZodType<SdkTypescriptOutput> = z.object({
+  code: z.string().describe("The source of the TypeScript module: the types, the interface Sdk and the function createSdk"),
+  procedures: z.number().describe("The number of procedures in the SDK"),
+  registryHash: z.string().describe("The hash of the manifest that the SDK comes from"),
+}) as z.ZodType<SdkTypescriptOutput>;

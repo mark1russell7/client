@@ -1,0 +1,31 @@
+flowchart TD
+  n0(["start"])
+  n1{{"client.or"}}
+  n2["t.truth"]
+  n3{{"client.and"}}
+  n4["t.truth"]
+  n5("false")
+  n6(("join"))
+  n7["t.num"]
+  n8(("join"))
+  n9(["result"])
+  n3 --> n4
+  n4 -->|"true"| n5
+  n4 -->|"false (stop)"| n6
+  n5 --> n6
+  n1 --> n2
+  n2 -->|"false"| n3
+  n2 -->|"true (stop)"| n8
+  n6 -->|"false"| n7
+  n6 -->|"true (stop)"| n8
+  n7 --> n8
+  n0 --> n1
+  n8 --> n9
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef control fill:#f1ebff,stroke:#6741d9,color:#1f1147
+  classDef value fill:#f8fafc,stroke:#94a3b8,color:#1e293b
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n2,n4,n7 call
+  class n1,n3,n6,n8 control
+  class n5 value
+  class n0,n9 boundary

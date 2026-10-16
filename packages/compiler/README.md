@@ -10,7 +10,10 @@ The compiler of procedure programs. A program is a procedure as data: a JSON tre
 
 - `checkProgram()` examines the whole program before the first procedure starts. It finds each problem and the effects of the program.
 - `compileProgram()` writes the checked program as a plain `async (ctx, input) => output` function.
-- The procedures `program.check` and `program.compile` give the same functions to the clients of a host.
+- `diagramProgram()` draws the program as a Mermaid flowchart.
+- `explainProgram()` tells the effects of the program and the answer of the capability for each call.
+- `toOpenRpc()` and `toTypeScriptSdk()` write an OpenRPC document and a typed TypeScript SDK from a manifest.
+- The procedures `program.check`, `program.compile`, `program.diagram`, `program.explain`, `sdk.openrpc` and `sdk.typescript` give the same functions to the clients of a host.
 
 The package works in a browser. It reads the facts of the procedures from a manifest (`procedure.manifest`) or from a registry.
 
@@ -117,6 +120,96 @@ A call whose procedure takes its input raw (`client.eval`, `dag.traverse`, `proc
 
 The result has `code` (the module), `body` (the function body for a host that evaluates code), `sourceMap` (the lines of the code and their pointers), `registryHash` (the hash of the manifest) and the result of the check. Give `registryHash` to the host with the code: a different hash means different procedures.
 
+## Draw a program
+
+```typescript
+import { diagramProgram } from "@procedures/compiler";
+
+const { mermaid, diagnostics } = diagramProgram(program, { registry });
+```
+
+The flowchart comes from the IR, so it shows the order of the interpreter. A solid arrow is the order of the steps. A dotted arrow carries data.
+
+| Part of the program | Part of the flowchart |
+|---|---|
+| A call | A box with the key of the procedure. A call in an input comes before its call. |
+| `client.chain` | A subgraph with the steps in order |
+| `client.parallel` | A fork node, an arrow to each task, and a join node |
+| `client.conditional` | The condition, then a decision node with a `then` arrow and an `else` arrow |
+| `client.tryCatch` | A `try` subgraph, and an `error` arrow from the subgraph to the catch part |
+| `client.map`, `client.reduce` | A loop node: an `each item` arrow to `fn`, an arrow back, and a `done` arrow |
+| `client.and`, `client.or` | The operands in order, and a stop arrow from each operand to the join node |
+| `$ref` | A dotted arrow from the part that binds the name to the part that reads it |
+| A dynamic call | A box with double sides and the reason. A `runs` subgraph shows its program, when the compiler can see it. |
+| A deferred call, a `$never` call | A box with a dashed border: the call is data |
+
+- A node with an error of the check has the class `error`. A `$ref` to an unknown name gets its own node.
+- `mermaidText()` keeps letters, digits, spaces and some punctuation. It writes each other character as an entity code, for example `#34;` for a quote.
+- Thus no text of a program can break the syntax of the flowchart. Quotes, brackets, `<`, line breaks and Unicode line separators are safe.
+- `toMermaid(ir)` draws an IR that you have already. The golden flowcharts are in `test/golden/*.mmd`.
+
+## Explain a program
+
+```typescript
+import { explainProgram } from "@procedures/compiler";
+
+const explanation = explainProgram(program, { registry, capability: { effects: { writes: [] } } });
+console.log(explanation.summary);
+// The program has 5 calls of 4 procedures. The program can read store and can change store. ...
+```
+
+`explainProgram()` uses `checkProgram()` and `explainInvocation()` of `@procedures/client`. The result has these parts:
+
+- `effects` and `mustEffects`: the effects of the check.
+- `calls`: each call in the order of the tree, with its key, path, pointer and kind (`call`, `control` or `dynamic`).
+- For each call: the declared `effects`, `known`, `exposed`, and `permitted`, `reason` and `message` under the capability.
+- `diagnostics`: the problems of the check.
+- `summary`: the same information in short sentences. An application can show it to a user before the program starts.
+
+## OpenRPC and a typed SDK
+
+```typescript
+import { toOpenRpc, toTypeScriptSdk } from "@procedures/compiler";
+
+const manifest = await client.exec(["procedure", "manifest"], {});
+const document = toOpenRpc(manifest);
+const source = toTypeScriptSdk(manifest);
+```
+
+`toOpenRpc()` gives an OpenRPC 1.3 document with one method for each procedure:
+
+- The name of the method is the key of the procedure. `x-path` is the path.
+- The one parameter `input` has the input schema. The result `output` has the output schema.
+- `x-effects` has the declared effects. `x-data-driven` marks a procedure that operates its input as a program.
+- The keys have a fixed order, and the methods are in the order of their names. Thus one manifest always gives the same text.
+
+`toTypeScriptSdk()` gives the source of a TypeScript module without imports:
+
+- An input type and an output type for each procedure, from the JSON Schemas.
+- The interface `Sdk`, with a method for each procedure at `sdk.<namespace>.<name>`.
+- The function `createSdk(client)`. Each method sends its path and its input to `client.call(path, input)`.
+
+```typescript
+import { createSdk } from "./sdk.js";
+
+// In a procedure handler: ctx.client calls the procedures of the host
+const sdk = createSdk(ctx.client);
+const value = await sdk.client.identity({ value: 1 });
+
+// With a Client
+const remote = createSdk({ call: (path, input) => client.exec(path, input) });
+```
+
+The converter of the schemas knows a part of JSON Schema:
+
+- An object with its `required` list. A property name that is not an identifier gets quotes.
+- An array, a string, a number, an integer, a boolean and `null`.
+- `enum`, `const`, `anyOf` and `oneOf` as unions.
+- `additionalProperties` as an index signature.
+- Each other schema gives `unknown`.
+
+A test writes the SDK of the core procedures to a temporary folder. It type-checks the SDK with the TypeScript and the strict options of this package.
+
 ## The procedures
 
 ```typescript
@@ -124,12 +217,18 @@ import "@procedures/compiler/register";
 
 const checked = await client.exec(["program", "check"], { program, capability: { effects: { writes: [] } } });
 const compiled = await client.exec(["program", "compile"], { program, language: "ts" });
+const drawn = await client.exec(["program", "diagram"], { program, direction: "LR" });
+const explained = await client.exec(["program", "explain"], { program });
+const document = await client.exec(["sdk", "openrpc"], { namespace: "client" });
+const sdk = await client.exec(["sdk", "typescript"], {});
 ```
 
-- The two procedures take the program as data (the `raw-input` tag): nothing of it starts.
-- They read the registry and the expose rule of the host, and change nothing.
-- Without a `capability` in the input, they use the capability of the caller.
+- The four `program.*` procedures take the program as data (the `raw-input` tag): nothing of it starts.
+- `program.check`, `program.compile` and `program.explain` take a `capability` in the input. Without it, they use the capability of the caller, as `program.diagram` does.
 - `program.compile` gives the source text, not the closure code.
+- `sdk.openrpc` and `sdk.typescript` describe the registry of the caller, as `procedure.manifest` does. The input `namespace` selects one namespace.
+- The six procedures read the registry and obey the expose rule of the host. They change nothing.
+- The MCP server of `@procedures/mcp-dev-tools` gives the `program.*` procedures as tools. The namespace `sdk` is not a tool namespace.
 - `createRegistry(compilerModule)` gives them without the global registry.
 
 ## The intermediate representation
@@ -152,3 +251,5 @@ The normalize pass makes the IR. Each node has the pointer of its source.
 ## Tests
 
 A property test makes hundreds of random programs. It starts each program three times: with the interpreter, with the closure code and with the source text. The three runs must give the same result or error. They must start the same procedures in the same order. A second property examines that each run has only the inferred effects.
+
+A third property draws the flowchart of each random program and examines the grammar of each line. The golden files in `test/golden` hold the IR, the source text, the flowcharts, an OpenRPC document and an SDK. To accept an intended change, start `npx vitest run -u` in this package and examine the diff.

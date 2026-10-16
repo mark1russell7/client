@@ -1,0 +1,24 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["client.chain (passThrough)"]
+    n1["t.num"]
+    n2("object (start)")
+    n3["t.echo"]
+    n4["t.echo"]
+    n5["t.num"]
+  end
+  n6(["result"])
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 --> n5
+  n0 --> n1
+  n5 --> n6
+  n2 -.->|"passThrough"| n3
+  n3 -.->|"passThrough"| n4
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef value fill:#f8fafc,stroke:#94a3b8,color:#1e293b
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n1,n3,n4,n5 call
+  class n2 value
+  class n0,n6 boundary
