@@ -53,6 +53,11 @@ const runtimeRef = (name: string, input: unknown): Record<string | symbol, unkno
   input,
 });
 
+/** A date, and an object that refers to itself, for the examples of `client.unique` in the process. */
+const epoch = new Date(0);
+const loop: Record<string, unknown> = {};
+loop["self"] = loop;
+
 const ada = { name: "ada", team: "a", age: 36 };
 const bob = { name: "bob", team: "b", age: 41 };
 const people = [ada, bob];
@@ -686,6 +691,10 @@ const CATALOG: Record<string, readonly Example[]> = {
       input: { items: [{ id: { n: 1 }, x: 1 }, { id: { n: 1 }, x: 2 }, { id: { n: 2 }, x: 3 }], key: "id" },
       output: [{ id: { n: 1 }, x: 1 }, { id: { n: 2 }, x: 3 }],
     },
+    { note: "0 and -0 are one value, and NaN is one value, as in a Set", input: { items: [0, -0, NaN, NaN] }, output: [0, NaN] },
+    { note: "a bigint and its number are different", input: { items: [1n, 1n, 1] }, output: [1n, 1] },
+    { note: "a Date compares by identity", input: { items: [epoch, epoch, new Date(0)] }, output: [epoch, new Date(0)] },
+    { note: "an object with a cycle compares its cycle by identity", input: { items: [loop, loop, { self: {} }] }, output: [loop, { self: {} }] },
   ],
   "client.groupBy": [
     { note: "groups the items by the value of the key", input: { items: people, key: "team" }, output: { a: [ada], b: [bob] } },
@@ -852,6 +861,11 @@ const CATALOG: Record<string, readonly Example[]> = {
       },
     },
     { note: "refuses a missing procedure: undefined has no JSON text", input: {}, error: "VALIDATION_ERROR" },
+    {
+      note: "a function has no JSON text: an error result",
+      input: { procedure: () => 1 },
+      output: { json: "", success: false, error: "The procedure has no JSON text" },
+    },
     { note: "refuses a procedure that is undefined", input: { procedure: undefined }, error: "VALIDATION_ERROR" },
   ],
   "client.eval": [
@@ -894,6 +908,7 @@ const CATALOG: Record<string, readonly Example[]> = {
     { note: "null is a value", input: { value: null }, output: "null" },
     { note: "refuses a missing value: undefined has no JSON text", input: {}, error: "VALIDATION_ERROR" },
     { note: "refuses a value that is undefined", input: { value: undefined }, error: "VALIDATION_ERROR" },
+    { note: "refuses a function: it has no JSON text", input: { value: () => 1 }, error: "no JSON text" },
   ],
   "client.lookup": [
     {

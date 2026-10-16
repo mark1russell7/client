@@ -65,11 +65,10 @@ describe("splay.bridge.info and splay.bridge.health", () => {
     const registry = registryWith();
     // The real version of the package: before, the procedure gave "1.0.0" for each version
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { name: string; version: string };
-    expect(await call(registry, ["splay", "bridge", "info"])).toEqual({
-      name: manifest.name,
-      version: manifest.version,
-      description: "Bridge between splay and client",
-    });
+    const info = { name: manifest.name, version: manifest.version, description: "Bridge between splay and client" };
+    expect(await call(registry, ["splay", "bridge", "info"])).toEqual(info);
+    // The second call uses the first read
+    expect(await call(registry, ["splay", "bridge", "info"])).toEqual(info);
     const health = await call<{ status: string; timestamp: string }>(registry, ["splay", "bridge", "health"]);
     expect(health.status).toBe("healthy");
     expect(new Date(health.timestamp).toISOString()).toBe(health.timestamp);

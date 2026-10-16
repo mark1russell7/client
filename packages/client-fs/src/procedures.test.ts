@@ -224,6 +224,11 @@ describe("fs.copy", () => {
   it("fails with ENOENT for a missing source", async () => {
     await expect(call("fs.copy", { src: join(dir, "missing"), dest: join(dir, "x") })).rejects.toMatchObject({ code: "ENOENT" });
   });
+
+  it("stops at an error of the check of the destination that is not ENOENT", async () => {
+    // A NUL character in a path: the check fails with ERR_INVALID_ARG_VALUE, and nothing is copied
+    await expect(call("fs.copy", { src: join(dir, "a.txt"), dest: join(dir, "bad\u0000name") })).rejects.toMatchObject({ code: "ERR_INVALID_ARG_VALUE" });
+  });
 });
 
 describe("fs.move", () => {
