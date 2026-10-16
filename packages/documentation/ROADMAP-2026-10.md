@@ -582,6 +582,7 @@ The owner decided these items. The changes are on `main`, and they go out in 0.4
 - Fixed: `client.import`, `client.stringifyJson`, `client.export`, `client.mod`, `client.unique`, `client.isObject` and the `match` text of `client.filter`.
 - Fixed: the schemas of `client.not`, `client.all`, `client.any` and `client.none` say "values".
 - Fixed: one list of error codes, the code of a handler error, the `dbPath` text, `fs.copy` and the version of `splay.bridge.info`. `fs.copy` refuses an existing destination without `overwrite`.
+- Fixed: `git.isClean` fails outside a repository, and `git.init` finds an existing bare repository.
 - Changed: `TIMEOUT` follows the list of the wire protocol. Its HTTP status is 504, and the retry middleware does not retry it.
 - Built: `@procedures/client/node` with the `ws` class, the contract suite of `CollectionStorage`, POST streams of `http.ndjson` and `http.sse`, and the follow stream of `node.logs`.
 - Fixed: `procedure new` puts a procedure into the list that `defineModule` gets. When it cannot find the list, it fails before it writes.
@@ -591,7 +592,6 @@ The owner decided these items. The changes are on `main`, and they go out in 0.4
 
 ### Open
 
-- `client-git` gets the fixes of R33 after wave 3: `git.isClean` gives true outside a repository, and `git.init` with `bare` makes the repository again.
 - `packages/cli` has no commands after the removals. Its runner and `src/paths.ts` have no use. The decision: delete the package, or keep it for later commands.
 - `dag.traverse` has a block that cannot run: "ensure all nodes have results". Each visit records its own result.
 - The contract suite found four differences between the storages, and nothing fixes them yet:
