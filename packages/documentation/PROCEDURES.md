@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 279 across 46 namespaces. Loaded 41 package register(s).
+**Total procedures:** 284 across 48 namespaces. Loaded 43 package register(s).
 
 ## Namespaces
 
@@ -26,6 +26,7 @@
 - [`git.*`](#git) — 46 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
 - [`ics.*`](#ics) — 3 procedure(s)
+- [`iosBackup.*`](#iosBackup) — 3 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
 - [`lib.*`](#lib) — 5 procedure(s)
 - [`llm.*`](#llm) — 2 procedure(s)
@@ -38,6 +39,7 @@
 - [`notify.*`](#notify) — 1 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
+- [`privacyScan.*`](#privacyScan) — 2 procedure(s)
 - [`procedure.*`](#procedure) — 12 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
@@ -294,6 +296,14 @@
 | `ics.occurrences` | Give the occurrences of the events of an iCalendar text in a time window, recurrences included |
 | `ics.parse` | Read the events of an iCalendar text |
 
+## iosBackup
+
+| Procedure | Description |
+|-----------|-------------|
+| `iosBackup.file` | Find a file of an iPhone backup by its domain and relative path in Manifest.db |
+| `iosBackup.find` | Find the iPhone backups (MobileSync) on this computer, the newest first |
+| `iosBackup.messages` | Read the messages (iMessage and SMS) of an iPhone backup, in time order |
+
 ## json
 
 | Procedure | Description |
@@ -417,6 +427,13 @@
 | `pnpm.store.path` | Get pnpm store path for snapshot/restore |
 | `pnpm.update` | Update packages to their newest versions in the ranges, or with latest to the latest versions |
 | `pnpm.why` | Show the packages that depend on a package: data is the JSON of pnpm why --json |
+
+## privacyScan
+
+| Procedure | Description |
+|-----------|-------------|
+| `privacyScan.files` | Find private data in files and folders: terms of a list, email addresses, phone numbers, coordinates |
+| `privacyScan.text` | Find private data in a text: terms of a list, email addresses, phone numbers, coordinates |
 
 ## procedure
 

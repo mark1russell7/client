@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 52. **Procedures:** 279. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 54. **Procedures:** 284. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -48,6 +48,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/http` | `packages/http` | HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call. | `http.*` (4) | `client` |
 | `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader without dependencies: the events of a calendar and their occurrences in a time window, recurrences included. | `ics.*` (3) | `client` |
 | `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 91 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `mcp-server` |
+| `@procedures/ios-backup` | `packages/ios-backup` | Read an iPhone backup (MobileSync): find the newest backup, find a file in Manifest.db, read the messages of sms.db. No native dependency. | `iosBackup.*` (3) | `client` |
 | `@procedures/json` | `packages/json` | Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back. | `json.*` (5), `yaml.*` (2) | `client`, `compiler` |
 | `@procedures/llm` | `packages/llm` | A language model as procedures: a completion and a structured answer that a JSON Schema accepts, through the Anthropic Messages API, with the key from the environment. | `llm.*` (2) | `client`, `json` |
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
@@ -55,6 +56,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |
 | `@procedures/notify` | `packages/notify` | Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address. | `notify.*` (1) | `client` |
 | `@procedures/npm` | `packages/npm` | The npm registry as typed procedures: view, dist-tags, whoami, pack (a dry run by default) and deprecate, run with argv, and a confirmation for each write to the registry. | `npm.*` (7) | `client`, `shell` |
+| `@procedures/privacy-scan` | `packages/privacy-scan` | Find private data in text before it goes public: email addresses, phone numbers, coordinates and the terms of your list. | `privacyScan.*` (2) | `client` |
 | `@procedures/restic` | `packages/restic` | The restic backup program as one procedure: backup, snapshots, restore and forget, with JSON output and no secret as input. | `restic.*` (1) | `client`, `shell` |
 | `@procedures/schedule` | `packages/schedule` | A cron for stored programs: schedules as procedures, and a scheduler that a host starts, with an injectable clock and no overlapping runs. | `schedule.*` (4) | `client`, `store` |
 | `@procedures/server` | `packages/server` | A standalone procedure server: load procedure packages and serve them over HTTP and WebSocket with a token and an expose list. | — | `client`, `peer` |
