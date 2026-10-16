@@ -65,10 +65,10 @@ async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleS
       .build(),
     createProcedure()
       .path(["test", "block"])
-      .input(zodAdapter<{ obey?: boolean }>(z.object({ obey: z.boolean().optional() })))
+      .input(zodAdapter<{ obey?: boolean | undefined }>(z.object({ obey: z.boolean().optional() })))
       .output(ok)
       .meta({ effects: { reads: [], writes: [] } })
-      .handler(async (input: { obey?: boolean }, ctx: ProcedureContext) => {
+      .handler(async (input: { obey?: boolean | undefined }, ctx: ProcedureContext) => {
         blocked++;
         if (input.obey) {
           await new Promise<void>((resolve, reject) => {
