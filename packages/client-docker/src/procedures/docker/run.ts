@@ -5,7 +5,7 @@
  */
 
 import type { ProcedureContext } from "@procedures/client";
-import { dockerArg, runDocker, words } from "./shared.js";
+import { commandWords, dockerArg, runDocker } from "./shared.js";
 import type { DockerRunInput, DockerCommandOutput } from "../../types.js";
 
 /**
@@ -56,10 +56,8 @@ export async function dockerRun(
     // Add image
     args.push(dockerArg("image", input.image));
 
-    // Add command if specified
-    if (input.command) {
-      args.push(...words(input.command));
-    }
+    // Add the command: args as they are, or command split at whitespace
+    args.push(...commandWords(input));
     return runDocker(args, input, ctx);
   }
 }

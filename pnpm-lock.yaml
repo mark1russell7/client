@@ -1251,6 +1251,9 @@ importers:
       '@procedures/notify':
         specifier: workspace:*
         version: link:../notify
+      '@procedures/npm':
+        specifier: workspace:*
+        version: link:../npm
       '@procedures/restic':
         specifier: workspace:*
         version: link:../restic
@@ -1317,6 +1320,31 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/npm:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/shell':
+        specifier: workspace:*
+        version: link:../client-shell
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -1471,6 +1499,9 @@ importers:
       '@procedures/notify':
         specifier: workspace:*
         version: link:../notify
+      '@procedures/npm':
+        specifier: workspace:*
+        version: link:../npm
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server

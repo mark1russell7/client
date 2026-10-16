@@ -6,6 +6,7 @@
 
 import { gitArg } from "./args.js";
 import { git, GitError, type GitContext } from "./run.js";
+import { currentBranch } from "./refs.js";
 import type { GitPushInput, GitPushOutput } from "../../types.js";
 
 /**
@@ -16,8 +17,9 @@ export async function gitPush(input: GitPushInput, ctx: GitContext = {}): Promis
   const remoteName = input.remote ?? "origin";
   const run = { cwd, signal: ctx.signal };
 
-  // Get current branch if not specified
-  const branchName = branch || (await git(["rev-parse", "--abbrev-ref", "HEAD"], run)).trim();
+  // The current branch if not specified. `git symbolic-ref` reads it in a repository without
+  // commits too, so git gives its own error there (roadmap R40).
+  const branchName = branch || (await currentBranch(run));
 
   // Count commits to push
   let commits = 0;

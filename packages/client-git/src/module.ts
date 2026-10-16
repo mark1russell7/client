@@ -126,6 +126,103 @@ import {
   GitStashExportOutputSchema,
   GitStashImportOutputSchema,
 } from "./types.js";
+import { gitShow } from "./procedures/git/show.js";
+import { gitBlame } from "./procedures/git/blame.js";
+import { gitTagList } from "./procedures/git/tag/list.js";
+import { gitTagAdd } from "./procedures/git/tag/add.js";
+import { gitTagDelete } from "./procedures/git/tag/delete.js";
+import { gitRevParse } from "./procedures/git/revParse.js";
+import { gitReset } from "./procedures/git/reset.js";
+import { gitRestore } from "./procedures/git/restore.js";
+import { gitMerge } from "./procedures/git/merge.js";
+import { gitMergeAbort } from "./procedures/git/merge/abort.js";
+import { gitRebase } from "./procedures/git/rebase.js";
+import { gitRebaseContinue } from "./procedures/git/rebase/continue.js";
+import { gitRebaseAbort } from "./procedures/git/rebase/abort.js";
+import { gitWorktreeList } from "./procedures/git/worktree/list.js";
+import { gitWorktreeAdd } from "./procedures/git/worktree/add.js";
+import { gitWorktreeRemove } from "./procedures/git/worktree/remove.js";
+import { gitBranchList } from "./procedures/git/branch/list.js";
+import { gitBranchAdd } from "./procedures/git/branch/add.js";
+import { gitBranchDelete } from "./procedures/git/branch/delete.js";
+import {
+  GitShowInputSchema,
+  GitShowOutputSchema,
+  type GitShowInput,
+  type GitShowOutput,
+  GitBlameInputSchema,
+  GitBlameOutputSchema,
+  type GitBlameInput,
+  type GitBlameOutput,
+  GitTagListInputSchema,
+  GitTagListOutputSchema,
+  type GitTagListInput,
+  type GitTagListOutput,
+  GitTagAddInputSchema,
+  GitTagAddOutputSchema,
+  type GitTagAddInput,
+  type GitTagAddOutput,
+  GitTagDeleteInputSchema,
+  GitTagDeleteOutputSchema,
+  type GitTagDeleteInput,
+  type GitTagDeleteOutput,
+  GitRevParseInputSchema,
+  GitRevParseOutputSchema,
+  type GitRevParseInput,
+  type GitRevParseOutput,
+  GitResetInputSchema,
+  GitResetOutputSchema,
+  type GitResetInput,
+  type GitResetOutput,
+  GitRestoreInputSchema,
+  GitRestoreOutputSchema,
+  type GitRestoreInput,
+  type GitRestoreOutput,
+  GitMergeInputSchema,
+  GitMergeOutputSchema,
+  type GitMergeInput,
+  type GitMergeOutput,
+  GitMergeAbortInputSchema,
+  GitMergeAbortOutputSchema,
+  type GitMergeAbortInput,
+  type GitMergeAbortOutput,
+  GitRebaseInputSchema,
+  GitRebaseOutputSchema,
+  type GitRebaseInput,
+  type GitRebaseOutput,
+  GitRebaseContinueInputSchema,
+  GitRebaseContinueOutputSchema,
+  type GitRebaseContinueInput,
+  type GitRebaseContinueOutput,
+  GitRebaseAbortInputSchema,
+  GitRebaseAbortOutputSchema,
+  type GitRebaseAbortInput,
+  type GitRebaseAbortOutput,
+  GitWorktreeListInputSchema,
+  GitWorktreeListOutputSchema,
+  type GitWorktreeListInput,
+  type GitWorktreeListOutput,
+  GitWorktreeAddInputSchema,
+  GitWorktreeAddOutputSchema,
+  type GitWorktreeAddInput,
+  type GitWorktreeAddOutput,
+  GitWorktreeRemoveInputSchema,
+  GitWorktreeRemoveOutputSchema,
+  type GitWorktreeRemoveInput,
+  type GitWorktreeRemoveOutput,
+  GitBranchListInputSchema,
+  GitBranchListOutputSchema,
+  type GitBranchListInput,
+  type GitBranchListOutput,
+  GitBranchAddInputSchema,
+  GitBranchAddOutputSchema,
+  type GitBranchAddInput,
+  type GitBranchAddOutput,
+  GitBranchDeleteInputSchema,
+  GitBranchDeleteOutputSchema,
+  type GitBranchDeleteInput,
+  type GitBranchDeleteOutput,
+} from "./types.js";
 
 // =============================================================================
 // Effects
@@ -273,7 +370,10 @@ const gitBranchProcedure = createProcedure()
   .input(zodAdapter<GitBranchInput>(GitBranchInputSchema))
   .output(zodAdapter<GitBranchOutput>(GitBranchOutputSchema))
   .meta({
-    description: "Branch operations",
+    description: "Deprecated: use git.branch.list, git.branch.add or git.branch.delete. Branch operations",
+    // Roadmap R40: it stays for one release, and calls the code of the three new procedures
+    deprecated: true,
+    deprecationMessage: "Use git.branch.list, git.branch.add or git.branch.delete. git.branch goes away in the next release.",
     args: ["name"],
     shorts: { delete: "d", list: "l", remote: "r", cwd: "C" },
     output: "json",
@@ -605,6 +705,295 @@ const gitStashImportProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// Roadmap R40: show, blame, tags, rev-parse, reset, restore, merge, rebase, worktrees, branches
+// =============================================================================
+
+/** A new ref (a tag or a branch). Git refuses a ref that exists, so a second call changes nothing. */
+const ADDS_REF: Effects = { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true };
+
+/**
+ * A deletion: of a ref, a working tree, or the state of a stopped merge or rebase. A second call
+ * fails, and changes nothing.
+ */
+const DELETES: Effects = { reads: ["fs"], writes: ["fs"], destructive: true, idempotent: true };
+
+const gitShowProcedure = createProcedure()
+  .path(["git", "show"])
+  .input(zodAdapter<GitShowInput>(GitShowInputSchema))
+  .output(zodAdapter<GitShowOutput>(GitShowOutputSchema))
+  .meta({
+    description: "Show a commit (its fields, files and diff), or a file at a commit",
+    args: ["ref"],
+    shorts: { path: "p", stat: "s", cwd: "C" },
+    output: "json",
+    effects: READS_REPOSITORY,
+  })
+  .handler(async (input: GitShowInput, ctx): Promise<GitShowOutput> => gitShow(input, ctx))
+  .build();
+
+const gitBlameProcedure = createProcedure()
+  .path(["git", "blame"])
+  .input(zodAdapter<GitBlameInput>(GitBlameInputSchema))
+  .output(zodAdapter<GitBlameOutput>(GitBlameOutputSchema))
+  .meta({
+    description: "Show the commit and the author of each line of a file",
+    args: ["path"],
+    shorts: { ref: "r", cwd: "C" },
+    output: "json",
+    effects: READS_REPOSITORY,
+  })
+  .handler(async (input: GitBlameInput, ctx): Promise<GitBlameOutput> => gitBlame(input, ctx))
+  .build();
+
+const gitTagListProcedure = createProcedure()
+  .path(["git", "tag", "list"])
+  .input(zodAdapter<GitTagListInput>(GitTagListInputSchema))
+  .output(zodAdapter<GitTagListOutput>(GitTagListOutputSchema))
+  .meta({
+    description: "List the tags, with their commits",
+    args: ["pattern"],
+    shorts: { cwd: "C" },
+    output: "json",
+    effects: READS_REPOSITORY,
+  })
+  .handler(async (input: GitTagListInput, ctx): Promise<GitTagListOutput> => gitTagList(input, ctx))
+  .build();
+
+const gitTagAddProcedure = createProcedure()
+  .path(["git", "tag", "add"])
+  .input(zodAdapter<GitTagAddInput>(GitTagAddInputSchema))
+  .output(zodAdapter<GitTagAddOutput>(GitTagAddOutputSchema))
+  .meta({
+    description: "Make a tag. With a message, the tag is annotated. An existing tag is an error",
+    args: ["name", "ref"],
+    shorts: { message: "m", cwd: "C" },
+    output: "json",
+    effects: ADDS_REF,
+  })
+  .handler(async (input: GitTagAddInput, ctx): Promise<GitTagAddOutput> => gitTagAdd(input, ctx))
+  .build();
+
+const gitTagDeleteProcedure = createProcedure()
+  .path(["git", "tag", "delete"])
+  .input(zodAdapter<GitTagDeleteInput>(GitTagDeleteInputSchema))
+  .output(zodAdapter<GitTagDeleteOutput>(GitTagDeleteOutputSchema))
+  .meta({
+    description: "Delete a tag",
+    args: ["name"],
+    shorts: { cwd: "C" },
+    output: "json",
+    effects: DELETES,
+  })
+  .handler(async (input: GitTagDeleteInput, ctx): Promise<GitTagDeleteOutput> => gitTagDelete(input, ctx))
+  .build();
+
+const gitRevParseProcedure = createProcedure()
+  .path(["git", "revParse"])
+  .input(zodAdapter<GitRevParseInput>(GitRevParseInputSchema))
+  .output(zodAdapter<GitRevParseOutput>(GitRevParseOutputSchema))
+  .meta({
+    description: "Give the hash or the short name of a ref. An unknown ref is an error",
+    args: ["ref"],
+    shorts: { abbrevRef: "a", short: "s", cwd: "C" },
+    output: "json",
+    effects: READS_REPOSITORY,
+  })
+  .handler(async (input: GitRevParseInput, ctx): Promise<GitRevParseOutput> => gitRevParse(input, ctx))
+  .build();
+
+const gitResetProcedure = createProcedure()
+  .path(["git", "reset"])
+  .input(zodAdapter<GitResetInput>(GitResetInputSchema))
+  .output(zodAdapter<GitResetOutput>(GitResetOutputSchema))
+  .meta({
+    description: "Move HEAD to a commit, and reset the index (mixed) or also the working tree (hard)",
+    args: ["ref"],
+    shorts: { mode: "m", cwd: "C" },
+    output: "json",
+    // The mode hard deletes the changes that are not committed. A relative ref (HEAD~1) moves
+    // HEAD again at a second call, so it is not idempotent.
+    effects: { reads: ["fs"], writes: ["fs"], destructive: true },
+  })
+  .handler(async (input: GitResetInput, ctx): Promise<GitResetOutput> => gitReset(input, ctx))
+  .build();
+
+const gitRestoreProcedure = createProcedure()
+  .path(["git", "restore"])
+  .input(zodAdapter<GitRestoreInput>(GitRestoreInputSchema))
+  .output(zodAdapter<GitRestoreOutput>(GitRestoreOutputSchema))
+  .meta({
+    description: "Restore files of the working tree or the index. The changes of the files are lost",
+    args: ["paths"],
+    shorts: { source: "s", staged: "S", worktree: "W", cwd: "C" },
+    output: "json",
+    // It replaces the changes of the files. Git starts the post-checkout hook for it.
+    effects: { reads: ["fs"], writes: ["fs", "process"], destructive: true, idempotent: true },
+  })
+  .handler(async (input: GitRestoreInput, ctx): Promise<GitRestoreOutput> => gitRestore(input, ctx))
+  .build();
+
+const gitMergeProcedure = createProcedure()
+  .path(["git", "merge"])
+  .input(zodAdapter<GitMergeInput>(GitMergeInputSchema))
+  .output(zodAdapter<GitMergeOutput>(GitMergeOutputSchema))
+  .meta({
+    description: "Merge a branch or a commit into the current branch. Conflicts give conflict: true",
+    args: ["ref"],
+    shorts: { message: "m", cwd: "C" },
+    output: "json",
+    // As git.pull: it changes the working tree, and starts the merge hooks
+    effects: { reads: ["fs"], writes: ["fs", "process"], idempotent: true },
+  })
+  .handler(async (input: GitMergeInput, ctx): Promise<GitMergeOutput> => gitMerge(input, ctx))
+  .build();
+
+const gitMergeAbortProcedure = createProcedure()
+  .path(["git", "merge", "abort"])
+  .input(zodAdapter<GitMergeAbortInput>(GitMergeAbortInputSchema))
+  .output(zodAdapter<GitMergeAbortOutput>(GitMergeAbortOutputSchema))
+  .meta({
+    description: "Stop a merge that has conflicts, and put back the state before it",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+    // The resolutions of the conflicts are lost
+    effects: DELETES,
+  })
+  .handler(async (input: GitMergeAbortInput, ctx): Promise<GitMergeAbortOutput> => gitMergeAbort(input, ctx))
+  .build();
+
+const gitRebaseProcedure = createProcedure()
+  .path(["git", "rebase"])
+  .input(zodAdapter<GitRebaseInput>(GitRebaseInputSchema))
+  .output(zodAdapter<GitRebaseOutput>(GitRebaseOutputSchema))
+  .meta({
+    description: "Rebase the current branch on another branch (not interactive). Conflicts give conflict: true",
+    args: ["upstream"],
+    shorts: { onto: "o", branch: "b", cwd: "C" },
+    output: "json",
+    // It replaces the commits of the branch, and starts the rebase and checkout hooks
+    effects: { reads: ["fs"], writes: ["fs", "process"], destructive: true, idempotent: true },
+  })
+  .handler(async (input: GitRebaseInput, ctx): Promise<GitRebaseOutput> => gitRebase(input, ctx))
+  .build();
+
+const gitRebaseContinueProcedure = createProcedure()
+  .path(["git", "rebase", "continue"])
+  .input(zodAdapter<GitRebaseContinueInput>(GitRebaseContinueInputSchema))
+  .output(zodAdapter<GitRebaseContinueOutput>(GitRebaseContinueOutputSchema))
+  .meta({
+    description: "Continue a rebase after the conflicts are resolved and staged",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+    effects: { reads: ["fs"], writes: ["fs", "process"], destructive: true },
+  })
+  .handler(async (input: GitRebaseContinueInput, ctx): Promise<GitRebaseContinueOutput> => gitRebaseContinue(input, ctx))
+  .build();
+
+const gitRebaseAbortProcedure = createProcedure()
+  .path(["git", "rebase", "abort"])
+  .input(zodAdapter<GitRebaseAbortInput>(GitRebaseAbortInputSchema))
+  .output(zodAdapter<GitRebaseAbortOutput>(GitRebaseAbortOutputSchema))
+  .meta({
+    description: "Stop a rebase, and go back to the branch as it was before the rebase",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+    // The resolutions of the conflicts are lost. Git starts no hook for it.
+    effects: DELETES,
+  })
+  .handler(async (input: GitRebaseAbortInput, ctx): Promise<GitRebaseAbortOutput> => gitRebaseAbort(input, ctx))
+  .build();
+
+const gitWorktreeListProcedure = createProcedure()
+  .path(["git", "worktree", "list"])
+  .input(zodAdapter<GitWorktreeListInput>(GitWorktreeListInputSchema))
+  .output(zodAdapter<GitWorktreeListOutput>(GitWorktreeListOutputSchema))
+  .meta({
+    description: "List the working trees of the repository",
+    args: [],
+    shorts: { cwd: "C" },
+    output: "json",
+    effects: READS_REPOSITORY,
+  })
+  .handler(async (input: GitWorktreeListInput, ctx): Promise<GitWorktreeListOutput> => gitWorktreeList(input, ctx))
+  .build();
+
+const gitWorktreeAddProcedure = createProcedure()
+  .path(["git", "worktree", "add"])
+  .input(zodAdapter<GitWorktreeAddInput>(GitWorktreeAddInputSchema))
+  .output(zodAdapter<GitWorktreeAddOutput>(GitWorktreeAddOutputSchema))
+  .meta({
+    description: "Add a working tree in a new folder",
+    args: ["path", "ref"],
+    shorts: { branch: "b", detach: "d", cwd: "C" },
+    output: "json",
+    // Git refuses a folder that is not empty. It starts the post-checkout hook in the new folder.
+    effects: { reads: ["fs"], writes: ["fs", "process"], destructive: false, idempotent: true },
+  })
+  .handler(async (input: GitWorktreeAddInput, ctx): Promise<GitWorktreeAddOutput> => gitWorktreeAdd(input, ctx))
+  .build();
+
+const gitWorktreeRemoveProcedure = createProcedure()
+  .path(["git", "worktree", "remove"])
+  .input(zodAdapter<GitWorktreeRemoveInput>(GitWorktreeRemoveInputSchema))
+  .output(zodAdapter<GitWorktreeRemoveOutput>(GitWorktreeRemoveOutputSchema))
+  .meta({
+    description: "Remove a working tree and its folder",
+    args: ["path"],
+    shorts: { force: "f", cwd: "C" },
+    output: "json",
+    // With force, the changes of the working tree are lost
+    effects: DELETES,
+  })
+  .handler(async (input: GitWorktreeRemoveInput, ctx): Promise<GitWorktreeRemoveOutput> => gitWorktreeRemove(input, ctx))
+  .build();
+
+const gitBranchListProcedure = createProcedure()
+  .path(["git", "branch", "list"])
+  .input(zodAdapter<GitBranchListInput>(GitBranchListInputSchema))
+  .output(zodAdapter<GitBranchListOutput>(GitBranchListOutputSchema))
+  .meta({
+    description: "List the branches, and give the current branch",
+    args: [],
+    shorts: { remote: "r", cwd: "C" },
+    output: "json",
+    effects: READS_REPOSITORY,
+  })
+  .handler(async (input: GitBranchListInput, ctx): Promise<GitBranchListOutput> => gitBranchList(input, ctx))
+  .build();
+
+const gitBranchAddProcedure = createProcedure()
+  .path(["git", "branch", "add"])
+  .input(zodAdapter<GitBranchAddInput>(GitBranchAddInputSchema))
+  .output(zodAdapter<GitBranchAddOutput>(GitBranchAddOutputSchema))
+  .meta({
+    description: "Make a branch. An existing branch is an error",
+    args: ["name", "startPoint"],
+    shorts: { cwd: "C" },
+    output: "json",
+    effects: ADDS_REF,
+  })
+  .handler(async (input: GitBranchAddInput, ctx): Promise<GitBranchAddOutput> => gitBranchAdd(input, ctx))
+  .build();
+
+const gitBranchDeleteProcedure = createProcedure()
+  .path(["git", "branch", "delete"])
+  .input(zodAdapter<GitBranchDeleteInput>(GitBranchDeleteInputSchema))
+  .output(zodAdapter<GitBranchDeleteOutput>(GitBranchDeleteOutputSchema))
+  .meta({
+    description: "Delete a branch. With force, also a branch that is not merged",
+    args: ["name"],
+    shorts: { force: "f", cwd: "C" },
+    output: "json",
+    // With force, the commits of the branch can be lost
+    effects: DELETES,
+  })
+  .handler(async (input: GitBranchDeleteInput, ctx): Promise<GitBranchDeleteOutput> => gitBranchDelete(input, ctx))
+  .build();
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -642,6 +1031,26 @@ export const gitModule: ProcedureModule = defineModule("@procedures/git", [
     gitStashDropProcedure,
     gitStashExportProcedure,
     gitStashImportProcedure,
+    // Roadmap R40
+    gitShowProcedure,
+    gitBlameProcedure,
+    gitTagListProcedure,
+    gitTagAddProcedure,
+    gitTagDeleteProcedure,
+    gitRevParseProcedure,
+    gitResetProcedure,
+    gitRestoreProcedure,
+    gitMergeProcedure,
+    gitMergeAbortProcedure,
+    gitRebaseProcedure,
+    gitRebaseContinueProcedure,
+    gitRebaseAbortProcedure,
+    gitWorktreeListProcedure,
+    gitWorktreeAddProcedure,
+    gitWorktreeRemoveProcedure,
+    gitBranchListProcedure,
+    gitBranchAddProcedure,
+    gitBranchDeleteProcedure,
   ]);
 
 export default gitModule;

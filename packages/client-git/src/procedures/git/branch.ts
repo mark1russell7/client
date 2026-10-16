@@ -1,61 +1,40 @@
 /**
- * git.branch procedure
+ * git.branch procedure (deprecated)
  *
- * Branch operations
+ * Branch operations. Since roadmap R40, git.branch.list, git.branch.add and git.branch.delete do
+ * this, one procedure for each operation. This procedure stays for one release, and calls them.
+ * Its inputs and outputs do not change. The current branch comes from `git symbolic-ref`, so a
+ * repository without commits works now too (before, `git rev-parse --abbrev-ref HEAD` failed).
  */
 
-import { gitArg } from "./args.js";
-import { git, type GitContext } from "./run.js";
-import type { GitBranchInput, GitBranchOutput, GitBranchInfo } from "../../types.js";
+import { type GitContext } from "./run.js";
+import { currentBranch } from "./refs.js";
+import { gitBranchList } from "./branch/list.js";
+import { gitBranchAdd } from "./branch/add.js";
+import { gitBranchDelete } from "./branch/delete.js";
+import type { GitBranchInput, GitBranchOutput } from "../../types.js";
 
 /**
  * Branch operations
+ *
+ * @deprecated Use `gitBranchList`, `gitBranchAdd` or `gitBranchDelete` (git.branch.list,
+ * git.branch.add, git.branch.delete).
  */
 export async function gitBranch(input: GitBranchInput, ctx: GitContext = {}): Promise<GitBranchOutput> {
   const { name, delete: del, list, remote, cwd } = input;
-  const run = { cwd, signal: ctx.signal };
-
-  // Get current branch
-  const current = (await git(["rev-parse", "--abbrev-ref", "HEAD"], run)).trim();
 
   // Delete branch
   if (del && name) {
-    await git(["branch", "-d", gitArg("name", name)], run);
-    return { deleted: name, current };
+    await gitBranchDelete({ name, cwd }, ctx);
+    return { deleted: name, current: await currentBranch({ cwd, signal: ctx.signal }) };
   }
 
   // Create branch
   if (name && !list) {
-    await git(["branch", gitArg("name", name)], run);
-    return { created: name, current };
+    await gitBranchAdd({ name, cwd }, ctx);
+    return { created: name, current: await currentBranch({ cwd, signal: ctx.signal }) };
   }
 
   // List branches
-  const args = ["branch"];
-  if (remote) args.push("-a");
-  // The full ref name tells local from remote branches: a local "feature/x" also contains "/"
-  args.push("--format=%(refname)|%(refname:short)|%(HEAD)|%(upstream:short)");
-
-  const output = await git(args, run);
-  const branches: GitBranchInfo[] = output
-    .split("\n")
-    .filter(Boolean)
-    .map(line => {
-      const parts = line.split("|");
-      const fullName = parts[0] ?? "";
-      const branchName = parts[1] ?? "";
-      const head = parts[2] ?? "";
-      const trackingVal = parts[3];
-      const result: GitBranchInfo = {
-        name: branchName.replace(/^remotes\//, ""),
-        current: head === "*",
-        remote: fullName.startsWith("refs/remotes/"),
-      };
-      if (trackingVal) {
-        result.tracking = trackingVal;
-      }
-      return result;
-    });
-
-  return { branches, current };
+  return gitBranchList({ remote, cwd }, ctx);
 }

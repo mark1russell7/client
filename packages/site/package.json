@@ -30,6 +30,7 @@
     "@procedures/mongo": "workspace:*",
     "@procedures/node": "workspace:*",
     "@procedures/notify": "workspace:*",
+    "@procedures/npm": "workspace:*",
     "@procedures/peer": "workspace:*",
     "@procedures/pnpm": "workspace:*",
     "@procedures/procedure": "workspace:*",

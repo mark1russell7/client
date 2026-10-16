@@ -96,6 +96,7 @@
     "@procedures/node": "workspace:*",
     "@procedures/notify": "workspace:*",
     "@procedures/restic": "workspace:*",
+    "@procedures/npm": "workspace:*",
     "@procedures/s3": "workspace:*",
     "@procedures/snapshot": "workspace:*",
     "@procedures/splay": "workspace:*",

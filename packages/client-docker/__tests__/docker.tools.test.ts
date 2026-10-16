@@ -34,6 +34,19 @@ const TOOLS: Array<[operation: string, input: Record<string, unknown>]> = [
   ["rm", { containers: [name] }],
   ["compose.up", { cwd, file: join(cwd, "no-compose.yml") }],
   ["compose.down", { cwd, file: join(cwd, "no-compose.yml") }],
+  // Roadmap R41. volume.create, network.create and prune change the daemon, so they stay out.
+  ["compose.ps", { cwd, file: join(cwd, "no-compose.yml") }],
+  ["compose.logs", { cwd, file: join(cwd, "no-compose.yml") }],
+  ["compose.build", { cwd, file: join(cwd, "no-compose.yml") }],
+  ["compose.restart", { cwd, file: join(cwd, "no-compose.yml") }],
+  ["images", { repository: "client-docker-smoke-no-such-image" }],
+  ["inspect", { targets: [name] }],
+  ["volume.list", { filter: `name=${name}` }],
+  ["volume.remove", { volumes: [name] }],
+  ["network.list", { filter: `name=${name}` }],
+  ["network.remove", { networks: [name] }],
+  ["tag", { source: "client-docker-smoke-no-such-image:none", target: `${name}:none` }],
+  ["push", { image: "client-docker-smoke-no-such-image:none" }],
 ];
 
 /** The wiring failed: the call never reached docker. */

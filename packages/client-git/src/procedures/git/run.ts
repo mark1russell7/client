@@ -18,6 +18,8 @@ export interface GitRunOptions extends GitContext {
   cwd?: string | undefined;
   /** Text to write to the stdin of git (for example a patch for `git apply`). */
   input?: string | undefined;
+  /** Environment variables to add for git (for example `GIT_EDITOR`). */
+  env?: Record<string, string> | undefined;
 }
 
 /** A git command that ended with an exit code other than 0. */
@@ -43,6 +45,7 @@ export async function git(args: string[], options: GitRunOptions = {}): Promise<
     cwd: options.cwd,
     signal: options.signal,
     input: options.input,
+    env: options.env,
     maxOutputBytes: GIT_MAX_BUFFER,
   });
   if (result.aborted) {

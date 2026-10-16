@@ -23,6 +23,8 @@ beforeEach(() => {
 const READS: Effects = { reads: ["fs"], writes: [] };
 const CHANGES: Effects = { reads: ["fs"], writes: ["fs"] };
 const HOOKS: Effects = { reads: ["fs"], writes: ["fs", "process"] };
+const ADDS: Effects = { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true };
+const DELETES: Effects = { reads: ["fs"], writes: ["fs"], destructive: true, idempotent: true };
 
 /** The declaration of each procedure, as `metadata.effects` gives it. */
 const DECLARED: Record<string, Effects> = {
@@ -53,6 +55,26 @@ const DECLARED: Record<string, Effects> = {
   "git.stash.apply": CHANGES,
   "git.stash.drop": CHANGES,
   "git.stash.import": CHANGES,
+  // Roadmap R40
+  "git.show": READS,
+  "git.blame": READS,
+  "git.tag.list": READS,
+  "git.revParse": READS,
+  "git.worktree.list": READS,
+  "git.branch.list": READS,
+  "git.tag.add": ADDS,
+  "git.branch.add": ADDS,
+  "git.tag.delete": DELETES,
+  "git.branch.delete": DELETES,
+  "git.worktree.remove": DELETES,
+  "git.merge.abort": DELETES,
+  "git.rebase.abort": DELETES,
+  "git.reset": { reads: ["fs"], writes: ["fs"], destructive: true },
+  "git.restore": { reads: ["fs"], writes: ["fs", "process"], destructive: true, idempotent: true },
+  "git.merge": { reads: ["fs"], writes: ["fs", "process"], idempotent: true },
+  "git.rebase": { reads: ["fs"], writes: ["fs", "process"], destructive: true, idempotent: true },
+  "git.rebase.continue": { reads: ["fs"], writes: ["fs", "process"], destructive: true },
+  "git.worktree.add": { reads: ["fs"], writes: ["fs", "process"], destructive: false, idempotent: true },
 };
 
 /** The files of a folder, with their content, and the state of its repository. */
@@ -96,8 +118,46 @@ function prepareEffects(folder: string): void {
   writeFileSync(join(prepared, "s.txt"), "stashed\n");
   git(prepared, "add", "s.txt");
   git(prepared, "stash", "push", "-q", "-m", "kept");
+  // R40: a tag, and a branch with one more commit (for merge, rebase and the worktrees)
+  git(prepared, "tag", "v0");
+  git(prepared, "checkout", "-q", "-b", "topic");
+  writeFileSync(join(prepared, "t.txt"), "topic\n");
+  git(prepared, "add", "t.txt");
+  git(prepared, "commit", "-q", "-m", "topic");
+  git(prepared, "checkout", "-q", "main");
   writeFileSync(join(prepared, "a.txt"), "changed\n");
   writeFileSync(join(prepared, "new.txt"), "new\n");
+}
+
+/** A clean working tree: the changes and the untracked file of the prepared state go to a stash. */
+function cleanTree(): void {
+  git(repo, "stash", "push", "-q", "--include-untracked", "-m", "clean");
+}
+
+/** A merge or a rebase of main on `clash` that stopped on a conflict in a.txt. */
+function stopOnConflict(command: "merge" | "rebase"): void {
+  cleanTree();
+  git(repo, "checkout", "-q", "-b", "clash");
+  writeFileSync(join(repo, "a.txt"), "clash\n");
+  git(repo, "commit", "-q", "-am", "clash");
+  git(repo, "checkout", "-q", "main");
+  writeFileSync(join(repo, "a.txt"), "main\n");
+  git(repo, "commit", "-q", "-am", "main");
+  expect(() => git(repo, command, "clash")).toThrow();
+}
+
+/** The work of each procedure that needs more than the prepared state, before the call. */
+function setUp(key: string): void {
+  if (key === "git.init") mkdirSync(join(base, "made"));
+  if (key === "git.pull" || key === "git.rebase") cleanTree();
+  if (key === "git.merge.abort") stopOnConflict("merge");
+  if (key === "git.rebase.abort") stopOnConflict("rebase");
+  if (key === "git.rebase.continue") {
+    stopOnConflict("rebase");
+    writeFileSync(join(repo, "a.txt"), "resolved\n");
+    git(repo, "add", "a.txt");
+  }
+  if (key === "git.worktree.remove") git(repo, "worktree", "add", "-q", "--detach", join(base, "wt-remove"));
 }
 
 /** An input for each procedure: each one has work to do in the prepared state. */
@@ -123,6 +183,28 @@ function effectsInput(key: string): Record<string, unknown> {
       return { cwd: repo, name: "mirror", url: "https://example.com/mirror.git" };
     case "git.stash.import":
       return { cwd: repo, patch: git(repo, "stash", "show", "-p", "stash@{0}") };
+    case "git.blame":
+      return { cwd: repo, path: "a.txt" };
+    case "git.tag.add":
+      return { cwd: repo, name: "effects" };
+    case "git.tag.delete":
+      return { cwd: repo, name: "v0" };
+    case "git.branch.add":
+      return { cwd: repo, name: "effects" };
+    case "git.branch.delete":
+      return { cwd: repo, name: "topic", force: true };
+    case "git.reset":
+      return { cwd: repo, mode: "hard" };
+    case "git.restore":
+      return { cwd: repo, paths: ["a.txt"] };
+    case "git.merge":
+      return { cwd: repo, ref: "topic" };
+    case "git.rebase":
+      return { cwd: repo, upstream: "topic" };
+    case "git.worktree.add":
+      return { cwd: repo, path: join(base, "wt"), ref: "topic" };
+    case "git.worktree.remove":
+      return { cwd: repo, path: join(base, "wt-remove") };
     default:
       return { cwd: repo };
   }
@@ -150,8 +232,7 @@ describe("the effects of the git procedures", () => {
   for (const [key, effects] of Object.entries(DECLARED)) {
     const reader = effects.writes?.length === 0;
     it(`${key} ${reader ? "changes nothing" : "changes the repository"}${effects.idempotent ? ", and a second call changes nothing more" : ""}`, async () => {
-      if (key === "git.init") mkdirSync(join(base, "made"));
-      if (key === "git.pull") git(repo, "stash", "push", "-q", "--include-untracked", "-m", "clean for pull");
+      setUp(key);
       const path = key.split(".");
       const before = snapshot();
       await call(path, effectsInput(key));

@@ -26,6 +26,34 @@ export function words(command: string): string[] {
   return command.trim().split(/\s+/).filter((word) => word.length > 0);
 }
 
+/**
+ * The command of docker.run or docker.exec: `args` as they are, or `command` split at whitespace.
+ * R32 found that `command` cannot carry an argument with a space, so R41 added `args`. The two
+ * together are an error. Docker reads no option after the image or the container, so an
+ * argument that starts with "-" goes to the command.
+ */
+export function commandWords(input: { command?: string | undefined; args?: string[] | undefined }): string[] {
+  if (input.command !== undefined && input.args !== undefined) {
+    throw new Error("Give command or args, not both");
+  }
+  return input.args ?? (input.command !== undefined ? words(input.command) : []);
+}
+
+/** The start of a compose command: `compose`, the compose file, and the subcommand. */
+export function composeArgs(file: string | undefined, subcommand: string): string[] {
+  return ["compose", ...(file ? ["-f", file] : []), subcommand];
+}
+
+/** The services of a compose command, after its options. */
+export function serviceArgs(services: string[] | undefined): string[] {
+  return (services ?? []).map((service) => dockerArg("service", service));
+}
+
+/** `--label key=value` for each label. */
+export function labelArgs(labels: Record<string, string> | undefined): string[] {
+  return Object.entries(labels ?? {}).flatMap(([key, value]) => ["--label", `${key}=${value}`]);
+}
+
 /** This function runs `docker <args>` and gives its result. It does not throw. */
 export async function runDocker(
   args: string[],
