@@ -291,80 +291,6 @@
       }
     }
   },
-  "db.execute": {
-    "type": "object",
-    "properties": {
-      "sql": {
-        "type": "string",
-        "description": "The SQL statement or script (INSERT, UPDATE, DELETE, CREATE TABLE, ...)"
-      },
-      "params": {
-        "description": "The values of the ? placeholders of the SQL, in order",
-        "type": "array",
-        "items": {}
-      },
-      "dbPath": {
-        "description": "The SQLite database file (default: <home>/logs/cli/cli.db). A query does not make a missing file.",
-        "type": "string"
-      }
-    },
-    "required": [
-      "sql"
-    ]
-  },
-  "db.query": {
-    "type": "object",
-    "properties": {
-      "sql": {
-        "type": "string",
-        "description": "The SQL query (SELECT)"
-      },
-      "params": {
-        "description": "The values of the ? placeholders of the SQL, in order",
-        "type": "array",
-        "items": {}
-      },
-      "dbPath": {
-        "description": "The SQLite database file (default: <home>/logs/cli/cli.db). A query does not make a missing file.",
-        "type": "string"
-      }
-    },
-    "required": [
-      "sql"
-    ]
-  },
-  "db.schema": {
-    "type": "object",
-    "properties": {
-      "table": {
-        "type": "string",
-        "minLength": 1,
-        "description": "The table or the view"
-      },
-      "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db)",
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "required": [
-      "table"
-    ]
-  },
-  "db.tables": {
-    "type": "object",
-    "properties": {
-      "views": {
-        "description": "Also give the views (default true)",
-        "type": "boolean"
-      },
-      "dbPath": {
-        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db)",
-        "type": "string",
-        "minLength": 1
-      }
-    }
-  },
   "docker.build": {
     "type": "object",
     "properties": {
@@ -1363,7 +1289,7 @@
         ]
       },
       "dbPath": {
-        "description": "The SQLite database file (default: <home>/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
         "type": "string"
       }
     }
@@ -1411,7 +1337,7 @@
         "type": "string"
       },
       "dbPath": {
-        "description": "The SQLite database file (default: <home>/logs/cli/cli.db). A query does not make a missing file.",
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
         "type": "string"
       }
     },
@@ -2495,6 +2421,80 @@
     "required": [
       "program"
     ]
+  },
+  "sqlite.execute": {
+    "type": "object",
+    "properties": {
+      "sql": {
+        "type": "string",
+        "description": "The SQL statement or script (INSERT, UPDATE, DELETE, CREATE TABLE, ...)"
+      },
+      "params": {
+        "description": "The values of the ? placeholders of the SQL, in order",
+        "type": "array",
+        "items": {}
+      },
+      "dbPath": {
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "sql"
+    ]
+  },
+  "sqlite.query": {
+    "type": "object",
+    "properties": {
+      "sql": {
+        "type": "string",
+        "description": "The SQL query (SELECT)"
+      },
+      "params": {
+        "description": "The values of the ? placeholders of the SQL, in order",
+        "type": "array",
+        "items": {}
+      },
+      "dbPath": {
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "sql"
+    ]
+  },
+  "sqlite.schema": {
+    "type": "object",
+    "properties": {
+      "table": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The table or the view"
+      },
+      "dbPath": {
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db)",
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "table"
+    ]
+  },
+  "sqlite.tables": {
+    "type": "object",
+    "properties": {
+      "views": {
+        "description": "Also give the views (default true)",
+        "type": "boolean"
+      },
+      "dbPath": {
+        "description": "The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db)",
+        "type": "string",
+        "minLength": 1
+      }
+    }
   },
   "vitest.coverage": {
     "type": "object",

@@ -18,10 +18,6 @@ cue.generate
 cue.init
 cue.remove
 cue.validate
-db.execute
-db.query
-db.schema
-db.tables
 docker.build
 docker.compose.build
 docker.compose.down
@@ -85,6 +81,10 @@ program.check
 program.compile
 program.diagram
 program.explain
+sqlite.execute
+sqlite.query
+sqlite.schema
+sqlite.tables
 vitest.coverage
 vitest.run
 yaml.parse

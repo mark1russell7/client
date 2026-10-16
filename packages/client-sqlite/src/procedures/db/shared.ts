@@ -1,5 +1,5 @@
 /**
- * The helpers of the db.* procedures of roadmap R44.
+ * The helpers of the sqlite.* procedures of roadmap R44.
  */
 
 import { existsSync } from "node:fs";

@@ -11,7 +11,7 @@ import "./register.js";
 
 describe("bundle-mcp", () => {
   it("registers the procedures of the bundle from its register entry", () => {
-    for (const key of ["lib.scan", "docker.ps", "mongo.documents.find", "vitest.run", "git.status", "fs.readdir", "dag.traverse"]) {
+    for (const key of ["lib.scan", "docker.ps", "mongo.documents.find", "vitest.run", "git.status", "fs.readdir", "dag.traverse", "sqlite.query", "db.query"]) {
       expect(PROCEDURE_REGISTRY.get(key.split("."))?.handler, key).toBeDefined();
     }
   });
@@ -20,5 +20,13 @@ describe("bundle-mcp", () => {
     expect(mcpNamespaces).toContain("lib");
     expect(mcpNamespaces).not.toContain("git");
     expect(mcpExclude).toContain("vitest.watch");
+  });
+
+  it("exposes the sqlite namespace, not the deprecated db aliases or dag", () => {
+    expect(mcpNamespaces).toContain("sqlite");
+    expect(mcpNamespaces).not.toContain("db");
+    expect(mcpNamespaces).not.toContain("dag");
+    expect(mcpExclude).toEqual(expect.arrayContaining(["sqlite.transaction", "sqlite.migrate", "sqlite.backup"]));
+    expect(mcpExclude.filter((key) => key.startsWith("db."))).toEqual([]);
   });
 });

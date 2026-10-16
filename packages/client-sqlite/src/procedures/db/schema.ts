@@ -1,5 +1,5 @@
 /**
- * db.schema procedure (roadmap R44)
+ * sqlite.schema procedure (roadmap R44)
  *
  * The columns, the indexes and the foreign keys of a table (or the columns of a view). The
  * procedure reads them with the table-valued PRAGMA functions, so the name of the table is a
@@ -38,7 +38,7 @@ interface ForeignKeyRow {
  */
 export async function dbSchema(input: DbSchemaInput): Promise<DbSchemaOutput> {
   const path = databasePath(input.dbPath);
-  requireDatabaseFile("db.schema", path);
+  requireDatabaseFile("sqlite.schema", path);
   return withConnection({ dbPath: path }, (db) => {
     db.run("PRAGMA query_only = 1");
     const found = query<{ type: "table" | "view"; sql: string | null }>(
@@ -46,7 +46,7 @@ export async function dbSchema(input: DbSchemaInput): Promise<DbSchemaOutput> {
       "SELECT type, sql FROM sqlite_master WHERE name = ? AND type IN ('table', 'view')",
       [input.table],
     ).rows[0];
-    if (!found) throw new Error(`db.schema: no table or view named ${JSON.stringify(input.table)}`);
+    if (!found) throw new Error(`sqlite.schema: no table or view named ${JSON.stringify(input.table)}`);
 
     const columns: DbColumnInfo[] = query<ColumnRow>(db, "SELECT name, type, \"notnull\", dflt_value, pk FROM pragma_table_info(?) ORDER BY cid", [input.table]).rows.map(
       (row) => ({ name: row.name, type: row.type, notNull: row.notnull === 1, defaultValue: row.dflt_value, primaryKey: row.pk }),

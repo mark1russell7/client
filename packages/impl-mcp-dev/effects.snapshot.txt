@@ -18,10 +18,6 @@ cue.generate: destructive, idempotent
 cue.init: destructive, idempotent
 cue.remove: destructive, idempotent
 cue.validate: read only
-db.execute: destructive
-db.query: read only
-db.schema: read only
-db.tables: read only
 docker.build: additive, open world
 docker.compose.build: additive, open world
 docker.compose.down: destructive, idempotent
@@ -85,6 +81,10 @@ program.check: read only
 program.compile: read only
 program.diagram: read only
 program.explain: read only
+sqlite.execute: destructive
+sqlite.query: read only
+sqlite.schema: read only
+sqlite.tables: read only
 vitest.coverage: destructive, open world
 vitest.run: destructive, open world
 yaml.parse: read only

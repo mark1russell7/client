@@ -1,5 +1,5 @@
 /**
- * db.transaction procedure (roadmap R44)
+ * sqlite.transaction procedure (roadmap R44)
  *
  * The statements of the input run in order in one transaction. When one fails, the procedure
  * rolls back the transaction and does not save the file: the database stays as it was. A
@@ -20,7 +20,7 @@ export async function dbTransaction(input: DbTransactionInput): Promise<DbTransa
     const results: DbStatementResult[] = [];
     try {
       input.statements.forEach((statement, index) => {
-        const label = `db.transaction: statements[${index}]`;
+        const label = `sqlite.transaction: statements[${index}]`;
         try {
           results.push(runStatements(db, statement.sql, statement.params ?? [], label));
         } catch (error) {

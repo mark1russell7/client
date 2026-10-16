@@ -1,5 +1,5 @@
 /**
- * db.migrate procedure (roadmap R44)
+ * sqlite.migrate procedure (roadmap R44)
  *
  * The procedure applies the numbered migrations that the database does not have, in the order
  * of their numbers. The migrations come from a folder (files named `<number>_<name>.sql`) or
@@ -44,7 +44,7 @@ export async function migrationsOfFolder(folder: string): Promise<DbMigration[]>
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".sql")) continue;
     const match = MIGRATION_FILE.exec(entry.name);
-    if (!match) throw new Error(`db.migrate: the file ${entry.name} has no number: name it <number>_<name>.sql`);
+    if (!match) throw new Error(`sqlite.migrate: the file ${entry.name} has no number: name it <number>_<name>.sql`);
     migrations.push({ version: Number(match[1]), name: match[2]!, sql: await readFile(join(folder, entry.name), "utf8") });
   }
   return migrations;
@@ -55,9 +55,9 @@ function ordered(migrations: DbMigration[]): Migration[] {
   const byVersion = new Map<number, Migration>();
   for (const migration of migrations) {
     if (!Number.isSafeInteger(migration.version) || migration.version < 1) {
-      throw new Error(`db.migrate: the version ${migration.version} is not a whole number of 1 or more`);
+      throw new Error(`sqlite.migrate: the version ${migration.version} is not a whole number of 1 or more`);
     }
-    if (byVersion.has(migration.version)) throw new Error(`db.migrate: two migrations have the version ${migration.version}`);
+    if (byVersion.has(migration.version)) throw new Error(`sqlite.migrate: two migrations have the version ${migration.version}`);
     const name = migration.name ?? `migration ${migration.version}`;
     byVersion.set(migration.version, { version: migration.version, name, sql: migration.sql, checksum: checksum(migration.sql) });
   }
@@ -69,10 +69,10 @@ function ordered(migrations: DbMigration[]): Migration[] {
  */
 export async function dbMigrate(input: DbMigrateInput): Promise<DbMigrateOutput> {
   if ((input.folder === undefined) === (input.migrations === undefined)) {
-    throw new Error("db.migrate: give exactly one of folder or migrations");
+    throw new Error("sqlite.migrate: give exactly one of folder or migrations");
   }
   const table = input.table ?? DEFAULT_MIGRATION_TABLE;
-  if (!MIGRATION_TABLE_PATTERN.test(table)) throw new Error(`db.migrate: the table name ${JSON.stringify(table)} is not valid`);
+  if (!MIGRATION_TABLE_PATTERN.test(table)) throw new Error(`sqlite.migrate: the table name ${JSON.stringify(table)} is not valid`);
   const migrations = ordered(input.folder !== undefined ? await migrationsOfFolder(input.folder) : input.migrations!);
 
   return withConnection({ dbPath: databasePath(input.dbPath) }, (db) => {
@@ -87,7 +87,7 @@ export async function dbMigrate(input: DbMigrateInput): Promise<DbMigrateOutput>
       for (const migration of migrations) {
         const known = applied.get(migration.version);
         if (known !== undefined && known !== migration.checksum) {
-          throw new Error(`db.migrate: the migration ${migration.version} (${migration.name}) changed after it was applied: its sha256 is different`);
+          throw new Error(`sqlite.migrate: the migration ${migration.version} (${migration.name}) changed after it was applied: its sha256 is different`);
         }
       }
       const pending = migrations.filter((migration) => !applied.has(migration.version));
@@ -97,7 +97,7 @@ export async function dbMigrate(input: DbMigrateInput): Promise<DbMigrateOutput>
           runStatements(db, migration.sql, [], label);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          throw new Error(message.startsWith(label) ? `db.migrate: ${message}` : `db.migrate: ${label} failed: ${message}`);
+          throw new Error(message.startsWith(label) ? `sqlite.migrate: ${message}` : `sqlite.migrate: ${label} failed: ${message}`);
         }
         db.run(`INSERT INTO "${table}" (version, name, checksum) VALUES (?, ?, ?)`, [migration.version, migration.name, migration.checksum]);
       }

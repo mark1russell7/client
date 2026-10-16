@@ -1,5 +1,5 @@
 /**
- * db.tables procedure (roadmap R44)
+ * sqlite.tables procedure (roadmap R44)
  *
  * The tables and the views of a database, without the internal `sqlite_` tables. The connection
  * is read only (PRAGMA query_only), and a missing file is an error: it does not make one.
@@ -14,7 +14,7 @@ import { databasePath, requireDatabaseFile } from "./shared.js";
  */
 export async function dbTables(input: DbTablesInput): Promise<DbTablesOutput> {
   const path = databasePath(input.dbPath);
-  requireDatabaseFile("db.tables", path);
+  requireDatabaseFile("sqlite.tables", path);
   const types = input.views === false ? "('table')" : "('table', 'view')";
   return withConnection({ dbPath: path }, (db) => {
     db.run("PRAGMA query_only = 1");

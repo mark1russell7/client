@@ -30,7 +30,7 @@ export const LOG_LEVELS: readonly LogLevel[] = [
 ] as const;
 
 // =============================================================================
-// db.query types
+// sqlite.query types
 // =============================================================================
 
 export interface DbQueryInput {
@@ -50,7 +50,7 @@ export interface DbQueryOutput<T = Record<string, unknown>> {
 }
 
 // =============================================================================
-// db.execute types
+// sqlite.execute types
 // =============================================================================
 
 export interface DbExecuteInput {
@@ -136,7 +136,7 @@ export interface LogsQueryOutput {
 }
 
 // =============================================================================
-// db.tables, db.schema, db.transaction, db.migrate and db.backup (roadmap R44)
+// sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate and sqlite.backup (roadmap R44)
 // =============================================================================
 
 /** The `dbPath` field of the R44 procedures. Its description does not show the home folder. */
@@ -345,7 +345,7 @@ export interface DbMigrateOutput {
   version: number;
 }
 
-/** The name of a table that the SQL of db.migrate names: letters, digits and underscores. */
+/** The name of a table that the SQL of sqlite.migrate names: letters, digits and underscores. */
 export const MIGRATION_TABLE_PATTERN: RegExp = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
 export const DbMigrateInputSchema: z.ZodType<DbMigrateInput> = z.object({

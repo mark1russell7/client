@@ -67,13 +67,13 @@ export default bundleMcpModule;
 /**
  * The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools.
  * `cli` is not one: `cli.run` runs any `mark` command, also `shell exec`, so it would give back what
- * the list keeps out (deep dive CLI-5, TRN-2). `dag` is not one: `dag.traverse` runs refs, and a
- * tool list does not need it.
+ * the list keeps out (deep dive CLI-5, TRN-2). `db` is not one: the `db.*` procedures of
+ * `@procedures/sqlite` are deprecated aliases of `sqlite.*` for one release, and the tools have
+ * only the new names. `dag` is not one: `dag.traverse` runs refs, and a tool list does not need it.
  */
 export const mcpNamespaces: readonly string[] = [
   "client",
   "cue",
-  "db",
   "docker",
   "json",
   "lib",
@@ -81,6 +81,7 @@ export const mcpNamespaces: readonly string[] = [
   "mongo",
   "procedure",
   "program",
+  "sqlite",
   "vitest",
   "yaml",
 ];
@@ -91,8 +92,9 @@ export const mcpNamespaces: readonly string[] = [
  *   processes. A tool call does not leave a process running, so the three stay out (deep dive WRP-4);
  * - `docker.prune` deletes in bulk, `docker.volume.remove` deletes the data of a volume, and
  *   `docker.push` can carry an image out to any registry (roadmap R41);
- * - `mongo.watch` is a stream without an end, `mongo.documents.bulk` and `db.transaction` change
- *   data in bulk, and `db.migrate` and `db.backup` change or copy the database file (roadmap R44);
+ * - `mongo.watch` is a stream without an end, `mongo.documents.bulk` and `sqlite.transaction`
+ *   change data in bulk, and `sqlite.migrate` and `sqlite.backup` change or copy the database
+ *   file (roadmap R44);
  * - `procedure.store`, `load`, `sync`, `remote` and `register` are in `@procedures/store`
  *   (roadmap 3.2). The bundle does not import that package, so the MCP server does not have them.
  *   The names stay here: if a host adds the package, they stay out of the tools. They work only on
@@ -103,9 +105,9 @@ export const mcpExclude: readonly string[] = [
   "docker.prune",
   "docker.push",
   "docker.volume.remove",
-  "db.backup",
-  "db.migrate",
-  "db.transaction",
+  "sqlite.backup",
+  "sqlite.migrate",
+  "sqlite.transaction",
   "mongo.documents.bulk",
   "mongo.watch",
   "vitest.watch",
