@@ -44,7 +44,7 @@ export interface ResticResult {
   /** The JSON output, when `json` is true and restic gave JSON */
   json?: unknown;
   /** Present when an output stream was longer than `maxOutputBytes`: which one lost bytes. */
-  truncated?: { stdout: boolean; stderr: boolean };
+  truncated?: { stdout: boolean; stderr: boolean } | undefined;
 }
 type RunOutput = ResticResult;
 const RunOutputSchema = z.object({
