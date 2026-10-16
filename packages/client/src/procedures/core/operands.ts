@@ -7,6 +7,8 @@ import type { ProcedureContext, ProcedurePath } from "../types.js";
 import { PROCEDURE_REGISTRY } from "../registry.js";
 import {
   isAnyProcedureRef,
+  getRefWhen,
+  WHEN_NEVER,
   normalizeRef,
   hydrateInput,
   createRefScope,
@@ -73,6 +75,11 @@ export async function callOperand(
   ctx: ProcedureContext,
   options: { scope?: RefScope | undefined; extra?: Record<string, unknown> | undefined } = {},
 ): Promise<unknown> {
+  // A $never operand is data with its full input, as a $never call anywhere (roadmap R4: before,
+  // only a chain step obeyed it, and a $never branch, task or fn started)
+  if (getRefWhen(ref) === WHEN_NEVER) {
+    return ref;
+  }
   const normalized = normalizeRef(ref);
   const raw = rawRule(ctx)(normalized.path);
   let input: unknown = raw ? normalized.input : await hydrateOperand(normalized.input, ctx, options.scope);

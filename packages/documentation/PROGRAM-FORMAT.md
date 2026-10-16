@@ -121,7 +121,7 @@ The rules:
 // { "$proc": ["client", "add"], "input": { "a": 1, "b": 2 }, "$when": "$never" }
 ```
 
-A deferred call is data also in a list and as a step of `client.chain`. A `$never` step of a chain gives the step itself as its result. A list that has a deferred call is not an implicit chain (section 7).
+A deferred call is data also in a list and as an operand of each control-flow procedure. Examples are a step of `client.chain`, a branch, a try, a task and the `fn` of `client.map`. A `$never` operand gives the call itself as its result. A list that has a deferred call is not an implicit chain (section 7).
 
 A runner is a procedure that hydrates a deferred call itself and gives a context name. Two runners exist. `core.catch` (`client-lib`) gives `"catch"`, and `dag.traverse` gives `"dag.traverse"`. A `$name` is not a context name. A deferred call is data at all depths. The test is "a ref deferred to a name is data at every depth" in `ref.hydrate.test.ts`.
 
@@ -224,6 +224,7 @@ Details:
 - **The truth of a condition.** `client.conditional` reads the `value` field of an object: `{ "value": 0 }` is false. For other values, the JavaScript rules apply.
 - **Items.** `client.map` and `client.reduce` hydrate each item of an `items` array separately. An item that is a call gives its result. An item that is an array of calls is an implicit chain. When `items` is a call or a `$ref`, its result must be an array.
 - **Without `fn`.** `client.map` gives the hydrated items. `client.reduce` gives the hydrated `initial`: a call in it starts.
+- **A `fn` that is not one call.** `client.map` and `client.reduce` give an error.
 - **The parent context.** `chain`, `parallel`, `conditional`, `and` and `or` add the `cwd` and `node` fields of their input to the input of each operand call.
 - **A branch that is an array.** A branch of `conditional` or an operand of `tryCatch` that is an array of calls is a chain. The test is `analysis.test.ts` of the site.
 
@@ -300,5 +301,6 @@ The deep dive of October 2026 replaced three `$ref` interpreters with one. These
 | An array of `$never` calls was an implicit chain, and its calls started. A `$never` step of `client.chain` started. | A deferred call is data in a list and as a chain step. | DOC-1 |
 | `client.eval` gave the raw input to its call. `add` with a nested call gave `"[object Object]1"`. | `client.eval` hydrates the input of its call like `exec()`. | DOC-2 |
 | `client.reduce` without `fn` gave `initial` raw. `client.chain` ignored `passThrough` and `initialInput`. | `initial` is hydrated, and `passThrough` operates. | DOC-4 |
+| A `$never` branch, try, task or `fn` started. A `fn` that was not one call was ignored. | A `$never` operand is data. A `fn` that is not one call is an error. | R4 (REV-4) |
 | `procedure.list` and `procedure.get` gave only the defined procedures, or the whole registry when `client-procedure` was loaded. | One implementation for the whole registry, with `runtime: true` for the defined procedures. | DOC-6 |
 | A defined body hydrated its root call as a nested call. A root `$when` applied, and an array of calls in the root input was a list of results. | A body operates as `client.exec()` operates the same program. | DOC-3 |

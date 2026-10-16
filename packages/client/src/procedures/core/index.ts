@@ -582,6 +582,10 @@ const mapProcedure: MapProcedure = defineProcedure({
     // map is a control-flow procedure: its operands arrive raw, and it runs them here.
     // Before, the handler only returned the raw items, so their refs never ran and no
     // function was applied.
+    if (input.fn !== undefined && !isAnyProcedureRef(input.fn)) {
+      // Before, a fn that was not a call was ignored without a word (roadmap R4)
+      throw new Error("client.map: fn must be one call ({ $proc, input }), or absent");
+    }
     const outer = scopeOf(input);
     const items = await hydrateItems(input.items, ctx, outer);
     if (!isAnyProcedureRef(input.fn) || !ctx?.client) {
@@ -625,6 +629,10 @@ const reduceProcedure: ReduceProcedure = defineProcedure({
     tags: controlFlowTags("collection"),
   },
   handler: async (input: ReduceInput, ctx?: ProcedureContext): Promise<unknown> => {
+    if (input.fn !== undefined && !isAnyProcedureRef(input.fn)) {
+      // Before, a fn that was not a call was ignored without a word (roadmap R4)
+      throw new Error("client.reduce: fn must be one call ({ $proc, input }), or absent");
+    }
     if (!ctx?.client) {
       return input.accumulated ?? input.initial;
     }
