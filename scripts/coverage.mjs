@@ -45,6 +45,20 @@ const only = (() => {
 })();
 const concurrency = Math.max(1, Number(process.env.COVERAGE_CONCURRENCY ?? 2));
 
+/**
+ * The arguments of the test script of a package after `vitest run`, for example
+ * an exclude of the integration tests. The coverage run uses them too: before, it ran the
+ * integration tests that `pnpm test` leaves out.
+ */
+function testArguments(script) {
+  const match = /vitest\s+run\s*(.*)$/.exec(script);
+  if (!match) return [];
+  const words = [];
+  const pattern = /'([^']*)'|"([^"]*)"|(\S+)/g;
+  for (let found = pattern.exec(match[1]); found; found = pattern.exec(match[1])) words.push(found[1] ?? found[2] ?? found[3]);
+  return words;
+}
+
 /** The packages whose test script runs vitest. */
 function packagesWithTests() {
   const dir = join(ROOT, "packages");
@@ -55,7 +69,7 @@ function packagesWithTests() {
       if (!existsSync(file)) return undefined;
       const manifest = JSON.parse(readFileSync(file, "utf8"));
       const test = manifest.scripts?.test ?? "";
-      return test.includes("vitest") ? { folder: entry.name, name: manifest.name, dir: join(dir, entry.name) } : undefined;
+      return test.includes("vitest") ? { folder: entry.name, name: manifest.name, dir: join(dir, entry.name), args: testArguments(test) } : undefined;
     })
     .filter(Boolean)
     .sort((a, b) => a.folder.localeCompare(b.folder));
@@ -79,6 +93,7 @@ function measure(pkg, reports) {
         "--maxWorkers=2",
         // A package without tests (a bundle, the documentation) has no coverage and no floor
         "--passWithNoTests",
+        ...pkg.args.filter((arg) => arg !== "--passWithNoTests"),
       ],
       { cwd: pkg.dir, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, FORCE_COLOR: "0" } },
     );
