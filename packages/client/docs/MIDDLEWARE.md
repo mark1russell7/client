@@ -116,8 +116,8 @@ import { resilience, idempotentIn } from "@procedures/client";
 
 client.use(
   resilience({
-    overall: 10_000,
-    perAttempt: 3_000,
+    overall: seconds(10),
+    perAttempt: seconds(3),
     retry: { maxRetries: 2, idempotent: idempotentIn(registry) },
     breaker: { failureThreshold: 5 },
   }),
@@ -164,9 +164,9 @@ import { bundle } from "client/middleware";
 
 // Create a standard client middleware bundle
 const standardStack = bundle(
-  createOverallTimeoutMiddleware({ overall: 5000 }),
+  createOverallTimeoutMiddleware({ overall: seconds(5) }),
   createRetryMiddleware({ maxRetries: 3 }),
-  createCacheMiddleware({ methods: ["users.get"], ttl: 60000 })
+  createCacheMiddleware({ methods: ["users.get"], ttl: minutes(1) })
 );
 
 // Use like any middleware
@@ -379,7 +379,7 @@ import { compose, lruMap, ttlMap, boundedList, eventedList, hashMap, arrayList }
 // Map with LRU + TTL
 const cache = compose(
   lruMap({ capacity: 100 }),
-  ttlMap({ ttl: 60000 })
+  ttlMap({ ttl: minutes(1) })
 )(hashMap<string, User>());
 
 // List with events + bounds

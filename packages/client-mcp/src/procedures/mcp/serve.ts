@@ -25,6 +25,7 @@ import {
 import { McpServerTransport } from "../../transport/mcp-transport.js";
 import type { McpServerTransportOptions } from "../../types.js";
 import { exposeRule, importBundles, mergeSurfaces } from "../../surface.js";
+import { ms } from "@procedures/client";
 
 /** The default bundle of the tool surface. */
 export const DEFAULT_SERVE_BUNDLE = "@procedures/bundle-mcp";
@@ -129,7 +130,7 @@ export async function prepareServe(
     registry,
     expose,
     strictCalls: input.strictCalls ?? true,
-    interceptors: [timeoutInterceptor({ ms: input.toolTimeoutMs ?? 600_000 })],
+    interceptors: [timeoutInterceptor({ limit: ms(input.toolTimeoutMs ?? 600_000) })],
   });
   return warning === undefined ? { server, expose } : { server, expose, warning };
 }

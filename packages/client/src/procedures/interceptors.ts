@@ -8,14 +8,15 @@
 
 import { InvocationError, type Interceptor, type Invocation, type ProcedureOutput } from "./invoke.js";
 import { pathToKey, type ProcedurePath } from "./types.js";
+import { toMs, type Duration } from "../duration.js";
 
 // =============================================================================
 // Timeout
 // =============================================================================
 
 export interface TimeoutInterceptorOptions {
-  /** The time limit in milliseconds. 0 or less: no limit. */
-  ms: number;
+  /** The time limit, for example `minutes(10)`. 0 or less: no limit. */
+  limit: Duration;
   /**
    * The invocations to limit. The default is the calls of the host (depth 0): a nested call gets
    * the signal of its parent, so the limit of the parent ends it too.
@@ -76,6 +77,14 @@ async function* itemsUntil<T>(
  * result is not used. For a stream, the limit covers the whole stream.
  */
 export function timeoutInterceptor(options: TimeoutInterceptorOptions): Interceptor {
+  return timeoutAfterMs({ ...options, ms: toMs(options.limit, "limit") });
+}
+
+/**
+ * The timeout interceptor with a limit in milliseconds. The invocation uses it for the deadline
+ * of a capability, which is a time in milliseconds.
+ */
+export function timeoutAfterMs(options: Omit<TimeoutInterceptorOptions, "limit"> & { ms: number }): Interceptor {
   const { ms } = options;
   const appliesTo = options.appliesTo ?? ((invocation: Invocation) => invocation.depth === 0);
   return async (invocation, next) => {

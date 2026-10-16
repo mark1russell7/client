@@ -20,6 +20,7 @@ import { defineProcedure } from "../procedures/define.js";
 import { outputSchema } from "../procedures/core/schemas.js";
 import type { ProcedureContext } from "../procedures/types.js";
 import type { Transport } from "../client/types.js";
+import { ms } from "../duration.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const BIG = "x".repeat(64 * 1024);
@@ -102,7 +103,7 @@ async function startHttp(cors?: { origin: string | string[] }): Promise<HttpHarn
     probe,
     http,
     transport,
-    client: (options) => new Client(new HttpTransport({ baseUrl: url, ...(options?.timeout ? { timeout: options.timeout } : {}) })),
+    client: (options) => new Client(new HttpTransport({ baseUrl: url, ...(options?.timeout ? { timeout: ms(options.timeout) } : {}) })),
   };
 }
 
@@ -274,7 +275,7 @@ describe("WebSocket heartbeat (TRN-6)", () => {
     let disconnects = 0;
     const transport = new WebSocketTransport({
       url: `ws://127.0.0.1:${port}`,
-      heartbeat: { enabled: true, interval: 50, timeout: 50 },
+      heartbeat: { enabled: true, interval: ms(50), timeout: ms(50) },
       reconnect: { enabled: false },
       onDisconnect: () => disconnects++,
     });
@@ -293,8 +294,8 @@ describe("WebSocket client waiting for a connection (TRN-14)", () => {
     const transport = new WebSocketTransport({
       url: "ws://127.0.0.1:9/ws",
       heartbeat: { enabled: false },
-      connectionTimeout: 30,
-      reconnect: { enabled: true, initialDelay: 60_000 },
+      connectionTimeout: ms(30),
+      reconnect: { enabled: true, initialDelay: ms(60_000) },
     });
     cleanups.push(() => transport.close());
     const client: Transport = transport;

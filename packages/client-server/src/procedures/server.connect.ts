@@ -9,6 +9,7 @@ import { ServerConnectOutputSchema } from "../output-schemas.js";
 import { serverConnectInputSchema } from "../input-schemas.js";
 import type { ServerConnectInput, ServerConnectOutput } from "../types.js";
 import { connect } from "../connection/index.js";
+import { ms } from "@procedures/client";
 
 // Use pass-through schemas
 const serverConnectOutputSchema = wrapSchema<ServerConnectOutput>(ServerConnectOutputSchema);
@@ -35,7 +36,8 @@ export const serverConnectProcedure: Procedure<
       connectOptions.transport = input.transport;
     }
     if (input.timeout !== undefined) {
-      connectOptions.timeout = input.timeout;
+      // The input is data: a number of milliseconds
+      connectOptions.timeout = ms(input.timeout);
     }
     const connection = await connect(connectOptions);
 

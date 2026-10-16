@@ -28,6 +28,7 @@ import {
 } from "@procedures/client";
 import { McpServerTransport, mergeSurfaces, type BundleSurfaceModule } from "@procedures/mcp-server";
 import { loadConfig, type McpServerConfig } from "./config.js";
+import { ms } from "@procedures/client";
 
 /** The exports of a bundle's `module` entry: its module and the lists of its tools. */
 interface BundleModuleExports extends BundleSurfaceModule {
@@ -104,7 +105,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
   const policy = hostPolicy({
     ...(expose ? { expose } : {}),
     strictCalls: true,
-    timeoutMs: config.toolTimeoutMs,
+    timeout: ms(config.toolTimeoutMs),
     ...(readOnly ? { readOnly: true } : {}),
   });
   const server = new ProcedureServer(procedureServerOptions(policy, registry));

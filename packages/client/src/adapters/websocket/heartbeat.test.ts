@@ -13,6 +13,8 @@ import { Server } from "../../server/server.js";
 import { WebSocketTransport, reconnectDelay } from "./client/transport.js";
 import { WebSocketServerTransport } from "./server/transport.js";
 import { WebSocketState } from "./client/types.js";
+import { ms } from "../../duration.js";
+import type { Duration } from "../../duration.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -49,9 +51,9 @@ describe("the handshake has a time limit", () => {
     let reconnects = 0;
     const transport = new WebSocketTransport({
       url,
-      connectionTimeout: 80,
+      connectionTimeout: ms(80),
       heartbeat: { enabled: false },
-      reconnect: { initialDelay: 1000, jitter: 0 },
+      reconnect: { initialDelay: ms(1000), jitter: 0 },
       onDisconnect: (reason) => reasons.push(reason),
       onReconnecting: () => reconnects++,
     });
@@ -64,7 +66,7 @@ describe("the handshake has a time limit", () => {
 
   it("ends in DISCONNECTED when reconnect is off", async () => {
     const url = await blackHole();
-    const transport = new WebSocketTransport({ url, connectionTimeout: 50, heartbeat: { enabled: false }, reconnect: { enabled: false } });
+    const transport = new WebSocketTransport({ url, connectionTimeout: ms(50), heartbeat: { enabled: false }, reconnect: { enabled: false } });
     cleanups.push(() => transport.close());
     await waitFor(() => transport.getState() === WebSocketState.DISCONNECTED, 1000);
   });
@@ -112,7 +114,7 @@ describe("the heartbeat of the client", () => {
       const reasons: Array<string | undefined> = [];
       const transport = new WebSocketTransport({
         url: server.url,
-        heartbeat: { interval: 30, timeout: 10, misses },
+        heartbeat: { interval: ms(30), timeout: ms(10), misses },
         reconnect: { enabled: false },
         onDisconnect: (reason) => reasons.push(reason),
       });
@@ -125,7 +127,7 @@ describe("the heartbeat of the client", () => {
 });
 
 describe("the heartbeat of the server", () => {
-  async function startServer(heartbeat: { interval: number; misses: number }) {
+  async function startServer(heartbeat: { interval: Duration; misses: number }) {
     const rpc = new Server();
     const http: HttpServer = createServer();
     const wsServer = new WebSocketServerTransport(rpc, { server: http, path: "/ws", heartbeat });
@@ -141,7 +143,7 @@ describe("the heartbeat of the server", () => {
   }
 
   it("closes a connection that does not answer its pings", async () => {
-    const server = await startServer({ interval: 20, misses: 2 });
+    const server = await startServer({ interval: ms(20), misses: 2 });
     // A client that never sends a pong: a peer that went silent
     const silent = new WsClient(server.url, { autoPong: false });
     cleanups.push(() => silent.terminate());
@@ -150,7 +152,7 @@ describe("the heartbeat of the server", () => {
   });
 
   it("keeps a connection that answers", async () => {
-    const server = await startServer({ interval: 20, misses: 2 });
+    const server = await startServer({ interval: ms(20), misses: 2 });
     const transport = new WebSocketTransport({ url: server.url, heartbeat: { enabled: false }, reconnect: { enabled: false } });
     cleanups.push(() => transport.close());
     await waitFor(() => transport.getState() === WebSocketState.CONNECTED);

@@ -11,6 +11,7 @@ import type { CollectionStorage, StorageMetadata } from "@procedures/collections
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
+import { optionalMs, type Duration } from "@procedures/client";
 
 /**
  * API storage configuration options.
@@ -55,10 +56,10 @@ export interface ApiStorageOptions {
   };
 
   /**
-   * Request timeout in milliseconds. A call that takes longer fails. 0: no timeout.
-   * @default 30000 (30 seconds)
+   * Request timeout, for example `seconds(30)`. A call that takes longer fails. 0: no timeout.
+   * @default 30 seconds
    */
-  timeout?: number;
+  timeout?: Duration;
 
   /**
    * Retry a call that fails with a retryable error: true (3 attempts), false (1 attempt), or the
@@ -68,10 +69,10 @@ export interface ApiStorageOptions {
   retry?: boolean | number;
 
   /**
-   * The first delay between attempts in milliseconds. Each later delay is two times longer.
-   * @default 100
+   * The first delay between attempts. Each later delay is two times longer.
+   * @default 100 milliseconds
    */
-  retryDelay?: number;
+  retryDelay?: Duration;
 
   /**
    * AbortSignal for cancelling requests
@@ -178,10 +179,10 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         getBatch: "getBatch",
         ...options.operations,
       },
-      timeout: options.timeout ?? 30000,
+      timeout: optionalMs(options.timeout, "timeout") ?? 30000,
       attempts:
         options.retry === false ? 1 : options.retry === true || options.retry === undefined ? 3 : Math.max(1, options.retry),
-      retryDelay: options.retryDelay ?? 100,
+      retryDelay: optionalMs(options.retryDelay, "retryDelay") ?? 100,
       ...(options.signal !== undefined && { signal: options.signal }),
       closeClient: options.closeClient ?? false,
     };

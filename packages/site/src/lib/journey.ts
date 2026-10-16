@@ -43,6 +43,7 @@ import {
 } from "@procedures/client/client";
 
 import { lanesOf, type Host, type Journey, type JourneyStep } from "./journey-info";
+import { minutes, ms, seconds } from "@procedures/client/browser";
 
 export { HOSTS, LANE_INFO, lanesOf } from "./journey-info";
 export type { Host, Journey, JourneyStep, Lane } from "./journey-info";
@@ -403,8 +404,8 @@ export async function runJourney(host: Host, input: unknown = JOURNEY_INPUT): Pr
 
   // The first middleware that `use` adds is the outer one: retry outside, the timeout of each attempt inside it
   const client = new Client({ transport, throwOnError: true })
-    .use(probe("retry", createRetryMiddleware({ maxRetries: 2, retryDelay: 100 }) as ClientMiddleware, record, "createRetryMiddleware({ maxRetries: 2 })") as never)
-    .use(probe("timeout", createTimeoutMiddleware({ perAttempt: 5000 }) as ClientMiddleware, record, "createTimeoutMiddleware({ perAttempt: 5000 })") as never);
+    .use(probe("retry", createRetryMiddleware({ maxRetries: 2, retryDelay: ms(100) }) as ClientMiddleware, record, "createRetryMiddleware({ maxRetries: 2, retryDelay: ms(100) })") as never)
+    .use(probe("timeout", createTimeoutMiddleware({ perAttempt: seconds(5) }) as ClientMiddleware, record, "createTimeoutMiddleware({ perAttempt: seconds(5) })") as never);
 
   try {
     let item = 0;
@@ -451,7 +452,7 @@ async function runMcp(registry: ProcedureRegistry, record: Record_, steps: Journ
     title: "ProcedureServer finds shop.receipt. The MCP server serves only the exposed tools, and strictCalls limits their nested calls.",
   });
 
-  const timeLimit = timeoutInterceptor({ ms: 600_000 });
+  const timeLimit = timeoutInterceptor({ limit: minutes(10) });
   const server = new ProcedureServer({ registry, autoRegister: true, interceptors: [timeLimit, tracing(record), itemProbe(record)] });
   const response = await server.handle<unknown, string>({ id: "1", method: pathToMethod(["shop", "receipt"]), payload: input, metadata: {} });
   if (response.status.type !== "success") {

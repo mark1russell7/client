@@ -4,8 +4,10 @@
  * Type definitions for WebSocket client adapter.
  */
 
+import type { Duration } from "../../../duration.js";
+
 /**
- * WebSocket client transport options.
+ * WebSocket client transport options. Each time is a `Duration` (roadmap R11).
  */
 export interface WebSocketTransportOptions {
   /**
@@ -31,16 +33,16 @@ export interface WebSocketTransportOptions {
     maxAttempts?: number;
 
     /**
-     * Initial delay before reconnecting (ms).
-     * @default 1000
+     * Initial delay before reconnecting.
+     * @default 1 second
      */
-    initialDelay?: number;
+    initialDelay?: Duration;
 
     /**
-     * Maximum delay between reconnection attempts (ms).
-     * @default 30000
+     * Maximum delay between reconnection attempts.
+     * @default 30 seconds
      */
-    maxDelay?: number;
+    maxDelay?: Duration;
 
     /**
      * Backoff multiplier for reconnection delay.
@@ -58,19 +60,19 @@ export interface WebSocketTransportOptions {
   };
 
   /**
-   * Connection timeout (ms): how long to wait for the WebSocket to open. A handshake that takes
+   * Connection timeout: how long to wait for the WebSocket to open. A handshake that takes
    * longer closes the socket, and the transport reconnects (roadmap R3: before, an address that
    * never answered kept the socket in CONNECTING).
-   * @default 10000
+   * @default 10 seconds
    */
-  connectionTimeout?: number;
+  connectionTimeout?: Duration;
 
   /**
-   * Request timeout (ms): how long to wait for the response to one request.
+   * Request timeout: how long to wait for the response to one request.
    * (Before, requests used connectionTimeout, so every call was capped at 10s.)
-   * @default 30000
+   * @default 30 seconds
    */
-  requestTimeout?: number;
+  requestTimeout?: Duration;
 
   /**
    * The number of stream items that the transport holds for a reader that has not taken them.
@@ -90,16 +92,16 @@ export interface WebSocketTransportOptions {
     enabled?: boolean;
 
     /**
-     * Heartbeat interval (ms).
-     * @default 30000
+     * Heartbeat interval.
+     * @default 30 seconds
      */
-    interval?: number;
+    interval?: Duration;
 
     /**
-     * Heartbeat timeout (ms).
-     * @default 5000
+     * Heartbeat timeout.
+     * @default 5 seconds
      */
-    timeout?: number;
+    timeout?: Duration;
 
     /**
      * The number of pings without a pong, one after the other, that drop the connection. The

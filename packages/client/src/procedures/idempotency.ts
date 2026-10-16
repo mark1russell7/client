@@ -10,6 +10,7 @@
 import type { Method } from "../client/types.js";
 import { methodToPath } from "../server/method.js";
 import type { AnyProcedure, Effects, ProcedurePath } from "./types.js";
+import { optionalMs, type Duration } from "../duration.js";
 
 // This file imports no module of the invocation, so the retry middleware stays small in a browser
 
@@ -61,8 +62,8 @@ export function idempotencyKeyOf(metadata: Record<string, unknown> | undefined):
 
 /** The options of the idempotency cache of a server. */
 export interface IdempotencyOptions {
-  /** How long the server keeps a result after the call ends, in milliseconds. The default is 10 minutes. */
-  readonly ttlMs?: number;
+  /** How long the server keeps a result after the call ends. The default is 10 minutes. */
+  readonly ttl?: Duration;
   /** The most results that the server keeps. The oldest finished result goes first. The default is 1000. */
   readonly maxEntries?: number;
   /** The clock of the cache, in milliseconds. The default is `Date.now`. */
@@ -86,7 +87,7 @@ export class IdempotencyCache<T> {
   private readonly now: () => number;
 
   constructor(options: IdempotencyOptions = {}) {
-    this.ttlMs = options.ttlMs ?? 10 * 60_000;
+    this.ttlMs = optionalMs(options.ttl, "ttl") ?? 10 * 60_000;
     this.maxEntries = options.maxEntries ?? 1000;
     this.now = options.now ?? Date.now;
   }

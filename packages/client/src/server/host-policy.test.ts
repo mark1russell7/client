@@ -10,6 +10,7 @@ import { outputSchema } from "../procedures/core/schemas.js";
 import { createRegistry, defineModule } from "../procedures/module.js";
 import type { AnyProcedure, ProcedureContext } from "../procedures/types.js";
 import { exposePatterns, hostPolicy, procedureServerOptions, surfaceRule } from "./host-policy.js";
+import { ms } from "../duration.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -76,13 +77,13 @@ describe("hostPolicy", () => {
   it("adds a time limit only when there is one, before the other interceptors", () => {
     expect(hostPolicy().interceptors).toHaveLength(0);
     const own = async (_invocation: unknown, next: () => Promise<unknown>) => next();
-    const policy = hostPolicy({ timeoutMs: 50, interceptors: [own as never] });
+    const policy = hostPolicy({ timeout: ms(50), interceptors: [own as never] });
     expect(policy.interceptors).toHaveLength(2);
     expect(policy.interceptors[1]).toBe(own);
   });
 
   it("gives a ProcedureServer the expose rule, the call rule and the time limit", async () => {
-    const policy = hostPolicy({ expose: ["tool.*"], exclude: ["tool.hidden"], strictCalls: true, timeoutMs: 50 });
+    const policy = hostPolicy({ expose: ["tool.*"], exclude: ["tool.hidden"], strictCalls: true, timeout: ms(50) });
     const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(testModule)));
     expect(await call(server, ["tool", "hidden"])).toMatchObject({ type: "error" });
     expect(await call(server, ["shell", "run"])).toMatchObject({ type: "error" });

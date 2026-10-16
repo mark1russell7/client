@@ -5,6 +5,7 @@
  */
 
 import type { Message, ResponseItem } from "../../../client/types.js";
+import type { Duration } from "../../../duration.js";
 
 /**
  * Mock response configuration.
@@ -26,10 +27,10 @@ export interface MockResponse<TRes = unknown> {
   error?: Error;
 
   /**
-   * Delay in milliseconds before responding
+   * Delay before responding
    * @default Uses transport's latency config
    */
-  delay?: number;
+  delay?: Duration;
 
   /**
    * Number of times this response can be used
@@ -48,16 +49,16 @@ export type ResponseMatcher = (method: any, payload: unknown) => boolean;
  */
 export interface MockTransportOptions {
   /**
-   * Minimum latency in milliseconds
+   * Minimum latency
    * @default 0
    */
-  minLatency?: number;
+  minLatency?: Duration;
 
   /**
-   * Maximum latency in milliseconds
+   * Maximum latency
    * @default 0
    */
-  maxLatency?: number;
+  maxLatency?: Duration;
 
   /**
    * Random failure rate (0-1)

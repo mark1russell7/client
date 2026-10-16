@@ -19,6 +19,7 @@ import { HybridStorage } from "./hybrid.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";
 import { getSerializedKey } from "./serialization.js";
 import type { HandlerLoader, SerializedProcedure } from "./types.js";
+import { ms } from "@procedures/client";
 
 /** A server side: the core collection procedures of one collection, with in-memory storage. */
 function collectionServer<T>(collection: string): {
@@ -79,7 +80,7 @@ describe("ApiStorage against the core collection procedures (deep dive CORE-9, D
 
   it("a call that takes longer than the timeout fails", async () => {
     const hanging = new LocalTransport({ handlers: { "collections.x.get": () => new Promise(() => {}) } });
-    const api = new ApiStorage(new Client(hanging), { collection: "x", timeout: 20, retry: false });
+    const api = new ApiStorage(new Client(hanging), { collection: "x", timeout: ms(20), retry: false });
     await expect(api.get("a")).rejects.toThrow(/timed out/i);
   });
 
@@ -103,7 +104,7 @@ describe("ApiStorage against the core collection procedures (deep dive CORE-9, D
       },
       close: async () => {},
     } as Transport;
-    const api = new ApiStorage(new Client(flaky), { collection: "x", retry: 3, retryDelay: 0 });
+    const api = new ApiStorage(new Client(flaky), { collection: "x", retry: 3, retryDelay: ms(0) });
     expect(await api.size()).toBe(7);
     expect(sends).toBe(2);
 
@@ -145,7 +146,7 @@ describe("HybridStorage (deep dive CORE-9, DATA-9)", () => {
   it("a failed sync keeps only the operations that did not reach the remote", async () => {
     const server = collectionServer<{ id: string }>("items");
     const remote = new ApiStorage<{ id: string }>(new Client(server.transport), { collection: "items", retry: false });
-    const hybrid = new HybridStorage(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: 0 });
+    const hybrid = new HybridStorage(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0) });
     await hybrid.set("1", { id: "1" });
     await hybrid.set("2", { id: "2" });
     await hybrid.set("3", { id: "3" });
@@ -209,7 +210,7 @@ describe("HybridStorage (deep dive CORE-9, DATA-9)", () => {
   it("the sync timer does not keep the process alive", async () => {
     const server = collectionServer<{ id: string }>("items");
     const remote = new ApiStorage<{ id: string }>(new Client(server.transport), { collection: "items" });
-    const hybrid = new HybridStorage(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: 1000 });
+    const hybrid = new HybridStorage(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(1000) });
     const timer = (hybrid as unknown as { syncTimer: { hasRef?: () => boolean } }).syncTimer;
     expect(timer.hasRef?.()).toBe(false);
     await hybrid.close();

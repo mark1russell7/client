@@ -17,6 +17,7 @@ import type {
 } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
+import { optionalMs } from "../../../duration.js";
 
 /**
  * WebSocket server transport adapter.
@@ -154,7 +155,10 @@ export class WebSocketServerTransport implements ServerTransport {
     this.heartbeat =
       options.heartbeat === false
         ? undefined
-        : { interval: options.heartbeat?.interval ?? 30_000, misses: Math.max(1, options.heartbeat?.misses ?? 2) };
+        : {
+            interval: optionalMs(options.heartbeat?.interval, "heartbeat.interval") ?? 30_000,
+            misses: Math.max(1, options.heartbeat?.misses ?? 2),
+          };
   }
 
   /**

@@ -10,6 +10,7 @@ import { Server } from "../../server/server.js";
 import type { ServerRequest, ServerResponse } from "../../server/types.js";
 import { WebSocketTransport } from "./client/transport.js";
 import { WebSocketServerTransport } from "./server/transport.js";
+import { ms } from "../../duration.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -63,9 +64,9 @@ async function startServer(): Promise<Harness> {
 function connectClient(url: string, extra: Partial<ConstructorParameters<typeof WebSocketTransport>[0]> = {}): WebSocketTransport {
   const transport = new WebSocketTransport({
     url,
-    connectionTimeout: 250,
+    connectionTimeout: ms(250),
     heartbeat: { enabled: false },
-    reconnect: { initialDelay: 50 },
+    reconnect: { initialDelay: ms(50) },
     ...extra,
   });
   cleanups.push(() => transport.close());
@@ -83,7 +84,7 @@ async function waitFor(check: () => boolean, ms = 2000): Promise<void> {
 describe("WebSocket transport", () => {
   it("M5: a request may take longer than the connection timeout", async () => {
     const { url } = await startServer();
-    const transport = connectClient(url, { requestTimeout: 3000 });
+    const transport = connectClient(url, { requestTimeout: ms(3000) });
     const client = new Client({ transport });
 
     // The handler takes 600ms; the connection timeout is 250ms

@@ -12,6 +12,7 @@
 
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { CircuitBreakerContext } from "./contexts.js";
+import { optionalMs, type Duration } from "../../duration.js";
 
 /**
  * Circuit breaker state.
@@ -32,13 +33,13 @@ export interface CircuitBreakerOptions {
    * Time window for counting failures (in milliseconds).
    * @default 10000 (10 seconds)
    */
-  failureWindow?: number;
+  failureWindow?: Duration;
 
   /**
    * Time to wait before attempting to close circuit (in milliseconds).
    * @default 30000 (30 seconds)
    */
-  resetTimeout?: number;
+  resetTimeout?: Duration;
 
   /**
    * Number of successful requests required to close circuit from HALF_OPEN.
@@ -114,8 +115,8 @@ export class CircuitBreakerError extends Error {
  * ```typescript
  * client.use(createCircuitBreakerMiddleware({
  *   failureThreshold: 5,      // Open after 5 failures
- *   failureWindow: 10000,      // Within 10 seconds
- *   resetTimeout: 30000,       // Try again after 30 seconds
+ *   failureWindow: seconds(10),  // Within 10 seconds
+ *   resetTimeout: seconds(30),   // Try again after 30 seconds
  *   successThreshold: 2        // Close after 2 successes
  * }));
  * ```
@@ -125,13 +126,13 @@ export function createCircuitBreakerMiddleware(
 ): TypedClientMiddleware<CircuitBreakerContext, {}> {
   const {
     failureThreshold = 5,
-    failureWindow = 10000,
-    resetTimeout = 30000,
     successThreshold = 2,
     isFailure = () => true,
     onStateChange,
   } = options;
   const halfOpenMaxRequests = options.halfOpenMaxRequests ?? successThreshold;
+  const failureWindow = optionalMs(options.failureWindow, "failureWindow") ?? 10000;
+  const resetTimeout = optionalMs(options.resetTimeout, "resetTimeout") ?? 30000;
 
   let state: CircuitState = "CLOSED";
   let failures: FailureRecord[] = [];

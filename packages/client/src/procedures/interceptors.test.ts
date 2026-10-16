@@ -16,6 +16,7 @@ import type { AnyProcedure, ProcedureContext } from "./types.js";
 import { ProcedureServer } from "../server/procedure-server.js";
 import { Client } from "../client/client.js";
 import { LocalTransport } from "../adapters/local/client/transport.js";
+import { ms } from "../duration.js";
 
 const any = outputSchema<unknown>();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -99,7 +100,7 @@ describe("the interceptor chain", () => {
 describe("timeoutInterceptor", () => {
   it("ends a call that runs too long with TIMEOUT, and aborts the handler's signal", async () => {
     const { registry, seen } = setup();
-    const call = invokePath(["t", "hang"], {}, { registry, interceptors: [timeoutInterceptor({ ms: 50 })] });
+    const call = invokePath(["t", "hang"], {}, { registry, interceptors: [timeoutInterceptor({ limit: ms(50) })] });
     await expect(call).rejects.toBeInstanceOf(InvocationError);
     await expect(call).rejects.toMatchObject({ code: "TIMEOUT" });
     expect(seen.aborted).toBe(true);
@@ -108,7 +109,7 @@ describe("timeoutInterceptor", () => {
   it("ends a call whose handler ignores the signal", async () => {
     const { registry } = setup();
     const started = Date.now();
-    await expect(invokePath(["t", "deaf"], {}, { registry, interceptors: [timeoutInterceptor({ ms: 50 })] })).rejects.toMatchObject({
+    await expect(invokePath(["t", "deaf"], {}, { registry, interceptors: [timeoutInterceptor({ limit: ms(50) })] })).rejects.toMatchObject({
       code: "TIMEOUT",
     });
     expect(Date.now() - started).toBeLessThan(1500);
@@ -116,7 +117,7 @@ describe("timeoutInterceptor", () => {
 
   it("covers a whole stream", async () => {
     const { registry } = setup();
-    const output = await invokePath(["t", "slowStream"], {}, { registry, interceptors: [timeoutInterceptor({ ms: 100 })] });
+    const output = await invokePath(["t", "slowStream"], {}, { registry, interceptors: [timeoutInterceptor({ limit: ms(100) })] });
     const items: unknown[] = [];
     await expect(
       (async () => {
@@ -128,7 +129,7 @@ describe("timeoutInterceptor", () => {
 
   it("lets a call that ends in time pass, a stream too", async () => {
     const { registry } = setup();
-    const interceptors = [timeoutInterceptor({ ms: 1000 })];
+    const interceptors = [timeoutInterceptor({ limit: ms(1000) })];
     expect(await outputValue(await invokePath(["t", "outer"], {}, { registry, interceptors }))).toBe(20);
     const items: unknown[] = [];
     for await (const item of outputItems(await invokePath(["t", "stream"], {}, { registry, interceptors }))) items.push(item);
@@ -138,7 +139,7 @@ describe("timeoutInterceptor", () => {
   it("limits only the top-level call by default: a nested call shares its parent's signal", async () => {
     const { registry } = setup();
     const limited: string[] = [];
-    const interceptor = timeoutInterceptor({ ms: 1000, onLimit: (invocation: Invocation) => limited.push(invocation.path.join(".")) });
+    const interceptor = timeoutInterceptor({ limit: ms(1000), onLimit: (invocation: Invocation) => limited.push(invocation.path.join(".")) });
     await invokePath(["t", "outer"], {}, { registry, interceptors: [interceptor] });
     expect(limited).toEqual(["t.outer"]);
   });

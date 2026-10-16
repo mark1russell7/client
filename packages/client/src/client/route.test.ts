@@ -13,6 +13,7 @@ import { defineProcedure } from "../procedures/define.js";
 import { outputSchema } from "../procedures/core/schemas.js";
 import { ProcedureRegistry } from "../procedures/registry.js";
 import type { ProcedureContext } from "../procedures/types.js";
+import { ms } from "../duration.js";
 
 const noTransport = { name: "none", send: async function* () {}, close: async () => {} } as unknown as Transport;
 
@@ -130,7 +131,7 @@ describe("route() overrides and validation errors (deep dive CORE-14)", () => {
     const reg = new ProcedureRegistry();
     // A remote procedure: no handler, so the call goes through the middleware to the transport
     reg.register({ path: ["remote", "op"], input: outputSchema(), output: outputSchema(), metadata: {} });
-    const client = new Client({ transport: failing }).use(createRetryMiddleware({ retryDelay: 0, jitter: 0, maxRetries: 0 })).useRegistry(reg);
+    const client = new Client({ transport: failing }).use(createRetryMiddleware({ retryDelay: ms(0), jitter: 0, maxRetries: 0 })).useRegistry(reg);
 
     await client.route({ route: { remote: { op: {} } }, middlewares: { retry: { attempts: 2 } } });
 
@@ -152,8 +153,8 @@ describe("route() overrides and validation errors (deep dive CORE-14)", () => {
       })
     );
     const client = new Client(noTransport).useRegistry(reg);
-    await client.route({ route: { test: { meta: {} } }, middlewares: { timeout: { ms: 1234 } } });
-    expect(metadata["timeout"]).toEqual({ overall: 1234 });
+    await client.route({ route: { test: { meta: {} } }, middlewares: { timeout: { overall: ms(1234) } } });
+    expect(metadata["timeout"]).toEqual({ overall: ms(1234) });
   });
 
   it("lists every leaf after a validation error", async () => {

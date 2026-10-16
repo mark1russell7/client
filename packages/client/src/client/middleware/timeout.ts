@@ -10,23 +10,24 @@ import { ABORTED_FIRST, errorItem, nextOrAbort, withDelivery } from "./items.js"
 import type { TimeoutContext } from "./contexts.js";
 import { deadlineOf, narrowDeadline, restoreDeadline } from "../deadline.js";
 import { resilience } from "./resilience.js";
+import { optionalMs, type Duration } from "../../duration.js";
 
 /**
  * Timeout middleware options.
  */
 export interface TimeoutOptions {
   /**
-   * Timeout in milliseconds for the entire request (including retries).
+   * The time of the entire request (including retries), for example `seconds(10)`.
    * @default undefined (no overall timeout)
    */
-  overall?: number;
+  overall?: Duration | undefined;
 
   /**
-   * Timeout in milliseconds for each individual attempt.
+   * The time of each individual attempt, for example `seconds(2)`.
    * Useful with retry middleware for per-attempt timeouts.
    * @default undefined (no per-attempt timeout)
    */
-  perAttempt?: number;
+  perAttempt?: Duration | undefined;
 
   /**
    * Custom timeout error message.
@@ -209,22 +210,24 @@ async function* runWithTimeout<TReq, TRes>(
  * @example
  * ```typescript
  * // Create middleware with default timeout
- * client.use(createOverallTimeoutMiddleware({ overall: 5000 }));
+ * client.use(createOverallTimeoutMiddleware({ overall: seconds(5) }));
  *
  * // Override per-call via context
  * await client.call(method, payload, {
- *   context: { timeout: { overall: 10000 } }
+ *   context: { timeout: { overall: seconds(10) } }
  * });
  * ```
  */
 export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "overall" | "message">): TypedClientMiddleware<TimeoutContext, {}> {
-  const { overall: defaultOverall, message = "Overall request timeout" } = options;
+  const { message = "Overall request timeout" } = options;
+  const defaultOverall = optionalMs(options.overall, "overall");
 
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       // Read from metadata first (user-provided context), then fall back to options
-      const overall = (context.message.metadata.timeout as TimeoutContext["timeout"] | undefined)?.overall
-        ?? defaultOverall;
+      const overall =
+        optionalMs((context.message.metadata.timeout as TimeoutContext["timeout"] | undefined)?.overall, "timeout.overall") ??
+        defaultOverall;
 
       if (!overall) {
         // No timeout - passthrough
@@ -252,22 +255,24 @@ export function createOverallTimeoutMiddleware(options: Pick<TimeoutOptions, "ov
  * @example
  * ```typescript
  * // Create middleware with default timeout
- * client.use(createTimeoutMiddleware({ perAttempt: 1000 }));
+ * client.use(createTimeoutMiddleware({ perAttempt: seconds(1) }));
  *
  * // Override per-call via context
  * await client.call(method, payload, {
- *   context: { timeout: { perAttempt: 2000 } }
+ *   context: { timeout: { perAttempt: seconds(2) } }
  * });
  * ```
  */
 export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttempt" | "message">): TypedClientMiddleware<TimeoutContext, {}> {
-  const { perAttempt: defaultPerAttempt, message = "Request timeout" } = options;
+  const { message = "Request timeout" } = options;
+  const defaultPerAttempt = optionalMs(options.perAttempt, "perAttempt");
 
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       // Read from metadata first (user-provided context), then fall back to options
-      const perAttempt = (context.message.metadata.timeout as TimeoutContext["timeout"] | undefined)?.perAttempt
-        ?? defaultPerAttempt;
+      const perAttempt =
+        optionalMs((context.message.metadata.timeout as TimeoutContext["timeout"] | undefined)?.perAttempt, "timeout.perAttempt") ??
+        defaultPerAttempt;
 
       if (!perAttempt) {
         // No timeout - passthrough
@@ -298,7 +303,7 @@ export function createTimeoutMiddleware(options: Pick<TimeoutOptions, "perAttemp
  *
  * @example
  * ```typescript
- * client.use(resilience({ overall: 5000, perAttempt: 1000, retry: { maxRetries: 2 } }));
+ * client.use(resilience({ overall: seconds(5), perAttempt: seconds(1), retry: { maxRetries: 2 } }));
  * ```
  */
 export function createCombinedTimeoutMiddleware(options: TimeoutOptions): TypedClientMiddleware<TimeoutContext, {}> {

@@ -10,6 +10,7 @@
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { RateLimitContext } from "./contexts.js";
 import { abortedItem } from "./items.js";
+import { optionalMs, type Duration } from "../../duration.js";
 
 /**
  * Rate limiting options.
@@ -25,7 +26,7 @@ export interface RateLimitOptions {
    * Time window in milliseconds.
    * @default 60000 (1 minute)
    */
-  window?: number;
+  window?: Duration;
 
   /**
    * Behavior when rate limit is exceeded.
@@ -96,14 +97,14 @@ interface QueuedRequest {
  * // Reject strategy (default)
  * client.use(createRateLimitMiddleware({
  *   maxRequests: 100,    // 100 requests
- *   window: 60000,       // per minute
+ *   window: minutes(1),
  *   strategy: "reject"   // Throw error when exceeded
  * }));
  *
  * // Queue strategy
  * client.use(createRateLimitMiddleware({
  *   maxRequests: 10,
- *   window: 1000,
+ *   window: seconds(1),
  *   strategy: "queue",   // Queue requests when exceeded
  *   maxQueueSize: 50
  * }));
@@ -114,12 +115,12 @@ export function createRateLimitMiddleware(
 ): TypedClientMiddleware<RateLimitContext, {}> {
   const {
     maxRequests = 100,
-    window = 60000,
     strategy = "reject",
     maxQueueSize = 100,
     message = "Rate limit exceeded",
     onRateLimitExceeded,
   } = options;
+  const window = optionalMs(options.window, "window") ?? 60000;
 
   // Token bucket state
   let tokens = maxRequests;
@@ -273,9 +274,9 @@ export function createRateLimitMiddleware(
  * @example
  * ```typescript
  * client.use(createPerServiceRateLimiter({
- *   users: { maxRequests: 100, window: 60000 },
- *   orders: { maxRequests: 50, window: 60000 },
- *   default: { maxRequests: 200, window: 60000 }
+ *   users: { maxRequests: 100, window: minutes(1) },
+ *   orders: { maxRequests: 50, window: minutes(1) },
+ *   default: { maxRequests: 200, window: minutes(1) }
  * }));
  * ```
  */

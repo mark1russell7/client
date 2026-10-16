@@ -21,6 +21,7 @@ import type {
 } from "./types.js";
 import { ProcedureStorageAdapter } from "./adapter.js";
 import { serializeProcedure, deserializeProcedure, getSerializedKey } from "./serialization.js";
+import { optionalMs, toMs, type Duration } from "@procedures/client";
 
 // =============================================================================
 // Extended Registration Options
@@ -100,7 +101,8 @@ export function getProcedureStore(registry: ProcedureRegistry): SyncedProcedureR
 export class SyncedProcedureRegistry {
   private readonly baseRegistry: ProcedureRegistry;
   private readonly adapter: ProcedureStorageAdapter;
-  private readonly options: SyncedRegistryOptions;
+  /** The options, with the sync interval in milliseconds */
+  private readonly options: Omit<SyncedRegistryOptions, "syncInterval"> & { syncInterval: number };
 
   /** Pending changes for write-back strategy */
   private pendingChanges: Map<string, AnyProcedure> = new Map();
@@ -148,7 +150,7 @@ export class SyncedProcedureRegistry {
     this.options = {
       writeStrategy: options.writeStrategy ?? "write-through",
       conflictResolution: options.conflictResolution ?? "local",
-      syncInterval: options.syncInterval ?? 0,
+      syncInterval: optionalMs(options.syncInterval, "syncInterval") ?? 0,
       handlerLoader: options.handlerLoader,
       syncOnInit: options.syncOnInit ?? false,
     };
@@ -504,9 +506,11 @@ export class SyncedProcedureRegistry {
   /**
    * Start auto-sync at specified interval.
    *
-   * @param intervalMs - Sync interval in milliseconds
+   * @param interval - The sync interval
    */
-  startAutoSync(intervalMs: number): void {
+  startAutoSync(interval: Duration | number): void {
+    // A number is the internal form of the option, in milliseconds
+    const intervalMs = typeof interval === "number" ? interval : toMs(interval, "interval");
     this.stopAutoSync();
     const handle = setInterval(() => {
       void this.sync("both").catch((err) => {

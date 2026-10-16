@@ -6,6 +6,7 @@
  */
 
 import type { UrlStrategy, HttpMethodStrategy, HeaderConverter } from "../shared/index.js";
+import type { Duration } from "../../../duration.js";
 
 /**
  * HTTP Client Transport Configuration
@@ -28,6 +29,6 @@ export interface HttpTransportOptions {
   /** Default headers applied to all requests */
   defaultHeaders?: Record<string, string>;
 
-  /** Timeout for fetch requests (milliseconds) */
-  timeout?: number;
+  /** The time to the first item of a response, for example `seconds(30)` */
+  timeout?: Duration;
 }

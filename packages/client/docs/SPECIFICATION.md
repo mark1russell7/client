@@ -308,9 +308,9 @@ for await (const event of client.stream<{ topic: string }, Event>(
 
 ```typescript
 const client = new Client({ transport })
-  .use(createOverallTimeoutMiddleware({ overall: 5000 }))
+  .use(createOverallTimeoutMiddleware({ overall: seconds(5) }))
   .use(createRetryMiddleware({ maxRetries: 3 }))
-  .use(createCacheMiddleware({ methods: ["users.get"], ttl: 60000 }))
+  .use(createCacheMiddleware({ methods: ["users.get"], ttl: minutes(1) }))
   .use(createAuthMiddleware({ token: "abc123" }));
 ```
 
@@ -332,7 +332,7 @@ For REST APIs:
 ```typescript
 const transport = new HttpTransport({
   baseUrl: "https://api.example.com",
-  timeout: 30000,
+  timeout: seconds(30),
 });
 ```
 
@@ -398,7 +398,7 @@ const runner = compose(
 
 // Bundle for reuse
 const standardStack = bundle(
-  createOverallTimeoutMiddleware({ overall: 5000 }),
+  createOverallTimeoutMiddleware({ overall: seconds(5) }),
   createRetryMiddleware({ maxRetries: 3 })
 );
 ```
@@ -434,7 +434,7 @@ const hybridUsers = new HybridStorage<User>(
   {
     writeStrategy: "write-through",  // or "write-back"
     conflictResolution: "remote",    // or "local", "merge", "error"
-    syncInterval: 5000,              // background sync for write-back
+    syncInterval: seconds(5),              // background sync for write-back
     offlineQueue: true,              // queue operations when offline
   }
 );
@@ -527,7 +527,7 @@ const hybrid = new HybridStorage<User>(remoteStorage, {
   // conflictResolution: "error",  // Throw on conflict
 
   // For write-back: sync interval
-  syncInterval: 5000,
+  syncInterval: seconds(5),
 
   // Offline support
   offlineQueue: true,              // Queue operations when offline

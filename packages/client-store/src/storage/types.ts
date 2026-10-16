@@ -6,6 +6,7 @@
  */
 
 import type { ProcedurePath, ProcedureMetadata } from "@procedures/client";
+import type { Duration } from "@procedures/client";
 
 // =============================================================================
 // Serialized Procedure
@@ -152,8 +153,8 @@ export interface SyncedRegistryOptions {
   /** How to resolve conflicts when loading from storage */
   conflictResolution: ConflictResolution;
 
-  /** Auto-sync interval in milliseconds (0 to disable) */
-  syncInterval?: number | undefined;
+  /** Auto-sync interval, for example `minutes(1)` (0 to disable) */
+  syncInterval?: Duration | undefined;
 
   /** Handler loader for restoring handlers from references */
   handlerLoader?: HandlerLoader | undefined;

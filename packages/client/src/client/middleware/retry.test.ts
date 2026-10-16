@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import { Client } from "../client.js";
 import { createRetryMiddleware } from "./retry.js";
 import type { Message, ResponseItem, Transport } from "../types.js";
+import { ms } from "../../duration.js";
 
 function item<T>(id: string, payload: T): ResponseItem<T> {
   return { id, status: { type: "success", code: 200 }, payload, metadata: {} };
@@ -48,7 +49,7 @@ describe("retry with streams", () => {
       },
       close: async () => {},
     } as Transport;
-    const client = new Client(endless).use(createRetryMiddleware({ retryDelay: 1 }));
+    const client = new Client(endless).use(createRetryMiddleware({ retryDelay: ms(1) }));
     const seen: number[] = [];
     for await (const n of client.stream<unknown, number>(method, {})) {
       seen.push(n);
@@ -60,7 +61,7 @@ describe("retry with streams", () => {
 
   it("retries a retryable error before the first item", async () => {
     const { transport, calls } = scripted([["error"], ["error"], [1, 2, 3]]);
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     const seen: number[] = [];
     for await (const n of client.stream<unknown, number>(method, {})) seen.push(n);
     expect(seen).toEqual([1, 2, 3]);
@@ -69,7 +70,7 @@ describe("retry with streams", () => {
 
   it("does not retry an error after the first item: a retry would repeat items", async () => {
     const { transport, calls } = scripted([[1, 2, "error"], [1, 2, 3]]);
-    const client = new Client({ transport, throwOnError: false }).use(createRetryMiddleware({ retryDelay: 1 }));
+    const client = new Client({ transport, throwOnError: false }).use(createRetryMiddleware({ retryDelay: ms(1) }));
     const seen: unknown[] = [];
     for await (const n of client.stream<unknown, unknown>(method, {})) seen.push(n);
     expect(seen).toEqual([1, 2, null]);
@@ -78,14 +79,14 @@ describe("retry with streams", () => {
 
   it("gives the error after the last attempt", async () => {
     const { transport, calls } = scripted([["error"]]);
-    const client = new Client(transport).use(createRetryMiddleware({ maxRetries: 2, retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ maxRetries: 2, retryDelay: ms(1), jitter: 0 }));
     await expect(client.call(method, {})).rejects.toThrow("try again");
     expect(calls()).toBe(3);
   });
 
   it("keeps the request/response behavior: call() retries until success", async () => {
     const { transport, calls } = scripted([["error"], [42]]);
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     expect(await client.call(method, {})).toBe(42);
     expect(calls()).toBe(2);
   });

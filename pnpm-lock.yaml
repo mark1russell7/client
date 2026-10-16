@@ -289,6 +289,9 @@ importers:
 
   packages/client:
     dependencies:
+      '@mark1russell7/quantity':
+        specifier: ^0.1.0
+        version: 0.1.0(zod@4.6.5)
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -1855,6 +1858,12 @@ packages:
   '@mark1russell7/docker-sqlite@0.1.0':
     resolution: {integrity: sha512-iDJU4B8hYy8bGtoAiBhUxvf1ZTnBsyBHHlylpZx/qcbh3/sAaSFZPrIeqCvJJClRc5dYBEtUV1mBkRZDDvqEzg==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/quantity@0.1.0':
+    resolution: {integrity: sha512-gUjecziGv4y6CxWjGZb9Z4WIeuS/OEZMTvdH2X1Qv/QGft/kHYtaiqfkz/kT+ScqHV4ak/eWQ9WAlzWQvrH7Rg==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
 
   '@mark1russell7/splay@0.1.0':
     resolution: {integrity: sha512-68MO5gAKRv+sjAJdO+I/TYCjl45QcG3vU8mK8Jj28B3e7EeR+GQKRCgSE3/56JdCNKLh19khwTBHLZuly4EH8g==}
@@ -4049,6 +4058,10 @@ snapshots:
     dependencies:
       '@types/sql.js': 1.4.11
       sql.js: 1.14.2
+
+  '@mark1russell7/quantity@0.1.0(zod@4.6.5)':
+    dependencies:
+      zod: 4.6.5
 
   '@mark1russell7/splay@0.1.0': {}
 

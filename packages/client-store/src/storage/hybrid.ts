@@ -14,6 +14,7 @@
 
 import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
 import { InMemoryStorage } from "@procedures/collections";
+import { optionalMs, type Duration } from "@procedures/client";
 
 /**
  * Conflict resolution strategy.
@@ -64,11 +65,11 @@ export interface HybridStorageOptions {
   keyOf?: (item: any) => string | undefined;
 
   /**
-   * Automatic sync interval in milliseconds (for write-back mode).
+   * Automatic sync interval (for write-back mode), for example `seconds(5)`.
    * Set to 0 to disable automatic sync.
-   * @default 5000 (5 seconds)
+   * @default 5 seconds
    */
-  syncInterval?: number;
+  syncInterval?: Duration;
 
   /**
    * Initialize by syncing from remote on construction.
@@ -180,7 +181,7 @@ const defaultKeyOf = (item: unknown): string | undefined => {
  * const hybrid = new HybridStorage(remote, {
  *   writeStrategy: "write-through",
  *   conflictResolution: "remote",
- *   syncInterval: 5000
+ *   syncInterval: seconds(5)
  * });
  *
  * // Fast local reads
@@ -236,7 +237,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       conflictResolution: options.conflictResolution ?? "remote",
       ...(options.mergeFn !== undefined && { mergeFn: options.mergeFn }),
       keyOf: options.keyOf ?? defaultKeyOf,
-      syncInterval: options.syncInterval ?? 5000,
+      syncInterval: optionalMs(options.syncInterval, "syncInterval") ?? 5000,
       syncOnInit: options.syncOnInit ?? true,
       maxOfflineOps: options.maxOfflineOps ?? 1000,
       offlineQueue: options.offlineQueue ?? true,

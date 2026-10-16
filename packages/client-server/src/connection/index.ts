@@ -19,6 +19,7 @@ import type {
   ProcedureInfo,
   ProcedureAnnounceMessage,
 } from "../types.js";
+import { ms, type Duration } from "@procedures/client";
 
 // =============================================================================
 // Types
@@ -29,8 +30,8 @@ export interface ConnectOptions {
   address: string;
   /** Transport type (auto-detected from URL if not specified) */
   transport?: TransportType;
-  /** Connection timeout in ms */
-  timeout?: number;
+  /** The time limit of the connection, for example `seconds(10)` */
+  timeout?: Duration;
   /** Local peer ID to identify ourselves */
   localPeerId?: string;
 }
@@ -143,7 +144,7 @@ function detectTransport(address: string): TransportType {
 function createClient(
   address: string,
   transport: TransportType,
-  timeout?: number
+  timeout?: Duration
 ): Client {
   switch (transport) {
     case "http": {
@@ -164,7 +165,7 @@ function createClient(
       return new Client({
         transport: new WebSocketTransport({
           url: address,
-          connectionTimeout: timeout ?? 10000,
+          connectionTimeout: timeout ?? ms(10000),
           reconnect: {
             enabled: true,
             maxAttempts: 3,

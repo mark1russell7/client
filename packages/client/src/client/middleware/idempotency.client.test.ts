@@ -21,6 +21,7 @@ import { ProcedureServer } from "../../server/procedure-server.js";
 import type { ServerRequest, ServerResponse } from "../../server/types.js";
 import { HttpTransport } from "../../adapters/http/client/transport.js";
 import { HttpServerTransport } from "../../adapters/http/server/transport.js";
+import { ms } from "../../duration.js";
 
 const method = { service: "orders", operation: "create" };
 
@@ -73,14 +74,14 @@ describe("the delivery of a failed try", () => {
 describe("retry and idempotency", () => {
   it("does not send a call again after a reset, when nothing says that it is idempotent", async () => {
     const { transport, messages } = failsOnce(reset);
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     await expect(client.call(method, {})).rejects.toThrow("socket hang up");
     expect(messages).toHaveLength(1);
   });
 
   it("sends a call again after a refused connection: the request did not leave", async () => {
     const { transport, messages } = failsOnce(refused);
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     expect(await client.call(method, {})).toBe("second try");
     expect(messages).toHaveLength(2);
   });
@@ -93,18 +94,18 @@ describe("retry and idempotency", () => {
       }
       yield ok(message.id, "second try");
     });
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     expect(await client.call(method, {})).toBe("second try");
     expect(messages).toHaveLength(2);
   });
 
   it("sends an idempotent call again after a reset: the option, the call or the registry says so", async () => {
     const byOption = failsOnce(reset);
-    const optionClient = new Client(byOption.transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0, idempotent: true }));
+    const optionClient = new Client(byOption.transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0, idempotent: true }));
     expect(await optionClient.call(method, {})).toBe("second try");
 
     const byCall = failsOnce(reset);
-    const callClient = new Client(byCall.transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const callClient = new Client(byCall.transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     expect(await callClient.call(method, {}, { context: { retry: { idempotent: true } } })).toBe("second try");
 
     const registry = createRegistry({
@@ -126,8 +127,8 @@ describe("retry and idempotency", () => {
       yield ok(message.id, "second try");
     });
     const client = new Client({ transport, throwOnError: true })
-      .use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }))
-      .use(createTimeoutMiddleware({ perAttempt: 20 }));
+      .use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }))
+      .use(createTimeoutMiddleware({ perAttempt: ms(20) }));
     await expect(client.call(method, {})).rejects.toMatchObject({ code: "TIMEOUT" });
     expect(messages).toHaveLength(1);
   });
@@ -137,7 +138,7 @@ describe("retry and idempotency", () => {
       if (call === 1) throw refused;
       yield ok(message.id, "done");
     });
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     await client.call(method, {});
     await client.call(method, {});
     const keys = messages.map((m) => m.metadata[IDEMPOTENCY_KEY_METADATA]);
@@ -150,7 +151,7 @@ describe("retry and idempotency", () => {
     const { transport, messages } = fake(async function* (message) {
       yield ok(message.id, "done");
     });
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1) }));
     await client.call(method, {}, { context: { [IDEMPOTENCY_KEY_METADATA]: "order-17" } });
     expect(messages[0]!.metadata[IDEMPOTENCY_KEY_METADATA]).toBe("order-17");
   });
@@ -168,7 +169,7 @@ describe("isRepeatable", () => {
 describe("IdempotencyCache", () => {
   it("runs a key one time, and forgets it after its time to live", async () => {
     let now = 0;
-    const cache = new IdempotencyCache<number>({ ttlMs: 100, now: () => now });
+    const cache = new IdempotencyCache<number>({ ttl: ms(100), now: () => now });
     let runs = 0;
     const run = async (): Promise<number> => ++runs;
     expect(await cache.run("a", run, () => true).result).toBe(1);
@@ -295,8 +296,8 @@ describe("retry with a key over HTTP", () => {
     try {
       const transport = new HttpTransport({ baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api` });
       const client = new Client({ transport, throwOnError: true })
-        .use(createRetryMiddleware({ retryDelay: 10, jitter: 0, idempotent: true }))
-        .use(createTimeoutMiddleware({ perAttempt: 60 }));
+        .use(createRetryMiddleware({ retryDelay: ms(10), jitter: 0, idempotent: true }))
+        .use(createTimeoutMiddleware({ perAttempt: ms(60) }));
       // Try 1 times out at 60 ms. Try 2 starts at 70 ms and waits for the run of try 1 (120 ms).
       const result = await client.call<{ item: string }, { order: number }>(method, { item: "book" });
       expect(result).toEqual({ order: 1 });

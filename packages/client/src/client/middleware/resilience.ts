@@ -23,13 +23,14 @@ import { createCircuitBreakerMiddleware, type CircuitBreakerOptions } from "./ci
 import { createRateLimitMiddleware, type RateLimitOptions } from "./rate-limit.js";
 import { createRetryMiddleware, type RetryOptions } from "./retry.js";
 import { createOverallTimeoutMiddleware, createTimeoutMiddleware } from "./timeout.js";
+import type { Duration } from "../../duration.js";
 
 /** The parts of the preset. An absent part is not in the stack. */
 export interface ResilienceOptions {
-  /** The time of the whole call, retries included, in milliseconds. */
-  overall?: number | undefined;
-  /** The time of one try, in milliseconds. It is at most the remaining time of the call. */
-  perAttempt?: number | undefined;
+  /** The time of the whole call, retries included. */
+  overall?: Duration | undefined;
+  /** The time of one try. It is at most the remaining time of the call. */
+  perAttempt?: Duration | undefined;
   /** The retry. Its `idempotent` option decides which calls go again after an indeterminate try. */
   retry?: RetryOptions | undefined;
   /** The circuit breaker. */
@@ -53,8 +54,8 @@ export type ResilienceContext = TimeoutContext & Partial<RetryContext & CacheCon
  * ```typescript
  * const client = new Client(transport).use(
  *   resilience({
- *     overall: 10_000,
- *     perAttempt: 3_000,
+ *     overall: seconds(10),
+ *     perAttempt: seconds(3),
  *     retry: { maxRetries: 2, idempotent: idempotentIn(registry) },
  *     breaker: { failureThreshold: 5 },
  *   }),

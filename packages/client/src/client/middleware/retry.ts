@@ -9,6 +9,7 @@ import type { ClientRunner, ClientContext, Method, ResponseItem, TypedClientMidd
 import type { RetryContext } from "./contexts.js";
 import { abortedItem, deliveryOf, sleep, thrownItem } from "./items.js";
 import { IDEMPOTENCY_KEY_METADATA, idempotencyKeyOf, newIdempotencyKey } from "../../procedures/idempotency.js";
+import { isDuration, optionalMs, type Duration } from "../../duration.js";
 
 /**
  * Retry middleware options.
@@ -21,11 +22,11 @@ export interface RetryOptions {
   maxRetries?: number;
 
   /**
-   * Base delay in milliseconds for exponential backoff.
+   * Base delay for exponential backoff, for example `ms(500)`.
    * Actual delay will be: baseDelay * 2^attempt + jitter
-   * @default 1000
+   * @default 1 second
    */
-  retryDelay?: number;
+  retryDelay?: Duration;
 
   /**
    * The factor of the delay from one attempt to the next.
@@ -34,10 +35,10 @@ export interface RetryOptions {
   backoffMultiplier?: number;
 
   /**
-   * The longest delay between two attempts, in milliseconds.
+   * The longest delay between two attempts.
    * @default no limit
    */
-  maxDelay?: number;
+  maxDelay?: Duration;
 
   /**
    * Maximum jitter as a fraction of the delay (0-1).
@@ -113,7 +114,7 @@ export interface RetryOptions {
  * @example
  * ```typescript
  * // Create middleware with defaults
- * client.use(createRetryMiddleware({ maxRetries: 3 }));
+ * client.use(createRetryMiddleware({ maxRetries: 3, retryDelay: ms(500) }));
  *
  * // Override per-call via context
  * await client.call(method, payload, {
@@ -122,8 +123,8 @@ export interface RetryOptions {
  * ```
  */
 export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMiddleware<RetryContext, {}> {
+  const defaultRetryDelay = optionalMs(options.retryDelay, "retryDelay") ?? 1000;
   const {
-    retryDelay: defaultRetryDelay = 1000,
     jitter: defaultJitter = 0.1,
     shouldRetry: customShouldRetry,
     onBeforeRetry,
@@ -132,15 +133,25 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
   } = options;
   const defaultMaxRetries = options.maxRetries ?? 3;
   const defaultMultiplier = options.backoffMultiplier ?? 2;
-  const defaultMaxDelay = options.maxDelay ?? Number.POSITIVE_INFINITY;
+  const defaultMaxDelay = optionalMs(options.maxDelay, "maxDelay") ?? Number.POSITIVE_INFINITY;
 
-  /** The overrides of one call (`retry: { ... }` in its context). Before, only maxAttempts was read. */
-  const overridesOf = (value: unknown): Partial<Pick<RetryContext["retry"], "maxAttempts" | "delay" | "backoffMultiplier" | "maxDelay">> => {
+  /**
+   * The overrides of one call (`retry: { ... }` in its context), with the delays in milliseconds.
+   * Before, only maxAttempts was read.
+   */
+  const overridesOf = (value: unknown): { maxAttempts?: number; delay?: number; backoffMultiplier?: number; maxDelay?: number } => {
     if (typeof value !== "object" || value === null) return {};
-    const out: Partial<Pick<RetryContext["retry"], "maxAttempts" | "delay" | "backoffMultiplier" | "maxDelay">> = {};
-    for (const key of ["maxAttempts", "delay", "backoffMultiplier", "maxDelay"] as const) {
+    const out: { maxAttempts?: number; delay?: number; backoffMultiplier?: number; maxDelay?: number } = {};
+    for (const key of ["maxAttempts", "backoffMultiplier"] as const) {
       const field = (value as Record<string, unknown>)[key];
       if (typeof field === "number" && Number.isFinite(field) && field >= 0) out[key] = field;
+    }
+    for (const key of ["delay", "maxDelay"] as const) {
+      const field = (value as Record<string, unknown>)[key];
+      if (field !== undefined) {
+        if (!isDuration(field)) throw new TypeError(`retry.${key} must be a duration such as ms(500) (roadmap R11)`);
+        out[key] = optionalMs(field, `retry.${key}`)!;
+      }
     }
     return out;
   };
@@ -163,7 +174,8 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       // Read from metadata first (user-provided context), then fall back to options
-      const overrides = overridesOf(context.message.metadata.retry);
+      const given = context.message.metadata.retry;
+      const overrides = overridesOf(given);
       const maxRetries = overrides.maxAttempts ?? defaultMaxRetries;
       const idempotent = isIdempotent(context.message.method, context.message.metadata.retry);
       const shouldRetryItem = (item: ResponseItem<TRes>, attempt: number): boolean => {
@@ -184,7 +196,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
       for (;;) {
         // Update retry metadata with current state
         context.message.metadata.retry = {
-          ...overrides,
+          ...(typeof given === "object" && given !== null ? (given as object) : {}),
           attempt,
           maxAttempts: maxRetries,
           idempotent,

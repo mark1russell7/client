@@ -188,7 +188,7 @@ import { connect } from "@procedures/peer";
 const connection = await connect({
   address: "http://localhost:3000/api",
   transport: "http", // Auto-detected from URL if omitted
-  timeout: 10000,
+  timeout: seconds(10),
   localPeerId: "my-client",
 });
 
@@ -288,7 +288,7 @@ const jsonString = generateJsonString({ namespace: ["git"] });
 await client.exec(["server", "connect"], {
   address: "http://localhost:3000/api",
   transport: "http",
-  timeout: 10000,
+  timeout: 10000, // the input is data: milliseconds
 });
 
 // Disconnect from server
@@ -687,7 +687,7 @@ import { connect } from "@procedures/peer";
 try {
   const connection = await connect({
     address: "http://localhost:3000/api",
-    timeout: 5000,
+    timeout: seconds(5),
   });
 
   // Use connection

@@ -8,6 +8,7 @@
 import type { ClientRunner, ClientContext, ResponseItem, Metadata, Method, TypedClientMiddleware } from "../types.js";
 import type { CacheContext } from "./contexts.js";
 import { LruMap } from "./lru.js";
+import { isDuration, optionalMs, type Duration } from "../../duration.js";
 
 /**
  * Cache middleware options.
@@ -21,10 +22,10 @@ export interface CacheOptions {
   methods: readonly string[] | ((method: Method) => boolean);
 
   /**
-   * Time-to-live for cache entries in milliseconds. A call can give its own: `cache: { ttl }`.
+   * Time-to-live for cache entries, for example `minutes(1)`. A call can give its own: `cache: { ttl }`.
    * @default 60000 (1 minute)
    */
-  ttl?: number;
+  ttl?: Duration;
 
   /**
    * Maximum number of cache entries (LRU eviction when exceeded).
@@ -39,11 +40,11 @@ export interface CacheOptions {
   onStats?: (stats: CacheStats) => void;
 
   /**
-   * Interval in milliseconds for emitting cache statistics.
+   * Interval for emitting cache statistics.
    * Only used if onStats is provided.
    * @default 60000 (1 minute)
    */
-  statsInterval?: number;
+  statsInterval?: Duration;
 
   /**
    * Custom cache key generator.
@@ -160,7 +161,7 @@ function cacheOverrides(value: unknown): { ttl?: number; bypass?: boolean; refre
   if (typeof value !== "object" || value === null) return {};
   const { ttl, bypass, refresh } = value as Record<string, unknown>;
   return {
-    ...(typeof ttl === "number" && ttl >= 0 ? { ttl } : {}),
+    ...(isDuration(ttl) && ttl.value >= 0 ? { ttl: optionalMs(ttl, "cache.ttl")! } : {}),
     ...(bypass === true ? { bypass: true } : {}),
     ...(refresh === true ? { refresh: true } : {}),
   };
@@ -199,18 +200,18 @@ function defaultShouldCache(item: ResponseItem<unknown>): boolean {
  * client.use(createCacheMiddleware({
  *   methods: ["users.get", "users.list"], // only these calls are cached
  *   capacity: 100,
- *   ttl: 60000, // 1 minute
+ *   ttl: minutes(1),
  *   onStats: (stats) => console.log(`Hit rate: ${stats.hitRate}%`)
  * }));
  * ```
  */
 export function createCacheMiddleware(options: CacheOptions): TypedClientMiddleware<CacheContext, {}> {
+  const ttl = optionalMs(options.ttl, "ttl") ?? 60000;
+  const statsInterval = optionalMs(options.statsInterval, "statsInterval") ?? 60000;
   const {
     methods,
-    ttl = 60000,
     capacity = 100,
     onStats,
-    statsInterval = 60000,
     keyGenerator = defaultKeyGenerator,
     shouldCache = defaultShouldCache,
   } = options;

@@ -270,7 +270,7 @@ interface WebSocketTransportOptions {
 }
 
 // The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
-new WebSocketServerTransport(server, { server: http, heartbeat: { interval: 30000, misses: 2 } });
+new WebSocketServerTransport(server, { server: http, heartbeat: { interval: seconds(30), misses: 2 } });
 ```
 
 #### `LocalTransport`
@@ -314,7 +314,7 @@ interface RetryOptions {
 }
 
 // The overrides of one call, in its context or as route() overrides
-client.withContext({ retry: { maxAttempts: 5, delay: 200, backoffMultiplier: 3, maxDelay: 2000, idempotent: true } });
+client.withContext({ retry: { maxAttempts: 5, delay: ms(200), backoffMultiplier: 3, maxDelay: seconds(2), idempotent: true } });
 ```
 
 #### Cache Middleware
@@ -330,21 +330,19 @@ interface CacheOptions {
 }
 
 // The overrides of one call, in its context or as route() overrides
-client.withContext({ cache: { ttl: 5000 } });      // the life of the stored entry
+client.withContext({ cache: { ttl: seconds(5) } });      // the life of the stored entry
 client.withContext({ cache: { bypass: true } });   // no read, no write
 client.withContext({ cache: { refresh: true } });  // fetch, then replace the stored entry
 ```
 
-#### Timeout Middleware
+#### Timeout Middleware and the resilience preset
 ```typescript
-createTimeoutMiddleware(options: TimeoutOptions)
-createOverallTimeoutMiddleware(timeout: number)
-createCombinedTimeoutMiddleware(options: { overall: number; perAttempt: number })
+createOverallTimeoutMiddleware({ overall: seconds(10) })   // the whole call, retries included
+createTimeoutMiddleware({ perAttempt: seconds(2) })        // each try
+resilience({ overall, perAttempt, retry, breaker, cache, rateLimit })  // the layers in the correct order
 
-interface TimeoutOptions {
-  overall?: number;          // milliseconds
-  perAttempt?: number;       // milliseconds
-}
+// Each time is a Duration of @mark1russell7/quantity: ms(500), seconds(2), minutes(1), hours(1).
+// A plain number is a type error (roadmap R11). The wire keeps milliseconds (procedure-timeout).
 ```
 
 #### Auth Middleware
@@ -366,9 +364,12 @@ interface AuthOptions {
 createCircuitBreakerMiddleware(options?: CircuitBreakerOptions)
 
 interface CircuitBreakerOptions {
-  threshold?: number;        // default: 5 failures
-  timeout?: number;          // default: 60000ms
-  resetTimeout?: number;     // default: 30000ms
+  failureThreshold?: number;   // default: 5 failures
+  failureWindow?: Duration;    // default: seconds(10)
+  resetTimeout?: Duration;     // default: seconds(30)
+  successThreshold?: number;   // default: 2
+  halfOpenMaxRequests?: number;
+  isFailure?: (error: Error) => boolean;
 }
 ```
 
@@ -377,19 +378,10 @@ interface CircuitBreakerOptions {
 createRateLimitMiddleware(options?: RateLimitOptions)
 
 interface RateLimitOptions {
-  maxTokens?: number;        // default: 10
-  refillRate?: number;       // tokens per second, default: 1
-  refillInterval?: number;   // milliseconds, default: 1000
-}
-```
-
-#### Batching Middleware
-```typescript
-createBatchingMiddleware(options?: BatchingOptions)
-
-interface BatchingOptions {
-  maxBatchSize?: number;     // default: 10
-  maxWaitTime?: number;      // default: 10ms
+  maxRequests?: number;          // default: 100
+  window?: Duration;             // default: minutes(1)
+  strategy?: "reject" | "queue"; // default: "reject"
+  maxQueueSize?: number;         // default: 100
 }
 ```
 
@@ -690,12 +682,12 @@ const error = createError("E_TIMEOUT", {
 // timeout of each try sits inside the retry, so the retry can start the next try.
 const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) })
   .use(createTracingMiddleware())
-  .use(createOverallTimeoutMiddleware({ overall: 10000 }))
-  .use(createCacheMiddleware({ methods: ["users.get"], capacity: 100, ttl: 60000 }))
-  .use(createRetryMiddleware({ maxRetries: 3, retryDelay: 1000, idempotent: (method) => method.operation === "get" }))
-  .use(createCircuitBreakerMiddleware({ failureThreshold: 5, resetTimeout: 60000 }))
-  .use(createRateLimitMiddleware({ maxRequests: 10, window: 1000 }))
-  .use(createTimeoutMiddleware({ perAttempt: 5000 }))
+  .use(createOverallTimeoutMiddleware({ overall: seconds(10) }))
+  .use(createCacheMiddleware({ methods: ["users.get"], capacity: 100, ttl: minutes(1) }))
+  .use(createRetryMiddleware({ maxRetries: 3, retryDelay: seconds(1), idempotent: (method) => method.operation === "get" }))
+  .use(createCircuitBreakerMiddleware({ failureThreshold: 5, resetTimeout: minutes(1) }))
+  .use(createRateLimitMiddleware({ maxRequests: 10, window: seconds(1) }))
+  .use(createTimeoutMiddleware({ perAttempt: seconds(5) }))
   .use(createZodMiddleware());
 
 // Context inheritance
@@ -735,7 +727,7 @@ const result = await client.route({
   batch: { strategy: "all", maxConcurrency: 5 },
   middlewares: {
     retry: { attempts: 3 },
-    timeout: { overall: 10000 },
+    timeout: { overall: seconds(10) },
   },
   route: {
     users: {

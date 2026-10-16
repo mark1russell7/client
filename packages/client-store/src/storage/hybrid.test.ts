@@ -15,6 +15,7 @@ import { Client, LocalTransport, createCollectionProcedures, invokeProcedure, ou
 import type { RepositoryProvider } from "@procedures/client";
 import { ApiStorage } from "./api.js";
 import { HybridStorage, MissingKeysError, PendingWriteError, QueueFullError } from "./hybrid.js";
+import { ms } from "@procedures/client";
 
 type Item = { n: number };
 
@@ -88,7 +89,7 @@ describe("the sync needs ids (R2)", () => {
 describe("write-through failures (R2)", () => {
   it("keeps a write that the remote cannot take in the queue, and a timer sends it", async () => {
     const remote = new FlakyRemote();
-    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: 10 });
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: ms(10) });
     remote.down = true;
     await expect(hybrid.set("a", { n: 1 })).rejects.toBeInstanceOf(PendingWriteError);
     // A second try of the same write does not queue it two times
@@ -126,7 +127,7 @@ describe("write-through failures (R2)", () => {
 
   it("refuses a write when the queue is full, and changes nothing", async () => {
     const remote = new FlakyRemote();
-    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: 0, maxOfflineOps: 2 });
+    const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(0), maxOfflineOps: 2 });
     await hybrid.set("a", { n: 1 });
     await hybrid.set("b", { n: 2 });
     await expect(hybrid.set("c", { n: 3 })).rejects.toBeInstanceOf(QueueFullError);
@@ -175,7 +176,7 @@ describe.each(["write-through", "write-back"] as const)("a model of the %s mode 
     await fc.assert(
       fc.asyncProperty(fc.array(op, { maxLength: 40 }), async (ops) => {
         const remote = new FlakyRemote();
-        const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: 0, writeStrategy });
+        const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: ms(0), writeStrategy });
         // The model: the last write that the caller made, also a write that waits in the queue
         const model = new Map<string, number>();
         for (const step of ops) {

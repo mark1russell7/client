@@ -39,7 +39,7 @@ import { PROCEDURE_REGISTRY } from "./registry.js";
 import { nestedCallRefusal } from "./policy.js";
 import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
-import { timeoutInterceptor } from "./interceptors.js";
+import { timeoutAfterMs } from "./interceptors.js";
 import type { EventBus } from "../events/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
@@ -304,7 +304,7 @@ export async function invokeProcedure<TOutput = unknown>(
   const deadline = invocation.capability.deadline;
   const ownDeadline = deadline !== undefined && options.parent?.capability.deadline !== deadline;
   const interceptors = ownDeadline
-    ? [timeoutInterceptor({ ms: Math.max(0, deadline - Date.now()), appliesTo: () => true }), ...(options.interceptors ?? [])]
+    ? [timeoutAfterMs({ ms: Math.max(0, deadline - Date.now()), appliesTo: () => true }), ...(options.interceptors ?? [])]
     : (options.interceptors ?? []);
   if (interceptors.length === 0) return runInvocation<TOutput>(invocation, options);
 

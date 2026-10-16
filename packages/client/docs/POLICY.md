@@ -64,7 +64,7 @@ const audit: Interceptor = async (invocation, next) => {
   return next();
 };
 
-new ProcedureServer({ interceptors: [audit, timeoutInterceptor({ ms: 60_000 })] });
+new ProcedureServer({ interceptors: [audit, timeoutInterceptor({ limit: minutes(1) })] });
 new Client({ transport, interceptors: [audit] });
 ```
 
@@ -97,7 +97,7 @@ The client middlewares (retry, cache, auth, circuit breaker, rate limit) wrap `t
 import { ProcedureServer, createRegistry, hostPolicy, procedureServerOptions } from "@procedures/client";
 import bundleMcpModule from "@procedures/bundle-mcp/module";
 
-const policy = hostPolicy({ expose: { namespaces: ["docker"] }, strictCalls: true, timeoutMs: 60_000 });
+const policy = hostPolicy({ expose: { namespaces: ["docker"] }, strictCalls: true, timeout: minutes(1) });
 const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(bundleMcpModule)));
 ```
 

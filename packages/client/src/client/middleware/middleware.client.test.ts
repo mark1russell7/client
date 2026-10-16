@@ -16,6 +16,7 @@ import { createTimeoutMiddleware, createOverallTimeoutMiddleware } from "./timeo
 import { createRateLimitMiddleware } from "./rate-limit.js";
 import { isNetworkError } from "./items.js";
 import type { Message, ResponseItem, Transport } from "../types.js";
+import { ms } from "../../duration.js";
 
 const method = { service: "test", operation: "op" };
 
@@ -99,8 +100,8 @@ for (const throwOnError of [true, false]) {
       });
       const client = new Client({ transport, throwOnError })
         // The first attempt can have run on the server, so only an idempotent call goes again (R1)
-        .use(createRetryMiddleware({ retryDelay: 1, jitter: 0, idempotent: true }))
-        .use(createTimeoutMiddleware({ perAttempt: 30 }));
+        .use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0, idempotent: true }))
+        .use(createTimeoutMiddleware({ perAttempt: ms(30) }));
       expect(await client.call(method, {})).toBe("second attempt");
       expect(messages).toHaveLength(2);
     });
@@ -110,7 +111,7 @@ for (const throwOnError of [true, false]) {
         await new Promise<void>((resolve) => message.signal!.addEventListener("abort", () => resolve()));
         yield { id: message.id, status: { type: "error", code: "ABORTED", message: "Request was aborted", retryable: false }, payload: null, metadata: {} };
       });
-      const client = new Client({ transport, throwOnError }).use(createOverallTimeoutMiddleware({ overall: 20 }));
+      const client = new Client({ transport, throwOnError }).use(createOverallTimeoutMiddleware({ overall: ms(20) }));
       if (throwOnError) {
         await expect(client.call(method, {})).rejects.toMatchObject({ code: "TIMEOUT" });
       } else {
@@ -125,7 +126,7 @@ for (const throwOnError of [true, false]) {
       const { transport, messages } = fake(async function* () {
         throw new Error("Input validation failed");
       });
-      const client = new Client({ transport, throwOnError }).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+      const client = new Client({ transport, throwOnError }).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
       await expect(client.call(method, {})).rejects.toThrow("Input validation failed");
       expect(messages).toHaveLength(1);
     });
@@ -135,7 +136,7 @@ for (const throwOnError of [true, false]) {
         if (call < 3) throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
         yield ok(message.id, "up");
       });
-      const client = new Client({ transport, throwOnError }).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+      const client = new Client({ transport, throwOnError }).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
       expect(await client.call(method, {})).toBe("up");
       const ids = messages.map((m) => m.id);
       expect(new Set(ids).size).toBe(3);
@@ -145,7 +146,7 @@ for (const throwOnError of [true, false]) {
       const { transport, messages } = fake(async function* (message) {
         yield { id: message.id, status: { type: "error", code: "UNAVAILABLE", message: "busy", retryable: true }, payload: null, metadata: {} };
       });
-      const client = new Client({ transport, throwOnError }).use(createRetryMiddleware({ retryDelay: 10_000, jitter: 0 }));
+      const client = new Client({ transport, throwOnError }).use(createRetryMiddleware({ retryDelay: ms(10_000), jitter: 0 }));
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 20);
       const started = Date.now();
@@ -175,7 +176,7 @@ describe("rate limit (TRN-12)", () => {
       order.push((message.payload as { n: number }).n);
       yield ok(message.id, null);
     });
-    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 1, window: 30, strategy: "queue" }));
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 1, window: ms(30), strategy: "queue" }));
     const calls = [1, 2, 3].map((n) => client.call(method, { n }));
     await new Promise((resolve) => setTimeout(resolve, 35));
     calls.push(client.call(method, { n: 4 }));
@@ -188,7 +189,7 @@ describe("rate limit (TRN-12)", () => {
       yield ok(message.id, null);
     });
     const client = new Client({ transport, throwOnError: false }).use(
-      createRateLimitMiddleware({ maxRequests: 1, window: 10_000, strategy: "queue" }),
+      createRateLimitMiddleware({ maxRequests: 1, window: ms(10_000), strategy: "queue" }),
     );
     await client.call(method, {});
     const controller = new AbortController();
@@ -202,11 +203,11 @@ describe("rate limit (TRN-12)", () => {
     const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "dist", "client", "index.js");
     if (!existsSync(dist)) return; // the build makes dist/ before the tests in CI
     const script = `
-      const { Client, LocalTransport, createRateLimitMiddleware } = await import(${JSON.stringify(pathToFileURL(dist).href)});
+      const { Client, LocalTransport, createRateLimitMiddleware, ms } = await import(${JSON.stringify(pathToFileURL(dist).href)});
       const transport = new LocalTransport();
       let ran = 0;
       transport.register({ service: "t", operation: "op" }, () => { ran++; return ran; });
-      const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 1, window: 100, strategy: "queue" }));
+      const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 1, window: ms(100), strategy: "queue" }));
       for (let i = 0; i < 5; i++) client.call({ service: "t", operation: "op" }, {}).then(() => { if (ran === 5) console.log("all ran"); });
     `;
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", timeout: 20_000 });

@@ -26,6 +26,7 @@ import {
   type ResponseItem,
   type Transport,
 } from "@procedures/client/client";
+import { ms } from "@procedures/client/client";
 
 // ---------------------------------------------------------------------------
 // Layers and settings
@@ -274,25 +275,25 @@ function probe(layer: number, middleware: ClientMiddleware, emit: (event: LabEve
 function middlewareOf(id: LayerId, settings: LabSettings, onBreaker: (state: BreakerState) => void): ClientMiddleware {
   switch (id) {
     case "cache":
-      return createCacheMiddleware({ methods: ["lab.get"], ttl: settings.cacheTtlMs, capacity: 50, statsInterval: 3_600_000 }) as ClientMiddleware;
+      return createCacheMiddleware({ methods: ["lab.get"], ttl: ms(settings.cacheTtlMs), capacity: 50, statsInterval: ms(3_600_000) }) as ClientMiddleware;
     case "overall":
-      return createOverallTimeoutMiddleware({ overall: settings.overallMs }) as ClientMiddleware;
+      return createOverallTimeoutMiddleware({ overall: ms(settings.overallMs) }) as ClientMiddleware;
     case "retry":
       // lab.get reads, so a try that timed out can go again (an unknown write cannot: roadmap R1)
-      return createRetryMiddleware({ maxRetries: settings.retries, retryDelay: settings.retryDelayMs, jitter: 0.1, idempotent: (m) => m.operation === "get" }) as ClientMiddleware;
+      return createRetryMiddleware({ maxRetries: settings.retries, retryDelay: ms(settings.retryDelayMs), jitter: 0.1, idempotent: (m) => m.operation === "get" }) as ClientMiddleware;
     case "breaker":
       return createCircuitBreakerMiddleware({
         failureThreshold: settings.breakerThreshold,
-        failureWindow: 30_000,
-        resetTimeout: settings.breakerResetMs,
+        failureWindow: ms(30_000),
+        resetTimeout: ms(settings.breakerResetMs),
         successThreshold: 1,
         halfOpenMaxRequests: 1,
         onStateChange: (_from, to) => onBreaker(to as BreakerState),
       }) as ClientMiddleware;
     case "rateLimit":
-      return createRateLimitMiddleware({ maxRequests: settings.rateMax, window: settings.rateWindowMs, strategy: settings.rateStrategy, maxQueueSize: 20 }) as ClientMiddleware;
+      return createRateLimitMiddleware({ maxRequests: settings.rateMax, window: ms(settings.rateWindowMs), strategy: settings.rateStrategy, maxQueueSize: 20 }) as ClientMiddleware;
     case "attempt":
-      return createTimeoutMiddleware({ perAttempt: settings.attemptMs }) as ClientMiddleware;
+      return createTimeoutMiddleware({ perAttempt: ms(settings.attemptMs) }) as ClientMiddleware;
   }
 }
 

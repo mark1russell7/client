@@ -10,7 +10,7 @@
  *   procedure.
  * - `strictCalls`: a procedure of code that declares no `metadata.calls` calls only exposed
  *   procedures (a host for an outside caller sets it).
- * - `timeoutMs`: the time limit of each call from a caller (not of its nested calls).
+ * - `timeout`: the time limit of each call from a caller (not of its nested calls).
  * - `token`, `browser`: the checks of the network transports (`client-server` applies them).
  * - `capability`, `readOnly`, `clearanceOrder`, `resources`, `admitItem`: the capability of each
  *   call and what the host gives for it (CAPABILITIES-2026-10).
@@ -24,6 +24,7 @@ import { timeoutInterceptor } from "../procedures/interceptors.js";
 import type { BrowserGuardOptions } from "./browser-guard.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { ProcedureServerOptions } from "./procedure-server.js";
+import { toMs, type Duration } from "../duration.js";
 
 /** The procedures of a host that are tools: namespaces (first path segments), less some keys. */
 export interface ToolSurface {
@@ -63,8 +64,8 @@ export interface HostPolicyOptions {
   exclude?: readonly string[] | undefined;
   /** A procedure of code with no `metadata.calls` calls only exposed procedures. */
   strictCalls?: boolean | undefined;
-  /** The time limit of each call from a caller, in milliseconds. 0 or no value: no limit. */
-  timeoutMs?: number | undefined;
+  /** The time limit of each call from a caller, for example `minutes(10)`. 0 or no value: no limit. */
+  timeout?: Duration | undefined;
   /** More interceptors, after the policy's own (tracing, metrics). */
   interceptors?: readonly Interceptor[] | undefined;
   /** The token that each network request must send (HTTP and WebSocket transports). */
@@ -130,8 +131,8 @@ function exposeOf(options: HostPolicyOptions): ((path: ProcedurePath) => boolean
 /** This function builds the policy of a host from its options. */
 export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
   const interceptors: Interceptor[] = [];
-  if (options.timeoutMs !== undefined && options.timeoutMs > 0) {
-    interceptors.push(timeoutInterceptor({ ms: options.timeoutMs }));
+  if (options.timeout !== undefined && toMs(options.timeout, "timeout") > 0) {
+    interceptors.push(timeoutInterceptor({ limit: options.timeout }));
   }
   interceptors.push(...(options.interceptors ?? []));
   return {

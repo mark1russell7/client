@@ -58,6 +58,9 @@ export {
   createCombinedTimeoutMiddleware,
 } from "./middleware/timeout.js";
 export type { TimeoutOptions } from "./middleware/timeout.js";
+// Typed durations (roadmap R11)
+export { ms, seconds, minutes, hours, toMs, isDuration } from "../duration.js";
+export type { Duration } from "../duration.js";
 // The resilience preset and the deadline of a call (roadmap R10)
 export { resilience } from "./middleware/resilience.js";
 export type { ResilienceOptions, ResilienceContext } from "./middleware/resilience.js";

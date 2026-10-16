@@ -11,6 +11,7 @@ import type {
   MockTransportOptions,
   CallHistoryEntry,
 } from "./types.js";
+import { optionalMs } from "../../../duration.js";
 
 /**
  * Mock transport implementation for testing.
@@ -26,8 +27,8 @@ import type {
  * ```typescript
  * // Create mock transport with latency
  * const mock = new MockTransport({
- *   minLatency: 10,
- *   maxLatency: 50,
+ *   minLatency: ms(10),
+ *   maxLatency: ms(50),
  * });
  *
  * // Mock a specific response
@@ -57,14 +58,15 @@ import type {
 export class MockTransport implements Transport {
   readonly name = "mock";
 
-  private options: Required<MockTransportOptions>;
+  /** The options, with the latencies in milliseconds */
+  private options: Required<Omit<MockTransportOptions, "minLatency" | "maxLatency">> & { minLatency: number; maxLatency: number };
   private responses = new Map<ResponseMatcher, MockResponse>();
   private history: CallHistoryEntry[] = [];
 
   constructor(options: MockTransportOptions = {}) {
     this.options = {
-      minLatency: options.minLatency ?? 0,
-      maxLatency: options.maxLatency ?? 0,
+      minLatency: optionalMs(options.minLatency, "minLatency") ?? 0,
+      maxLatency: optionalMs(options.maxLatency, "maxLatency") ?? 0,
       failureRate: options.failureRate ?? 0,
       defaultErrorMessage: options.defaultErrorMessage ?? "Mock transport error",
       trackHistory: options.trackHistory ?? true,
@@ -247,7 +249,8 @@ export class MockTransport implements Transport {
 
     // Apply custom delay if specified
     if (mockResponse.delay !== undefined) {
-      await new Promise((resolve) => setTimeout(resolve, mockResponse.delay));
+      const delay = optionalMs(mockResponse.delay, "delay");
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     // Handle error response

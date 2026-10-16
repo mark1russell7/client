@@ -295,6 +295,9 @@ export {
   checkEffects,
 } from "./procedures/capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./procedures/effects.js";
+// Typed durations: each public option that is a time takes a Duration (roadmap R11)
+export { ms, seconds, minutes, hours, toMs, optionalMs, isDuration } from "./duration.js";
+export type { Duration, TimeUnit } from "./duration.js";
 // Idempotency of calls (roadmap R1)
 export {
   IDEMPOTENCY_KEY_METADATA,

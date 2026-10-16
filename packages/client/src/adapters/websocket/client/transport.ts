@@ -9,6 +9,7 @@ import type { Transport, Message, ResponseItem } from "../../../client/types.js"
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler } from "./types.js";
 import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
+import { optionalMs } from "../../../duration.js";
 
 /**
  * Pending request waiting for response.
@@ -166,18 +167,18 @@ export class WebSocketTransport implements Transport {
       reconnect: {
         enabled: options.reconnect?.enabled ?? true,
         maxAttempts: options.reconnect?.maxAttempts ?? Infinity,
-        initialDelay: options.reconnect?.initialDelay ?? 1000,
-        maxDelay: options.reconnect?.maxDelay ?? 30000,
+        initialDelay: optionalMs(options.reconnect?.initialDelay, "reconnect.initialDelay") ?? 1000,
+        maxDelay: optionalMs(options.reconnect?.maxDelay, "reconnect.maxDelay") ?? 30000,
         backoffMultiplier: options.reconnect?.backoffMultiplier ?? 1.5,
         jitter: Math.min(1, Math.max(0, options.reconnect?.jitter ?? 1)),
       },
-      connectionTimeout: options.connectionTimeout ?? 10000,
-      requestTimeout: options.requestTimeout ?? 30000,
+      connectionTimeout: optionalMs(options.connectionTimeout, "connectionTimeout") ?? 10000,
+      requestTimeout: optionalMs(options.requestTimeout, "requestTimeout") ?? 30000,
       streamWindow: Math.max(2, options.streamWindow ?? 64),
       heartbeat: {
         enabled: options.heartbeat?.enabled ?? true,
-        interval: options.heartbeat?.interval ?? 30000,
-        timeout: options.heartbeat?.timeout ?? 5000,
+        interval: optionalMs(options.heartbeat?.interval, "heartbeat.interval") ?? 30000,
+        timeout: optionalMs(options.heartbeat?.timeout, "heartbeat.timeout") ?? 5000,
         misses: Math.max(1, options.heartbeat?.misses ?? 1),
       },
       onConnect: options.onConnect,

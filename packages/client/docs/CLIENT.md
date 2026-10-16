@@ -51,7 +51,7 @@ Add middleware to the client. Returns a new client type with accumulated context
 
 ```typescript
 const client = new Client(transport)
-  .use(createOverallTimeoutMiddleware({ overall: 5000 }))   // Client<TimeoutContext>
+  .use(createOverallTimeoutMiddleware({ overall: seconds(5) }))   // Client<TimeoutContext>
   .use(createRetryMiddleware())                       // Client<TimeoutContext & RetryContext>
   .use(createCacheMiddleware({ methods: ["users.get"] })); // Client<... & CacheContext>
 ```
@@ -64,7 +64,7 @@ Make a single RPC call.
 const user = await client.call<{ id: number }, User>(
   { service: "users", operation: "get" },
   { id: 123 },
-  { timeout: { overall: 5000 } }  // optional metadata
+  { timeout: { overall: seconds(5) } }  // optional metadata
 );
 ```
 
@@ -157,7 +157,7 @@ Exponential backoff with jitter.
 ```typescript
 client.use(createRetryMiddleware({
   maxRetries: 3,           // default: 3
-  retryDelay: 1000,        // base delay in ms, default: 1000
+  retryDelay: seconds(1),  // the base delay, default: 1 second
   jitter: 0.1,             // jitter fraction 0-1, default: 0.1
   shouldRetry: (item, attempt) => item.status.retryable,  // custom predicate
   onBeforeRetry: async (item, attempt) => ({
@@ -176,12 +176,12 @@ LRU + TTL caching using the collections framework.
 client.use(createCacheMiddleware({
   methods: ["users.get", "users.list"], // required: only these calls are cached
   capacity: 100,           // max entries, default: 100
-  ttl: 60000,              // time-to-live in ms, default: 60000
+  ttl: minutes(1),         // the time to live, default: 1 minute
   // The default key holds the method, the payload and the metadata (auth, pagination)
   keyGenerator: (method, payload, metadata) => `${method.service}.${method.operation}:${JSON.stringify([payload, metadata.auth])}`,
   shouldCache: (item) => item.status.type === "success",
   onStats: (stats) => console.log(`Hit rate: ${stats.hitRate}%`),
-  statsInterval: 60000,    // how often to emit stats
+  statsInterval: minutes(1),    // how often to emit stats
 }));
 ```
 
@@ -191,15 +191,15 @@ Three variants for different timeout strategies.
 
 ```typescript
 // Per-attempt timeout (each retry gets fresh timeout)
-client.use(createTimeoutMiddleware({ perAttempt: 1000 }));
+client.use(createTimeoutMiddleware({ perAttempt: seconds(1) }));
 
 // Overall timeout (entire request including retries)
-client.use(createOverallTimeoutMiddleware({ overall: 5000 }));
+client.use(createOverallTimeoutMiddleware({ overall: seconds(5) }));
 
 // Combined
 client.use(createCombinedTimeoutMiddleware({
-  overall: 5000,
-  perAttempt: 1000,
+  overall: seconds(5),
+  perAttempt: seconds(1),
 }));
 ```
 
@@ -255,8 +255,8 @@ Prevents cascading failures.
 ```typescript
 client.use(createCircuitBreakerMiddleware({
   failureThreshold: 5,     // failures before opening, default: 5
-  failureWindow: 10000,    // window for counting failures, default: 10s
-  resetTimeout: 30000,     // time before trying again, default: 30s
+  failureWindow: seconds(10),    // window for counting failures, default: 10s
+  resetTimeout: seconds(30),     // time before trying again, default: 30s
   successThreshold: 2,     // successes to close, default: 2
   isFailure: (error) => true,  // custom failure predicate
   onStateChange: (oldState, newState) => console.log(`Circuit: ${oldState} → ${newState}`),
@@ -276,14 +276,14 @@ Token bucket throttling.
 // Reject strategy (default)
 client.use(createRateLimitMiddleware({
   maxRequests: 100,        // requests per window, default: 100
-  window: 60000,           // window in ms, default: 60s
+  window: minutes(1),           // the window, default: 1 minute
   strategy: "reject",      // throw RateLimitError when exceeded
 }));
 
 // Queue strategy
 client.use(createRateLimitMiddleware({
   maxRequests: 10,
-  window: 1000,
+  window: seconds(1),
   strategy: "queue",       // queue requests, process when capacity available
   maxQueueSize: 50,        // max queue size, default: 100
   onRateLimitExceeded: (stats) => console.log("Rate limited!", stats),
@@ -291,9 +291,9 @@ client.use(createRateLimitMiddleware({
 
 // Per-service rate limits
 client.use(createPerServiceRateLimiter({
-  users: { maxRequests: 100, window: 60000 },
-  orders: { maxRequests: 50, window: 60000 },
-  default: { maxRequests: 200, window: 60000 },
+  users: { maxRequests: 100, window: minutes(1) },
+  orders: { maxRequests: 50, window: minutes(1) },
+  default: { maxRequests: 200, window: minutes(1) },
 }));
 ```
 
@@ -401,7 +401,7 @@ Metadata flows through the request/response cycle:
 ```typescript
 // Request metadata
 await client.call(method, payload, {
-  timeout: { overall: 5000 },
+  timeout: { overall: seconds(5) },
   auth: { token: "override" },
   custom: { anything: "here" },
 });

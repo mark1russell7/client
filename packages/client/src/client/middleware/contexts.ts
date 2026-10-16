@@ -15,6 +15,8 @@
  * ```
  */
 
+import type { Duration } from "../../duration.js";
+
 // =============================================================================
 // Retry Middleware Context
 // =============================================================================
@@ -29,12 +31,12 @@ export interface RetryContext {
     attempt?: number;
     /** Maximum number of attempts: an override of a call, then the value that the middleware uses */
     maxAttempts?: number;
-    /** An override of the base delay, in milliseconds */
-    delay?: number;
+    /** An override of the base delay */
+    delay?: Duration;
     /** An override of the factor of the delay from one attempt to the next */
     backoffMultiplier?: number;
-    /** An override of the longest delay, in milliseconds */
-    maxDelay?: number;
+    /** An override of the longest delay */
+    maxDelay?: Duration;
     /**
      * True: the call can go again after a try with an indeterminate outcome, because a second
      * run changes nothing more (roadmap R1). It overrides the `idempotent` option of the middleware.
@@ -56,8 +58,8 @@ export interface RetryContext {
  */
 export interface CacheContext {
   cache: {
-    /** The time-to-live of the entry that this call stores, in milliseconds */
-    ttl?: number;
+    /** The time-to-live of the entry that this call stores */
+    ttl?: Duration;
     /** True: the call skips the cache (no read, no write) */
     bypass?: boolean;
     /** True: the call fetches and replaces the stored response */
@@ -77,10 +79,10 @@ export interface CacheContext {
  */
 export interface TimeoutContext {
   timeout: {
-    /** Overall timeout in milliseconds (if configured) */
-    overall?: number;
-    /** Per-attempt timeout in milliseconds (if configured) */
-    perAttempt?: number;
+    /** The overall timeout (if configured) */
+    overall?: Duration;
+    /** The timeout of each attempt (if configured) */
+    perAttempt?: Duration;
   };
 }
 

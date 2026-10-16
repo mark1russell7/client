@@ -30,6 +30,7 @@ import { timeoutInterceptor } from "./interceptors.js";
 import { Client } from "../client/client.js";
 import { LocalTransport } from "../adapters/local/client/transport.js";
 import type { Message, ResponseItem, Transport } from "../client/types.js";
+import { ms } from "../duration.js";
 
 type Level = "public" | "shared" | "private";
 const order = ladder<Level>(["public", "shared", "private"]);
@@ -391,7 +392,7 @@ describe("deadlines (phase C)", () => {
     const registry = makeRegistry();
     const before = Date.now();
     const result = (await run(registry, ["show", "lower"], {}, {
-      interceptors: [timeoutInterceptor({ ms: 5000 })],
+      interceptors: [timeoutInterceptor({ limit: ms(5000) })],
       capability: narrowCapability<Level>(undefined, { clearance: "private" }),
       clearanceOrder: order,
     })) as { capability: Capability };

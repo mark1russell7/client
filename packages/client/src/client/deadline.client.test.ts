@@ -21,6 +21,7 @@ import { createRegistry } from "../procedures/module.js";
 import { ProcedureServer } from "../server/procedure-server.js";
 import { HttpTransport } from "../adapters/http/client/transport.js";
 import { HttpServerTransport } from "../adapters/http/server/transport.js";
+import { ms } from "../duration.js";
 
 const method = { service: "test", operation: "op" };
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -51,8 +52,8 @@ describe("the deadline goes with each try (R10)", () => {
       yield call < 3 ? busy(message.id) : ok(message.id, "done");
     });
     const client = new Client(transport)
-      .use(createOverallTimeoutMiddleware({ overall: 1000 }))
-      .use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+      .use(createOverallTimeoutMiddleware({ overall: ms(1000) }))
+      .use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     expect(await client.call(method, {})).toBe("done");
     const sent = tries.map((t) => t[TIMEOUT_METADATA_KEY] as number);
     expect(sent).toHaveLength(3);
@@ -67,7 +68,7 @@ describe("the deadline goes with each try (R10)", () => {
       await sleep(30);
       yield call < 2 ? busy(message.id) : ok(message.id, "done");
     });
-    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }));
+    const client = new Client(transport).use(createRetryMiddleware({ retryDelay: ms(1), jitter: 0 }));
     await client.call(method, {}, { context: { [TIMEOUT_METADATA_KEY]: 500 } });
     const sent = tries.map((t) => t[TIMEOUT_METADATA_KEY] as number);
     expect(sent[0]).toBeLessThanOrEqual(500);
@@ -79,8 +80,8 @@ describe("the deadline goes with each try (R10)", () => {
       yield ok(message.id, "done");
     });
     const client = new Client(transport)
-      .use(createOverallTimeoutMiddleware({ overall: 5000 }))
-      .use(createTimeoutMiddleware({ perAttempt: 50 }));
+      .use(createOverallTimeoutMiddleware({ overall: ms(5000) }))
+      .use(createTimeoutMiddleware({ perAttempt: ms(50) }));
     await client.call(method, {});
     expect(tries[0]![TIMEOUT_METADATA_KEY]).toBeGreaterThan(4000);
   });
@@ -111,7 +112,7 @@ describe("the limit of one try is at most the remaining time (R10)", () => {
     const { transport } = recorder(async function* () {
       await new Promise(() => undefined);
     });
-    const client = new Client({ transport, throwOnError: true }).use(resilience({ overall: 60, perAttempt: 10_000 }));
+    const client = new Client({ transport, throwOnError: true }).use(resilience({ overall: ms(60), perAttempt: ms(10_000) }));
     const start = Date.now();
     await expect(client.call(method, {})).rejects.toMatchObject({ code: "TIMEOUT" });
     expect(Date.now() - start).toBeLessThan(1000);
@@ -125,7 +126,7 @@ describe("resilience() (R10)", () => {
       yield ok(message.id, "second try");
     });
     const client = new Client(transport).use(
-      resilience({ overall: 2000, perAttempt: 40, retry: { retryDelay: 1, jitter: 0, idempotent: true } }),
+      resilience({ overall: ms(2000), perAttempt: ms(40), retry: { retryDelay: ms(1), jitter: 0, idempotent: true } }),
     );
     expect(await client.call(method, {})).toBe("second try");
     expect(tries).toHaveLength(2);
@@ -135,7 +136,7 @@ describe("resilience() (R10)", () => {
     const { transport, tries } = recorder(async function* (message) {
       yield ok(message.id, tries.length);
     });
-    const client = new Client(transport).use(resilience({ overall: 1000, cache: { methods: ["test.op"] }, retry: { retryDelay: 1 } }));
+    const client = new Client(transport).use(resilience({ overall: ms(1000), cache: { methods: ["test.op"] }, retry: { retryDelay: ms(1) } }));
     await client.call(method, {});
     await client.call(method, {});
     expect(tries).toHaveLength(1);
@@ -145,7 +146,7 @@ describe("resilience() (R10)", () => {
     const { transport } = recorder(async function* () {
       await new Promise(() => undefined);
     });
-    const client = new Client({ transport, throwOnError: true }).use(createCombinedTimeoutMiddleware({ overall: 50, perAttempt: 5000 }));
+    const client = new Client({ transport, throwOnError: true }).use(createCombinedTimeoutMiddleware({ overall: ms(50), perAttempt: ms(5000) }));
     await expect(client.call(method, {})).rejects.toMatchObject({ code: "TIMEOUT" });
   });
 });
@@ -178,7 +179,7 @@ describe("the server stops the handler at the deadline of the client (R10, REV-6
     await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
     try {
       const transport = new HttpTransport({ baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api` });
-      const client = new Client(transport).use(resilience({ overall: 3000 }));
+      const client = new Client(transport).use(resilience({ overall: ms(3000) }));
       expect(await client.call(method, {})).toBe("done");
       expect(seen[0]).toBeDefined();
       expect(seen[0]!).toBeGreaterThan(2000);

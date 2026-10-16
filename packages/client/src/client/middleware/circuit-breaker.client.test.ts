@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import { Client } from "../client.js";
 import { createCircuitBreakerMiddleware, getCircuitBreakerStats, CircuitBreakerError } from "./circuit-breaker.js";
 import type { Message, ResponseItem, Transport } from "../types.js";
+import { ms } from "../../duration.js";
 
 const method = { service: "test", operation: "op" };
 
@@ -38,7 +39,7 @@ for (const throwOnError of [true, false]) {
   describe(`circuit breaker through Client (throwOnError: ${throwOnError})`, () => {
     it("opens after the threshold, so later calls do not reach the transport", async () => {
       const { transport: t, calls } = transport(() => "fail");
-      const breaker = createCircuitBreakerMiddleware({ failureThreshold: 3, resetTimeout: 60_000 });
+      const breaker = createCircuitBreakerMiddleware({ failureThreshold: 3, resetTimeout: ms(60_000) });
       const client = new Client({ transport: t, throwOnError }).use(breaker);
       const errors: unknown[] = [];
       for (let i = 0; i < 10; i++) {
@@ -70,7 +71,7 @@ describe("circuit breaker HALF_OPEN", () => {
       },
       close: async () => {},
     };
-    const breaker = createCircuitBreakerMiddleware({ failureThreshold: 1, resetTimeout: 20, successThreshold: 1, halfOpenMaxRequests: 1 });
+    const breaker = createCircuitBreakerMiddleware({ failureThreshold: 1, resetTimeout: ms(20), successThreshold: 1, halfOpenMaxRequests: 1 });
     const client = new Client(slow).use(breaker);
 
     await expect(client.call(method, {})).rejects.toThrow("down");

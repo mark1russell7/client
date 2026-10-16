@@ -98,6 +98,7 @@
     "watch": "tsc -b --watch"
   },
   "dependencies": {
+    "@mark1russell7/quantity": "^0.1.0",
     "ws": "^8.18.3",
     "zod": "^4.6.5"
   },

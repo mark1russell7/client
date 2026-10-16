@@ -17,6 +17,7 @@ import { createRateLimitMiddleware } from "./rate-limit.js";
 import { createPaginationMiddleware } from "./pagination.js";
 import { toMiddlewareContext } from "../call-types.js";
 import type { ClientMiddleware, Message, ResponseItem, Transport } from "../types.js";
+import { ms } from "../../duration.js";
 
 const method = { service: "test", operation: "op" };
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,8 +73,8 @@ describe("cache overrides", () => {
 
   it("ttl: the stored response expires after the time of the call, not of the middleware", async () => {
     const { transport } = counting();
-    const client = new Client(transport).use(createCacheMiddleware({ methods: ["test.op"], ttl: 60_000 }));
-    expect(await client.withContext({ cache: { ttl: 20 } }).call(method, {})).toBe(1);
+    const client = new Client(transport).use(createCacheMiddleware({ methods: ["test.op"], ttl: ms(60_000) }));
+    expect(await client.withContext({ cache: { ttl: ms(20) } }).call(method, {})).toBe(1);
     await sleep(60);
     expect(await client.call(method, {})).toBe(2);
   });
@@ -109,9 +110,9 @@ describe("retry overrides", () => {
   }
 
   it("takes delay and backoffMultiplier from the call", async () => {
-    const client = new Client(flaky(2)).use(createRetryMiddleware({ retryDelay: 5_000, jitter: 0 }));
+    const client = new Client(flaky(2)).use(createRetryMiddleware({ retryDelay: ms(5_000), jitter: 0 }));
     const started = Date.now();
-    expect(await client.withContext({ retry: { delay: 10, backoffMultiplier: 3 } }).call(method, {})).toBe("done");
+    expect(await client.withContext({ retry: { delay: ms(10), backoffMultiplier: 3 } }).call(method, {})).toBe("done");
     const elapsed = Date.now() - started;
     // 10 ms, then 30 ms: not 5 s and 10 s
     expect(elapsed).toBeGreaterThanOrEqual(35);
@@ -119,14 +120,14 @@ describe("retry overrides", () => {
   });
 
   it("caps each delay at maxDelay", async () => {
-    const client = new Client(flaky(2)).use(createRetryMiddleware({ retryDelay: 5_000, jitter: 0 }));
+    const client = new Client(flaky(2)).use(createRetryMiddleware({ retryDelay: ms(5_000), jitter: 0 }));
     const started = Date.now();
-    expect(await client.withContext({ retry: { maxDelay: 5 } }).call(method, {})).toBe("done");
+    expect(await client.withContext({ retry: { maxDelay: ms(5) } }).call(method, {})).toBe("done");
     expect(Date.now() - started).toBeLessThan(2_000);
   });
 
   it("takes backoffMultiplier and maxDelay as options too", async () => {
-    const client = new Client(flaky(2)).use(createRetryMiddleware({ retryDelay: 5_000, maxDelay: 5, jitter: 0 }));
+    const client = new Client(flaky(2)).use(createRetryMiddleware({ retryDelay: ms(5_000), maxDelay: ms(5), jitter: 0 }));
     const started = Date.now();
     expect(await client.call(method, {})).toBe("done");
     expect(Date.now() - started).toBeLessThan(2_000);
@@ -134,15 +135,15 @@ describe("retry overrides", () => {
 });
 
 describe("route() overrides reach the keys that the middlewares read", () => {
-  it("maps attempts and ms, and keeps the other keys", () => {
+  it("maps attempts, and keeps the other keys (the durations too)", () => {
     expect(
       toMiddlewareContext({
-        retry: { attempts: 4, delay: 10, backoffMultiplier: 3, maxDelay: 50 },
-        cache: { ttl: 5, bypass: true, refresh: false },
+        retry: { attempts: 4, delay: ms(10), backoffMultiplier: 3, maxDelay: ms(50) },
+        cache: { ttl: ms(5), bypass: true, refresh: false },
       }),
     ).toEqual({
-      retry: { maxAttempts: 4, delay: 10, backoffMultiplier: 3, maxDelay: 50 },
-      cache: { ttl: 5, bypass: true, refresh: false },
+      retry: { maxAttempts: 4, delay: ms(10), backoffMultiplier: 3, maxDelay: ms(50) },
+      cache: { ttl: ms(5), bypass: true, refresh: false },
     });
   });
 });
@@ -158,7 +159,7 @@ describe("the state of the middlewares in the context", () => {
 
   it("rate limit: the tokens and the queue", async () => {
     const { transport, messages } = counting();
-    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 5, window: 60_000 }));
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 5, window: ms(60_000) }));
     await client.call(method, {});
     expect(messages[0]?.metadata["rateLimit"]).toEqual({ tokensAvailable: 4, maxTokens: 5, queueSize: 0 });
   });

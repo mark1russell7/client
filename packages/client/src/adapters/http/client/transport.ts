@@ -33,6 +33,7 @@ import {
   createAbortError,
   createErrorFromException,
 } from "../shared/index.js";
+import { optionalMs } from "../../../duration.js";
 
 /**
  * HTTP Client Transport
@@ -75,7 +76,7 @@ export class HttpTransport implements Transport {
     this.headerConverter =
       options.headerConverter || createDefaultHeaderConverter();
     this.defaultHeaders = options.defaultHeaders || {};
-    this.timeout = options.timeout;
+    this.timeout = optionalMs(options.timeout, "timeout");
   }
 
   /**

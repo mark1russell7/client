@@ -49,7 +49,7 @@ const transport = new HttpTransport({
   },
 
   // Request timeout (ms)
-  timeout: 30000,
+  timeout: seconds(30),
 
   // Custom fetch implementation
   fetch: customFetch,
@@ -159,7 +159,7 @@ const transport = new WebSocketTransport({
   maxReconnectAttempts: 5,
 
   // Connection timeout
-  timeout: 30000,
+  timeout: seconds(30),
 
   // Message serialization
   serialize: JSON.stringify,

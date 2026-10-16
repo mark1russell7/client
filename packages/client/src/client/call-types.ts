@@ -6,6 +6,7 @@
  */
 
 import type { ProcedurePath } from "../procedures/types.js";
+import type { Duration } from "../duration.js";
 import type { RouteLeaf, OutputConfig } from "./consumption.js";
 import { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./consumption.js";
 
@@ -22,30 +23,30 @@ export { isRouteLeafWithConfig, extractInput, extractOutputConfig } from "./cons
 export interface RetryOverride {
   /** Maximum number of retry attempts */
   attempts?: number;
-  /** Delay between retries in milliseconds */
-  delay?: number;
+  /** Delay between retries */
+  delay?: Duration;
   /** Exponential backoff multiplier */
   backoffMultiplier?: number;
   /** Maximum delay between retries */
-  maxDelay?: number;
+  maxDelay?: Duration;
 }
 
 /**
  * Per-call timeout configuration override.
  */
 export interface TimeoutOverride {
-  /** Overall request timeout in milliseconds */
-  ms?: number;
+  /** The overall timeout of the request */
+  overall?: Duration;
   /** Per-attempt timeout for retries */
-  perAttempt?: number;
+  perAttempt?: Duration;
 }
 
 /**
  * Per-call cache configuration override.
  */
 export interface CacheOverride {
-  /** Time-to-live in milliseconds */
-  ttl?: number;
+  /** Time-to-live */
+  ttl?: Duration;
   /** Skip cache for this request */
   bypass?: boolean;
   /** Force cache refresh */
@@ -66,8 +67,7 @@ export interface MiddlewareOverrides {
 
 /**
  * This function converts the overrides of a route call to the context keys that the middleware
- * reads: `retry.attempts` becomes `retry.maxAttempts`, and `timeout.ms` becomes
- * `timeout.overall`. The other keys pass unchanged. (Before, the documented keys had no
+ * reads: `retry.attempts` becomes `retry.maxAttempts`. The other keys pass unchanged. (Before, the documented keys had no
  * effect: deep dive CORE-14.)
  *
  * @param overrides - The `middlewares` of a route call
@@ -83,10 +83,6 @@ export function toMiddlewareContext(overrides: MiddlewareOverrides | undefined):
   if (overrides.retry) {
     const { attempts, ...rest } = overrides.retry;
     context["retry"] = attempts === undefined ? rest : { ...rest, maxAttempts: attempts };
-  }
-  if (overrides.timeout) {
-    const { ms, ...rest } = overrides.timeout;
-    context["timeout"] = ms === undefined ? rest : { ...rest, overall: ms };
   }
   return context;
 }

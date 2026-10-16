@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createCircuitBreakerMiddleware, CircuitBreakerError } from "./circuit-breaker.js";
 import type { ClientContext, ClientRunner, ResponseItem } from "../types.js";
+import { ms } from "../../duration.js";
 
 function ctx(): ClientContext {
   return {
@@ -21,7 +22,7 @@ async function drain(gen: AsyncGenerator<ResponseItem>): Promise<ResponseItem[]>
 
 describe("circuit breaker (regression: BUGS-2026-07 H11)", () => {
   it("opens after the threshold when failures arrive as error-status items (never thrown)", async () => {
-    const mw = createCircuitBreakerMiddleware({ failureThreshold: 3, resetTimeout: 60000 });
+    const mw = createCircuitBreakerMiddleware({ failureThreshold: 3, resetTimeout: ms(60000) });
     const failNext = (async function* () {
       yield errorItem();
     }) as unknown as ClientRunner;
@@ -33,7 +34,7 @@ describe("circuit breaker (regression: BUGS-2026-07 H11)", () => {
   });
 
   it("stays closed while responses are success-status", async () => {
-    const mw = createCircuitBreakerMiddleware({ failureThreshold: 2, resetTimeout: 60000 });
+    const mw = createCircuitBreakerMiddleware({ failureThreshold: 2, resetTimeout: ms(60000) });
     const okNext = (async function* () {
       yield successItem();
     }) as unknown as ClientRunner;
