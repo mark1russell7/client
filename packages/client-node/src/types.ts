@@ -182,3 +182,39 @@ export const NodeStatusOutputSchema: z.ZodType<NodeStatusOutput> = z.looseObject
     )
     .describe("The processes of this host"),
 });
+
+// ============================================================================
+// node.logs - The output of a spawned process (roadmap R44)
+// ============================================================================
+
+export interface NodeLogsInput {
+  /** Process ID returned from node.spawn */
+  processId: string;
+  /** Only the last lines of the output */
+  lines?: number | undefined;
+  /** Remove the ANSI escape codes (colors) from the output */
+  stripAnsi?: boolean | undefined;
+}
+
+export interface NodeLogsOutput {
+  processId: string;
+  /** The state of the process */
+  status: "running" | "exited" | "error";
+  /** The exit code, when the process exited */
+  exitCode?: number | undefined;
+  /** The end of the output (stdout and stderr together, the last 64 KiB) */
+  output: string;
+}
+
+export const NodeLogsInputSchema: z.ZodType<NodeLogsInput> = z.object({
+  processId: z.string().min(1).describe("Process ID returned from node.spawn"),
+  lines: z.number().int().min(1).optional().describe("Only the last lines of the output"),
+  stripAnsi: z.boolean().optional().describe("Remove the ANSI escape codes (colors) from the output"),
+});
+
+export const NodeLogsOutputSchema: z.ZodType<NodeLogsOutput> = z.looseObject({
+  processId: z.string().describe("The id of the process"),
+  status: z.enum(["running", "exited", "error"]).describe("The state of the process"),
+  exitCode: z.number().optional().describe("The exit code, when the process exited"),
+  output: z.string().describe("The end of the output: stdout and stderr together, the last 64 KiB"),
+});

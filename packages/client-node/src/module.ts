@@ -9,11 +9,13 @@ import { nodeRun } from "./procedures/node/run.js";
 import { nodeSpawn } from "./procedures/node/spawn.js";
 import { nodeKill } from "./procedures/node/kill.js";
 import { nodeStatus } from "./procedures/node/status.js";
+import { nodeLogs } from "./procedures/node/logs.js";
 import {
   NodeRunInputSchema,
   NodeSpawnInputSchema,
   NodeKillInputSchema,
   NodeStatusInputSchema,
+  NodeLogsInputSchema,
   type NodeRunInput,
   type NodeRunOutput,
   type NodeSpawnInput,
@@ -22,10 +24,13 @@ import {
   type NodeKillOutput,
   type NodeStatusInput,
   type NodeStatusOutput,
+  type NodeLogsInput,
+  type NodeLogsOutput,
   NodeRunOutputSchema,
   NodeSpawnOutputSchema,
   NodeKillOutputSchema,
   NodeStatusOutputSchema,
+  NodeLogsOutputSchema,
 } from "./types.js";
 
 // Procedure definitions
@@ -98,6 +103,22 @@ const nodeStatusProcedure = createProcedure()
   })
   .build();
 
+// node.logs (roadmap R44)
+const nodeLogsProcedure = createProcedure()
+  .path(["node", "logs"])
+  .input(zodAdapter<NodeLogsInput>(NodeLogsInputSchema))
+  .output(zodAdapter<NodeLogsOutput>(NodeLogsOutputSchema))
+  .meta({
+    description: "The output of a process of node.spawn: the last 64 KiB of stdout and stderr",
+    args: ["processId"],
+    shorts: { lines: "n" },
+    output: "json",
+    // It reads the output that the process registry keeps for a process of node.spawn
+    effects: { reads: ["jobs"], writes: [] },
+  })
+  .handler(async (input: NodeLogsInput): Promise<NodeLogsOutput> => nodeLogs(input))
+  .build();
+
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
@@ -107,6 +128,7 @@ export const nodeModule: ProcedureModule = defineModule("@procedures/node", [
     nodeSpawnProcedure,
     nodeKillProcedure,
     nodeStatusProcedure,
+    nodeLogsProcedure,
   ]);
 
 export default nodeModule;
