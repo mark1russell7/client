@@ -194,21 +194,43 @@ describe("fs.copy", () => {
     expect(readFileSync(dest, "utf8")).toBe("alpha");
     await call("fs.copy", { src: join(dir, "sub"), dest: join(dir, "sub2") });
     expect(readFileSync(join(dir, "sub2", "deep", "c.json"), "utf8")).toContain('"name":"c"');
+    // recursive: false copies one file with COPYFILE_EXCL
+    await call("fs.copy", { src: join(dir, "a.txt"), dest: join(dir, "single.txt"), recursive: false });
+    expect(readFileSync(join(dir, "single.txt"), "utf8")).toBe("alpha");
   });
 
-  it("keeps an existing file without overwrite, and replaces it with overwrite", async () => {
+  it("refuses an existing destination without overwrite, and changes nothing", async () => {
     const dest = join(dir, "sub", "b.txt");
     // recursive: false copies with COPYFILE_EXCL: an existing file is an error
     await expect(call("fs.copy", { src: join(dir, "a.txt"), dest, recursive: false })).rejects.toMatchObject({ code: "EEXIST" });
-    // The default (recursive: true) copies with cp, which leaves an existing file as it is
-    await call("fs.copy", { src: join(dir, "a.txt"), dest });
+    // The default (recursive: true) refuses too. Before, cp kept the file and fs.copy reported success.
+    await expect(call("fs.copy", { src: join(dir, "a.txt"), dest })).rejects.toMatchObject({ code: "EEXIST" });
     expect(readFileSync(dest, "utf8")).toBe("beta");
+    // A folder over an existing folder: no file arrives in it
+    mkdirSync(join(dir, "other"));
+    await expect(call("fs.copy", { src: join(dir, "sub"), dest: join(dir, "other") })).rejects.toMatchObject({ code: "EEXIST" });
+    expect(readdirSync(join(dir, "other"))).toEqual([]);
+  });
+
+  it("replaces an existing destination with overwrite", async () => {
+    const dest = join(dir, "sub", "b.txt");
     await call("fs.copy", { src: join(dir, "a.txt"), dest, overwrite: true });
     expect(readFileSync(dest, "utf8")).toBe("alpha");
+    writeFileSync(dest, "beta");
+    await call("fs.copy", { src: join(dir, "a.txt"), dest, recursive: false, overwrite: true });
+    expect(readFileSync(dest, "utf8")).toBe("alpha");
+    mkdirSync(join(dir, "other"));
+    await call("fs.copy", { src: join(dir, "sub"), dest: join(dir, "other"), overwrite: true });
+    expect(readFileSync(join(dir, "other", "deep", "c.json"), "utf8")).toContain('"name":"c"');
   });
 
   it("fails with ENOENT for a missing source", async () => {
     await expect(call("fs.copy", { src: join(dir, "missing"), dest: join(dir, "x") })).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("stops at an error of the check of the destination that is not ENOENT", async () => {
+    // A NUL character in a path: the check fails with ERR_INVALID_ARG_VALUE, and nothing is copied
+    await expect(call("fs.copy", { src: join(dir, "a.txt"), dest: join(dir, "bad\u0000name") })).rejects.toMatchObject({ code: "ERR_INVALID_ARG_VALUE" });
   });
 });
 

@@ -20,7 +20,7 @@
  * console.log(error.metadata.userMessage);  // User-friendly message
  * console.log(error.metadata.devMessage);   // Developer diagnostic
  * console.log(error.metadata.suggestions);  // Suggested actions
- * console.log(error.metadata.retryable);    // true
+ * console.log(error.metadata.retryable);    // false (ERROR_CODES of the protocol)
  *
  * // Format for logging
  * console.log(formatError(error));

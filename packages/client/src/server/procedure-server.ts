@@ -24,6 +24,7 @@ import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptio
 import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import { TIMER_DEFAULTS } from "../timers.js";
+import { errorCodeOf } from "../protocol.js";
 
 // =============================================================================
 // Types
@@ -198,7 +199,8 @@ function withRequestTimeout(
 
 /**
  * The error response of a failed invocation. An invocation error keeps its code
- * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler is HANDLER_ERROR.
+ * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler keeps its own code
+ * when it is a string, as for a stream (`WIRE-PROTOCOL.md`). Without a code, it is HANDLER_ERROR.
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
   // An error that says it is retryable stays retryable: before, every error lost the flag
@@ -214,7 +216,7 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
     id,
     status: {
       type: "error",
-      code: error instanceof InvocationError ? error.code : "HANDLER_ERROR",
+      code: errorCodeOf(error),
       message: error instanceof Error ? error.message : String(error),
       retryable: typeof retryable === "boolean" ? retryable : false,
     },
