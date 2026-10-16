@@ -250,11 +250,27 @@ new WebSocketTransport(options: WebSocketTransportOptions)
 
 interface WebSocketTransportOptions {
   url: string;
-  protocols?: string[];
-  reconnect?: boolean;  // default: true
-  reconnectDelay?: number;  // default: 1000ms
-  heartbeatInterval?: number;  // default: 30000ms
+  connectionTimeout?: number;  // default: 10000ms; a handshake that takes longer closes the socket
+  requestTimeout?: number;     // default: 30000ms
+  streamWindow?: number;       // default: 64 items
+  reconnect?: {
+    enabled?: boolean;            // default: true
+    maxAttempts?: number;         // default: Infinity
+    initialDelay?: number;        // default: 1000ms
+    maxDelay?: number;            // default: 30000ms
+    backoffMultiplier?: number;   // default: 1.5
+    jitter?: number;              // default: 1 (full jitter: a random delay from 0 to the backoff)
+  };
+  heartbeat?: {
+    enabled?: boolean;   // default: true
+    interval?: number;   // default: 30000ms
+    timeout?: number;    // default: 5000ms
+    misses?: number;     // default: 1; pings without a pong that drop the connection
+  };
 }
+
+// The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
+new WebSocketServerTransport(server, { server: http, heartbeat: { interval: 30000, misses: 2 } });
 ```
 
 #### `LocalTransport`
@@ -291,11 +307,14 @@ interface RetryOptions {
   backoffMultiplier?: number;   // default: 2
   maxDelay?: number;            // default: no limit
   jitter?: number;              // default: 0.1 (a fraction of the delay)
+  // After a try with an indeterminate outcome (a reset, the timeout of one try), only an
+  // idempotent call goes again: true, or a function such as idempotentIn(registry)
+  idempotent?: boolean | ((method: Method) => boolean | undefined);
   shouldRetry?: (item: ResponseItem<unknown>, attempt: number) => boolean;
 }
 
 // The overrides of one call, in its context or as route() overrides
-client.withContext({ retry: { maxAttempts: 5, delay: 200, backoffMultiplier: 3, maxDelay: 2000 } });
+client.withContext({ retry: { maxAttempts: 5, delay: 200, backoffMultiplier: 3, maxDelay: 2000, idempotent: true } });
 ```
 
 #### Cache Middleware

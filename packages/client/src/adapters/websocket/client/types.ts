@@ -47,10 +47,20 @@ export interface WebSocketTransportOptions {
      * @default 1.5
      */
     backoffMultiplier?: number;
+
+    /**
+     * The random part of each reconnect delay, from 0 to 1. With 1 (full jitter), the delay is a
+     * random time from 0 to the backoff delay, so many clients that lost one server do not
+     * reconnect at the same time (roadmap R3). 0 gives the backoff delay exactly.
+     * @default 1
+     */
+    jitter?: number;
   };
 
   /**
-   * Connection timeout (ms): how long to wait for the WebSocket to open.
+   * Connection timeout (ms): how long to wait for the WebSocket to open. A handshake that takes
+   * longer closes the socket, and the transport reconnects (roadmap R3: before, an address that
+   * never answered kept the socket in CONNECTING).
    * @default 10000
    */
   connectionTimeout?: number;
@@ -90,6 +100,13 @@ export interface WebSocketTransportOptions {
      * @default 5000
      */
     timeout?: number;
+
+    /**
+     * The number of pings without a pong, one after the other, that drop the connection. The
+     * time to find a dead server is at most `misses × interval + timeout`.
+     * @default 1
+     */
+    misses?: number;
   };
 
   /**

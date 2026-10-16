@@ -105,13 +105,19 @@ export class WebSocketServerTransport implements ServerTransport {
 
   private wss: WebSocketServer | null = null;
   private options: Required<
-    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts">
+    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat">
   > & {
     authenticate?: WebSocketServerTransportOptions["authenticate"];
     onConnection?: WebSocketServerTransportOptions["onConnection"];
   };
   private server: Server;
   private connections: Set<WebSocket> = new Set();
+
+  /** The heartbeat of the server, or undefined when it is off (roadmap R3) */
+  private readonly heartbeat: { interval: number; misses: number } | undefined;
+  private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  /** The pings without a pong, one after the other, of each connection */
+  private readonly missedPongs = new WeakMap<WebSocket, number>();
 
   // Tracked connections with IDs for bidirectional RPC
   private trackedConnections = new Map<string, TrackedConnection>();
@@ -145,6 +151,32 @@ export class WebSocketServerTransport implements ServerTransport {
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
+    this.heartbeat =
+      options.heartbeat === false
+        ? undefined
+        : { interval: options.heartbeat?.interval ?? 30_000, misses: Math.max(1, options.heartbeat?.misses ?? 2) };
+  }
+
+  /**
+   * One beat of the heartbeat: a connection that missed too many pongs closes at once (its close
+   * event aborts its requests), and each other connection gets a ping.
+   */
+  private beat(): void {
+    if (!this.heartbeat) return;
+    for (const ws of this.connections) {
+      const missed = this.missedPongs.get(ws) ?? 0;
+      if (missed >= this.heartbeat.misses) {
+        console.error(`[${this.name}] A connection missed ${missed} pongs: closing it`);
+        ws.terminate();
+        continue;
+      }
+      this.missedPongs.set(ws, missed + 1);
+      try {
+        ws.ping();
+      } catch {
+        // The socket is closing: its close event cleans up
+      }
+    }
   }
 
   async start(): Promise<void> {
@@ -185,10 +217,20 @@ export class WebSocketServerTransport implements ServerTransport {
       this.handleConnection(ws, req);
     });
 
+    if (this.heartbeat) {
+      this.heartbeatTimer = setInterval(() => this.beat(), this.heartbeat.interval);
+      // The heartbeat must not keep the process alive
+      this.heartbeatTimer.unref?.();
+    }
+
     console.log(`[${this.name}] WebSocket server listening on ${this.options.path}`);
   }
 
   async stop(): Promise<void> {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = undefined;
+    }
     if (this.wss) {
       // Stop the requests in progress, so their handlers end (deep dive TRN-15)
       for (const controller of this.inflight.values()) controller.abort();
@@ -255,6 +297,9 @@ export class WebSocketServerTransport implements ServerTransport {
         console.error("[WebSocket] Connect handler error:", error);
       }
     }
+
+    // A pong answers the ping of the heartbeat
+    ws.on("pong", () => this.missedPongs.set(ws, 0));
 
     // Handle messages
     ws.on("message", async (data: Buffer) => {

@@ -93,6 +93,21 @@ function abortedItem<TRes>(id: string): ResponseItem<TRes> {
   return errorItem<TRes>(id, "ABORTED", "Request was aborted", false);
 }
 
+/**
+ * The delay before a reconnect try (from 1): an exponential backoff up to `maxDelay`, with a
+ * random part. With `jitter: 1` (full jitter, the default), the delay is a random time from 0 to
+ * the backoff, so the clients of a server that restarted do not come back at the same moments
+ * (roadmap R3).
+ */
+export function reconnectDelay(
+  attempt: number,
+  options: { initialDelay: number; backoffMultiplier: number; maxDelay: number; jitter: number },
+  random: () => number = Math.random,
+): number {
+  const backoff = Math.min(options.initialDelay * Math.pow(options.backoffMultiplier, attempt - 1), options.maxDelay);
+  return Math.round(backoff * (1 - options.jitter * random()));
+}
+
 export class WebSocketTransport implements Transport {
   readonly name = "websocket";
 
@@ -106,6 +121,7 @@ export class WebSocketTransport implements Transport {
       initialDelay: number;
       maxDelay: number;
       backoffMultiplier: number;
+      jitter: number;
     };
     connectionTimeout: number;
     requestTimeout: number;
@@ -114,6 +130,7 @@ export class WebSocketTransport implements Transport {
       enabled: boolean;
       interval: number;
       timeout: number;
+      misses: number;
     };
     onConnect: (() => void) | undefined;
     onDisconnect: ((reason?: string) => void) | undefined;
@@ -138,6 +155,10 @@ export class WebSocketTransport implements Transport {
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined = undefined;
   private heartbeatTimer: ReturnType<typeof setTimeout> | undefined = undefined;
   private heartbeatTimeout: ReturnType<typeof setTimeout> | undefined = undefined;
+  /** The pings without a pong, one after the other */
+  private heartbeatMisses = 0;
+  /** The time limit of the handshake of the socket that opens now */
+  private handshakeTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
   constructor(options: WebSocketTransportOptions) {
     this.options = {
@@ -148,6 +169,7 @@ export class WebSocketTransport implements Transport {
         initialDelay: options.reconnect?.initialDelay ?? 1000,
         maxDelay: options.reconnect?.maxDelay ?? 30000,
         backoffMultiplier: options.reconnect?.backoffMultiplier ?? 1.5,
+        jitter: Math.min(1, Math.max(0, options.reconnect?.jitter ?? 1)),
       },
       connectionTimeout: options.connectionTimeout ?? 10000,
       requestTimeout: options.requestTimeout ?? 30000,
@@ -156,6 +178,7 @@ export class WebSocketTransport implements Transport {
         enabled: options.heartbeat?.enabled ?? true,
         interval: options.heartbeat?.interval ?? 30000,
         timeout: options.heartbeat?.timeout ?? 5000,
+        misses: Math.max(1, options.heartbeat?.misses ?? 1),
       },
       onConnect: options.onConnect,
       onDisconnect: options.onDisconnect,
@@ -192,9 +215,21 @@ export class WebSocketTransport implements Transport {
       const ws = new WebSocket(this.options.url);
       this.ws = ws;
 
+      // The handshake has a time limit: an address that never answers does not keep the socket
+      // in CONNECTING (roadmap R3)
+      this.clearHandshakeTimer();
+      this.handshakeTimer = setTimeout(() => {
+        this.handshakeTimer = undefined;
+        if (this.ws === ws && this.state === WebSocketState.CONNECTING) {
+          console.error(`[${this.name}] Handshake timeout after ${this.options.connectionTimeout}ms`);
+          this.dropConnection("Handshake timeout");
+        }
+      }, this.options.connectionTimeout);
+
       // Connection opened
       ws.onopen = () => {
         if (this.ws !== ws) return;
+        this.clearHandshakeTimer();
         this.reconnectAttempts = 0;
         this.setState(WebSocketState.CONNECTED);
         console.error(`[${this.name}] Connected to ${this.options.url}`);
@@ -281,6 +316,7 @@ export class WebSocketTransport implements Transport {
    */
   private handleClose(reason?: string): void {
     this.stopHeartbeat();
+    this.clearHandshakeTimer();
 
     // An intentional close() must not reconnect (BUGS-2026-07 H6)
     const reconnect = this.options.reconnect;
@@ -311,11 +347,7 @@ export class WebSocketTransport implements Transport {
     this.reconnectAttempts++;
     this.setState(WebSocketState.RECONNECTING);
 
-    const reconnect = this.options.reconnect;
-    const delay = Math.min(
-      reconnect.initialDelay * Math.pow(reconnect.backoffMultiplier, this.reconnectAttempts - 1),
-      reconnect.maxDelay
-    );
+    const delay = reconnectDelay(this.reconnectAttempts, this.options.reconnect);
 
     console.error(`[${this.name}] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
@@ -346,9 +378,10 @@ export class WebSocketTransport implements Transport {
         };
         this.ws.send(JSON.stringify(ping));
 
-        // Set timeout for pong
+        // Set timeout for pong. The connection drops after `misses` pings without a pong.
         this.heartbeatTimeout = setTimeout(() => {
           this.heartbeatTimeout = undefined;
+          if (++this.heartbeatMisses < this.options.heartbeat.misses) return;
           console.warn(`[${this.name}] Heartbeat timeout - dropping connection`);
           this.dropConnection("Heartbeat timeout");
         }, this.options.heartbeat.timeout);
@@ -359,7 +392,16 @@ export class WebSocketTransport implements Transport {
   /**
    * Stop heartbeat.
    */
+  /** Stop the time limit of the handshake. */
+  private clearHandshakeTimer(): void {
+    if (this.handshakeTimer) {
+      clearTimeout(this.handshakeTimer);
+      this.handshakeTimer = undefined;
+    }
+  }
+
   private stopHeartbeat(): void {
+    this.heartbeatMisses = 0;
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = undefined;
@@ -377,6 +419,7 @@ export class WebSocketTransport implements Transport {
 
     // Handle pong (heartbeat response)
     if (message.type === "pong") {
+      this.heartbeatMisses = 0;
       if (this.heartbeatTimeout) {
         clearTimeout(this.heartbeatTimeout);
         this.heartbeatTimeout = undefined;
@@ -693,6 +736,7 @@ export class WebSocketTransport implements Transport {
     this.closing = true;
     this.setState(WebSocketState.DISCONNECTING);
     this.stopHeartbeat();
+    this.clearHandshakeTimer();
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
