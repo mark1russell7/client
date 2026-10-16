@@ -3,13 +3,13 @@
 [![npm version](https://img.shields.io/npm/v/@procedures/git.svg)](https://www.npmjs.com/package/@procedures/git)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Git operations as RPC procedures - `git.add`, `git.commit`, `git.push`, `git.status`, and 22 more git commands exposed as type-safe procedures.
+> Git operations as RPC procedures - `git.add`, `git.commit`, `git.push`, `git.status`, and 41 more git commands exposed as type-safe procedures.
 
 ## Overview
 
-`@procedures/git` exposes comprehensive Git functionality as RPC procedures through the client system. It provides 26 procedures covering all major Git operations including repository state management, staging, commits, branching, remote operations, stashing, and repository predicates.
+`@procedures/git` exposes comprehensive Git functionality as RPC procedures through the client system. It provides 45 procedures covering all major Git operations including repository state management, staging, commits, branching, tags, merges, rebases, working trees, remote operations, stashing, and repository predicates.
 
-This package wraps Git commands directly (not through `client-shell`), providing structured input/output with full type safety via Zod schemas.
+The package starts git with `runCommand` of `@procedures/shell`: an argument list, no shell. Each call is async, and its signal stops git. Zod schemas validate the input and the output.
 
 ## Architecture
 
@@ -36,11 +36,12 @@ graph TB
 
 ```mermaid
 graph LR
-    A[client-git<br/>26 Procedures] --> B[Repository State<br/>5 procedures]
+    A[client-git<br/>45 Procedures] --> B[Repository State<br/>5 procedures]
     A --> C[Staging & Commits<br/>3 procedures]
     A --> D[Remote Operations<br/>5 procedures]
     A --> E[Predicates<br/>6 procedures]
     A --> F[Stash Operations<br/>7 procedures]
+    A --> G[History, Tags, Merge, Rebase,<br/>Working Trees, Branches<br/>19 procedures]
 
     B -.-> B1[status, log, diff,<br/>branch, init]
     C -.-> C1[add, commit,<br/>checkout]
@@ -226,9 +227,11 @@ console.log(`${diff.additions} additions, ${diff.deletions} deletions`);
 const staged = await client.exec(["git", "diff"], { staged: true });
 ```
 
-#### `git.branch`
+#### `git.branch` (deprecated)
 
 Branch operations - list, create, delete branches.
+
+This procedure is deprecated since roadmap R40. Use `git.branch.list`, `git.branch.add` and `git.branch.delete`. It stays for one release, and it calls the code of the three new procedures. Its metadata has `deprecated: true`.
 
 **Path:** `["git", "branch"]`
 
@@ -841,6 +844,51 @@ const exported = await client.exec(["git", "stash", "export"], { index: 0 });
 fs.writeFileSync("backup.patch", exported.patch);
 ```
 
+### History, tags, merges, rebases and working trees (roadmap R40)
+
+Each procedure takes `cwd`, the folder of the repository. A value that starts with `-` is not an option: a ref or a name is refused, and a path stays a path after `--`. The effects column shows `metadata.effects`. "process" means that git starts the hooks of the repository, which are code of the project.
+
+| Procedure | Input | Output | Effects |
+|---|---|---|---|
+| `git.show` | `ref` (default `HEAD`), `path`, `stat` | Without `path`: `hash`, `author`, `email`, `date`, `message`, `body`, `files`, `diff`. With `path`: `content` | reads |
+| `git.blame` | `path`, `ref`, `startLine`, `endLine` | `lines`: `line`, `hash`, `author`, `email`, `date`, `summary`, `content` | reads |
+| `git.tag.list` | `pattern` | `tags`: `name`, `hash` (the commit), `annotated`, `message` | reads |
+| `git.tag.add` | `name`, `ref`, `message` | `name`, `hash`, `annotated` | writes, not destructive, idempotent |
+| `git.tag.delete` | `name` | `name`, `hash` (the object of the tag) | writes, destructive, idempotent |
+| `git.revParse` | `ref` (default `HEAD`), `abbrevRef`, `short` | `ref`, `value` | reads |
+| `git.reset` | `ref` (default `HEAD`), `mode` (`soft`, `mixed`, `hard`, `merge`, `keep`), `paths` | `ref`, `mode`, `hash` | writes, destructive |
+| `git.restore` | `paths`, `source`, `staged`, `worktree` | `restored` | writes, process, destructive, idempotent |
+| `git.merge` | `ref`, `fastForward` (`auto`, `only`, `never`), `message` | `hash`, `fastForward`, `upToDate`, `conflict`, `conflicts` | writes, process, idempotent |
+| `git.merge.abort` | none | `aborted`, `hash` | writes, destructive, idempotent |
+| `git.rebase` | `upstream`, `onto`, `branch` | `hash`, `completed`, `upToDate`, `conflict`, `conflicts` | writes, process, destructive, idempotent |
+| `git.rebase.continue` | none | the output of `git.rebase` | writes, process, destructive |
+| `git.rebase.abort` | none | `aborted`, `hash` | writes, destructive, idempotent |
+| `git.worktree.list` | none | `worktrees`: `path`, `head`, `branch`, `detached`, `bare`, `locked`, `prunable` | reads |
+| `git.worktree.add` | `path`, `ref`, `branch`, `detach` | `path`, `head`, `branch` | writes, process, not destructive, idempotent |
+| `git.worktree.remove` | `path`, `force` | `path` | writes, destructive, idempotent |
+| `git.branch.list` | `remote` | `branches`, `current` | reads |
+| `git.branch.add` | `name`, `startPoint` | `name`, `hash` | writes, not destructive, idempotent |
+| `git.branch.delete` | `name`, `force` | `name`, `hash` (the last commit) | writes, destructive, idempotent |
+
+- A merge or a rebase that stops on conflicts is a result, not an error. Then `conflict` is `true`, and `conflicts` names the files.
+- After the conflicts of a merge, resolve them and call `git.commit`, or call `git.merge.abort`.
+- After the conflicts of a rebase, resolve them, stage them with `git.add`, and call `git.rebase.continue`. Or call `git.rebase.abort`.
+- A merge and a rebase never start an editor. The rebase is never interactive.
+- `git.tag.add` and `git.branch.add` never move a ref. An existing tag or branch is an error.
+- `git.branch.delete` and `git.tag.delete` give the deleted hash. `git.branch.add` with it makes the branch again.
+- `git.branch.list` works in a repository without commits. Then `branches` is empty and `current` is the branch that `HEAD` names.
+
+```typescript
+const merge = await client.exec(["git", "merge"], { ref: "feature", cwd: "./repo" });
+if (merge.conflict) {
+  console.log("Conflicts in", merge.conflicts);
+  await client.exec(["git", "merge", "abort"], { cwd: "./repo" });
+}
+
+const { lines } = await client.exec(["git", "blame"], { path: "src/index.ts", startLine: 1, endLine: 10 });
+const { value: branch } = await client.exec(["git", "revParse"], { abbrevRef: true });
+```
+
 ## Complete Procedure List
 
 | Category | Procedure | Description |
@@ -848,8 +896,27 @@ fs.writeFileSync("backup.patch", exported.patch);
 | **Repository State** | `git.status` | Get repository status |
 | | `git.log` | Show commit history |
 | | `git.diff` | Show changes |
-| | `git.branch` | Branch operations |
+| | `git.show` | Show a commit, or a file at a commit |
+| | `git.blame` | Show the commit and the author of each line |
+| | `git.revParse` | Give the hash or the name of a ref |
+| | `git.branch` | Branch operations (deprecated) |
 | | `git.init` | Initialize repository |
+| **Branches and Tags** | `git.branch.list` | List the branches |
+| | `git.branch.add` | Make a branch |
+| | `git.branch.delete` | Delete a branch |
+| | `git.tag.list` | List the tags |
+| | `git.tag.add` | Make a tag |
+| | `git.tag.delete` | Delete a tag |
+| **Merge and Rebase** | `git.merge` | Merge into the current branch |
+| | `git.merge.abort` | Stop a merge with conflicts |
+| | `git.rebase` | Rebase the current branch |
+| | `git.rebase.continue` | Continue a rebase |
+| | `git.rebase.abort` | Stop a rebase |
+| **Working Trees** | `git.worktree.list` | List the working trees |
+| | `git.worktree.add` | Add a working tree |
+| | `git.worktree.remove` | Remove a working tree |
+| **Undo** | `git.reset` | Move `HEAD`, reset the index or the working tree |
+| | `git.restore` | Restore files |
 | **Staging & Commits** | `git.add` | Stage files |
 | | `git.commit` | Create commit |
 | | `git.checkout` | Checkout branch/files |
@@ -932,11 +999,9 @@ await client.exec(["git", "commit"], { message: "feat: complete feature" });
 await client.exec(["git", "checkout"], { ref: "main" });
 await client.exec(["git", "pull"], {});
 
-// Delete feature branch
-await client.exec(["git", "branch"], {
-  name: "feature/new-feature",
-  delete: true,
-});
+// Merge it, then delete the feature branch
+await client.exec(["git", "merge"], { ref: "feature/new-feature" });
+await client.exec(["git", "branch", "delete"], { name: "feature/new-feature" });
 ```
 
 ### Working with Remotes
@@ -949,7 +1014,7 @@ const clone = await client.exec(["git", "clone"], {
 });
 
 // Set remote
-await client.exec(["git", "remote"], {
+await client.exec(["git", "remote", "set"], {
   name: "upstream",
   url: "https://github.com/original/repo.git",
 });
