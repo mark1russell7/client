@@ -11,3 +11,6 @@ export { ghIssueList } from "./issue/list.js";
 export { ghIssueView } from "./issue/view.js";
 export { ghIssueCreate } from "./issue/create.js";
 export { ghIssueComment } from "./issue/comment.js";
+export { ghWorkflowRun } from "./workflow/run.js";
+export { ghRunDownload } from "./run/download.js";
+export { ghApi } from "./api.js";

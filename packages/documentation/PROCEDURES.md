@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 279 across 46 namespaces. Loaded 41 package register(s).
+**Total procedures:** 282 across 46 namespaces. Loaded 41 package register(s).
 
 ## Namespaces
 
@@ -22,7 +22,7 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`geo.*`](#geo) — 2 procedure(s)
-- [`gh.*`](#gh) — 13 procedure(s)
+- [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
 - [`ics.*`](#ics) — 3 procedure(s)
@@ -212,6 +212,7 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `gh.api` | Call the GitHub API and give the parsed JSON. A method other than GET can change or delete data |
 | `gh.issue.comment` | Add a comment to an issue or a pull request |
 | `gh.issue.create` | Open an issue |
 | `gh.issue.list` | The issues of a repository |
@@ -222,9 +223,11 @@
 | `gh.pr.view` | One pull request |
 | `gh.release.list` | The releases of a repository |
 | `gh.release.view` | One release: the release of a tag, or the latest release |
+| `gh.run.download` | Download the artifacts of a workflow run into a folder |
 | `gh.run.list` | The workflow runs of a repository |
 | `gh.run.rerun` | Run a workflow run again |
 | `gh.run.view` | One workflow run with its jobs |
+| `gh.workflow.run` | Start a workflow run (a workflow_dispatch event) on a branch or a tag, with the inputs of the workflow |
 
 ## git
 
