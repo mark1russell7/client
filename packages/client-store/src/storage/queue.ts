@@ -9,8 +9,9 @@
  *   same instance loads its queue, so the tests can simulate a restart.
  * - `FileQueueStore` keeps the queue in a JSON Lines file. It is in `@procedures/store/file-queue`,
  *   because it uses `node:fs`. The root of the package stays usable in a browser.
- * - An IndexedDB store for the browser is future work. It implements the four methods of
- *   `QueueStore` on one object store.
+ * - `IndexedDbQueueStore` keeps the queue in IndexedDB, for a browser (roadmap R45). It is in
+ *   `@procedures/store/indexeddb`, and it implements the four methods of `QueueStore` on one
+ *   object store.
  */
 
 /** A write that waits in the queue for the remote. Each field is JSON. */

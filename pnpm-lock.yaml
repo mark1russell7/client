@@ -880,6 +880,12 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/collections':
+        specifier: workspace:*
+        version: link:../client-collections
+      '@procedures/store':
+        specifier: workspace:*
+        version: link:../client-store
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -908,6 +914,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      fake-indexeddb:
+        specifier: ^6.2.5
+        version: 6.2.5
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2
@@ -1476,6 +1485,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/store':
+        specifier: workspace:*
+        version: link:../client-store
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -1591,9 +1603,6 @@ importers:
       '@procedures/sqlite':
         specifier: workspace:*
         version: link:../client-sqlite
-      '@procedures/store':
-        specifier: workspace:*
-        version: link:../client-store
       '@procedures/systems':
         specifier: workspace:*
         version: link:../systems
@@ -3508,6 +3517,10 @@ packages:
   express@5.2.1:
     resolution: {integrity: sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw==}
     engines: {node: '>= 18'}
+
+  fake-indexeddb@6.2.5:
+    resolution: {integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==}
+    engines: {node: '>=18'}
 
   fast-check@4.10.2:
     resolution: {integrity: sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==}
@@ -6346,6 +6359,8 @@ snapshots:
       vary: 1.1.2
     transitivePeerDependencies:
       - supports-color
+
+  fake-indexeddb@6.2.5: {}
 
   fast-check@4.10.2:
     dependencies:

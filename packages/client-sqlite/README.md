@@ -15,6 +15,7 @@ SQLite database operations via client procedures. Execute queries and store stru
 - **Logging procedures**: Store and query structured application logs
 - **Migration support**: Schema versioning and migration utilities
 - **Default log database**: Pre-configured logging at `~/logs/cli/cli.db`
+- **A collection storage**: `SqliteStorage` keeps a collection in a SQLite table, with a change log
 
 The package has 4 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
 - **Database**: `db.query`, `db.execute`
@@ -425,6 +426,65 @@ const { logs } = await client.exec(
 );
 ```
 
+## The collection storage
+
+`SqliteStorage` keeps the items of one collection in one table of a SQLite database. It implements `CollectionStorage` of `@procedures/client`. A `ProcedureServer`, an `ApiStorage` server and a `HybridStorage` use it as they use `InMemoryStorage`.
+
+```ts
+import { SqliteStorage } from "@procedures/sqlite/storage";
+
+const users = new SqliteStorage<User>({ path: "./data/app.db", table: "users" });
+await users.set("u1", { name: "Ada" });
+await users.setBatch([["u2", { name: "Bob" }], ["u3", { name: "Cy" }]]);
+const changes = await users.getChangesSince(); // { version, full: true, changed, deleted: [] }
+await users.close();
+```
+
+The entry `@procedures/sqlite/storage` has the storage alone. The package root exports it too.
+
+### The table and the values
+
+- The option `path` is a database file, or `:memory:` for a database that lives as long as the storage.
+- The option `table` is the name of the table. It starts with a letter, and it has only letters, digits and underscores. The prefix `sqlite_` is not permitted.
+- The table has the columns `id` and `value`. The value is the JSON text of the item.
+- A value without JSON text, for example `undefined` or a `BigInt`, is a `TypeError`. The storage writes nothing then.
+- A read gives a new copy of the item.
+- The order of the items is the order of the first write of each id, as in a `Map`.
+
+### The change log and the versions
+
+- `getChangesSince(version)` gives the items that changed and the ids that were deleted after a version. `HybridStorage` uses it for a delta sync.
+- A version is `<epoch>:<seq>`, as in `InMemoryStorage`. The table `_storage_versions` keeps the epoch, so a version stays valid after a restart.
+- The table `_storage_log` keeps the last change of each id. The option `maxTombstones` (10000 by default) limits the deletes that it keeps.
+- A version that is older than the dropped deletes gives all items (`full: true`).
+- Write the table only through the storage. A change from other SQL is not in the change log.
+
+### The transactions and the file
+
+- Each write runs in a transaction with the change log. A batch that fails changes nothing.
+- The storage keeps the database in memory, and it writes the file after each write. The write ends after the file write.
+- When several writes wait, one file write holds their changes.
+- A failed file write fails the write. The change stays in memory, and `flush()` or the next write writes it.
+- A storage that only reads does not make the file.
+- The storages of one file in one process share one database. Thus the storages of two tables in one file keep their items.
+- Another process, and the procedures `db.query` and `db.execute`, do not share this database. Do not write the file from them while a storage has it open.
+
+### The durable local copy of `HybridStorage`
+
+`HybridStorage` of `@procedures/store` takes the storage of its local copy in the option `local`. With a `SqliteStorage`, the local copy stays after a restart. A new storage in `local-only` mode then reads the items of the last run, without the remote.
+
+```ts
+import { HybridStorage } from "@procedures/store";
+import { FileQueueStore } from "@procedures/store/file-queue";
+import { SqliteStorage } from "@procedures/sqlite/storage";
+
+const users = new HybridStorage(remote, {
+  mode: "write-back",
+  local: new SqliteStorage({ path: "./users.db", table: "users" }),
+  queueStore: new FileQueueStore("./users.queue.jsonl"),
+});
+```
+
 ## Usage Examples
 
 ### Basic Database Operations
@@ -708,7 +768,9 @@ export type {
 client-sqlite/
 ├── src/
 │   ├── types.ts              # Type definitions
-│   ├── register.ts           # Auto-registration + procedure implementations
+│   ├── module.ts             # The procedures as data
+│   ├── register.ts           # The ./register entry: it registers the procedures
+│   ├── storage.ts            # SqliteStorage, the collection storage (the ./storage entry)
 │   └── index.ts              # Main entry point
 ├── dist/                     # Compiled output
 ├── package.json

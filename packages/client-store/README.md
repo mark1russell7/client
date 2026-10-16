@@ -37,6 +37,26 @@ console.log(await client.exec(["math", "addTen"], { x: 5 })); // 15
 | `MemoryProgramStore` | In the memory of the process |
 | `FileProgramStore` | In one JSON file. A lock file and an atomic rename keep the programs of two processes. |
 | `CollectionProgramStore` | In a collection storage: `InMemoryStorage` of `@procedures/collections`, `ApiStorage` (the collection procedures of a server) or `HybridStorage` (a local cache with a remote copy) |
+| `IndexedDbProgramStore` | In the IndexedDB of a browser. It is in `@procedures/store/indexeddb`. |
+
+### The stores of a browser
+
+The entry `@procedures/store/indexeddb` has the stores of a browser. The package root does not import it, and it does not import the client or zod.
+
+- `IndexedDbProgramStore` keeps the programs in one database, `procedures-programs` by default.
+- `IndexedDbQueueStore` keeps the queue of a `HybridStorage`. Give each storage its own database.
+- `hasIndexedDb()` tells if the browser has IndexedDB. `MemoryProgramStore` and `MemoryQueueStore` are the fallbacks.
+- A browser can refuse to open a database, for example in a private window. Then the first operation of a store fails.
+- The store checks each record that it reads. A record of an old version or of another application is an error.
+
+```ts
+import { IndexedDbProgramStore, MemoryProgramStore, hasIndexedDb } from "@procedures/store/indexeddb";
+
+const programs = hasIndexedDb() ? new IndexedDbProgramStore("my-app-programs") : new MemoryProgramStore();
+await programs.put({ key: "reports.weekly", path: ["reports", "weekly"], program, storedAt: Date.now() });
+```
+
+The Composer of the site saves programs with `IndexedDbProgramStore`. It loads the store only when the reader opens the saved programs.
 
 A host gives a registry its store with `attachProgramStore(registry, store)`. The procedures use the store of the caller's registry:
 
@@ -107,7 +127,28 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - A new storage with the same store loads the queue, shows its writes, and sends them.
 - `MemoryQueueStore` is the default. `FileQueueStore` keeps the queue in a JSON Lines file, for Node.
 - `FileQueueStore` is in `@procedures/store/file-queue`, because it uses `node:fs`. The package root does not import it.
-- An IndexedDB store for the browser is future work. It implements the four methods of `QueueStore`: `load`, `append`, `replace` and `clear`.
+- `IndexedDbQueueStore` keeps the queue in IndexedDB, for a browser. It is in `@procedures/store/indexeddb`.
+
+### The local copy
+
+- The option `local` gives the storage of the local copy. The default is a new `InMemoryStorage`.
+- A durable local copy keeps the items after a restart. `SqliteStorage` of `@procedures/sqlite` keeps them in a SQLite file.
+- With a durable local copy, a new storage in `local-only` mode reads the items of the last run. It makes no remote call.
+- Give a durable `queueStore` with a durable local copy. A restart applies the loaded queue to the local copy again, and the result does not change.
+- The first sync after a restart reads all remote items. It removes each local item that the remote deleted and that no queued write changes.
+- `close()` closes the local copy. A durable local copy keeps its items.
+
+```ts
+import { ApiStorage, HybridStorage } from "@procedures/store";
+import { FileQueueStore } from "@procedures/store/file-queue";
+import { SqliteStorage } from "@procedures/sqlite/storage";
+
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  mode: "write-back",
+  local: new SqliteStorage({ path: "./users.db", table: "users" }),
+  queueStore: new FileQueueStore("./users.queue.jsonl"),
+});
+```
 
 ### The sync, the versions and the conflicts
 
