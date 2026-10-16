@@ -152,7 +152,10 @@ export interface Capability<C = ClearanceOf> {
 export interface CapabilityRequest<C = ClearanceOf> {
   clearance?: C;
   effects?: PermittedEffects;
-  /** The time from now, in milliseconds. The result is the earlier of the two deadlines. */
+  /**
+   * The time from now, in milliseconds. The result is the earlier of the two deadlines. A value
+   * that is not a finite number of zero or more asks for nothing.
+   */
   timeoutMs?: number;
 }
 

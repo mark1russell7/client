@@ -9,6 +9,9 @@ import {
   createProcedure,
   type Effects,
   type Procedure,
+  type ProcedureContext,
+  type ProcedureRegistry,
+  type ProcedureRegistryLike,
   PROCEDURE_REGISTRY,
   REGISTRY_READ_EFFECTS,
 } from "@procedures/client";
@@ -51,9 +54,9 @@ export const discoveryAnnounceProcedure: Procedure<
     internal: true,
     effects: REGISTRY_READ_EFFECTS,
   })
-  .handler(async (_input: DiscoveryAnnounceInput) => {
-    // Get all registered procedures
-    const procedures = PROCEDURE_REGISTRY.getAll();
+  .handler(async (_input: DiscoveryAnnounceInput, ctx?: ProcedureContext) => {
+    // The procedures of the registry that serves this call (the peer's registry)
+    const procedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
 
     // Convert to ProcedureInfo format
     const procedureInfos: ProcedureInfo[] = procedures
@@ -90,10 +93,10 @@ export const discoveryAnnounceProcedure: Procedure<
 // =============================================================================
 
 /**
- * Get procedure info for all registered procedures
+ * Get procedure info for all registered procedures of a registry (default: the global registry)
  */
-export function getProcedureInfos(): ProcedureInfo[] {
-  const procedures = PROCEDURE_REGISTRY.getAll();
+export function getProcedureInfos(registry: ProcedureRegistryLike = PROCEDURE_REGISTRY): ProcedureInfo[] {
+  const procedures = registry.getAll();
 
   return procedures
     .filter((proc) => proc.handler !== undefined)
@@ -110,10 +113,11 @@ export function getProcedureInfos(): ProcedureInfo[] {
 }
 
 /**
- * Watch for procedure changes
+ * Watch for procedure changes in a registry (default: the global registry)
  */
 export function watchProcedures(
-  callback: (event: "register" | "unregister", info: ProcedureInfo) => void
+  callback: (event: "register" | "unregister", info: ProcedureInfo) => void,
+  registry: ProcedureRegistry = PROCEDURE_REGISTRY
 ): () => void {
   const createHandler = (eventType: "register" | "unregister") => {
     return (proc: { path: string[]; metadata?: { description?: string } }) => {
@@ -130,11 +134,11 @@ export function watchProcedures(
   const registerHandler = createHandler("register");
   const unregisterHandler = createHandler("unregister");
 
-  PROCEDURE_REGISTRY.on("register", registerHandler);
-  PROCEDURE_REGISTRY.on("unregister", unregisterHandler);
+  registry.on("register", registerHandler);
+  registry.on("unregister", unregisterHandler);
 
   return () => {
-    PROCEDURE_REGISTRY.off("register", registerHandler);
-    PROCEDURE_REGISTRY.off("unregister", unregisterHandler);
+    registry.off("register", registerHandler);
+    registry.off("unregister", unregisterHandler);
   };
 }

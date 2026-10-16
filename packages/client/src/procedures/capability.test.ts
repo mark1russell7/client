@@ -22,6 +22,7 @@ import { outputSchema } from "./core/schemas.js";
 import { coreProcedures, allCoreProcedures } from "./core/index.js";
 import { createRegistry } from "./module.js";
 import { RUNS_REFS_TAG } from "./ref.js";
+import { metaProcedures } from "./define-procedure.js";
 import type { AnyProcedure, Capability, Effects, ProcedureContext } from "./types.js";
 import { ProcedureServer } from "../server/procedure-server.js";
 import { hostPolicy, procedureServerOptions } from "../server/host-policy.js";
@@ -138,6 +139,14 @@ describe("narrowCapability", () => {
     expect(later.effects?.destructive).toBe(false);
     expect(later.deadline).toBe(1000);
     expect(narrowCapability(base, { timeoutMs: 10 }, undefined, 0).deadline).toBe(10);
+  });
+
+  it("keeps the deadline when the time asked for is not a number of milliseconds", () => {
+    const base = narrowCapability(undefined, { timeoutMs: 1000 }, undefined, 0);
+    for (const timeoutMs of [Number.NaN, Number.POSITIVE_INFINITY, -5]) {
+      expect(narrowCapability(base, { timeoutMs }, undefined, 0).deadline).toBe(1000);
+      expect(narrowCapability(undefined, { timeoutMs }, undefined, 0).deadline).toBeUndefined();
+    }
   });
 
   it("gives a frozen capability", () => {
@@ -430,6 +439,26 @@ describe("a Client with a capability", () => {
     const chain = { steps: [{ $proc: ["files", "write"], input: {} }] };
     const error = await refusal(client.exec(["client", "chain"], chain));
     expect(error.code).toBe("FORBIDDEN");
+    expect(log).toEqual(["read"]);
+  });
+
+  it("runs a procedure that procedure.define made under readOnly, and examines each of its nested calls", async () => {
+    const log: string[] = [];
+    const registry = makeRegistry(log);
+    for (const procedure of metaProcedures) registry.register(procedure);
+    const writer = new Client({ transport: new LocalTransport({ registry }) }).useRegistry(registry);
+    await writer.exec(["procedure", "define"], { path: ["defined", "read"], aggregation: { $proc: ["files", "read"], input: {} } });
+    await writer.exec(["procedure", "define"], {
+      path: ["defined", "write"],
+      aggregation: { $proc: ["files", "write"], input: {} },
+      // The metadata of a caller cannot claim fewer effects
+      metadata: { description: "Writes", effects: { reads: [], writes: [] } },
+    });
+    expect(registry.get(["defined", "write"])!.metadata.effects).toEqual({ reads: [], writes: [] });
+
+    const reader = new Client({ transport: new LocalTransport({ registry }), capability: READ_ONLY }).useRegistry(registry);
+    expect(await reader.exec(["defined", "read"], {})).toBe("content");
+    expect((await refusal(reader.exec(["defined", "write"], {}))).code).toBe("FORBIDDEN");
     expect(log).toEqual(["read"]);
   });
 

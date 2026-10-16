@@ -199,6 +199,19 @@ The effect declarations of phase D (CAPABILITIES-2026-10) read each handler. The
 | CAP-4 | low | decision | | The git procedures that start hooks (`commit`, `push`, `pull`, `checkout`) write `process`. A `reference-transaction` hook starts also on `branch`, `fetch` and `stash`: those do not declare `process`. |
 | CAP-5 | low | fixed | | `git.remote` read and wrote: with `url`, it set the URL. So `lib.scan`, which only reads the URL, had to declare that it writes. It is two procedures now: `git.remote` reads, `git.remote.set` writes. |
 
+## Architecture review (2026-10-16)
+
+A review of the `@procedures` stack after 0.2.2 found these items.
+
+| ID | Severity | Status | Commit | Note |
+|---|---|---|---|---|
+| REV-1 | medium | fixed | | `narrowCapability` with a `timeoutMs` of `NaN` gave a `NaN` deadline, which is no deadline: a narrower request removed the limit. A time that is not a finite number of zero or more now asks for nothing. The server path had this check already. |
+| REV-2 | medium | fixed | | A procedure of `procedure.define` declared no effects, so a read-only capability refused each one. It declares no effects of its own now, as `client.chain`: the admission examines each nested call of a data-driven procedure. The metadata of the caller cannot change this. |
+| REV-3 | medium | fixed | | After P9 a host can have its own registry, but `mcp.list-tools`, `mcp.serve`, `_discovery.announce`, `manifest.generate`, `server.create`, `procedure.export` and `lib.audit` read the global registry. They read the registry of the call now. `getProcedureInfos` and `watchProcedures` take a registry. |
+| REV-4 | low | open | | `evaluateOperand` does not examine `$when`: a `$never` operand of `client.conditional`, `client.tryCatch`, `client.parallel` or `client.map` runs. This is older than the capabilities. |
+| REV-5 | low | open | | The retry middleware does not read `effects.idempotent`, which CAPABILITIES-2026-10 names as a use of the declaration. |
+| REV-6 | low | open | | The timeouts of the client middleware do not send the remaining time (`procedure-timeout`). A `Client` with a capability deadline sends it. |
+
 ## Architecture roadmap
 
 | Item | Status | Commit | Note |

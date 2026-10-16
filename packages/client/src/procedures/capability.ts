@@ -168,7 +168,10 @@ export function narrowCapability<C>(
   const effects = narrowEffects(base.effects, request.effects);
   if (effects !== undefined) result.effects = effects;
 
-  const requestedDeadline = request.timeoutMs !== undefined ? now + request.timeoutMs : undefined;
+  // A time that is not a finite number of milliseconds (NaN, Infinity, below zero) asks for nothing:
+  // Math.min with NaN gives NaN, and a NaN deadline is no deadline, so it would widen
+  const timeoutMs = request.timeoutMs;
+  const requestedDeadline = typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs >= 0 ? now + timeoutMs : undefined;
   const deadline =
     base.deadline === undefined ? requestedDeadline : requestedDeadline === undefined ? base.deadline : Math.min(base.deadline, requestedDeadline);
   if (deadline !== undefined) result.deadline = deadline;

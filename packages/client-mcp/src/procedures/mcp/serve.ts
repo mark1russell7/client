@@ -16,8 +16,10 @@ import {
   defineProcedure,
   ProcedureServer,
   PROCEDURE_REGISTRY,
+  ProcedureRegistry,
   timeoutInterceptor,
   type AnyProcedure,
+  type ProcedureContext,
   type ProcedurePath,
 } from "@procedures/client";
 import { McpServerTransport } from "../../transport/mcp-transport.js";
@@ -92,9 +94,16 @@ export interface ServeSetup {
 
 /**
  * This function builds the procedure server of `mcp.serve`: its expose rule, its call policy and
- * its interceptors. The bundles resolve from `from` (default: the current folder).
+ * its interceptors. The bundles resolve from `from` (default: the current folder). The server
+ * serves `registry` (default: the global registry). The `register.js` of a bundle registers its
+ * procedures in the global registry; for another registry, the bundles give only the tool list,
+ * and the host registers the modules (P9).
  */
-export async function prepareServe(input: ServeOptions, from: string = process.cwd()): Promise<ServeSetup> {
+export async function prepareServe(
+  input: ServeOptions,
+  from: string = process.cwd(),
+  registry: ProcedureRegistry = PROCEDURE_REGISTRY
+): Promise<ServeSetup> {
   let expose: (path: ProcedurePath) => boolean = () => false;
   let warning: string | undefined;
   if (input.namespaces) {
@@ -117,7 +126,7 @@ export async function prepareServe(input: ServeOptions, from: string = process.c
 
   const server = new ProcedureServer({
     autoRegister: input.autoRegister ?? true,
-    registry: PROCEDURE_REGISTRY,
+    registry,
     expose,
     strictCalls: input.strictCalls ?? true,
     interceptors: [timeoutInterceptor({ ms: input.toolTimeoutMs ?? 600_000 })],
@@ -135,10 +144,12 @@ export const mcpServeProcedure: AnyProcedure = defineProcedure({
     // It imports the bundles of the project, which register their procedures, and serves on stdio
     effects: { reads: ["fs", "registry"], writes: ["process", "registry", "server"] },
   },
-  handler: async (input: McpServeInput): Promise<McpServeOutput> => {
+  handler: async (input: McpServeInput, ctx?: ProcedureContext): Promise<McpServeOutput> => {
     const serverName = input.name ?? "procedure-server";
     const serverVersion = input.version ?? "1.0.0";
-    const { server, expose, warning } = await prepareServe(input);
+    // The registry of the caller: a host with its own registry serves its own procedures
+    const registry = ctx?.registry instanceof ProcedureRegistry ? ctx.registry : PROCEDURE_REGISTRY;
+    const { server, expose, warning } = await prepareServe(input, process.cwd(), registry);
 
     // Build transport options
     const options: McpServerTransportOptions = {

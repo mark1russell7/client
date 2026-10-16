@@ -6,7 +6,7 @@
  */
 
 import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, pathToKey, keyToPath } from "@procedures/client";
-import type { AnyProcedure, ProcedurePath } from "@procedures/client";
+import type { AnyProcedure, ProcedureContext, ProcedurePath } from "@procedures/client";
 import { z } from "zod";
 
 // procedure.list and procedure.get are core procedures (`@procedures/client`, in
@@ -62,12 +62,12 @@ export const procedureExportProcedure: AnyProcedure = defineProcedure({
     shorts: {},
     output: "json",
   },
-  handler: async (input: ProcedureExportInput): Promise<ProcedureExportOutput> => {
+  handler: async (input: ProcedureExportInput, ctx?: ProcedureContext): Promise<ProcedureExportOutput> => {
     const path = typeof input.path === "string"
       ? keyToPath(input.path)
       : input.path;
 
-    const proc = PROCEDURE_REGISTRY.get(path);
+    const proc = (ctx?.registry ?? PROCEDURE_REGISTRY).get(path);
 
     if (!proc) {
       return {

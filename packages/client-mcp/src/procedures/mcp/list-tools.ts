@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, type AnyProcedure } from "@procedures/client";
+import { defineProcedure, PROCEDURE_REGISTRY, REGISTRY_READ_EFFECTS, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { proceduresToMcpTools, type McpToolFilter } from "@procedures/mcp";
 
 const McpListToolsInputSchema = z.object({
@@ -51,7 +51,7 @@ export const mcpListToolsProcedure: AnyProcedure = defineProcedure({
     tags: ["mcp", "introspection"],
     effects: REGISTRY_READ_EFFECTS,
   },
-  handler: async (input: McpListToolsInput): Promise<McpListToolsOutput> => {
+  handler: async (input: McpListToolsInput, ctx?: ProcedureContext): Promise<McpListToolsOutput> => {
     // Build filter, only adding defined values
     const filter: McpToolFilter = {
       excludeInternal: input.excludeInternal,
@@ -66,7 +66,8 @@ export const mcpListToolsProcedure: AnyProcedure = defineProcedure({
       filter.pathPrefix = input.pathPrefix;
     }
 
-    const procedures = PROCEDURE_REGISTRY.getAll();
+    // The registry of the caller: a host with its own registry lists its own tools
+    const procedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
     const mcpTools = proceduresToMcpTools(procedures, filter);
 
     const tools: McpToolInfo[] = mcpTools.map((tool) => ({

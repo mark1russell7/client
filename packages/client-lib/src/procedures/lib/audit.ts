@@ -263,7 +263,7 @@ export function findFlagNotices(procedures: readonly AnyProcedure[]): FlagNotice
  */
 export async function libAudit(input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput> {
   const template = PACKAGE_TEMPLATE;
-  const flagNotices = findFlagNotices(PROCEDURE_REGISTRY.getAll());
+  const flagNotices = findFlagNotices((ctx?.registry ?? PROCEDURE_REGISTRY).getAll());
   const empty: LibAuditOutput = {
     success: false,
     flagNotices,

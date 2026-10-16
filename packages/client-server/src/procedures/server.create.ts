@@ -3,7 +3,7 @@
  * Creates a transport-agnostic peer that exposes procedures
  */
 
-import { createProcedure, type Effects, type Procedure, PROCEDURE_REGISTRY } from "@procedures/client";
+import { createProcedure, type Effects, type Procedure, type ProcedureContext, PROCEDURE_REGISTRY, ProcedureRegistry } from "@procedures/client";
 import { wrapSchema } from "../schema.js";
 import { ServerCreateOutputSchema } from "../output-schemas.js";
 import { serverCreateInputSchema } from "../input-schemas.js";
@@ -30,7 +30,10 @@ export const serverCreateProcedure: Procedure<
     // Each call starts a new peer that listens on its transports. It replaces nothing.
     effects: { reads: ["registry"], writes: ["network", "server"], destructive: false },
   })
-  .handler(async (input: ServerCreateInput) => {
+  .handler(async (input: ServerCreateInput, ctx?: ProcedureContext) => {
+    // The registry of the caller: a host with its own registry serves its own procedures
+    const registry = ctx?.registry instanceof ProcedureRegistry ? ctx.registry : PROCEDURE_REGISTRY;
+
     // Generate unique server ID
     const serverId = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -48,7 +51,7 @@ export const serverCreateProcedure: Procedure<
       id: serverId,
       transports,
       autoRegister,
-      registry: PROCEDURE_REGISTRY,
+      registry,
       ...(input.expose ? { expose: exposeRule(input.expose) } : {}),
     });
 
@@ -60,7 +63,7 @@ export const serverCreateProcedure: Procedure<
 
     // Get procedure count
     const procedureCount = input.autoRegister
-      ? PROCEDURE_REGISTRY.getAll().filter((p) => p.handler).length
+      ? registry.getAll().filter((p) => p.handler).length
       : 0;
 
     return {

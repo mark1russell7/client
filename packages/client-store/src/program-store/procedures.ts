@@ -43,10 +43,13 @@ function toPath(path: ProcedurePath | string): ProcedurePath {
   return typeof path === "string" ? keyToPath(path) : path;
 }
 
-/** The metadata to store: the procedure's metadata without the program (the store keeps that). */
+/**
+ * The metadata to store: the procedure's metadata without the program (the store keeps that)
+ * and without the effects (procedure.define sets them).
+ */
 function storedMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!metadata) return undefined;
-  const { aggregation: _aggregation, generatedFrom: _generatedFrom, ...rest } = metadata;
+  const { aggregation: _aggregation, generatedFrom: _generatedFrom, effects: _effects, ...rest } = metadata;
   return Object.keys(rest).length > 0 ? rest : undefined;
 }
 

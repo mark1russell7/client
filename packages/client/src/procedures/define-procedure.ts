@@ -47,7 +47,7 @@ import {
   rawInputRule,
   RUNS_REFS_TAG,
 } from "./ref.js";
-import { REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+import { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
 
 // Input schemas of procedure.define and procedure.delete (roadmap 2.1)
 const procedurePathField = z.array(z.string().min(1)).min(1);
@@ -332,10 +332,15 @@ export const defineProcedureProcedure: Procedure<
       path,
       input: anySchema,
       output: anySchema,
-      metadata: metadata ?? {
-        description: `Runtime-defined aggregation procedure`,
-        generatedFrom: "procedure.define",
-        aggregation,
+      metadata: {
+        ...(metadata ?? {
+          description: `Runtime-defined aggregation procedure`,
+          generatedFrom: "procedure.define",
+          aggregation,
+        }),
+        // No effects of its own, as client.chain: the admission examines each nested call of a
+        // data-driven procedure. The framework sets it, so the metadata of a caller cannot claim less
+        effects: PURE_EFFECTS,
       },
       handler: createAggregationHandler(aggregation),
     });
