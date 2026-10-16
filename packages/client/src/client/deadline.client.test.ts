@@ -13,8 +13,8 @@ import { Client } from "./client.js";
 import { createRetryMiddleware } from "./middleware/retry.js";
 import { createOverallTimeoutMiddleware, createTimeoutMiddleware, createCombinedTimeoutMiddleware } from "./middleware/timeout.js";
 import { resilience } from "./middleware/resilience.js";
-import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY } from "./deadline.js";
-import type { Message, ResponseItem, Transport } from "./types.js";
+import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY, absorbTimeout, deadlineOf, narrowDeadline, restoreDeadline } from "./deadline.js";
+import type { Message, Metadata, ResponseItem, Transport } from "./types.js";
 import { createDefaultHeaderConverter } from "../adapters/http/shared/headers.js";
 import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
@@ -44,6 +44,52 @@ function recorder(run: (message: Message<unknown>, call: number) => AsyncIterabl
   };
   return { transport, tries };
 }
+
+describe("the functions of the deadline (R10)", () => {
+  it("deadlineOf gives only a finite number", () => {
+    expect(deadlineOf({ [DEADLINE_METADATA_KEY]: 1000 })).toBe(1000);
+    expect(deadlineOf({})).toBeUndefined();
+    expect(deadlineOf({ [DEADLINE_METADATA_KEY]: "1000" })).toBeUndefined();
+    expect(deadlineOf({ [DEADLINE_METADATA_KEY]: Number.NaN })).toBeUndefined();
+    expect(deadlineOf({ [DEADLINE_METADATA_KEY]: Number.POSITIVE_INFINITY })).toBeUndefined();
+  });
+
+  it("narrowDeadline keeps the earlier deadline, and restoreDeadline puts back the deadline from before", () => {
+    const metadata: Metadata = { [DEADLINE_METADATA_KEY]: 1000 };
+    expect(narrowDeadline(metadata, 2000)).toBe(1000);
+    expect(metadata[DEADLINE_METADATA_KEY]).toBe(1000);
+    expect(narrowDeadline(metadata, 500)).toBe(1000);
+    expect(metadata[DEADLINE_METADATA_KEY]).toBe(500);
+    restoreDeadline(metadata, 1000);
+    expect(metadata).toStrictEqual({ [DEADLINE_METADATA_KEY]: 1000 });
+  });
+
+  it("restoreDeadline removes the key when the call had no deadline before", () => {
+    const metadata: Metadata = {};
+    expect(narrowDeadline(metadata, 500)).toBeUndefined();
+    expect(metadata).toStrictEqual({ [DEADLINE_METADATA_KEY]: 500 });
+    restoreDeadline(metadata, undefined);
+    expect(Object.keys(metadata)).toEqual([]);
+  });
+
+  it("absorbTimeout makes the remaining time of the caller the deadline, also a remaining time of 0", () => {
+    const metadata: Metadata = { [TIMEOUT_METADATA_KEY]: 0 };
+    absorbTimeout(metadata, 1000);
+    expect(metadata).toStrictEqual({ [DEADLINE_METADATA_KEY]: 1000 });
+
+    const earlier: Metadata = { [TIMEOUT_METADATA_KEY]: 500, [DEADLINE_METADATA_KEY]: 1200 };
+    absorbTimeout(earlier, 1000);
+    expect(earlier).toStrictEqual({ [DEADLINE_METADATA_KEY]: 1200 });
+  });
+
+  it("absorbTimeout ignores a remaining time that is not a finite number of 0 or more", () => {
+    for (const value of ["500", -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const metadata: Metadata = { [TIMEOUT_METADATA_KEY]: value };
+      absorbTimeout(metadata, 1000);
+      expect(metadata).toStrictEqual({ [TIMEOUT_METADATA_KEY]: value });
+    }
+  });
+});
 
 describe("the deadline goes with each try (R10)", () => {
   it("the overall timeout sends its remaining time, smaller at each try", async () => {

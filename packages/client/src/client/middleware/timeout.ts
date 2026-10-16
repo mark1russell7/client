@@ -92,17 +92,18 @@ function composeAbortSignals(...signals: (AbortSignal | undefined)[]): {
     }
   }
 
-  // Fallback: Manual composition for older environments
+  // Fallback: Manual composition for older environments. The composed signal keeps the reason of
+  // the signal that aborted, as with AbortSignal.any() (before, it got a new AbortError).
   const controller = new AbortController();
   const abortListeners: Array<() => void> = [];
 
   for (const signal of validSignals) {
     if (signal.aborted) {
-      controller.abort();
+      controller.abort(signal.reason);
       break;
     }
 
-    const listener = () => controller.abort();
+    const listener = () => controller.abort(signal.reason);
     signal.addEventListener("abort", listener, { once: true });
     abortListeners.push(() => signal.removeEventListener("abort", listener));
   }
