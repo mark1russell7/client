@@ -4,7 +4,7 @@
  */
 
 import { lstat, readdir, readlink } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { ArchiveError } from "./errors.js";
 
 /** One path for the archive. */
@@ -29,6 +29,14 @@ export interface WalkOptions {
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
+/**
+ * This function gives the target of a link with `/`, as an archive keeps it. Windows gives `..\a.txt`
+ * for a link that Node made from `../a.txt`. On the other systems, a `\` is a part of a name.
+ */
+export function portableLinkTarget(target: string, separator: string = sep): string {
+  return separator === "\\" ? target.replaceAll("\\", "/") : target;
+}
+
 /** This function walks the names (relative to `base`) and gives each entry for the archive. */
 export async function walk(base: string, names: readonly string[], options: WalkOptions): Promise<WalkEntry[]> {
   const entries: WalkEntry[] = [];
@@ -48,7 +56,7 @@ export async function walk(base: string, names: readonly string[], options: Walk
     if (entries.length >= options.maxEntries) throw new ArchiveError("TOO_LARGE", `The archive gets more entries than the limit of ${options.maxEntries}`, name);
     const common = { name, path, size: 0, mode: stats.mode & 0o7777, mtime: stats.mtime };
     if (stats.isSymbolicLink()) {
-      entries.push({ ...common, kind: "symlink", linkTarget: await readlink(path) });
+      entries.push({ ...common, kind: "symlink", linkTarget: portableLinkTarget(await readlink(path)) });
     } else if (stats.isDirectory()) {
       entries.push({ ...common, kind: "directory" });
       const children = (await readdir(path)).sort(byName);

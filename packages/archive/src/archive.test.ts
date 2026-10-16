@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { createRegistry, effectsOf, invokePath, outputValue, type ProcedureModule } from "@procedures/client";
 import { archiveModule, createArchiveModule, registerArchiveProcedures } from "./module.js";
 import { crc32 } from "./zip.js";
+import { portableLinkTarget } from "./walk.js";
 import type { ArchiveCreateOutput, ArchiveExtractOutput, ArchiveListOutput } from "./types.js";
 
 const folders: string[] = [];
@@ -164,6 +165,13 @@ describe.each(["tar.gz", "tar", "zip"] as const)("a %s archive", (format) => {
     const extracted = await call<ArchiveExtractOutput>("archive.extract", { archive: output, target });
     expect(extracted.links).toBe(1);
     expect(readFileSync(join(target, "sub", "link-to-a"), "utf8")).toBe("alpha\n");
+  });
+});
+
+describe("the link targets of the walk", () => {
+  it("gives a link target with / on Windows, and keeps a \\ elsewhere", () => {
+    expect(portableLinkTarget("..\\sub\\a.txt", "\\")).toBe("../sub/a.txt");
+    expect(portableLinkTarget("../a\\b.txt", "/")).toBe("../a\\b.txt");
   });
 });
 
