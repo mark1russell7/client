@@ -266,6 +266,21 @@ describe("timeout on fake timers", () => {
     expect(call.error).toMatchObject({ code: "TIMEOUT", message: "Request timeout" });
   });
 
+  it("gives the transport a signal with the reason of the abort of the caller", async () => {
+    const { transport, messages } = fake(async function* () {
+      await forever();
+    });
+    const client = new Client(transport).use(createTimeoutMiddleware({ perAttempt: ms(10_000) }));
+    const caller = new AbortController();
+    const call = track(client.call(method, {}, { signal: caller.signal }));
+    await vi.advanceTimersByTimeAsync(0);
+    const reason = new Error("the user left");
+    caller.abort(reason);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(call.error).toMatchObject({ code: "ABORTED" });
+    expect(messages[0]!.signal!.reason).toBe(reason);
+  });
+
   it("gives an error item of the transport as it is when the time did not run out", async () => {
     const { transport } = fake(async function* (message) {
       yield { id: message.id, status: { type: "error", code: "UNAVAILABLE", message: "busy", retryable: true }, payload: null, metadata: {} };
@@ -381,10 +396,13 @@ describe("timeout without AbortSignal.any", () => {
     const during = new AbortController();
     const first = track(client.call(method, {}, { signal: during.signal }));
     await vi.advanceTimersByTimeAsync(0);
-    during.abort();
+    const reason = new Error("the user left");
+    during.abort(reason);
     await vi.advanceTimersByTimeAsync(0);
     expect(first.error).toMatchObject({ code: "ABORTED" });
+    // The signal of the transport has the reason of the caller, as with AbortSignal.any
     expect(messages[0]!.signal!.aborted).toBe(true);
+    expect(messages[0]!.signal!.reason).toBe(reason);
 
     const before = new AbortController();
     before.abort();
