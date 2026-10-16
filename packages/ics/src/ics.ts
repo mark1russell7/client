@@ -66,15 +66,10 @@ const unfold = (text: string): string[] =>
 
 /**
  * This function decodes an RFC 5545 TEXT value. Exporters write both `\n` and `\N` for a new
- * line.
+ * line. It reads each escape one time from left to right, so `\\n` is a backslash and an `n`.
  */
 export const unescapeText = (value: string): string =>
-  value
-    .replaceAll("\\n", "\n")
-    .replaceAll("\\N", "\n")
-    .replaceAll("\\,", ",")
-    .replaceAll("\\;", ";")
-    .replaceAll("\\\\", "\\");
+  value.replace(/\\([\\;,nN])/g, (_escape: string, char: string) => (char === "n" || char === "N" ? "\n" : char));
 
 const parseProp = (line: string): IcsProp | undefined => {
   const colon = line.indexOf(":");
@@ -222,7 +217,9 @@ export const parseIcs = (text: string): IcsEvent[] => {
 };
 
 const eventOf = (props: ReadonlyMap<string, IcsProp>, exdates: readonly string[]): IcsEvent | undefined => {
-  const uid = props.get("UID")?.value;
+  // UID is a TEXT value (RFC 5545 3.8.4.7), so it can have escapes
+  const uidValue = props.get("UID")?.value;
+  const uid = uidValue === undefined ? undefined : unescapeText(uidValue);
   const startProp = props.get("DTSTART");
   const start = startProp === undefined ? undefined : parseIcsDate(startProp);
   if (uid === undefined || start === undefined || props.get("STATUS")?.value === "CANCELLED") return undefined;

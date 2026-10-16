@@ -18,6 +18,8 @@
     "packages/compiler/src/**/*.ts",
     "packages/systems/README.md",
     "packages/bundle-assistant/README.md",
+    "packages/ics/README.md",
+    "packages/geo/README.md",
     "packages/gh/README.md",
     "packages/npm/README.md",
     "packages/http/README.md",

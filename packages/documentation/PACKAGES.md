@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 52. **Procedures:** 279. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 52. **Procedures:** 282. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -43,10 +43,10 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/documentation` | `packages/documentation` | — | — | — |
 | `@procedures/env` | `packages/env` | Environment variables as procedures: one variable, the names, and the check of the required ones, with the secrets masked. | `env.*` (3) | `client` |
 | `@procedures/exif` | `packages/exif` | When and where a JPEG photo was taken, from its EXIF block (time, offset, GPS), without a dependency. | `exif.*` (1) | `client` |
-| `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim) and the time and distance of a drive (OSRM). | `geo.*` (2) | `client` |
+| `@procedures/geo` | `packages/geo` | Map procedures: the coordinates of an address (OpenStreetMap Nominatim), the time and distance of a drive (OSRM), the great-circle distance and the geohash. | `geo.*` (4) | `client` |
 | `@procedures/gh` | `packages/gh` | The GitHub CLI as procedures: pull requests, workflow runs, releases and issues, with an argument list and no shell. | `gh.*` (13) | `client`, `shell` |
 | `@procedures/http` | `packages/http` | HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call. | `http.*` (4) | `client` |
-| `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader without dependencies: the events of a calendar and their occurrences in a time window, recurrences included. | `ics.*` (3) | `client` |
+| `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader and writer without dependencies: the events of a calendar, their occurrences in a time window with the recurrences, and a calendar from events. | `ics.*` (4) | `client` |
 | `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 91 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `mcp-server` |
 | `@procedures/json` | `packages/json` | Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back. | `json.*` (5), `yaml.*` (2) | `client`, `compiler` |
 | `@procedures/llm` | `packages/llm` | A language model as procedures: a completion and a structured answer that a JSON Schema accepts, through the Anthropic Messages API, with the key from the environment. | `llm.*` (2) | `client`, `json` |

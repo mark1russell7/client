@@ -5,7 +5,7 @@
  * The bundle has the procedures of `ics`, `mail`, `geo`, `weather` and `exif`. The tools are only
  * the procedures that are pure, or that read a fixed public service:
  *
- * - `ics.parse`, `ics.occurrences`, `mail.parse`: pure.
+ * - `ics.parse`, `ics.occurrences`, `ics.write`, `mail.parse`, `geo.distance`, `geo.geohash`: pure.
  * - `geo.geocode`, `geo.route`, `weather.forecast`: they read one public service each.
  * - `exif.read`: it reads a file of the host.
  *
