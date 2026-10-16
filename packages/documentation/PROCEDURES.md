@@ -4,12 +4,13 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 279 across 46 namespaces. Loaded 41 package register(s).
+**Total procedures:** 284 across 48 namespaces. Loaded 43 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
 - [`archive.*`](#archive) — 3 procedure(s)
+- [`claude.*`](#claude) — 4 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
 - [`client.*`](#client) — 15 procedure(s)
 - [`core.*`](#core) — 1 procedure(s)
@@ -37,6 +38,7 @@
 - [`node.*`](#node) — 5 procedure(s)
 - [`notify.*`](#notify) — 1 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
+- [`pdf.*`](#pdf) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
 - [`procedure.*`](#procedure) — 12 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
@@ -70,6 +72,15 @@
 | `archive.create` | Make a tar.gz or zip archive of a folder or of files |
 | `archive.extract` | Extract a tar.gz or zip archive into a folder, with a check of each path |
 | `archive.list` | The entries of a tar.gz or zip archive |
+
+## claude
+
+| Procedure | Description |
+|-----------|-------------|
+| `claude.cancel` | Stop a turn and the processes that it started |
+| `claude.follow` | Follow the output file of a turn and stream its events until the turn ends |
+| `claude.read` | Read the new events of a turn from its output file |
+| `claude.start` | Start one turn of the Claude Code CLI as a detached process that writes to a file |
 
 ## cli
 
@@ -400,6 +411,12 @@
 | `npm.pack` | List the files of the tarball of the package (a dry run), or with dryRun: false make the tarball |
 | `npm.view` | Read the fields of a package of the npm registry: data has the JSON of npm view |
 | `npm.whoami` | Give the user name of the npm registry |
+
+## pdf
+
+| Procedure | Description |
+|-----------|-------------|
+| `pdf.render` | Render HTML to a PDF file with a headless Chromium browser |
 
 ## pnpm
 

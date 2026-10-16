@@ -27,6 +27,8 @@
       "@procedures/notify",
       "@procedures/restic",
       "@procedures/tailscale",
+      "@procedures/pdf",
+      "@procedures/claude-cli",
       "@procedures/cue",
       "@procedures/dag",
       "@procedures/docker",

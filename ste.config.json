@@ -26,6 +26,10 @@
     "packages/schedule/README.md",
     "packages/env/README.md",
     "packages/archive/README.md",
+    "packages/pdf/README.md",
+    "packages/pdf/src/**/*.ts",
+    "packages/claude-cli/README.md",
+    "packages/claude-cli/src/**/*.ts",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [
