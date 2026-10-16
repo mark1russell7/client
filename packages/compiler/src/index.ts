@@ -2,6 +2,8 @@
 export * from "./module.js";
 export * from "./types.js";
 export { checkProgram, compileProgram } from "./program.js";
+export { programCheckInterceptor } from "./interceptor.js";
+export type { ProgramCheckOptions, ObservableRegistry } from "./interceptor.js";
 export type { CheckOptions, CheckResult, CompileOptions, CompileResult, MustEffects } from "./program.js";
 export { manifestFacts, registryFacts, withDefinitions, coreProcedureOf, entryTakesRawInput } from "./facts.js";
 export type { ProcedureFacts, RegistryLike, FactsOptions, Definition } from "./facts.js";

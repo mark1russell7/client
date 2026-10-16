@@ -74,6 +74,25 @@ const checked = checkProgram(program, { manifest });
 
 Give `mode: "body"` for the body of a procedure that `procedure.define` makes. Then the scope has the name `input`.
 
+## Check each program of a host
+
+`programCheckInterceptor()` checks the program of each call to a data-driven procedure before the procedure starts. When the check finds an error, the host refuses the call, and no step starts. The MCP server of `@procedures/mcp-dev-tools` uses it.
+
+```typescript
+import { programCheckInterceptor } from "@procedures/compiler";
+
+const server = new ProcedureServer({
+  registry,
+  expose,
+  interceptors: [programCheckInterceptor({ registry, expose })],
+});
+```
+
+- The error has the code of the interpreter for the same problem: `NOT_EXPOSED`, `NOT_FOUND`, `FORBIDDEN` with its reason, or `VALIDATION_ERROR`.
+- The check is conservative. It refuses a call in a branch that does not run, and a refused call inside `client.tryCatch`.
+- The interceptor keeps the facts of the registry until the registry changes.
+- `refuses` selects the diagnostics that refuse a program. The default refuses each error.
+
 ## Use the compiler
 
 ```typescript

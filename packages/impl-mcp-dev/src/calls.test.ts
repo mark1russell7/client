@@ -105,6 +105,9 @@ function samples(): Record<string, unknown> {
     "procedure.export": { path: ["client", "identity"] },
     "procedure.get": { path: ["client", "identity"] },
     "procedure.manifest": { namespace: "client" },
+    // The check and the compiler read the registry. The program stays data (roadmap R22).
+    "program.check": { program: { $proc: ["client", "chain"], input: { steps: [{ $proc: ["client", "identity"], input: { value: 1 } }] } } },
+    "program.compile": { program: { $proc: ["client", "identity"], input: { value: 1 } } },
     "procedure.list": {},
     "procedure.new": { name: "callsTest", path: join(workspace, "packages", "calls-a") },
     "vitest.coverage": cwd,

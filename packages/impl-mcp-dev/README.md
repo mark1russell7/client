@@ -41,6 +41,10 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 | `MCP_SERVER_NAME` | `impl-mcp-dev` | The server name in the MCP handshake |
 | `MCP_SERVER_VERSION` | `1.0.0` | The server version in the MCP handshake |
 | `MCP_DEBUG` | `false` | With `true`, the server writes debug lines to stderr |
+| `MCP_TOOL_TIMEOUT_MS` | `600000` | The time limit of a tool call, in milliseconds. `0` turns the limit off. |
+| `MCP_READ_ONLY` | `false` | With `true`, the tools are only the procedures that change nothing |
+| `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN` | not set | The server uses Streamable HTTP on this port, not stdio. The host is `127.0.0.1` by default. |
+| `MCP_PROGRAM_CHECK` | `true` | With `false`, a program starts without the check before the run |
 
 ## How it selects the tools
 
@@ -48,6 +52,7 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 2. A procedure is a tool when its namespace is in `mcpNamespaces` of a bundle, and its key is not in `mcpExclude`.
 3. A `ProcedureServer` serves the registry with that rule as its `expose` rule. A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only exposed procedures.
 4. `McpServerTransport` gives the exposed procedures as tools over stdio. It tells Claude when the list of tools changes.
+5. The host checks the program of each call to a data-driven procedure before the first step (`programCheckInterceptor` of `@procedures/compiler`). When the check finds an error, no step starts. Thus a refusal in step 3 comes before the write of step 1.
 
 > [!WARNING]
 > A bundle without `mcpNamespaces` exposes every registered procedure, `shell.exec` too. `bundle-dev` has no `mcpNamespaces`. Thus `MCP_BUNDLES=@procedures/bundle-dev` gives Claude shell access through this server.
@@ -56,7 +61,7 @@ The server sends `console.log` output to stderr, because stdout carries the MCP 
 
 ## The tool list
 
-`tools.snapshot.txt` has the names of the 62 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
+`tools.snapshot.txt` has the names of the 65 tools. `src/tools.test.ts` starts the real server over stdio and compares its tools with the file. It also examines that a `docker.*` tool cannot start a shell command. To change the tools, change `bundle-mcp` and `tools.snapshot.txt` in one commit. The [bundle-mcp README](../bundle-mcp/README.md) lists the tools and the reasons for the procedures that stay out.
 
 ## Troubleshooting
 

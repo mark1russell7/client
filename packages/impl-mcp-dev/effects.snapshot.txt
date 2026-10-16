@@ -59,5 +59,7 @@ procedure.get: read only
 procedure.list: read only
 procedure.manifest: read only
 procedure.new: additive
+program.check: read only
+program.compile: read only
 vitest.coverage: destructive, open world
 vitest.run: destructive, open world

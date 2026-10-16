@@ -26,9 +26,9 @@ interface Property {
 }
 
 describe("the input schemas of the MCP tools", () => {
-  it("has the 63 tools of the snapshot", () => {
-    // procedure.manifest is the 63rd (roadmap R17)
-    expect(tools.length).toBe(63);
+  it("has the 65 tools of the snapshot", () => {
+    // procedure.manifest is the 63rd (roadmap R17), program.check and program.compile came with R22
+    expect(tools.length).toBe(65);
   });
 
   for (const procedure of tools) {

@@ -62,12 +62,13 @@
   "dependencies": {
     "@procedures/bundle-mcp": "workspace:*",
     "@procedures/client": "workspace:*",
+    "@procedures/compiler": "workspace:*",
     "@procedures/mcp-server": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   }
 }

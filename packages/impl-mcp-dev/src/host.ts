@@ -27,6 +27,7 @@ import {
   type ToolSurface,
 } from "@procedures/client";
 import { McpServerTransport, mergeSurfaces, type BundleSurfaceModule } from "@procedures/mcp-server";
+import { programCheckInterceptor } from "@procedures/compiler";
 import { loadConfig, type McpServerConfig } from "./config.js";
 import { ms } from "@procedures/client";
 
@@ -102,11 +103,16 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
         return procedure !== undefined && capabilityRefusal(procedure, capability) === undefined;
       }
     : surface;
+  // The check before the run (roadmap R22): a program with an error does not start, so a refusal
+  // in step 3 comes before the write of step 1
+  const exposeRule = typeof expose === "function" ? expose : expose ? surfaceRule(expose) : undefined;
+  const programCheck = config.programCheck === false ? [] : [programCheckInterceptor({ registry, expose: exposeRule })];
   const policy = hostPolicy({
     ...(expose ? { expose } : {}),
     strictCalls: true,
     timeout: ms(config.toolTimeoutMs),
     ...(readOnly ? { readOnly: true } : {}),
+    ...(programCheck.length > 0 ? { interceptors: programCheck } : {}),
   });
   const server = new ProcedureServer(procedureServerOptions(policy, registry));
   return { registry, surface, policy, server };

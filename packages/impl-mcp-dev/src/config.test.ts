@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { DEFAULT_TOOL_TIMEOUT_MS, parseTimeout } from "./config.js";
+import { DEFAULT_TOOL_TIMEOUT_MS, loadConfig, parseTimeout } from "./config.js";
 
 describe("parseTimeout", () => {
   it("reads milliseconds, and 0 turns the limit off", () => {
@@ -16,5 +16,24 @@ describe("parseTimeout", () => {
     expect(parseTimeout("")).toBe(DEFAULT_TOOL_TIMEOUT_MS);
     expect(parseTimeout("ten")).toBe(DEFAULT_TOOL_TIMEOUT_MS);
     expect(parseTimeout("-5")).toBe(DEFAULT_TOOL_TIMEOUT_MS);
+  });
+});
+
+describe("MCP_PROGRAM_CHECK (roadmap R22)", () => {
+  it("is on by default, and false or 0 turns it off", () => {
+    const before = process.env["MCP_PROGRAM_CHECK"];
+    try {
+      delete process.env["MCP_PROGRAM_CHECK"];
+      expect(loadConfig().programCheck).toBe(true);
+      for (const off of ["false", "0"]) {
+        process.env["MCP_PROGRAM_CHECK"] = off;
+        expect(loadConfig().programCheck).toBe(false);
+      }
+      process.env["MCP_PROGRAM_CHECK"] = "true";
+      expect(loadConfig().programCheck).toBe(true);
+    } finally {
+      if (before === undefined) delete process.env["MCP_PROGRAM_CHECK"];
+      else process.env["MCP_PROGRAM_CHECK"] = before;
+    }
   });
 });

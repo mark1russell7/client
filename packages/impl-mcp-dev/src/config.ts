@@ -25,6 +25,11 @@ export interface McpServerConfig {
    * listens on loopback by default. A token makes each request send `Authorization: Bearer`.
    */
   http?: { port: number; host?: string | undefined; token?: string | undefined } | undefined;
+  /**
+   * False: the host does not check a program before it runs it (roadmap R22). The default is
+   * true: a program with an error does not start, so no step of it writes.
+   */
+  programCheck?: boolean | undefined;
 }
 
 /**
@@ -38,6 +43,7 @@ export interface McpServerConfig {
  * - MCP_TOOL_TIMEOUT_MS: The time limit of each tool call (default: 600000, 10 minutes; 0: no limit)
  * - MCP_READ_ONLY: "true" or "1" gives only the tools that change nothing (default: false)
  * - MCP_HTTP_PORT, MCP_HTTP_HOST, MCP_HTTP_TOKEN: serve over Streamable HTTP, not stdio
+ * - MCP_PROGRAM_CHECK: "false" or "0" starts a program without the check before the run
  */
 /** The default time limit of a tool call: a build or a test run can take minutes. */
 export const DEFAULT_TOOL_TIMEOUT_MS = 600_000;
@@ -60,6 +66,7 @@ export function loadConfig(): McpServerConfig {
     debug: process.env["MCP_DEBUG"] === "true",
     toolTimeoutMs: parseTimeout(process.env["MCP_TOOL_TIMEOUT_MS"]),
     readOnly: process.env["MCP_READ_ONLY"] === "true" || process.env["MCP_READ_ONLY"] === "1",
+    programCheck: !(process.env["MCP_PROGRAM_CHECK"] === "false" || process.env["MCP_PROGRAM_CHECK"] === "0"),
     ...(process.env["MCP_HTTP_PORT"]
       ? {
           http: {

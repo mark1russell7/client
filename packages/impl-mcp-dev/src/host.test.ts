@@ -91,4 +91,31 @@ describe("the read-only dev-tools host (CAPABILITIES-2026-10)", () => {
     expect(define.status.type).toBe("error");
     expect(readOnly.registry.get(["x", "y"])).toBeUndefined();
   });
+
+  it("refuses the whole program before its first step, with the check before the run (roadmap R22)", async () => {
+    const payload = {
+      steps: [
+        { $proc: ["procedure", "manifest"], input: { namespace: "client" } },
+        { $proc: ["procedure", "define"], input: { path: ["x", "z"], aggregation: { $proc: ["client", "identity"], input: {} } } },
+      ],
+    };
+    const checked = await readOnly.server.handle({ id: "2", method: { service: "client", operation: "chain" }, payload, metadata: {} });
+    expect(checked.status).toMatchObject({ type: "error" });
+    expect(JSON.stringify(checked.status)).toContain("no step started");
+
+    // Without the check, the interpreter runs step 1, then refuses step 2
+    const unchecked = await createDevToolsHost({
+      bundles: ["@procedures/bundle-mcp"],
+      serverName: "test",
+      serverVersion: "0",
+      debug: false,
+      toolTimeoutMs: 0,
+      readOnly: true,
+      programCheck: false,
+    });
+    const late = await unchecked.server.handle({ id: "3", method: { service: "client", operation: "chain" }, payload, metadata: {} });
+    expect(late.status).toMatchObject({ type: "error" });
+    expect(JSON.stringify(late.status)).not.toContain("no step started");
+    expect(unchecked.registry.get(["x", "z"])).toBeUndefined();
+  });
 });

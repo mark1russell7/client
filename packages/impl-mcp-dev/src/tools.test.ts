@@ -130,7 +130,10 @@ describe("dev-tools MCP server", () => {
     });
 
     expect(result?.isError).toBe(true);
-    expect(result?.content?.[0]?.text).toContain("Procedure not exposed: shell.exec");
+    // The check before the run refuses the program, so no step starts (roadmap R22). Without the
+    // check, the interpreter refuses the call with "Procedure not exposed" (policy.test.ts).
+    expect(result?.content?.[0]?.text).toContain("The host does not expose shell.exec");
+    expect(result?.content?.[0]?.text).toContain("no step started");
   }, 60_000);
 
   it("passes the input of a docker tool as arguments, not as shell syntax (deep dive WRP-1, MCP-2)", async () => {

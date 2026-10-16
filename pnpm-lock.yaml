@@ -196,6 +196,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@procedures/dag':
         specifier: workspace:*
         version: link:../client-dag
@@ -233,6 +236,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue
@@ -961,6 +967,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@procedures/mcp-server':
         specifier: workspace:*
         version: link:../client-mcp

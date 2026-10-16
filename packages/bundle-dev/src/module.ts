@@ -12,6 +12,7 @@ import cliModule from "@procedures/cli-run/module";
 import pnpmModule from "@procedures/pnpm/module";
 import libModule from "@procedures/lib/module";
 import procedureModule from "@procedures/procedure/module";
+import compilerModule from "@procedures/compiler/module";
 
 /** The modules of the bundle. `libModule` brings the file and repository procedures with it. */
 export const bundleDevModules: readonly ProcedureModule[] = [
@@ -26,6 +27,8 @@ export const bundleDevModules: readonly ProcedureModule[] = [
   // Dev workflow
   libModule,
   procedureModule,
+  // The check and the compiler of programs (roadmap R22)
+  compilerModule,
 ];
 
 /** The bundle as one module: no procedures of its own, and the modules above as requirements. */

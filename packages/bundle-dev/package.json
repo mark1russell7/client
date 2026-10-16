@@ -69,19 +69,20 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@procedures/client": "workspace:*",
     "@procedures/cli-run": "workspace:*",
-    "@procedures/pnpm": "workspace:*",
-    "@procedures/lib": "workspace:*",
-    "@procedures/git": "workspace:*",
+    "@procedures/client": "workspace:*",
+    "@procedures/compiler": "workspace:*",
     "@procedures/dag": "workspace:*",
     "@procedures/fs": "workspace:*",
-    "@procedures/shell": "workspace:*",
-    "@procedures/procedure": "workspace:*"
+    "@procedures/git": "workspace:*",
+    "@procedures/lib": "workspace:*",
+    "@procedures/pnpm": "workspace:*",
+    "@procedures/procedure": "workspace:*",
+    "@procedures/shell": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
     "@mark1russell7/cue": "^1.0.0",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },
   "client": {

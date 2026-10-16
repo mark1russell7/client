@@ -59,5 +59,7 @@ procedure.get
 procedure.list
 procedure.manifest
 procedure.new
+program.check
+program.compile
 vitest.coverage
 vitest.run
