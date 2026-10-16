@@ -92,7 +92,13 @@ Each message is one JSON object, a frame. Each frame has an `id` and a `type`. T
 
 ## Error codes
 
-Each face gives the same code for the same failure. `packages/client/src/protocol.ts` holds the list (`ERROR_CODES`). An error of a handler with a code of its own keeps that code, and HTTP gives it the status 500.
+Each face gives the same code for the same failure. `packages/client/src/protocol.ts` holds the list (`ERROR_CODES`). The error registry of the client (`ERROR_REGISTRY`) takes the HTTP status and the retry flag of each code from this list.
+
+An error of a handler with a code of its own keeps that code on each face, for a value and for a stream. The HTTP status follows the code:
+
+- A code of the table gets the status of the table.
+- Another code of `ERROR_REGISTRY` gets the status of the registry, for example 409 for `CONFLICT`.
+- Each other code gets the status 500.
 
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|

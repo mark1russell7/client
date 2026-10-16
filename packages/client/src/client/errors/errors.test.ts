@@ -397,6 +397,9 @@ describe("the forms of an error on the wire (R30)", () => {
     });
     expect(errorResponse("3", Object.assign(new Error("x"), { retryAfterMs: -5, retryable: "yes" })).metadata).toEqual({});
     expect(errorResponse("4", "a string").status).toMatchObject({ code: "HANDLER_ERROR", message: "a string", retryable: false });
+    // A handler error keeps its own code, as a stream error does (WIRE-PROTOCOL.md)
+    expect(errorResponse("5", Object.assign(new Error("gone"), { code: "E_GONE" })).status).toMatchObject({ code: "E_GONE", message: "gone" });
+    expect(errorResponse("6", Object.assign(new Error("x"), { code: 5 })).status).toMatchObject({ code: "HANDLER_ERROR" });
   });
 
   it("a stream error keeps its code and its retryable flag", () => {
