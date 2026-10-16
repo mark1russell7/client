@@ -6,9 +6,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { built, json, mark } from "./run.js";
+import { json, mark } from "./run.js";
 
-describe.skipIf(!built)("mark: commands of the client packages", () => {
+describe("mark: commands of the client packages", () => {
   let dir: string;
 
   beforeAll(() => {

@@ -7,9 +7,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { built, link, mark, MARK_MODULES } from "./run.js";
+import { link, mark, MARK_MODULES } from "./run.js";
 
-describe.skipIf(!built)("mark: lib new and procedure new", () => {
+describe("mark: lib new and procedure new", () => {
   let root: string;
   let pkg: string;
 

@@ -17,8 +17,15 @@ export const BIN = fileURLToPath(new URL("../dist/bin.js", import.meta.url));
 export const CLI = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 /** The node_modules folder of mark */
 export const MARK_MODULES = realpathSync(fileURLToPath(new URL("../node_modules", import.meta.url)));
-/** True when mark is built */
+/**
+ * True when mark is built. An end-to-end test needs the build: without it, the run fails here
+ * and does not skip (roadmap R8: before, each suite skipped without a word, and CI did not run
+ * them).
+ */
 export const built = existsSync(BIN);
+if (!built) {
+  throw new Error(`The end-to-end tests of mark need its build (${BIN}). Start \`pnpm build\` first.`);
+}
 
 const HOME = mkdtempSync(join(tmpdir(), "mark-e2e-home-"));
 

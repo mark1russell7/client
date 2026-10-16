@@ -8,7 +8,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
-import { BIN, built } from "./run.js";
+import { BIN } from "./run.js";
 
 const TOOLS = fileURLToPath(new URL("../../impl-mcp-dev/tools.snapshot.txt", import.meta.url));
 
@@ -21,7 +21,7 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-describe.skipIf(!built)("mark mcp", () => {
+describe("mark mcp", () => {
   it("serves the tools of the dev-tools server over stdio, and writes only protocol lines to stdout", () => {
     const requests = [
       { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "0" } } },
@@ -48,7 +48,7 @@ describe.skipIf(!built)("mark mcp", () => {
   }, 90000);
 });
 
-describe.skipIf(!built)("mark serve", () => {
+describe("mark serve", () => {
   it("serves the procedures of a package from mark's folder, with the token and the expose list", async () => {
     const port = await freePort();
     const child = spawn(process.execPath, [BIN, "serve", "--port", String(port), "--token", "t", "--procedures", "@procedures/fs", "--expose", "fs.exists"], {

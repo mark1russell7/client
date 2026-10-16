@@ -76,12 +76,12 @@ try {
     for (const field of ["license", "repository", "description", "homepage", "author"]) {
       if (!packed[field]) fail(`${pkg.name}: the packed package.json has no ${field}`);
     }
-    // A root that imports its register.js registers procedures on import: a bundler must keep it
+    // Since P9 (2026-10-13) a root registers nothing: only ./register does. This rule agrees with
+    // scripts/check-side-effects.mjs (roadmap R8: before, it asked a root that imports
+    // register.js to keep ./dist/index.js in sideEffects, the rule of the time before P9).
     const index = join(pkg.path, "src", "index.ts");
     if (existsSync(index) && /["']\.\/register\.js["']/.test(readFileSync(index, "utf8"))) {
-      const side = packed.sideEffects;
-      const kept = side === true || (Array.isArray(side) && side.some((p) => p === "./dist/index.js" || p === "dist/index.js"));
-      if (!kept) fail(`${pkg.name}: src/index.ts imports ./register.js, so sideEffects must include ./dist/index.js`);
+      fail(`${pkg.name}: src/index.ts imports ./register.js, so an import of the root registers procedures (scripts/check-side-effects.mjs)`);
     }
     for (const required of ["package/LICENSE", "package/README.md"]) {
       try {

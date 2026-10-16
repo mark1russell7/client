@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { built, CLI, json, mark } from "./run.js";
+import { CLI, json, mark } from "./run.js";
 
-describe.skipIf(!built)("mark: help, flags and exit codes", () => {
+describe("mark: help, flags and exit codes", () => {
   it("shows the root help", () => {
     const run = mark([]);
     expect(run.exitCode).toBe(0);

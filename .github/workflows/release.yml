@@ -30,12 +30,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      # The CI run of the commit (the first step)
+      actions: read
       # The version pull request: a branch and a pull request
       contents: write
       pull-requests: write
       # npm trusted publishing (OIDC) and provenance
       id-token: write
     steps:
+      # A release starts only from a commit with a green CI run: the CI workflow has the gates that
+      # this workflow does not repeat (the test types, the scope, the side effects, lib audit, the
+      # end-to-end tests of mark and the site) (roadmap R8)
+      - name: The commit has a green CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status completed --json conclusion --jq '.[0].conclusion // "none"')
+          if [ "$conclusion" != "success" ]; then
+            echo "The CI run of $GITHUB_SHA has the result '$conclusion'. Release a commit with a green CI run."
+            exit 1
+          fi
       # The Changesets action pushes the version branch, so the checkout keeps its credentials.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The pnpm version comes from "packageManager" in package.json

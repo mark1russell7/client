@@ -5,6 +5,9 @@
 // config next to it. That config extends the package config, includes the whole `src` folder
 // with the tests and the `test` folder of their helpers, and emits nothing. Then it starts `tsc -p` on it and deletes it.
 //
+// The tests can also be in a __tests__ or an e2e folder next to src (roadmap R8: before, the
+// script did not read client-docker/__tests__ and mark/e2e).
+//
 // Usage: node .github/scripts/typecheck-tests.mjs [package-folder ...]
 // With no argument, it examines each folder in packages/ that has a test file.
 // Exit code: 1 when a package has a type error.
@@ -18,6 +21,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PACKAGES = join(ROOT, "packages");
 const TEMP_NAME = "tsconfig.tests.tmp.json";
+/** The folders of a package that can hold tests */
+const TEST_FOLDERS = ["src", "__tests__", "e2e"];
 
 function hasTests(dir) {
   if (!existsSync(dir)) return false;
@@ -41,7 +46,7 @@ function typescriptBin(dir) {
 const requested = process.argv.slice(2);
 const folders = (requested.length > 0 ? requested : readdirSync(PACKAGES))
   .map((name) => join(PACKAGES, name))
-  .filter((dir) => existsSync(join(dir, "tsconfig.json")) && hasTests(join(dir, "src")));
+  .filter((dir) => existsSync(join(dir, "tsconfig.json")) && TEST_FOLDERS.some((folder) => hasTests(join(dir, folder))));
 
 let failed = 0;
 for (const dir of folders) {
@@ -54,7 +59,7 @@ for (const dir of folders) {
         extends: "./tsconfig.json",
         // The helpers of the tests can be in a test/ folder next to src/, so the root is the package
         compilerOptions: { noEmit: true, composite: false, incremental: false, declaration: false, declarationMap: false, isolatedDeclarations: false, rootDir: "${configDir}" },
-        include: ["${configDir}/src/**/*", "${configDir}/test/**/*"],
+        include: ["${configDir}/src/**/*", "${configDir}/test/**/*", "${configDir}/__tests__/**/*", "${configDir}/e2e/**/*"],
         exclude: ["${configDir}/node_modules", "${configDir}/dist"],
       },
       null,

@@ -46,6 +46,10 @@ jobs:
       - name: Type-check the test files
         run: node .github/scripts/typecheck-tests.mjs
       - run: pnpm test
+      # The built mark CLI as a process: help, commands, lib new, mcp and serve. A missing build
+      # fails the run (roadmap R8: before, CI did not start these tests).
+      - name: End-to-end tests of mark
+        run: pnpm --filter @procedures/mark test:e2e
       # The writing rules (ASD-STE100) of the README files and the doc comments
       - run: pnpm lint:ste
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
