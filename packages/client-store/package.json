@@ -37,6 +37,10 @@
     "./register": {
       "types": "./dist/register.d.ts",
       "import": "./dist/register.js"
+    },
+    "./file-queue": {
+      "types": "./dist/storage/file-queue.d.ts",
+      "import": "./dist/storage/file-queue.js"
     }
   },
   "files": [

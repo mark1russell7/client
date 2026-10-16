@@ -34,8 +34,11 @@ function isContention(error: unknown): boolean {
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Run a file operation again while Windows holds the file for a moment. */
-async function retryOnContention<T>(operation: () => Promise<T>): Promise<T> {
+/**
+ * This function runs a file operation again while Windows holds the file for a moment. `FileQueueStore` uses it
+ * too.
+ */
+export async function retryOnContention<T>(operation: () => Promise<T>): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await operation();

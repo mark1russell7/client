@@ -36,8 +36,20 @@ export type { SerializeOptions, DeserializeOptions } from "./serialization.js";
 // The collection storages that need a Client (before: "@procedures/client/collections")
 export { ApiStorage } from "./api.js";
 export type { ApiStorageOptions } from "./api.js";
-export { HybridStorage, PendingWriteError, QueueFullError, MissingKeysError } from "./hybrid.js";
-export type { HybridStorageOptions } from "./hybrid.js";
+export {
+  HybridStorage,
+  PendingWriteError,
+  QueueFullError,
+  MissingKeysError,
+  QueueStoreError,
+  ConflictError,
+  ModeSwitchError,
+} from "./hybrid.js";
+export type { HybridStorageOptions, HybridMode } from "./hybrid.js";
+// The queue of HybridStorage and its store (roadmap R28). FileQueueStore is in
+// "@procedures/store/file-queue": it uses node:fs.
+export { MemoryQueueStore } from "./queue.js";
+export type { QueuedOperation, QueueStore } from "./queue.js";
 
 // Adapter
 export { ProcedureStorageAdapter } from "./adapter.js";

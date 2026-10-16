@@ -7,7 +7,7 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
+import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
@@ -44,6 +44,7 @@ export interface ApiStorageOptions {
     get?: string;
     getAll?: string;
     entries?: string;
+    changes?: string;
     find?: string;
     has?: string;
     size?: string;
@@ -168,6 +169,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         get: "get",
         getAll: "getAll",
         entries: "entries",
+        changes: "changes",
         find: "find",
         has: "has",
         size: "size",
@@ -212,6 +214,30 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       throw new Error(`${this.options.service}.entries did not return an array`);
     }
     return entries.map((entry) => [entry.id, entry.value]);
+  }
+
+  /**
+   * The changes after a version, from the `changes` procedure of the collection (roadmap R28).
+   * A server without the procedure answers `NOT_FOUND`, and `HybridStorage` then uses
+   * `getEntries()`.
+   */
+  async getChangesSince(since?: string): Promise<StorageChanges<T>> {
+    const result = await this.call<{ version: string; full: boolean; changed: Array<{ id: string; value: T }>; deleted: string[] }>(
+      "changes",
+      since === undefined ? {} : { since },
+    );
+    if (
+      typeof result !== "object" || result === null || typeof result.version !== "string" ||
+      typeof result.full !== "boolean" || !Array.isArray(result.changed) || !Array.isArray(result.deleted)
+    ) {
+      throw new Error(`${this.options.service}.changes did not return { version, full, changed, deleted }`);
+    }
+    return {
+      version: result.version,
+      full: result.full,
+      changed: result.changed.map((entry) => [entry.id, entry.value]),
+      deleted: result.deleted,
+    };
   }
 
   async find(predicate: (item: T) => boolean): Promise<T[]> {

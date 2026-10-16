@@ -1,37 +1,42 @@
 /**
- * HybridStorage cannot lose data (roadmap R2).
+ * HybridStorage cannot lose data (roadmap R2), and its mode switches (roadmap R28).
  *
  * - A sync needs the ids of the remote items. A remote list without ids stopped nothing before:
  *   the sync skipped the items and then emptied the local cache.
  * - A write-through that the remote cannot take waits in the queue, and a timer sends it. A
  *   write that the remote refuses is undone. A full queue refuses a write.
  * - The reads wait for the first sync.
+ * - The model: the four modes, switches at random times, restarts with the same queue store, a
+ *   remote that goes down and up, a delta sync, and versions with the "remote" policy.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fc from "fast-check";
-import { InMemoryStorage, type CollectionStorage } from "@procedures/collections";
+import { InMemoryStorage, type CollectionStorage, type StorageChanges } from "@procedures/collections";
 import { Client, LocalTransport, createCollectionProcedures, invokeProcedure, outputValue } from "@procedures/client";
 import type { RepositoryProvider } from "@procedures/client";
 import { ApiStorage } from "./api.js";
-import { HybridStorage, MissingKeysError, PendingWriteError, QueueFullError } from "./hybrid.js";
+import { HybridStorage, MissingKeysError, ModeSwitchError, PendingWriteError, QueueFullError, type HybridMode } from "./hybrid.js";
+import { MemoryQueueStore, type QueuedOperation, type QueueStore } from "./queue.js";
 import { ms } from "@procedures/client";
 
-type Item = { n: number };
+type Item = { n: number; v?: string };
 
 const unavailable = (): Error => Object.assign(new Error("the remote is down"), { retryable: true });
 const refused = (): Error => Object.assign(new Error("invalid item"), { code: "VALIDATION_ERROR", retryable: false });
 
 /**
  * A remote storage that can fail. `down` makes each call fail as unavailable, and `refuse`
- * makes each write fail as a refusal. Without `withEntries`, it has no `getEntries`.
+ * makes each write fail as a refusal. Without `withEntries`, it has no `getEntries`. With
+ * `withChanges`, it has `getChangesSince` (roadmap R28).
  */
 class FlakyRemote implements CollectionStorage<Item> {
   readonly data = new InMemoryStorage<Item>();
   down = false;
   refuse = false;
-  constructor(withEntries = true) {
+  constructor(withEntries = true, withChanges = false) {
     if (!withEntries) (this as { getEntries?: unknown }).getEntries = undefined;
+    if (!withChanges) (this as { getChangesSince?: unknown }).getChangesSince = undefined;
   }
   private check(write: boolean): void {
     if (this.down) throw unavailable();
@@ -40,6 +45,7 @@ class FlakyRemote implements CollectionStorage<Item> {
   async get(id: string) { this.check(false); return this.data.get(id); }
   async getAll() { this.check(false); return this.data.getAll(); }
   async getEntries(): Promise<Array<[string, Item]>> { this.check(false); return this.data.getEntries(); }
+  async getChangesSince(since?: string): Promise<StorageChanges<Item>> { this.check(false); return this.data.getChangesSince(since); }
   async find(predicate: (item: Item) => boolean) { this.check(false); return this.data.find(predicate); }
   async has(id: string) { this.check(false); return this.data.has(id); }
   async size() { this.check(false); return this.data.size(); }
@@ -154,73 +160,199 @@ describe("the reads wait for the first sync (R2)", () => {
   });
 });
 
-describe.each(["write-through", "write-back"] as const)("a model of the %s mode (R2)", (writeStrategy) => {
+/** A process that can stop: after `dead`, its remote and its queue store refuse each call. */
+interface Life {
+  dead: boolean;
+}
+
+const deadError = (): Error => Object.assign(new Error("the process stopped"), { retryable: true });
+
+/** The remote of one process. */
+function remoteOf(remote: FlakyRemote, life: Life): CollectionStorage<Item> {
+  const wrapped: CollectionStorage<Item> = {
+    get: (id) => (life.dead ? Promise.reject(deadError()) : remote.get(id)),
+    getAll: () => (life.dead ? Promise.reject(deadError()) : remote.getAll()),
+    getEntries: () => (life.dead ? Promise.reject(deadError()) : remote.getEntries()),
+    find: (predicate) => (life.dead ? Promise.reject(deadError()) : remote.find(predicate)),
+    has: (id) => (life.dead ? Promise.reject(deadError()) : remote.has(id)),
+    size: () => (life.dead ? Promise.reject(deadError()) : remote.size()),
+    set: (id, value) => (life.dead ? Promise.reject(deadError()) : remote.set(id, value)),
+    delete: (id) => (life.dead ? Promise.reject(deadError()) : remote.delete(id)),
+    clear: () => (life.dead ? Promise.reject(deadError()) : remote.clear()),
+    setBatch: (items) => (life.dead ? Promise.reject(deadError()) : remote.setBatch(items)),
+    deleteBatch: (ids) => (life.dead ? Promise.reject(deadError()) : remote.deleteBatch(ids)),
+    getBatch: (ids) => (life.dead ? Promise.reject(deadError()) : remote.getBatch(ids)),
+    close: async () => undefined,
+  };
+  if (remote.getChangesSince) {
+    wrapped.getChangesSince = (since) => (life.dead ? Promise.reject(deadError()) : remote.getChangesSince(since));
+  }
+  return wrapped;
+}
+
+/** The queue store of one process. */
+function queueOf(store: QueueStore, life: Life): QueueStore {
+  return {
+    load: () => (life.dead ? Promise.reject(deadError()) : store.load()),
+    append: (op: QueuedOperation) => (life.dead ? Promise.reject(deadError()) : store.append(op)),
+    replace: (ops: QueuedOperation[]) => (life.dead ? Promise.reject(deadError()) : store.replace(ops)),
+    clear: () => (life.dead ? Promise.reject(deadError()) : store.clear()),
+  };
+}
+
+const MODES: HybridMode[] = ["local-only", "write-through", "write-back", "remote-only"];
+
+describe.each(
+  MODES.flatMap((mode) => [
+    { mode, sync: "entries", versions: false },
+    { mode, sync: "changes", versions: false },
+    { mode, sync: "changes", versions: true },
+  ]),
+)("a model that starts in $mode, with a $sync sync, versions: $versions (R2, R28)", ({ mode: startMode, sync, versions }) => {
   type Op =
     | { kind: "set"; id: string; n: number }
     | { kind: "delete"; id: string }
     | { kind: "down" }
     | { kind: "up" }
     | { kind: "push" }
-    | { kind: "pull" };
-  const id = fc.constantFrom("a", "b", "c");
+    | { kind: "pull" }
+    | { kind: "mode"; mode: HybridMode }
+    | { kind: "restart"; mode: HybridMode };
+  const id = fc.constantFrom("a", "b");
   const op: fc.Arbitrary<Op> = fc.oneof(
-    fc.record({ kind: fc.constant("set" as const), id, n: fc.integer({ min: 0, max: 9 }) }),
-    fc.record({ kind: fc.constant("delete" as const), id }),
-    fc.constant({ kind: "down" as const }),
-    fc.constant({ kind: "up" as const }),
-    fc.constant({ kind: "push" as const }),
-    fc.constant({ kind: "pull" as const }),
+    { arbitrary: fc.record({ kind: fc.constant("set" as const), id, n: fc.integer({ min: 0, max: 9 }) }), weight: 4 },
+    { arbitrary: fc.record({ kind: fc.constant("delete" as const), id }), weight: 2 },
+    { arbitrary: fc.constant({ kind: "down" as const }), weight: 1 },
+    { arbitrary: fc.constant({ kind: "up" as const }), weight: 1 },
+    { arbitrary: fc.constant({ kind: "push" as const }), weight: 1 },
+    { arbitrary: fc.constant({ kind: "pull" as const }), weight: 2 },
+    { arbitrary: fc.record({ kind: fc.constant("mode" as const), mode: fc.constantFrom(...MODES) }), weight: 2 },
+    // A restart can start the next process in another mode
+    { arbitrary: fc.record({ kind: fc.constant("restart" as const), mode: fc.constantFrom(...MODES) }), weight: 2 },
   );
 
-  it("loses no write: after the remote comes back, the local cache and the remote agree with the model", async () => {
-    await fc.assert(
-      fc.asyncProperty(fc.array(op, { maxLength: 40 }), async (ops) => {
-        const remote = new FlakyRemote();
-        const hybrid = new HybridStorage<Item>(remote, { syncOnInit: false, syncInterval: ms(0), writeStrategy });
-        // The model: the last write that the caller made, also a write that waits in the queue
-        const model = new Map<string, number>();
-        for (const step of ops) {
-          switch (step.kind) {
-            case "set":
-              try {
-                await hybrid.set(step.id, { n: step.n });
-              } catch (error) {
-                expect(error).toBeInstanceOf(PendingWriteError);
+  it("loses no acknowledged write while the mode switches, the process restarts and the remote fails", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await fc.assert(
+        fc.asyncProperty(fc.array(op, { maxLength: 40 }), async (ops) => {
+          const remote = new FlakyRemote(true, sync === "changes");
+          const durable = new MemoryQueueStore();
+          let life: Life = { dead: false };
+          let revision = 0;
+          const make = (mode: HybridMode): HybridStorage<Item> =>
+            new HybridStorage<Item>(remoteOf(remote, life), {
+              syncOnInit: false,
+              syncInterval: ms(0),
+              mode,
+              queueStore: queueOf(durable, life),
+              ...(versions && { versionOf: (item: Item) => item.v, conflictResolution: "remote" as const }),
+            });
+          let hybrid = make(startMode);
+          let mode = startMode;
+          // True when the local copy has each item: false after a restart, until a sync
+          let complete = true;
+          // The model: the last write that the caller made, also a write that waits in the queue
+          const model = new Map<string, number>();
+          const expectModel = async (): Promise<void> => {
+            expect(hybrid.getMode()).toBe(mode);
+            if (mode === "remote-only") {
+              if (remote.down) await expect(hybrid.getEntries()).rejects.toThrow();
+              else expect(await snapshot(hybrid)).toEqual(Object.fromEntries(model));
+            } else if (complete) {
+              // The local copy agrees with the model
+              expect(await snapshot(hybrid)).toEqual(Object.fromEntries(model));
+            }
+          };
+
+          for (const step of ops) {
+            switch (step.kind) {
+              case "set":
+              case "delete": {
+                const write = step.kind === "set" ? hybrid.set(step.id, { n: step.n, v: `r${++revision}` }) : hybrid.delete(step.id);
+                let acknowledged = true;
+                try {
+                  await write;
+                } catch (error) {
+                  if (mode === "remote-only") {
+                    // A write of the remote-only mode that fails is not acknowledged
+                    expect(error).not.toBeInstanceOf(PendingWriteError);
+                    acknowledged = false;
+                  } else {
+                    expect(mode).toBe("write-through");
+                    expect(error).toBeInstanceOf(PendingWriteError);
+                  }
+                }
+                if (acknowledged) {
+                  if (step.kind === "set") model.set(step.id, step.n);
+                  else model.delete(step.id);
+                }
+                break;
               }
-              model.set(step.id, step.n);
-              break;
-            case "delete":
-              try {
-                await hybrid.delete(step.id);
-              } catch (error) {
-                expect(error).toBeInstanceOf(PendingWriteError);
+              case "down":
+                remote.down = true;
+                break;
+              case "up":
+                remote.down = false;
+                break;
+              case "push":
+                await hybrid.syncToRemote().catch(() => undefined);
+                break;
+              case "pull":
+                await hybrid.syncFromRemote().then(
+                  () => {
+                    if (mode === "write-through" || mode === "write-back") complete = true;
+                  },
+                  () => undefined,
+                );
+                break;
+              case "mode": {
+                const from = mode;
+                try {
+                  await hybrid.setMode(step.mode);
+                  mode = step.mode;
+                  // A switch to a remote mode empties the queue first
+                  if (from !== step.mode && step.mode !== "local-only") expect(hybrid.getPendingOpsCount()).toBe(0);
+                  // A switch from a mode without a fresh local copy syncs it
+                  if (from !== step.mode && step.mode !== "remote-only" && (from === "local-only" || from === "remote-only")) complete = true;
+                } catch (error) {
+                  expect(error).toBeInstanceOf(ModeSwitchError);
+                  expect(remote.down).toBe(true);
+                }
+                break;
               }
-              model.delete(step.id);
-              break;
-            case "down":
-              remote.down = true;
-              break;
-            case "up":
-              remote.down = false;
-              break;
-            case "push":
-              await hybrid.syncToRemote().catch(() => undefined);
-              break;
-            case "pull":
-              await hybrid.syncFromRemote().catch(() => undefined);
-              break;
+              case "restart": {
+                // The process stops without a close: only the queue store keeps its state
+                life.dead = true;
+                await hybrid.close().catch(() => undefined);
+                life = { dead: false };
+                hybrid = make(step.mode);
+                mode = step.mode;
+                complete = false;
+                break;
+              }
+            }
+            await expectModel();
           }
-          // The local cache always agrees with the model
-          expect(await snapshot(hybrid)).toEqual(Object.fromEntries(model));
-        }
-        remote.down = false;
-        await hybrid.sync();
-        expect(hybrid.getPendingOpsCount()).toBe(0);
-        expect(await snapshot(remote.data as unknown as CollectionStorage<Item>)).toEqual(Object.fromEntries(model));
-        expect(await snapshot(hybrid)).toEqual(Object.fromEntries(model));
-        await hybrid.close();
-      }),
-      { numRuns: 200 },
-    );
+
+          // The remote comes back, and a final sync sends each write
+          remote.down = false;
+          if (mode === "local-only") {
+            await hybrid.setMode("write-back");
+            mode = "write-back";
+          }
+          await hybrid.sync();
+          complete = true;
+          expect(hybrid.getPendingOpsCount()).toBe(0);
+          expect(durable.size).toBe(0);
+          expect(await snapshot(remote.data as unknown as CollectionStorage<Item>)).toEqual(Object.fromEntries(model));
+          await expectModel();
+          await hybrid.close();
+        }),
+        { numRuns: Number(process.env["MODEL_RUNS"] ?? 150) },
+      );
+    } finally {
+      quiet.mockRestore();
+    }
   });
 });

@@ -20,6 +20,8 @@ import {
   getAllOutputSchema,
   entriesInputSchema,
   entriesOutputSchema,
+  changesInputSchema,
+  changesOutputSchema,
   sizeInputSchema,
   sizeOutputSchema,
   clearInputSchema,
@@ -36,6 +38,8 @@ import {
   type HasInput,
   type GetAllInput,
   type EntriesInput,
+  type ChangesInput,
+  type ChangesOutput,
   type SizeInput,
   type ClearInput,
   type GetBatchInput,
@@ -187,6 +191,37 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
           throw new Error(`The storage of ${collectionName} cannot give the ids of its items`);
         }
         return (await storage.getEntries()).map(([id, value]) => ({ id, value }));
+      },
+    }),
+
+    // Changes: the items that changed after a version, for a delta sync (roadmap R28)
+    defineProcedure({
+      path: [...basePath, "changes"],
+      input: changesInputSchema,
+      output: changesOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [] },
+        description: `Get the items of ${collectionName} that changed after a version`,
+        tags: ["collections", collectionName, "read"],
+      },
+      handler: async (input: ChangesInput, ctx: ProcedureContext): Promise<ChangesOutput> => {
+        const storage = getStorage(ctx);
+        if (storage.getChangesSince) {
+          const changes = await storage.getChangesSince(input.since);
+          return {
+            version: changes.version,
+            full: changes.full,
+            changed: changes.changed.map(([id, value]) => ({ id, value })),
+            deleted: changes.deleted,
+          };
+        }
+        // A storage without a change log gives all its items. The empty version asks for all
+        // items again at the next call.
+        if (storage.getEntries) {
+          const entries = await storage.getEntries();
+          return { version: "", full: true, changed: entries.map(([id, value]) => ({ id, value })), deleted: [] };
+        }
+        throw new Error(`The storage of ${collectionName} cannot give its changes or the ids of its items`);
       },
     }),
 

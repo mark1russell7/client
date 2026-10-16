@@ -81,7 +81,7 @@ export { credentialsOf, bearerOf, withoutSecretHeaders } from "./server/request-
 // The procedures of a host: host.health, host.info, host.metrics (roadmap R19)
 export { hostProcedures } from "./server/host-procedures.js";
 export type { HostSource } from "./server/host-procedures.js";
-export type { ProcedureServerOptions, StorageConfig, StopOptions } from "./server/procedure-server.js";
+export type { ProcedureServerOptions, StorageConfig, StopOptions, UseStorageOptions } from "./server/procedure-server.js";
 export {
   HandlerNotFoundError,
   ServerError,
@@ -231,6 +231,7 @@ export type {
   ProcedureError,
   RepositoryProvider,
   CollectionStorage,
+  StorageChanges,
   StorageMetadata,
   ProcedureModule,
   ModuleInput,

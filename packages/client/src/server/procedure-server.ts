@@ -38,6 +38,17 @@ export interface StorageConfig<T = unknown> {
   name: string;
 }
 
+/** How `ProcedureServer.useStorage` puts a new storage in the place of an old one (roadmap R28). */
+export interface UseStorageOptions {
+  /**
+   * True: the server calls `flush()` of the old storage before it changes the storage. When the
+   * flush fails, the old storage stays and `useStorage` throws.
+   */
+  drain?: boolean | undefined;
+  /** True: the server closes the old storage after the change. */
+  close?: boolean | undefined;
+}
+
 /**
  * Options for ProcedureServer.
  */
@@ -340,12 +351,41 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   /**
    * Configure storage for a collection.
    *
+   * Without options, the server uses the new storage at once, and the old storage stays as it
+   * is. With options, the change is asynchronous (roadmap R28):
+   *
+   * - `drain`: the server calls `flush()` of the old storage, then it uses the new storage. A
+   *   failed flush keeps the old storage and throws. A call that arrives during the flush goes
+   *   to the old storage.
+   * - `close`: the server closes the old storage after the change. The close of a
+   *   `HybridStorage` sends the writes that arrived during the flush.
+   *
    * @param name - Collection name
    * @param storage - Storage backend
-   * @returns this (for chaining)
+   * @param options - Drain and close the old storage
+   * @returns this (for chaining), or a promise of it when options are given
    */
-  useStorage<T>(name: string, storage: CollectionStorage<T>): this {
-    this.storages.set(name, storage as CollectionStorage<unknown>);
+  useStorage<T>(name: string, storage: CollectionStorage<T>): this;
+  useStorage<T>(name: string, storage: CollectionStorage<T>, options: UseStorageOptions): Promise<this>;
+  useStorage<T>(name: string, storage: CollectionStorage<T>, options?: UseStorageOptions): this | Promise<this> {
+    if (options === undefined) {
+      this.storages.set(name, storage as CollectionStorage<unknown>);
+      return this;
+    }
+    return this.replaceStorage(name, storage as CollectionStorage<unknown>, options);
+  }
+
+  /** The change of `useStorage` with options: flush the old storage, change, close the old one. */
+  private async replaceStorage(name: string, storage: CollectionStorage<unknown>, options: UseStorageOptions): Promise<this> {
+    const old = this.storages.get(name);
+    const other = old !== undefined && old !== storage ? old : undefined;
+    if (other && options.drain) {
+      await other.flush?.();
+    }
+    this.storages.set(name, storage);
+    if (other && options.close) {
+      await other.close();
+    }
     return this;
   }
 
