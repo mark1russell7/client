@@ -1074,6 +1074,28 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/http:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/ics:
     dependencies:
       '@procedures/client':
@@ -1117,6 +1139,34 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/json:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.0
+        version: 1.0.0
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1236,9 +1286,15 @@ importers:
       '@procedures/git':
         specifier: workspace:*
         version: link:../client-git
+      '@procedures/http':
+        specifier: workspace:*
+        version: link:../http
       '@procedures/ics':
         specifier: workspace:*
         version: link:../ics
+      '@procedures/json':
+        specifier: workspace:*
+        version: link:../json
       '@procedures/mail':
         specifier: workspace:*
         version: link:../mail
@@ -1475,9 +1531,15 @@ importers:
       '@procedures/git':
         specifier: workspace:*
         version: link:../client-git
+      '@procedures/http':
+        specifier: workspace:*
+        version: link:../http
       '@procedures/ics':
         specifier: workspace:*
         version: link:../ics
+      '@procedures/json':
+        specifier: workspace:*
+        version: link:../json
       '@procedures/lib':
         specifier: workspace:*
         version: link:../client-lib

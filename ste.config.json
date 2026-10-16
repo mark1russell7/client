@@ -20,6 +20,8 @@
     "packages/bundle-assistant/README.md",
     "packages/gh/README.md",
     "packages/npm/README.md",
+    "packages/http/README.md",
+    "packages/json/README.md",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [
