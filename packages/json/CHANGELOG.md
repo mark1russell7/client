@@ -1,5 +1,24 @@
 # @procedures/json
 
+## 0.4.0
+
+### Patch Changes
+
+- b2a1a1e: The README and the TSDoc of `JsonError` say that a server sends the error with its own code, for example `NOT_JSON`. Since `@procedures/client` keeps the code of a handler error, a caller over HTTP or WebSocket gets that code, not `HANDLER_ERROR`.
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+  - @procedures/compiler@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

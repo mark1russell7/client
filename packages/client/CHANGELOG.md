@@ -1,5 +1,34 @@
 # @procedures/client
 
+## 0.4.0
+
+### Minor Changes
+
+- d919678: `ERROR_REGISTRY` agrees with `ERROR_CODES` of the wire protocol. `ERROR_CODES` is the source: the registry has an entry for each code of the protocol, and that entry takes its HTTP status and its retry flag from `ERROR_CODES`. Changes that a caller sees:
+  
+  - `TIMEOUT` has the status 504 and is not retryable (before: 408, retryable).
+  - `INTERNAL_ERROR` is not retryable (before: retryable).
+  - `ABORTED` has the status 499 (before: none).
+  - The codes of the protocol that the registry did not have (`HANDLER_ERROR`, `VALIDATION_ERROR`, `UNAVAILABLE` and the others) have entries, with the meaning of the protocol as their texts.
+  - `errorCodeToHTTPStatus` gives the status of `ERROR_CODES` for a code of the protocol, for example 504 for `TIMEOUT`.
+- b2a1a1e: A handler error keeps its own code on each face, as `WIRE-PROTOCOL.md` says. `errorResponse` (the server, and through it HTTP, WebSocket and MCP) and `LocalTransport` give the code of the thrown error when it is a string. Before, they changed it to `HANDLER_ERROR` for a value, and `LocalTransport` also for a stream. An error without a code is still `HANDLER_ERROR`.
+  
+  The HTTP status follows the code: a code of `ERROR_CODES` gets its status, another code of `ERROR_REGISTRY` gets the status of the registry, and each other code gets 500. For example, a handler error with the code `UNAVAILABLE` now gives 503.
+- 057d69a: `client.import` gives `success: true` only for a procedure reference: an object whose `$proc` is a list of texts. Other JSON, for example `42`, an object without `$proc` or a list of calls, gives `success: false` and an error. Before, each JSON value gave `success: true`.
+- 057d69a: `client.isObject` gives true only for a plain object: an object literal, or an object without a prototype. A `Date`, a `Map` or another class instance gives false. Before, each object that is not an array gave true.
+- 057d69a: `client.stringifyJson` and `client.export` refuse a missing value (undefined) with `VALIDATION_ERROR`, because undefined has no JSON text. Before, the call failed with `OUTPUT_VALIDATION_ERROR`. The `value` field of `client.stringifyJson` and the `procedure` field of `client.export` are now required. A value without JSON text, for example a function, gives an error from `client.stringifyJson` and an error result from `client.export`.
+- 057d69a: `client.mod` refuses `b = 0` with the error `Division by zero`, as `client.divide` does. Before, it gave `NaN`.
+- afd6a19: The `client-registry` command is removed. `mark` finds the packages, and the `/register` entries register them.
+- 057d69a: `client.unique` compares the items by value: two equal JSON values are duplicates. An array compares by its items in order, and a plain object by its fields in any order. With `key`, the values of the field compare by value too. The result keeps the first item of each value, in the order of the input. Before, objects and arrays compared by reference, so two equal objects both stayed.
+- 4e751da: The new entry `@procedures/client/node` exports a `WebSocketTransport` whose sockets are of the `WebSocket` class of the `ws` package. A Node application gets `terminate()` without the option `webSocket`: a drop by the heartbeat or by the time limit of the handshake ends the socket at once. The option `webSocket` still gives another class. The other entries keep the global `WebSocket`, and the browser entry does not import `ws`.
+  
+  A socket of the `ws` package that closes during its handshake emits an error. Before, the transport removed its error handler first, so a handshake timeout or a `close()` during the handshake ended the process with an uncaught error. The transport now keeps a handler that ignores that error.
+
+### Patch Changes
+
+- 057d69a: The description of the `match` field of `client.filter` lists all 11 modes. Before, it did not name `gt`, `gte`, `lt` and `lte`.
+- 057d69a: The input schemas of `client.not`, `client.all`, `client.any` and `client.none` say "values", not "values or calls". These procedures do not run a call in their operands: a call is an object, thus truthy. In a program, the calls of their input run first, as for each procedure that is not control flow. `client.and` and `client.or` run calls. The behavior does not change.
+
 ## 0.3.0
 
 ### Minor Changes

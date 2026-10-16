@@ -1,5 +1,22 @@
 # @procedures/archive
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

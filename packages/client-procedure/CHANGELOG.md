@@ -1,5 +1,23 @@
 # @procedures/procedure
 
+## 0.4.0
+
+### Patch Changes
+
+- bae25e2: `procedure.new` puts the procedure into the list that `defineModule` gets: an array literal, a variable of `module.ts`, or a spread of such a variable. Before, a variable list sent the procedure into `registerModules(registry, [...])`. When the list comes from another file or a function, `procedure.new` fails with the reason and writes nothing.
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes
