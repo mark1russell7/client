@@ -11,6 +11,16 @@ import { defineProcedure, namespace } from "../define.js";
 import type { AnyProcedure, Procedure } from "../types.js";
 import { PURE_EFFECTS, withEffects } from "../effects.js";
 
+/**
+ * This function gives the own field `key` of an item, or undefined. A field of the prototype
+ * (`toString`, `constructor`) is not a field of the item: before, `count` with the key
+ * `toString` counted each item (catalog test, roadmap R29, as R6 for the object procedures).
+ */
+function fieldOf(item: unknown, key: string): unknown {
+  if (item === null || item === undefined) return undefined;
+  return Object.hasOwn(Object(item), key) ? (item as Record<string, unknown>)[key] : undefined;
+}
+
 // =============================================================================
 // First Procedure
 // =============================================================================
@@ -209,8 +219,8 @@ const sortProcedure: SortProcedure = defineProcedure({
     const direction = input.desc ? -1 : 1;
 
     return items.sort((a, b) => {
-      let aVal = input.key ? (a as Record<string, unknown>)[input.key] : a;
-      let bVal = input.key ? (b as Record<string, unknown>)[input.key] : b;
+      let aVal = input.key ? fieldOf(a, input.key) : a;
+      let bVal = input.key ? fieldOf(b, input.key) : b;
 
       if (typeof aVal === "string" && typeof bVal === "string") {
         return aVal.localeCompare(bVal) * direction;
@@ -309,7 +319,7 @@ const uniqueProcedure: UniqueProcedure = defineProcedure({
     if (input.key) {
       const seen = new Set<unknown>();
       return input.items.filter((item) => {
-        const val = (item as Record<string, unknown>)[input.key!];
+        const val = fieldOf(item, input.key!);
         if (seen.has(val)) return false;
         seen.add(val);
         return true;
@@ -346,7 +356,7 @@ const groupByProcedure: GroupByProcedure = defineProcedure({
   handler: async (input: GroupByInput): Promise<Record<string, unknown[]>> => {
     const result: Record<string, unknown[]> = {};
     for (const item of input.items) {
-      const keyVal = String((item as Record<string, unknown>)[input.key]);
+      const keyVal = String(fieldOf(item, input.key));
       // Only an own group: before, a group "constructor" or "toString" found the function of the
       // prototype, and push failed (catalog test, roadmap R29)
       if (!Object.hasOwn(result, keyVal)) {
@@ -642,7 +652,7 @@ const filterProcedure: FilterProcedure = defineProcedure({
     const { items, key, value, values, match = 'equals', invert = false } = input;
 
     const predicate = (item: unknown): boolean => {
-      const itemValue = key ? (item as Record<string, unknown>)[key] : item;
+      const itemValue = key ? fieldOf(item, key) : item;
 
       let result: boolean;
       switch (match) {
@@ -718,10 +728,7 @@ const whereProcedure: WhereProcedure = defineProcedure({
   },
   handler: async (input: WhereInput): Promise<unknown[]> => {
     const { items, where } = input;
-    return items.filter((item) => {
-      const obj = item as Record<string, unknown>;
-      return Object.entries(where).every(([key, value]) => obj[key] === value);
-    });
+    return items.filter((item) => Object.entries(where).every(([key, value]) => fieldOf(item, key) === value));
   },
 });
 
@@ -752,7 +759,7 @@ const pluckProcedure: PluckProcedure = defineProcedure({
     tags: ["core", "array", "transform"],
   },
   handler: async (input: PluckInput): Promise<unknown[]> => {
-    return input.items.map((item) => (item as Record<string, unknown>)[input.key]);
+    return input.items.map((item) => fieldOf(item, input.key));
   },
 });
 
@@ -885,7 +892,7 @@ const partitionProcedure: PartitionProcedure = defineProcedure({
     const falsy: unknown[] = [];
 
     for (const item of input.items) {
-      const itemValue = (item as Record<string, unknown>)[input.key];
+      const itemValue = fieldOf(item, input.key);
       const matches = input.value !== undefined ? itemValue === input.value : Boolean(itemValue);
       if (matches) {
         truthy.push(item);
@@ -933,7 +940,7 @@ const countProcedure: CountProcedure = defineProcedure({
     }
 
     return input.items.filter((item) => {
-      const itemValue = (item as Record<string, unknown>)[input.key!];
+      const itemValue = fieldOf(item, input.key!);
       return input.value !== undefined ? itemValue === input.value : Boolean(itemValue);
     }).length;
   },
