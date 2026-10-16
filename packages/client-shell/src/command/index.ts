@@ -15,9 +15,14 @@ export { streamCommand, type StreamCommandOptions, type CommandStreamItem } from
 export {
   ProcessRegistry,
   processes,
+  FOLLOW_BUFFER_BYTES,
   type ManagedProcessInfo,
   type StartProcessOptions,
   type StopResult,
+  type ProcessOutputChunk,
+  type ProcessOutputListener,
+  type ProcessFollowItem,
+  type FollowOptions,
 } from "./processes.js";
 export { killTree } from "./tree-kill.js";
 export type { SpawnOptions } from "./spawn.js";

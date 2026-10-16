@@ -194,6 +194,11 @@ export interface NodeLogsInput {
   lines?: number | undefined;
   /** Remove the ANSI escape codes (colors) from the output */
   stripAnsi?: boolean | undefined;
+  /**
+   * True: the result is a stream. It gives the kept output, then each new line, until the process
+   * ends or the caller aborts. `lines` limits the kept output.
+   */
+  follow?: boolean | undefined;
 }
 
 export interface NodeLogsOutput {
@@ -206,15 +211,49 @@ export interface NodeLogsOutput {
   output: string;
 }
 
+/** One item of `node.logs` with `follow`. */
+export type NodeLogItem =
+  /** A line of the output that the registry kept before the call: stdout and stderr together. */
+  | { type: "output"; line: string }
+  /** A new line of the process, without its line end. */
+  | { type: "stdout" | "stderr"; line: string }
+  /** The reader was slow, and the stream dropped this many bytes of output. */
+  | { type: "dropped"; bytes: number }
+  /** The end of the process: the last item. */
+  | { type: "exit"; status: "exited" | "error"; exitCode?: number | undefined; signal?: string | undefined };
+
 export const NodeLogsInputSchema: z.ZodType<NodeLogsInput> = z.object({
   processId: z.string().min(1).describe("Process ID returned from node.spawn"),
   lines: z.number().int().min(1).optional().describe("Only the last lines of the output"),
   stripAnsi: z.boolean().optional().describe("Remove the ANSI escape codes (colors) from the output"),
+  follow: z
+    .boolean()
+    .optional()
+    .describe("Give a stream: the kept output, then each new line, until the process ends or the caller aborts"),
 });
 
-export const NodeLogsOutputSchema: z.ZodType<NodeLogsOutput> = z.looseObject({
+export const NodeLogsValueSchema: z.ZodType<NodeLogsOutput> = z.looseObject({
   processId: z.string().describe("The id of the process"),
   status: z.enum(["running", "exited", "error"]).describe("The state of the process"),
   exitCode: z.number().optional().describe("The exit code, when the process exited"),
   output: z.string().describe("The end of the output: stdout and stderr together, the last 64 KiB"),
 });
+
+/** node.logs: one result, or with follow a stream of lines and one last exit item. */
+export const NodeLogsOutputSchema: z.ZodType<NodeLogsOutput | NodeLogItem> = z.union([
+  NodeLogsValueSchema,
+  z.looseObject({
+    type: z.enum(["output", "stdout", "stderr"]).describe("The stream of the line: output for a line that the registry kept"),
+    line: z.string().describe("One line of the output, without its line end"),
+  }),
+  z.looseObject({
+    type: z.literal("dropped").describe("A gap: the reader was slow"),
+    bytes: z.number().describe("The number of bytes that the stream dropped"),
+  }),
+  z.looseObject({
+    type: z.literal("exit").describe("The end of the process and of the stream"),
+    status: z.enum(["exited", "error"]).describe("The state of the process at its end"),
+    exitCode: z.number().optional().describe("The exit code, when the process exited"),
+    signal: z.string().optional().describe("The signal that ended the process"),
+  }),
+]);

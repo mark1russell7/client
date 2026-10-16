@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { spawn } from "node:child_process";
-import { ProcessRegistry } from "./index.js";
+import { ProcessRegistry, type ManagedProcessInfo, type ProcessFollowItem } from "./index.js";
 
 function alive(pid: number): boolean {
   try {
@@ -109,5 +109,139 @@ describe("ProcessRegistry", () => {
     const end = Date.now() + 5000;
     while (alive(sleeper) && Date.now() < end) await new Promise((resolve) => setTimeout(resolve, 50));
     expect(alive(sleeper)).toBe(false);
+  }, 20_000);
+});
+
+/** The number of subscribers of a process: a follower that ended must leave none. */
+function subscribers(registry: ProcessRegistry, id: string): number {
+  return (registry as unknown as { entries: Map<string, { listeners: Set<unknown> }> }).entries.get(id)?.listeners.size ?? 0;
+}
+
+async function collect<T>(items: AsyncIterable<T>): Promise<T[]> {
+  const out: T[] = [];
+  for await (const item of items) out.push(item);
+  return out;
+}
+
+/** The text of the output items of a follow, by stream. */
+function texts(items: ProcessFollowItem[], stream: "stdout" | "stderr"): string {
+  return items.map((item) => (item.type === "output" && item.stream === stream ? item.text : "")).join("");
+}
+
+describe("the subscribers of the output", () => {
+  it("subscribe gives each piece with its stream, then the end, and the end removes the subscriber", async () => {
+    const registry = new ProcessRegistry();
+    const script = "process.stdout.write('out 1\\n'); process.stderr.write('err 1\\n'); setTimeout(() => process.stdout.write('out 2\\n'), 50)";
+    const started = registry.start(process.execPath, { args: ["-e", script] });
+    const chunks: Array<{ stream: string; text: string }> = [];
+    let end: ManagedProcessInfo | undefined;
+    const unsubscribe = registry.subscribe(started.id, {
+      output: (chunk) => chunks.push({ stream: chunk.stream, text: chunk.data.toString("utf8") }),
+      end: (info) => (end = info),
+    });
+    expect(unsubscribe).toBeTypeOf("function");
+    expect(subscribers(registry, started.id)).toBe(1);
+    await registry.exited(started.id);
+
+    expect(chunks.filter((chunk) => chunk.stream === "stdout").map((chunk) => chunk.text).join("")).toBe("out 1\nout 2\n");
+    expect(chunks.filter((chunk) => chunk.stream === "stderr").map((chunk) => chunk.text).join("")).toBe("err 1\n");
+    expect(end).toMatchObject({ id: started.id, status: "exited", exitCode: 0 });
+    expect(subscribers(registry, started.id)).toBe(0);
+
+    // An ended process gives the end at once. An unknown id gives no subscription.
+    let late: ManagedProcessInfo | undefined;
+    registry.subscribe(started.id, { end: (info) => (late = info) })!();
+    expect(late).toMatchObject({ status: "exited" });
+    expect(registry.subscribe("missing", {})).toBeUndefined();
+  }, 20_000);
+
+  it("unsubscribe stops the calls, and an error of a subscriber does not reach the registry", async () => {
+    const registry = new ProcessRegistry();
+    const started = registry.start(process.execPath, { args: ["-e", "let n = 0; const t = setInterval(() => { console.log('tick ' + ++n); if (n === 5) clearInterval(t); }, 20)"] });
+    let calls = 0;
+    const unsubscribe = registry.subscribe(started.id, {
+      output: () => {
+        calls++;
+        throw new Error("a broken subscriber");
+      },
+    })!;
+    await registry.waitFor(started.id, /tick 2/, 10_000);
+    unsubscribe();
+    const seen = calls;
+    expect(seen).toBeGreaterThan(0);
+    expect(subscribers(registry, started.id)).toBe(0);
+    await registry.exited(started.id);
+    expect(calls).toBe(seen);
+    expect(registry.output(started.id)).toContain("tick 5");
+  }, 20_000);
+
+  it("follow gives the backlog without a gap, the new output in UTF-8, and the end", async () => {
+    const registry = new ProcessRegistry();
+    // The second write splits the two bytes of é over two pieces
+    const script = [
+      "console.log('first');",
+      "setTimeout(() => process.stdout.write(Buffer.from([0x73, 0xc3])), 150);",
+      "setTimeout(() => { process.stdout.write(Buffer.from([0xa9, 0x0a])); process.stderr.write('warn\\n'); }, 250);",
+    ].join("");
+    const started = registry.start(process.execPath, { args: ["-e", script] });
+    await registry.waitFor(started.id, /first/, 10_000);
+    const items = await collect(registry.follow(started.id, { backlog: true }));
+
+    expect(items[0]).toEqual({ type: "backlog", text: "first\n" });
+    expect(texts(items, "stdout")).toBe("sé\n");
+    expect(texts(items, "stderr")).toBe("warn\n");
+    expect(items.at(-1)).toMatchObject({ type: "end", info: { id: started.id, status: "exited", exitCode: 0 } });
+    expect(subscribers(registry, started.id)).toBe(0);
+
+    // A follow of an ended process gives only the end
+    expect(await collect(registry.follow(started.id))).toEqual([{ type: "end", info: expect.objectContaining({ status: "exited" }) }]);
+    await expect(collect(registry.follow("missing"))).rejects.toThrow("No process missing");
+  }, 20_000);
+
+  it("follow ends at an abort and at a reader that stops, and leaves no subscriber", async () => {
+    const registry = new ProcessRegistry();
+    const started = registry.start(process.execPath, { args: ["-e", "let n = 0; setInterval(() => console.log('tick ' + ++n), 10)"] });
+    try {
+      const controller = new AbortController();
+      const aborted = registry.follow(started.id, { signal: controller.signal });
+      expect((await aborted.next()).value).toMatchObject({ type: "output", stream: "stdout" });
+      expect(subscribers(registry, started.id)).toBe(1);
+      const waiting = aborted.next();
+      controller.abort();
+      // The waiting read ends: either with an item that came first, or with the end of the stream
+      await waiting;
+      expect(await aborted.next()).toEqual({ value: undefined, done: true });
+      expect(subscribers(registry, started.id)).toBe(0);
+
+      let read = 0;
+      for await (const item of registry.follow(started.id)) {
+        expect(item.type).toBe("output");
+        if (++read === 3) break;
+      }
+      expect(subscribers(registry, started.id)).toBe(0);
+      // An aborted signal gives an empty stream
+      expect(await collect(registry.follow(started.id, { signal: AbortSignal.abort() }))).toEqual([]);
+      expect(registry.get(started.id)?.status).toBe("running");
+    } finally {
+      await registry.stop(started.id);
+    }
+  }, 20_000);
+
+  it("follow drops the oldest pieces for a slow reader, and gives the number of bytes", async () => {
+    const registry = new ProcessRegistry();
+    const script = "setTimeout(() => { for (let i = 0; i < 200; i++) process.stdout.write('x'.repeat(999) + '\\n'); }, 100)";
+    const started = registry.start(process.execPath, { args: ["-e", script] });
+    const follower = registry.follow(started.id, { maxBufferedBytes: 4096 });
+    // The first read starts the subscription. The reader then waits for the end of the process.
+    const first = follower.next();
+    await registry.exited(started.id);
+    const items = [(await first).value as ProcessFollowItem, ...(await collect(follower))];
+
+    const dropped = items.filter((item): item is Extract<ProcessFollowItem, { type: "dropped" }> => item.type === "dropped");
+    expect(dropped.length).toBeGreaterThan(0);
+    const kept = Buffer.byteLength(texts(items, "stdout"));
+    expect(kept + dropped.reduce((sum, item) => sum + item.bytes, 0)).toBe(200 * 1000);
+    expect(kept).toBeLessThan(200 * 1000);
+    expect(items.at(-1)).toMatchObject({ type: "end" });
   }, 20_000);
 });

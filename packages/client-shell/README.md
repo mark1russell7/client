@@ -49,7 +49,7 @@ The wrapper packages start their programs with the helpers of `@procedures/shell
 |---|---|
 | `runCommand(command, options)` | It runs a program to its end and gives `exitCode`, `stdout`, `stderr` and `duration`. It does not throw. |
 | `streamCommand(command, options)` | It gives each output line while the program runs, then an `exit` item. |
-| `processes` | It records a long-running program: `start`, `list`, `waitFor`, `output`, `stop`. |
+| `processes` | It records a long-running program: `start`, `list`, `waitFor`, `output`, `subscribe`, `follow`, `stop`. |
 | `killTree(child)` | It kills a child process and all the processes that it started. |
 
 The rules of the helpers:
@@ -65,6 +65,29 @@ The rules of the helpers:
 import { runCommand } from "@procedures/shell/command";
 
 const result = await runCommand("git", { args: ["status", "--porcelain"], cwd, signal: ctx.signal });
+```
+
+#### The output of a recorded process
+
+`processes.output(id)` gives the end of the output that the registry keeps: the last 64 KiB. Two functions give the output that comes later:
+
+| Function | What it does |
+|---|---|
+| `subscribe(id, { output, end })` | `output` gets each new piece with its stream (`stdout` or `stderr`) and its bytes. `end` gets the record at the end of the process. The result removes the subscriber. |
+| `follow(id, { backlog, signal, maxBufferedBytes })` | It gives an async stream of items: `backlog`, `output`, `dropped` and the last item `end`. |
+
+- The end of the process removes each subscriber, so a subscriber of an ended process does not stay.
+- `follow` subscribes when the reader asks for the first item. The end of the process, an abort of `signal` and a reader that stops end the stream and remove its subscriber.
+- With `backlog: true`, the first item has the kept output. The kept output and the new output have no gap between them.
+- `follow` decodes UTF-8 for each stream, so a character in two pieces stays whole.
+- The registry cannot slow the process. When more than `maxBufferedBytes` (1 MiB by default) wait for a slow reader, `follow` drops the oldest pieces and gives a `dropped` item with the number of bytes.
+
+```typescript
+import { processes } from "@procedures/shell/command";
+
+for await (const item of processes.follow(id, { backlog: true, signal: ctx.signal })) {
+  if (item.type === "output") process.stdout.write(item.text);
+}
 ```
 
 ---
