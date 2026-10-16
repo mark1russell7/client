@@ -132,9 +132,34 @@ function pathText(path: StandardSchemaV1.Issue["path"]): string {
   return text;
 }
 
-/** One line for each issue: `filter: Expected object, received string`. */
+/**
+ * The issues inside an issue. Zod gives them for a record key and a map or set element
+ * (`issues`), and for each branch of a union (`errors`). Their messages are often the useful
+ * part: "Invalid key in record" alone hides the message of the key schema.
+ */
+function innerIssues(issue: StandardSchemaV1.Issue): StandardSchemaV1.Issue[] {
+  const nested = issue as { issues?: unknown; errors?: unknown };
+  if (Array.isArray(nested.issues)) return nested.issues as StandardSchemaV1.Issue[];
+  if (Array.isArray(nested.errors)) {
+    return (nested.errors as unknown[]).flatMap((branch) => (Array.isArray(branch) ? branch : [branch])) as StandardSchemaV1.Issue[];
+  }
+  return [];
+}
+
+/** The text of an issue and of the issues inside it, to a depth of three. */
+function issueText(issue: StandardSchemaV1.Issue, depth: number): string {
+  const own = issue.path?.length ? `${pathText(issue.path)}: ${issue.message}` : issue.message;
+  if (depth >= 3) return own;
+  const inner = [...new Set(innerIssues(issue).map((nested) => issueText(nested, depth + 1)))];
+  return inner.length > 0 ? `${own} (${inner.join("; ")})` : own;
+}
+
+/**
+ * One line for each issue: `filter: Expected object, received string`. The issues inside an
+ * issue follow it in parentheses: `portions.cups: Invalid key in record (write cup, not cups)`.
+ */
 export function describeIssues(issues: ReadonlyArray<StandardSchemaV1.Issue>): string {
-  return issues.map((issue) => (issue.path?.length ? `${pathText(issue.path)}: ${issue.message}` : issue.message)).join("; ");
+  return issues.map((issue) => issueText(issue, 0)).join("; ");
 }
 
 function fromStandard<T>(result: StandardSchemaV1.Result<T>): SchemaResult<T> {

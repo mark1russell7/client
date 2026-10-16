@@ -51,6 +51,19 @@ describe("validateSchema", () => {
   it("writes array indexes in brackets", () => {
     expect(describeIssues([{ message: "bad", path: ["items", 2, { key: "name" }] }])).toBe("items[2].name: bad");
   });
+
+  it("gives the messages inside an issue: a record key, the branches of a union", () => {
+    const portions = z.object({
+      portions: z.record(z.string().refine((key) => !key.endsWith("s"), "write cup, not cups"), z.number()),
+    });
+    const keyResult = validateSchema(portions, { portions: { cups: 1 } });
+    expect(keyResult).toMatchObject({ ok: false });
+    expect((keyResult as { message: string }).message).toMatch(/portions\.cups: .*\(.*write cup, not cups\)/);
+
+    const choice = z.union([z.object({ kind: z.literal("a") }), z.object({ kind: z.literal("b"), n: z.number() })]);
+    const unionResult = validateSchema(choice, { kind: "c" });
+    expect((unionResult as { message: string }).message).toMatch(/\(.+\)/);
+  });
 });
 
 describe("a procedure with a Standard Schema", () => {
