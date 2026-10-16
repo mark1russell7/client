@@ -9,6 +9,7 @@
 import { InvocationError, type Interceptor, type Invocation, type ProcedureOutput } from "./invoke.js";
 import { pathToKey, type ProcedurePath } from "./types.js";
 import { toMs, type Duration } from "../duration.js";
+import { TRACEPARENT_METADATA_KEY, formatTraceparent, newSpanId, newTraceId, parseTraceparent } from "../tracing/traceparent.js";
 
 // =============================================================================
 // Timeout
@@ -128,9 +129,14 @@ export function timeoutAfterMs(options: Omit<TimeoutInterceptorOptions, "limit">
 /** One invocation as a span of a trace. */
 export interface InvocationSpan {
   readonly id: string;
-  /** The span of the invocation whose handler made this call. A call of a host has none. */
+  /**
+   * The span of the invocation whose handler made this call. A call of a host has the span of its
+   * remote caller, when the caller sent a `traceparent` (roadmap R16), or none.
+   */
   readonly parentId: string | undefined;
-  /** The same for every span of one call of a host. */
+  /** True when the parent span is in another process: the caller of a host. */
+  readonly remoteParent?: boolean | undefined;
+  /** The same for every span of one call of a host, and of its caller when it sent a trace. */
   readonly traceId: string;
   readonly path: ProcedurePath;
   readonly key: string;
@@ -158,7 +164,6 @@ export interface TracingInterceptorOptions {
   now?: (() => number) | undefined;
 }
 
-let traceCount = 0;
 
 /**
  * This interceptor makes a span for each invocation, with the span of its parent. A host can
@@ -166,8 +171,6 @@ let traceCount = 0;
  */
 export function tracingInterceptor(options: TracingInterceptorOptions): Interceptor {
   const now = options.now ?? (() => performance.now());
-  const prefix = `t${++traceCount}-${Math.random().toString(36).slice(2, 8)}`;
-  let spanCount = 0;
   /** The open spans, by the id of their invocation */
   const open = new Map<number, InvocationSpan>();
 
@@ -188,11 +191,15 @@ export function tracingInterceptor(options: TracingInterceptorOptions): Intercep
 
   return async (invocation, next) => {
     const parent = invocation.parent ? open.get(invocation.parent.id) : undefined;
-    const id = `${prefix}-${++spanCount}`;
+    // A call of a host continues the trace of its caller (W3C traceparent, roadmap R16)
+    const remote = parent ? undefined : parseTraceparent(invocation.metadata[TRACEPARENT_METADATA_KEY]);
+    // W3C span ids, so a trace backend can join the spans of the client and of the server
+    const id = newSpanId();
     const span: InvocationSpan = {
       id,
-      parentId: parent?.id,
-      traceId: parent?.traceId ?? id,
+      parentId: parent?.id ?? remote?.spanId,
+      ...(remote ? { remoteParent: true } : {}),
+      traceId: parent?.traceId ?? remote?.traceId ?? newTraceId(),
       path: invocation.path,
       key: pathToKey(invocation.path),
       depth: invocation.depth,
@@ -206,7 +213,8 @@ export function tracingInterceptor(options: TracingInterceptorOptions): Intercep
 
     let output: ProcedureOutput<unknown>;
     try {
-      output = await next();
+      // The nested calls (and their remote calls) carry the span of this invocation (R16)
+      output = await next({ metadata: { ...invocation.metadata, [TRACEPARENT_METADATA_KEY]: formatTraceparent(span.traceId, id) } });
     } catch (error) {
       finish(span, invocation.id, error);
       throw error;

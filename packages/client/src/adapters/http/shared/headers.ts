@@ -120,7 +120,10 @@ export class DefaultHeaderConverter implements HeaderConverter {
       headers[HTTPHeaders.API_KEY] = metadata.auth.apiKey;
     }
 
-    // Distributed Tracing
+    // Distributed Tracing: the W3C trace context, and the older headers (roadmap R16)
+    if (typeof metadata["traceparent"] === "string") {
+      headers["traceparent"] = metadata["traceparent"];
+    }
     if (metadata.tracing?.traceId) {
       headers[HTTPHeaders.TRACE_ID] = metadata.tracing.traceId;
     }

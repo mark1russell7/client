@@ -61,7 +61,8 @@ describe("runJourney", () => {
     const journey = await runJourney("websocket");
     const spans = journey.steps.filter((step) => step.lane === "nested" && step.direction === "down");
     expect(spans).toHaveLength(2);
-    for (const span of spans) expect(span.detail).toMatch(/parent t\d+/);
+    // W3C span ids: 16 hex digits (roadmap R16)
+    for (const span of spans) expect(span.detail).toMatch(/parent [0-9a-f]{16}/);
   });
 
   it("has no interceptor in process: LocalTransport calls invokeProcedure with none", async () => {

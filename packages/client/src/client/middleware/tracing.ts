@@ -14,6 +14,7 @@
 
 import type { TypedClientMiddleware } from "../types.js";
 import type { TracingContext } from "./contexts.js";
+import { TRACEPARENT_METADATA_KEY, formatTraceparent, isW3cIds, newSpanId, newTraceId, parseTraceparent } from "../../tracing/traceparent.js";
 
 /**
  * Tracing Configuration
@@ -98,9 +99,10 @@ function generateId(): string {
 export function createTracingMiddleware(
   options: TracingOptions = {}
 ): TypedClientMiddleware<TracingContext, {}> {
+  // W3C ids by default, so the server continues the trace (roadmap R16)
   const {
-    generateTraceId = generateId,
-    generateSpanId = generateId,
+    generateTraceId = newTraceId,
+    generateSpanId = newSpanId,
     getCurrentTrace,
     serviceName,
   } = options;
@@ -108,8 +110,9 @@ export function createTracingMiddleware(
   return (next) => async function* (context) {
     // Check if there's already tracing metadata
     if (!context.message.metadata.tracing) {
-      // Try to get current trace context
-      const currentTrace = getCurrentTrace?.();
+      // Try to get current trace context: the function of the options, or the trace context of
+      // the caller (a call that a handler makes on a server carries the span of that handler)
+      const currentTrace = getCurrentTrace?.() ?? parseTraceparent(context.message.metadata[TRACEPARENT_METADATA_KEY]) ?? null;
 
       if (currentTrace) {
         // Continue existing trace (create child span)
@@ -130,6 +133,12 @@ export function createTracingMiddleware(
       if (serviceName) {
         context.message.metadata["serviceName"] = serviceName;
       }
+    }
+
+    // The W3C trace context of the call: the server continues this trace (R16)
+    const tracing = context.message.metadata.tracing;
+    if (tracing && isW3cIds(tracing.traceId, tracing.spanId)) {
+      context.message.metadata[TRACEPARENT_METADATA_KEY] = formatTraceparent(tracing.traceId, tracing.spanId);
     }
 
     // Continue middleware chain

@@ -203,7 +203,7 @@ export class HttpServerTransport implements ServerTransport {
           HTTPHeaders.TRACE_ID,
           HTTPHeaders.SPAN_ID,
           HTTPHeaders.PARENT_SPAN_ID,
-          HTTPHeaders.TIMEOUT,
+          "traceparent",
           HTTPHeaders.METADATA,
           "collection",
           "collectionName",
