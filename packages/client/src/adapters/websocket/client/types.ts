@@ -170,8 +170,9 @@ export interface WebSocketTransportOptions {
   onTransition?: (transition: MachineTransition) => void;
 
   /**
-   * The class of the sockets. The default is the global `WebSocket`. In Node, give the `WebSocket`
-   * of the `ws` package: a drop then ends its socket at once with `terminate()`. The global
+   * The class of the sockets. The default is the global `WebSocket`. The `WebSocketTransport` of
+   * the Node entry `@procedures/client/node` has the `WebSocket` of the `ws` package as its
+   * default. With that class, a drop ends its socket at once with `terminate()`. The global
    * `WebSocket` has only `close()`, which waits for the answer of the peer. With a dead peer, the
    * socket stays open until the kernel stops it, at most 15 minutes (the harness cells of R36).
    */
