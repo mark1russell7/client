@@ -50,6 +50,22 @@ jobs:
       # fails the run (roadmap R8: before, CI did not start these tests).
       - name: End-to-end tests of mark
         run: pnpm --filter @procedures/mark test:e2e
+      # PROCEDURES.md and PACKAGES.md come from the built registry (roadmap R47: before, they
+      # drifted). A difference fails the run, and the new files are an artifact: commit them.
+      - name: The generated catalogs are current
+        if: matrix.node == 26
+        run: |
+          node packages/documentation/scripts/generate-procedures.mjs
+          node packages/documentation/scripts/generate-packages.mjs
+          git diff --stat --exit-code packages/documentation/PROCEDURES.md packages/documentation/PACKAGES.md
+      - if: failure() && matrix.node == 26
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-catalogs
+          path: |
+            packages/documentation/PROCEDURES.md
+            packages/documentation/PACKAGES.md
+          retention-days: 7
       # The writing rules (ASD-STE100) of the README files and the doc comments
       - run: pnpm lint:ste
       # No file names a package of this repository with the old scope @mark1russell7 (2026-10-12)
