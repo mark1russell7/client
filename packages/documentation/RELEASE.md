@@ -108,6 +108,7 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 3. Wait for a green CI run of that commit. Then start `gh workflow run release.yml --repo mark1russell7/client`. You can also start "Release" from Actions on GitHub.
 4. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
 5. For each version that it publishes, the workflow pushes the git tag `<name>@<version>` and makes a GitHub release with the change log of that version.
+   - If a release made no tags or no GitHub releases, start `node scripts/release-tags.mjs --commit <sha of "Version the packages">`. It makes the missing ones, and `--dry-run` tells them first. The tags and releases of 0.3.0 come from this script.
 6. If the publish stops, start the workflow again. It skips the versions that are on npm.
 7. npm shows a new version some minutes after the publish. Until then, `npm view` shows the previous version.
 

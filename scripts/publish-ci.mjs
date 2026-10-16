@@ -13,7 +13,7 @@
 // version that it publishes: {"type":"git-tag","tag":"<name>@<version>","packageName":"<name>"}, the
 // format of `changeset publish`. With these lines the action pushes a git tag for each version and
 // makes a GitHub release from the change log of the package. Without the file, the action makes no
-// tags and no releases.
+// tags and no releases. scripts/release-tags.mjs makes the tags and releases that a release missed.
 //
 // Options: --dry-run (pack each package and start `npm publish --dry-run`).
 
