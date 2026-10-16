@@ -46,7 +46,7 @@ import { InvocationError } from "../../procedures/invoke.js";
 import { HandlerNotFoundError, ServerError } from "../../server/types.js";
 import { errorResponse } from "../../server/procedure-server.js";
 import { errorStatus, itemOfFrame } from "../../adapters/websocket/shared/rpc.js";
-import { ERROR_CODES, type ProtocolErrorCode } from "../../protocol.js";
+import { ERROR_CODES, httpStatusOf, isProtocolErrorCode, type ProtocolErrorCode } from "../../protocol.js";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -108,20 +108,47 @@ describe("the HTTP statuses of the codes (R30)", () => {
     expect(errorCodeToHTTPStatus(ErrorCode.NETWORK_ERROR)).toBe(HTTPStatus.INTERNAL_SERVER_ERROR);
   });
 
-  it("each status of the mapping goes to a code and back", () => {
+  it("each status of the mapping goes to a code and back, or to the status of the protocol for a code of the protocol", () => {
     const statuses = Object.values(HTTPStatus).filter((value): value is number => typeof value === "number" && value >= 400);
     for (const status of statuses) {
       const code = httpStatusToErrorCode(status);
       if (code === ErrorCode.UNKNOWN) continue;
-      expect(errorCodeToHTTPStatus(code), `${status} -> ${code}`).toBe(status);
+      // A 408 of another server is a TIMEOUT, and the protocol gives TIMEOUT the status 504
+      expect(errorCodeToHTTPStatus(code), `${status} -> ${code}`).toBe(httpStatusOf(code) ?? status);
     }
   });
 
-  it("the status of each registry entry maps back to its code", () => {
+  it("the status of each registry entry outside the protocol maps back to its code", () => {
     for (const entry of Object.values(ERROR_REGISTRY)) {
-      if (!entry.httpStatus) continue;
+      if (!entry.httpStatus || isProtocolErrorCode(entry.code)) continue;
       expect(httpStatusToErrorCode(entry.httpStatus), entry.code).toBe(entry.code);
     }
+  });
+});
+
+describe("the registry and the error codes of the protocol (R25)", () => {
+  it("each code of the protocol has an entry with the HTTP status and the retry flag of ERROR_CODES", () => {
+    for (const code of Object.keys(ERROR_CODES) as ProtocolErrorCode[]) {
+      const entry = ERROR_REGISTRY[code];
+      expect(entry, code).toBeDefined();
+      expect({ code: entry?.code, http: entry?.httpStatus, retryable: entry?.retryable }, code).toEqual({
+        code,
+        http: ERROR_CODES[code].http,
+        retryable: ERROR_CODES[code].retryable,
+      });
+    }
+  });
+
+  it("errorCodeToHTTPStatus gives the status of the protocol for each code of the protocol", () => {
+    for (const code of Object.keys(ERROR_CODES) as ProtocolErrorCode[]) {
+      if (!(Object.values(ErrorCode) as string[]).includes(code)) continue;
+      expect(errorCodeToHTTPStatus(code as ErrorCode), code).toBe(ERROR_CODES[code].http);
+    }
+  });
+
+  it("an entry of a protocol code that the registry did not describe has the meaning of the protocol", () => {
+    expect(ERROR_REGISTRY["HANDLER_ERROR"]).toMatchObject({ summary: ERROR_CODES.HANDLER_ERROR.meaning, httpStatus: 500, retryable: false });
+    expect(getErrorMetadata("UNAVAILABLE")).toMatchObject({ code: "UNAVAILABLE", httpStatus: 503, retryable: true });
   });
 });
 
@@ -209,7 +236,8 @@ describe("the factory functions (R30)", () => {
       "[TIMEOUT] Request timed out",
       `  Detail: ${ERROR_REGISTRY["TIMEOUT"]!.detail}`,
       "  Category: timeout",
-      "  Retryable: true",
+      // ERROR_CODES of the protocol: a call whose deadline passed is not retryable
+      "  Retryable: false",
       "  Severity: warning",
     ]);
     expect(text).toContain("  Request ID: r3");

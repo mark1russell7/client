@@ -15,6 +15,7 @@ import {
 } from "./types.js";
 import { HTTP_ERROR_REGISTRY } from "./http-errors.js";
 import { ErrorCode } from "./codes.js";
+import { ERROR_CODES, type ProtocolErrorCode } from "../../protocol.js";
 
 /**
  * Create error metadata with defaults.
@@ -47,12 +48,71 @@ function defineError(
   return result;
 }
 
+/** The texts of an entry. For a code of the protocol, `ERROR_CODES` gives the status and the retry flag. */
+type ProtocolErrorTexts = Omit<ErrorMetadata, "code" | "httpStatus" | "retryable">;
+
 /**
- * Universal Error Registry
- *
- * Protocol-agnostic error codes with rich metadata.
+ * This function makes the entry of a code of the wire protocol. The HTTP status and the retry
+ * flag come from `ERROR_CODES` (`protocol.ts`, `WIRE-PROTOCOL.md`), the source of these facts.
  */
-export const ERROR_REGISTRY: ErrorRegistry = {
+function defineProtocolError(code: ProtocolErrorCode, texts: ProtocolErrorTexts): ErrorMetadata {
+  const info = ERROR_CODES[code];
+  return defineError(code, { ...texts, httpStatus: info.http, retryable: info.retryable });
+}
+
+/** The category of each code of the protocol, for a code that the registry does not describe. */
+const PROTOCOL_CATEGORIES: Readonly<Record<ProtocolErrorCode, ErrorCategory>> = {
+  NOT_FOUND: ErrorCategory.CLIENT,
+  NO_HANDLER: ErrorCategory.SERVER,
+  NOT_EXPOSED: ErrorCategory.AUTH,
+  NOT_DECLARED: ErrorCategory.AUTH,
+  FORBIDDEN: ErrorCategory.AUTH,
+  UNAUTHORIZED: ErrorCategory.AUTH,
+  VALIDATION_ERROR: ErrorCategory.CLIENT,
+  INVALID_REQUEST: ErrorCategory.PROTOCOL,
+  PROTOCOL_VERSION: ErrorCategory.PROTOCOL,
+  OUTPUT_VALIDATION_ERROR: ErrorCategory.SERVER,
+  NO_OUTPUT: ErrorCategory.SERVER,
+  HANDLER_ERROR: ErrorCategory.SERVER,
+  INTERNAL_ERROR: ErrorCategory.SERVER,
+  NOT_ACCEPTABLE: ErrorCategory.CLIENT,
+  DUPLICATE: ErrorCategory.CLIENT,
+  DUPLICATE_REQUEST: ErrorCategory.CLIENT,
+  ABORTED: ErrorCategory.CANCELLED,
+  TIMEOUT: ErrorCategory.TIMEOUT,
+  UNAVAILABLE: ErrorCategory.SERVER,
+  CONNECTION_CLOSED: ErrorCategory.NETWORK,
+  CONNECTION_NOT_FOUND: ErrorCategory.CLIENT,
+};
+
+/**
+ * This function gives the registry with one entry for each code of the protocol. The status and
+ * the retry flag of such an entry come from `ERROR_CODES`, so the two lists agree (before, the
+ * registry gave `TIMEOUT` the status 408 and two codes another retry flag). A code without texts
+ * here gets the meaning of the protocol as its texts.
+ */
+function withProtocolCodes(described: ErrorRegistry): ErrorRegistry {
+  const registry: ErrorRegistry = { ...described };
+  for (const code of Object.keys(ERROR_CODES) as ProtocolErrorCode[]) {
+    const info = ERROR_CODES[code];
+    const meaning = `${info.meaning}.`;
+    const texts: ProtocolErrorTexts = described[code] ?? {
+      summary: info.meaning,
+      detail: meaning,
+      category: PROTOCOL_CATEGORIES[code],
+      severity: info.retryable ? ErrorSeverity.WARNING : ErrorSeverity.ERROR,
+      userMessage: meaning,
+      devMessage: meaning,
+    };
+    registry[code] = { ...texts, code, httpStatus: info.http, retryable: info.retryable };
+  }
+  return registry;
+}
+
+/**
+ * The entries with their own texts. `ERROR_REGISTRY` adds the codes of the protocol.
+ */
+const DESCRIBED_ERRORS = {
   //
   // ═══ Network Errors ═══
   //
@@ -108,16 +168,14 @@ export const ERROR_REGISTRY: ErrorRegistry = {
   // ═══ Timeout Errors ═══
   //
 
-  TIMEOUT: defineError(ErrorCode.TIMEOUT, {
+  TIMEOUT: defineProtocolError("TIMEOUT", {
     summary: "Request timed out",
     detail:
       "The request exceeded the configured timeout duration. This may indicate slow server response, network congestion, or overly aggressive timeout settings.",
     category: ErrorCategory.TIMEOUT,
-    retryable: true,
     severity: ErrorSeverity.WARNING,
     userMessage: "The request took too long to complete. Please try again.",
     devMessage: "Request exceeded timeout threshold. Consider increasing timeout or optimizing server response time.",
-    httpStatus: 408,
     suggestions: [
       "Try again with a longer timeout",
       "Check server performance",
@@ -159,11 +217,10 @@ export const ERROR_REGISTRY: ErrorRegistry = {
   // ═══ Cancellation Errors ═══
   //
 
-  ABORTED: defineError(ErrorCode.ABORTED, {
+  ABORTED: defineProtocolError("ABORTED", {
     summary: "Request was aborted",
     detail: "The request was explicitly cancelled by the client via AbortSignal. This is user-initiated.",
     category: ErrorCategory.CANCELLED,
-    retryable: false,
     severity: ErrorSeverity.INFO,
     userMessage: "The request was cancelled.",
     devMessage: "Request aborted via AbortSignal. This is expected and not an error condition.",
@@ -269,15 +326,13 @@ export const ERROR_REGISTRY: ErrorRegistry = {
     ],
   }),
 
-  UNAUTHORIZED: defineError(ErrorCode.UNAUTHORIZED, {
+  UNAUTHORIZED: defineProtocolError("UNAUTHORIZED", {
     summary: "Unauthorized",
     detail: "Authentication is required but was not provided or is invalid.",
     category: ErrorCategory.AUTH,
-    retryable: false,
     severity: ErrorSeverity.ERROR,
     userMessage: "Authentication required. Please sign in.",
     devMessage: "Missing or invalid authentication credentials. Check auth token/API key.",
-    httpStatus: 401,
     suggestions: [
       "Provide valid authentication credentials",
       "Check token hasn't expired",
@@ -285,15 +340,13 @@ export const ERROR_REGISTRY: ErrorRegistry = {
     ],
   }),
 
-  FORBIDDEN: defineError(ErrorCode.FORBIDDEN, {
+  FORBIDDEN: defineProtocolError("FORBIDDEN", {
     summary: "Forbidden",
     detail: "The authenticated user doesn't have permission to access this resource.",
     category: ErrorCategory.AUTH,
-    retryable: false,
     severity: ErrorSeverity.ERROR,
     userMessage: "You don't have permission to access this resource.",
     devMessage: "Insufficient permissions. Check user roles and resource ACLs.",
-    httpStatus: 403,
     suggestions: [
       "Verify user has required permissions",
       "Check resource access control lists",
@@ -301,15 +354,13 @@ export const ERROR_REGISTRY: ErrorRegistry = {
     ],
   }),
 
-  NOT_FOUND: defineError(ErrorCode.NOT_FOUND, {
+  NOT_FOUND: defineProtocolError("NOT_FOUND", {
     summary: "Not found",
     detail: "The requested resource does not exist.",
     category: ErrorCategory.CLIENT,
-    retryable: false,
     severity: ErrorSeverity.ERROR,
     userMessage: "The requested item was not found.",
     devMessage: "Resource not found. Verify ID/path is correct and resource exists.",
-    httpStatus: 404,
     suggestions: [
       "Verify the resource ID is correct",
       "Check the resource hasn't been deleted",
@@ -402,17 +453,15 @@ export const ERROR_REGISTRY: ErrorRegistry = {
   // ═══ Server Errors (5xx) ═══
   //
 
-  INTERNAL_ERROR: defineError(ErrorCode.INTERNAL_ERROR, {
+  INTERNAL_ERROR: defineProtocolError("INTERNAL_ERROR", {
     summary: "Internal server error",
     detail: "The server encountered an unexpected condition. This is a server-side bug.",
     category: ErrorCategory.SERVER,
-    retryable: true,
     severity: ErrorSeverity.CRITICAL,
     userMessage: "Server error occurred. Please try again later.",
     devMessage: "Internal server error. Check server logs for details.",
-    httpStatus: 500,
+    // The protocol says that a retry does not help (ERROR_CODES: retryable false)
     suggestions: [
-      "Retry the request",
       "Check server logs",
       "Contact server team",
     ],
@@ -553,6 +602,14 @@ export const ERROR_REGISTRY: ErrorRegistry = {
   // Merge HTTP-specific errors
   ...HTTP_ERROR_REGISTRY,
 } as const satisfies ErrorRegistry;
+
+/**
+ * Universal Error Registry
+ *
+ * Protocol-agnostic error codes with rich metadata. Each code of the wire protocol has an entry,
+ * and `ERROR_CODES` gives its HTTP status and its retry flag.
+ */
+export const ERROR_REGISTRY: ErrorRegistry = withProtocolCodes(DESCRIBED_ERRORS);
 
 /**
  * Get error metadata by code.
