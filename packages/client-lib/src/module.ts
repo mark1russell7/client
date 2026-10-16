@@ -15,6 +15,7 @@ import {
   libRename,
   libNew,
   libAudit,
+  libGraph,
 } from "./procedures/lib/index.js";
 import {
   ecosystemProcedures,
@@ -51,6 +52,7 @@ import {
   DagTraverseOutputSchema,
   CoreCatchOutputSchema,
 } from "./types.js";
+import { LibGraphInputSchema, LibGraphOutputSchema, type LibGraphInput, type LibGraphOutput } from "./types.js";
 import type { ProcedureContext } from "@procedures/client";
 
 // =============================================================================
@@ -129,6 +131,22 @@ const libAuditProcedure = createProcedure()
   .handler(async (input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput> => {
     return libAudit(input, ctx);
   })
+  .build();
+
+// lib.graph (roadmap R44)
+const libGraphProcedure = createProcedure()
+  .path(["lib", "graph"])
+  .input(zodAdapter<LibGraphInput>(LibGraphInputSchema))
+  .output(zodAdapter<LibGraphOutput>(LibGraphOutputSchema))
+  .meta({
+    description: "The dependency graph of the workspace packages: nodes, workspace: edges, cycles and build levels",
+    calls: ["fs.readdir", "fs.read.json"],
+    effects: { reads: ["fs"], writes: [] },
+    args: [],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: LibGraphInput, ctx: ProcedureContext): Promise<LibGraphOutput> => libGraph(input, ctx))
   .build();
 
 // =============================================================================
@@ -212,6 +230,7 @@ export const libModule: ProcedureModule = defineModule("@procedures/lib", [
     libRenameProcedure,
     libNewProcedure,
     libAuditProcedure,
+    libGraphProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
     // dag.* procedures (canonical home)

@@ -524,3 +524,85 @@ export const CoreCatchOutputSchema: z.ZodType<CoreCatchOutput> = z.looseObject({
   error: z.string().optional().describe("The error of try, when it failed"),
   continue: z.boolean().describe("True when the caller can continue"),
 });
+
+// =============================================================================
+// lib.graph Types (roadmap R44)
+// =============================================================================
+
+/** The fields of package.json that give the edges of the graph. */
+export type DependencyKind = "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies";
+
+export interface LibGraphInput {
+  /** The workspace root (default: the pnpm workspace that contains client-lib) */
+  rootPath?: string | undefined;
+}
+
+export interface LibGraphNode {
+  /** The name in package.json */
+  name: string;
+  /** The folder in packages/ */
+  folder: string;
+  version?: string | undefined;
+  private?: boolean | undefined;
+}
+
+export interface LibGraphEdge {
+  /** The package that depends */
+  from: string;
+  /** The package that it depends on */
+  to: string;
+  kind: DependencyKind;
+  /** The specifier, for example workspace:* */
+  spec: string;
+}
+
+export interface LibGraphOutput {
+  /** The workspace root */
+  root: string;
+  nodes: LibGraphNode[];
+  edges: LibGraphEdge[];
+  /** True when the graph has no cycle */
+  acyclic: boolean;
+  /** Each cycle: the packages of a strongly connected component, in name order */
+  cycles: string[][];
+  /** Without a cycle: the packages in levels. Level 0 depends on no workspace package. */
+  levels?: string[][] | undefined;
+  /** The folders that the procedure could not read */
+  warnings: Array<{ path: string; issue: string }>;
+}
+
+export const LibGraphInputSchema: z.ZodType<LibGraphInput> = z.object({
+  rootPath: z.string().optional().describe("The workspace root (default: the pnpm workspace that contains client-lib)"),
+});
+
+const DEPENDENCY_KINDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
+
+export const LibGraphOutputSchema: z.ZodType<LibGraphOutput> = z.looseObject({
+  root: z.string().describe("The workspace root"),
+  nodes: z
+    .array(
+      z.looseObject({
+        name: z.string().describe("The name in package.json"),
+        folder: z.string().describe("The folder in packages/"),
+        version: z.string().optional().describe("The version in package.json"),
+        private: z.boolean().optional().describe("True for a private package"),
+      })
+    )
+    .describe("The workspace packages, in name order"),
+  edges: z
+    .array(
+      z.looseObject({
+        from: z.string().describe("The package that depends"),
+        to: z.string().describe("The package that it depends on"),
+        kind: z.enum(DEPENDENCY_KINDS).describe("The field of package.json"),
+        spec: z.string().describe("The specifier, for example workspace:*"),
+      })
+    )
+    .describe("The workspace: dependencies between the packages"),
+  acyclic: z.boolean().describe("True when the graph has no cycle"),
+  cycles: z.array(z.array(z.string())).describe("Each cycle: the packages of a strongly connected component, in name order"),
+  levels: z.array(z.array(z.string())).optional().describe("Without a cycle: the packages in levels. Level 0 depends on no workspace package."),
+  warnings: z
+    .array(z.looseObject({ path: z.string().describe("The folder"), issue: z.string().describe("The problem") }))
+    .describe("The folders that the procedure could not read"),
+});

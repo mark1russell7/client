@@ -15,7 +15,9 @@ export {
   libRename,
   libNew,
   libAudit,
+  libGraph,
 } from "./procedures/lib/index.js";
+export { findCycles } from "./procedures/lib/graph.js";
 
 // Re-export ecosystem procedures
 export {
