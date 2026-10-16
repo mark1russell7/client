@@ -111,7 +111,7 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 
 ### The OIDC exchange of npm
 
-On 2026-10-16, npm refused the OIDC exchange of this repository with "package not found". This repository has the immutable OIDC subject of GitHub ([npm/cli#9969](https://github.com/npm/cli/issues/9969)), and each trusted publisher named the GitHub environment `npm`. The systems repository has the same subject and publishes, and its trusted publishers name no environment. So on the same day the trusted publishers of the 30 packages were made again without an environment, and the release job lost its environment. The next release from the workflow tests this.
+On 2026-10-16, npm refused the OIDC exchange of this repository with "package not found". This repository has the immutable OIDC subject of GitHub ([npm/cli#9969](https://github.com/npm/cli/issues/9969)), and each trusted publisher named the GitHub environment `npm`. The systems repository has the same subject and publishes, and its trusted publishers name no environment. So on the same day the trusted publishers of the 30 packages were made again without an environment, and the release job lost its environment. Then the workflow published 0.2.1 and 0.2.2 with OIDC and provenance.
 
 If the exchange fails again, publish the release from the computer of the owner:
 
