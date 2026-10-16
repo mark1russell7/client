@@ -15,6 +15,7 @@
  */
 
 export * from "./procedures/git.js";
-export { GitError, type GitContext } from "./procedures/git/run.js";
+export { git, GitError, type GitContext, type GitRunOptions } from "./procedures/git/run.js";
+export { parsePorcelainV1, classifyStatus, type GitPorcelainEntry } from "./procedures/git/porcelain.js";
 export { parseNumstat } from "./procedures/git/diff.js";
 export * from "./module.js";

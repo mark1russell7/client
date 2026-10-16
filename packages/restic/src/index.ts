@@ -2,3 +2,4 @@
 export * from "./module.js";
 export * from "./procedures.js";
 export * from "./argv.js";
+export * from "./executable.js";

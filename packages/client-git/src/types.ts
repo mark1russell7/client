@@ -11,11 +11,20 @@ import { z } from "zod";
 export const GitStatusInputSchema: z.ZodObject<{
   cwd: z.ZodOptional<z.ZodString>;
   short: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+  paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
+  untrackedFiles: z.ZodOptional<z.ZodEnum<{ no: "no"; normal: "normal"; all: "all" }>>;
 }> = z.object({
   /** Working directory (default: process.cwd()) */
   cwd: z.string().optional().describe("Working directory (default: process.cwd())"),
   /** Show short format (default: false) */
   short: z.boolean().optional().default(false).describe("Show short format (default: false)"),
+  /** Only the files of these pathspecs (git status -- <paths>) */
+  paths: z.array(z.string().min(1)).optional().describe("Only the files of these pathspecs (git status -- <paths>)"),
+  /** The untracked files: none ("no"), new folders as one entry ("normal", the default of git), or each file ("all") */
+  untrackedFiles: z
+    .enum(["no", "normal", "all"])
+    .optional()
+    .describe('The untracked files (--untracked-files): "no", "normal" (a new folder is one entry) or "all" (each file)'),
 });
 
 export type GitStatusInput = z.infer<typeof GitStatusInputSchema>;
@@ -70,6 +79,7 @@ export const GitCommitInputSchema: z.ZodObject<{
   message: z.ZodString;
   all: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
   amend: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+  paths: z.ZodOptional<z.ZodArray<z.ZodString>>;
   cwd: z.ZodOptional<z.ZodString>;
 }> = z.object({
   /** Commit message */
@@ -78,6 +88,14 @@ export const GitCommitInputSchema: z.ZodObject<{
   all: z.boolean().optional().default(false).describe("Automatically stage modified files (default: false)"),
   /** Amend the last commit (default: false) */
   amend: z.boolean().optional().default(false).describe("Amend the last commit (default: false)"),
+  /**
+   * Commit only these pathspecs, as they are in the working tree (git commit -- <paths>). Other
+   * staged changes stay in the index. A file must be tracked: add a new file first.
+   */
+  paths: z
+    .array(z.string().min(1))
+    .optional()
+    .describe("Commit only these pathspecs, as they are in the working tree (git commit -- <paths>). Other staged changes stay staged"),
   /** Working directory */
   cwd: z.string().optional().describe("Working directory"),
 });

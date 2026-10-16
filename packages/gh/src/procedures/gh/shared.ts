@@ -13,6 +13,7 @@ interface ShellRunInput {
   args: string[];
   cwd?: string;
   timeout?: number;
+  env?: Record<string, string>;
 }
 
 /** A failed gh command: its exit code and its error text. */
@@ -38,11 +39,15 @@ export function repoArgs(input: GhCommonInput): string[] {
   return input.repo === undefined ? [] : ["--repo", ghArg("repo", input.repo)];
 }
 
-/** This function runs `gh <args>` and gives its output. It throws a GhError for a failed command. */
-export async function runGh(args: string[], input: GhCommonInput, ctx: ProcedureContext): Promise<string> {
+/**
+ * This function runs `gh <args>` and gives its output. It throws a GhError for a failed command.
+ * The `env` variables go to gh in addition to the environment of the host.
+ */
+export async function runGh(args: string[], input: GhCommonInput, ctx: ProcedureContext, env?: Record<string, string>): Promise<string> {
   const shellInput: ShellRunInput = { command: "gh", args };
   if (input.cwd !== undefined) shellInput.cwd = input.cwd;
   if (input.timeoutMs !== undefined) shellInput.timeout = input.timeoutMs;
+  if (env !== undefined) shellInput.env = env;
   const result = await ctx.client.call<ShellRunInput, { exitCode: number; stdout: string; stderr: string }>(["shell", "run"], shellInput);
   if (result.exitCode !== 0) {
     const text = result.stderr.trim() || result.stdout.trim();
@@ -66,6 +71,15 @@ export function listArgs(input: { limit?: number | undefined; search?: string | 
   const args = ["--limit", String(input.limit ?? 30)];
   if (input.search !== undefined) args.push("--search", input.search);
   return args;
+}
+
+/**
+ * This function gives the `key=value` argument of a field (`-f`, `-F`). The key cannot be empty,
+ * contain "=" or start with "-".
+ */
+export function fieldArg(name: string, key: string, value: string): string {
+  if (key.length === 0 || key.includes("=") || key.startsWith("-")) throw new Error(`Invalid ${name} name (empty, with "=", or starts with "-"): ${key}`);
+  return `${key}=${value}`;
 }
 
 /** The last line of an output that is a URL: gh prints the URL of what it made. */

@@ -28,3 +28,40 @@ const { json } = await client.exec(["restic", "run"], { path: ["snapshots"] });
 ## Secrets
 
 restic reads the repository and its keys from the environment (`RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `B2_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` and the others), so no secret is an input. `restic.run` refuses `--password-command`, because that flag starts a program.
+
+A host can give the secrets only to the restic process, with the `env` option of `createResticModule()` or `runRestic()`:
+
+- The values go on top of the environment of the host. The value `undefined` removes a variable of the host.
+- The environment of the host does not change, and the output does not contain the values.
+- The procedure input has no field for them. The caller of `restic.run` cannot read or change them.
+
+```ts
+const registry = createRegistry(createResticModule({ env: { RESTIC_REPOSITORY: repository, RESTIC_PASSWORD: password } }));
+```
+
+restic can write the repository address in its error text. Remove it before you show the text to a user.
+
+## Library functions
+
+The package root exports the functions that `restic.run` uses:
+
+| Function | What it does |
+| --- | --- |
+| `runRestic(command, options)` | Starts a restic command with argv, and reads its JSON output. |
+| `findRestic(options)` | Finds the restic program. |
+| `resticArgv(command)` | Gives the argv of a restic command. |
+| `createResticModule(options)` | Gives the module with the settings of the host: `env` and `run`. |
+
+- `command` has `path`, `positional`, `args`, `repository` and `json`. `json` is true when the command does not set it, as in `restic.run`.
+- `options` of `runRestic` has `executable`, `env`, `cwd`, `timeout`, `signal` and `run`.
+- `runRestic` throws when restic does not start. A failed command gives `success: false`, with `exitCode` and `stderr`.
+- `run` replaces the function that starts restic. A test gives a fake runner.
+- `findRestic` gives `RESTIC_EXE` when it is set. On Windows, it then looks for the `restic*.exe` of a WinGet package. Then it gives `restic`, and the `PATH` gives the program.
+
+```ts
+const executable = await findRestic();
+const result = await runRestic(
+  { path: ["forget"], args: { "keep-daily": 14, "keep-weekly": 12, prune: true } },
+  { executable, env: { RESTIC_REPOSITORY: repository, RESTIC_PASSWORD: password } },
+);
+```

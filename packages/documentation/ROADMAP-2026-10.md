@@ -97,6 +97,11 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R47 | 9 | Generate `PROCEDURES.md` and `PACKAGES.md` again | S | fixed, and CI keeps them current | `596190d`, `2315ea9` |
 | R48 | 9 | Packages from jarvis, wave 1: `ics`, `mail`, `geo`, `weather`, `exif`, `notify` (the jarvis session builds them) | M | fixed by the jarvis session, with an opt-in bundle for MCP | `5e2ba76`, `382b0fd`, `120be4c`, `4055a3d` |
 | R49 | 9 | Packages from jarvis, wave 2: `restic.run` and `tailscale.run` (the jarvis session builds them) | S | fixed by the jarvis session, not tools | `5e2ba76` |
+| R50 | 9 | Packages from jarvis, wave 3: `git.status` with paths and untracked files, `git.commit` of paths, `gh.workflow.run`, `gh.run.download`, `gh.api`, and an `env` option of the restic function | M | in progress | |
+| R51 | 9 | Wave 3: an iCalendar writer in `ics`, and the distance and the geohash in `geo` | S | in progress | |
+| R52 | 9 | Wave 3: `@procedures/ios-backup` (an iPhone backup and its messages) and `@procedures/privacy-scan` (private data in text) | M | in progress, not tools | |
+| R53 | 9 | Wave 3: `@procedures/pdf` (HTML to PDF with a browser that is installed) and `@procedures/claude-cli` (a turn of the Claude Code CLI) | M | in progress, not tools | |
+| R54 | 9 | Wave 3: jarvis uses the packages of R50 to R53 in place of its own copies | M | part 1 done (jarvis PR #28) | |
 
 ## Tier 1: defects and gates
 
@@ -555,6 +560,11 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 | R47 | Generate `PROCEDURES.md` and `PACKAGES.md` again. They say 157 procedures, and the registry has 158. Result: the CI job on Node 26 makes them from the built registry and fails on a difference. Its artifact has the new files. |
 | R48 | Code from jarvis without personal data: `@procedures/ics` (parse, fetch, occurrences), `@procedures/mail` (parse, headers), `@procedures/geo` (geocode, route), `@procedures/weather` (forecast), `@procedures/exif` (read), `@procedures/notify` (send through ntfy). The jarvis session builds them. This session adds them to the bundles and the MCP snapshots. |
 | R49 | `restic.run` and `tailscale.run`: one procedure for each CLI tool, on `client-shell`. The jarvis session builds them. |
+| R50 | A review of jarvis (2026-10-16) found copies that the packages could not take yet. The jarvis vault commits only some paths, the stage runner starts workflows and downloads their artifacts, and the backup gives the restic passwords only to the child process. The procedure input of restic stays without secrets. |
+| R51 | jarvis writes `.ics` files by hand, without the fold at 75 octets. The writer escapes the text, folds the lines and reads back with the parser of the package. `geo.distance` and `geo.geohash` give the same numbers as the jarvis code. |
+| R52 | Generic code of jarvis without personal data. `ios-backup` reads `Manifest.db` and `sms.db` with `node:sqlite` (Node 22.13 or later). The MCP host gets neither package: a backup holds private messages. |
+| R53 | Generic code of jarvis. `pdf` finds Edge, Chrome or Chromium and prints a page. `claude-cli` starts a turn that outlives its host, reads its output file and normalizes the events. |
+| R54 | Part 1 used the packages of 0.3.0: `STATUS.yaml` through `parseYaml`, `git log` and `docker ps` through `runCommand`, map tiles through `http.request`. Part 2 follows the release of R50 to R53. |
 
 ## Items for a decision
 

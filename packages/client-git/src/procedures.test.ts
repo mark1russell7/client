@@ -71,6 +71,28 @@ describe("git.status", () => {
     mkdirSync(empty);
     await expect(call(["git", "status"], { cwd: empty })).rejects.toThrow(/not a git repository/i);
     await expect(call(["git", "status"], { cwd: 5 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(call(["git", "status"], { cwd: repo, untrackedFiles: "some" })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("gives only the files of the paths, and each untracked file with untrackedFiles: all", async () => {
+    writeFileSync(join(repo, "a.txt"), "two\n");
+    mkdirSync(join(repo, "notes", "2026"), { recursive: true });
+    writeFileSync(join(repo, "notes", "2026", "one.md"), "1\n");
+    writeFileSync(join(repo, "notes", "two words.md"), "2\n");
+    writeFileSync(join(repo, "-dash.txt"), "d\n");
+    // The default of git: a new folder is one entry
+    const normal = await call<GitStatusOutput>(["git", "status"], { cwd: repo, paths: ["notes"] });
+    expect(normal.files).toEqual([{ path: "notes/", status: "untracked", staged: false }]);
+    const all = await call<GitStatusOutput>(["git", "status"], { cwd: repo, paths: ["notes"], untrackedFiles: "all" });
+    expect(all.files.map((file) => file.path).sort()).toEqual(["notes/2026/one.md", "notes/two words.md"]);
+    // A path that starts with "-" is a pathspec after "--"
+    const dash = await call<GitStatusOutput>(["git", "status"], { cwd: repo, paths: ["-dash.txt"] });
+    expect(dash.files).toEqual([{ path: "-dash.txt", status: "untracked", staged: false }]);
+    const none = await call<GitStatusOutput>(["git", "status"], { cwd: repo, untrackedFiles: "no" });
+    expect(none.files).toEqual([{ path: "a.txt", status: "modified", staged: false }]);
+    // Without the options, the output is the same as before
+    const everything = await call<GitStatusOutput>(["git", "status"], { cwd: repo });
+    expect(everything.files.map((file) => file.path).sort()).toEqual(["-dash.txt", "a.txt", "notes/"]);
   });
 });
 
@@ -141,6 +163,33 @@ describe("git.commit", () => {
 
   it("refuses an input without a message", async () => {
     await expect(call(["git", "commit"], { cwd: repo })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("commits only the paths, from the working tree, and keeps the other staged changes in the index", async () => {
+    mkdirSync(join(repo, "ledger"));
+    writeFileSync(join(repo, "ledger", "day one.ndjson"), "{}\n");
+    git(repo, "add", "ledger");
+    git(repo, "commit", "-q", "-m", "ledger");
+    // A change of the path that is not staged, and a staged change of another file
+    writeFileSync(join(repo, "ledger", "day one.ndjson"), "{}\n{}\n");
+    writeFileSync(join(repo, "a.txt"), "staged, not for this commit\n");
+    git(repo, "add", "a.txt");
+    const commit = await call<GitCommitOutput>(["git", "commit"], { cwd: repo, message: "ledger: one more", paths: ["ledger"] });
+    expect(commit.skipped).toBeUndefined();
+    expect(git(repo, "show", "--name-only", "--format=", "HEAD").trim()).toBe("ledger/day one.ndjson");
+    // a.txt is still staged
+    expect(git(repo, "diff", "--cached", "--name-only").trim()).toBe("a.txt");
+  });
+
+  it("skips paths without a change of a tracked file, and refuses all with paths", async () => {
+    writeFileSync(join(repo, "a.txt"), "changed\n");
+    writeFileSync(join(repo, "new.txt"), "new\n");
+    expect(await call<GitCommitOutput>(["git", "commit"], { cwd: repo, message: "x", paths: ["new.txt"] })).toMatchObject({ skipped: true });
+    expect(await call<GitCommitOutput>(["git", "commit"], { cwd: repo, message: "x", paths: ["missing"] })).toMatchObject({ skipped: true });
+    await expect(call(["git", "commit"], { cwd: repo, message: "x", paths: ["a.txt"], all: true })).rejects.toThrow(/all and paths/);
+    // An empty list is the same as no paths: nothing is staged
+    expect(await call<GitCommitOutput>(["git", "commit"], { cwd: repo, message: "x", paths: [] })).toMatchObject({ skipped: true });
+    expect(git(repo, "rev-list", "--count", "HEAD").trim()).toBe("1");
   });
 });
 
