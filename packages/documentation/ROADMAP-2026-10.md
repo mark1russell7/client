@@ -319,7 +319,14 @@ Three parts read programs today: the interpreter, the analysis of the site and t
 - A typed SDK and an OpenRPC document from the manifest (R17).
 - `procedure.explain`, which wraps `explainInvocation`.
 
-**Result.** `@procedures/compiler` gives a Mermaid flowchart of a program (`toMermaid`, `diagramProgram`, the procedure `program.diagram`), an explanation of each call under a capability (`explainProgram`, the procedure `program.explain`), an OpenRPC 1.3 document (`toOpenRpc`, `sdk.openrpc`) and a typed SDK without imports (`toTypeScriptSdk`, `sdk.typescript`). The tool description of a defined procedure tells the effects of its body. The MCP host has 67 tools. The namespace `sdk` is not a tool namespace.
+**Result.** `@procedures/compiler` gives these outputs:
+
+- A Mermaid flowchart of a program: `toMermaid`, `diagramProgram` and the procedure `program.diagram`.
+- An explanation of each call under a capability: `explainProgram` and the procedure `program.explain`.
+- An OpenRPC 1.3 document: `toOpenRpc` and the procedure `sdk.openrpc`.
+- A typed SDK without imports: `toTypeScriptSdk` and the procedure `sdk.typescript`.
+
+ The tool description of a defined procedure tells the effects of its body. The MCP host has 67 tools. The namespace `sdk` is not a tool namespace.
 
 ## Tier 5: the bidirectional peer and the wire
 
