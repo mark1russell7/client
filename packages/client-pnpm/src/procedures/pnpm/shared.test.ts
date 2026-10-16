@@ -47,4 +47,14 @@ describe("pnpm procedures", () => {
     const { script } = setup();
     expect(resolvePnpm()).toEqual({ command: process.execPath, prefix: [script] });
   });
+
+  it("resolve pnpm from npm_execpath when it is the executable of pnpm 12", () => {
+    const folder = mkdtempSync(join(tmpdir(), "pnpm-"));
+    for (const name of ["pnpm.exe", "pnpm"]) {
+      const executable = join(folder, name);
+      writeFileSync(executable, "");
+      process.env["npm_execpath"] = executable;
+      expect(resolvePnpm()).toEqual({ command: executable, prefix: [] });
+    }
+  });
 });

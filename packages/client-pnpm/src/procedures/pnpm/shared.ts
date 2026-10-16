@@ -41,10 +41,13 @@ export function selectionArgs(input: PnpmSelection): string[] {
 
 /** The program and the first arguments that start pnpm without a shell. */
 export function resolvePnpm(): { command: string; prefix: string[] } {
-  // When pnpm runs this process, npm_execpath is its script
+  // When pnpm runs this process, npm_execpath is its script, or its executable from pnpm 12 on
   const execPath = process.env["npm_execpath"];
   if (execPath && /pnpm\.c?js$/.test(execPath) && existsSync(execPath)) {
     return { command: process.execPath, prefix: [execPath] };
+  }
+  if (execPath && /(^|[\\/])pnpm(\.exe)?$/i.test(execPath) && existsSync(execPath)) {
+    return { command: execPath, prefix: [] };
   }
   if (process.platform !== "win32") {
     return { command: "pnpm", prefix: [] };
@@ -59,7 +62,7 @@ export function resolvePnpm(): { command: string; prefix: string[] } {
       return { command: process.execPath, prefix: [script] };
     }
   }
-  throw new Error("pnpm was not found: install pnpm, or run this from a pnpm script");
+  throw new Error(`pnpm was not found: install pnpm, or run this from a pnpm script (npm_execpath: ${execPath ?? "not set"})`);
 }
 
 /** This function runs `pnpm <args>` and gives its result. It does not throw for a failed command. */
