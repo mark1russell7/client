@@ -1,0 +1,159 @@
+name: Nightly
+
+# The long checks of stage 3 of the testing program (roadmap R32). They run each night and by
+# hand. A push does not start them: the CI workflow has the fast checks.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # The benchmark job reads the artifact of the last nightly run
+  actions: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    name: Mutation tests (Stryker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # The resolver of references, the capabilities, the expose rule and the middleware
+      # (packages/client/stryker.config.mjs). The score does not fail the run yet.
+      - run: pnpm --filter @procedures/client exec stryker run
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: packages/client/reports/mutation
+          retention-days: 30
+
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @procedures/client exec vitest bench --run --dir bench
+      # The results of the last successful nightly run are the earlier results. The first run has
+      # none: it only shows the times.
+      - name: Compare with the last nightly run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/earlier"
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name bench-results --dir "$RUNNER_TEMP/earlier" || true
+          fi
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier" packages/client/bench/results --factor 2
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results
+          path: packages/client/bench/results
+          retention-days: 30
+
+  soak:
+    name: WebSocket soak (10 minutes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # --expose-gc: the test measures the heap after a collection
+      - run: pnpm --filter @procedures/client exec vitest run src/soak.test.ts
+        env:
+          SOAK_MINUTES: "10"
+          NODE_OPTIONS: --expose-gc
+
+  live:
+    name: Real MongoDB and Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: The mongo.* procedures against MongoDB 7
+        run: pnpm --filter @procedures/mongo exec vitest run src/live.test.ts
+        env:
+          LIVE_MONGO: "1"
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DATABASE: procedures_live
+      - name: The docker.* procedures and the docker CLI against the Docker of the runner
+        run: pnpm --filter @procedures/docker exec vitest run __tests__/procedures.integration.test.ts __tests__/docker.integration.test.ts
+        env:
+          LIVE_DOCKER: "1"
+
+  windows:
+    name: Windows (Node 24)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      # `lib new` runs cue-config, which needs the CUE binary (the scaffold test of mark)
+      - name: Install CUE
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/cue.zip" https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_windows_amd64.zip
+          unzip -o -q "$RUNNER_TEMP/cue.zip" cue.exe -d "$RUNNER_TEMP/cue"
+          echo "$RUNNER_TEMP/cue" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: node .github/scripts/typecheck-tests.mjs
+      - run: pnpm test
+      - run: pnpm --filter @procedures/mark test:e2e

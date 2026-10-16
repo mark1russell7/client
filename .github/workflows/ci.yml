@@ -72,6 +72,36 @@ jobs:
             }
           ' "$RUNNER_TEMP/audit.json"
 
+  coverage:
+    name: Coverage (the floors only go up)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      # The scaffold test of mark runs cue-config, which needs the CUE binary
+      - name: Install CUE
+        run: |
+          curl -fsSL https://github.com/cue-lang/cue/releases/download/v0.15.1/cue_v0.15.1_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP" cue
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Each package against its floor in coverage-baseline.json (roadmap R31). The raised floors
+      # are an artifact: copy them to coverage-baseline.json to raise the floors.
+      - run: node scripts/coverage.mjs --allow-missing --out "$RUNNER_TEMP/coverage-floors.json"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-floors
+          path: ${{ runner.temp }}/coverage-floors.json
+          retention-days: 30
+
   package:
     name: Packages (pack, publint, attw, install)
     runs-on: ubuntu-latest

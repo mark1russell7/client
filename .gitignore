@@ -91,3 +91,8 @@ temp/
 *.tmp
 *.bak
 *.orig
+
+# Mutation tests (roadmap R32)
+.stryker-tmp/
+packages/*/reports/
+packages/client/bench/results/
