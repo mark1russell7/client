@@ -1,6 +1,7 @@
 /**
- * db.query and logs.query only read (CAP-1, CAP-3, roadmap R7). Before, db.query ran any
- * statement and the file kept its changes, and the first logs.query made the database file.
+ * sqlite.query and logs.query only read (CAP-1, CAP-3, roadmap R7). Before, the query procedure
+ * (then db.query) ran any statement and the file kept its changes, and the first logs.query made
+ * the database file.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -28,23 +29,23 @@ function call<T>(service: string, operation: string, input: unknown): Promise<T>
   return client.call<unknown, T>({ service, operation }, input);
 }
 
-describe("db.query is read only (CAP-1)", () => {
+describe("sqlite.query is read only (CAP-1)", () => {
   it("refuses a statement that changes data, and the file keeps its bytes", async () => {
     const dbPath = tempDb();
-    await call("db", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER)" });
-    await call("db", "execute", { dbPath, sql: "INSERT INTO t VALUES (1)" });
+    await call("sqlite", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER)" });
+    await call("sqlite", "execute", { dbPath, sql: "INSERT INTO t VALUES (1)" });
     const before = readFileSync(dbPath);
     for (const sql of ["INSERT INTO t VALUES (2)", "DELETE FROM t", "DROP TABLE t", "CREATE TABLE u (x)"]) {
-      await expect(call("db", "query", { dbPath, sql })).rejects.toThrow(/readonly|read-only|query_only/i);
+      await expect(call("sqlite", "query", { dbPath, sql })).rejects.toThrow(/readonly|read-only|query_only/i);
     }
     expect(readFileSync(dbPath).equals(before)).toBe(true);
-    const rows = await call<DbQueryOutput>("db", "query", { dbPath, sql: "SELECT n FROM t" });
+    const rows = await call<DbQueryOutput>("sqlite", "query", { dbPath, sql: "SELECT n FROM t" });
     expect(rows.rows).toEqual([{ n: 1 }]);
   });
 
   it("does not make a missing file", async () => {
     const dbPath = tempDb();
-    await call<DbQueryOutput>("db", "query", { dbPath, sql: "SELECT 1 AS one" });
+    await call<DbQueryOutput>("sqlite", "query", { dbPath, sql: "SELECT 1 AS one" });
     expect(existsSync(dbPath)).toBe(false);
   });
 });

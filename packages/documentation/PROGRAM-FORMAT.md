@@ -123,7 +123,7 @@ The rules:
 
 A deferred call is data also in a list and as an operand of each control-flow procedure. Examples are a step of `client.chain`, a branch, a try, a task and the `fn` of `client.map`. A `$never` operand gives the call itself as its result. A list that has a deferred call is not an implicit chain (section 7).
 
-A runner is a procedure that hydrates a deferred call itself and gives a context name. Two runners exist. `core.catch` (`client-lib`) gives `"catch"`, and `dag.traverse` gives `"dag.traverse"`. A `$name` is not a context name. A deferred call is data at all depths. The test is "a ref deferred to a name is data at every depth" in `ref.hydrate.test.ts`.
+A runner is a procedure that hydrates a deferred call itself and gives a context name. One runner exists: `dag.traverse` (`client-dag`) gives `"dag.traverse"`. The control flow `client.tryCatch` is not a runner: it starts its operands itself and gives no name. A `$name` is not a context name. A deferred call is data at all depths. The test is "a ref deferred to a name is data at every depth" in `ref.hydrate.test.ts`.
 
 ## 6. `$literal`: data that looks like a call
 
@@ -233,7 +233,7 @@ Details:
 Hydration gives a procedure its input raw when the registry has the procedure, and one of these conditions is true:
 
 - It is a control-flow procedure (section 8). The full path must agree, thus a user procedure `foo.map` takes ordinary input.
-- Its metadata has the tag `runs-refs`: it starts the refs of its input. Examples are `client.eval`, `procedure.define`, `dag.traverse` and `core.catch`. `client.eval` hydrates the input of its call like `exec()`, in the scope of the caller: the calls and the `$ref` values of that input start.
+- Its metadata has the tag `runs-refs`: it starts the refs of its input. Examples are `client.eval`, `procedure.define` and `dag.traverse`. `client.eval` hydrates the input of its call like `exec()`, in the scope of the caller: the calls and the `$ref` values of that input start.
 - Its metadata has the tag `raw-input`: it takes refs as data and does not start them. Examples are `client.export` and `client.stringifyJson`.
 
 The registry of the caller decides (`rawInputRule()`). For a path that the registry does not have, only the control-flow paths take raw input. A raw input carries the scope of the caller, so nested control flow can read the outer names. The tests are "CORE-5" in `core/semantics.test.ts`.
@@ -277,7 +277,7 @@ The owner decided the root of a defined body in October 2026 (docs review DOC-3)
 - **A context name on a chain step.** A step of `client.chain` with `$when: "$parent"` or a context name starts: the chain is the procedure that gets the step. Only a `$never` step is data.
 - **Parallel hydration.** A program cannot set `parallel: true`. Only `client.parallel` starts refs at the same time.
 - **The scope and a remote call.** A scope does not go over a transport. A control-flow procedure on a different host cannot read the names of the caller.
-- **`$name` as a context.** A `$name` does not make a context for `$when`. Only the runners give context names (`"catch"` and `"dag.traverse"`).
+- **`$name` as a context.** A `$name` does not make a context for `$when`. Only a runner gives a context name (`"dag.traverse"`).
 
 ## Appendix A: differences from the behavior before October 2026
 

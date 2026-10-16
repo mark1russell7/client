@@ -1,5 +1,5 @@
 /**
- * The db.* and logs.* procedures against a temporary database file.
+ * The sqlite.* and logs.* procedures against a temporary database file.
  * (client-sqlite had no tests: deep dive, data observations.)
  */
 
@@ -28,30 +28,30 @@ function call<T>(service: string, operation: string, input: unknown): Promise<T>
   return client.call<unknown, T>({ service, operation }, input);
 }
 
-describe("db.execute and db.query", () => {
+describe("sqlite.execute and sqlite.query", () => {
   it("creates a table, inserts with parameters and reads the rows", async () => {
     const dbPath = tempDb();
-    await call<DbExecuteOutput>("db", "execute", { dbPath, sql: "CREATE TABLE t (id INTEGER, name TEXT)" });
-    const inserted = await call<DbExecuteOutput>("db", "execute", {
+    await call<DbExecuteOutput>("sqlite", "execute", { dbPath, sql: "CREATE TABLE t (id INTEGER, name TEXT)" });
+    const inserted = await call<DbExecuteOutput>("sqlite", "execute", {
       dbPath,
       sql: "INSERT INTO t VALUES (?, ?)",
       params: [1, "Ann"],
     });
     expect(inserted.changes).toBe(1);
 
-    const result = await call<DbQueryOutput>("db", "query", { dbPath, sql: "SELECT id, name FROM t WHERE id = ?", params: [1] });
+    const result = await call<DbQueryOutput>("sqlite", "query", { dbPath, sql: "SELECT id, name FROM t WHERE id = ?", params: [1] });
     expect(result.columns).toEqual(["id", "name"]);
     expect(result.rows).toEqual([{ id: 1, name: "Ann" }]);
   });
 
   it("keeps every row of concurrent inserts into one file", async () => {
     const dbPath = tempDb();
-    await call("db", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER)" });
+    await call("sqlite", "execute", { dbPath, sql: "CREATE TABLE t (n INTEGER)" });
     await Promise.all(
-      Array.from({ length: 20 }, (_, n) => call("db", "execute", { dbPath, sql: "INSERT INTO t VALUES (?)", params: [n] })),
+      Array.from({ length: 20 }, (_, n) => call("sqlite", "execute", { dbPath, sql: "INSERT INTO t VALUES (?)", params: [n] })),
     );
 
-    const result = await call<DbQueryOutput>("db", "query", { dbPath, sql: "SELECT COUNT(*) AS c FROM t" });
+    const result = await call<DbQueryOutput>("sqlite", "query", { dbPath, sql: "SELECT COUNT(*) AS c FROM t" });
     expect(result.rows).toEqual([{ c: 20 }]);
     // Each insert loads and saves the file in turn: on a loaded Windows machine 20 of them took more than 5 s
   }, 30_000);

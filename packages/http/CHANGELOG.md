@@ -1,5 +1,30 @@
 # @procedures/http
 
+## 0.4.0
+
+### Minor Changes
+
+- ff87747: `http.ndjson` and `http.sse` send a POST too. Their inputs have `method` (`GET` or `POST`), `json` (a body of JSON) and `body` (a body of text), as `http.request` has them. The default method is `POST` with a body, and `GET` without one. An LLM API sends its answer to a POST as server-sent events: `http.sse` now reads such a stream.
+  
+  A POST of a stream gets the host check, the size limit of the request body, `timeoutMs`, `idleTimeoutMs` and the deadline of the call. Two bodies, or a `GET` with a body, fail before the request.
+  
+  A POST can change remote data, so the two streams now declare `writes: ["network"]`, as `http.json` does. Before, they declared `writes: []`.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

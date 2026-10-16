@@ -1,21 +1,21 @@
 /**
  * Procedure: server.status
  * Gets the current CLI server status
+ *
+ * The procedure came from `@procedures/peer`: it belongs to the host.
  */
 
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, type Effects, type Procedure } from "@procedures/client";
-import { wrapSchema } from "../schema.js";
-import { ServerStatusOutputSchema } from "../output-schemas.js";
-import { serverStatusInputSchema } from "../input-schemas.js";
-import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "../lockfile.js";
+import { createProcedure, zodAdapter, type Effects, type Procedure } from "@procedures/client";
+import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
+import { ServerStatusOutputSchema, serverStatusInputSchema } from "../schemas.js";
 import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
 
 const MARK_DIR = path.join(os.homedir(), ".mark");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 
-const serverStatusOutputSchema = wrapSchema<ServerStatusOutput>(ServerStatusOutputSchema);
+const serverStatusOutputSchema = zodAdapter<ServerStatusOutput>(ServerStatusOutputSchema);
 
 
 

@@ -1,5 +1,30 @@
 # @procedures/sqlite
 
+## 0.4.0
+
+### Minor Changes
+
+- cc3f5f6: The SQLite procedures have the namespace `sqlite`, not the general namespace `db`: `sqlite.query`, `sqlite.execute`, `sqlite.tables`, `sqlite.schema`, `sqlite.transaction`, `sqlite.migrate` and `sqlite.backup`. The `logs.*` procedures keep their names.
+  
+  The old names stay for one release as deprecated aliases (`db.query` and the others). Each alias has the same handler, the same schemas and the same effects. Its description starts with `Deprecated: use sqlite.<name>`, and its metadata has `deprecated: true`. The next release removes the aliases.
+  
+  The description of the `dbPath` field does not show the home folder of the computer any more. It says `~/logs/cli/cli.db`.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

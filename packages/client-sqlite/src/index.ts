@@ -10,8 +10,8 @@
  *
  * const client = new Client(...);
  *
- * // Execute a query
- * const result = await client.call(["db", "query"], {
+ * // Execute a query (sqlite.query: the old name db.query is a deprecated alias)
+ * const result = await client.call(["sqlite", "query"], {
  *   sql: "SELECT * FROM logs WHERE level = ?",
  *   params: ["error"]
  * });
@@ -70,7 +70,7 @@ export type {
 
 export { DEFAULT_DB_PATH, LOG_LEVELS } from "./types.js";
 
-// The db.* procedures of roadmap R44, for direct use
+// The sqlite.* procedures of roadmap R44, for direct use
 export { dbTables, dbSchema, dbTransaction, dbMigrate, dbBackup } from "./procedures/db/index.js";
 
 // =============================================================================

@@ -304,6 +304,9 @@ importers:
       '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue
+      '@procedures/dag':
+        specifier: workspace:*
+        version: link:../client-dag
       '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
@@ -504,6 +507,13 @@ importers:
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/client-dag:
+    dependencies:
+      '@procedures/client':
+        specifier: workspace:*
+        version: link:../client
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
@@ -1402,6 +1412,9 @@ importers:
       '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue
+      '@procedures/dag':
+        specifier: workspace:*
+        version: link:../client-dag
       '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
@@ -1675,6 +1688,9 @@ importers:
       '@procedures/peer':
         specifier: workspace:*
         version: link:../client-server
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.0
@@ -1746,6 +1762,9 @@ importers:
       '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue
+      '@procedures/dag':
+        specifier: workspace:*
+        version: link:../client-dag
       '@procedures/docker':
         specifier: workspace:*
         version: link:../client-docker
@@ -1830,6 +1849,9 @@ importers:
       '@procedures/schedule':
         specifier: workspace:*
         version: link:../schedule
+      '@procedures/server':
+        specifier: workspace:*
+        version: link:../server
       '@procedures/shell':
         specifier: workspace:*
         version: link:../client-shell

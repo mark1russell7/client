@@ -1,5 +1,32 @@
 # @procedures/mcp-dev-tools
 
+## 0.4.0
+
+### Minor Changes
+
+- cc3f5f6: Breaking change of the MCP tool names: the tools `db.query`, `db.execute`, `db.tables` and `db.schema` change to `sqlite.query`, `sqlite.execute`, `sqlite.tables` and `sqlite.schema`. A client or a stored program that calls a `db.*` tool must use the new name. The number of tools stays 91.
+  
+  `mcpNamespaces` has `sqlite` and not `db`, so the deprecated `db.*` aliases of `@procedures/sqlite` are not tools. `mcpExclude` has `sqlite.transaction`, `sqlite.migrate` and `sqlite.backup`. The bundle also registers the module of `@procedures/dag` (`dag.traverse`), but `dag` is not a tool namespace.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [cc3f5f6]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+  - @procedures/bundle-mcp@0.4.0
+  - @procedures/mcp-server@0.4.0
+  - @procedures/compiler@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

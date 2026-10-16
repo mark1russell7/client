@@ -12,11 +12,11 @@ npm install @procedures/bundle-mcp
 
 `src/register.ts` exports these lists:
 
-- `mcpNamespaces`: the namespaces whose procedures are tools. At this time: `client`, `cue`, `db`, `docker`, `json`, `lib`, `logs`, `mongo`, `procedure`, `program`, `vitest` and `yaml`.
+- `mcpNamespaces`: the namespaces whose procedures are tools. At this time: `client`, `cue`, `docker`, `json`, `lib`, `logs`, `mongo`, `procedure`, `program`, `sqlite`, `vitest` and `yaml`.
 - `mcpExclude`: procedures of those namespaces that are not tools.
   - `vitest.watch`, `vitest.stop` and `vitest.list` manage processes that live longer than a tool call.
   - `docker.prune` deletes in bulk, and `docker.volume.remove` deletes the data of a volume. `docker.push` can carry an image out to any registry.
-  - `mongo.watch` is a stream without an end. `mongo.documents.bulk` and `db.transaction` change data in bulk. `db.migrate` and `db.backup` change or copy the database file.
+  - `mongo.watch` is a stream without an end. `mongo.documents.bulk` and `sqlite.transaction` change data in bulk. `sqlite.migrate` and `sqlite.backup` change or copy the database file.
   - `procedure.store`, `procedure.load`, `procedure.sync`, `procedure.remote` and `procedure.register` need a procedure store, and the MCP server has none.
 
 The result is 91 tools (October 2026):
@@ -25,7 +25,6 @@ The result is 91 tools (October 2026):
 |---|---|
 | `client` | 15: the control-flow procedures (`chain`, `parallel`, `conditional`, `tryCatch`, `map`, `reduce`, `and`, `or`) and `all`, `any`, `none`, `not`, `identity`, `constant`, `throw` |
 | `cue` | 5: `add`, `generate`, `init`, `remove`, `validate` |
-| `db` | 4: `execute`, `query`, `schema`, `tables` |
 | `docker` | 22: `build`, `compose.build`, `compose.down`, `compose.logs`, `compose.ps`, `compose.restart`, `compose.up`, `exec`, `images`, `inspect`, `logs`, `network.create`, `network.list`, `network.remove`, `ps`, `pull`, `rm`, `run`, `stop`, `tag`, `volume.create`, `volume.list` |
 | `json` | 5: `diff`, `merge`, `patch`, `query`, `validate`. They are pure. |
 | `lib` | 5: `audit`, `graph`, `new`, `rename`, `scan` |
@@ -33,6 +32,7 @@ The result is 91 tools (October 2026):
 | `mongo` | 18: the `collections`, `database`, `documents` and `indexes` procedures, with `documents.distinct` and `documents.explain` |
 | `procedure` | 7: `define`, `delete`, `export`, `get`, `list`, `manifest`, `new` |
 | `program` | 4: `check`, `compile`, `diagram`, `explain`. They examine a program before it starts. The program stays data. |
+| `sqlite` | 4: `execute`, `query`, `schema`, `tables` |
 | `vitest` | 2: `coverage`, `run` |
 | `yaml` | 2: `parse`, `stringify`. They are pure. |
 
@@ -45,12 +45,14 @@ The result is 91 tools (October 2026):
 - `fs.*`, `git.*` and `pnpm.*` are not tools: Claude Code has its own tools for files, git and the shell.
 - `snapshot.*` and `s3.*` are not in the bundle: `snapshot.restore` and `s3.delete` change data.
 - `sdk.openrpc` and `sdk.typescript` of the compiler module are registered, but `sdk` is not a tool namespace. They write an OpenRPC document and a TypeScript SDK, and `mark sdk openrpc` gives them.
+- `db` is not a tool namespace. In version 0.4.0, the SQLite procedures changed their namespace from `db` to `sqlite`. The old names stay for one release as deprecated aliases. The tools have only the new names: a client that used the tool `db.query` must use `sqlite.query`.
+- `dag` is not a tool namespace. `dag.traverse` is registered, because the bundle has the module of `client-dag`.
 
 A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only the exposed procedures. Thus `client.chain` cannot reach `shell.exec`. A procedure of code still uses its dependencies: `docker.run` uses `shell.run`.
 
 ## The packages of the bundle
 
-`register.ts` imports `client-lib`, `client-procedure`, `compiler`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite` and `client-vitest`. Their dependencies register `shell.*`, `fs.*` and the `dag.traverse`, `core.catch` and `ecosystem.procedures` procedures of `client-lib`. These procedures are registered but are not tools.
+`register.ts` imports `client-lib`, `client-dag`, `client-procedure`, `compiler`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite` and `client-vitest`. Their dependencies register `shell.*`, `fs.*` and `git.*`. `client-lib` also registers `ecosystem.procedures`, and `client-dag` registers `dag.traverse`. These procedures are registered but are not tools.
 
 ## Use
 

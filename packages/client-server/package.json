@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/peer",
-  "version": "0.3.0",
-  "description": "Serve procedures: HTTP and WebSocket peers with token authentication, browser checks, an expose list, server.create, status and stop, and manifests.",
+  "version": "0.4.0",
+  "description": "Serve procedures: HTTP and WebSocket peers with token authentication, browser checks, an expose list, server.create, server.call and server.connections, and manifests.",
   "keywords": [
     "server",
     "rpc",

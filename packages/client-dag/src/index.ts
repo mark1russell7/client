@@ -62,3 +62,18 @@ export {
   createNode,
   buildNodeMap,
 } from "./dag/index.js";
+
+// The procedure dag.traverse. The root registers nothing: import "@procedures/dag/register", or
+// give the module to createRegistry() with the module of @procedures/lib.
+export * from "./module.js";
+export {
+  DagTraverseInputSchema,
+  DagTraverseOutputSchema,
+  type DagTraverseInput,
+  type DagTraverseOutput,
+  type TraverseNodeResult,
+  type ScannedPackage,
+  type ScanOutput,
+  type PackageNode,
+} from "./procedures/types.js";
+export { dagTraverse, packageNodes, callsGit, keyedLock, repositoryRoot } from "./procedures/traverse.js";

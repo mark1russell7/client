@@ -15,6 +15,7 @@
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
 - [CLI Reference](#cli-reference)
+- [Procedures](#procedures)
 - [Examples](#examples)
 - [Integration](#integration)
 - [Requirements](#requirements)
@@ -167,7 +168,7 @@ procedure-server -p @procedures/mongo/register -t http,websocket
 
 `mark serve` takes the same options and starts the same server.
 
-The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@procedures/client`.
+The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. The `server.*` procedures come from two modules: the module of `@procedures/peer` (`server.create`, `server.call` and the others) and the module of this package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@procedures/client`.
 
 ### Transport Configuration
 
@@ -189,6 +190,22 @@ graph TB
     WSOpts --> Result2["ws://0.0.0.0:3001"]
     BothOpts --> Result3["http + ws on :3000"]
 ```
+
+---
+
+## Procedures
+
+The package has three procedures. They manage the background server of the `mark` CLI (`mark --server`). In version 0.3.0 and before, they were in `@procedures/peer`. Their names did not change.
+
+| Procedure | Function |
+|---|---|
+| `server.start` | Start the CLI server as a background process. It writes `~/.mark/server.log`. |
+| `server.stop` | Stop the CLI servers of the lockfiles, or the server of one port. A process that does not answer as the peer of its lockfile gets no signal. |
+| `server.status` | Give the state of the CLI servers. It deletes the lockfile of a server that does not answer. |
+
+- `import "@procedures/server/register"` registers them in the global registry. The package root and the `./module` entry register nothing.
+- `mark` finds the package from its `client.procedures` field: `mark server start`, `mark server stop` and `mark server status` run them.
+- The lockfiles stay in `@procedures/peer` (`@procedures/peer/lockfile`), because the peer of `mark --server` writes them.
 
 ---
 

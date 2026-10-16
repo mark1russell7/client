@@ -1,5 +1,26 @@
 # @procedures/splay
 
+## 0.4.0
+
+### Minor Changes
+
+- eef27f1: `splay.bridge.info` gives the real name and version of the package, from its `package.json`. Before, it gave the version `1.0.0` for each version. The procedure reads the file at its first call, so an import of the module reads no file.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes

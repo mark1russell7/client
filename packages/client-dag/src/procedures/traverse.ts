@@ -31,6 +31,10 @@
  * - "$immediate" (default): Execute during hydration
  * - "$parent": Defer to parent procedure (dag.traverse executes per-node)
  * - "$never": Never auto-execute, pass as pure data
+ *
+ * The procedure gets the packages of the workspace from `lib.scan` of `@procedures/lib`, through
+ * `ctx.client`. It does not import that package, because `@procedures/lib` depends on this one.
+ * Thus a registry with `dag.traverse` also needs the module of `@procedures/lib`.
  */
 
 import { existsSync } from "node:fs";
@@ -38,19 +42,35 @@ import { dirname, join, resolve } from "node:path";
 import type { ProcedureContext, ProcedurePath } from "@procedures/client";
 import { isAnyProcedureRef, hydrateInput, scopeOf } from "@procedures/client";
 import type {
-  DAGNode,
   DagTraverseInput,
   DagTraverseOutput,
+  PackageNode,
+  ScanOutput,
   TraverseNodeResult,
-} from "../../types.js";
-import { libScan } from "../lib/scan.js";
+} from "./types.js";
 import {
-  buildDAGNodes,
   buildLeveledDAG,
   executeDAG,
   createProcessor,
   filterDAGFromRoot,
-} from "../../dag/index.js";
+} from "../dag/index.js";
+
+/**
+ * This function gives the nodes of the packages of a `lib.scan` output. A dependency on a
+ * package that the scan did not find is not an edge.
+ */
+export function packageNodes(packages: ScanOutput["packages"]): Map<string, PackageNode> {
+  const nodes = new Map<string, PackageNode>();
+  for (const [name, info] of Object.entries(packages)) {
+    nodes.set(name, {
+      id: name,
+      name,
+      repoPath: info.repoPath,
+      dependencies: info.mark1russell7Deps.filter((dep) => packages[dep] !== undefined),
+    });
+  }
+  return nodes;
+}
 
 /** The folder of the git repository that holds `path` (it has `.git`), or `path` itself. */
 export function repositoryRoot(path: string): string {
@@ -113,13 +133,16 @@ export async function dagTraverse(
   const startTime = Date.now();
   const results: TraverseNodeResult[] = [];
 
-  // Scan for all packages
-  const scanResult = await libScan(input.rootPath !== undefined ? { rootPath: input.rootPath } : {}, ctx);
-  let allNodes = buildDAGNodes(scanResult.packages);
+  // Scan for all packages (lib.scan of @procedures/lib)
+  const scanResult = await ctx.client.call<{ rootPath?: string }, ScanOutput>(
+    ["lib", "scan"],
+    input.rootPath !== undefined ? { rootPath: input.rootPath } : {}
+  );
+  let allNodes = packageNodes(scanResult.packages);
 
   // Filter to specific packages if requested
   if (input.filter && input.filter.length > 0) {
-    const filtered = new Map<string, DAGNode>();
+    const filtered = new Map<string, PackageNode>();
     for (const name of input.filter) {
       const node = allNodes.get(name);
       if (node) {
@@ -169,7 +192,7 @@ export async function dagTraverse(
   const lock = keyedLock();
 
   // Create processor that executes visit procedure per node
-  const processor = createProcessor(async (node: DAGNode) => {
+  const processor = createProcessor(async (node: PackageNode) => {
     if (oneAtATime) {
       await lock(repositoryRoot(node.repoPath), () => visit(node));
     } else {
@@ -177,7 +200,7 @@ export async function dagTraverse(
     }
   });
 
-  async function visit(node: DAGNode): Promise<void> {
+  async function visit(node: PackageNode): Promise<void> {
     if (input.dryRun) {
       results.push({
         name: node.name,
@@ -255,6 +278,10 @@ export async function dagTraverse(
     // Ensure all nodes have results (some may have been skipped due to errors)
     for (const [name, nodeResult] of dagResult.results) {
       const existing = results.find((r) => r.name === name);
+      // No test reaches this branch: each visit adds its result before it ends or throws, and
+      // executeDAG gives no result for a node of a level that it skipped. The branch came with
+      // the procedure from client-lib (2026-10). It stays until a decision about it.
+      /* v8 ignore if -- @preserve */
       if (!existing) {
         const node = allNodes.get(name);
         const result: TraverseNodeResult = {

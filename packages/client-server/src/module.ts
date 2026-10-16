@@ -15,14 +15,12 @@ import { serverConnectProcedure } from "./procedures/server.connect.js";
 import { serverDisconnectProcedure } from "./procedures/server.disconnect.js";
 import { manifestGenerateProcedure } from "./procedures/manifest.generate.js";
 import { discoveryAnnounceProcedure } from "./discovery/index.js";
-import { serverStartProcedure } from "./procedures/server.start.js";
-import { serverStopProcedure } from "./procedures/server.stop.js";
-import { serverStatusProcedure } from "./procedures/server.status.js";
 import { serverCallProcedure } from "./procedures/server.call.js";
 import { serverConnectionsProcedure } from "./procedures/server.connections.js";
 
 /**
- * All server procedures
+ * All server procedures. `server.start`, `server.stop` and `server.status` manage the background
+ * server of the `mark` CLI: they are in `@procedures/server`, the package of the host.
  */
 export const procedures: readonly AnyProcedure[] = [
   serverCreateProcedure,
@@ -30,9 +28,6 @@ export const procedures: readonly AnyProcedure[] = [
   serverDisconnectProcedure,
   manifestGenerateProcedure,
   discoveryAnnounceProcedure,
-  serverStartProcedure,
-  serverStopProcedure,
-  serverStatusProcedure,
   serverCallProcedure,
   serverConnectionsProcedure,
 ];

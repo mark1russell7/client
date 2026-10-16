@@ -12,9 +12,6 @@ import type {
   ServerConnectOutput,
   ServerCreateOutput,
   ServerDisconnectOutput,
-  ServerStartOutput,
-  ServerStatusOutput,
-  ServerStopOutput,
 } from "./types.js";
 import type { ServerCallOutput } from "./procedures/server.call.js";
 import type { ServerConnectionsOutput } from "./procedures/server.connections.js";
@@ -60,32 +57,6 @@ export const ManifestGenerateOutputSchema: z.ZodType<ManifestGenerateOutput> = z
     .describe("The JSON manifest, for the json format"),
   typescript: z.string().optional().describe("The TypeScript declarations, for the typescript format"),
   filesWritten: z.array(z.string()).optional().describe("The files that the call wrote, with outputDir"),
-});
-
-export const ServerStartOutputSchema: z.ZodType<ServerStartOutput> = z.looseObject({
-  success: z.boolean().describe("True when the server started"),
-  pid: z.number().optional().describe("The process id of the server"),
-  port: z.number().optional().describe("The port of the server"),
-  endpoint: z.string().optional().describe("The URL of the server"),
-  logFile: z.string().optional().describe("The log file of the server"),
-  message: z.string().describe("A message about the result"),
-});
-
-export const ServerStopOutputSchema: z.ZodType<ServerStopOutput> = z.looseObject({
-  success: z.boolean().describe("True when the server stopped"),
-  message: z.string().describe("A message about the result"),
-});
-
-export const ServerStatusOutputSchema: z.ZodType<ServerStatusOutput> = z.looseObject({
-  running: z.boolean().describe("True when a server runs"),
-  pid: z.number().optional().describe("The process id of the server"),
-  port: z.number().optional().describe("The port of the server"),
-  endpoint: z.string().optional().describe("The URL of the server"),
-  transport: z.string().optional().describe("The transport of the server"),
-  startedAt: z.string().optional().describe("The start time (ISO 8601)"),
-  uptime: z.string().optional().describe("The time since the start, as text"),
-  logFile: z.string().optional().describe("The log file of the server"),
-  message: z.string().describe("A message about the result"),
 });
 
 export const ServerCallOutputSchema: z.ZodType<ServerCallOutput> = z.looseObject({

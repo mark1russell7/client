@@ -18,8 +18,16 @@ SQLite database operations via client procedures. Execute queries and store stru
 - **A collection storage**: `SqliteStorage` keeps a collection in a SQLite table, with a change log
 
 The package has 9 procedures. Its register entry (`import "@procedures/sqlite/register"`) registers them:
-- **Database**: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate`, `db.backup`
+- **Database**: `sqlite.query`, `sqlite.execute`, `sqlite.tables`, `sqlite.schema`, `sqlite.transaction`, `sqlite.migrate`, `sqlite.backup`
 - **Logs**: `logs.store`, `logs.query`
+
+### The old names `db.*`
+
+In version 0.3.0 and before, the database procedures had the namespace `db`. The general name `db` did not tell the database. Since version 0.4.0, the namespace is `sqlite`.
+
+The old names stay for one release as deprecated aliases: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup`. Each alias has the same handler, the same schemas and the same effects as its new procedure. Its description starts with `Deprecated: use sqlite.<name>`. The next release removes the aliases.
+
+The MCP server (`bundle-mcp`) does not expose the aliases. Its tools are `sqlite.query`, `sqlite.execute`, `sqlite.tables` and `sqlite.schema`. The `logs.*` procedures keep their names.
 
 ## Architecture
 
@@ -34,7 +42,7 @@ graph TB
         Register["register.ts<br/>(Auto-registers procedures)"]
 
         subgraph "Procedure Categories"
-            DB["Database Procedures<br/>db.query, db.execute, db.tables, db.schema,<br/>db.transaction, db.migrate, db.backup"]
+            DB["Database Procedures<br/>sqlite.query, sqlite.execute, sqlite.tables, sqlite.schema,<br/>sqlite.transaction, sqlite.migrate, sqlite.backup"]
             Logs["Log Procedures<br/>logs.store, logs.query"]
         end
 
@@ -148,7 +156,7 @@ You can override this path in each procedure call:
 
 ```typescript
 await client.exec(
-  ["db", "query"],
+  ["sqlite", "query"],
   {
     sql: "SELECT * FROM logs",
     dbPath: "./custom/path/database.db"
@@ -160,13 +168,13 @@ await client.exec(
 
 ### Database Procedures
 
-#### `db.query`
+#### `sqlite.query`
 
 Execute a SQL SELECT query and return rows.
 
 ```typescript
 const result = await client.exec(
-  ["db", "query"],
+  ["sqlite", "query"],
   {
     sql: "SELECT * FROM logs WHERE level = ? ORDER BY timestamp DESC",
     params: ["error"]
@@ -197,7 +205,7 @@ interface DbQueryOutput<T = Record<string, unknown>> {
 **Example:**
 ```typescript
 const result = await client.exec(
-  ["db", "query"],
+  ["sqlite", "query"],
   {
     sql: `
       SELECT level, COUNT(*) as count
@@ -212,13 +220,13 @@ const result = await client.exec(
 // result.rows = [{ level: "info", count: 45 }, { level: "error", count: 2 }]
 ```
 
-#### `db.execute`
+#### `sqlite.execute`
 
 Execute a SQL statement (INSERT, UPDATE, DELETE) and return the number of affected rows.
 
 ```typescript
 const result = await client.exec(
-  ["db", "execute"],
+  ["sqlite", "execute"],
   {
     sql: "DELETE FROM logs WHERE timestamp < ?",
     params: ["2024-01-01"]
@@ -248,7 +256,7 @@ interface DbExecuteOutput {
 ```typescript
 // INSERT
 await client.exec(
-  ["db", "execute"],
+  ["sqlite", "execute"],
   {
     sql: "INSERT INTO users (name, email) VALUES (?, ?)",
     params: ["Alice", "alice@example.com"]
@@ -257,7 +265,7 @@ await client.exec(
 
 // UPDATE
 await client.exec(
-  ["db", "execute"],
+  ["sqlite", "execute"],
   {
     sql: "UPDATE users SET active = ? WHERE id = ?",
     params: [true, 123]
@@ -266,7 +274,7 @@ await client.exec(
 
 // DELETE
 await client.exec(
-  ["db", "execute"],
+  ["sqlite", "execute"],
   {
     sql: "DELETE FROM users WHERE active = ?",
     params: [false]
@@ -274,29 +282,29 @@ await client.exec(
 );
 ```
 
-#### `db.tables`
+#### `sqlite.tables`
 
 The procedure lists the tables and the views of a database, without the internal `sqlite_` tables. Each item has the `name`, the `type` and the `sql` that made it. With `views: false`, it gives only the tables. The procedure only reads. A missing file is an error (`ENOENT`), and the procedure does not make it.
 
 ```typescript
-const { tables } = await client.exec(["db", "tables"], { dbPath: "./app.db" });
+const { tables } = await client.exec(["sqlite", "tables"], { dbPath: "./app.db" });
 ```
 
-#### `db.schema`
+#### `sqlite.schema`
 
 The procedure gives the `columns`, the `indexes` and the `foreignKeys` of a table, or the columns of a view. The name of the table goes to SQLite as a bound value, not as SQL text. The procedure only reads.
 
 ```typescript
-const schema = await client.exec(["db", "schema"], { dbPath: "./app.db", table: "users" });
+const schema = await client.exec(["sqlite", "schema"], { dbPath: "./app.db", table: "users" });
 // schema.columns: [{ name: "id", type: "INTEGER", notNull: false, defaultValue: null, primaryKey: 1 }, ...]
 ```
 
-#### `db.transaction`
+#### `sqlite.transaction`
 
 The procedure puts a list of statements in one transaction. When one statement fails, it rolls back the transaction, and the file stays as it was. The `params` of a statement bind to one statement. Without `params`, one `sql` can hold several statements. A statement that gives rows (`SELECT`, or `RETURNING`) gives its `rows` in its result. The procedure refuses `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `RELEASE`, because it controls the transaction itself.
 
 ```typescript
-const { results, changes } = await client.exec(["db", "transaction"], {
+const { results, changes } = await client.exec(["sqlite", "transaction"], {
   dbPath: "./app.db",
   statements: [
     { sql: "UPDATE accounts SET balance = balance - ? WHERE id = ?", params: [10, 1] },
@@ -306,7 +314,7 @@ const { results, changes } = await client.exec(["db", "transaction"], {
 });
 ```
 
-#### `db.migrate`
+#### `sqlite.migrate`
 
 The procedure applies the numbered migrations that the database does not have, in the order of their numbers. The migrations come from a `folder` or from a list (`migrations`). In a folder, each migration is a file `<number>_<name>.sql`, for example `001_create_users.sql`. The procedure ignores the files that do not end in `.sql`.
 
@@ -317,20 +325,20 @@ The procedure applies the numbered migrations that the database does not have, i
 - A migration must not hold `BEGIN`, `COMMIT` or `ROLLBACK`.
 
 ```typescript
-const { applied, skipped, version } = await client.exec(["db", "migrate"], {
+const { applied, skipped, version } = await client.exec(["sqlite", "migrate"], {
   dbPath: "./app.db",
   folder: "./migrations",
 });
 ```
 
-#### `db.backup`
+#### `sqlite.backup`
 
 The procedure copies a database to a new file (`to`). It does not replace a file, and it does not write the source. With `vacuum: true`, it compacts the copy.
 
 This package uses SQLite in WebAssembly (sql.js). The database is in the memory of the module. `VACUUM INTO` and the backup API of SQLite write into the file system of the module, not to the disk. Thus the procedure writes the image of the database (its `export()`). It takes the image in the file queue of the database, where no other call of the process changes it. It writes the image to a file next to the target, checks it with `PRAGMA integrity_check`, and then renames it.
 
 ```typescript
-const { path, bytes } = await client.exec(["db", "backup"], { dbPath: "./app.db", to: "./backups/app-2026-10-16.db" });
+const { path, bytes } = await client.exec(["sqlite", "backup"], { dbPath: "./app.db", to: "./backups/app-2026-10-16.db" });
 ```
 
 ### Log Procedures
@@ -526,7 +534,7 @@ The entry `@procedures/sqlite/storage` has the storage alone. The package root e
 - A failed file write fails the write. The change stays in memory, and `flush()` or the next write writes it.
 - A storage that only reads does not make the file.
 - The storages of one file in one process share one database. Thus the storages of two tables in one file keep their items.
-- Another process, and the procedures `db.query` and `db.execute`, do not share this database. Do not write the file from them while a storage has it open.
+- Another process, and the procedures `sqlite.query` and `sqlite.execute`, do not share this database. Do not write the file from them while a storage has it open.
 
 ### The durable local copy of `HybridStorage`
 
@@ -556,7 +564,7 @@ const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
 
 // Create a table
 await client.exec(
-  ["db", "execute"],
+  ["sqlite", "execute"],
   {
     sql: `
       CREATE TABLE IF NOT EXISTS users (
@@ -573,7 +581,7 @@ await client.exec(
 
 // Insert data
 await client.exec(
-  ["db", "execute"],
+  ["sqlite", "execute"],
   {
     sql: "INSERT INTO users (name, email) VALUES (?, ?)",
     params: ["Alice Johnson", "alice@example.com"],
@@ -583,7 +591,7 @@ await client.exec(
 
 // Query data
 const result = await client.exec(
-  ["db", "query"],
+  ["sqlite", "query"],
   {
     sql: "SELECT * FROM users WHERE active = ? ORDER BY created_at DESC",
     params: [1],
@@ -747,7 +755,7 @@ interface User {
 }
 
 const result = await client.call<DbQueryOutput<User>>(
-  ["db", "query"],
+  ["sqlite", "query"],
   {
     sql: "SELECT * FROM users WHERE active = ?",
     params: [true],
@@ -827,10 +835,10 @@ export type {
 client-sqlite/
 ├── src/
 │   ├── types.ts              # Type definitions
-│   ├── module.ts             # The procedures as data, and the db.query, db.execute and logs.* handlers
+│   ├── module.ts             # The procedures as data, and the sqlite.query, sqlite.execute and logs.* handlers
 │   ├── register.ts           # The ./register entry: registers the module
 │   ├── storage.ts            # SqliteStorage, the collection storage (the ./storage entry)
-│   ├── procedures/db/        # db.tables, db.schema, db.transaction, db.migrate, db.backup
+│   ├── procedures/db/        # sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate, sqlite.backup
 │   └── index.ts              # Main entry point
 ├── dist/                     # Compiled output
 ├── package.json

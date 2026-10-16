@@ -53,6 +53,10 @@ describe("startServer", () => {
     expect(await call(without.port, "fixture/hello")).toBe(404);
     // Both have the server procedures and the core
     expect(await call(without.port, "server/connections")).toBe(200);
+    // server.start, server.stop and server.status come from the module of this package
+    for (const name of ["start", "stop", "status"]) {
+      expect(without.server.registry.has(["server", name]), `server.${name}`).toBe(true);
+    }
   });
 
   it("applies the host policy: the token and the expose list", async () => {

@@ -167,7 +167,7 @@ function visit(node: IRNode, env: Env, diagnostics: Diagnostic[]): void {
 }
 
 /**
- * This function examines the raw input of a procedure that runs refs (`dag.traverse`, `core.catch`).
+ * This function examines the raw input of a procedure that runs refs (`dag.traverse`, `client.eval`).
  * Its `$ref` values read the scope of the caller, or a name that the runner gives. An unknown
  * name is a warning.
  */

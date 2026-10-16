@@ -1,17 +1,18 @@
 /**
  * Procedure: server.start
  * Starts the CLI server as a background daemon
+ *
+ * The procedure came from `@procedures/peer`: it belongs to the host. The lockfiles stay in the
+ * peer package, because the peer of `mark --server` writes them.
  */
 
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, type Effects, type Procedure } from "@procedures/client";
-import { wrapSchema } from "../schema.js";
-import { ServerStartOutputSchema } from "../output-schemas.js";
-import { serverStartInputSchema } from "../input-schemas.js";
-import { checkServer, readLockfileForPort } from "../lockfile.js";
+import { createProcedure, zodAdapter, type Effects, type Procedure } from "@procedures/client";
+import { checkServer, readLockfileForPort } from "@procedures/peer/lockfile";
+import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
 
 const MARK_DIR = path.join(os.homedir(), ".mark");
@@ -19,7 +20,7 @@ const SERVERS_DIR = path.join(MARK_DIR, "servers");
 const LOG_PATH = path.join(MARK_DIR, "server.log");
 const LOG_PREV_PATH = path.join(MARK_DIR, "server.log.1");
 
-const serverStartOutputSchema = wrapSchema<ServerStartOutput>(ServerStartOutputSchema);
+const serverStartOutputSchema = zodAdapter<ServerStartOutput>(ServerStartOutputSchema);
 
 
 /**

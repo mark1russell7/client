@@ -3,12 +3,14 @@
  *
  * Procedure Registration for SQLite
  *
- * Registers database and logging procedures with the client system: db.query, db.execute,
- * db.tables, db.schema, db.transaction, db.migrate, db.backup, logs.store and logs.query.
+ * The module has the database and logging procedures: sqlite.query, sqlite.execute,
+ * sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate, sqlite.backup, logs.store
+ * and logs.query. The old names db.* stay for one release as deprecated aliases (refer to
+ * `deprecatedDbAlias`).
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -64,10 +66,11 @@ import {
 // Real schemas (roadmap 2.1): the input is validated before the handler, and the MCP tool list
 // and the help of mark describe each field. zodAdapter<T> checks each schema against its type.
 
+// The description is the same on each computer: it does not show the home folder of this one
 const dbPathField = z
   .string()
   .optional()
-  .describe(`The SQLite database file (default: ${DEFAULT_DB_PATH}). A query does not make a missing file.`);
+  .describe("The SQLite database file (default: the CLI log database, ~/logs/cli/cli.db). A query does not make a missing file.");
 const paramsField = z
   .array(z.unknown())
   .optional()
@@ -190,11 +193,11 @@ async function ensureLogsTable(dbPath: string): Promise<void> {
 }
 
 // =============================================================================
-// db.query Procedure
+// sqlite.query Procedure
 // =============================================================================
 
-const dbQueryProcedure = createProcedure()
-  .path(["db", "query"])
+const sqliteQueryProcedure = createProcedure()
+  .path(["sqlite", "query"])
   .input(dbQueryInputSchema)
   .output(dbQueryOutputSchema)
   .meta({
@@ -219,11 +222,11 @@ const dbQueryProcedure = createProcedure()
   .build();
 
 // =============================================================================
-// db.execute Procedure
+// sqlite.execute Procedure
 // =============================================================================
 
-const dbExecuteProcedure = createProcedure()
-  .path(["db", "execute"])
+const sqliteExecuteProcedure = createProcedure()
+  .path(["sqlite", "execute"])
   .input(dbExecuteInputSchema)
   .output(dbExecuteOutputSchema)
   .meta({
@@ -412,11 +415,11 @@ const logsQueryProcedure = createProcedure()
   .build();
 
 // =============================================================================
-// db.tables, db.schema, db.transaction, db.migrate and db.backup (roadmap R44)
+// sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate and sqlite.backup (roadmap R44)
 // =============================================================================
 
-const dbTablesProcedure = createProcedure()
-  .path(["db", "tables"])
+const sqliteTablesProcedure = createProcedure()
+  .path(["sqlite", "tables"])
   .input(zodAdapter<DbTablesInput>(DbTablesInputSchema))
   .output(zodAdapter<DbTablesOutput>(DbTablesOutputSchema))
   .meta({
@@ -429,8 +432,8 @@ const dbTablesProcedure = createProcedure()
   .handler(async (input: DbTablesInput): Promise<DbTablesOutput> => dbTables(input))
   .build();
 
-const dbSchemaProcedure = createProcedure()
-  .path(["db", "schema"])
+const sqliteSchemaProcedure = createProcedure()
+  .path(["sqlite", "schema"])
   .input(zodAdapter<DbSchemaInput>(DbSchemaInputSchema))
   .output(zodAdapter<DbSchemaOutput>(DbSchemaOutputSchema))
   .meta({
@@ -443,8 +446,8 @@ const dbSchemaProcedure = createProcedure()
   .handler(async (input: DbSchemaInput): Promise<DbSchemaOutput> => dbSchema(input))
   .build();
 
-const dbTransactionProcedure = createProcedure()
-  .path(["db", "transaction"])
+const sqliteTransactionProcedure = createProcedure()
+  .path(["sqlite", "transaction"])
   .input(zodAdapter<DbTransactionInput>(DbTransactionInputSchema))
   .output(zodAdapter<DbTransactionOutput>(DbTransactionOutputSchema))
   .meta({
@@ -458,8 +461,8 @@ const dbTransactionProcedure = createProcedure()
   .handler(async (input: DbTransactionInput): Promise<DbTransactionOutput> => dbTransaction(input))
   .build();
 
-const dbMigrateProcedure = createProcedure()
-  .path(["db", "migrate"])
+const sqliteMigrateProcedure = createProcedure()
+  .path(["sqlite", "migrate"])
   .input(zodAdapter<DbMigrateInput>(DbMigrateInputSchema))
   .output(zodAdapter<DbMigrateOutput>(DbMigrateOutputSchema))
   .meta({
@@ -473,8 +476,8 @@ const dbMigrateProcedure = createProcedure()
   .handler(async (input: DbMigrateInput): Promise<DbMigrateOutput> => dbMigrate(input))
   .build();
 
-const dbBackupProcedure = createProcedure()
-  .path(["db", "backup"])
+const sqliteBackupProcedure = createProcedure()
+  .path(["sqlite", "backup"])
   .input(zodAdapter<DbBackupInput>(DbBackupInputSchema))
   .output(zodAdapter<DbBackupOutput>(DbBackupOutputSchema))
   .meta({
@@ -489,6 +492,44 @@ const dbBackupProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// The deprecated db.* aliases (one release)
+// =============================================================================
+
+/** The procedures of the `sqlite` namespace. Each one has a deprecated alias in `db`. */
+const sqliteProcedures: readonly AnyProcedure[] = [
+  sqliteQueryProcedure,
+  sqliteExecuteProcedure,
+  sqliteTablesProcedure,
+  sqliteSchemaProcedure,
+  sqliteTransactionProcedure,
+  sqliteMigrateProcedure,
+  sqliteBackupProcedure,
+];
+
+/**
+ * This function gives the deprecated alias `db.<name>` of the procedure `sqlite.<name>`. The alias
+ * has the same schemas, handler and effects. Its description names the new procedure. The aliases
+ * go away in the next release. The MCP server does not expose them (`bundle-mcp`).
+ */
+export function deprecatedDbAlias(procedure: AnyProcedure): AnyProcedure {
+  const name = procedure.path.slice(1).join(".");
+  const description = typeof procedure.metadata.description === "string" ? ` ${procedure.metadata.description}` : "";
+  return {
+    ...procedure,
+    path: ["db", ...procedure.path.slice(1)],
+    metadata: {
+      ...procedure.metadata,
+      description: `Deprecated: use sqlite.${name}.${description}`,
+      deprecated: true,
+      deprecationMessage: `Use sqlite.${name}. The alias db.${name} goes away in the next release.`,
+    },
+  };
+}
+
+/** The deprecated aliases `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup`. */
+export const dbAliasProcedures: readonly AnyProcedure[] = sqliteProcedures.map(deprecatedDbAlias);
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -497,15 +538,11 @@ const dbBackupProcedure = createProcedure()
  * file registers nothing. (`register.ts` registers the same procedures in the global registry.)
  */
 export const sqliteModule: ProcedureModule = defineModule("@procedures/sqlite", [
-    dbQueryProcedure,
-    dbExecuteProcedure,
+    ...sqliteProcedures,
     logsStoreProcedure,
     logsQueryProcedure,
-    dbTablesProcedure,
-    dbSchemaProcedure,
-    dbTransactionProcedure,
-    dbMigrateProcedure,
-    dbBackupProcedure,
+    // The old names, for one release
+    ...dbAliasProcedures,
   ]);
 
 export default sqliteModule;

@@ -1,5 +1,33 @@
 # @procedures/bundle-assistant
 
+## 0.4.0
+
+### Minor Changes
+
+- 0f1d06e: Three new tools: `ics.write`, `geo.distance` and `geo.geohash`. They are pure, so they change nothing and read no network. The test of the bundle pins the new list of tools.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [0f1d06e]
+- Updated dependencies [0f1d06e]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+  - @procedures/geo@0.4.0
+  - @procedures/ics@0.4.0
+  - @procedures/exif@0.4.0
+  - @procedures/mail@0.4.0
+  - @procedures/weather@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

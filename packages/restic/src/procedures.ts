@@ -43,6 +43,8 @@ export interface ResticResult {
   stderr: string;
   /** The JSON output, when `json` is true and restic gave JSON */
   json?: unknown;
+  /** Present when an output stream was longer than `maxOutputBytes`: which one lost bytes. */
+  truncated?: { stdout: boolean; stderr: boolean } | undefined;
 }
 type RunOutput = ResticResult;
 const RunOutputSchema = z.object({
@@ -51,6 +53,7 @@ const RunOutputSchema = z.object({
   stdout: z.string(),
   stderr: z.string(),
   json: z.unknown().optional(),
+  truncated: z.object({ stdout: z.boolean(), stderr: z.boolean() }).optional(),
 });
 
 /** A restic command: the subcommand path, its arguments and the repository. */
@@ -90,6 +93,11 @@ export interface ResticRunOptions {
   readonly timeout?: number | undefined;
   /** When the signal aborts, the process tree stops. */
   readonly signal?: AbortSignal | undefined;
+  /**
+   * The most bytes kept of each output stream (default: 64 MiB, the default of `runCommand`).
+   * `restic ls` of a large snapshot can give more. Past the limit, the result has `truncated`.
+   */
+  readonly maxOutputBytes?: number | undefined;
   /** The function that starts restic (default: `runCommand`). A test gives a fake. */
   readonly run?: ResticRunner | undefined;
 }
@@ -120,6 +128,7 @@ export async function runRestic(command: ResticCommand, options: ResticRunOption
     timeout: options.timeout,
     signal: options.signal,
     env: options.env === undefined ? undefined : { ...options.env },
+    ...(options.maxOutputBytes !== undefined ? { maxOutputBytes: options.maxOutputBytes } : {}),
   });
   if (result.error) throw new Error(`restic did not start: ${result.error}`);
   const parsed = json ? parseJsonOutput(result.stdout) : undefined;
@@ -129,6 +138,7 @@ export async function runRestic(command: ResticCommand, options: ResticRunOption
     stdout: result.stdout,
     stderr: result.stderr,
     ...(parsed !== undefined ? { json: parsed } : {}),
+    ...(result.truncated !== undefined ? { truncated: result.truncated } : {}),
   };
 }
 

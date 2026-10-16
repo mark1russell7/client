@@ -1,5 +1,36 @@
 # @procedures/restic
 
+## 0.4.0
+
+### Minor Changes
+
+- a5f28e5: A host can give secrets only to the restic process, and the package root exports the functions of `restic.run`.
+  
+  - `runRestic(command, options)` starts a restic command and reads its JSON output. Its `env` option gives variables (for example `RESTIC_PASSWORD`, `RESTIC_REPOSITORY` and `B2_ACCOUNT_ID`) only to the restic process. The environment of the host does not change.
+  - `createResticModule({ env, run })` gives the module with those settings. The procedure input still has no field for a secret.
+  - `findRestic()` finds the program: `RESTIC_EXE`, then on Windows the `restic*.exe` of a WinGet package, then `restic` on the `PATH`.
+  - The `run` option replaces the function that starts restic, so a test can give a fake runner.
+  
+  The input, the output and the effects of `restic.run` do not change.
+
+### Patch Changes
+
+- ae08311: `runRestic` takes `maxOutputBytes`, and the result has `truncated` when an output stream was longer. `restic ls` of a large snapshot can give more than the default of 64 MiB.
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4c51727]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+  - @procedures/shell@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

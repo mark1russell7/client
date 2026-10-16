@@ -92,13 +92,13 @@ describe("MCP structured output", () => {
     expect(undescribed, "output fields without a description").toEqual([]);
   });
 
-  it("gives structured content that the SDK client accepts (db.execute, db.query, logs)", async () => {
+  it("gives structured content that the SDK client accepts (sqlite.execute, sqlite.query, logs)", async () => {
     const dbPath = join(tmp, "structured.db");
-    await client.callTool({ name: "db.execute", arguments: { dbPath, sql: "CREATE TABLE t (n INTEGER, s TEXT)" } });
-    const inserted = await client.callTool({ name: "db.execute", arguments: { dbPath, sql: "INSERT INTO t VALUES (?, ?)", params: [1, "a"] } });
+    await client.callTool({ name: "sqlite.execute", arguments: { dbPath, sql: "CREATE TABLE t (n INTEGER, s TEXT)" } });
+    const inserted = await client.callTool({ name: "sqlite.execute", arguments: { dbPath, sql: "INSERT INTO t VALUES (?, ?)", params: [1, "a"] } });
     expect(inserted.structuredContent).toEqual({ changes: 1 });
 
-    const queried = await client.callTool({ name: "db.query", arguments: { dbPath, sql: "SELECT n, s FROM t" } });
+    const queried = await client.callTool({ name: "sqlite.query", arguments: { dbPath, sql: "SELECT n, s FROM t" } });
     expect(queried.isError).toBeFalsy();
     expect(queried.structuredContent).toEqual({ columns: ["n", "s"], rows: [{ n: 1, s: "a" }] });
 
@@ -151,7 +151,7 @@ describe("MCP structured output", () => {
   }, 60_000);
 
   it("gives no structured content for an error", async () => {
-    const failed = await client.callTool({ name: "db.query", arguments: { dbPath: join(tmp, "x.db"), sql: "SELECT * FROM missing" } });
+    const failed = await client.callTool({ name: "sqlite.query", arguments: { dbPath: join(tmp, "x.db"), sql: "SELECT * FROM missing" } });
     expect(failed.isError).toBe(true);
     expect(failed.structuredContent).toBeUndefined();
   }, 60_000);

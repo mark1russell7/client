@@ -1,5 +1,45 @@
 # @procedures/bundle-dev
 
+## 0.4.0
+
+### Minor Changes
+
+- 2fd2398: `dag.traverse` moved from `@procedures/lib` to `@procedures/dag`. Its name, input, output and effects stay the same. In this version, `@procedures/dag` has a `./module` entry, a `./register` entry and the `client.procedures` field, and it depends on `@procedures/client` and `zod`. The graph algorithms of its root do not change.
+  
+  `dag.traverse` gets the packages from `lib.scan` through `ctx.client` (`calls: ["lib.scan"]`). `@procedures/lib` depends on `@procedures/dag`, so the module of `@procedures/dag` does not list the module of `@procedures/lib` as a dependency: a host registers the two modules. `bundle-dev`, `bundle-mcp` and `mark` do. The module of `@procedures/lib` does not register `dag.traverse` any more.
+  
+  `DagTraverseInputSchema`, `DagTraverseInput`, `DagTraverseOutput` and `TraverseNodeResult` are exports of `@procedures/dag`, not of `@procedures/lib`.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [2fd2398]
+- Updated dependencies [3d76cb7]
+- Updated dependencies [0ecc788]
+- Updated dependencies [3fefa43]
+- Updated dependencies [bae25e2]
+- Updated dependencies [4c51727]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+  - @procedures/dag@0.4.0
+  - @procedures/lib@0.4.0
+  - @procedures/fs@0.4.0
+  - @procedures/git@0.4.0
+  - @procedures/procedure@0.4.0
+  - @procedures/shell@0.4.0
+  - @procedures/cli-run@0.4.0
+  - @procedures/pnpm@0.4.0
+  - @procedures/compiler@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

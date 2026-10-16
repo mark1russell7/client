@@ -22,7 +22,8 @@
  * - `"$never"`: Never execute during hydration, pass as pure data (with its whole subtree)
  * - `"$parent"`: Defer to parent procedure (pass as data)
  * - `"someName"`: Defer to the runner that gives this name in its `contextStack`
- *   (`dag.traverse` gives "dag.traverse", `core.catch` gives "catch")
+ *   (`dag.traverse` gives "dag.traverse". `client.tryCatch` gives no name: it is control flow,
+ *   and it runs its `try` and `catch` operands itself.)
  *
  * A deferred ref is data at every depth: hydration of the input that holds it does not run it.
  * The procedure that receives it runs it later (deep dive CORE-11).
@@ -681,7 +682,8 @@ export interface HydrateOptions {
 
   /**
    * The context names of the runner. A ref with `$when: "<name>"` runs only when this list has
-   * the name. A runner such as `core.catch` gives its own name here when it hydrates its operand.
+   * the name. A runner such as `dag.traverse` gives its own name here when it hydrates its operand.
+   * (Control flow such as `client.tryCatch` runs its operands itself and gives no name.)
    */
   contextStack?: string[] | undefined;
 

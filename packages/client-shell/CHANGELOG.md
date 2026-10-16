@@ -1,5 +1,28 @@
 # @procedures/shell
 
+## 0.4.0
+
+### Minor Changes
+
+- 4c51727: The process registry of `@procedures/shell/command` gives the output of a process after a time. `processes.subscribe(id, { output, end })` calls `output` with each new piece of output and its stream, and `end` with the record at the end of the process. `processes.follow(id, { backlog, signal, maxBufferedBytes })` gives the output as an async stream: the kept output without a gap, the new pieces in UTF-8, a `dropped` item for a slow reader, and an `end` item. The end of the process removes each subscriber, and a follow that ends removes its subscriber.
+  
+  `node.logs` has the option `follow` (short `-f`). With it, the result is a stream: the kept output as `output` lines (`lines` limits them), each new line of stdout and stderr, and an `exit` item at the end of the process. The stream ends at the end of the process, at an abort of the caller and when the reader stops. `node.logs` declares `stream: { unbounded: true }`.
+
+### Patch Changes
+
+- Updated dependencies [d919678]
+- Updated dependencies [057d69a]
+- Updated dependencies [b2a1a1e]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [057d69a]
+- Updated dependencies [afd6a19]
+- Updated dependencies [057d69a]
+- Updated dependencies [4e751da]
+  - @procedures/client@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes
