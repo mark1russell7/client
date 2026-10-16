@@ -27,6 +27,15 @@ interface ChainCase {
 
 const cases: ChainCase[] = [
   {
+    // The steps of an implicit chain reach client.chain raw, so a step runs directly (roadmap R22:
+    // the comparison with the compiler found that the hint was missing here)
+    name: "a list of calls in the input of a step of an implicit chain",
+    program: call("identity", { value: [call("identity", { value: [add(1, 1)] })] }),
+    list: ["input", "value", 0, "input", "value"],
+    read: (value) => (value as { final: unknown }).final,
+    chain: true,
+  },
+  {
     name: "a list of calls in the input of the root call",
     program: call("identity", { value: [add(1, 1), add(2, 2)] }),
     list: ["input", "value"],

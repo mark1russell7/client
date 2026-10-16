@@ -112,9 +112,12 @@ function walkValue(w: Walker, value: Json | undefined, location: Location, fresh
     // A call with a `$when` other than `$immediate` waits for its runner: it is data, so a list
     // with one is not a chain (the core rule since the docs review, DOC-1)
     if (fresh && value.length > 0 && value.every((item) => isProcRef(item) && runsNow(item))) {
-      // The core runs the calls of an implicit chain as nested calls, before the chain starts
+      // The list becomes client.chain with the list as its steps. The steps reach client.chain
+      // raw, as the steps of an explicit chain: each step runs directly, and a later step reads
+      // the names and $last (roadmap R22: before, the analysis read them as nested calls, an old
+      // rule of the core, and missed a list of calls in the input of a step)
       w.analysis.chains.add(locationKey(location));
-      value.forEach((item, index) => walkCall(w, item as ProcRef, [...location, index], false, scope));
+      walkSteps(w, value, location, scope);
       return;
     }
     value.forEach((item, index) => walkValue(w, item, [...location, index], fresh, scope));
@@ -146,6 +149,22 @@ function walkRaw(w: Walker, value: Json | undefined, location: Location, scope: 
   }
   if (Array.isArray(value)) value.forEach((item, index) => walkRaw(w, item, [...location, index], scope));
   else for (const [key, item] of Object.entries(value)) walkRaw(w, item, [...location, key], scope);
+}
+
+/** The steps of a chain, explicit or implicit: each one sees the names of the steps before it. */
+function walkSteps(w: Walker, steps: Json[], location: Location, scope: string[]): void {
+  let names: string[] = [];
+  steps.forEach((step, index) => {
+    const stepLocation = [...location, index];
+    const stepScope = withNames(scope, index > 0 ? [...names, "$last"] : names);
+    if (isProcRef(step)) {
+      w.analysis.namable.add(locationKey(stepLocation));
+      walkCall(w, step, stepLocation, true, stepScope);
+      if (step.$name) names = [...names, step.$name];
+    } else {
+      walkValue(w, step, stepLocation, true, stepScope);
+    }
+  });
 }
 
 /** A call that runs. `direct` is true for the root and the operands of control flow. */
@@ -186,18 +205,7 @@ function walkCall(w: Walker, ref: ProcRef, location: Location, direct: boolean, 
       handled.add("steps");
       const steps = input["steps"];
       if (Array.isArray(steps)) {
-        let names: string[] = [];
-        steps.forEach((step, index) => {
-          const stepLocation = [...at("steps"), index];
-          const stepScope = withNames(scope, index > 0 ? [...names, "$last"] : names);
-          if (isProcRef(step)) {
-            w.analysis.namable.add(locationKey(stepLocation));
-            walkCall(w, step, stepLocation, true, stepScope);
-            if (step.$name) names = [...names, step.$name];
-          } else {
-            walkValue(w, step, stepLocation, true, stepScope);
-          }
-        });
+        walkSteps(w, steps, at("steps"), scope);
       } else {
         walkRaw(w, steps, at("steps"), scope);
       }
