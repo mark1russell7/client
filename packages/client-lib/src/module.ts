@@ -24,14 +24,12 @@ import {
   type EcosystemProceduresInput,
   type EcosystemProceduresOutput,
 } from "./procedures/ecosystem/index.js";
-import { dagTraverse } from "./procedures/dag/index.js";
 import { coreCatch } from "./procedures/core/index.js";
 import {
   LibScanInputSchema,
   LibRenameInputSchema,
   LibNewInputSchema,
   LibAuditInputSchema,
-  DagTraverseInputSchema,
   CoreCatchInputSchema,
   type LibScanInput,
   type LibScanOutput,
@@ -41,15 +39,12 @@ import {
   type LibNewOutput,
   type LibAuditInput,
   type LibAuditOutput,
-  type DagTraverseInput,
-  type DagTraverseOutput,
   type CoreCatchInput,
   type CoreCatchOutput,
   LibScanOutputSchema,
   LibRenameOutputSchema,
   LibNewOutputSchema,
   LibAuditOutputSchema,
-  DagTraverseOutputSchema,
   CoreCatchOutputSchema,
 } from "./types.js";
 import { LibGraphInputSchema, LibGraphOutputSchema, type LibGraphInput, type LibGraphOutput } from "./types.js";
@@ -170,28 +165,7 @@ const ecosystemProceduresProcedure = createProcedure()
   })
   .build();
 
-// =============================================================================
-// dag.* Procedures
-// =============================================================================
-
-const dagTraverseProcedure = createProcedure()
-  .path(["dag", "traverse"])
-  .input(zodAdapter<DagTraverseInput>(DagTraverseInputSchema))
-  .output(zodAdapter<DagTraverseOutput>(DagTraverseOutputSchema))
-  .meta({
-    description: "Traverse ecosystem packages in dependency order, executing visit procedure for each",
-    // It runs the procedure refs of its input: a server with an expose rule limits what they call
-    tags: [RUNS_REFS_TAG],
-    // Its own effect is the scan of the workspace. The admission examines each visit call.
-    effects: { reads: ["fs"], writes: [] },
-    args: [],
-    shorts: { root: "r", concurrency: "j", continueOnError: "c", dryRun: "d" },
-    output: "streaming",
-  })
-  .handler(async (input: DagTraverseInput, ctx: ProcedureContext): Promise<DagTraverseOutput> => {
-    return dagTraverse(input, ctx);
-  })
-  .build();
+// dag.traverse is in the module of @procedures/dag. It calls lib.scan of this module.
 
 // =============================================================================
 // core.* Procedures
@@ -233,8 +207,6 @@ export const libModule: ProcedureModule = defineModule("@procedures/lib", [
     libGraphProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
-    // dag.* procedures (canonical home)
-    dagTraverseProcedure,
     // core.* procedures
     coreCatchProcedure,
   ], [fsModule, gitModule]);

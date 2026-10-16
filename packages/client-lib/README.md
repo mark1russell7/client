@@ -6,7 +6,7 @@
 npm install @procedures/lib
 ```
 
-`client-lib` gives the procedures that manage the packages of the monorepo, and two runners of programs.
+`client-lib` gives the procedures that manage the packages of the monorepo, and a runner of programs.
 
 | Procedure | Function |
 |---|---|
@@ -16,10 +16,11 @@ npm install @procedures/lib
 | `lib.rename` | Rename a package in each file of the workspace |
 | `lib.graph` | Give the dependency graph of the workspace packages, with its cycles |
 | `ecosystem.procedures` | List the procedures of the packages |
-| `dag.traverse` | Start a procedure for each package, in the order of their dependencies |
 | `core.catch` | Start a deferred call, and give the error to a handler call |
 
 Until October 2026, `client-lib` also had `lib.install`, `lib.pull` and `lib.refresh`, for one repository per package. The monorepo does not need them, and they are gone ([DECISIONS-2026-10.md](../documentation/DECISIONS-2026-10.md)).
+
+In version 0.3.0 and before, `client-lib` also had `dag.traverse`. It moved to [`client-dag`](../client-dag) (`@procedures/dag`), with the same name. It gets the packages from `lib.scan` of this package. Thus a host registers the two modules.
 
 ## Use
 
@@ -89,32 +90,6 @@ node packages/mark/dist/cli.js lib graph
 
 Input: `rootPath`, `namespace` and `includeMetadata`. The output lists the procedures of the packages that have a `client.procedures` field.
 
-## `dag.traverse`
-
-`dag.traverse` starts the `visit` procedure once for each package, with `cwd` set to the folder of the package. A package starts after the packages that it depends on.
-
-| Field | Default | Function |
-|---|---|---|
-| `visit` | | A procedure path, or a call with `$when: "$parent"` (or `$never`) |
-| `filter` | | Only these package names |
-| `root` | | Only this package and the packages that it depends on |
-| `rootPath` | the workspace | The workspace root |
-| `concurrency` | 4 | The number of visits at the same time |
-| `serialize` | `auto` | When the visits in one git repository start one at a time: `auto` (when the visit uses a `git` procedure), `repository` (always) or `none` |
-| `continueOnError` | false | Continue after a failed visit |
-| `dryRun` | false | Give the plan only |
-
-All packages of the monorepo are in one git repository. Concurrent `git add` commands fail on `index.lock`, so `auto` starts git visits one at a time (deep dive DATA-17).
-
-```typescript
-await client.exec(["dag", "traverse"], {
-  visit: { $proc: ["pnpm", "run"], input: { script: "build" }, $when: "$parent" },
-  root: "@procedures/fs",
-});
-```
-
-`dag.traverse` has the tag `runs-refs`: it starts the refs of its input. Thus a server with an `expose` rule lets it use only exposed procedures. A call in `visit` with `$when: "dag.traverse"` waits for this runner ([PROGRAM-FORMAT.md](../documentation/PROGRAM-FORMAT.md), section 5).
-
 ## `core.catch`
 
 `core.catch` starts the `try` call. When it fails, `core.catch` starts the `handler` call with the error in its input (`success: false`, `error`, `proc`). Give both calls `$when: "catch"`, so that they wait for this runner.
@@ -130,6 +105,6 @@ The output gives `success`, `result`, `error` and `continue`. The calls of the `
 
 ## Related packages
 
-- `client-dag`: the graph algorithms of `dag.traverse`.
+- `client-dag`: the graph algorithms of `lib.graph`, and the procedure `dag.traverse`, which uses `lib.scan`.
 - `client-procedure`: `procedure.new`, the scaffold of a procedure.
 - `mark`: the CLI that starts these procedures.

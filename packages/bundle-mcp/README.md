@@ -45,12 +45,13 @@ The result is 91 tools (October 2026):
 - `fs.*`, `git.*` and `pnpm.*` are not tools: Claude Code has its own tools for files, git and the shell.
 - `snapshot.*` and `s3.*` are not in the bundle: `snapshot.restore` and `s3.delete` change data.
 - `sdk.openrpc` and `sdk.typescript` of the compiler module are registered, but `sdk` is not a tool namespace. They write an OpenRPC document and a TypeScript SDK, and `mark sdk openrpc` gives them.
+- `dag` is not a tool namespace. `dag.traverse` is registered, because the bundle has the module of `client-dag`.
 
 A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only the exposed procedures. Thus `client.chain` cannot reach `shell.exec`. A procedure of code still uses its dependencies: `docker.run` uses `shell.run`.
 
 ## The packages of the bundle
 
-`register.ts` imports `client-lib`, `client-procedure`, `compiler`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite` and `client-vitest`. Their dependencies register `shell.*`, `fs.*` and the `dag.traverse`, `core.catch` and `ecosystem.procedures` procedures of `client-lib`. These procedures are registered but are not tools.
+`register.ts` imports `client-lib`, `client-dag`, `client-procedure`, `compiler`, `client-cue`, `client-docker`, `client-mongo`, `client-sqlite` and `client-vitest`. Their dependencies register `shell.*`, `fs.*` and `git.*`. `client-lib` also registers `core.catch` and `ecosystem.procedures`, and `client-dag` registers `dag.traverse`. These procedures are registered but are not tools.
 
 ## Use
 

@@ -382,7 +382,7 @@ graph LR
 
 ### Package Build Order
 
-Build packages in dependency order (`dag.traverse` of `client-lib` does this):
+Build packages in dependency order (the procedure `dag.traverse` of this package does this):
 
 ```typescript
 const packages = [
@@ -439,20 +439,54 @@ await executeDAG(dag, async (mod) => {
 
 ## Integration
 
-### With client-lib
+### The procedure `dag.traverse`
 
-`client-lib` uses `client-dag` for ecosystem package management:
+The package has one procedure, `dag.traverse`. It came from `client-lib` in version 0.4.0, and its name stays the same. The graph algorithms of the package root do not need it.
+
+`dag.traverse` starts the `visit` procedure once for each package, with `cwd` set to the folder of the package. A package starts after the packages that it depends on.
+
+| Field | Default | Function |
+|---|---|---|
+| `visit` | | A procedure path, or a call with `$when: "$parent"` (or `$never`) |
+| `filter` | | Only these package names |
+| `root` | | Only this package and the packages that it depends on |
+| `rootPath` | the workspace | The workspace root |
+| `concurrency` | 4 | The number of visits at the same time |
+| `serialize` | `auto` | When the visits in one git repository start one at a time: `auto` (when the visit uses a `git` procedure), `repository` (always) or `none` |
+| `continueOnError` | false | Continue after a failed visit |
+| `dryRun` | false | Give the plan only |
+
+All packages of the monorepo are in one git repository. Concurrent `git add` commands fail on `index.lock`, so `auto` starts git visits one at a time (deep dive DATA-17).
+
+```typescript
+import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
+import "@procedures/lib/register"; // lib.scan, and the fs and git procedures that it uses
+import "@procedures/dag/register"; // dag.traverse
+
+const client = new Client(new LocalTransport({ registry: PROCEDURE_REGISTRY }));
+
+await client.exec(["dag", "traverse"], {
+  visit: { $proc: ["pnpm", "run"], input: { script: "build" }, $when: "$parent" },
+  root: "@procedures/fs",
+});
+```
+
+- `dag.traverse` gets the packages from `lib.scan` of `@procedures/lib`, through `ctx.client`. Its metadata declares the call (`calls: ["lib.scan"]`).
+- `@procedures/lib` depends on this package. Thus this package does not import `@procedures/lib`, and the module of this package does not list the module of `@procedures/lib` as a dependency. A host registers the two modules. `bundle-dev`, `bundle-mcp` and `mark` do.
+- `dag.traverse` has the tag `runs-refs`: it starts the refs of its input. Thus a server with an `expose` rule lets it use only exposed procedures, `lib.scan` too.
+- A call in `visit` with `$when: "dag.traverse"` waits for this runner ([PROGRAM-FORMAT.md](../documentation/PROGRAM-FORMAT.md), section 5).
+- `bundle-mcp` registers the procedure, but `dag` is not a tool namespace of the MCP server.
 
 ```mermaid
 graph TB
-    subgraph "client-lib"
-        Scan[lib.scan<br/>Discover packages]
+    subgraph "client-dag"
         Traverse[dag.traverse<br/>Visit in dependency order]
+        Build[buildLeveledDAG]
+        Execute[executeDAG]
     end
 
-    subgraph "client-dag"
-        Build[buildDAG]
-        Execute[executeDAG]
+    subgraph "client-lib"
+        Scan[lib.scan<br/>Find the packages]
     end
 
     subgraph "Packages"
@@ -461,36 +495,24 @@ graph TB
         P3[Package C]
     end
 
-    Scan --> Build
+    Traverse -->|ctx.client| Scan
+    Traverse --> Build
     Build --> Execute
-    Traverse --> Execute
     Execute --> P1
     Execute --> P2
     Execute --> P3
 ```
 
-### dag.traverse Procedure
+### With client-lib
 
-The `dag.traverse` procedure in `client-lib` wraps this functionality:
-
-```typescript
-// Via procedure
-await client.exec(["dag", "traverse"], {
-  visit: ["pnpm", "install"],
-  concurrency: 4,
-});
-
-// Internally uses
-const dag = buildDAG(packages);
-await executeDAG(dag, processor);
-```
+`client-lib` uses the algorithms of this package for `lib.graph`.
 
 ---
 
 ## Requirements
 
 - **Node.js** >= 22
-- **Dependencies:** none
+- **Dependencies:** `@procedures/client` and `zod`, for the procedure. The graph algorithms use neither.
 
 ---
 

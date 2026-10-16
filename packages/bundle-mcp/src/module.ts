@@ -22,6 +22,7 @@
 
 import { clientModule, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import libModule from "@procedures/lib/module";
+import dagModule from "@procedures/dag/module";
 import procedureModule from "@procedures/procedure/module";
 import compilerModule from "@procedures/compiler/module";
 import jsonModule from "@procedures/json/module";
@@ -40,6 +41,8 @@ export const bundleMcpModules: readonly ProcedureModule[] = [
   clientModule,
   // Core orchestration
   libModule,
+  // dag.traverse: registered, but `dag` is not a tool namespace (it calls lib.scan of libModule)
+  dagModule,
   procedureModule,
   // program.check, compile, diagram and explain: Claude examines a program before it runs it (roadmap R22, R23).
   // The module also registers sdk.openrpc and sdk.typescript, but sdk is not in mcpNamespaces.
@@ -64,7 +67,8 @@ export default bundleMcpModule;
 /**
  * The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools.
  * `cli` is not one: `cli.run` runs any `mark` command, also `shell exec`, so it would give back what
- * the list keeps out (deep dive CLI-5, TRN-2).
+ * the list keeps out (deep dive CLI-5, TRN-2). `dag` is not one: `dag.traverse` runs refs, and a
+ * tool list does not need it.
  */
 export const mcpNamespaces: readonly string[] = [
   "client",

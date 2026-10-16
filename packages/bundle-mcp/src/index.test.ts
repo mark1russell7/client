@@ -11,7 +11,7 @@ import "./register.js";
 
 describe("bundle-mcp", () => {
   it("registers the procedures of the bundle from its register entry", () => {
-    for (const key of ["lib.scan", "docker.ps", "mongo.documents.find", "vitest.run", "git.status", "fs.readdir"]) {
+    for (const key of ["lib.scan", "docker.ps", "mongo.documents.find", "vitest.run", "git.status", "fs.readdir", "dag.traverse"]) {
       expect(PROCEDURE_REGISTRY.get(key.split("."))?.handler, key).toBeDefined();
     }
   });

@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/dag",
   "version": "0.3.0",
-  "description": "Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit.",
+  "description": "Dependency graph algorithms for TypeScript: build a DAG, detect cycles, compute topological levels and traverse in parallel with a concurrency limit. The procedure dag.traverse visits workspace packages in dependency order.",
   "keywords": [
     "dag",
     "graph",
@@ -30,6 +30,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./module": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.js"
     }
   },
   "files": [
@@ -40,7 +48,9 @@
     "!src/**/__tests__",
     "CHANGELOG.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/register.js"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -61,5 +71,12 @@
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
     "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "@procedures/client": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "client": {
+    "procedures": "./dist/register.js"
   }
 }

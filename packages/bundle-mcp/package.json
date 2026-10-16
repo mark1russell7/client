@@ -72,6 +72,7 @@
     "@procedures/client": "workspace:*",
     "@procedures/compiler": "workspace:*",
     "@procedures/cue": "workspace:*",
+    "@procedures/dag": "workspace:*",
     "@procedures/docker": "workspace:*",
     "@procedures/json": "workspace:*",
     "@procedures/lib": "workspace:*",

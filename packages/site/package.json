@@ -17,6 +17,7 @@
     "@procedures/collections": "workspace:*",
     "@procedures/compiler": "workspace:*",
     "@procedures/cue": "workspace:*",
+    "@procedures/dag": "workspace:*",
     "@procedures/docker": "workspace:*",
     "@procedures/env": "workspace:*",
     "@procedures/exif": "workspace:*",

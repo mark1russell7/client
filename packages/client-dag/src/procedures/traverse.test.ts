@@ -4,12 +4,13 @@
  */
 
 import { afterEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ProcedureContext } from "@procedures/client";
-import { DagTraverseInputSchema } from "../../types.js";
-import { callsGit, dagTraverse, keyedLock, repositoryRoot } from "./traverse.js";
+import { createRegistry, type ProcedureContext } from "@procedures/client";
+import { dagModule } from "../module.js";
+import { DagTraverseInputSchema, type ScanOutput } from "./types.js";
+import { callsGit, dagTraverse, keyedLock, packageNodes, repositoryRoot } from "./traverse.js";
 
 const roots: string[] = [];
 
@@ -30,13 +31,30 @@ function workspace(names: string[]): string {
   return root;
 }
 
+/**
+ * The output of `lib.scan` for a workspace of `workspace()`. The real procedure is in
+ * `@procedures/lib`, which depends on this package, so the test gives the fields that
+ * `dag.traverse` reads.
+ */
+function scan(rootPath: string): ScanOutput {
+  const dir = join(rootPath, "packages");
+  const packages: ScanOutput["packages"] = {};
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const { name } = JSON.parse(readFileSync(join(dir, entry.name, "package.json"), "utf8")) as { name: string };
+    packages[name] = { name, repoPath: join(dir, entry.name), mark1russell7Deps: [] };
+  }
+  return { packages };
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * A context that serves fs.* from the disk. Each visit procedure fails when another call of it
- * runs in the same repository, as git does with `index.lock`.
+ * A context that serves lib.scan from the disk. Each visit procedure fails when another call of
+ * it runs in the same repository, as git does with `index.lock`.
  */
-function context(): { ctx: ProcedureContext; maxInFlight: () => number } {
+function context(): { ctx: ProcedureContext; maxInFlight: () => number; calls: string[] } {
+  const calls: string[] = [];
   let inFlight = 0;
   let max = 0;
   const locked = new Set<string>();
@@ -55,30 +73,47 @@ function context(): { ctx: ProcedureContext; maxInFlight: () => number } {
     }
   };
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
-    "fs.readdir": ({ path }) => ({
-      path,
-      entries: readdirSync(path as string, { withFileTypes: true }).map((entry) => ({
-        name: entry.name,
-        path: join(path as string, entry.name),
-        type: entry.isDirectory() ? "directory" : "file",
-      })),
-    }),
-    "fs.read.json": ({ path }) => ({ path, data: JSON.parse(readFileSync(path as string, "utf8")) }),
-    "fs.exists": ({ path }) => ({ path, exists: existsSync(path as string) }),
-    "git.status": () => ({ branch: "main" }),
-    "git.remote": () => ({ name: "origin", url: "git@example.com:x/y.git" }),
+    "lib.scan": ({ rootPath }) => scan(rootPath as string),
     "git.add": (input) => visit(input as { cwd: string }),
     "pnpm.build": (input) => visit(input as { cwd: string }),
   };
   const call = async (path: string[], input: Record<string, unknown>) => {
+    calls.push(path.join("."));
     const handler = handlers[path.join(".")];
     if (!handler) throw new Error(`Unexpected procedure call: ${path.join(".")}`);
     return handler(input);
   };
-  return { ctx: { client: { call } } as unknown as ProcedureContext, maxInFlight: () => max };
+  return { ctx: { client: { call } } as unknown as ProcedureContext, maxInFlight: () => max, calls };
 }
 
 describe("dag.traverse", () => {
+  it("is the procedure of the dag module, and declares its call of lib.scan", () => {
+    const procedure = createRegistry(dagModule).get(["dag", "traverse"]);
+    expect(procedure?.handler).toBeDefined();
+    expect(procedure?.metadata.calls).toEqual(["lib.scan"]);
+    expect(procedure?.metadata.effects).toEqual({ reads: ["fs"], writes: [] });
+    expect(procedure?.metadata.tags).toContain("runs-refs");
+  });
+
+  it("gets the packages from lib.scan", async () => {
+    const root = workspace(["a", "b"]);
+    const { ctx, calls } = context();
+    const input = DagTraverseInputSchema.parse({ visit: ["pnpm", "build"], rootPath: root });
+
+    const result = await dagTraverse(input, ctx);
+
+    expect(calls[0]).toBe("lib.scan");
+    expect(result.results.map((entry) => entry.name).sort()).toEqual(["a", "b"]);
+  });
+
+  it("makes an edge only for a dependency that the scan found", () => {
+    const nodes = packageNodes({
+      a: { name: "a", repoPath: "/w/a", mark1russell7Deps: [] },
+      b: { name: "b", repoPath: "/w/b", mark1russell7Deps: ["a", "missing"] },
+    });
+    expect(nodes.get("b")).toEqual({ id: "b", name: "b", repoPath: "/w/b", dependencies: ["a"] });
+  });
+
   it("runs git visits in one repository one at a time", async () => {
     const root = workspace(["a", "b", "c", "d", "e"]);
     const { ctx, maxInFlight } = context();

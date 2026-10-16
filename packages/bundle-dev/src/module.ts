@@ -2,7 +2,7 @@
  * Module (no side effects): the modules of the dev workflow bundle, for `createRegistry()`.
  *
  * `register.ts` registers the same modules in the global registry.
- * (`client-dag` has no procedures of its own: `dag.traverse` is in `client-lib`.)
+ * (`dag.traverse` is in the module of `client-dag`. It calls `lib.scan` of `client-lib`.)
  */
 
 import { clientModule, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
@@ -11,6 +11,7 @@ import fsModule from "@procedures/fs/module";
 import cliModule from "@procedures/cli-run/module";
 import pnpmModule from "@procedures/pnpm/module";
 import libModule from "@procedures/lib/module";
+import dagModule from "@procedures/dag/module";
 import procedureModule from "@procedures/procedure/module";
 import compilerModule from "@procedures/compiler/module";
 
@@ -26,6 +27,8 @@ export const bundleDevModules: readonly ProcedureModule[] = [
   pnpmModule,
   // Dev workflow
   libModule,
+  // dag.traverse (it calls lib.scan of libModule)
+  dagModule,
   procedureModule,
   // The check and the compiler of programs (roadmap R22)
   compilerModule,
