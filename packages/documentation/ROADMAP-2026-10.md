@@ -69,7 +69,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R19 | 3 | `host.health`, `host.info` and `host.metrics` | S | fixed | `07cc998` |
 | R20 | 4 | `@procedures/compiler`: the IR and `program.check` | M | fixed (the host check is in R22) | `9bc2ddb` |
 | R21 | 4 | `program.compile` and the equivalence tests | M | fixed | `9bc2ddb` |
-| R22 | 4 | The interpreter and the site use the IR of the compiler | M | in progress: the host check is done | `f5ed492` |
+| R22 | 4 | The interpreter and the site use the IR of the compiler | M | fixed (the plan changed: see R22) | `f5ed492`, `a70d445`, `6c688e1` |
 | R23 | 4 | Outputs of the compiler: diagrams, tool descriptions, typed SDK, `procedure.explain` | M | open | |
 | R24 | 5 | The bidirectional peer | M–L | fixed | `b2a3e3a` |
 | R25 | 5 | Wire protocol v1 | M | fixed | `21f7743` |
@@ -78,10 +78,10 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R28 | 6 | The collection mode switch | L | fixed | `7873940` |
 | R29 | 7 | Testing stage 1: property tests and a catalog test of the core procedures | M | fixed | `06d9e52`, `0c627f8`, `ddea529` |
 | R30 | 7 | Testing stage 2: faults, contracts and leaks | L | fixed | `bd0b626` |
-| R31 | 7 | Coverage with a ratchet | S | open | |
-| R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | open | |
+| R31 | 7 | Coverage with a ratchet | S | fixed (the first floors come from CI) | `26aad49` |
+| R32 | 7 | Testing stage 3: mutation, benchmarks, soak, real services, Windows | M | fixed (the first nightly run is open) | `26aad49` |
 | R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | fixed | `bc70357`, `95b660d` |
-| R34 | 8 | `@procedures/systems` and the timer law | M | open | |
+| R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | open | |
 | R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
 | R37 | 8 | The service abstraction of `systems` in the client | M–L | open | |
@@ -310,7 +310,7 @@ Three parts read programs today: the interpreter, the analysis of the site and t
 **A change of the plan.** The interpreter stays the reference of the semantics, and it does not run the IR. The compiled code does not call the control-flow procedures, so their admission, interceptors and trace do not run in it. The equivalence property of R21 makes sure that the interpreter and the compiler agree. The rest of R22:
 
 - Done: `procedure.define` gets the check of its body from the interceptor. A body with an error does not become a procedure. The procedure keeps the effects of its body as `inferredEffects`, and its tool hints come from them.
-- Open: the site uses the passes of the compiler for its analysis, and the Composer shows the diagnostics.
+- Done: the site keeps its own analysis, because the page has no room for the compiler. A test compares the analysis with the passes of the compiler on the examples and on random programs. It found a defect of the analysis: a list of calls in a step of an implicit chain is a chain too.
 
 ### R23. Outputs of the compiler
 
@@ -412,9 +412,19 @@ Open points:
 
 `@vitest/coverage-v8` at the root, with thresholds that only go up.
 
+**Result.** `scripts/coverage.mjs` runs the tests of each package with coverage and compares them with `coverage-baseline.json`. The floors only go up. The CI job `coverage` uploads the raised floors as an artifact. The first floors come from that artifact, because this computer is shared and does not run the full gate.
+
 ### R32. Stage 3
 
 Nightly mutation tests on the resolver, the capabilities, the policy and the middleware. Benchmarks with baselines. A WebSocket soak test. Real Docker and a Mongo service container. A Windows job.
+
+**Result.** `.github/workflows/nightly.yml` has five jobs:
+
+- `mutation`: Stryker on the resolver, the capabilities, the expose rule and the middleware. The report is an artifact, and the score does not fail the run yet.
+- `bench`: the benchmarks of the core with the `bench` fixture of vitest 5. The earlier results are the results of the last nightly run.
+- `soak`: 10 minutes of calls, streams, aborts, calls of the server and reconnects. The maps of the two sides must be empty, and the heap must stay flat.
+- `live`: the `mongo.*` procedures against MongoDB 7, and the `docker.*` procedures against the Docker of the runner.
+- `windows`: the build, the type checks, the tests and the end-to-end tests of `mark`.
 
 ### R33. The thin packages
 
@@ -429,6 +439,8 @@ More tests for `client-git`, `client-splay`, `client-s3` and `client-fs`. `clien
 - The core exports its timer settings as data.
 - `@procedures/systems` examines them with the timer law of `systems`. Example: the time of one try is less than the request time of the WebSocket. The overall time is more than the sum of the tries and the backoffs.
 - The package depends on the client and on the general packages. The general packages do not depend on it.
+
+**Result.** The core exports `TIMER_DEFAULTS`, and its middleware, transports and server read them. `@procedures/systems` binds the settings of an application to the symbols of the law of `@mark1russell7/service`. It examines six rules with the evaluator of that package. The law found two defaults that broke it. The WebSocket client pinged each 30 s, so it found a dead connection after 35 s, after a call on it timed out at 30 s. The server found a dead client after 60 s. The client pings each 20 s at this time, and the server each 15 s.
 
 ### R35. State machines as data
 
