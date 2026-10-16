@@ -106,7 +106,8 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 1. For each change that users see, add a changeset: start `pnpm changeset` and answer the questions. Commit the file.
 2. On GitHub, open Actions, select "Release", and start the workflow. Approve the `npm` environment.
 3. The workflow opens the pull request "Version the packages". It sets the new version and writes the change logs. Merge it.
-4. Start the workflow again. It does the checks and the strict package check. Then it publishes each version that is not on npm, with provenance.
+4. Start the workflow again. It does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
+5. If the publish stops, start the workflow again. It skips the versions that are on npm.
 
 ## A new public package
 
