@@ -194,6 +194,9 @@ describe("fs.copy", () => {
     expect(readFileSync(dest, "utf8")).toBe("alpha");
     await call("fs.copy", { src: join(dir, "sub"), dest: join(dir, "sub2") });
     expect(readFileSync(join(dir, "sub2", "deep", "c.json"), "utf8")).toContain('"name":"c"');
+    // recursive: false copies one file with COPYFILE_EXCL
+    await call("fs.copy", { src: join(dir, "a.txt"), dest: join(dir, "single.txt"), recursive: false });
+    expect(readFileSync(join(dir, "single.txt"), "utf8")).toBe("alpha");
   });
 
   it("refuses an existing destination without overwrite, and changes nothing", async () => {

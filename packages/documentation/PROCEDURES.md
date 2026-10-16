@@ -90,7 +90,7 @@
 | `client.identity` | Return input unchanged |
 | `client.map` | Map over an array: run fn for each item (the item is { $ref: "item" }) |
 | `client.none` | Returns true if all values are falsy |
-| `client.not` | Logical NOT |
+| `client.not` | Logical NOT of a value |
 | `client.or` | Short-circuit OR (returns first truthy or last value) |
 | `client.parallel` | Execute procedures in parallel |
 | `client.reduce` | Reduce an array: run fn for each item (acc and item are $refs) |
@@ -185,7 +185,7 @@
 
 | Procedure | Description |
 |-----------|-------------|
-| `fs.copy` | Copy file or directory |
+| `fs.copy` | Copy file or directory. Without overwrite, it refuses an existing destination (EEXIST). |
 | `fs.exists` | Check if file or directory exists |
 | `fs.glob` | Find files matching glob pattern |
 | `fs.hash` | The hash of a file |
@@ -520,7 +520,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `splay.bridge.health` | Health check for client-splay bridge |
-| `splay.bridge.info` | Get client-splay bridge information |
+| `splay.bridge.info` | Get client-splay bridge information: its name and its version |
 
 ## systems
 
