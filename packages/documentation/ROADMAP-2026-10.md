@@ -253,6 +253,8 @@ The client middleware and the server interceptors make two traces today. The cli
 - `manifest.generate`, `_discovery.announce`, `mcp.list-tools` and the `mark` manifest use this function.
 - R1 uses the effects of the manifest. The compiler (R20) uses the schemas.
 
+**Result.** The context of a handler has the expose rule of its host (`ctx.expose`), and each introspection procedure obeys it. Before, a handler could not know the rule, so the MCP tools `procedure.list`, `procedure.get` and `procedure.export` listed the procedures that the host hides. `procedure.manifest` is the 63rd tool of the dev tools.
+
 ### R18. The server-transport contract
 
 - `ServerTransport` gets a typed handler: a request and a signal give a response.
@@ -260,6 +262,8 @@ The client middleware and the server interceptors make two traces today. The cli
 - `ProcedureServer` examines the token of `HostPolicy`. Today only the peer examines it.
 - The HTTP server copies only declared headers into the metadata. It does not copy `Authorization`.
 - A conformance suite sends the same calls through each face: Local, HTTP, WebSocket and MCP.
+
+**Result.** The transports take a `RequestHandler`. A request has `credentials` and `principal`, and a request without credentials comes from the process itself. The suite found one more difference: a local call waited for its handler after an abort. `LocalTransport` answers `ABORTED` at once, as the network faces do.
 
 ### R19. Health and metrics as procedures
 
