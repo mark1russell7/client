@@ -4,12 +4,13 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 282 across 46 namespaces. Loaded 41 package register(s).
+**Total procedures:** 295 across 50 namespaces. Loaded 45 package register(s).
 
 ## Namespaces
 
 - [`_discovery.*`](#_discovery) — 1 procedure(s)
 - [`archive.*`](#archive) — 3 procedure(s)
+- [`claude.*`](#claude) — 4 procedure(s)
 - [`cli.*`](#cli) — 1 procedure(s)
 - [`client.*`](#client) — 15 procedure(s)
 - [`core.*`](#core) — 1 procedure(s)
@@ -22,10 +23,11 @@
 - [`exif.*`](#exif) — 1 procedure(s)
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`geo.*`](#geo) — 4 procedure(s)
-- [`gh.*`](#gh) — 13 procedure(s)
+- [`gh.*`](#gh) — 16 procedure(s)
 - [`git.*`](#git) — 46 procedure(s)
 - [`http.*`](#http) — 4 procedure(s)
 - [`ics.*`](#ics) — 4 procedure(s)
+- [`iosBackup.*`](#iosBackup) — 3 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
 - [`lib.*`](#lib) — 5 procedure(s)
 - [`llm.*`](#llm) — 2 procedure(s)
@@ -37,7 +39,9 @@
 - [`node.*`](#node) — 5 procedure(s)
 - [`notify.*`](#notify) — 1 procedure(s)
 - [`npm.*`](#npm) — 7 procedure(s)
+- [`pdf.*`](#pdf) — 1 procedure(s)
 - [`pnpm.*`](#pnpm) — 12 procedure(s)
+- [`privacyScan.*`](#privacyScan) — 2 procedure(s)
 - [`procedure.*`](#procedure) — 12 procedure(s)
 - [`program.*`](#program) — 4 procedure(s)
 - [`restic.*`](#restic) — 1 procedure(s)
@@ -70,6 +74,15 @@
 | `archive.create` | Make a tar.gz or zip archive of a folder or of files |
 | `archive.extract` | Extract a tar.gz or zip archive into a folder, with a check of each path |
 | `archive.list` | The entries of a tar.gz or zip archive |
+
+## claude
+
+| Procedure | Description |
+|-----------|-------------|
+| `claude.cancel` | Stop a turn and the processes that it started |
+| `claude.follow` | Follow the output file of a turn and stream its events until the turn ends |
+| `claude.read` | Read the new events of a turn from its output file |
+| `claude.start` | Start one turn of the Claude Code CLI as a detached process that writes to a file |
 
 ## cli
 
@@ -214,6 +227,7 @@
 
 | Procedure | Description |
 |-----------|-------------|
+| `gh.api` | Call the GitHub API and give the parsed JSON. A method other than GET can change or delete data |
 | `gh.issue.comment` | Add a comment to an issue or a pull request |
 | `gh.issue.create` | Open an issue |
 | `gh.issue.list` | The issues of a repository |
@@ -224,9 +238,11 @@
 | `gh.pr.view` | One pull request |
 | `gh.release.list` | The releases of a repository |
 | `gh.release.view` | One release: the release of a tag, or the latest release |
+| `gh.run.download` | Download the artifacts of a workflow run into a folder |
 | `gh.run.list` | The workflow runs of a repository |
 | `gh.run.rerun` | Run a workflow run again |
 | `gh.run.view` | One workflow run with its jobs |
+| `gh.workflow.run` | Start a workflow run (a workflow_dispatch event) on a branch or a tag, with the inputs of the workflow |
 
 ## git
 
@@ -296,6 +312,14 @@
 | `ics.occurrences` | Give the occurrences of the events of an iCalendar text in a time window, recurrences included |
 | `ics.parse` | Read the events of an iCalendar text |
 | `ics.write` | Write an iCalendar text from events: escaped text, folded lines and CRLF line ends |
+
+## iosBackup
+
+| Procedure | Description |
+|-----------|-------------|
+| `iosBackup.file` | Find a file of an iPhone backup by its domain and relative path in Manifest.db |
+| `iosBackup.find` | Find the iPhone backups (MobileSync) on this computer, the newest first |
+| `iosBackup.messages` | Read the messages (iMessage and SMS) of an iPhone backup, in time order |
 
 ## json
 
@@ -404,6 +428,12 @@
 | `npm.view` | Read the fields of a package of the npm registry: data has the JSON of npm view |
 | `npm.whoami` | Give the user name of the npm registry |
 
+## pdf
+
+| Procedure | Description |
+|-----------|-------------|
+| `pdf.render` | Render HTML to a PDF file with a headless Chromium browser |
+
 ## pnpm
 
 | Procedure | Description |
@@ -420,6 +450,13 @@
 | `pnpm.store.path` | Get pnpm store path for snapshot/restore |
 | `pnpm.update` | Update packages to their newest versions in the ranges, or with latest to the latest versions |
 | `pnpm.why` | Show the packages that depend on a package: data is the JSON of pnpm why --json |
+
+## privacyScan
+
+| Procedure | Description |
+|-----------|-------------|
+| `privacyScan.files` | Find private data in files and folders: terms of a list, email addresses, phone numbers, coordinates |
+| `privacyScan.text` | Find private data in a text: terms of a list, email addresses, phone numbers, coordinates |
 
 ## procedure
 
