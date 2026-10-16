@@ -32,7 +32,7 @@ export interface Forecast {
   readonly timezone: string;
   readonly units: { readonly temperature: string; readonly windSpeed: string };
   readonly daily: ForecastDay[];
-  readonly hourly?: ForecastHour[];
+  readonly hourly?: ForecastHour[] | undefined;
 }
 
 const DAILY = ["temperature_2m_max", "temperature_2m_min", "precipitation_probability_max", "wind_speed_10m_max", "weather_code"];

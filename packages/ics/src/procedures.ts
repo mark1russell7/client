@@ -38,19 +38,19 @@ const occurrenceSchema = z.object({
 // ics.parse
 // =============================================================================
 
-const ParseInput = z.object({
+const ParseInputSchema = z.object({
   text: z.string().describe("The iCalendar text (BEGIN:VCALENDAR ... END:VCALENDAR)"),
 });
-type ParseInput = z.infer<typeof ParseInput>;
+type ParseInput = z.infer<typeof ParseInputSchema>;
 interface EventsOutput {
   events: IcsEvent[];
 }
-const EventsOutput = z.object({ events: z.array(eventSchema) });
+const EventsOutputSchema = z.object({ events: z.array(eventSchema) });
 
 export const icsParseProcedure: AnyProcedure = createProcedure()
   .path(["ics", "parse"])
-  .input(zodAdapter<ParseInput>(ParseInput))
-  .output(zodAdapter<EventsOutput>(EventsOutput))
+  .input(zodAdapter<ParseInput>(ParseInputSchema))
+  .output(zodAdapter<EventsOutput>(EventsOutputSchema))
   .meta({
     description: "Read the events of an iCalendar text",
     output: "json",
@@ -63,21 +63,21 @@ export const icsParseProcedure: AnyProcedure = createProcedure()
 // ics.occurrences
 // =============================================================================
 
-const OccurrencesInput = z.object({
+const OccurrencesInputSchema = z.object({
   text: z.string().describe("The iCalendar text"),
   from: isoTime.describe("The start of the window (ISO 8601)"),
   to: isoTime.describe("The end of the window (ISO 8601)"),
 });
-type OccurrencesInput = z.infer<typeof OccurrencesInput>;
+type OccurrencesInput = z.infer<typeof OccurrencesInputSchema>;
 interface OccurrencesOutput {
   occurrences: Occurrence[];
 }
-const OccurrencesOutput = z.object({ occurrences: z.array(occurrenceSchema) });
+const OccurrencesOutputSchema = z.object({ occurrences: z.array(occurrenceSchema) });
 
 export const icsOccurrencesProcedure: AnyProcedure = createProcedure()
   .path(["ics", "occurrences"])
-  .input(zodAdapter<OccurrencesInput>(OccurrencesInput))
-  .output(zodAdapter<OccurrencesOutput>(OccurrencesOutput))
+  .input(zodAdapter<OccurrencesInput>(OccurrencesInputSchema))
+  .output(zodAdapter<OccurrencesOutput>(OccurrencesOutputSchema))
   .meta({
     description: "Give the occurrences of the events of an iCalendar text in a time window, recurrences included",
     output: "json",
@@ -94,11 +94,11 @@ export const icsOccurrencesProcedure: AnyProcedure = createProcedure()
 // ics.fetch
 // =============================================================================
 
-const FetchInput = z.object({
+const FetchInputSchema = z.object({
   url: z.url().describe("The address of the calendar feed. A private feed address is a secret: no error repeats it."),
   timeoutMs: z.number().int().positive().max(120_000).default(20_000).describe("The time limit, in milliseconds"),
 });
-type FetchInput = z.infer<typeof FetchInput>;
+type FetchInput = z.infer<typeof FetchInputSchema>;
 
 /**
  * This function gets the text of a calendar feed. The address of a private feed is a secret, so
@@ -123,8 +123,8 @@ export async function fetchCalendar(url: string, timeoutMs: number, signal?: Abo
 
 export const icsFetchProcedure: AnyProcedure = createProcedure()
   .path(["ics", "fetch"])
-  .input(zodAdapter<FetchInput>(FetchInput))
-  .output(zodAdapter<EventsOutput>(EventsOutput))
+  .input(zodAdapter<FetchInput>(FetchInputSchema))
+  .output(zodAdapter<EventsOutput>(EventsOutputSchema))
   .meta({
     description: "Get a calendar feed and read its events",
     args: ["url"],

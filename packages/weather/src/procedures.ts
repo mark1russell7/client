@@ -6,7 +6,7 @@ import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext }
 import { z } from "zod";
 import { forecastUrl, readForecast, type Forecast } from "./weather.js";
 
-const ForecastInput = z.object({
+const ForecastInputSchema = z.object({
   lat: z.number().min(-90).max(90).describe("The latitude of the point, in degrees"),
   lon: z.number().min(-180).max(180).describe("The longitude of the point, in degrees"),
   days: z.number().int().min(1).max(16).default(7).describe("The number of days (default: 7, at most 16)"),
@@ -15,10 +15,10 @@ const ForecastInput = z.object({
   baseUrl: z.url().optional().describe("Another Open-Meteo server (default: the public server)"),
   timeoutMs: z.number().int().positive().max(120_000).default(20_000).describe("The time limit, in milliseconds (default: 20000)"),
 });
-type ForecastInput = z.infer<typeof ForecastInput>;
+type ForecastInput = z.infer<typeof ForecastInputSchema>;
 
 const nullableNumber = z.number().nullable();
-const ForecastOutput = z.object({
+const ForecastOutputSchema = z.object({
   timezone: z.string(),
   units: z.object({ temperature: z.string(), windSpeed: z.string() }),
   daily: z.array(
@@ -38,8 +38,8 @@ const ForecastOutput = z.object({
 
 export const weatherForecastProcedure: AnyProcedure = createProcedure()
   .path(["weather", "forecast"])
-  .input(zodAdapter<ForecastInput>(ForecastInput))
-  .output(zodAdapter<Forecast>(ForecastOutput))
+  .input(zodAdapter<ForecastInput>(ForecastInputSchema))
+  .output(zodAdapter<Forecast>(ForecastOutputSchema))
   .meta({
     description: "Give the weather forecast of a point for each day, and optionally each hour (Open-Meteo)",
     output: "json",

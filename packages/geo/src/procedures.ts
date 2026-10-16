@@ -14,7 +14,7 @@ const timeoutMs = z.number().int().positive().max(120_000).default(20_000).descr
 // geo.geocode
 // =============================================================================
 
-const GeocodeInput = z.object({
+const GeocodeInputSchema = z.object({
   query: z.string().min(1).describe("An address or a place name"),
   userAgent: z
     .string()
@@ -24,21 +24,21 @@ const GeocodeInput = z.object({
   baseUrl: z.url().optional().describe("Another Nominatim server (default: the public server)"),
   timeoutMs,
 });
-type GeocodeInput = z.infer<typeof GeocodeInput>;
+type GeocodeInput = z.infer<typeof GeocodeInputSchema>;
 
 interface GeocodeOutput {
   found: boolean;
-  result?: GeocodeResult;
+  result?: GeocodeResult | undefined;
 }
-const GeocodeOutput = z.object({
+const GeocodeOutputSchema = z.object({
   found: z.boolean(),
   result: z.object({ lat: z.number(), lon: z.number(), displayName: z.string() }).optional(),
 });
 
 export const geoGeocodeProcedure: AnyProcedure = createProcedure()
   .path(["geo", "geocode"])
-  .input(zodAdapter<GeocodeInput>(GeocodeInput))
-  .output(zodAdapter<GeocodeOutput>(GeocodeOutput))
+  .input(zodAdapter<GeocodeInput>(GeocodeInputSchema))
+  .output(zodAdapter<GeocodeOutput>(GeocodeOutputSchema))
   .meta({
     description: "Find the coordinates of an address or a place name (OpenStreetMap Nominatim)",
     args: ["query"],
@@ -55,19 +55,19 @@ export const geoGeocodeProcedure: AnyProcedure = createProcedure()
 // geo.route
 // =============================================================================
 
-const RouteInput = z.object({
+const RouteInputSchema = z.object({
   from: point.describe("The start"),
   to: point.describe("The destination"),
   baseUrl: z.url().optional().describe("Another OSRM server (default: the public demonstration server)"),
   timeoutMs,
 });
-type RouteInput = z.infer<typeof RouteInput>;
-const RouteOutput = z.object({ km: z.number(), minutes: z.number() });
+type RouteInput = z.infer<typeof RouteInputSchema>;
+const RouteOutputSchema = z.object({ km: z.number(), minutes: z.number() });
 
 export const geoRouteProcedure: AnyProcedure = createProcedure()
   .path(["geo", "route"])
-  .input(zodAdapter<RouteInput>(RouteInput))
-  .output(zodAdapter<RouteResult>(RouteOutput))
+  .input(zodAdapter<RouteInput>(RouteInputSchema))
+  .output(zodAdapter<RouteResult>(RouteOutputSchema))
   .meta({
     description: "Give the time and the distance of a drive between two points (OSRM)",
     output: "json",

@@ -13,20 +13,20 @@ const addressSchema = z.object({ name: z.string().optional(), address: z.string(
 // mail.parse
 // =============================================================================
 
-const ParseInput = z.object({
+const ParseInputSchema = z.object({
   raw: z.string().describe("The raw message (RFC 822): the headers, an empty line, the body"),
 });
-type ParseInput = z.infer<typeof ParseInput>;
+type ParseInput = z.infer<typeof ParseInputSchema>;
 
 interface ParseOutput {
   headers: Record<string, string>;
-  subject?: string;
+  subject?: string | undefined;
   from: MailAddress[];
   to: MailAddress[];
-  date?: string;
+  date?: string | undefined;
   text: string;
 }
-const ParseOutput = z.object({
+const ParseOutputSchema = z.object({
   headers: z.record(z.string(), z.string()),
   subject: z.string().optional(),
   from: z.array(addressSchema),
@@ -53,8 +53,8 @@ export function parseMessage(raw: string): ParseOutput {
 
 export const mailParseProcedure: AnyProcedure = createProcedure()
   .path(["mail", "parse"])
-  .input(zodAdapter<ParseInput>(ParseInput))
-  .output(zodAdapter<ParseOutput>(ParseOutput))
+  .input(zodAdapter<ParseInput>(ParseInputSchema))
+  .output(zodAdapter<ParseOutput>(ParseOutputSchema))
   .meta({
     description: "Read the headers, the addresses and the text of a raw email message",
     output: "json",
@@ -67,7 +67,7 @@ export const mailParseProcedure: AnyProcedure = createProcedure()
 // mail.headers
 // =============================================================================
 
-const HeadersInput = z.object({
+const HeadersInputSchema = z.object({
   host: z.string().min(1).describe("The IMAP server, for example imap.gmail.com"),
   port: z.number().int().min(1).max(65_535).default(993).describe("The port (default: 993)"),
   secure: z.boolean().default(true).describe("Use TLS from the start (default: true)"),
@@ -82,12 +82,12 @@ const HeadersInput = z.object({
   limit: z.number().int().min(1).max(5_000).default(200).describe("The maximum number of messages, the newest first (default: 200)"),
   timeoutMs: z.number().int().positive().max(600_000).default(60_000).describe("The time limit, in milliseconds (default: 60000)"),
 });
-type HeadersInput = z.infer<typeof HeadersInput>;
+type HeadersInput = z.infer<typeof HeadersInputSchema>;
 
 interface HeadersOutput {
   messages: MailHeader[];
 }
-const HeadersOutput = z.object({
+const HeadersOutputSchema = z.object({
   messages: z.array(
     z.object({
       uid: z.number(),
@@ -110,8 +110,8 @@ export function setImapClientFactory(factory: ImapClientFactory | undefined): vo
 
 export const mailHeadersProcedure: AnyProcedure = createProcedure()
   .path(["mail", "headers"])
-  .input(zodAdapter<HeadersInput>(HeadersInput))
-  .output(zodAdapter<HeadersOutput>(HeadersOutput))
+  .input(zodAdapter<HeadersInput>(HeadersInputSchema))
+  .output(zodAdapter<HeadersOutput>(HeadersOutputSchema))
   .meta({
     description: "Give the headers of the recent messages of an IMAP mailbox, read only (no message becomes read)",
     args: ["host", "user"],

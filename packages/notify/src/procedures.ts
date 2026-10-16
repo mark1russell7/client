@@ -6,7 +6,7 @@ import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext }
 import { z } from "zod";
 import { sendNotification } from "./notify.js";
 
-const SendInput = z.object({
+const SendInputSchema = z.object({
   topic: z
     .string()
     .regex(/^[A-Za-z0-9_-]{1,64}$/)
@@ -24,17 +24,17 @@ const SendInput = z.object({
     .describe("The name of the environment variable with the access token of a protected topic. The token is never an input."),
   timeoutMs: z.number().int().positive().max(120_000).default(20_000).describe("The time limit, in milliseconds (default: 20000)"),
 });
-type SendInput = z.infer<typeof SendInput>;
+type SendInput = z.infer<typeof SendInputSchema>;
 
 interface SendOutput {
   sent: true;
 }
-const SendOutput = z.object({ sent: z.literal(true) });
+const SendOutputSchema = z.object({ sent: z.literal(true) });
 
 export const notifySendProcedure: AnyProcedure = createProcedure()
   .path(["notify", "send"])
-  .input(zodAdapter<SendInput>(SendInput))
-  .output(zodAdapter<SendOutput>(SendOutput))
+  .input(zodAdapter<SendInput>(SendInputSchema))
+  .output(zodAdapter<SendOutput>(SendOutputSchema))
   .meta({
     description: "Send a push notification through ntfy",
     args: ["topic", "title", "message"],

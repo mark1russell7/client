@@ -22,16 +22,16 @@ export async function readHead(path: string, size: number = HEAD_BYTES): Promise
   }
 }
 
-const ReadInput = z.object({
+const ReadInputSchema = z.object({
   path: z.string().min(1).describe("The path of a JPEG file"),
 });
-type ReadInput = z.infer<typeof ReadInput>;
-const ReadOutput = z.object({ takenAt: z.string().optional(), lat: z.number().optional(), lon: z.number().optional() });
+type ReadInput = z.infer<typeof ReadInputSchema>;
+const ReadOutputSchema = z.object({ takenAt: z.string().optional(), lat: z.number().optional(), lon: z.number().optional() });
 
 export const exifReadProcedure: AnyProcedure = createProcedure()
   .path(["exif", "read"])
-  .input(zodAdapter<ReadInput>(ReadInput))
-  .output(zodAdapter<PhotoFacts>(ReadOutput))
+  .input(zodAdapter<ReadInput>(ReadInputSchema))
+  .output(zodAdapter<PhotoFacts>(ReadOutputSchema))
   .meta({
     description: "Read when and where a JPEG photo was taken (EXIF time and GPS position)",
     args: ["path"],

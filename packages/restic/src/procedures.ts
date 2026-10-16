@@ -14,7 +14,7 @@ import { buildArgv, parseJsonOutput, type ArgValue } from "./argv.js";
 /** The flags that `restic.run` refuses. */
 const REFUSED_FLAGS = new Set(["password-command"]);
 
-const RunInput = z.object({
+const RunInputSchema = z.object({
   path: z
     .array(z.string().regex(/^[a-z][a-z-]*$/))
     .min(1)
@@ -30,7 +30,7 @@ const RunInput = z.object({
   cwd: z.string().optional().describe("The working folder"),
   timeout: z.number().int().positive().optional().describe("The time limit, in milliseconds"),
 });
-type RunInput = z.infer<typeof RunInput>;
+type RunInput = z.infer<typeof RunInputSchema>;
 
 interface RunOutput {
   exitCode: number;
@@ -40,7 +40,7 @@ interface RunOutput {
   /** The JSON output, when `json` is true and restic gave JSON */
   json?: unknown;
 }
-const RunOutput = z.object({
+const RunOutputSchema = z.object({
   exitCode: z.number(),
   success: z.boolean(),
   stdout: z.string(),
@@ -48,19 +48,28 @@ const RunOutput = z.object({
   json: z.unknown().optional(),
 });
 
-/** This function gives the argv of a restic command. */
-export function resticArgv(input: Pick<RunInput, "path" | "positional" | "args" | "repository" | "json">): string[] {
+/** A restic command: the subcommand path, its arguments and the repository. */
+export interface ResticCommand {
+  readonly path: readonly string[];
+  readonly positional?: readonly string[] | undefined;
+  readonly args?: Readonly<Record<string, ArgValue>> | undefined;
+  readonly repository?: string | undefined;
+  readonly json?: boolean | undefined;
+}
+
+/** This function gives the argv of a restic command. It refuses the flags that start a program. */
+export function resticArgv(input: ResticCommand): string[] {
   for (const key of Object.keys(input.args ?? {})) {
     if (REFUSED_FLAGS.has(key)) throw new Error(`restic.run refuses --${key}: it starts a program`);
   }
   const flags = [...(input.repository !== undefined ? [`--repo=${input.repository}`] : []), ...(input.json ? ["--json"] : [])];
-  return buildArgv({ path: input.path, args: input.args as Record<string, ArgValue> | undefined, positional: input.positional, flags });
+  return buildArgv({ path: input.path, args: input.args, positional: input.positional, flags });
 }
 
 export const resticRunProcedure: AnyProcedure = createProcedure()
   .path(["restic", "run"])
-  .input(zodAdapter<RunInput>(RunInput))
-  .output(zodAdapter<RunOutput>(RunOutput))
+  .input(zodAdapter<RunInput>(RunInputSchema))
+  .output(zodAdapter<RunOutput>(RunOutputSchema))
   .meta({
     description: "Run a restic command (backup, snapshots, restore, forget, check)",
     args: ["path"],

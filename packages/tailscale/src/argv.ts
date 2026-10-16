@@ -6,7 +6,7 @@
 export type ArgValue = string | number | boolean | readonly string[];
 
 /** A flag name: lowercase letters, digits and hyphens. */
-export const FLAG_NAME = /^[a-z][a-z0-9-]*$/;
+export const FLAG_NAME: RegExp = /^[a-z][a-z0-9-]*$/;
 
 /**
  * This function gives the argv: the path, then each named argument, then `--` and the positional

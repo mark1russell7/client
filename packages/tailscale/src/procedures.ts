@@ -20,7 +20,7 @@ export function tailscaleExecutable(explicit?: string): string {
   return process.platform === "win32" && existsSync(WINDOWS_PATH) ? WINDOWS_PATH : "tailscale";
 }
 
-const RunInput = z.object({
+const RunInputSchema = z.object({
   path: z
     .array(z.string().regex(/^[a-z][a-z-]*$/))
     .min(1)
@@ -34,7 +34,7 @@ const RunInput = z.object({
   executable: z.string().min(1).optional().describe("The tailscale program (default: TAILSCALE_EXE, then the install folder, then tailscale)"),
   timeout: z.number().int().positive().default(60_000).describe("The time limit, in milliseconds (default: 60000)"),
 });
-type RunInput = z.infer<typeof RunInput>;
+type RunInput = z.infer<typeof RunInputSchema>;
 
 interface RunOutput {
   exitCode: number;
@@ -43,9 +43,9 @@ interface RunOutput {
   stderr: string;
   json?: unknown;
   /** The login or enable address that tailscale printed, when it printed one */
-  actionUrl?: string;
+  actionUrl?: string | undefined;
 }
-const RunOutput = z.object({
+const RunOutputSchema = z.object({
   exitCode: z.number(),
   success: z.boolean(),
   stdout: z.string(),
@@ -56,8 +56,8 @@ const RunOutput = z.object({
 
 export const tailscaleRunProcedure: AnyProcedure = createProcedure()
   .path(["tailscale", "run"])
-  .input(zodAdapter<RunInput>(RunInput))
-  .output(zodAdapter<RunOutput>(RunOutput))
+  .input(zodAdapter<RunInput>(RunInputSchema))
+  .output(zodAdapter<RunOutput>(RunOutputSchema))
   .meta({
     description: "Run a tailscale command (status, ip, serve, up, down)",
     args: ["path"],
