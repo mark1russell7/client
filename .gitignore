@@ -47,6 +47,8 @@ ehthumbs.db
 *.key
 secrets.*
 credentials.*
+# The source of the secret names of @procedures/env, not a secret
+!packages/env/src/secrets.ts
 
 # Logs. Do not ignore a "logs/" folder: client-sqlite has logs.* procedures.
 *.log
