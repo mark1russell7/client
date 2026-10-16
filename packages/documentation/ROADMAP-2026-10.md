@@ -71,11 +71,11 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R21 | 4 | `program.compile` and the equivalence tests | M | open | |
 | R22 | 4 | The interpreter and the site use the IR of the compiler | M | open | |
 | R23 | 4 | Outputs of the compiler: diagrams, tool descriptions, typed SDK, `procedure.explain` | M | open | |
-| R24 | 5 | The bidirectional peer | M–L | open | |
-| R25 | 5 | Wire protocol v1 | M | open | |
-| R26 | 5 | MCP Streamable HTTP | M | open | |
-| R27 | 5 | A `MessagePort` transport for workers | S–M | open | |
-| R28 | 6 | The collection mode switch | L | open | |
+| R24 | 5 | The bidirectional peer | M–L | fixed | `b2a3e3a` |
+| R25 | 5 | Wire protocol v1 | M | fixed | `21f7743` |
+| R26 | 5 | MCP Streamable HTTP | M | fixed | `3d24d5b`, `b42f3c8` |
+| R27 | 5 | A `MessagePort` transport for workers | S–M | fixed | `d81d0ed` |
+| R28 | 6 | The collection mode switch | L | fixed | `7873940` |
 | R29 | 7 | Testing stage 1: property tests and a catalog test of the core procedures | M | open | |
 | R30 | 7 | Testing stage 2: faults, contracts and leaks | L | open | |
 | R31 | 7 | Coverage with a ratchet | S | open | |
@@ -313,6 +313,8 @@ Three parts read programs today: the interpreter, the analysis of the site and t
 - The event frame works in the two directions, or the review lists it for a decision.
 - The two raw functions become wrappers of the new calls.
 
+**Result.** `adapters/websocket/shared/rpc.ts` has the calls of the two directions: `OutgoingCalls`, `IncomingCalls` and the stream credit. The server serves each connection with `IncomingCalls`. `callConnection`, `transportFor` and `callClient` send calls to a client. The client serves its own handler with the `serve` option, and `onServerRequest` is a wrapper. The peer has `connections()` and `clientFor(id)`. The event frame is in the list for a decision.
+
 ### R25. Wire protocol v1
 
 - `WIRE-PROTOCOL.md` specifies the HTTP and WebSocket formats.
@@ -322,13 +324,19 @@ Three parts read programs today: the interpreter, the analysis of the site and t
 - `Method.version` has a meaning, or it goes away.
 - Golden frame tests pin the format.
 
+**Result.** `src/protocol.ts` has `PROTOCOL_VERSION` 1, the `Procedures-Protocol` header, `ERROR_CODES` and `httpStatusOf`. A WebSocket connection starts with two hello frames. A server refuses another version with `PROTOCOL_VERSION`. The reason of a `FORBIDDEN` error travels on each face, also in the `_meta` field of MCP. `Method.version` is deprecated. The goldens are in `packages/client/test/wire/`, and `WIRE-PROTOCOL.md` specifies the formats.
+
 ### R26. MCP Streamable HTTP
 
 The SSE transport of `client-mcp` only throws today. The current MCP specification uses Streamable HTTP.
 
+**Result.** `McpServerTransport` takes `transport: "http"`. Each client gets a session with an MCP server of its own, so it gets the progress and the `list_changed` notifications. The endpoint listens on loopback by default. It refuses a page of another origin, and with a token it refuses a request without the token. `mark mcp --http <port> --token <token>` serves the dev tools. A test with the client of the MCP SDK and an end-to-end test of `mark` examine it.
+
 ### R27. A `MessagePort` transport
 
 The site has two worker protocols of its own. A `MessagePort` transport replaces them.
+
+**Result.** `PortTransport` sends the frames of the WebSocket transport over a worker, a `MessageChannel` or a `worker_threads` port, in the two directions. The site serves `site.run` and `site.journey` from its workers with it. The transport does not import the Durations, because `quantity` brings zod (R37). Alone, the transport is 2.5 kB of gzip.
 
 ## Tier 6: the collection mode switch
 
@@ -342,6 +350,16 @@ The site has two worker protocols of its own. A `MessagePort` transport replaces
 - `ProcedureServer.useStorage` empties the old storage before it changes.
 - A consumer uses the switch: the site or MiniMongo.
 - A model-based test switches the modes at random times while the remote storage fails.
+
+**Result.** `HybridStorage` has the four modes. `setMode()` waits for the running operations, sends the queue and syncs the local copy. A failed switch keeps the mode and throws `ModeSwitchError`. A `QueueStore` keeps the queue: `MemoryQueueStore`, and `FileQueueStore` in `@procedures/store/file-queue`. Storages get `getChangesSince()`, and the collections get the procedure `changes`. `versionOf` gives the versions for the conflict policy. `pullInterval` pulls. `ProcedureServer.useStorage` drains the old storage with the `drain` option. The synced registry is the consumer: `createSyncedRegistry` takes the mode, and the registry has `setMode()`. The model test with random switches and restarts found that a restart in `remote-only` must send the loaded queue before a read.
+
+Open points:
+
+- The local copy is not durable. A new storage in `local-only` holds only the queue until a switch to a remote mode.
+- With the `error` policy, the next push sends the queued write, and it overwrites the remote value.
+- A write to an id without a remote version in the storage is not a conflict.
+- `MongoStorage` has no `getChangesSince()`, so it uses full syncs.
+- The IndexedDB queue store comes with R45. The site and MiniMongo do not use the switch yet.
 
 ## Tier 7: the testing program
 
@@ -409,6 +427,7 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 - The order: R11 and R35 in the client, then small changes to `systems` for service 0.3.0 (the heartbeat, the backoff, `replay` in `algebra`, a clock entry without `node:net`, the rule data). Then R3 and R12 use those functions.
 - The dependency direction stays: the client depends on the general packages of npm, and `systems` does not know `@procedures`.
 - The sizes, compressed: `quantity` 4.2 kB, the root of `service` 17.2 kB, the browser entry of the client 49.6 kB.
+- `quantity` 0.1.0 imports zod at its root and makes schemas there, so a bundler cannot remove zod. A bundle that imports the Durations gets approximately 95 kB of gzip. The client depends on zod already, so only a small bundle feels it, for example the port transport (R27). A change for service 0.3.0: a root entry of `quantity` without zod.
 
 ## Tier 9: new packages and procedures
 
