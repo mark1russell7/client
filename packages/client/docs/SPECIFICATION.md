@@ -308,7 +308,7 @@ for await (const event of client.stream<{ topic: string }, Event>(
 
 ```typescript
 const client = new Client({ transport })
-  .use(createTimeoutMiddleware({ overall: 5000 }))
+  .use(createOverallTimeoutMiddleware({ overall: 5000 }))
   .use(createRetryMiddleware({ maxRetries: 3 }))
   .use(createCacheMiddleware({ methods: ["users.get"], ttl: 60000 }))
   .use(createAuthMiddleware({ token: "abc123" }));
@@ -398,7 +398,7 @@ const runner = compose(
 
 // Bundle for reuse
 const standardStack = bundle(
-  createTimeoutMiddleware({ overall: 5000 }),
+  createOverallTimeoutMiddleware({ overall: 5000 }),
   createRetryMiddleware({ maxRetries: 3 })
 );
 ```

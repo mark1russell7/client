@@ -138,7 +138,7 @@ import { bundle } from "client/middleware";
 
 // Create a standard client middleware bundle
 const standardStack = bundle(
-  createTimeoutMiddleware({ overall: 5000 }),
+  createOverallTimeoutMiddleware({ overall: 5000 }),
   createRetryMiddleware({ maxRetries: 3 }),
   createCacheMiddleware({ methods: ["users.get"], ttl: 60000 })
 );

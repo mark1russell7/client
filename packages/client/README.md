@@ -686,13 +686,16 @@ const error = createError("E_TIMEOUT", {
 
 ### Advanced Middleware Composition
 ```typescript
+// The first use() is the outermost layer. The overall timeout covers the retries, and the
+// timeout of each try sits inside the retry, so the retry can start the next try.
 const client = new Client({ transport: new HttpTransport({ baseUrl: "/api" }) })
-  .use(createTimeoutMiddleware({ overall: 10000, perAttempt: 5000 }))
-  .use(createRetryMiddleware({ maxAttempts: 3, initialDelay: 1000 }))
-  .use(createCacheMiddleware({ methods: ["users.get"], capacity: 100, ttl: 60000 }))
-  .use(createCircuitBreakerMiddleware({ threshold: 5, timeout: 60000 }))
-  .use(createRateLimitMiddleware({ maxTokens: 10, refillRate: 1 }))
   .use(createTracingMiddleware())
+  .use(createOverallTimeoutMiddleware({ overall: 10000 }))
+  .use(createCacheMiddleware({ methods: ["users.get"], capacity: 100, ttl: 60000 }))
+  .use(createRetryMiddleware({ maxRetries: 3, retryDelay: 1000, idempotent: (method) => method.operation === "get" }))
+  .use(createCircuitBreakerMiddleware({ failureThreshold: 5, resetTimeout: 60000 }))
+  .use(createRateLimitMiddleware({ maxRequests: 10, window: 1000 }))
+  .use(createTimeoutMiddleware({ perAttempt: 5000 }))
   .use(createZodMiddleware());
 
 // Context inheritance

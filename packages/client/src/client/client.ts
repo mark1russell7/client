@@ -357,7 +357,7 @@ export class Client<TContext = {}> {
    * ```typescript
    * // Type accumulation example
    * const client = new Client(transport)
-   *   .use(createTimeoutMiddleware({ overall: 5000 }))  // Client<TimeoutContext>
+   *   .use(createOverallTimeoutMiddleware({ overall: 5000 }))  // Client<TimeoutContext>
    *   .use(createRetryMiddleware())                     // Client<TimeoutContext & RetryContext>
    *   .use(createCacheMiddleware({ methods: ["users.get"] }));                    // Client<... & CacheContext>
    *
