@@ -57,6 +57,7 @@ procedure.delete: destructive
 procedure.export: read only
 procedure.get: read only
 procedure.list: read only
+procedure.manifest: read only
 procedure.new: additive
 vitest.coverage: destructive, open world
 vitest.run: destructive, open world

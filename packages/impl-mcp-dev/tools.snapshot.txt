@@ -57,6 +57,7 @@ procedure.delete
 procedure.export
 procedure.get
 procedure.list
+procedure.manifest
 procedure.new
 vitest.coverage
 vitest.run

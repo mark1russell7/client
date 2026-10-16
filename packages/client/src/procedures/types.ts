@@ -269,6 +269,14 @@ export interface ProcedureContext {
   registry?: ProcedureRegistryLike;
 
   /**
+   * The expose rule of the host: the procedures that its callers reach. The introspection
+   * procedures (`procedure.list`, `procedure.get`, `procedure.manifest` and the others) show only
+   * these (roadmap R17: before, a handler could not know the rule, so an MCP tool listed the
+   * procedures that the host does not expose). Absent: every procedure.
+   */
+  expose?: ((path: ProcedurePath) => boolean) | undefined;
+
+  /**
    * The hydration observer of the program that runs this procedure (`client.exec(ref, input,
    * { onRef })`). A procedure that hydrates refs itself (control flow, a runner) gives it to
    * `hydrateInput`, so a trace sees the events of its own program only.

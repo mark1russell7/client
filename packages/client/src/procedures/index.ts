@@ -55,6 +55,9 @@ export {
   checkEffects,
 } from "./capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+// One manifest type (roadmap R17)
+export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./manifest.js";
+export type { ProcedureEntry, ProcedureManifest, CliDescription, DescribeOptions, DescribeRegistryOptions } from "./manifest.js";
 // Idempotency of calls (roadmap R1)
 export {
   IDEMPOTENCY_KEY_METADATA,
@@ -223,6 +226,7 @@ export type {
 export {
   defineProcedureProcedure,
   getProcedureProcedure,
+  manifestProcedure,
   listProceduresProcedure,
   deleteProcedureProcedure,
   metaProcedures,

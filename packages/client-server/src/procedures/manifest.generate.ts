@@ -3,7 +3,8 @@
  * Generates procedure manifests in various formats
  */
 
-import { createProcedure, jsonSchemaOf, type Effects, type Procedure, type ProcedureContext, PROCEDURE_REGISTRY } from "@procedures/client";
+import { createProcedure, describeRegistry, type AnyProcedure, type Effects, type Procedure, type ProcedureContext, PROCEDURE_REGISTRY } from "@procedures/client";
+import { infoOf } from "../discovery/index.js";
 import { wrapSchema } from "../schema.js";
 import { ManifestGenerateOutputSchema } from "../output-schemas.js";
 import { manifestGenerateInputSchema } from "../input-schemas.js";
@@ -30,39 +31,15 @@ export const manifestGenerateProcedure: Procedure<
     effects: { reads: ["registry"], writes: ["fs"], idempotent: true },
   })
   .handler(async (input: ManifestGenerateInput, ctx?: ProcedureContext) => {
-    // The procedures of the caller's registry
-    const allProcedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
-
-    // Filter by namespace if specified
-    let procedures = allProcedures;
-    if (input.namespace && input.namespace.length > 0) {
-      procedures = allProcedures.filter((proc) => {
-        // Check if procedure path starts with namespace
-        for (let i = 0; i < input.namespace!.length; i++) {
-          if (proc.path[i] !== input.namespace![i]) {
-            return false;
-          }
-        }
-        return true;
-      });
-    }
-
-    // Convert to ProcedureInfo format
-    const procedureInfos: ProcedureInfo[] = procedures.map((proc) => {
-      const meta = proc.metadata as { description?: string; internal?: boolean } | undefined;
-      const info: ProcedureInfo = {
-        path: proc.path,
-      };
-      if (meta?.description !== undefined) {
-        info.description = meta.description;
-      }
-      // The JSON Schemas of the input and the output, when the schemas can describe themselves
-      const inputSchema = jsonSchemaOf(proc.input, { io: "input" });
-      const outputSchema = jsonSchemaOf(proc.output, { io: "output" });
-      if (inputSchema) info.inputSchema = inputSchema;
-      if (outputSchema) info.outputSchema = outputSchema;
-      return info;
+    // The one manifest of the core (roadmap R17): the procedures that the host exposes, with
+    // their JSON Schemas, under the namespace when the input gives one
+    const namespace = input.namespace ?? [];
+    const manifest = describeRegistry(ctx?.registry ?? PROCEDURE_REGISTRY, {
+      ...(ctx?.expose ? { expose: ctx.expose } : {}),
+      withoutHandler: true,
+      include: (proc: AnyProcedure) => namespace.every((segment, index) => proc.path[index] === segment),
     });
+    const procedureInfos: ProcedureInfo[] = manifest.procedures.map(infoOf);
 
     // Determine formats to generate
     const formats = input.formats ?? ["json"];

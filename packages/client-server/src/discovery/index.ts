@@ -14,6 +14,10 @@ import {
   type ProcedureRegistryLike,
   PROCEDURE_REGISTRY,
   REGISTRY_READ_EFFECTS,
+  describeRegistry,
+  type AnyProcedure,
+  type ProcedureEntry,
+  type ProcedurePath,
 } from "@procedures/client";
 import { schema } from "../schema.js";
 import type {
@@ -55,27 +59,14 @@ export const discoveryAnnounceProcedure: Procedure<
     effects: REGISTRY_READ_EFFECTS,
   })
   .handler(async (_input: DiscoveryAnnounceInput, ctx?: ProcedureContext) => {
-    // The procedures of the registry that serves this call (the peer's registry)
-    const procedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
-
-    // Convert to ProcedureInfo format
-    const procedureInfos: ProcedureInfo[] = procedures
-      .filter((proc) => {
-        // Skip internal procedures in discovery
-        const meta = proc.metadata as { internal?: boolean } | undefined;
-        return !meta?.internal;
-      })
-      .map((proc) => {
-        const meta = proc.metadata as { description?: string } | undefined;
-        const info: ProcedureInfo = {
-          path: proc.path,
-        };
-        if (meta?.description !== undefined) {
-          info.description = meta.description;
-        }
-        // TODO: Generate JSON schema from input/output schemas
-        return info;
-      });
+    // The one manifest of the core (roadmap R17): the procedures of the registry that serves this
+    // call and that the host exposes, with their JSON Schemas, without the internal ones.
+    // Before, the announce gave no schemas and listed the procedures that the host hides.
+    const manifest = describeRegistry(ctx?.registry ?? PROCEDURE_REGISTRY, {
+      ...(ctx?.expose ? { expose: ctx.expose } : {}),
+      include: (proc: AnyProcedure) => !(proc.metadata as { internal?: boolean } | undefined)?.internal,
+    });
+    const procedureInfos: ProcedureInfo[] = manifest.procedures.map(infoOf);
 
     // Generate a peer ID based on process (could be configured)
     const peerId = `peer-${process.pid}-${Date.now().toString(36)}`;
@@ -95,21 +86,21 @@ export const discoveryAnnounceProcedure: Procedure<
 /**
  * Get procedure info for all registered procedures of a registry (default: the global registry)
  */
-export function getProcedureInfos(registry: ProcedureRegistryLike = PROCEDURE_REGISTRY): ProcedureInfo[] {
-  const procedures = registry.getAll();
+export function getProcedureInfos(
+  registry: ProcedureRegistryLike = PROCEDURE_REGISTRY,
+  expose?: (path: ProcedurePath) => boolean
+): ProcedureInfo[] {
+  // The one manifest of the core (roadmap R17), without the schemas
+  return describeRegistry(registry, { schemas: false, ...(expose ? { expose } : {}) }).procedures.map(infoOf);
+}
 
-  return procedures
-    .filter((proc) => proc.handler !== undefined)
-    .map((proc) => {
-      const meta = proc.metadata as { description?: string } | undefined;
-      const info: ProcedureInfo = {
-        path: proc.path,
-      };
-      if (meta?.description !== undefined) {
-        info.description = meta.description;
-      }
-      return info;
-    });
+/** The ProcedureInfo of a manifest entry: the form that the peers exchange. */
+export function infoOf(entry: ProcedureEntry): ProcedureInfo {
+  const info: ProcedureInfo = { path: [...entry.path] };
+  if (entry.description !== undefined) info.description = entry.description;
+  if (entry.input) info.inputSchema = entry.input;
+  if (entry.output) info.outputSchema = entry.output;
+  return info;
 }
 
 /**

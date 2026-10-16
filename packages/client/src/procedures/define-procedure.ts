@@ -34,6 +34,7 @@ import type {
   ProcedureContext,
   AnyProcedure,
   ProcedureRegistryLike,
+  Effects,
 } from "./types.js";
 import { z } from "zod";
 import { anySchema, zodAdapter } from "./core/schemas.js";
@@ -48,6 +49,9 @@ import {
   RUNS_REFS_TAG,
 } from "./ref.js";
 import { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+import { MANIFEST_FORMAT, describeProcedure as describeEntry, describeRegistry, type ProcedureManifest } from "./manifest.js";
+import type { JsonSchema } from "./schema.js";
+import { isRuntimeDefined, markRuntimeProgram, runtimeProgramOfHandler } from "./runtime-programs.js";
 
 // Input schemas of procedure.define and procedure.delete (roadmap 2.1)
 const procedurePathField = z.array(z.string().min(1)).min(1);
@@ -151,7 +155,24 @@ const GetOutputSchema = z.looseObject({
   metadata: descriptionFields.metadata,
   hasInputSchema: z.boolean().optional().describe("True when the procedure has an input schema"),
   hasOutputSchema: z.boolean().optional().describe("True when the procedure has an output schema"),
-}) as z.ZodType<{ found: false } | (ProcedureDescription & { found: true; hasInputSchema: boolean; hasOutputSchema: boolean })>;
+  input: z.record(z.string(), z.unknown()).optional().describe("The JSON Schema of the input"),
+  output: z.record(z.string(), z.unknown()).optional().describe("The JSON Schema of the output"),
+  effects: z.unknown().optional().describe("The declared effects: reads, writes, idempotent, destructive"),
+}) as z.ZodType<{ found: false } | (ProcedureDescription & GetSchemas & { found: true; hasInputSchema: boolean; hasOutputSchema: boolean })>;
+
+/** The JSON Schemas and the effects that `procedure.get` gives (roadmap R17). */
+interface GetSchemas {
+  input?: JsonSchema | undefined;
+  output?: JsonSchema | undefined;
+  effects?: Effects | undefined;
+}
+
+/** The output of `procedure.manifest` */
+const ManifestOutputSchema = z.looseObject({
+  format: z.literal(MANIFEST_FORMAT).describe("The format of the manifest"),
+  hash: z.string().describe("A hash of the entries: two manifests with the same hash describe the same procedures"),
+  procedures: z.array(z.looseObject({ path: z.array(z.string()), key: z.string() })).describe("The procedures, in the order of their keys"),
+}) as unknown as z.ZodType<ProcedureManifest>;
 
 /** The output of `procedure.list` */
 const ListOutputSchema = z.looseObject({
@@ -204,26 +225,15 @@ function createAggregationHandler(
 // Runtime-Defined Procedures
 // =============================================================================
 
-/**
- * The handlers that `procedure.define` made, with the program (the aggregation) of each. The
- * registry is the only store of the procedures: a procedure is runtime-defined when its handler
- * is a key here. (Before, a separate map kept them, and `procedure.delete` removed only the map
- * entry: deep dive CORE-3.) The program is kept here, not only in the metadata: a caller that
- * gives its own metadata to `procedure.define` replaces the metadata.
- */
-const RUNTIME_PROGRAMS = new WeakMap<object, AggregationDefinition>();
-
-/** True for a procedure that `procedure.define` made. */
-export function isRuntimeDefined(procedure: { handler?: unknown }): boolean {
-  return typeof procedure.handler === "function" && RUNTIME_PROGRAMS.has(procedure.handler);
-}
+// The store of the programs of procedure.define (runtime-programs.ts, which imports nothing)
+export { isRuntimeDefined } from "./runtime-programs.js";
 
 /**
  * The program (the aggregation) of a procedure that `procedure.define` made, or undefined for a
  * code procedure. A program store saves it and defines it again after a restart (roadmap 3.2).
  */
 export function runtimeProgramOf(procedure: { handler?: unknown }): AggregationDefinition | undefined {
-  return typeof procedure.handler === "function" ? RUNTIME_PROGRAMS.get(procedure.handler) : undefined;
+  return runtimeProgramOfHandler(procedure.handler) as AggregationDefinition | undefined;
 }
 
 type RegistryOf = Pick<ProcedureRegistryLike, "get" | "getAll" | "unregister">;
@@ -347,7 +357,7 @@ export const defineProcedureProcedure: Procedure<
 
     // Its behavior comes from data: a server with an expose rule lets it call only exposed procedures
     markDataDriven(procedure);
-    RUNTIME_PROGRAMS.set(procedure.handler!, aggregation);
+    markRuntimeProgram(procedure.handler!, aggregation);
 
     // Validate the procedure
     validateProcedure(procedure);
@@ -435,7 +445,7 @@ const getInputSchema: z.ZodType<ProcedureGetInput> = z.object({
  */
 export const getProcedureProcedure: Procedure<
   ProcedureGetInput,
-  { found: false } | (ProcedureDescription & { found: true; hasInputSchema: boolean; hasOutputSchema: boolean }),
+  { found: false } | (ProcedureDescription & GetSchemas & { found: true; hasInputSchema: boolean; hasOutputSchema: boolean }),
   ProcedureMetadata
 > = defineProcedure({
   path: ["procedure", "get"],
@@ -450,14 +460,20 @@ export const getProcedureProcedure: Procedure<
   handler: async (input: ProcedureGetInput, ctx?: ProcedureContext) => {
     const path = typeof input.path === "string" ? keyToPath(input.path) : input.path;
     const procedure = (ctx?.registry ?? PROCEDURE_REGISTRY).get(path);
-    if (!procedure) {
+    // A procedure outside the expose rule of the host is not found (R17)
+    if (!procedure || (ctx?.expose && !ctx.expose(procedure.path))) {
       return { found: false as const };
     }
+    const entry = describeEntry(procedure);
     return {
       found: true as const,
       ...describeProcedure(procedure, true),
       hasInputSchema: !!procedure.input,
       hasOutputSchema: !!procedure.output,
+      // The JSON Schemas and the effects of the one manifest type (R17)
+      ...(entry.input ? { input: entry.input } : {}),
+      ...(entry.output ? { output: entry.output } : {}),
+      ...(entry.effects ? { effects: entry.effects } : {}),
     };
   },
 });
@@ -484,11 +500,38 @@ export const listProceduresProcedure: Procedure<
   },
   handler: async (input: ProcedureListInput, ctx?: ProcedureContext) => {
     let all = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
+    // Only the procedures that the host exposes (R17)
+    if (ctx?.expose) all = all.filter((procedure) => ctx.expose!(procedure.path));
     if (input.runtime) all = all.filter(isRuntimeDefined);
     if (input.namespace) all = all.filter((procedure) => procedure.path[0] === input.namespace);
     const procedures = all.map((procedure) => describeProcedure(procedure, input.includeMetadata ?? false));
     return { procedures, count: procedures.length };
   },
+});
+
+/**
+ * The manifest of the caller's registry (roadmap R17): each procedure that the host exposes, with
+ * its JSON Schemas, effects and command-line metadata, and a hash. The compiler and the SDK
+ * generators read it.
+ */
+export const manifestProcedure: Procedure<{ namespace?: string | undefined }, ProcedureManifest, ProcedureMetadata> = defineProcedure({
+  path: ["procedure", "manifest"],
+  input: zodAdapter(
+    z.object({ namespace: z.string().optional().describe("Only the procedures under this first path segment") }) as z.ZodType<{ namespace?: string | undefined }>,
+  ),
+  output: ManifestOutputSchema,
+  metadata: {
+    description: "The manifest of the registry: each exposed procedure with its schemas and effects",
+    tags: ["core", "meta"],
+    args: [],
+    shorts: { namespace: "n" },
+    output: "json",
+  },
+  handler: async (input: { namespace?: string | undefined }, ctx?: ProcedureContext) =>
+    describeRegistry(ctx?.registry ?? PROCEDURE_REGISTRY, {
+      ...(ctx?.expose ? { expose: ctx.expose } : {}),
+      ...(input.namespace ? { include: (procedure: AnyProcedure) => procedure.path[0] === input.namespace } : {}),
+    }),
 });
 
 /**
@@ -532,6 +575,10 @@ export const deleteProcedureProcedure: Procedure<
 export const metaProcedures: AnyProcedure[] = [
   // They read the registry. define and delete change it (CAPABILITIES-2026-10).
   ...withEffects({ reads: ["registry"], writes: ["registry"] }, [defineProcedureProcedure as AnyProcedure]),
-  ...withEffects(REGISTRY_READ_EFFECTS, [getProcedureProcedure as AnyProcedure, listProceduresProcedure as AnyProcedure]),
+  ...withEffects(REGISTRY_READ_EFFECTS, [
+    getProcedureProcedure as AnyProcedure,
+    listProceduresProcedure as AnyProcedure,
+    manifestProcedure as AnyProcedure,
+  ]),
   ...withEffects({ reads: ["registry"], writes: ["registry"] }, [deleteProcedureProcedure as AnyProcedure]),
 ];

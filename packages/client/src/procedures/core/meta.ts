@@ -331,7 +331,8 @@ const lookupProcedure: LookupProcedure = defineProcedure({
   handler: async (input: LookupInput, ctx): Promise<LookupOutput> => {
     // The registry of the caller (a server or a client with its own registry)
     const proc = (ctx?.registry ?? PROCEDURE_REGISTRY).get(input.path);
-    if (proc) {
+    // A procedure outside the expose rule of the host does not exist for its callers (R17)
+    if (proc && (!ctx?.expose || ctx.expose(proc.path))) {
       return {
         exists: true,
         metadata: proc.metadata,

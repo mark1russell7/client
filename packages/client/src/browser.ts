@@ -199,6 +199,7 @@ export {
   // Meta-procedures for runtime definition
   defineProcedureProcedure,
   getProcedureProcedure,
+  manifestProcedure,
   listProceduresProcedure,
   deleteProcedureProcedure,
   metaProcedures,
@@ -311,6 +312,9 @@ export { TIMEOUT_METADATA_KEY, DEADLINE_METADATA_KEY } from "./client/deadline.j
 // Typed durations: each public option that is a time takes a Duration (roadmap R11)
 export { ms, seconds, minutes, hours, toMs, optionalMs, isDuration } from "./duration.js";
 export type { Duration, TimeUnit } from "./duration.js";
+// One manifest type (roadmap R17)
+export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./procedures/manifest.js";
+export type { ProcedureEntry, ProcedureManifest, CliDescription, DescribeOptions, DescribeRegistryOptions } from "./procedures/manifest.js";
 // Idempotency of calls (roadmap R1)
 export {
   IDEMPOTENCY_KEY_METADATA,

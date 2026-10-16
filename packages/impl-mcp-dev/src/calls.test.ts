@@ -104,6 +104,7 @@ function samples(): Record<string, unknown> {
     "procedure.delete": { path: ["callstest", "defined"] },
     "procedure.export": { path: ["client", "identity"] },
     "procedure.get": { path: ["client", "identity"] },
+    "procedure.manifest": { namespace: "client" },
     "procedure.list": {},
     "procedure.new": { name: "callsTest", path: join(workspace, "packages", "calls-a") },
     "vitest.coverage": cwd,

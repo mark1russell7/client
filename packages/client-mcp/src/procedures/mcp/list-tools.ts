@@ -67,7 +67,8 @@ export const mcpListToolsProcedure: AnyProcedure = defineProcedure({
     }
 
     // The registry of the caller: a host with its own registry lists its own tools
-    const procedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
+    // Only the procedures that the host exposes (roadmap R17)
+    const procedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll().filter((procedure) => !ctx?.expose || ctx.expose(procedure.path));
     const mcpTools = proceduresToMcpTools(procedures, filter);
 
     const tools: McpToolInfo[] = mcpTools.map((tool) => ({

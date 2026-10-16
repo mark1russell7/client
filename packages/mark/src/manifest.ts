@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { jsonSchemaOf, type AnyProcedure } from "@procedures/client";
+import { describeProcedureEntry, jsonSchemaOf, type AnyProcedure, type ProcedureEntry } from "@procedures/client";
 import { discoverFromEcosystem, findWorkspaceRoot } from "./ecosystem.js";
 import { extractSchemaFields, resultFieldsOfSchema, type CLIMeta, type SchemaFieldInfo } from "./parse.js";
 
@@ -96,26 +96,30 @@ export function computeFingerprint(root: string | null = findWorkspaceRoot(), ma
   return createHash("sha256").update(parts.join("\n")).digest("hex");
 }
 
-/** The CLI metadata of a procedure: only the fields that mark reads, so the manifest is plain JSON */
-function cliMetadata(procedure: AnyProcedure): CLIMeta {
-  const meta = (procedure.metadata ?? {}) as Record<string, unknown>;
+/**
+ * The CLI metadata of a procedure: only the fields that mark reads, so the manifest is plain JSON.
+ * It comes from the one description of the core (roadmap R17).
+ */
+function cliMetadata(entry: ProcedureEntry): CLIMeta {
   const result: CLIMeta = {};
-  if (typeof meta["description"] === "string") result.description = meta["description"];
-  if (Array.isArray(meta["args"])) result.args = (meta["args"] as unknown[]).filter((arg): arg is string => typeof arg === "string");
-  if (meta["shorts"] && typeof meta["shorts"] === "object") result.shorts = { ...(meta["shorts"] as Record<string, string>) };
-  if (typeof meta["output"] === "string") result.output = meta["output"] as NonNullable<CLIMeta["output"]>;
-  if (typeof meta["interactive"] === "boolean") result.interactive = meta["interactive"];
+  if (entry.description !== undefined) result.description = entry.description;
+  if (entry.cli?.args) result.args = entry.cli.args.filter((arg): arg is string => typeof arg === "string");
+  if (entry.cli?.shorts) result.shorts = { ...entry.cli.shorts };
+  if (entry.cli?.output !== undefined) result.output = entry.cli.output as NonNullable<CLIMeta["output"]>;
+  if (entry.cli?.interactive !== undefined) result.interactive = entry.cli.interactive;
   return result;
 }
 
 /** The commands of the manifest, from the procedures of the registry */
 export async function commandsOf(procedures: readonly AnyProcedure[]): Promise<ManifestCommand[]> {
   return procedures.map((procedure) => {
-    // One JSON Schema for each command: the fields come from it too (roadmap 2.1)
+    // One JSON Schema for each command: the fields come from it too (roadmap 2.1). The schema and
+    // the CLI metadata come from the one manifest type of the core (roadmap R17).
+    const entry = describeProcedureEntry(procedure, { schemas: false });
     const inputSchema = jsonSchemaOf(procedure.input) ?? {};
     return {
       path: [...procedure.path],
-      metadata: cliMetadata(procedure),
+      metadata: cliMetadata(entry),
       fields: extractSchemaFields(inputSchema),
       inputSchema,
       resultFields: resultFieldsOfSchema(procedure.output),

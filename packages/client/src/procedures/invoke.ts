@@ -468,6 +468,7 @@ export function createProcedureContext(
     resources: invocation && options.resources ? options.resources(invocation) : (EMPTY_RESOURCES as ResourcesOf),
   };
   if (options.signal) context.signal = options.signal;
+  if (options.expose) context.expose = options.expose;
   if (options.repository) context.repository = options.repository;
   if (options.onRef) context.onRef = options.onRef;
   // Every context has a bus. With a signal, the waits of the handler on the bus end when the

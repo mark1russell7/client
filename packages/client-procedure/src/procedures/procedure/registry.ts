@@ -67,7 +67,9 @@ export const procedureExportProcedure: AnyProcedure = defineProcedure({
       ? keyToPath(input.path)
       : input.path;
 
-    const proc = (ctx?.registry ?? PROCEDURE_REGISTRY).get(path);
+    const found = (ctx?.registry ?? PROCEDURE_REGISTRY).get(path);
+    // A procedure outside the expose rule of the host is not found (roadmap R17)
+    const proc = found && (!ctx?.expose || ctx.expose(found.path)) ? found : undefined;
 
     if (!proc) {
       return {
