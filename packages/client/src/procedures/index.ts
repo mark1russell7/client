@@ -55,6 +55,17 @@ export {
   checkEffects,
 } from "./capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./effects.js";
+// Idempotency of calls (roadmap R1)
+export {
+  IDEMPOTENCY_KEY_METADATA,
+  MAX_IDEMPOTENCY_KEY_LENGTH,
+  IdempotencyCache,
+  idempotencyKeyOf,
+  idempotentIn,
+  isRepeatable,
+  newIdempotencyKey,
+} from "./idempotency.js";
+export type { IdempotencyOptions } from "./idempotency.js";
 export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./capability.js";
 
 // Registry

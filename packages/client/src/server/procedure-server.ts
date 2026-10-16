@@ -19,7 +19,8 @@ import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
 import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ResourcesOf } from "../procedures/types.js";
-import { TIMEOUT_METADATA_KEY, narrowCapability } from "../procedures/capability.js";
+import { TIMEOUT_METADATA_KEY, effectsOf, narrowCapability } from "../procedures/capability.js";
+import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 
 // =============================================================================
@@ -82,6 +83,33 @@ export interface ProcedureServerOptions extends ServerOptions {
   resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
   /** The filter of the output that leaves the server. */
   admitItem?: AdmitItem | undefined;
+
+  /**
+   * The results of keyed calls (roadmap R1). A call to a procedure that is not repeatable, with
+   * an idempotency key in its metadata, runs one time: a later try with the same key gets the
+   * same result. `false` turns this off. The default keeps 1000 results for 10 minutes.
+   */
+  idempotency?: IdempotencyOptions | false | undefined;
+}
+
+/** This function waits for a promise, or gives undefined when the signal aborts first. */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T | undefined> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.resolve(undefined);
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => resolve(undefined);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 /** The capability of a request with the remaining time of its caller, when it sends one. */
@@ -165,6 +193,10 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly interceptors: readonly Interceptor[];
   /** The capability options of the requests (CAPABILITIES-2026-10). */
   private readonly capabilityOptions: Pick<ProcedureServerOptions, "capability" | "clearanceOrder" | "resources" | "admitItem">;
+  /** The results of keyed calls, or undefined when the option turns them off (R1). */
+  private readonly idempotency: IdempotencyCache<ServerResponse<unknown>> | undefined;
+  /** The signal of the server: `stop()` aborts it. A keyed call that lost its caller stops on it. */
+  private lifetime = new AbortController();
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -179,6 +211,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       resources: options.resources,
       admitItem: options.admitItem,
     };
+    this.idempotency = options.idempotency === false ? undefined : new IdempotencyCache(options.idempotency ?? {});
 
     // Configure collections
     if (options.collections) {
@@ -333,8 +366,63 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     return procedure ? (request) => this.invoke(procedure, request) : null;
   }
 
-  /** Run a procedure for a request. */
+  /**
+   * Run a procedure for a request. A keyed call to a procedure that is not repeatable runs one
+   * time for its key (R1).
+   */
   private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
+    const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
+    if (key === undefined || isRepeatable(effectsOf(procedure))) return this.run(procedure, request, request.signal);
+    return this.runKeyed(procedure, request, `${pathToKey(procedure.path)} ${key}`);
+  }
+
+  /**
+   * Run a keyed call one time. The run continues when its caller goes away, so that the next try
+   * gets its result: only the deadline of the call and the stop of the server end it. A stream
+   * still stops with its caller, because nobody can read it again.
+   */
+  private async runKeyed(procedure: AnyProcedure, request: ServerRequest<unknown>, cacheKey: string): Promise<ServerResponse<unknown>> {
+    const { result, first } = this.idempotency!.run(
+      cacheKey,
+      async () => {
+        const detached = new AbortController();
+        const stopRun = (): void => detached.abort();
+        this.lifetime.signal.addEventListener("abort", stopRun, { once: true });
+        try {
+          const response = await this.run(procedure, request, detached.signal);
+          if (response.stream) {
+            // A stream follows its caller again
+            if (request.signal?.aborted) detached.abort();
+            else request.signal?.addEventListener("abort", stopRun, { once: true });
+          }
+          return response;
+        } finally {
+          this.lifetime.signal.removeEventListener("abort", stopRun);
+        }
+      },
+      // A retryable error lets the next try run again: the handler said that a retry is safe
+      (response) => !(response.status.type === "error" && response.status.retryable),
+    );
+    if (first) return result;
+    const response = await untilAborted(result, request.signal);
+    if (response === undefined) return errorResponse(request.id, new InvocationError("ABORTED", "The request was aborted", procedure.path));
+    if (response.stream) {
+      return {
+        id: request.id,
+        status: {
+          type: "error",
+          code: "DUPLICATE",
+          message: "A call with this idempotency key gave a stream, and a stream cannot be given again",
+          retryable: false,
+        },
+        metadata: {},
+      };
+    }
+    return { ...response, id: request.id };
+  }
+
+  /** Run a procedure for a request with a signal. */
+  private async run(procedure: AnyProcedure, request: ServerRequest<unknown>, signal: AbortSignal | undefined): Promise<ServerResponse<unknown>> {
     try {
       // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
       // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
@@ -342,7 +430,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       const output = await invokeProcedure(procedure, request.payload, {
         registry: this.procedureRegistry,
         metadata: request.metadata,
-        signal: request.signal,
+        signal,
         repository: this,
         expose: this.expose,
         strictCalls: this.strictCalls,
@@ -437,6 +525,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * Stop server and close storages.
    */
   override async stop(): Promise<void> {
+    this.lifetime.abort();
+    // A server can start again: its next keyed calls get a new signal
+    this.lifetime = new AbortController();
     await super.stop();
     await this.closeStorages();
   }

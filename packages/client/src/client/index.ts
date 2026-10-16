@@ -43,7 +43,10 @@ export type {
 } from "../adapters/mock/client//index.js";
 
 // Middleware
-export { createRetryMiddleware } from "./middleware/retry.js";``
+export { createRetryMiddleware } from "./middleware/retry.js";
+// The delivery of a failed try: it did not leave, or its outcome is indeterminate (roadmap R1)
+export { DELIVERY_METADATA_KEY, deliveryOf, isNotSentError } from "./middleware/items.js";
+export type { Delivery } from "./middleware/items.js";
 export type { RetryOptions } from "./middleware/retry.js";
 
 export { createCacheMiddleware } from "./middleware/cache.js";

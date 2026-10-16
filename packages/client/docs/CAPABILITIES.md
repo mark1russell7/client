@@ -117,6 +117,24 @@ The admission examines each call of a host, each nested call of a data-driven pr
 
 `timeoutInterceptor({ ms })` (or `hostPolicy({ timeoutMs })`) sets the deadline of the capability. The nested calls see it in `ctx.capability.deadline`, and a call after it gives `TIMEOUT`. A remote call sends the remaining time in milliseconds (the metadata key `procedure-timeout`). The server can only make its own deadline earlier with it, so a difference between two clocks has no effect.
 
+## Retry and idempotency
+
+A failed try has one of three outcomes. The retry middleware uses the outcome and the effects to decide if the call goes again.
+
+| Outcome | Example | The call goes again |
+|---|---|---|
+| The request did not leave | The connection was refused | Yes |
+| The server answered with a retryable error | `UNAVAILABLE` | Yes |
+| Indeterminate: the request left, and no answer came | A reset, a closed WebSocket, the timeout of one try | Only an idempotent call |
+
+- A call is idempotent when its procedure declares `idempotent: true` or `writes: []`.
+- `createRetryMiddleware({ idempotent: idempotentIn(registry) })` reads the effects of the procedures that the client knows.
+- A call can also set `retry: { idempotent: true }` in its context.
+- Each try of one call sends the same key in the metadata (`idempotency-key`). `ProcedureServer` starts a keyed call to a procedure that is not idempotent one time.
+- A second try with the same key gets the result of the first try. If the first try still runs, the second try waits for it.
+- A keyed call continues when its caller goes away, so that the next try can get its result. Only its deadline and the stop of the server end it.
+- `new ProcedureServer({ idempotency: false })` turns this off. The default keeps 1000 results for 10 minutes.
+
 ## Errors and explanations
 
 | Code | Reason | HTTP |

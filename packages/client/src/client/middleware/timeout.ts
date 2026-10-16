@@ -6,7 +6,7 @@
  */
 
 import type { ClientMiddleware, ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
-import { ABORTED_FIRST, errorItem, nextOrAbort } from "./items.js";
+import { ABORTED_FIRST, errorItem, nextOrAbort, withDelivery } from "./items.js";
 import type { TimeoutContext } from "./contexts.js";
 
 /**
@@ -137,7 +137,9 @@ async function* runWithTimeout<TReq, TRes>(
   const { controller: composedController, cleanup } = composeAbortSignals(originalSignal, timeoutController.signal);
   context.message.signal = composedController.signal;
   const timedOut = (): boolean => timeoutController.signal.aborted && !originalSignal?.aborted;
-  const timeoutItem = (): ResponseItem<TRes> => errorItem<TRes>(context.message.id, "TIMEOUT", message, retryable);
+  // The request left before the time ran out: the server can still run it (R1)
+  const timeoutItem = (): ResponseItem<TRes> =>
+    withDelivery(errorItem<TRes>(context.message.id, "TIMEOUT", message, retryable), "indeterminate");
 
   const iterator = next(context)[Symbol.asyncIterator]();
   // "running": a next() may be pending; "done": the iterator ended; "abandoned": the timeout won

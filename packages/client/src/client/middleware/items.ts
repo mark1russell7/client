@@ -19,6 +19,29 @@ export function abortedItem<TRes>(id: string): ResponseItem<TRes> {
   return errorItem<TRes>(id, "ABORTED", "Request was aborted", false);
 }
 
+/**
+ * What a failed try tells about its request, in the metadata of the error item (`delivery`).
+ * - `not-sent`: the request did not leave the client. A retry is safe.
+ * - `indeterminate`: the request left, and no answer came. The server can have run it, so only
+ *   an idempotent call can go again (the three outcomes of `@mark1russell7/service`).
+ * An error item without the field is an answer of the server: its `retryable` flag decides.
+ */
+export type Delivery = "not-sent" | "indeterminate";
+
+/** The metadata key of the delivery of a failed try. */
+export const DELIVERY_METADATA_KEY = "delivery";
+
+/** This function marks an error item with the delivery of its request. */
+export function withDelivery<TRes>(item: ResponseItem<TRes>, delivery: Delivery): ResponseItem<TRes> {
+  return { ...item, metadata: { ...item.metadata, [DELIVERY_METADATA_KEY]: delivery } };
+}
+
+/** The delivery of a failed try, or undefined for an answer of the server. */
+export function deliveryOf(item: ResponseItem<unknown>): Delivery | undefined {
+  const delivery = item.metadata?.[DELIVERY_METADATA_KEY];
+  return delivery === "not-sent" || delivery === "indeterminate" ? delivery : undefined;
+}
+
 const NETWORK_CODES = new Set([
   "ECONNREFUSED",
   "ECONNRESET",
@@ -52,18 +75,45 @@ export function isNetworkError(error: unknown): boolean {
   return /WebSocket (connection closed|disconnected)|Connection timeout/.test(error.message);
 }
 
+/** The network codes that tell that the connection never opened, so no request left. */
+const NOT_SENT_CODES = new Set([
+  "ECONNREFUSED",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "CONNECTION_REFUSED",
+]);
+
+/**
+ * This function tells if a thrown error proves that the request did not leave the client: the
+ * connection was refused, the name did not resolve, or the WebSocket did not open in time.
+ * A reset or a close during the request does not prove it (the request can have arrived).
+ */
+export function isNotSentError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && NOT_SENT_CODES.has(code)) return true;
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause !== undefined && cause !== error && isNotSentError(cause)) return true;
+  // The WebSocket transport fails a request that waited for a connection that did not come
+  return /^(WebSocket disconnected|Connection timeout)$/.test(error.message);
+}
+
 /**
  * The item that stands for a thrown error, so that `shouldRetry` can decide about it. It is
- * retryable only when the error is a network failure.
+ * retryable only when the error is a network failure. Its delivery tells if the request left.
  */
 export function thrownItem<TRes>(id: string, error: unknown): ResponseItem<TRes> {
   const code = (error as { code?: unknown } | undefined)?.code;
-  return errorItem<TRes>(
+  const item = errorItem<TRes>(
     id,
     typeof code === "string" ? code : "THROWN",
     error instanceof Error ? error.message : String(error),
     isNetworkError(error),
   );
+  return withDelivery(item, isNotSentError(error) ? "not-sent" : "indeterminate");
 }
 
 /**

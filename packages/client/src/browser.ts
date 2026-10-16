@@ -295,6 +295,17 @@ export {
   checkEffects,
 } from "./procedures/capability.js";
 export { PURE_EFFECTS, REGISTRY_READ_EFFECTS, withEffects } from "./procedures/effects.js";
+// Idempotency of calls (roadmap R1)
+export {
+  IDEMPOTENCY_KEY_METADATA,
+  MAX_IDEMPOTENCY_KEY_LENGTH,
+  IdempotencyCache,
+  idempotencyKeyOf,
+  idempotentIn,
+  isRepeatable,
+  newIdempotencyKey,
+} from "./procedures/idempotency.js";
+export type { IdempotencyOptions } from "./procedures/idempotency.js";
 export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./procedures/capability.js";
 export type { CallPolicy, CallRefusal, HiddenCall } from "./procedures/policy.js";
 export { timeoutInterceptor, tracingInterceptor, metricsInterceptor } from "./procedures/interceptors.js";

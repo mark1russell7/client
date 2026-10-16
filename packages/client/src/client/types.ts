@@ -66,6 +66,8 @@ export interface Metadata {
   retry?: {
     attempt: number;
     maxAttempts: number;
+    /** True: a second run of the call changes nothing more, so a retry is safe */
+    idempotent?: boolean;
   };
 
   /** Extensible for custom fields */

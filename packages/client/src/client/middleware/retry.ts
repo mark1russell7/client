@@ -5,9 +5,10 @@
  * Works with any transport!
  */
 
-import type { ClientRunner, ClientContext, ResponseItem, TypedClientMiddleware } from "../types.js";
+import type { ClientRunner, ClientContext, Method, ResponseItem, TypedClientMiddleware } from "../types.js";
 import type { RetryContext } from "./contexts.js";
-import { abortedItem, sleep, thrownItem } from "./items.js";
+import { abortedItem, deliveryOf, sleep, thrownItem } from "./items.js";
+import { IDEMPOTENCY_KEY_METADATA, idempotencyKeyOf, newIdempotencyKey } from "../../procedures/idempotency.js";
 
 /**
  * Retry middleware options.
@@ -46,8 +47,24 @@ export interface RetryOptions {
   jitter?: number;
 
   /**
+   * The calls that the middleware can send again after a try with an indeterminate outcome: the
+   * request left, and no answer came (a reset, a closed connection, the timeout of one try). The
+   * server can have run such a call, so only an idempotent call goes again (roadmap R1).
+   *
+   * - a function: true for an idempotent method. `idempotentIn(registry)` reads the effects of
+   *   the procedures that the client knows.
+   * - `true`: every call. Use it only with a server that removes duplicate calls by their
+   *   idempotency key (`ProcedureServer` does).
+   * - absent: only a call with `retry: { idempotent: true }` in its context.
+   *
+   * A try that did not leave the client (a refused connection) and an error that the server
+   * marks retryable go again in each case.
+   */
+  idempotent?: boolean | ((method: Method) => boolean | undefined);
+
+  /**
    * Custom function to determine if a request should be retried.
-   * Takes precedence over Status.retryable flag.
+   * Takes precedence over Status.retryable flag. The rule of `idempotent` still applies.
    *
    * @param item - The response item
    * @param attempt - Current attempt number (0-indexed)
@@ -111,6 +128,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
     shouldRetry: customShouldRetry,
     onBeforeRetry,
     onAfterRetry,
+    idempotent: idempotentOption,
   } = options;
   const defaultMaxRetries = options.maxRetries ?? 3;
   const defaultMultiplier = options.backoffMultiplier ?? 2;
@@ -134,17 +152,33 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
     return Math.max(0, Math.min(overrides.maxDelay ?? defaultMaxDelay, baseDelay + jitterAmount));
   };
 
+  /** True when the call can go again after an indeterminate try: the call says so, or the option. */
+  const isIdempotent = (method: Method, value: unknown): boolean => {
+    const own = typeof value === "object" && value !== null ? (value as { idempotent?: unknown }).idempotent : undefined;
+    if (typeof own === "boolean") return own;
+    if (typeof idempotentOption === "function") return idempotentOption(method) === true;
+    return idempotentOption === true;
+  };
+
   return <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
     return async function* (context: ClientContext<TReq>) {
       // Read from metadata first (user-provided context), then fall back to options
       const overrides = overridesOf(context.message.metadata.retry);
       const maxRetries = overrides.maxAttempts ?? defaultMaxRetries;
-      const shouldRetryItem = (item: ResponseItem<TRes>, attempt: number): boolean =>
-        customShouldRetry
+      const idempotent = isIdempotent(context.message.method, context.message.metadata.retry);
+      const shouldRetryItem = (item: ResponseItem<TRes>, attempt: number): boolean => {
+        const wanted = customShouldRetry
           ? customShouldRetry(item, attempt)
           : item.status.type === "error" && item.status.retryable;
+        // A request that can have run goes again only when the call is idempotent (R1). Before,
+        // a reset or a timeout of one try sent a write again.
+        return wanted && (deliveryOf(item) !== "indeterminate" || idempotent);
+      };
       const signal = context.message.signal;
       const baseId = context.message.id;
+      // One key for all the tries of the call: a server that removes duplicates runs it one time
+      const idempotencyKey = idempotencyKeyOf(context.message.metadata) ?? newIdempotencyKey();
+      context.message.metadata[IDEMPOTENCY_KEY_METADATA] = idempotencyKey;
 
       let attempt = 0;
       for (;;) {
@@ -153,6 +187,7 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
           ...overrides,
           attempt,
           maxAttempts: maxRetries,
+          idempotent,
         };
         // Each attempt gets its own request id. The id correlates the frames of one attempt
         // on the wire: a cancelled attempt can still answer under its id (deep dive TRN-8/9).

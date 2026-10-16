@@ -47,7 +47,7 @@ export const LAYER_INFO: Record<LayerId, { label: string; short: string; summary
   retry: {
     label: "Retry",
     short: "retry",
-    summary: "It starts the request again after a retryable error, with a backoff that doubles. It stops at the first item.",
+    summary: "It starts the request again after a retryable error, with a backoff that doubles. It stops at the first item. After a timeout, only an idempotent call goes again.",
   },
   breaker: {
     label: "Circuit breaker",
@@ -278,7 +278,8 @@ function middlewareOf(id: LayerId, settings: LabSettings, onBreaker: (state: Bre
     case "overall":
       return createOverallTimeoutMiddleware({ overall: settings.overallMs }) as ClientMiddleware;
     case "retry":
-      return createRetryMiddleware({ maxRetries: settings.retries, retryDelay: settings.retryDelayMs, jitter: 0.1 }) as ClientMiddleware;
+      // lab.get reads, so a try that timed out can go again (an unknown write cannot: roadmap R1)
+      return createRetryMiddleware({ maxRetries: settings.retries, retryDelay: settings.retryDelayMs, jitter: 0.1, idempotent: (m) => m.operation === "get" }) as ClientMiddleware;
     case "breaker":
       return createCircuitBreakerMiddleware({
         failureThreshold: settings.breakerThreshold,

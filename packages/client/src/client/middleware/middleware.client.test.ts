@@ -89,7 +89,7 @@ describe("cache (TRN-5)", () => {
 
 for (const throwOnError of [true, false]) {
   describe(`timeout (TRN-7), throwOnError: ${throwOnError}`, () => {
-    it("a per-attempt timeout with retry starts a new attempt", async () => {
+    it("a per-attempt timeout with retry starts a new attempt of an idempotent call", async () => {
       const { transport, messages } = fake(async function* (message, call) {
         if (call === 1) {
           // The first attempt hangs and ignores the signal
@@ -98,7 +98,8 @@ for (const throwOnError of [true, false]) {
         yield ok(message.id, "second attempt");
       });
       const client = new Client({ transport, throwOnError })
-        .use(createRetryMiddleware({ retryDelay: 1, jitter: 0 }))
+        // The first attempt can have run on the server, so only an idempotent call goes again (R1)
+        .use(createRetryMiddleware({ retryDelay: 1, jitter: 0, idempotent: true }))
         .use(createTimeoutMiddleware({ perAttempt: 30 }));
       expect(await client.call(method, {})).toBe("second attempt");
       expect(messages).toHaveLength(2);

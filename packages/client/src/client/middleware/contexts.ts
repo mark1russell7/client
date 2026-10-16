@@ -35,6 +35,11 @@ export interface RetryContext {
     backoffMultiplier?: number;
     /** An override of the longest delay, in milliseconds */
     maxDelay?: number;
+    /**
+     * True: the call can go again after a try with an indeterminate outcome, because a second
+     * run changes nothing more (roadmap R1). It overrides the `idempotent` option of the middleware.
+     */
+    idempotent?: boolean;
   };
 }
 

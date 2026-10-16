@@ -12,6 +12,7 @@ import type {
 } from "../../../client/types.js";
 
 import type { HttpTransportOptions } from "./types.js";
+import { DELIVERY_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
@@ -183,7 +184,9 @@ export class HttpTransport implements Transport {
           retryable: errorDetails.retryable,
         },
         payload: null as TRes,
-        metadata: {},
+        // A refused connection sent nothing. After a reset or a timeout, the server can have
+        // the request, so only an idempotent call can go again (R1).
+        metadata: { [DELIVERY_METADATA_KEY]: isNotSentError(error) ? "not-sent" : "indeterminate" },
       };
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
@@ -251,7 +254,7 @@ export class HttpTransport implements Transport {
         id,
         status: { type: "error", code: "STREAM_ENDED", message: "The stream ended without its end line", retryable: true },
         payload: null as TRes,
-        metadata,
+        metadata: { ...metadata, [DELIVERY_METADATA_KEY]: "indeterminate" },
       };
     } finally {
       reader.releaseLock();
