@@ -21,8 +21,9 @@ function afterFields(line: string, count: number): string {
 }
 
 /**
- * Get git status. With `paths`, only the files of those pathspecs. With `untrackedFiles`, git
- * lists untracked files by that mode: "all" lists each file of a new folder.
+ * This function gives the git status. With `paths`, it gives only the files of those pathspecs.
+ * With `untrackedFiles`, git lists the untracked files in that mode: "all" lists each file of a
+ * new folder.
  */
 export async function gitStatus(input: GitStatusInput, ctx: GitContext = {}): Promise<GitStatusOutput> {
   const args = ["status", "--porcelain=v2", "--branch", "-z"];

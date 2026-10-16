@@ -1,7 +1,7 @@
 /**
  * gh.api procedure
  *
- * Call the GitHub API and give its JSON
+ * A request to the GitHub API, and its parsed JSON
  */
 
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -68,7 +68,7 @@ export function parseGhApiOutput(output: string, paginate = false): unknown {
 }
 
 /**
- * This function calls the GitHub API with `gh api` and gives the parsed JSON. It always sends
+ * This function sends a request to the GitHub API with `gh api` and gives the parsed JSON. It always sends
  * `--method`, because without it gh changes GET to POST when the call has fields. A string field
  * goes as `-f` (gh sends it as text). Another value goes as `-F`, and gh converts its type. A
  * `body` goes to gh as `--input` from a temporary file, which the call removes. A `repo` goes to

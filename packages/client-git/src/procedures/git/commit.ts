@@ -9,8 +9,8 @@ import { parsePorcelainV1 } from "./porcelain.js";
 import type { GitCommitInput, GitCommitOutput } from "../../types.js";
 
 /**
- * Create commit. With `paths`, the commit has only those pathspecs, as they are in the working
- * tree (`git commit -- <paths>`), and the other staged changes stay in the index.
+ * This function makes a commit. With `paths`, the commit has only those pathspecs, as they are in
+ * the working tree (`git commit -- <paths>`), and the other staged changes stay in the index.
  */
 export async function gitCommit(input: GitCommitInput, ctx: GitContext = {}): Promise<GitCommitOutput> {
   const { message, all, amend, cwd } = input;
