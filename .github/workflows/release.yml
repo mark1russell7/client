@@ -7,14 +7,15 @@ name: Release
 # Without it, start `pnpm changeset version` locally, commit the result, and then start this
 # workflow to publish.
 #
-# The owner starts it by hand. The job runs in the GitHub environment "npm", so the owner approves
-# each run. npm trusts this workflow for each package (trusted publishing with OIDC, no token):
-#   node scripts/npm-bootstrap.mjs --trust
+# The owner starts it by hand (workflow_dispatch): that start is the approval. npm trusts this
+# workflow for each package (trusted publishing with OIDC, no token): node scripts/npm-bootstrap.mjs --trust
 # packages/documentation/RELEASE.md tells the one-time bootstrap and the release steps.
 #
-# On 2026-10-16 npm refuses the OIDC exchange of this repository ("package not found"): the
-# repository has the immutable OIDC subject of GitHub (npm/cli#9969). Until npm corrects it, the
-# owner publishes from a computer: node scripts/npm-bootstrap.mjs --publish
+# The trusted publishers name no GitHub environment, and the job runs in none. This repository has
+# the immutable OIDC subject of GitHub, and on 2026-10-16 npm refused the exchange of a trusted
+# publisher with the environment "npm" ("package not found", npm/cli#9969). The systems repository
+# has the same subject and publishes without an environment. If the exchange fails again, the owner
+# publishes from a computer: node scripts/npm-bootstrap.mjs --publish
 on:
   workflow_dispatch:
 
@@ -28,7 +29,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: npm
     permissions:
       # The version pull request: a branch and a pull request
       contents: write

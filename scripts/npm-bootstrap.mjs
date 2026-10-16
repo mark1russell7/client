@@ -58,7 +58,6 @@ const only = value("--only")?.split(",").map((s) => s.trim());
 
 const REPO = "mark1russell7/client";
 const WORKFLOW = "release.yml";
-const ENVIRONMENT = "npm";
 
 const packages = publicPackages().filter((p) => !only || only.includes(p.name));
 if (packages.length === 0) {
@@ -247,7 +246,8 @@ if (trust) {
       console.log(`skip  ${pkg.name}: trusts ${WORKFLOW} already`);
       continue;
     }
-    const args = ["trust", "github", pkg.name, "--file", WORKFLOW, "--repo", REPO, "--env", ENVIRONMENT, "--allow-publish", "--yes"];
+    // No environment: npm cannot match one with the immutable OIDC subject of this repository (npm/cli#9969)
+    const args = ["trust", "github", pkg.name, "--file", WORKFLOW, "--repo", REPO, "--allow-publish", "--yes"];
     if (otp) args.push("--otp", otp);
     console.log(`npm ${args.join(" ")}`);
     if (dryRun) continue;

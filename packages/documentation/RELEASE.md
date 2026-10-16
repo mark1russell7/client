@@ -78,11 +78,11 @@ You can also approve each staged version on npmjs.com.
 node scripts/npm-bootstrap.mjs --trust
 ```
 
-The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --env npm --allow-publish` for each package, in the terminal, so npm can open the browser for the 2FA. It skips a package that trusts the workflow already, and a package that is not on npm. You can start it again at any time.
+The script starts `npm trust github <package> --file release.yml --repo mark1russell7/client --allow-publish` for each package, in the terminal, so npm can open the browser for the 2FA. It skips a package that trusts the workflow already, and a package that is not on npm. You can start it again at any time.
 
 ### 5. Set the repository and the packages
 
-- Each run in the GitHub environment `npm` waits for the approval of the owner. The environment exists already.
+- The release job has no GitHub environment, and the trusted publishers name none. The owner starts each run by hand, and that start is the approval. Refer to "The OIDC exchange of npm".
 - In the settings of the repository, turn on `Allow GitHub Actions to create and approve pull requests`. The release workflow opens the version pull request.
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
 
@@ -104,16 +104,16 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 ## A release
 
 1. For each change that users see, add a changeset: start `pnpm changeset` and answer the questions. Commit the file.
-2. On GitHub, open Actions, select "Release", and start the workflow. Approve the `npm` environment.
+2. On GitHub, open Actions, select "Release", and start the workflow (or `gh workflow run release.yml`).
 3. The workflow opens the pull request "Version the packages". It sets the new version and writes the change logs. Merge it.
 4. Start the workflow again. It does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
 5. If the publish stops, start the workflow again. It skips the versions that are on npm.
 
 ### The OIDC exchange of npm
 
-On 2026-10-16, npm refuses the OIDC exchange of this repository with "package not found". The cause is the immutable OIDC subject of GitHub ([npm/cli#9969](https://github.com/npm/cli/issues/9969)). New repositories get this subject. The general repositories are older, and they are not affected.
+On 2026-10-16, npm refused the OIDC exchange of this repository with "package not found". This repository has the immutable OIDC subject of GitHub ([npm/cli#9969](https://github.com/npm/cli/issues/9969)), and each trusted publisher named the GitHub environment `npm`. The systems repository has the same subject and publishes, and its trusted publishers name no environment. So on the same day the trusted publishers of the 30 packages were made again without an environment, and the release job lost its environment. The next release from the workflow tests this.
 
-Until npm corrects the exchange, publish each release from the computer of the owner:
+If the exchange fails again, publish the release from the computer of the owner:
 
 1. Merge the version pull request, or start `pnpm changeset version` and commit the result.
 2. Start `git pull`, `pnpm install` and `pnpm build`.

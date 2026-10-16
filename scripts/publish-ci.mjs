@@ -71,9 +71,10 @@ try {
       console.error(`FAIL  ${pkg.name}@${pkg.version}`);
       for (const line of lines.filter((l) => /^npm (error|http fetch (PUT|POST))/.test(l)).slice(-15)) console.error(`      ${line.trim()}`);
       if (lines.some((l) => /OIDC token exchange error - package not found/.test(l))) {
-        console.error("npm refused the OIDC exchange. This repository uses the immutable OIDC subject of GitHub, and the npm");
-        console.error("exchange refuses it (https://github.com/npm/cli/issues/9969, open on 2026-10-16). Until npm corrects it,");
-        console.error("publish from the computer of the owner: node scripts/npm-bootstrap.mjs --publish");
+        console.error("npm refused the OIDC exchange. This repository uses the immutable OIDC subject of GitHub");
+        console.error("(https://github.com/npm/cli/issues/9969). Examine `npm trust list <package>`: a trusted publisher with an");
+        console.error("environment fails with this subject. Else publish from the computer of the owner:");
+        console.error("node scripts/npm-bootstrap.mjs --publish");
       }
       break;
     }
