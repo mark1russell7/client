@@ -23,7 +23,7 @@ type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
-type Cancel: dist/clock.d.ts#Cancel
+type Cancel: @mark1russell7/service/clock#Cancel (external)
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
 type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
@@ -38,7 +38,7 @@ ClientError: dist/client/types.d.ts#ClientError
 type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
-type Clock: dist/clock.d.ts#Clock
+type Clock: @mark1russell7/service/clock#Clock (external)
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
@@ -446,7 +446,7 @@ type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
-type Cancel: dist/clock.d.ts#Cancel
+type Cancel: @mark1russell7/service/clock#Cancel (external)
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
 type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
@@ -461,7 +461,7 @@ ClientError: dist/client/types.d.ts#ClientError
 type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
-type Clock: dist/clock.d.ts#Clock
+type Clock: @mark1russell7/service/clock#Clock (external)
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
@@ -2363,17 +2363,6 @@ export declare function keyToMethod(key: MethodKey): Method;
 
 ### dist/client/validation/types.d.ts#methodToKey
 export declare function methodToKey(method: Method): MethodKey;
-
-### dist/clock.d.ts#Cancel
-export type Cancel = (() => void) & {
-    unref?: () => void;
-};
-
-### dist/clock.d.ts#Clock
-export interface Clock {
-    now(): number;
-    after(ms: number, run: () => void): Cancel;
-}
 
 ### dist/clock.d.ts#realClock
 export declare const realClock: Clock;
