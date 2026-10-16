@@ -83,7 +83,6 @@ export class RateLimitError extends Error {
  */
 interface QueuedRequest {
   resolve: () => void;
-  reject: (error: Error) => void;
   timestamp: number;
 }
 
@@ -208,7 +207,6 @@ export function createRateLimitMiddleware(
           signal?.removeEventListener("abort", onAbort);
           resolve(true);
         },
-        reject: () => resolve(false),
         timestamp: Date.now(),
       };
       // A queued request whose caller aborts leaves the queue (before, it kept its place)
