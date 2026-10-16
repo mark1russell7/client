@@ -373,7 +373,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private async invoke(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown>> {
     const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
     if (key === undefined || isRepeatable(effectsOf(procedure))) return this.run(procedure, request, request.signal);
-    return this.runKeyed(procedure, request, `${pathToKey(procedure.path)} ${key}`);
+    return this.runKeyed(procedure, request, `${pathToKey(procedure.path)}\u0000${key}`);
   }
 
   /**
