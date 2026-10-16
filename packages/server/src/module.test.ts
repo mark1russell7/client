@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createRegistry, effectsOf } from "@procedures/client";
+import { PROCEDURE_REGISTRY, createRegistry, effectsOf } from "@procedures/client";
 import peerModule from "@procedures/peer/module";
 import { serverModule } from "./module.js";
 import { serverStartInputSchema, serverStatusInputSchema, serverStopInputSchema } from "./schemas.js";
@@ -31,6 +31,16 @@ describe("the module of @procedures/server", () => {
     const registry = createRegistry(peerModule, serverModule);
     expect(registry.has(["server", "create"])).toBe(true);
     expect(registry.has(["server", "start"])).toBe(true);
+  });
+
+  it("registers nothing from the root, and the three procedures from the register entry", async () => {
+    const root = await import("./index.js");
+    expect(root.serverModule).toBe(serverModule);
+    expect(PROCEDURE_REGISTRY.has(["server", "start"])).toBe(false);
+    await import("./register.js");
+    for (const name of ["start", "stop", "status"]) {
+      expect(PROCEDURE_REGISTRY.get(["server", name])?.handler, `server.${name}`).toBeDefined();
+    }
   });
 });
 

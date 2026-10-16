@@ -278,6 +278,10 @@ export async function dagTraverse(
     // Ensure all nodes have results (some may have been skipped due to errors)
     for (const [name, nodeResult] of dagResult.results) {
       const existing = results.find((r) => r.name === name);
+      // No test reaches this branch: each visit adds its result before it ends or throws, and
+      // executeDAG gives no result for a node of a level that it skipped. The branch came with
+      // the procedure from client-lib (2026-10). It stays until a decision about it.
+      /* v8 ignore if -- @preserve */
       if (!existing) {
         const node = allNodes.get(name);
         const result: TraverseNodeResult = {
