@@ -18,7 +18,7 @@ import type {
 import { withoutInternalKeys } from "../../metadata.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { optionalMs } from "../../../duration.js";
-import { credentialsOf, withoutSecretHeaders } from "../../../server/credentials.js";
+import { credentialsOf, withoutSecretHeaders } from "../../../server/request-auth.js";
 
 /**
  * WebSocket server transport adapter.

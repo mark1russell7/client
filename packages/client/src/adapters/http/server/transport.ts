@@ -16,7 +16,7 @@ import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
-import { bearerOf, withoutSecretHeaders } from "../../../server/credentials.js";
+import { bearerOf, withoutSecretHeaders } from "../../../server/request-auth.js";
 
 /** The media type of a stream response: one JSON value on each line. */
 const NDJSON = "application/x-ndjson";
