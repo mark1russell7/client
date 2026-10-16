@@ -9,10 +9,16 @@
 // The script skips each version that is on npm, so a new start continues a release that stopped.
 // It stops at the first failure: when the OIDC exchange fails for one package, it fails for all.
 //
+// The Changesets action gives the file CHANGESETS_OUTPUT. The script writes one line to it for each
+// version that it publishes: {"type":"git-tag","tag":"<name>@<version>","packageName":"<name>"}, the
+// format of `changeset publish`. With these lines the action pushes a git tag for each version and
+// makes a GitHub release from the change log of the package. Without the file, the action makes no
+// tags and no releases.
+//
 // Options: --dry-run (pack each package and start `npm publish --dry-run`).
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { publicPackages, root, run } from "./lib/workspace.mjs";
@@ -37,6 +43,10 @@ function onNpm(name, version) {
     return false;
   }
 }
+
+// An empty file when nothing is published: then the action does not warn that the file is missing
+const output = dryRun ? undefined : process.env.CHANGESETS_OUTPUT;
+if (output) writeFileSync(output, "");
 
 const work = mkdtempSync(join(tmpdir(), "client-publish-"));
 const published = [];
@@ -66,6 +76,12 @@ try {
     if (result.status === 0) {
       published.push(`${pkg.name}@${pkg.version}`);
       console.log(`${dryRun ? "would publish" : "published"} ${pkg.name}@${pkg.version}`);
+      // At once, so that a release that stops later still gets the tags of the versions on npm
+      if (output) {
+        const event = { type: "git-tag", tag: `${pkg.name}@${pkg.version}`, packageName: pkg.name };
+        appendFileSync(output, `${JSON.stringify(event)}
+`);
+      }
     } else {
       failed = pkg.name;
       console.error(`FAIL  ${pkg.name}@${pkg.version}`);

@@ -83,7 +83,7 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 ### 5. Set the repository and the packages
 
 - The release job has no GitHub environment, and the trusted publishers name none. The owner starts each run by hand, and that start is the approval. Refer to "The OIDC exchange of npm".
-- In the settings of the repository, turn on `Allow GitHub Actions to create and approve pull requests`. The release workflow opens the version pull request.
+- The setting `Allow GitHub Actions to create and approve pull requests` is off (2026-10-16). Thus the release workflow cannot open the version pull request, and the version step is a commit on `main` (refer to "A release"). If you turn the setting on, the workflow opens the pull request "Version the packages".
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
 
   ```sh
@@ -104,10 +104,12 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 ## A release
 
 1. For each change that users see, add a changeset: start `pnpm changeset` and answer the questions. Commit the file.
-2. On GitHub, open Actions, select "Release", and start the workflow (or `gh workflow run release.yml`).
-3. The workflow opens the pull request "Version the packages". It sets the new version and writes the change logs. Merge it.
-4. Start the workflow again. It does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
-5. If the publish stops, start the workflow again. It skips the versions that are on npm.
+2. Start `pnpm exec changeset version`. It sets the new versions and writes the change logs. Commit the result as "Version the packages" on `main`, and push it.
+3. Wait for a green CI run of that commit. Then start `gh workflow run release.yml --repo mark1russell7/client`. You can also start "Release" from Actions on GitHub.
+4. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
+5. For each version that it publishes, the workflow pushes the git tag `<name>@<version>` and makes a GitHub release with the change log of that version.
+6. If the publish stops, start the workflow again. It skips the versions that are on npm.
+7. npm shows a new version some minutes after the publish. Until then, `npm view` shows the previous version.
 
 ### The OIDC exchange of npm
 
@@ -127,4 +129,5 @@ A version from the computer has no provenance statement.
 2. Give it the metadata of the other packages: `description`, `keywords`, `homepage`, `bugs`, `repository` with `directory`, `license`, `author`, `files` and `publishConfig`.
 3. Copy `LICENSE` into its folder, and add `CHANGELOG.md`.
 4. Add its name to the `fixed` group of `.changeset/config.json`. The package check fails without it.
-5. Before its first release, stage it with `node scripts/npm-bootstrap.mjs --only <name>`, and connect it with `--trust`.
+5. Before its first release, publish it from a terminal with `node scripts/npm-bootstrap.mjs --publish --only <name>`. npm shows the new package some minutes later. Then connect it with `--trust --only <name>`.
+6. Start the next release soon. Since 2026-10-02, npm deletes a new trusted publisher that has no successful publish in 48 hours.
