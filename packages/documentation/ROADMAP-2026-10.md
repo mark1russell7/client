@@ -48,15 +48,15 @@ The wire protocol is the format of the bytes between a client and a server. It i
 
 | ID | Tier | Item | Size | Status | Commit |
 |---|---|---|---|---|---|
-| R1 | 1 | Retry obeys the effects, and an idempotency key removes duplicate writes | M | open | |
-| R2 | 1 | `HybridStorage` cannot empty its local copy, and a failed write is not lost | S–M | open | |
-| R3 | 1 | WebSocket: a time limit for the handshake, a server heartbeat, reconnect jitter | S–M | open | |
-| R4 | 1 | `$never` holds back each operand of the control flow (REV-4) | S | open | |
-| R5 | 1 | The peer accepts a bare JSON value, obeys `bodyLimit` and stops cleanly | S | open | |
-| R6 | 1 | `object.set` and `object.get` refuse the prototype keys | S | open | |
-| R7 | 1 | The read-only guards of CAP-1, CAP-2 and CAP-3 | S | open | |
-| R8 | 1 | The CI gates of stage 0 | S | open | |
-| R9 | 1 | The timeout examples in the documents set a timeout | S | open | |
+| R1 | 1 | Retry obeys the effects, and an idempotency key removes duplicate writes | M | fixed | `cfb9d69`, `ad8d8c2` |
+| R2 | 1 | `HybridStorage` cannot empty its local copy, and a failed write is not lost | S–M | fixed | `c799cdd` |
+| R3 | 1 | WebSocket: a time limit for the handshake, a server heartbeat, reconnect jitter | S–M | fixed | `fee5d9c` |
+| R4 | 1 | `$never` holds back each operand of the control flow (REV-4) | S | fixed | `540f8d9` |
+| R5 | 1 | The peer accepts a bare JSON value, obeys `bodyLimit` and stops cleanly | S | fixed | `aaa7462` |
+| R6 | 1 | `object.set` and `object.get` refuse the prototype keys | S | fixed | `b6daaec` |
+| R7 | 1 | The read-only guards of CAP-1, CAP-2 and CAP-3 | S | fixed | `89d8a4a` |
+| R8 | 1 | The CI gates of stage 0 | S | fixed | `82f8270` |
+| R9 | 1 | The timeout examples in the documents set a timeout | S | fixed | `f7c4a7f` |
 | R10 | 2 | One deadline model: the client timeouts send `procedure-timeout` (REV-6) | M | open | |
 | R11 | 2 | Typed durations in the public options | M | open | |
 | R12 | 2 | Retry budget, full jitter, `Retry-After`, a circuit breaker that counts only failures | S–M | open | |
@@ -112,6 +112,8 @@ These items correct behavior that loses data, breaks the security model, or hide
 
 **Done when** a test shows that a write that fails after it arrives occurs one time, and a read occurs again.
 
+**Result.** A failed try tells its delivery: `not-sent` or `indeterminate`. The option `idempotent` and the function `idempotentIn(registry)` give the effects. `ProcedureServer` keeps the result of a keyed call to a procedure that is not repeatable. A keyed call continues when its caller goes away, so the next try gets its result. The test over HTTP runs a slow write one time after the first try times out.
+
 ### R2. `HybridStorage` cannot empty its local copy
 
 **Problem.** `getAll` of the remote storage gives values without their ids. The sync skips each item without a key, and then deletes each local id that the remote list does not have. Without `keyOf`, each sync empties the local copy. After a write-through failure, the local copy has the write, the queue has the operation, and no timer empties the queue. When the queue is full, it drops the oldest operation and tells nobody.
@@ -125,6 +127,8 @@ These items correct behavior that loses data, breaks the security model, or hide
 
 **Done when** a model-based test with a remote storage that fails shows no loss of data. R28 then makes the modes switchable.
 
+**Result.** Storages have `getEntries()`, and the collections have the procedure `entries`. A remote item without a key stops the sync with `MissingKeysError`. The model-based test of the two modes found one more defect: a write-through reached the remote before an older queued write of the same id. A write-through sends the queue first.
+
 ### R3. WebSocket gaps
 
 **Problem.** The handshake has no time limit, so a black-hole address keeps the connection in `CONNECTING`. The server does not send a ping, so it cannot find a client that went silent. The reconnect delay has no jitter, so many clients reconnect at the same time.
@@ -132,6 +136,8 @@ These items correct behavior that loses data, breaks the security model, or hide
 **Change.** A connect timer closes the socket. A server heartbeat closes a connection after missed pongs. The reconnect delay gets full jitter, and the reconnect tries get a limit.
 
 **Done when** tests show each behavior with fake timers.
+
+**Result.** The tests use a TCP server that does not answer, a `ws` server that does not answer pings, and a client that sends no pongs. The heartbeat and the backoff are written in the shape of `@mark1russell7/service`. R37 moves them to that package.
 
 ### R4. `$never` in the operands
 
@@ -191,7 +197,7 @@ These items change the public options of the middleware. They go in one release.
 
 ### R11. Typed durations
 
-The public options that are times take a `Duration` of `@mark1russell7/quantity`: the timeouts, the intervals, the backoff and the heartbeat. A plain number of milliseconds gives a type error. The wire keeps milliseconds. The study of R37 confirms that the package works in a browser and is on npm.
+The public options that are times take a `Duration` of `@mark1russell7/quantity`: the timeouts, the intervals, the backoff and the heartbeat. A plain number of milliseconds gives a type error. The wire keeps milliseconds. The study of R37 confirms that the package works in a browser and is on npm (0.1.0). The package has no `Duration` type yet, so the client declares an alias and its own constructors.
 
 ### R12. Retry and the circuit breaker
 
@@ -375,7 +381,24 @@ A driver for a procedures WebSocket pair in the harness of `systems`. A nightly 
 
 ### R37. The service abstraction
 
-A study compares the service package of `systems` with the client. Its result goes in this section.
+A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. The service package is a declaration of a service as data and three runtimes: `lint` (the timer law), `start` (health) and `run` (the lifecycle). The root entry works in a browser. `./testing` and `./redis` need Node.
+
+| Part of `systems` | Part of the client | Decision |
+|---|---|---|
+| `@mark1russell7/quantity` | The times in milliseconds | Adopt in R11. The package has no `Duration` type, so the client has an alias until `quantity` adds one. |
+| `Clock`, `realClock`, `fakeClock` | 35 uses of `Date.now` and 30 timers in the core | Adopt in R35. `realClock` is 143 bytes. |
+| The three outcomes and `Idempotency` | The delivery of a failed try (R1) | The model is adopted. The type comes with R35. |
+| The heartbeat watchdog of the Redis client | The heartbeat of the WebSocket (R3) | Move it out of the Redis client into a general function of `service`, then use it in the client. |
+| The backoff of the Redis client | `reconnectDelay` (R3) and the retry middleware (R12) | Move it out into a general function of `service`, then use it. |
+| The machines as data and `replay` | The WebSocket state and the circuit breaker | Adopt later (R35). `replay` moves into `algebra` with open machine names. |
+| `run()`: stages of the stop, a limit for each stage, one exit | `ProcedureServer.stop`, the peer, the `server` bin | Adopt later in the Node packages (R14, R18). The core takes only the shape of the contract. |
+| `start()`: health checks and probes | `/health` of the peer | Adopt later (R19). |
+| `describe` and `lint` | `checkEffects` | They examine different things. `@procedures/systems` uses `lint` with rules for the client (R34). |
+| The harness cells | The fault tests of the client | Adopt last (R36). |
+
+- The order: R11 and R35 in the client, then small changes to `systems` for service 0.3.0 (the heartbeat, the backoff, `replay` in `algebra`, a clock entry without `node:net`, the rule data). Then R3 and R12 use those functions.
+- The dependency direction stays: the client depends on the general packages of npm, and `systems` does not know `@procedures`.
+- The sizes, compressed: `quantity` 4.2 kB, the root of `service` 17.2 kB, the browser entry of the client 49.6 kB.
 
 ## Tier 9: new packages and procedures
 

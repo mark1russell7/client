@@ -193,9 +193,9 @@ The effect declarations of phase D (CAPABILITIES-2026-10) read each handler. The
 
 | ID | Severity | Status | Commit | Note |
 |---|---|---|---|---|
-| CAP-1 | medium | open | | `db.query` starts any SQL statement and saves the file: it is not read only. A check that refuses statements that change data makes it read only. |
-| CAP-2 | medium | open | | `mongo.documents.aggregate` permits `$out` and `$merge`, which write. A refusal of those two stages makes it read only. |
-| CAP-3 | low | open | | `logs.query` starts the migrations, so the first query makes the database file and its table. |
+| CAP-1 | medium | fixed | `89d8a4a` | `db.query` started any SQL statement and saved the file. It sets `PRAGMA query_only` now, so a statement that changes data fails, and it declares `writes: []`. |
+| CAP-2 | medium | fixed | `89d8a4a` | `mongo.documents.aggregate` permitted `$out` and `$merge`, which write. It refuses them now, also inside `$facet`, `$lookup` and `$unionWith`. |
+| CAP-3 | low | fixed | `89d8a4a` | `logs.query` started the migrations, so the first query made the database file and its table. A missing file or table gives no entries now. |
 | CAP-4 | low | decision | | The git procedures that start hooks (`commit`, `push`, `pull`, `checkout`) write `process`. A `reference-transaction` hook starts also on `branch`, `fetch` and `stash`: those do not declare `process`. |
 | CAP-5 | low | fixed | | `git.remote` read and wrote: with `url`, it set the URL. So `lib.scan`, which only reads the URL, had to declare that it writes. It is two procedures now: `git.remote` reads, `git.remote.set` writes. |
 
@@ -208,8 +208,8 @@ A review of the `@procedures` stack after 0.2.2 found these items.
 | REV-1 | medium | fixed | | `narrowCapability` with a `timeoutMs` of `NaN` gave a `NaN` deadline, which is no deadline: a narrower request removed the limit. A time that is not a finite number of zero or more now asks for nothing. The server path had this check already. |
 | REV-2 | medium | fixed | | A procedure of `procedure.define` declared no effects, so a read-only capability refused each one. It declares no effects of its own now, as `client.chain`: the admission examines each nested call of a data-driven procedure. The metadata of the caller cannot change this. |
 | REV-3 | medium | fixed | | After P9 a host can have its own registry, but `mcp.list-tools`, `mcp.serve`, `_discovery.announce`, `manifest.generate`, `server.create`, `procedure.export` and `lib.audit` read the global registry. They read the registry of the call now. `getProcedureInfos` and `watchProcedures` take a registry. |
-| REV-4 | low | open | | `evaluateOperand` does not examine `$when`: a `$never` operand of `client.conditional`, `client.tryCatch`, `client.parallel` or `client.map` runs. This is older than the capabilities. |
-| REV-5 | low | open | | The retry middleware does not read `effects.idempotent`, which CAPABILITIES-2026-10 names as a use of the declaration. |
+| REV-4 | low | fixed | `540f8d9` | `evaluateOperand` did not examine `$when`: a `$never` operand of `client.conditional`, `client.tryCatch`, `client.parallel` or `client.map` started. A `$never` operand is data now (ROADMAP-2026-10 R4). |
+| REV-5 | low | fixed | `cfb9d69` | The retry middleware did not read `effects.idempotent`. It sends a try with an indeterminate outcome again only for an idempotent call, and `ProcedureServer` runs a keyed call one time (ROADMAP-2026-10 R1). |
 | REV-6 | low | open | | The timeouts of the client middleware do not send the remaining time (`procedure-timeout`). A `Client` with a capability deadline sends it. |
 
 ## Architecture roadmap
