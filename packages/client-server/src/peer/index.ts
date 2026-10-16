@@ -16,6 +16,7 @@ import {
   procedureServerOptions,
   hostProcedures,
   metricsInterceptor,
+  Client,
   type BrowserGuardOptions,
   type HostPolicy,
   type Method,
@@ -89,6 +90,13 @@ export interface Peer {
   getEndpoints(): PeerEndpoint[];
   /** Get underlying server */
   getServer(): ProcedureServer;
+  /** The ids of the WebSocket connections of the clients (roadmap R24). */
+  connections(): string[];
+  /**
+   * A client of one connected client (roadmap R24): its calls go to the procedures that the client
+   * serves (the `serve` option of its WebSocketTransport), over the same WebSocket.
+   */
+  clientFor(connectionId: string): Client;
 }
 
 // =============================================================================
@@ -101,6 +109,8 @@ class PeerImpl implements Peer {
   private transports: TransportConfig[];
   private endpoints: PeerEndpoint[] = [];
   private started = false;
+  /** The WebSocket transports of the peer: the calls to its clients go over them (R24) */
+  private wsTransports: WebSocketServerTransport[] = [];
   /** The HTTP servers that the peer made for its WebSocket transports: `stop()` closes them */
   private ownedServers: Array<import("node:http").Server> = [];
   private registry: ProcedureRegistry;
@@ -318,6 +328,7 @@ class PeerImpl implements Peer {
       throw error;
     }
     this.ownedServers.push(httpServer);
+    this.wsTransports.push(wsTransport);
 
     this.endpoints.push({
       type: "websocket",
@@ -343,6 +354,7 @@ class PeerImpl implements Peer {
     );
     this.started = false;
     this.endpoints = [];
+    this.wsTransports = [];
   }
 
   getEndpoints(): PeerEndpoint[] {
@@ -351,6 +363,16 @@ class PeerImpl implements Peer {
 
   getServer(): ProcedureServer {
     return this.server;
+  }
+
+  connections(): string[] {
+    return this.wsTransports.flatMap((transport) => transport.getTrackedConnections().map((connection) => connection.id));
+  }
+
+  clientFor(connectionId: string): Client {
+    const transport = this.wsTransports.find((ws) => ws.getTrackedConnection(connectionId) !== undefined);
+    if (!transport) throw new Error(`Connection not found: ${connectionId}`);
+    return new Client({ transport: transport.transportFor(connectionId), throwOnError: true });
   }
 }
 

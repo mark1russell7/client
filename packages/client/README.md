@@ -271,6 +271,13 @@ interface WebSocketTransportOptions {
 
 // The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
 new WebSocketServerTransport(server, { server: http, heartbeat: { interval: seconds(30), misses: 2 } });
+
+// Calls in the two directions over one WebSocket (roadmap R24). The client serves its own
+// procedures with a ProcedureServer; the server calls them with the same frames: streams with
+// credit, cancel, the signal and the deadline.
+const transport = new WebSocketTransport({ url, serve: new ProcedureServer({ registry: uiRegistry, autoRegister: true }) });
+const toClient = new Client({ transport: wsServer.transportFor(connectionId) });   // or peer.clientFor(id)
+await toClient.call({ service: "ui", operation: "notify" }, { text: "Build done" });
 ```
 
 #### `LocalTransport`

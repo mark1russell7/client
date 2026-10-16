@@ -85,6 +85,12 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
    * @default { interval: seconds(30), misses: 2 }
    */
   heartbeat?: { interval?: Duration; misses?: number } | false;
+
+  /**
+   * The time until the first frame of a call that the server sends to a client (roadmap R24).
+   * @default seconds(30)
+   */
+  reverseRequestTimeout?: Duration;
 }
 
 /**

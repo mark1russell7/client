@@ -6,6 +6,8 @@
 
 import type { Duration } from "../../../duration.js";
 
+import type { RequestHandler } from "../../../server/types.js";
+
 /**
  * WebSocket client transport options. Each time is a `Duration` (roadmap R11).
  */
@@ -133,9 +135,19 @@ export interface WebSocketTransportOptions {
 
   /**
    * Handler for server-initiated procedure calls.
-   * Called when the server wants to call a procedure on this client.
+   * Called when the server wants to call a procedure on this client. It gets the path and the
+   * input, and gives the value. `serve` is the full form (roadmap R24).
    */
   onServerRequest?: ServerRequestHandler;
+
+  /**
+   * The handler of the calls that the server sends to this client (roadmap R24), for example a
+   * `ProcedureServer` with the registry of the client. A call gets the same frames as a call of
+   * the client: streaming, credit, cancel, the signal and the deadline (`procedure-timeout`). The
+   * server reaches it with `callConnection()` or `transportFor()`. Without it (and without
+   * `onServerRequest`), the client answers each call of the server with `NOT_FOUND`.
+   */
+  serve?: RequestHandler;
 
   /**
    * Handler for subscription events.

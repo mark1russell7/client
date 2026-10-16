@@ -116,7 +116,7 @@ describe("WebSocket transport", () => {
     await sleep(50);
     await transport.close();
 
-    await expect(pending).rejects.toThrow("Connection closed");
+    await expect(pending).rejects.toThrow(/connection closed/i);
     expect(Date.now() - started).toBeLessThan(2000);
   });
 });

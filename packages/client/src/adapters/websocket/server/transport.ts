@@ -7,7 +7,10 @@
 
 import type { IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
+import type { ServerTransport, ServerRequest } from "../../../server/types.js";
+import type { Message, ResponseItem, Transport } from "../../../client/types.js";
+import { pathToMethod } from "../../../server/method.js";
+import { IncomingCalls, OutgoingCalls } from "../shared/rpc.js";
 import type { RequestHandler } from "../../../server/types.js";
 import type {
   WebSocketServerTransportOptions,
@@ -45,69 +48,12 @@ import { credentialsOf, withoutSecretHeaders } from "../../../server/request-aut
  * httpServer.listen(3000);
  * ```
  */
-/**
- * The credit of one stream: the number of items the client can take now. The client sends
- * more credit as its reader takes items (deep dive TRN-3).
- */
-class StreamCredit {
-  private wake: (() => void) | undefined;
-
-  constructor(private credit: number) {}
-
-  grant(n: number): void {
-    this.credit += n;
-    const wake = this.wake;
-    this.wake = undefined;
-    wake?.();
-  }
-
-  /** Take one item of credit. Returns false when the signal aborted the wait. */
-  async take(signal: AbortSignal): Promise<boolean> {
-    while (this.credit <= 0) {
-      if (signal.aborted) return false;
-      await new Promise<void>((resolve) => {
-        const onAbort = (): void => resolve();
-        signal.addEventListener("abort", onAbort, { once: true });
-        this.wake = () => {
-          signal.removeEventListener("abort", onAbort);
-          resolve();
-        };
-      });
-    }
-    if (signal.aborted) return false;
-    this.credit--;
-    return true;
-  }
-}
-
-/** The error of a failed stream or handler: its code (a string) and its retryable flag. */
-function errorStatus(error: unknown): { type: "error"; code: string; message: string; retryable: boolean } {
-  const code = (error as { code?: unknown } | undefined)?.code;
-  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
-  return {
-    type: "error",
-    code: typeof code === "string" ? code : "HANDLER_ERROR",
-    message: error instanceof Error ? error.message : String(error),
-    // Before, every stream error lost its retryable flag (deep dive TRN-7)
-    retryable: typeof retryable === "boolean" ? retryable : false,
-  };
-}
-
-interface PendingRequest {
-  id: string;
-  /** The connection the request was sent to: only it may answer, and its close ends the request */
-  connectionId: string;
-  resolve: (value: unknown) => void;
-  reject: (error: Error) => void;
-  timeout: NodeJS.Timeout;
-}
-
 export class WebSocketServerTransport implements ServerTransport {
   readonly name = "websocket";
 
   private wss: WebSocketServer | null = null;
   private options: Required<
-    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat">
+    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout">
   > & {
     authenticate?: WebSocketServerTransportOptions["authenticate"];
     onConnection?: WebSocketServerTransportOptions["onConnection"];
@@ -115,6 +61,8 @@ export class WebSocketServerTransport implements ServerTransport {
   private server: RequestHandler;
   private connections: Set<WebSocket> = new Set();
 
+  /** The time until the first frame of a call to a client, in milliseconds (R24) */
+  private readonly reverseRequestTimeoutMs: number;
   /** The heartbeat of the server, or undefined when it is off (roadmap R3) */
   private readonly heartbeat: { interval: number; misses: number } | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
@@ -123,15 +71,13 @@ export class WebSocketServerTransport implements ServerTransport {
 
   // Tracked connections with IDs for bidirectional RPC
   private trackedConnections = new Map<string, TrackedConnection>();
-  private pendingRequests = new Map<string, PendingRequest>();
   private connectionCounter = 0;
 
-  // The requests in progress, by "connectionId:requestId": a cancel message or a closed
-  // connection aborts their signal, so a stream stops and its handler gets return()
-  private inflight = new Map<string, AbortController>();
-
-  // The flow control of the streams in progress, by the same key
-  private credits = new Map<string, StreamCredit>();
+  /**
+   * The calls of each connection in the two directions (roadmap R24): the calls that the client
+   * sends (served by the server) and the calls that the server sends to the client.
+   */
+  private readonly channels = new Map<string, { incoming: IncomingCalls; outgoing: OutgoingCalls }>();
 
   /** The browser checks of each connection (see `server/browser-guard.ts`) */
   private readonly guard: BrowserGuardOptions;
@@ -153,6 +99,7 @@ export class WebSocketServerTransport implements ServerTransport {
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
+    this.reverseRequestTimeoutMs = optionalMs(options.reverseRequestTimeout, "reverseRequestTimeout") ?? 30_000;
     this.heartbeat =
       options.heartbeat === false
         ? undefined
@@ -237,12 +184,13 @@ export class WebSocketServerTransport implements ServerTransport {
       this.heartbeatTimer = undefined;
     }
     if (this.wss) {
-      // Stop the requests in progress, so their handlers end (deep dive TRN-15)
-      for (const controller of this.inflight.values()) controller.abort();
-      this.inflight.clear();
-      for (const connectionId of this.trackedConnections.keys()) {
-        this.rejectPendingFor(connectionId, "Server stopped");
+      // Stop the requests in progress, so their handlers end (deep dive TRN-15), and fail the
+      // calls that the server sent to its clients
+      for (const channel of this.channels.values()) {
+        channel.incoming.abortAll();
+        channel.outgoing.failAll("Server stopped");
       }
+      this.channels.clear();
 
       // Close all connections
       for (const ws of this.connections) {
@@ -284,10 +232,30 @@ export class WebSocketServerTransport implements ServerTransport {
       connectedAt: new Date(),
       metadata: {
         remoteAddress: req.socket.remoteAddress,
-        headers: req.headers,
+        headers: withoutSecretHeaders(req.headers as Record<string, unknown>),
       },
     };
     this.trackedConnections.set(connectionId, trackedConnection);
+
+    // The calls of this connection in the two directions (roadmap R24)
+    const isOpen = (): boolean => ws.readyState === WebSocket.OPEN;
+    const send = (frame: WebSocketMessage): void => this.send(ws, frame);
+    this.channels.set(connectionId, {
+      incoming: new IncomingCalls({
+        handler: this.server,
+        send,
+        sendWithBackpressure: (frame, signal) => this.sendWithBackpressure(ws, frame, signal),
+        isOpen,
+        requestOf: (frame, signal) => this.requestOf(frame, req, connectionId, signal),
+      }),
+      outgoing: new OutgoingCalls({
+        send,
+        isOpen,
+        requestTimeoutMs: this.reverseRequestTimeoutMs,
+        streamWindow: 64,
+        idPrefix: "r:",
+      }),
+    });
 
     // Call user connection handler (legacy)
     if (this.options.onConnection) {
@@ -319,8 +287,11 @@ export class WebSocketServerTransport implements ServerTransport {
     // Handle close
     ws.on("close", () => {
       this.connections.delete(ws);
-      this.rejectPendingFor(connectionId, "Connection closed");
-      this.abortInflightFor(connectionId);
+      // The calls of the client stop, and the calls to the client fail (BUGS-2026-07 L29)
+      const channel = this.channels.get(connectionId);
+      channel?.incoming.abortAll();
+      channel?.outgoing.failAll("WebSocket connection closed");
+      this.channels.delete(connectionId);
       const conn = this.trackedConnections.get(connectionId);
       if (conn) {
         this.trackedConnections.delete(connectionId);
@@ -344,204 +315,65 @@ export class WebSocketServerTransport implements ServerTransport {
   }
 
   /**
-   * Reject the server-to-client requests that wait for a connection that went away,
-   * instead of letting them wait for their timeout (BUGS-2026-07 L29).
+   * The server request of a `request` frame of a connection: the metadata of the frame and of the
+   * connection, the signal of the call, and the credentials of the upgrade (roadmap R18).
    */
-  private abortInflightFor(connectionId: string): void {
-    const prefix = `${connectionId}:`;
-    for (const [key, controller] of this.inflight) {
-      if (key.startsWith(prefix)) {
-        this.inflight.delete(key);
-        controller.abort();
-      }
-    }
-  }
-
-  private rejectPendingFor(connectionId: string, reason: string): void {
-    for (const [requestId, pending] of this.pendingRequests) {
-      if (pending.connectionId === connectionId) {
-        clearTimeout(pending.timeout);
-        this.pendingRequests.delete(requestId);
-        pending.reject(new Error(`${reason}: ${connectionId}`));
-      }
-    }
-  }
-
-  /**
-   * Handle WebSocket message.
-   */
-  private async handleMessage(
-    ws: WebSocket,
-    data: Buffer,
-    req: IncomingMessage,
-    connectionId: string
-  ): Promise<void> {
-    // Parse message
-    let message: WebSocketMessage;
-    try {
-      message = JSON.parse(data.toString());
-    } catch (error) {
-      this.sendError(ws, "unknown", "Invalid JSON message");
-      return;
-    }
-
-    // Handle ping (client heartbeat)
-    if (message.type === "ping") {
-      const pong: WebSocketMessage = {
-        id: message.id,
-        type: "pong",
-      };
-      this.send(ws, pong);
-      return;
-    }
-
-    // Handle pong (response to our ping)
-    if (message.type === "pong") {
-      // Just acknowledge, no action needed
-      return;
-    }
-
-    // Handle server-response (response to server-initiated request)
-    if (message.type === "server-response") {
-      const pending = this.pendingRequests.get(message.id);
-      // Only the connection the request was sent to may answer it
-      if (pending && pending.connectionId === connectionId) {
-        clearTimeout(pending.timeout);
-        this.pendingRequests.delete(message.id);
-        if (message.error) {
-          pending.reject(new Error(message.error.message));
-        } else {
-          pending.resolve(message.result);
-        }
-      }
-      return;
-    }
-
-    // Handle cancel: the client stopped reading a response (for example, it left a stream early)
-    if (message.type === "cancel") {
-      const key = `${connectionId}:${message.id}`;
-      this.inflight.get(key)?.abort();
-      this.inflight.delete(key);
-      return;
-    }
-
-    // Handle credit: the client's reader took items of a stream, so the stream can send more
-    if (message.type === "credit") {
-      if (typeof message.credit === "number" && message.credit > 0) {
-        this.credits.get(`${connectionId}:${message.id}`)?.grant(message.credit);
-      }
-      return;
-    }
-
-    // Validate request message
-    if (!message.id || message.type !== "request" || !message.method) {
-      this.sendError(ws, message.id || "unknown", "Invalid message format");
-      return;
-    }
-
-    const key = `${connectionId}:${message.id}`;
-    // A request id names one request of the connection while it runs. A second request with
-    // the id would take the first one's controller: its stream could not be cancelled, and the
-    // two outputs would mix (deep dive TRN-9).
-    if (this.inflight.has(key)) {
-      this.sendError(ws, message.id, "A request with this id is still running", "DUPLICATE_REQUEST");
-      return;
-    }
-    const controller = new AbortController();
-    this.inflight.set(key, controller);
-
-    // Convert to ServerRequest. Only an absent payload becomes {}: before, 0, false and ""
-    // became {} too (deep dive TRN-10).
-    const serverRequest: ServerRequest = {
-      id: message.id,
-      method: message.method,
-      payload: message.payload === undefined ? {} : message.payload,
+  private requestOf(frame: WebSocketMessage, req: IncomingMessage, connectionId: string, signal: AbortSignal): ServerRequest {
+    return {
+      id: frame.id,
+      method: frame.method!,
+      // Only an absent payload becomes {}: before, 0, false and "" became {} too (deep dive TRN-10)
+      payload: frame.payload === undefined ? {} : frame.payload,
       metadata: {
-        ...withoutInternalKeys(message.metadata),
+        ...withoutInternalKeys(frame.metadata),
         // Add connection info
         connectionId,
         remoteAddress: req.socket.remoteAddress,
         // The upgrade headers without their secrets (roadmap R18)
         headers: withoutSecretHeaders(req.headers as Record<string, unknown>),
       },
-      signal: controller.signal,
+      signal,
       // The credentials of the connection: the bearer token of its upgrade (R18)
       credentials: credentialsOf(req),
     };
-
-    try {
-      // Process through universal server
-      const serverResponse = await this.server.handle(serverRequest);
-
-      if (serverResponse.stream) {
-        const credit =
-          typeof message.credit === "number" && message.credit > 0 ? new StreamCredit(message.credit) : undefined;
-        if (credit) this.credits.set(key, credit);
-        await this.sendStream(ws, serverResponse.id, serverResponse.stream, controller.signal, credit);
-      } else {
-        this.sendResponse(ws, serverResponse);
-      }
-    } catch (error) {
-      console.error("[WebSocket] Request handling error:", error);
-      this.sendError(
-        ws,
-        message.id,
-        error instanceof Error ? error.message : "Internal server error"
-      );
-    } finally {
-      // Delete only this request's entries (deep dive TRN-9)
-      if (this.inflight.get(key) === controller) this.inflight.delete(key);
-      this.credits.delete(key);
-    }
   }
 
   /**
-   * Send a stream response (BUGS-2026-07 H5): one "stream" frame for each item, then a frame
-   * with `stream.done`. An error of the stream ends it with an "error" frame. When the signal
-   * aborts (a cancel message, a closed connection), the loop stops, and the stream's handler
-   * gets return().
-   *
-   * Flow control (deep dive TRN-3): the stream takes its next item only when the client has
-   * credit for it (when the request carried credit), and waits while the connection's send
-   * buffer holds more than `highWaterMark` bytes.
+   * Handle WebSocket message: a heartbeat, a frame of a call that the server sent (a response,
+   * an error, a stream), or a frame of a call of the client (a request, a cancel, a credit).
    */
-  private async sendStream(
+  private async handleMessage(
     ws: WebSocket,
-    id: string,
-    stream: AsyncIterable<unknown>,
-    signal: AbortSignal,
-    credit: StreamCredit | undefined
+    data: Buffer,
+    _req: IncomingMessage,
+    connectionId: string
   ): Promise<void> {
-    const iterator = stream[Symbol.asyncIterator]();
-    let done = false;
+    // Parse message
+    let message: WebSocketMessage;
     try {
-      for (;;) {
-        if (credit && !(await credit.take(signal))) return;
-        if (signal.aborted || ws.readyState !== WebSocket.OPEN) return;
-        const result = await iterator.next();
-        if (result.done) {
-          done = true;
-          break;
-        }
-        if (signal.aborted || ws.readyState !== WebSocket.OPEN) return;
-        await this.sendWithBackpressure(ws, { id, type: "stream", payload: result.value, stream: { done: false } }, signal);
-      }
-      this.send(ws, { id, type: "stream", stream: { done: true } });
-    } catch (error) {
-      done = true;
-      if (signal.aborted) return;
-      const status = errorStatus(error);
-      this.send(ws, {
-        id,
-        type: "error",
-        status,
-        error: { code: status.code, message: status.message, retryable: status.retryable },
-        stream: { done: true },
-      });
-    } finally {
-      // The loop stopped before the end: the handler gets return()
-      if (!done) await iterator.return?.();
+      message = JSON.parse(data.toString());
+    } catch {
+      this.sendError(ws, "unknown", "Invalid JSON message");
+      return;
     }
+
+    // Handle ping (client heartbeat)
+    if (message.type === "ping") {
+      this.send(ws, { id: message.id, type: "pong" });
+      return;
+    }
+    // A pong answers a ping of the server: nothing to do
+    if (message.type === "pong") return;
+
+    const channel = this.channels.get(connectionId);
+    if (!channel) return;
+    // A frame of a call that the server sent to this client (roadmap R24)
+    if (channel.outgoing.receive(message)) return;
+    // A frame of a call of the client: a request, a cancel or a credit
+    if (channel.incoming.receive(message)) return;
+    // A server-response frame of an older client, for a call that no longer exists
+    if (message.type === "server-response") return;
+    this.sendError(ws, message.id || "unknown", "Invalid message format");
   }
 
   /**
@@ -565,26 +397,6 @@ export class WebSocketServerTransport implements ServerTransport {
         resolve();
       }
     });
-  }
-
-  private sendResponse(ws: WebSocket, response: ServerResponse): void {
-    const message: WebSocketMessage = {
-      id: response.id,
-      type: response.status.type === "success" ? "response" : "error",
-      payload: response.payload,
-      metadata: response.metadata,
-      status: response.status,
-    };
-
-    if (response.status.type === "error") {
-      message.error = {
-        code: response.status.code,
-        message: response.status.message || "Unknown error",
-        retryable: response.status.retryable,
-      };
-    }
-
-    this.send(ws, message);
   }
 
   /**
@@ -664,48 +476,65 @@ export class WebSocketServerTransport implements ServerTransport {
   }
 
   /**
-   * Call a procedure on a specific client (server-to-client RPC).
-   * Returns a promise that resolves with the client's response.
+   * Send a call to a client (roadmap R24): the same frames as the calls of the client, with
+   * streaming, credit, cancel, the signal and the remaining time of the call. The client serves it
+   * with its own handler (the `serve` option of `WebSocketTransport`). An unknown connection gives a
+   * `CONNECTION_NOT_FOUND` error item.
    */
-  callClient(
-    connectionId: string,
-    path: string[],
-    input: unknown,
-    timeout = 30000
-  ): Promise<unknown> {
-    const conn = this.trackedConnections.get(connectionId);
-    if (!conn) {
-      return Promise.reject(new Error(`Connection not found: ${connectionId}`));
+  callConnection<TReq, TRes>(connectionId: string, message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> {
+    const channel = this.channels.get(connectionId);
+    if (!channel) {
+      return (async function* () {
+        yield {
+          id: message.id,
+          status: { type: "error", code: "CONNECTION_NOT_FOUND", message: `Connection not found: ${connectionId}`, retryable: false },
+          payload: null as TRes,
+          metadata: {},
+        } as ResponseItem<TRes>;
+      })();
     }
-
-    const requestId = `sreq_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-    return new Promise((resolve, reject) => {
-      const timeoutHandle = setTimeout(() => {
-        this.pendingRequests.delete(requestId);
-        reject(new Error(`Request timeout after ${timeout}ms`));
-      }, timeout);
-
-      this.pendingRequests.set(requestId, {
-        id: requestId,
-        connectionId,
-        resolve,
-        reject,
-        timeout: timeoutHandle,
-      });
-
-      const message: WebSocketMessage = {
-        type: "server-request",
-        id: requestId,
-        path,
-        input,
-      };
-
-      this.send(conn.socket, message);
-    });
+    return channel.outgoing.call<TReq, TRes>(message);
   }
 
   /**
+   * A transport to one client: a `Client` over it calls the procedures that the client serves,
+   * with each client middleware (retry, timeouts) of the caller (roadmap R24).
+   */
+  transportFor(connectionId: string): Transport {
+    return {
+      name: `websocket-reverse:${connectionId}`,
+      send: <TReq, TRes>(message: Message<TReq>) => this.callConnection<TReq, TRes>(connectionId, message),
+      close: async () => undefined,
+    };
+  }
+
+  /**
+   * Call a procedure on a specific client (server-to-client RPC). It gives the value of the
+   * call, and fails with its error. It is a wrapper of `callConnection` (roadmap R24).
+   */
+  async callClient(connectionId: string, path: string[], input: unknown, timeout = 30000): Promise<unknown> {
+    if (!this.channels.has(connectionId)) throw new Error(`Connection not found: ${connectionId}`);
+    const signal = AbortSignal.timeout(timeout);
+    const message: Message<unknown> = {
+      id: `sreq_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      method: pathToMethod(path),
+      payload: input,
+      metadata: { "procedure-timeout": timeout },
+      signal,
+    };
+    let last: ResponseItem<unknown> | undefined;
+    for await (const item of this.callConnection(connectionId, message)) {
+      if (item.status.type === "error") {
+        if (signal.aborted) throw new Error(`Request timeout after ${timeout}ms`);
+        throw Object.assign(new Error(item.status.message), { code: item.status.code, retryable: item.status.retryable });
+      }
+      last = item;
+    }
+    return last?.payload;
+  }
+
+  /**
+   * Register a handler for new connections.  /**
    * Register a handler for new connections.
    * Returns a function to unregister the handler.
    */

@@ -9,6 +9,9 @@ import type { Transport, Message, ResponseItem } from "../../../client/types.js"
 import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler, EventHandler } from "./types.js";
 import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
+import { IncomingCalls } from "../shared/rpc.js";
+import type { RequestHandler, ServerResponse } from "../../../server/types.js";
+import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
 
 /**
@@ -95,6 +98,34 @@ function abortedItem<TRes>(id: string): ResponseItem<TRes> {
 }
 
 /**
+ * The handler of the calls of the server without a `serve` option: the older `onServerRequest`
+ * function (it gets the path and the input), or else a `NOT_FOUND` answer.
+ */
+function legacyHandler(onServerRequest: ServerRequestHandler | undefined): RequestHandler {
+  return {
+    async handle(request): Promise<ServerResponse> {
+      if (!onServerRequest) {
+        return {
+          id: request.id,
+          status: { type: "error", code: "NOT_FOUND", message: "This client serves no procedures", retryable: false },
+          metadata: {},
+        };
+      }
+      try {
+        const payload = await onServerRequest(methodToPath(request.method), request.payload);
+        return { id: request.id, status: { type: "success", code: 200 }, payload, metadata: {} };
+      } catch (error) {
+        return {
+          id: request.id,
+          status: { type: "error", code: "HANDLER_ERROR", message: error instanceof Error ? error.message : String(error), retryable: false },
+          metadata: {},
+        };
+      }
+    },
+  };
+}
+
+/**
  * The delay before a reconnect try (from 1): an exponential backoff up to `maxDelay`, with a
  * random part. With `jitter: 1` (full jitter, the default), the delay is a random time from 0 to
  * the backoff, so the clients of a server that restarted do not come back at the same moments
@@ -138,6 +169,7 @@ export class WebSocketTransport implements Transport {
     onReconnecting: ((attempt: number) => void) | undefined;
     onError: ((error: Error) => void) | undefined;
     onServerRequest: ServerRequestHandler | undefined;
+    serve: RequestHandler | undefined;
     onEvent: EventHandler | undefined;
   };
   /** The requests in progress, by wire id */
@@ -158,6 +190,8 @@ export class WebSocketTransport implements Transport {
   private heartbeatTimeout: ReturnType<typeof setTimeout> | undefined = undefined;
   /** The pings without a pong, one after the other */
   private heartbeatMisses = 0;
+  /** The calls that the server sends on the current socket, served by `serve` (roadmap R24) */
+  private incoming: IncomingCalls | undefined;
   /** The time limit of the handshake of the socket that opens now */
   private handshakeTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
@@ -186,6 +220,7 @@ export class WebSocketTransport implements Transport {
       onReconnecting: options.onReconnecting,
       onError: options.onError,
       onServerRequest: options.onServerRequest,
+      serve: options.serve,
       onEvent: options.onEvent,
     };
 
@@ -215,6 +250,8 @@ export class WebSocketTransport implements Transport {
     try {
       const ws = new WebSocket(this.options.url);
       this.ws = ws;
+      // The calls of the server on this socket (roadmap R24)
+      this.incoming = this.servedCallsOf(ws);
 
       // The handshake has a time limit: an address that never answers does not keep the socket
       // in CONNECTING (roadmap R3)
@@ -317,6 +354,8 @@ export class WebSocketTransport implements Transport {
    */
   private handleClose(reason?: string): void {
     this.stopHeartbeat();
+    this.incoming?.abortAll();
+    this.incoming = undefined;
     this.clearHandshakeTimer();
 
     // An intentional close() must not reconnect (BUGS-2026-07 H6)
@@ -416,7 +455,34 @@ export class WebSocketTransport implements Transport {
   /**
    * Handle incoming message.
    */
+  /**
+   * The calls of the server on a socket, served by the `serve` option (or by `onServerRequest`, or
+   * with `NOT_FOUND`), with the same frames as the calls of the client (roadmap R24).
+   */
+  private servedCallsOf(ws: WebSocket): IncomingCalls {
+    const handler = this.options.serve ?? legacyHandler(this.options.onServerRequest);
+    return new IncomingCalls({
+      handler,
+      send: (frame) => ws.send(JSON.stringify(frame)),
+      isOpen: () => this.ws === ws && ws.readyState === WebSocket.OPEN,
+      // A call of the server that this client opened: the client trusts it, so it has no
+      // credentials (a ProcedureServer applies no token to it)
+      requestOf: (frame, signal) => ({
+        id: frame.id,
+        method: frame.method!,
+        payload: frame.payload === undefined ? {} : frame.payload,
+        metadata: withoutInternalKeys(frame.metadata),
+        signal,
+      }),
+    });
+  }
+
   private handleMessage(message: WebSocketMessage): void {
+    // A call of the server, its cancel or its credit (roadmap R24)
+    if ((message.type === "request" || message.type === "cancel" || message.type === "credit") && this.incoming?.receive(message)) {
+      return;
+    }
+
 
     // Handle pong (heartbeat response)
     if (message.type === "pong") {
@@ -738,6 +804,8 @@ export class WebSocketTransport implements Transport {
     this.setState(WebSocketState.DISCONNECTING);
     this.stopHeartbeat();
     this.clearHandshakeTimer();
+    this.incoming?.abortAll();
+    this.incoming = undefined;
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
