@@ -36,19 +36,43 @@ const healthCheckSchema = outputSchema<HealthCheck>();
 // Bridge Procedures
 // =============================================================================
 
+/** The name and the version of this package, after the first read of its `package.json`. */
+let manifest: Promise<{ name: string; version: string }> | undefined;
+
 /**
- * Get package info.
+ * This function reads the name and the version of this package from its `package.json`, once.
+ * The file is one folder above this module, in `src` and in `dist`. The read starts at the first
+ * call, so an import of this module reads no file. Before, `splay.bridge.info` gave the version
+ * `1.0.0` for each version (roadmap R33).
+ */
+function packageManifest(): Promise<{ name: string; version: string }> {
+  manifest ??= (async () => {
+    const { readFile } = await import("node:fs/promises");
+    const json = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as { name?: unknown; version?: unknown };
+    if (typeof json.name !== "string" || typeof json.version !== "string") {
+      throw new Error("The package.json of @procedures/splay has no name or no version");
+    }
+    return { name: json.name, version: json.version };
+  })().catch((error: unknown) => {
+    // A failed read can succeed later: do not keep the failure
+    manifest = undefined;
+    throw error;
+  });
+  return manifest;
+}
+
+/**
+ * Get package info: the name and the real version of this package.
  */
 const infoProcedure = createProcedure()
   .path(["splay", "bridge", "info"])
   .input(voidSchema)
   .output(bridgeInfoSchema)
-  .meta({ description: "Get client-splay bridge information", effects: PURE_EFFECTS })
-  .handler(() => ({
-    name: "@procedures/splay",
-    version: "1.0.0",
-    description: "Bridge between splay and client",
-  }))
+  .meta({ description: "Get client-splay bridge information: its name and its version", effects: PURE_EFFECTS })
+  .handler(async () => {
+    const { name, version } = await packageManifest();
+    return { name, version, description: "Bridge between splay and client" };
+  })
   .build();
 
 /**

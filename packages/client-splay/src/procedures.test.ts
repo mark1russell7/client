@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { dispatch, pathDepth, TYPE_SYMBOL, type Registry as SplayRegistry } from "@mark1russell7/splay";
 import {
   createRegistry,
@@ -62,9 +63,11 @@ async function call<T>(registry: ProcedureRegistry, path: ProcedurePath, input?:
 describe("splay.bridge.info and splay.bridge.health", () => {
   it("give the bridge information and its health", async () => {
     const registry = registryWith();
+    // The real version of the package: before, the procedure gave "1.0.0" for each version
+    const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { name: string; version: string };
     expect(await call(registry, ["splay", "bridge", "info"])).toEqual({
-      name: "@procedures/splay",
-      version: "1.0.0",
+      name: manifest.name,
+      version: manifest.version,
       description: "Bridge between splay and client",
     });
     const health = await call<{ status: string; timestamp: string }>(registry, ["splay", "bridge", "health"]);
