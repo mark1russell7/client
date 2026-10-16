@@ -1,0 +1,22 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["client.chain"]
+    n1["t.echo"]
+    n2["t.missing"]
+    n3["fail<br/>client.map#58; fn must be one call (#123; #36;proc, input #125;), or ab..."]
+  end
+  n4(["result"])
+  n5("unknown name (nope)")
+  n1 --> n2
+  n2 --> n3
+  n0 --> n1
+  n3 --> n4
+  n5 -.->|"nope"| n1
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  classDef fail fill:#fff5f5,stroke:#e03131,color:#5c0a0a
+  classDef error stroke:#e03131,stroke-width:3px
+  class n1,n2 call
+  class n0,n4 boundary
+  class n3,n5 fail
+  class n2,n3,n5 error

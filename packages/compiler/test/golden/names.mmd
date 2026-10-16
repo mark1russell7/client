@@ -1,0 +1,19 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["client.chain"]
+    n1["client.add<br/>#36;name sum"]
+    n2["client.multiply"]
+    n3["client.add"]
+  end
+  n4(["result"])
+  n1 --> n2
+  n2 --> n3
+  n0 --> n1
+  n3 --> n4
+  n1 -.->|"sum"| n2
+  n2 -.->|"#36;last"| n3
+  n1 -.->|"sum"| n3
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n1,n2,n3 call
+  class n0,n4 boundary

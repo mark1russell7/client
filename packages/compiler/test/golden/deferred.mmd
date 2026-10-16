@@ -1,0 +1,31 @@
+flowchart TD
+  n0(["start"])
+  subgraph s0["client.chain"]
+    n1["t.num<br/>#36;name two"]
+    n2[["client.eval<br/>dynamic (it runs the refs of its input)"]]
+    subgraph s1["runs"]
+      n3["t.add"]
+    end
+    n4["t.write<br/>data (#36;when #36;never)"]
+    n5["t.num"]
+    n6["t.echo<br/>deferred (waits for #36;parent)"]
+    n7["t.echo"]
+  end
+  n8(["result"])
+  n2 -.->|"runs"| n3
+  n5 --> n6
+  n4 --> n5
+  n6 --> n7
+  n1 --> n2
+  n2 --> n4
+  n0 --> n1
+  n7 --> n8
+  n1 -.->|"two"| n3
+  classDef call fill:#e7f0ff,stroke:#2f5fb3,color:#10213f
+  classDef dynamic fill:#fff1e0,stroke:#d9480f,stroke-width:2px,color:#3d1a00
+  classDef deferred fill:#f4f4f5,stroke:#71717a,stroke-dasharray:5 4,color:#27272a
+  classDef boundary fill:#ecfdf3,stroke:#2f9e44,color:#0b3d1c
+  class n1,n3,n5,n7 call
+  class n2 dynamic
+  class n4,n6 deferred
+  class n0,n8 boundary

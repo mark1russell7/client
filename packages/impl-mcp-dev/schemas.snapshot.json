@@ -1755,6 +1755,105 @@
       "program"
     ]
   },
+  "program.diagram": {
+    "type": "object",
+    "properties": {
+      "program": {
+        "description": "The program: a call ({ $proc, input }). The procedure reads it as data: nothing in it starts."
+      },
+      "mode": {
+        "description": "exec (the default): the program runs as client.exec runs it. body: as the body of a defined procedure, with input in scope.",
+        "type": "string",
+        "enum": [
+          "exec",
+          "body"
+        ]
+      },
+      "direction": {
+        "description": "The direction of the flowchart: TD (from the top down, the default) or LR (from left to right)",
+        "type": "string",
+        "enum": [
+          "TD",
+          "LR"
+        ]
+      }
+    },
+    "required": [
+      "program"
+    ]
+  },
+  "program.explain": {
+    "type": "object",
+    "properties": {
+      "program": {
+        "description": "The program: a call ({ $proc, input }). The procedure reads it as data: nothing in it starts."
+      },
+      "capability": {
+        "type": "object",
+        "properties": {
+          "clearance": {
+            "description": "The clearance of the run"
+          },
+          "effects": {
+            "description": "The effects that the calls can have. Absent: all effects.",
+            "type": "object",
+            "properties": {
+              "reads": {
+                "description": "The resources that a call can read: names, or \"any\"",
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string",
+                    "const": "any"
+                  }
+                ]
+              },
+              "writes": {
+                "description": "The resources that a call can change: names, or \"any\". An empty list: no change.",
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "string",
+                    "const": "any"
+                  }
+                ]
+              },
+              "destructive": {
+                "description": "False: a call cannot start a destructive procedure",
+                "type": "boolean"
+              }
+            }
+          },
+          "deadline": {
+            "description": "The deadline (the static check does not use it)",
+            "type": "number"
+          }
+        },
+        "description": "The capability of the run. Absent: the capability of the caller."
+      },
+      "mode": {
+        "description": "exec (the default): the program runs as client.exec runs it. body: as the body of a defined procedure, with input in scope.",
+        "type": "string",
+        "enum": [
+          "exec",
+          "body"
+        ]
+      }
+    },
+    "required": [
+      "program"
+    ]
+  },
   "vitest.coverage": {
     "type": "object",
     "properties": {
