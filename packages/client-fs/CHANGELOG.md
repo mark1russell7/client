@@ -1,5 +1,50 @@
 # @procedures/fs
 
+## 0.3.0
+
+### Minor Changes
+
+- f23c7ad: Four file procedures (roadmap R44). `fs.write.json` writes a value as JSON through a file that it renames at the end. `fs.hash` gives the hash of a file. `fs.temp` makes a temporary folder. `fs.watch` gives the changes of a file or folder as a stream without an end. With `createFsModule({ root })`, each path stays in the root, and `fs.temp` makes its folders in the folder `.tmp` of the root.
+- bc70357: The file procedures can have a root (roadmap R33). `createFsModule({ root })` gives the procedures of `fsModule`, and each path of each input must be in the root folder. A relative path starts at the root. Without a root, the procedures operate as before.
+  
+  The procedures refuse a path that goes up with `..`, an absolute path outside the root and another drive. They also refuse a symlink or a junction that goes out of the root. The error has the code `FORBIDDEN` and the new reason `outside-root` (the type `ForbiddenReason` of `@procedures/client`). For a path that does not exist, the check uses the real path of the nearest existing folder. `registerFsProcedures(registry, { root })` takes the root too.
+
+### Patch Changes
+
+- 3c40d2d: The root of the file procedures accepts a path by its real path. On Windows, a folder can have a short 8.3 name (`RUNNER~1`) and a long real name. A path that used the short name was refused when the root was a link.
+- Updated dependencies [ddea529]
+- Updated dependencies [b2a3e3a]
+- Updated dependencies [a8c47f1]
+- Updated dependencies [381ce3a]
+- Updated dependencies [0c627f8]
+- Updated dependencies [ae7f05f]
+- Updated dependencies [7873940]
+- Updated dependencies [a70d445]
+- Updated dependencies [bc70357]
+- Updated dependencies [07cc998]
+- Updated dependencies [a6b01a9]
+- Updated dependencies [c799cdd]
+- Updated dependencies [540f8d9]
+- Updated dependencies [b6daaec]
+- Updated dependencies [5b9264e]
+- Updated dependencies [956e88b]
+- Updated dependencies [ff62281]
+- Updated dependencies [d81d0ed]
+- Updated dependencies [aa67cc7]
+- Updated dependencies [061fa22]
+- Updated dependencies [cfb9d69]
+- Updated dependencies [43f7de5]
+- Updated dependencies [b07bb50]
+- Updated dependencies [4a3bfa1]
+- Updated dependencies [bd0b626]
+- Updated dependencies [a6be873]
+- Updated dependencies [fb30718]
+- Updated dependencies [c5528e4]
+- Updated dependencies [fee5d9c]
+- Updated dependencies [21f7743]
+- Updated dependencies [31a0b46]
+  - @procedures/client@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes

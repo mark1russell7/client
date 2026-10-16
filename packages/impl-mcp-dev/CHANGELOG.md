@@ -1,5 +1,65 @@
 # @procedures/mcp-dev-tools
 
+## 0.3.0
+
+### Minor Changes
+
+- 29a7b29: Outputs of the compiler (roadmap R23). `toMermaid()`, `diagramProgram()` and the procedure `program.diagram` draw a program as a Mermaid flowchart from its IR: the steps of a chain in order, the fork and the join of `client.parallel`, the decision of `client.conditional`, the `try` part and the `error` arrow of `client.tryCatch`, the loop of `client.map` and `client.reduce`, the stop arrows of `client.and` and `client.or`, and a dotted arrow from each name to each `$ref` that reads it. Dynamic and deferred calls have their own class, and `mermaidText()` writes each unsafe character as an entity code, so no label can break the syntax. `explainProgram()` and the procedure `program.explain` give the effects of a program, each call with its declared effects and the answer of `explainInvocation()` under the capability (the capability of the caller when the input has none), the diagnostics and a short summary. `toOpenRpc()` and the procedure `sdk.openrpc` write the manifest as an OpenRPC 1.3 document, with the effects as `x-effects`. `toTypeScriptSdk()` and the procedure `sdk.typescript` write a typed TypeScript SDK: an input type and an output type for each procedure, and `createSdk(client)` with `sdk.<namespace>.<name>(input)` methods. A test type-checks the SDK of the core procedures. `sdk` is not an MCP tool namespace. In `@procedures/mcp`, the description of a tool for a defined procedure with `inferredEffects` gets a sentence such as "It reads fs and changes store." (`toolDescription()`). The MCP server of `@procedures/mcp-dev-tools` has the tools `program.diagram` and `program.explain` (67 tools).
+- c66f0c4: Twelve new `docker.*` tools of roadmap R41: `compose.build`, `compose.logs`, `compose.ps`, `compose.restart`, `images`, `inspect`, `network.create`, `network.list`, `network.remove`, `tag`, `volume.create` and `volume.list`. The MCP server has 79 tools. `docker.prune`, `docker.push` and `docker.volume.remove` are not tools: the first one deletes in bulk, the second one can carry an image out, and the third one deletes the data of a volume.
+- 1779d96: The pure transforms of `@procedures/json` are MCP tools (roadmap R39): `json.query`, `json.patch`, `json.diff`, `json.merge`, `json.validate`, `yaml.parse` and `yaml.stringify`. A program that Claude runs through `client.chain` can use them in its steps. The MCP server has 86 tools. `@procedures/http` is not a tool namespace, because a request can carry data out.
+- 3d24d5b: MCP over Streamable HTTP (roadmap R26), the HTTP transport of the current MCP specification. `McpServerTransport` takes `transport: "http"` and `httpOptions` (port, host, path, token, allowed origins, or an HTTP server of its own). Each client gets a session with an MCP server of its own, and so gets the progress of a tool call and the `list_changed` notifications. The endpoint listens on loopback by default, refuses a web page of another host or origin, and with a token refuses a request without the token. `mark mcp --http <port> [--host <host>] [--token <token>]` (or `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN`) serves the dev tools over it. Before, the package had only stdio, and its SSE transport only threw.
+- 956e88b: One manifest type (roadmap R17). `describeRegistry(registry, { expose })` and `describeProcedure` (exported as `describeProcedureEntry`) describe each procedure: the path, the description, the tags, the effects, the JSON Schemas of the input and the output, the calls, an unbounded stream, the command-line metadata, and a hash of the manifest (`procedures.manifest/1`). The new procedure `procedure.manifest` gives it, and it is an MCP tool of the dev tools (63 tools). `procedure.get` gives the JSON Schemas and the effects. The context of a handler has the expose rule of its host (`ctx.expose`), and `procedure.get`, `procedure.list`, `procedure.manifest`, `procedure.export`, `client.lookup`, `mcp.list-tools`, `manifest.generate` and `_discovery.announce` show only the exposed procedures: before, an MCP tool could list the procedures that the host hides. `_discovery.announce` gives the JSON Schemas, and `manifest.generate`, `getProcedureInfos` and the manifest of `mark` use the one description.
+- f5ed492: The check before the run in the hosts (roadmap R22). `programCheckInterceptor()` of `@procedures/compiler` checks the program of each call to a data-driven procedure before the first step. When the check finds an error, no step starts, so a refusal in step 3 comes before the write of step 1. The MCP server of `@procedures/mcp-dev-tools` uses it (`MCP_PROGRAM_CHECK=false` turns it off). `bundle-mcp` and `bundle-dev` have the compiler module, so Claude gets the tools `program.check` and `program.compile` (65 tools), and `mark program check` works.
+- 5b7b673: Five new tools of roadmap R44: `db.tables`, `db.schema`, `lib.graph`, `mongo.documents.distinct` and `mongo.documents.explain`. They change nothing. The MCP server has 91 tools. `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup` are not tools: the first one is a stream without an end, and the others change data in bulk or change the database file.
+
+### Patch Changes
+
+- fb30718: Typed durations (roadmap R11). This change breaks the API. Each public option that is a time takes a `Duration` of `@mark1russell7/quantity`, made with `ms()`, `seconds()`, `minutes()` or `hours()` of `@procedures/client`. A plain number is a type error, and at run time the option throws a `TypeError` that names it. This covers the timeouts and `resilience()`, the retry delays, the cache, the circuit breaker, the rate limit, the HTTP, WebSocket and mock transports, the WebSocket server heartbeat, `timeoutInterceptor({ limit })` (was `ms`), `hostPolicy({ timeout })` (was `timeoutMs`), the idempotency cache (`ttl`, was `ttlMs`), `ApiStorage`, `HybridStorage`, the synced registry and `connect()` of the peer. The per-call overrides in a context (`timeout`, `retry.delay`, `cache.ttl`) and the `route()` overrides (`timeout.overall`, was `timeout.ms`) take durations too. The wire and the inputs of procedures keep milliseconds.
+  
+  Migration: `createOverallTimeoutMiddleware({ overall: 5000 })` becomes `createOverallTimeoutMiddleware({ overall: seconds(5) })`.
+- Updated dependencies [ddea529]
+- Updated dependencies [b2a3e3a]
+- Updated dependencies [a8c47f1]
+- Updated dependencies [381ce3a]
+- Updated dependencies [0c627f8]
+- Updated dependencies [ae7f05f]
+- Updated dependencies [7873940]
+- Updated dependencies [29a7b29]
+- Updated dependencies [9bc2ddb]
+- Updated dependencies [a70d445]
+- Updated dependencies [c66f0c4]
+- Updated dependencies [bc70357]
+- Updated dependencies [07cc998]
+- Updated dependencies [a6b01a9]
+- Updated dependencies [c799cdd]
+- Updated dependencies [1779d96]
+- Updated dependencies [3d24d5b]
+- Updated dependencies [540f8d9]
+- Updated dependencies [b6daaec]
+- Updated dependencies [5b9264e]
+- Updated dependencies [956e88b]
+- Updated dependencies [ff62281]
+- Updated dependencies [d81d0ed]
+- Updated dependencies [f5ed492]
+- Updated dependencies [aa67cc7]
+- Updated dependencies [061fa22]
+- Updated dependencies [5b7b673]
+- Updated dependencies [cfb9d69]
+- Updated dependencies [43f7de5]
+- Updated dependencies [b07bb50]
+- Updated dependencies [4a3bfa1]
+- Updated dependencies [bd0b626]
+- Updated dependencies [a6be873]
+- Updated dependencies [fb30718]
+- Updated dependencies [c5528e4]
+- Updated dependencies [fee5d9c]
+- Updated dependencies [21f7743]
+- Updated dependencies [31a0b46]
+  - @procedures/client@0.3.0
+  - @procedures/compiler@0.3.0
+  - @procedures/bundle-mcp@0.3.0
+  - @procedures/mcp-server@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes

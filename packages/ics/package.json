@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/ics",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "An iCalendar (RFC 5545) reader without dependencies: the events of a calendar and their occurrences in a time window, recurrences included.",
   "keywords": [
     "ics",

@@ -1,5 +1,0 @@
----
-"@procedures/compiler": minor
----
-
-A new package, `@procedures/compiler`, the compiler of programs (roadmap R20 and R21). `checkProgram()` and the procedure `program.check` examine a whole program before the first call: an unknown name, a name before its step, an unknown or hidden procedure, an input that does not agree with its JSON Schema, a call that the capability refuses, a `$never` trap and the effects of the program (`may` and `must`). A call whose program the compiler cannot see fails closed under a capability that limits effects. The facts come from a registry or from a manifest, so the check works in a browser. `compileProgram()` and the procedure `program.compile` write the checked program as an `async (ctx, input) => output` function: closures for a host, and the text of an ES module (JavaScript or TypeScript) with a source map. The function makes the same calls through `ctx.client.call` in the order of the interpreter. A property test compares the interpreter and the two forms of the code on hundreds of random programs: the result, the error and the order of the calls.

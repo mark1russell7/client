@@ -1,0 +1,48 @@
+# @procedures/json
+
+## 0.3.0
+
+### Minor Changes
+
+- a6b01a9: The new package `@procedures/json` (roadmap R39) has seven pure procedures (`PURE_EFFECTS`): `json.query` (a JSON Pointer or a path query), `json.patch` (RFC 6902), `json.diff` (it gives an RFC 6902 patch), `json.merge` (RFC 7386), `json.validate` (a subset of JSON Schema, with the keywords that the check does not examine in `unchecked`), `yaml.parse` and `yaml.stringify`.
+  
+  A pointer, a path, a patch and a merge patch cannot name `__proto__`, `constructor` or `prototype`. A key `__proto__` in the data stays data. The YAML text of `yaml.stringify` is YAML 1.2 that a YAML 1.1 reader reads as the same value. Property tests examine that a patch from `json.diff` gives the second value, and that `yaml.parse` of the text of `yaml.stringify` gives the value again.
+
+### Patch Changes
+
+- Updated dependencies [ddea529]
+- Updated dependencies [b2a3e3a]
+- Updated dependencies [a8c47f1]
+- Updated dependencies [381ce3a]
+- Updated dependencies [0c627f8]
+- Updated dependencies [ae7f05f]
+- Updated dependencies [7873940]
+- Updated dependencies [29a7b29]
+- Updated dependencies [9bc2ddb]
+- Updated dependencies [a70d445]
+- Updated dependencies [bc70357]
+- Updated dependencies [07cc998]
+- Updated dependencies [a6b01a9]
+- Updated dependencies [c799cdd]
+- Updated dependencies [540f8d9]
+- Updated dependencies [b6daaec]
+- Updated dependencies [5b9264e]
+- Updated dependencies [956e88b]
+- Updated dependencies [ff62281]
+- Updated dependencies [d81d0ed]
+- Updated dependencies [f5ed492]
+- Updated dependencies [aa67cc7]
+- Updated dependencies [061fa22]
+- Updated dependencies [cfb9d69]
+- Updated dependencies [43f7de5]
+- Updated dependencies [b07bb50]
+- Updated dependencies [4a3bfa1]
+- Updated dependencies [bd0b626]
+- Updated dependencies [a6be873]
+- Updated dependencies [fb30718]
+- Updated dependencies [c5528e4]
+- Updated dependencies [fee5d9c]
+- Updated dependencies [21f7743]
+- Updated dependencies [31a0b46]
+  - @procedures/client@0.3.0
+  - @procedures/compiler@0.3.0

@@ -1,5 +1,46 @@
 # @procedures/s3
 
+## 0.3.0
+
+### Minor Changes
+
+- ffb35f3: Three object procedures (roadmap R44). `s3.head` gives the metadata of an object without its content, and `exists: false` for a 404. `s3.copy` copies an object inside S3. It replaces the destination, unless `overwrite` is false. `s3.presign` gives a presigned URL for a `GET` or a `PUT`, with an expiry in seconds. It sends no request to S3. A call whose capability does not permit the writes of `s3.upload` gets no `PUT` URL. The new dependency is `@aws-sdk/s3-request-presigner`.
+
+### Patch Changes
+
+- Updated dependencies [ddea529]
+- Updated dependencies [b2a3e3a]
+- Updated dependencies [a8c47f1]
+- Updated dependencies [381ce3a]
+- Updated dependencies [0c627f8]
+- Updated dependencies [ae7f05f]
+- Updated dependencies [7873940]
+- Updated dependencies [a70d445]
+- Updated dependencies [bc70357]
+- Updated dependencies [07cc998]
+- Updated dependencies [a6b01a9]
+- Updated dependencies [c799cdd]
+- Updated dependencies [540f8d9]
+- Updated dependencies [b6daaec]
+- Updated dependencies [5b9264e]
+- Updated dependencies [956e88b]
+- Updated dependencies [ff62281]
+- Updated dependencies [d81d0ed]
+- Updated dependencies [aa67cc7]
+- Updated dependencies [061fa22]
+- Updated dependencies [cfb9d69]
+- Updated dependencies [43f7de5]
+- Updated dependencies [b07bb50]
+- Updated dependencies [4a3bfa1]
+- Updated dependencies [bd0b626]
+- Updated dependencies [a6be873]
+- Updated dependencies [fb30718]
+- Updated dependencies [c5528e4]
+- Updated dependencies [fee5d9c]
+- Updated dependencies [21f7743]
+- Updated dependencies [31a0b46]
+  - @procedures/client@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes

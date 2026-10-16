@@ -1,5 +1,65 @@
 # @procedures/bundle-dev
 
+## 0.3.0
+
+### Minor Changes
+
+- f5ed492: The check before the run in the hosts (roadmap R22). `programCheckInterceptor()` of `@procedures/compiler` checks the program of each call to a data-driven procedure before the first step. When the check finds an error, no step starts, so a refusal in step 3 comes before the write of step 1. The MCP server of `@procedures/mcp-dev-tools` uses it (`MCP_PROGRAM_CHECK=false` turns it off). `bundle-mcp` and `bundle-dev` have the compiler module, so Claude gets the tools `program.check` and `program.compile` (65 tools), and `mark program check` works.
+
+### Patch Changes
+
+- Updated dependencies [ddea529]
+- Updated dependencies [b2a3e3a]
+- Updated dependencies [a8c47f1]
+- Updated dependencies [381ce3a]
+- Updated dependencies [0c627f8]
+- Updated dependencies [ae7f05f]
+- Updated dependencies [7873940]
+- Updated dependencies [29a7b29]
+- Updated dependencies [9bc2ddb]
+- Updated dependencies [a70d445]
+- Updated dependencies [f23c7ad]
+- Updated dependencies [3c40d2d]
+- Updated dependencies [bc70357]
+- Updated dependencies [4cad9ab]
+- Updated dependencies [07cc998]
+- Updated dependencies [a6b01a9]
+- Updated dependencies [c799cdd]
+- Updated dependencies [4d3ff39]
+- Updated dependencies [540f8d9]
+- Updated dependencies [b6daaec]
+- Updated dependencies [5b9264e]
+- Updated dependencies [956e88b]
+- Updated dependencies [ff62281]
+- Updated dependencies [6e4de6c]
+- Updated dependencies [14d85fe]
+- Updated dependencies [d81d0ed]
+- Updated dependencies [f5ed492]
+- Updated dependencies [aa67cc7]
+- Updated dependencies [061fa22]
+- Updated dependencies [cfb9d69]
+- Updated dependencies [43f7de5]
+- Updated dependencies [b07bb50]
+- Updated dependencies [4a3bfa1]
+- Updated dependencies [bd0b626]
+- Updated dependencies [95b660d]
+- Updated dependencies [a6be873]
+- Updated dependencies [fb30718]
+- Updated dependencies [c5528e4]
+- Updated dependencies [fee5d9c]
+- Updated dependencies [21f7743]
+- Updated dependencies [31a0b46]
+  - @procedures/client@0.3.0
+  - @procedures/compiler@0.3.0
+  - @procedures/fs@0.3.0
+  - @procedures/git@0.3.0
+  - @procedures/lib@0.3.0
+  - @procedures/procedure@0.3.0
+  - @procedures/pnpm@0.3.0
+  - @procedures/shell@0.3.0
+  - @procedures/cli-run@0.3.0
+  - @procedures/dag@0.3.0
+
 ## 0.2.3
 
 ### Patch Changes
