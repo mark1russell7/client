@@ -62,10 +62,14 @@ export type InvocationErrorCode =
   | "FORBIDDEN";
 
 /**
- * The reason of a `FORBIDDEN` error. It is a refusal of the capability, or `outside-root`: the
- * input has a path outside the root of the host (`createFsModule({ root })` of `@procedures/fs`).
+ * The reason of a `FORBIDDEN` error. It is a refusal of the capability, or a refusal of a module
+ * that the host configured:
+ * - `outside-root`: the input has a path outside the root of the host (`createFsModule({ root })`
+ *   of `@procedures/fs`).
+ * - `host-not-allowed`: the input has a URL whose host the host does not allow, or a redirect goes
+ *   to such a host (`createHttpModule({ allow })` of `@procedures/http`).
  */
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -73,7 +77,10 @@ export class InvocationError extends Error {
   readonly code: InvocationErrorCode;
   readonly path: ProcedurePath;
   readonly retryable: boolean = false;
-  /** The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance` or `outside-root`. */
+  /**
+   * The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`,
+   * `deadline`, `outside-root` or `host-not-allowed`.
+   */
   readonly reason: ForbiddenReason | undefined;
 
   constructor(code: InvocationErrorCode, message: string, path: ProcedurePath, reason?: ForbiddenReason) {

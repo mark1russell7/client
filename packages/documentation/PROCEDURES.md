@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 182 across 37 namespaces. Loaded 33 package register(s).
+**Total procedures:** 193 across 40 namespaces. Loaded 35 package register(s).
 
 ## Namespaces
 
@@ -21,7 +21,9 @@
 - [`fs.*`](#fs) — 15 procedure(s)
 - [`geo.*`](#geo) — 2 procedure(s)
 - [`git.*`](#git) — 27 procedure(s)
+- [`http.*`](#http) — 4 procedure(s)
 - [`ics.*`](#ics) — 3 procedure(s)
+- [`json.*`](#json) — 5 procedure(s)
 - [`lib.*`](#lib) — 4 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`mail.*`](#mail) — 2 procedure(s)
@@ -45,6 +47,7 @@
 - [`vite.*`](#vite) — 4 procedure(s)
 - [`vitest.*`](#vitest) — 5 procedure(s)
 - [`weather.*`](#weather) — 1 procedure(s)
+- [`yaml.*`](#yaml) — 2 procedure(s)
 
 ---
 
@@ -195,6 +198,15 @@
 | `git.stash.push` | Push changes to stash |
 | `git.status` | Get git status |
 
+## http
+
+| Procedure | Description |
+|-----------|-------------|
+| `http.json` | Send a GET or a POST of JSON and give the parsed JSON response |
+| `http.ndjson` | Read an NDJSON response as a stream of parsed lines |
+| `http.request` | Send an HTTP request and give the status, the headers and the body |
+| `http.sse` | Read a stream of server-sent events |
+
 ## ics
 
 | Procedure | Description |
@@ -202,6 +214,16 @@
 | `ics.fetch` | Get a calendar feed and read its events |
 | `ics.occurrences` | Give the occurrences of the events of an iCalendar text in a time window, recurrences included |
 | `ics.parse` | Read the events of an iCalendar text |
+
+## json
+
+| Procedure | Description |
+|-----------|-------------|
+| `json.diff` | Give the RFC 6902 JSON Patch that changes one JSON value into another |
+| `json.merge` | Apply an RFC 7386 JSON merge patch to a JSON value |
+| `json.patch` | Apply an RFC 6902 JSON Patch to a JSON value |
+| `json.query` | Find the values at a JSON Pointer or a path in a JSON value |
+| `json.validate` | Examine a JSON value against a JSON Schema |
 
 ## lib
 
@@ -414,4 +436,11 @@
 | Procedure | Description |
 |-----------|-------------|
 | `weather.forecast` | Give the weather forecast of a point for each day, and optionally each hour (Open-Meteo) |
+
+## yaml
+
+| Procedure | Description |
+|-----------|-------------|
+| `yaml.parse` | Parse YAML text into a JSON value |
+| `yaml.stringify` | Write a JSON value as YAML text |
 

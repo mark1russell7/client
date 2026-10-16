@@ -31,6 +31,8 @@
       "@procedures/docker",
       "@procedures/fs",
       "@procedures/git",
+      "@procedures/http",
+      "@procedures/json",
       "@procedures/lib",
       "@procedures/mcp-server",
       "@procedures/mongo",

@@ -143,6 +143,7 @@ A failed try has one of three outcomes. The retry middleware uses the outcome an
 | `FORBIDDEN` | `effects-exceeded`: the declared effects are more than the permitted effects | 403 |
 | `FORBIDDEN` | `clearance`: the output filter refused a single value | 403 |
 | `FORBIDDEN` | `outside-root`: a path of the input is outside the root of the host (`createFsModule({ root })` of `@procedures/fs`) | 403 |
+| `FORBIDDEN` | `host-not-allowed`: the HTTP procedures refuse the host of a URL or of a redirect (`createHttpModule({ allow })` of `@procedures/http`) | 403 |
 | `TIMEOUT` | the deadline passed | 504 |
 
 The response metadata of a server has the reason. `explainInvocation(path, capability, registry)` gives the decision and its reason without a call.
