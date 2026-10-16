@@ -14,10 +14,10 @@ HTTP requests as procedures. A host allowlist refuses loopback, private and link
 |---|---|---|
 | `http.request` | It sends a request with each method and gives the status, the headers and the body. | reads and writes `network` |
 | `http.json` | It sends a GET or a POST of JSON and gives the parsed body. | reads and writes `network` |
-| `http.ndjson` | It sends a GET and gives a stream of the JSON values of the lines. | reads `network` |
-| `http.sse` | It sends a GET and gives a stream of server-sent events. | reads `network` |
+| `http.ndjson` | It sends a GET or a POST and gives a stream of the JSON values of the lines. | reads and writes `network` |
+| `http.sse` | It sends a GET or a POST and gives a stream of server-sent events. | reads and writes `network` |
 
-- `http.request` and `http.json` can change remote data with a POST, a PUT or a DELETE, so they declare a write. The two stream procedures send only a GET, so they change nothing.
+- Each procedure can change remote data with a POST, so each procedure declares a write. `http.request` also sends a PUT or a DELETE.
 - `http.ndjson` and `http.sse` declare `stream: { unbounded: true }`, because a server can send a stream without an end. A face that collects a stream refuses them or stops them at its limits.
 
 ```ts
@@ -26,6 +26,29 @@ import "@procedures/http/register";
 await client.call(["http", "json"], { url: "https://api.github.com/repos/nodejs/node" });
 await client.call(["http", "request"], { url: "https://example.com/upload", method: "PUT", body: "text" });
 ```
+
+### The streams of a POST
+
+An LLM API sends its answer to a POST as server-sent events. `http.sse` and `http.ndjson` take the same request fields as `http.request`:
+
+| Field | Meaning |
+|---|---|
+| `method` | `GET` or `POST`. The default is `POST` with `body` or `json`, and `GET` without them. |
+| `json` | A body of JSON. The procedure sets `content-type: application/json`. |
+| `body` | A body of text. The procedure sets `content-type: text/plain; charset=utf-8`. |
+| `headers` | The headers of the request. A header of the input replaces a header that the procedure sets. |
+
+```ts
+const events = client.stream(["http", "sse"], {
+  url: "https://api.example.com/v1/chat",
+  headers: { authorization: `Bearer ${key}` },
+  json: { prompt: "Hello", stream: true },
+});
+for await (const event of events) console.log(event.data);
+```
+
+- A POST of a stream gets the same host check, size limit of the request, time limits and deadline as the other requests.
+- Two bodies, or a `GET` with a body, fail before the request.
 
 ## The hosts
 
@@ -106,6 +129,7 @@ const registry = createRegistry(createHttpModule({ allow: ["localhost:11434", "1
 - The parse obeys the rules of the HTML standard. A line ends at CR, LF or CRLF. A blank line sends an event. A line that starts with a colon is a comment.
 - An event has `event` (`message` by default), `data`, the last event ID `id` and `retry`.
 - The procedure does not connect again after the end of the stream. To continue, a caller sends the last ID in `lastEventId`.
+- A redirect of a POST obeys the rules of the redirects. A 303, or a 301 or 302, continues with a GET without the body.
 
 ## Limits of this package
 

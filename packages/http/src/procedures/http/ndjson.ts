@@ -1,16 +1,17 @@
 /**
  * http.ndjson procedure
  *
- * Read an NDJSON response as a stream of parsed lines. The procedure sends a GET. Each line that
- * is not blank is one item: its JSON value. The stream can run without an end, so the procedure
- * declares an unbounded stream (roadmap R15). When the reader stops, the connection closes.
+ * Read an NDJSON response as a stream of parsed lines. The procedure sends a GET, or a POST with a
+ * body of JSON or text. Each line that is not blank is one item: its JSON value. The stream can
+ * run without an end, so the procedure declares an unbounded stream (roadmap R15). When the reader
+ * stops, the connection closes.
  *
  * The call waits for the status of the response. A refused host, a failed connection and a status
  * outside 200 to 299 fail the call itself, before the first item.
  */
 
 import { HttpError } from "../../errors.js";
-import { DEFAULT_ITEM_BYTES, DEFAULT_SETTINGS, excerpt, exchange, isOk, prepare, statusError, touching, type Exchange, type HttpSettings } from "../../exchange.js";
+import { DEFAULT_ITEM_BYTES, DEFAULT_SETTINGS, excerpt, exchange, isOk, prepareStream, statusError, touching, type Exchange, type HttpSettings } from "../../exchange.js";
 import { ndjsonLines } from "../../parsers.js";
 import { CallScope, type ScopeContext } from "../../scope.js";
 import type { HttpNdjsonInput, HttpNdjsonOutput } from "../../types.js";
@@ -47,7 +48,7 @@ async function* items(opened: Exchange, scope: CallScope, maxLineBytes: number):
  */
 export async function httpNdjson(input: HttpNdjsonInput, ctx: ScopeContext = {}, settings: HttpSettings = DEFAULT_SETTINGS): Promise<AsyncGenerator<HttpNdjsonOutput, void, undefined>> {
   const headers = { accept: "application/x-ndjson, application/jsonl;q=0.9, application/json;q=0.8" };
-  const prepared = prepare({ ...input, method: "GET" }, PATH, settings, { headers });
+  const prepared = prepareStream(input, PATH, settings, headers);
   const scope = new CallScope(PATH, ctx, { timeoutMs: input.timeoutMs, idleTimeoutMs: input.idleTimeoutMs });
   let opened: Exchange | undefined;
   try {

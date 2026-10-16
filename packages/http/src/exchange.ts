@@ -146,6 +146,34 @@ export function prepare(parts: RequestParts, path: ProcedurePath, settings: Http
   };
 }
 
+/** The parts of a stream request (`http.ndjson`, `http.sse`): GET, or POST with a body. */
+export interface StreamRequestParts extends RequestParts {
+  readonly method?: "GET" | "POST" | undefined;
+  /** A body of text. */
+  readonly body?: string | undefined;
+  /** A body of JSON. */
+  readonly json?: unknown;
+}
+
+/**
+ * This function makes the request of a stream procedure. The method is POST with a body, and GET
+ * without one. A body of JSON gets `content-type: application/json`, and a body of text gets
+ * `text/plain`. A header of the input replaces these headers. Two bodies, or a GET with a body,
+ * throw.
+ */
+export function prepareStream(parts: StreamRequestParts, path: ProcedurePath, settings: HttpSettings, headers: Record<string, string>): PreparedRequest {
+  const name = path.join(".");
+  if (parts.body !== undefined && parts.json !== undefined) throw new Error(`${name}: give only one of body and json`);
+  const body =
+    parts.json !== undefined ? { bytes: Buffer.from(JSON.stringify(parts.json), "utf8"), type: "application/json" }
+    : parts.body !== undefined ? { bytes: Buffer.from(parts.body, "utf8"), type: "text/plain; charset=utf-8" }
+    : undefined;
+  const method = parts.method ?? (body !== undefined ? "POST" : "GET");
+  if (method === "GET" && body !== undefined) throw new Error(`${name}: a GET request has no body: use the method POST`);
+  const extra = body === undefined ? headers : { ...headers, "content-type": body.type };
+  return prepare({ ...parts, method }, path, settings, { headers: extra, body: body?.bytes });
+}
+
 /** A `lookup` for the socket that gives only the addresses that the check allowed. */
 function pinnedLookup(target: AllowedTarget): LookupFunction {
   return (_hostname, options, callback) => {
