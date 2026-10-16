@@ -327,7 +327,7 @@ const gitInitProcedure = createProcedure()
     args: [],
     shorts: { cwd: "C", bare: "b", initialBranch: "B" },
     output: "json",
-    // It runs `git init` only when the folder has no .git (it calls fs.exists)
+    // It runs `git init` only when the folder has no .git
     effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: true },
   })
   .handler(async (input: GitInitInput, ctx): Promise<GitInitOutput> => {

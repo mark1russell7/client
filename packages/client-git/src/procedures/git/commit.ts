@@ -14,19 +14,17 @@ export async function gitCommit(input: GitCommitInput, ctx: GitContext = {}): Pr
   const { message, all, amend, cwd } = input;
   const run = { cwd, signal: ctx.signal };
 
-  // Check if there's anything to commit (unless amending)
+  // Check if there's anything to commit (unless amending). Each line of `git status --porcelain`
+  // is "XY path": X is the index, Y the work tree, "??" an untracked file. Without -a, only a
+  // staged change counts. With -a, a change of a tracked file counts too. An untracked file is
+  // never a change to commit. (Before, any line counted, so an untracked file or an unstaged
+  // change made git commit fail with "nothing added to commit": roadmap R33.)
   if (!amend) {
-    const status = (await git(["status", "--porcelain"], run)).trim();
-    if (!status && !all) {
-      // Nothing staged and not using -a, skip commit
+    const lines = (await git(["status", "--porcelain"], run)).split("\n").filter((line) => line.length > 0);
+    const tracked = lines.filter((line) => !line.startsWith("??") && !line.startsWith("!!"));
+    const staged = tracked.filter((line) => line[0] !== " ");
+    if ((all ? tracked : staged).length === 0) {
       return { hash: "", message: "", author: "", date: "", skipped: true };
-    }
-    // If using -a, check if there are any modified files
-    if (all) {
-      const hasChanges = status.length > 0;
-      if (!hasChanges) {
-        return { hash: "", message: "", author: "", date: "", skipped: true };
-      }
     }
   }
 

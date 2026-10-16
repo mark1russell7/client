@@ -418,8 +418,10 @@ function createRenderFunction(
 
     // The child runs through the invocation path: its input and output are validated, and its
     // context has its own path. (Before, the parent called the handler directly, with no
-    // validation and with the parent's context.)
-    const options: Parameters<typeof invokeProcedure>[2] = { metadata: ctx.metadata, client: ctx.client };
+    // validation and with the parent's context.) The child gets the registry of its parent, so
+    // its own children come from the same registry (roadmap R33: before, they came from the
+    // global registry, and a component of `createRegistry()` rendered "unknown" grandchildren).
+    const options: Parameters<typeof invokeProcedure>[2] = { metadata: ctx.metadata, client: ctx.client, registry };
     if (ctx.signal) options.signal = ctx.signal;
     if (ctx.bus) options.bus = ctx.bus;
     if (ctx.repository) options.repository = ctx.repository;
