@@ -347,10 +347,12 @@ const groupByProcedure: GroupByProcedure = defineProcedure({
     const result: Record<string, unknown[]> = {};
     for (const item of input.items) {
       const keyVal = String((item as Record<string, unknown>)[input.key]);
-      if (!result[keyVal]) {
-        result[keyVal] = [];
+      // Only an own group: before, a group "constructor" or "toString" found the function of the
+      // prototype, and push failed (catalog test, roadmap R29)
+      if (!Object.hasOwn(result, keyVal)) {
+        Object.defineProperty(result, keyVal, { value: [], writable: true, enumerable: true, configurable: true });
       }
-      result[keyVal].push(item);
+      result[keyVal]!.push(item);
     }
     return result;
   },
@@ -785,7 +787,9 @@ const arrPickProcedure: ArrPickProcedure = defineProcedure({
       const obj = item as Record<string, unknown>;
       const result: Record<string, unknown> = {};
       for (const key of input.keys) {
-        if (key in obj) {
+        // Only own fields, as client.pick: before, "toString" picked a function of the prototype
+        // (catalog test, roadmap R29)
+        if (Object.hasOwn(obj, key)) {
           result[key] = obj[key];
         }
       }
