@@ -1169,6 +1169,9 @@ importers:
       '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
+      '@procedures/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@procedures/cue':
         specifier: workspace:*
         version: link:../client-cue

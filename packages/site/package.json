@@ -13,6 +13,7 @@
     "@procedures/bundle-mcp": "workspace:*",
     "@procedures/cli-run": "workspace:*",
     "@procedures/collections": "workspace:*",
+    "@procedures/compiler": "workspace:*",
     "@procedures/cue": "workspace:*",
     "@procedures/docker": "workspace:*",
     "@procedures/fs": "workspace:*",

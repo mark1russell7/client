@@ -175,7 +175,10 @@ describe("the resolver of references (R29)", () => {
             return { program: [0, ...parts.map((part) => part.program)], result: [0, ...parts.map((part) => part.result)] };
           }
           if (node.kind === "object") {
-            const parts = node.entries.map(([key, child]) => [key, build(child)] as const);
+            // An object gives its integer keys first ("0" before ""): the model visits the keys in that order
+            const order = Object.keys(Object.fromEntries(node.entries.map(([key]) => [key, 0])));
+            const byKey = new Map(node.entries);
+            const parts = order.map((key) => [key, build(byKey.get(key)!)] as const);
             return {
               program: Object.fromEntries(parts.map(([key, part]) => [key, part.program])),
               result: Object.fromEntries(parts.map(([key, part]) => [key, part.result])),
