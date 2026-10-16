@@ -164,7 +164,7 @@ Effort: L. Status: waiting. The site and streaming are first.
 
 ## P9. Registration without side effects (P2 option 3)
 
-> **Decided on 2026-10-13** (owner: option C below), **done on branch `explicit-registration`**. It reverses the 2026-10-08 rule "Every package root registers its procedures" (DECISIONS-2026-10 has the details and the judgment calls). The change is breaking, so the packages go to 0.2.0.
+> **Decided on 2026-10-13** (owner: option C below), **done on 2026-10-15** (merge `485105a`). It reverses the 2026-10-08 rule "Every package root registers its procedures" (DECISIONS-2026-10 has the details and the judgment calls). The change is breaking, so the packages go to 0.2.0.
 
 **Problem.** Importing a package root registers its procedures in the global registry. A measurement on 2026-10-13:
 
@@ -193,7 +193,7 @@ The private application of [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md) 
 
 ## P10. Invocation capabilities
 
-> **Approved** (2026-10-13), with the default answers. Phases A to C are done on branch `capabilities`, phase D is in progress. The design and the decisions are in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md).
+> **Approved** (2026-10-13), with the default answers. Phases A to D are done (merge `9a73417`, 2026-10-15). The design and the decisions are in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md).
 
 Each invocation runs with a capability: reach, effects, clearance and deadline. A nested call gets the same capability or a narrower one. Procedures declare their effects, and the host calculates the capability from its authentication. The MCP tool hints, a read-only MCP session and a data gate for a private application come from the same mechanism.
 

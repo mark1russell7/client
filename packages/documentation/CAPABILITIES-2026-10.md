@@ -2,7 +2,7 @@
 
 > **Status:** approved on 2026-10-13. The owner accepted the default answers and gave the remaining decisions to the implementation, with generality and the long term as the goals. The section "Decisions" records them.
 >
-> **Implementation:** phases A to D are done (branch `capabilities`). Each of the 158 procedures declares its effects, and `effects.snapshot.txt` pins the hints of the 62 MCP tools. The guide for users is [CAPABILITIES.md](../client/docs/CAPABILITIES.md).
+> **Implementation:** phases A to D are done, merged on 2026-10-15 (`9a73417`). Each of the 158 procedures declares its effects, and `effects.snapshot.txt` pins the hints of the 62 MCP tools. The guide for users is [CAPABILITIES.md](../client/docs/CAPABILITIES.md).
 >
 > **Prerequisite:** registration without side effects ([P9 in the proposals](./ARCHITECTURE-PROPOSALS-2026-10.md#p9-registration-without-side-effects-p2-option-3)), decided on the same day.
 
