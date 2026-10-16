@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@procedures/bundle-assistant",
+  "version": "0.2.3",
+  "description": "The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out.",
+  "keywords": [
+    "mcp",
+    "claude",
+    "tools",
+    "bundle",
+    "procedures",
+    "assistant"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/bundle-assistant"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./module": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/__tests__",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "sideEffects": [
+    "./dist/register.js"
+  ],
+  "devDependencies": {
+    "@mark1russell7/cue": "^1.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "client": {
+    "procedures": "./dist/register.js"
+  },
+  "dependencies": {
+    "@procedures/client": "workspace:*",
+    "@procedures/exif": "workspace:*",
+    "@procedures/geo": "workspace:*",
+    "@procedures/ics": "workspace:*",
+    "@procedures/mail": "workspace:*",
+    "@procedures/weather": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

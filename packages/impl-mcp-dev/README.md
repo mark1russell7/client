@@ -37,7 +37,7 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 
 | Environment variable | Default | Function |
 |---|---|---|
-| `MCP_BUNDLES` | `@procedures/bundle-mcp` | The bundles to load, separated by commas. The server imports `<bundle>/register.js` for each one. |
+| `MCP_BUNDLES` | `@procedures/bundle-mcp` | The bundles to load, separated by commas. The server imports `<bundle>/register.js` for each one. `@procedures/bundle-assistant` adds the tools of the assistant. |
 | `MCP_SERVER_NAME` | `impl-mcp-dev` | The server name in the MCP handshake |
 | `MCP_SERVER_VERSION` | `1.0.0` | The server version in the MCP handshake |
 | `MCP_DEBUG` | `false` | With `true`, the server writes debug lines to stderr |

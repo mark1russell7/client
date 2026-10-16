@@ -17,6 +17,7 @@
     "packages/compiler/README.md",
     "packages/compiler/src/**/*.ts",
     "packages/systems/README.md",
+    "packages/bundle-assistant/README.md",
     "packages/impl-mcp-dev/README.md"
   ],
   "ignore": [

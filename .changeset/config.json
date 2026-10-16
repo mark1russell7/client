@@ -11,6 +11,7 @@
     [
       "@procedures/bundle-dev",
       "@procedures/bundle-mcp",
+      "@procedures/bundle-assistant",
       "@procedures/mark",
       "@procedures/client",
       "@procedures/cli-run",
