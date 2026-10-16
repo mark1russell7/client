@@ -84,7 +84,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
 | R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | open | |
-| R37 | 8 | The service abstraction of `systems` in the client | M–L | fixed: the clock, the heartbeat, the backoff and `replay` | systems PR #15 (`ba06091`), client `f4fe0f8` |
+| R37 | 8 | The service abstraction of `systems` in the client | M–L | fixed: the clock, the heartbeat, the backoff and `replay` | systems PR #15 (`ba06091`), client `061fa22` |
 | R38 | 9 | `@procedures/http` | S–M | fixed, not an MCP tool | `a6b01a9` |
 | R39 | 9 | JSON and YAML transforms | S | fixed, the pure ones are MCP tools | `a6b01a9`, `1779d96` |
 | R40 | 9 | More git operations, and `git.branch` in three procedures | S–M | fixed | `4cad9ab` |
@@ -442,7 +442,17 @@ The input `only` of the workflow runs some of the jobs, for example `mutation,wi
 - On the Windows runner, the fs root refused a path by its short name (`RUNNER~1`). A zip archive kept a link target with `\`. The pnpm procedures did not find pnpm 12.
 - On the Windows runner, the scaffold test of `mark` did not compile its new package through a junction from C: to D:.
 
-The weakest files of the mutation report are `timeout.ts` (48.9 %), `rate-limit.ts` (60.8 %) and `deadline.ts` (61.1 %). Their surviving mutants show where the tests are weak.
+The weakest files of the first report were `timeout.ts` (48.9 %), `rate-limit.ts` (60.8 %), `deadline.ts` (61.1 %) and `circuit-breaker.ts` (66.5 %). New tests find their mutants (`bb76968`, `31817e2`):
+
+| File | Before | After |
+|---|---|---|
+| `timeout.ts` | 48.9 % | 75.9 % |
+| `rate-limit.ts` | 60.8 % | 96.0 % |
+| `deadline.ts` | 61.1 % | 94.4 % |
+| `circuit-breaker.ts` | 66.5 % | 92.1 % |
+| All ten files | 72.6 % | 79.8 % |
+
+The tests found one defect (`a6be873`). Without `AbortSignal.any`, the timeout middleware made its signal by hand and dropped the reason of the abort of the caller. Each surviving mutant of the four files is equivalent, or it is in code that no call reaches. The items for a decision list that code.
 
 ### R33. The thin packages
 
@@ -562,4 +572,9 @@ The review found code that is a candidate for removal or a move. These items nee
   - `llm` has no event stream, no tool use and no automatic retry. An error has a `retryable` flag. `schedule` has no IANA time zones, and `FileScheduleStore` has no lock for more than one process. `archive` has no file root.
   - The root `.gitignore` ignores `secrets.*`. An agent made `packages/env/src/secrets.ts`, and git did not take it. A negation line keeps that file in git. A merge of an agent branch checks the ignored files of the worktree.
   - Stryker 10.0.0 rewrites `tsconfig.json` in its sandbox with the JavaScript API of TypeScript. TypeScript 7 does not have that API, so the mutation job runs Stryker in place.
+  - The mutation tests found code that no call reaches. Nobody deletes it without a decision:
+    - `rate-limit.ts`: `QueuedRequest.reject` has no caller.
+    - `timeout.ts`: the guards of `composeAbortSignals` for an empty list and for one signal that is aborted. The fallback without `AbortSignal.any` runs only in an old browser, because the package needs Node 22.
+    - `timeout.ts`: the checks of `timedOut()` on lines 172 and 181. Since R30, an abort always comes first.
+    - `circuit-breaker.ts`: the stop of the reset timer at the close, and the check of a waiting reset timer in `scheduleReset`.
   - The fs root decides by the real path. A link from outside the root that leads into the root is accepted, because it reaches only files in the root. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
