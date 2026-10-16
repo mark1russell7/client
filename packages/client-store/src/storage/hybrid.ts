@@ -1,9 +1,9 @@
 /**
  * Hybrid Storage Implementation
  *
- * A local copy (an `InMemoryStorage`) in front of a remote `CollectionStorage` (often an
- * `ApiStorage`). The storage has four modes, and `setMode()` changes the mode while the storage
- * operates (roadmap R28):
+ * A local copy (an `InMemoryStorage`, or the `local` storage that the application gives) in
+ * front of a remote `CollectionStorage` (often an `ApiStorage`). The storage has four modes, and
+ * `setMode()` changes the mode while the storage operates (roadmap R28):
  *
  * | Mode | Reads | Writes | Remote calls |
  * |---|---|---|---|
@@ -154,6 +154,15 @@ export interface HybridStorageOptions {
    * `retryable: true`, or an error without a `code`.
    */
   isUnavailable?: (error: unknown) => boolean;
+
+  /**
+   * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
+   * of `@procedures/sqlite`, keeps the local copy after a restart. Then a new storage in
+   * `local-only` mode reads the items of the last run. Give it with a durable `queueStore`.
+   * `close()` closes it.
+   * @default a new `InMemoryStorage`
+   */
+  local?: LocalCopyStorage<any>;
 }
 
 /**
@@ -249,6 +258,13 @@ function checkMode(mode: unknown): HybridMode {
 type PulledChanges<T> = Omit<StorageChanges<T>, "version"> & { version?: string };
 
 /**
+ * A storage for the local copy of a `HybridStorage` (roadmap R45): a collection storage that gives
+ * its entries. A durable one, for example `SqliteStorage` of `@procedures/sqlite`, keeps the local
+ * copy after a restart.
+ */
+export type LocalCopyStorage<T> = CollectionStorage<T> & { getEntries(): Promise<Array<[string, T]>> };
+
+/**
  * Hybrid storage combining local cache with remote persistence.
  *
  * @example
@@ -277,7 +293,7 @@ type PulledChanges<T> = Omit<StorageChanges<T>, "version"> & { version?: string 
  * ```
  */
 export class HybridStorage<T> implements CollectionStorage<T> {
-  private readonly local: InMemoryStorage<T>;
+  private readonly local: LocalCopyStorage<T>;
   private readonly remote: CollectionStorage<T>;
   private readonly queueStore: QueueStore;
   private options: {
@@ -312,8 +328,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private readonly loaded: Promise<void>;
   /** The load and the first sync. The reads wait for it, so a read never sees an empty cache by mistake. */
   private readonly ready: Promise<void>;
-  /** The error of the load: the storage refuses each operation */
-  private loadError: QueueStoreError | undefined;
+  /** The error of the load (of the queue store, or of the local copy): the storage refuses each operation */
+  private loadError: Error | undefined;
   /** A mode switch that runs. The operations wait for it. */
   private gate: Promise<void> = Promise.resolve();
   /** The operations that run, and the switches that wait for them to end */
@@ -343,7 +359,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     remote: CollectionStorage<T>,
     options: HybridStorageOptions = {}
   ) {
-    this.local = new InMemoryStorage<T>();
+    this.local = (options.local as LocalCopyStorage<T> | undefined) ?? new InMemoryStorage<T>();
     this.remote = remote;
     this.queueStore = options.queueStore ?? new MemoryQueueStore();
     this.mode = checkMode(options.mode ?? options.writeStrategy ?? "write-through");
@@ -414,9 +430,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         await this.ensureStoreClean();
       }
       if (target === "remote-only") {
-        this.dropLocal();
+        await this.dropLocal();
       } else if (from === "remote-only" || from === "local-only") {
-        if (from === "remote-only") this.rebuildLocal();
+        if (from === "remote-only") await this.rebuildLocal();
         await this.pullRemote(from === "remote-only");
       }
     } catch (error) {
@@ -427,16 +443,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   }
 
   /** This method drops the local copy. A read in flight does not fill it again. */
-  private dropLocal(): void {
+  private async dropLocal(): Promise<void> {
     this.clearVersion++;
-    void this.local.clear();
     this.cursor = undefined;
+    await this.local.clear();
   }
 
   /** This method makes the local copy from the queue only, before a full sync. */
-  private rebuildLocal(): void {
-    this.dropLocal();
-    for (const op of this.offlineOps) this.applyToLocal(op);
+  private async rebuildLocal(): Promise<void> {
+    await this.dropLocal();
+    for (const op of this.offlineOps) await this.applyToLocal(op);
   }
 
   /** This method starts and stops the timers for the mode. */
@@ -778,8 +794,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   //
 
   /**
-   * This method stops the timers, sends the queue (not in `local-only` mode), and closes the remote. The queue
-   * store keeps the operations that the remote did not take.
+   * This method stops the timers, sends the queue (not in `local-only` mode), and closes the remote and the
+   * local copy. The queue store keeps the operations that the remote did not take. A durable local
+   * copy keeps its items.
    */
   async close(): Promise<void> {
     this.closed = true;
@@ -805,7 +822,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     await this.storeChain;
 
     // Close remote storage (an ApiStorage leaves the caller's client open)
-    await this.remote.close();
+    try {
+      await this.remote.close();
+    } finally {
+      await this.local.close();
+    }
   }
 
   async getMetadata(): Promise<StorageMetadata> {
@@ -875,11 +896,18 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       return;
     }
     this.offlineOps = ops.slice();
-    for (const op of this.offlineOps) {
-      for (const [id, version] of op.base ?? []) {
-        if (!this.bases.has(id)) this.bases.set(id, version);
+    try {
+      for (const op of this.offlineOps) {
+        for (const [id, version] of op.base ?? []) {
+          if (!this.bases.has(id)) this.bases.set(id, version);
+        }
+        // A durable local copy can hold the operation already: each operation gives the same
+        // result two times
+        await this.applyToLocal(op);
       }
-      this.applyToLocal(op);
+    } catch (error) {
+      this.loadError = new Error("The local copy could not take the loaded queue: the storage refuses each operation", { cause: error });
+      console.error(this.loadError.message, error);
     }
   }
 
@@ -901,24 +929,24 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (this.offlineOps.length > 0) this.scheduleDrain();
   }
 
-  /** This method applies a queued operation to the local copy. The local copy is synchronous. */
-  private applyToLocal(op: QueuedOperation): void {
+  /** This method applies a queued operation to the local copy. */
+  private async applyToLocal(op: QueuedOperation): Promise<void> {
     const data = op.data as { id: string; value: T; ids: string[]; items: Array<[string, T]> };
     switch (op.type) {
       case "set":
-        void this.local.set(data.id, data.value);
+        await this.local.set(data.id, data.value);
         break;
       case "delete":
-        void this.local.delete(data.id);
+        await this.local.delete(data.id);
         break;
       case "setBatch":
-        void this.local.setBatch(data.items);
+        await this.local.setBatch(data.items);
         break;
       case "deleteBatch":
-        void this.local.deleteBatch(data.ids);
+        await this.local.deleteBatch(data.ids);
         break;
       case "clear":
-        void this.local.clear();
+        await this.local.clear();
         break;
     }
   }
@@ -953,7 +981,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       if (await this.pullItem(id, item, changedLocally, conflicts)) queueChanged = true;
     }
     // The remote deleted these items
-    const gone = changes.full ? [...this.local.keys()].filter((id) => !remoteIds.has(id)) : changes.deleted;
+    const gone = changes.full
+      ? (await this.local.getEntries()).map(([id]) => id).filter((id) => !remoteIds.has(id))
+      : changes.deleted;
     for (const id of gone) {
       if (await this.pullDelete(id, changedLocally, conflicts)) queueChanged = true;
     }

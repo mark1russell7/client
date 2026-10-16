@@ -45,9 +45,10 @@ export {
   ConflictError,
   ModeSwitchError,
 } from "./hybrid.js";
-export type { HybridStorageOptions, HybridMode } from "./hybrid.js";
+export type { HybridStorageOptions, HybridMode, LocalCopyStorage } from "./hybrid.js";
 // The queue of HybridStorage and its store (roadmap R28). FileQueueStore is in
-// "@procedures/store/file-queue": it uses node:fs.
+// "@procedures/store/file-queue": it uses node:fs. IndexedDbQueueStore is in
+// "@procedures/store/indexeddb": it uses the IndexedDB of a browser (roadmap R45).
 export { MemoryQueueStore } from "./queue.js";
 export type { QueuedOperation, QueueStore } from "./queue.js";
 

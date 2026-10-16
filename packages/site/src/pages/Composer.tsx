@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { PICKER_LIST, Slot, browserProcedures, callFor, type EditorContext } from "../components/Blocks";
 import { Palette } from "../components/Palette";
 import { ProgramGraph } from "../components/ProgramGraph";
@@ -29,6 +29,9 @@ import { ProgramRunner } from "../lib/runner";
 import type { RunResult } from "../lib/runtime";
 
 type Tab = "blocks" | "graph" | "json" | "ts";
+
+// The saved programs (roadmap R45) load when the reader opens them: the panel, then the store
+const SavedPrograms = lazy(() => import("../components/SavedPrograms").then((module) => ({ default: module.SavedPrograms })));
 
 // ---------------------------------------------------------------------------
 // History: undo, redo and the browser history
@@ -365,6 +368,8 @@ export function Composer({ route }: { route: Route }): ReactElement {
   const [armed, setArmed] = useState(initial.kind !== "link" || isOwnEntry());
   const [galleryOpen, setGalleryOpen] = useState(false);
   const galleryButton = useRef<HTMLButtonElement | null>(null);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const savedButton = useRef<HTMLButtonElement | null>(null);
   const [notice, setNotice] = useState<string | null>(initial.kind === "invalid" ? `The link does not hold a valid program. ${initial.reason} The Composer shows an example.` : null);
   const [choices, setChoices] = useState<{ location: Location; name: string; list: InsertChoice[] } | null>(null);
   const lastUrl = useRef(currentUrl());
@@ -579,6 +584,20 @@ export function Composer({ route }: { route: Route }): ReactElement {
     setArmed(true);
   };
 
+  const closeSaved = (): void => {
+    setSavedOpen(false);
+    savedButton.current?.focus();
+  };
+  // A saved program is the reader's own: it runs as an example does
+  const openSaved = (saved: Json): void => {
+    dispatch({ type: "load", program: saved, example: null, write: "push" });
+    setSelected(null);
+    setChoices(null);
+    setNotice(null);
+    setArmed(true);
+    closeSaved();
+  };
+
   const example = examples.find((candidate) => candidate.id === state.example);
   const shareLink = (): string => `${window.location.origin}${href("composer", undefined, { p: encodeProgram(present.current) })}`;
   const problems = [
@@ -630,6 +649,16 @@ export function Composer({ route }: { route: Route }): ReactElement {
           >
             ▦ Gallery
           </button>
+          <button
+            type="button"
+            ref={savedButton}
+            aria-expanded={savedOpen}
+            aria-controls={savedOpen ? "saved-programs" : undefined}
+            onClick={() => setSavedOpen((open) => !open)}
+            title="Save the program in this browser, or open a saved program"
+          >
+            Saved
+          </button>
           <button type="button" onClick={() => edit(() => null)} title="Start with an empty program">
             New
           </button>
@@ -662,6 +691,13 @@ export function Composer({ route }: { route: Route }): ReactElement {
                 galleryButton.current?.focus();
               }}
             />
+          </div>
+        ) : null}
+        {savedOpen ? (
+          <div onClick={(event) => event.stopPropagation()}>
+            <Suspense fallback={<p className="muted small">The saved programs load…</p>}>
+              <SavedPrograms program={program} onOpen={openSaved} onClose={closeSaved} />
+            </Suspense>
           </div>
         ) : null}
         {example ? <p className="example-summary">{example.summary}</p> : null}

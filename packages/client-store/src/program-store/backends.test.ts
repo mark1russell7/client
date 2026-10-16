@@ -1,17 +1,20 @@
 /**
- * Each backend of the program store follows one contract: memory, a JSON file, and a collection
- * storage (InMemoryStorage of client-collections). The file store also keeps the programs of two
- * processes and never writes over a file that it cannot read.
+ * Each backend of the program store follows one contract: memory, a JSON file, a collection
+ * storage (InMemoryStorage of client-collections) and IndexedDB (roadmap R45, with
+ * `fake-indexeddb`). The file store also keeps the programs of two processes and never writes
+ * over a file that it cannot read.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { IDBFactory } from "fake-indexeddb";
 import { InMemoryStorage } from "@procedures/collections";
 import { MemoryProgramStore } from "./memory.js";
 import { FileProgramStore } from "./file.js";
 import { CollectionProgramStore } from "./collection.js";
+import { IndexedDbProgramStore } from "../indexeddb/program-store.js";
 import type { ProgramStore, StoredProgram } from "./types.js";
 
 const folders: string[] = [];
@@ -39,6 +42,7 @@ const backends: Array<[string, () => ProgramStore]> = [
   ["MemoryProgramStore", () => new MemoryProgramStore()],
   ["FileProgramStore", () => new FileProgramStore(tempFile())],
   ["CollectionProgramStore", () => new CollectionProgramStore(new InMemoryStorage<StoredProgram>())],
+  ["IndexedDbProgramStore", () => new IndexedDbProgramStore("programs", { indexedDB: new IDBFactory() })],
 ];
 
 for (const [name, make] of backends) {
