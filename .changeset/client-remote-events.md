@@ -11,4 +11,4 @@ Remote events (`documentation/EVENTS.md`): a peer subscribes to the topics of th
 - The delivery is at most once, in the order of `emit()`. When the queue of a slow subscriber is full, the publisher drops the oldest event, and the next event tells the loss (`dropped`).
 - The new error code `TOPIC_NOT_FOUND` (404) is for a topic outside the topic rule. A topic that `allow` refuses gives `FORBIDDEN` with the reason `topic-not-allowed`.
 - The `onEvent` option of `WebSocketTransport` is now a wrapper: it gets each event of each subscription of the transport. A raw `event` frame still goes to it.
-- The WebSocket client does not warn about a `stream` frame of a call that it cancelled.
+- The WebSocket client does not warn about a `stream` frame of a call that it cancelled. The WebSocket server ignores a late `stream`, `response` or `error` frame of a call that it stopped. Before, it answered such a frame with an `error` frame.
