@@ -96,8 +96,11 @@ export function useRepos(): Repos {
   beforeAll(() => {
     for (const name of ENV) savedEnv.set(name, process.env[name]);
     shared = mkdtempSync(join(tmpdir(), "client-git-shared-"));
-    // An empty global configuration: no hooks path, no signing, no autocrlf of the machine
-    writeFileSync(join(shared, "gitconfig"), "");
+    // A global configuration of the tests: no hooks path, no signing, no autocrlf of the machine.
+    // Automatic maintenance is off: after a push or a commit, git starts `git maintenance run
+    // --auto --detach` in the background. That process could change origin.git/objects while
+    // useCopyOf() copies the template, and the copy failed with ENOENT (CI run 39079695949).
+    writeFileSync(join(shared, "gitconfig"), ["[maintenance]", "auto = false", "[gc]", "auto = 0", "autoDetach = false", ""].join("\n"));
     process.env["GIT_CONFIG_GLOBAL"] = join(shared, "gitconfig");
     process.env["GIT_CONFIG_NOSYSTEM"] = "1";
     // A folder in the temporary folder is never in a repository of an ancestor
