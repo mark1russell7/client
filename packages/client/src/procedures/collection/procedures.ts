@@ -33,6 +33,7 @@ import {
   deleteBatchInputSchema,
   deleteBatchOutputSchema,
   type GetInput,
+  type GetFoundOutput,
   type SetInput,
   type DeleteInput,
   type HasInput,
@@ -107,7 +108,11 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
       },
       handler: async (input: GetInput, ctx : ProcedureContext) => {
         const storage = getStorage(ctx);
-        return storage.get(input.id);
+        const value = await storage.get(input.id);
+        if (input.found !== true) return value;
+        // The output with `found` keeps a stored null apart from a missing id, in one call
+        const output: GetFoundOutput = value === undefined ? { found: false } : { found: true, value };
+        return output;
       },
     }),
 

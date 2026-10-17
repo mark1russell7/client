@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { ProcedureServer } from "./procedure-server.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
+import { ms } from "../duration.js";
 
 /** A storage that records the calls of flush and close. */
 function recordingStorage(events: string[], name: string, flush?: () => Promise<void>): CollectionStorage<unknown> {
@@ -70,5 +71,29 @@ describe("ProcedureServer.useStorage (roadmap R28)", () => {
     await server.useStorage("others", recordingStorage(events, "other"), { drain: true, close: true });
     expect(server.getCollectionNames().sort()).toEqual(["others", "things"]);
     expect(events).toEqual([]);
+  });
+});
+
+describe("ProcedureServer.closeStorages and stop (the close() of the CollectionStorage contract)", () => {
+  it("closes each storage one time, also a storage of two collections, and removes the closed storages", async () => {
+    const events: string[] = [];
+    const shared = recordingStorage(events, "shared");
+    const server = new ProcedureServer({ collections: { a: shared, b: shared, c: recordingStorage(events, "c") } });
+    await server.stop({ grace: ms(0) });
+    expect(events.sort()).toEqual(["c.close", "shared.close"]);
+    // A server that starts again does not use a closed storage
+    expect(server.getCollectionNames()).toEqual([]);
+    expect(() => server.getStorage("a")).toThrow("Collection storage not configured: a");
+    await server.stop({ grace: ms(0) });
+    expect(events).toHaveLength(2);
+  });
+
+  it("closes each storage when one close fails, and throws the error", async () => {
+    const events: string[] = [];
+    const failing = { ...recordingStorage(events, "failing"), close: async () => Promise.reject(new Error("the disk is full")) };
+    const server = new ProcedureServer({ collections: { a: failing, b: recordingStorage(events, "b") } });
+    await expect(server.closeStorages()).rejects.toThrow("the disk is full");
+    expect(events).toEqual(["b.close"]);
+    expect(server.getCollectionNames()).toEqual([]);
   });
 });

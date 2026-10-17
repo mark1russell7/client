@@ -28,14 +28,13 @@ function apiStorage(storage: InMemoryStorage<ContractItem>): ApiStorage<Contract
   return new ApiStorage<ContractItem>(new Client(new LocalTransport({ handlers })), { collection: "items", retry: false });
 }
 
-// The procedure collections.<name>.get answers null for a missing id, so ApiStorage.get gives
-// undefined for a stored null: the wire does not keep the difference (nullValues: false).
+// ApiStorage asks the procedure collections.<name>.get for { found, value }: a stored null reads
+// back as null, and a missing id as undefined
 describeCollectionStorageContract(
   "ApiStorage (the collection procedures of the core)",
   {
     create: () => apiStorage(new InMemoryStorage<ContractItem>()),
     createWithMaxTombstones: (max) => apiStorage(new InMemoryStorage<ContractItem>({ maxTombstones: max })),
-    nullValues: false,
   },
   { describe, it },
 );

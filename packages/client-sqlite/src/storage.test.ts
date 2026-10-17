@@ -58,7 +58,6 @@ for (const [place, pathOf] of places) {
     {
       create: () => storageOf<ContractItem>({ path: pathOf(), table: "items" }),
       createWithMaxTombstones: (max) => storageOf<ContractItem>({ path: pathOf(), table: "items", maxTombstones: max }),
-      copies: true,
     },
     { describe, it },
   );
@@ -237,14 +236,16 @@ describe("SqliteStorage: the life cycle and the options", () => {
     expect(() => new SqliteStorage({ path: "", table: "items" })).toThrow(/needs a path/);
   });
 
-  it("throws after close(), and close() can run two times", async () => {
+  it("rejects each operation after close(), also flush() and an empty batch, and close() can run two times", async () => {
     const storage = new SqliteStorage<number>({ path: MEMORY_PATH, table: "items" });
     await storage.set("a", 1);
     await storage.close();
     await storage.close();
     await expect(storage.get("a")).rejects.toThrow(/is closed/);
     await expect(storage.set("a", 2)).rejects.toThrow(/is closed/);
-    await storage.flush();
+    await expect(storage.flush()).rejects.toThrow(/is closed/);
+    await expect(storage.setBatch([])).rejects.toThrow(/is closed/);
+    await expect(storage.deleteBatch([])).rejects.toThrow(/is closed/);
   });
 
   it("gives a new database for each storage in memory", async () => {

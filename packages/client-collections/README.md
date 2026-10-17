@@ -105,6 +105,14 @@ interface CollectionStorage<T> {
 }
 ```
 
+Each storage agrees on these points:
+
+- A storage keeps a copy of each value that a write takes, and each read gives a new copy. A change of a written or a read value does not change the stored item.
+- A stored `null` reads back as `null`. A missing id reads back as `undefined`.
+- The entries keep the order of the first set of each id, as a `Map` does.
+- A delta of `getChangesSince` follows the order of the last change of each id. A full result follows the order of the entries.
+- After `close()`, each operation rejects with an error whose message says "closed". A second `close()` does nothing.
+
 ### The contract suite: `@procedures/collections/testing`
 
 The test-only entry `@procedures/collections/testing` holds one test suite for the contract of `CollectionStorage`. A storage runs it with a factory:
@@ -118,38 +126,41 @@ describeCollectionStorageContract(
   {
     create: () => new MyStorage<ContractItem>(),
     createWithMaxTombstones: (max) => new MyStorage<ContractItem>({ maxTombstones: max }),
-    copies: true,
   },
   { describe, it },
 );
 ```
 
-- The suite tests the reads, the writes and the batches, the order of the entries, the results as new arrays, the JSON values, the writes at the same time, `getChangesSince` and its versions, `flush`, `getMetadata`, `close` and the errors.
+- The suite tests the reads, the writes and the batches, the order of the entries, the results as new arrays, the copies, the JSON values with `null`, the writes at the same time, `getChangesSince` with its versions and its order, `flush`, `getMetadata`, `close` and the errors.
 - A case for an optional method skips a storage without the method.
-- A random sequence of writes runs against a `Map`, and each saved version must give the right changes.
+- A random sequence of writes runs against a `Map`. Each saved version must give the right changes, in the order of the last change of each id.
 - The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws `ContractViolation`. The runtime entries do not import this entry.
-- `copies: true` declares that the storage keeps a copy of each value. `nullValues: false` declares that a stored `null` reads back as `undefined`.
+- The suite has no option that hides a difference of a storage. Before, the options `copies` and `nullValues` declared the differences, and the suite sorted each delta.
 
 | Storage | Package | Notes |
 |---|---|---|
-| `InMemoryStorage` | `@procedures/collections` | It keeps the values, not copies. |
-| `SqliteStorage` (in memory and in a file) | `@procedures/sqlite` | It gives copies. |
-| `ApiStorage` | `@procedures/store` | A stored `null` reads back as `undefined`. |
+| `InMemoryStorage` | `@procedures/collections` | It copies with `structuredClone`. The run with `copies: false` skips only the case of the copies. |
+| `SqliteStorage` (in memory and in a file) | `@procedures/sqlite` | It keeps JSON text, so it gives copies. |
+| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. |
 | `HybridStorage` (each mode, and a queue in IndexedDB) | `@procedures/store` | It has no `getChangesSince`. |
 
 ## Storage Backends
 
-### MemoryStorage
+### InMemoryStorage
 
 Fast, in-memory storage using JavaScript Map:
 
 ```typescript
-import { MemoryStorage } from "@procedures/collections";
+import { InMemoryStorage } from "@procedures/collections";
 
-const storage = new MemoryStorage<User>();
+const storage = new InMemoryStorage<User>();
 await storage.set("user-1", { name: "Alice", age: 30 });
 const user = await storage.get("user-1");
 ```
+
+- The storage keeps a copy of each written value, and each read gives a new copy (`structuredClone`). A `Date` stays a `Date`. A function in a value makes the write reject.
+- The option `copies: false` turns the copies off: the storage keeps the values themselves, and the reads give them. It is faster. Give it only when no caller changes a value after a write or a read.
+- `close()` drops the items. After it, each operation rejects, and the methods of the `Map` interface (`keys()`, `values()`, `entries()`, `forEach()`) throw.
 
 ### ApiStorage
 

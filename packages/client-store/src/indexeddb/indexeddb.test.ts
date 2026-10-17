@@ -11,7 +11,7 @@ import { IDBFactory, IDBDatabase } from "fake-indexeddb";
 /** The instances of the classes of fake-indexeddb: the package exports the classes as values. */
 type FakeFactory = InstanceType<typeof IDBFactory>;
 type FakeDatabase = InstanceType<typeof IDBDatabase>;
-import { InMemoryStorage } from "@procedures/collections";
+import { InMemoryStorage, type CollectionStorage } from "@procedures/collections";
 import { ms } from "@procedures/client";
 import { HybridStorage } from "../storage/hybrid.js";
 import type { QueuedOperation } from "../storage/queue.js";
@@ -25,6 +25,20 @@ import {
   hasIndexedDb,
   type IdbFactoryLike,
 } from "../indexeddb.js";
+
+/**
+ * A connection to a remote that outlives the storage: its `close()` leaves the remote open, as the
+ * close of an `ApiStorage` leaves the server. `HybridStorage.close()` closes its remote.
+ */
+function connectionTo<T>(remote: CollectionStorage<T>): CollectionStorage<T> {
+  return new Proxy(remote, {
+    get(target, key) {
+      if (key === "close") return async () => undefined;
+      const value: unknown = Reflect.get(target, key, target);
+      return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+    },
+  });
+}
 
 function program(key: string, a = 1): StoredProgram {
   return {
@@ -183,7 +197,7 @@ describe("IndexedDbQueueStore", () => {
     const remote = new InMemoryStorage<{ n: number }>();
     const options = { syncOnInit: false, syncInterval: ms(0), queueStore: new IndexedDbQueueStore("items-queue", { indexedDB: factory }) };
 
-    const first = new HybridStorage<{ n: number }>(remote, { ...options, mode: "local-only" });
+    const first = new HybridStorage<{ n: number }>(connectionTo(remote), { ...options, mode: "local-only" });
     await first.set("a", { n: 1 });
     await first.setBatch([["b", { n: 2 }], ["c", { n: 3 }]]);
     await first.delete("c");
@@ -192,7 +206,7 @@ describe("IndexedDbQueueStore", () => {
     expect(await remote.size()).toBe(0);
 
     // A restart: a new storage and a new connection to the same database
-    const second = new HybridStorage<{ n: number }>(remote, {
+    const second = new HybridStorage<{ n: number }>(connectionTo(remote), {
       ...options,
       mode: "local-only",
       queueStore: new IndexedDbQueueStore("items-queue", { indexedDB: factory }),

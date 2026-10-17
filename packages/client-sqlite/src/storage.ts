@@ -392,6 +392,8 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
 
   /** This method sets several items in one transaction. When one value is not JSON, nothing changes. */
   async setBatch(items: Array<[string, T]>): Promise<void> {
+    // After close(), an empty batch rejects too
+    this.checkOpen();
     const texts = items.map(([id, value]): [string, string] => [checkId(id), toJson(id, value)]);
     if (texts.length === 0) return;
     await this.write((db, next) => {
@@ -401,6 +403,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
 
   /** This method deletes several items in one transaction. */
   async deleteBatch(ids: string[]): Promise<number> {
+    this.checkOpen();
     for (const id of ids) checkId(id);
     if (ids.length === 0) return 0;
     return this.write((db, next) => {
@@ -435,15 +438,16 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
    * caller needs it only after a failed file write.
    */
   async flush(): Promise<void> {
+    this.checkOpen();
     const { shared } = await this.opening;
-    if (this.closed) return;
+    this.checkOpen();
     await shared.save();
   }
 
   /**
    * This method writes the file and releases the database. The items stay in the file. A new
    * storage of the same file and table reads them, and the versions of this storage stay valid.
-   * After `close()`, each operation throws.
+   * After `close()`, each operation rejects, and a second `close()` does nothing.
    */
   async close(): Promise<void> {
     if (this.closed) return;
@@ -493,7 +497,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     }
   }
 
-  /** The open database. It throws after `close()`. */
+  /** The open database. It throws after `close()`, so the promise of the operation rejects. */
   private async database(): Promise<Database> {
     this.checkOpen();
     const { shared } = await this.opening;

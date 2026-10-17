@@ -356,3 +356,65 @@ describe.each(
     }
   });
 });
+
+describe("HybridStorage: the copies and close() of the CollectionStorage contract", () => {
+  it("takes a copy at each write: a change of the value after set() does not change the queued write", async () => {
+    const remote = new FlakyRemote();
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncInterval: ms(0) });
+    const value: Item = { n: 1 };
+    await hybrid.set("a", value);
+    const batch: Item = { n: 2 };
+    await hybrid.setBatch([["b", batch]]);
+    value.n = 10;
+    batch.n = 20;
+    await hybrid.flush();
+    expect(await remote.data.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }]]);
+    expect(await hybrid.getEntries()).toEqual([["a", { n: 1 }], ["b", { n: 2 }]]);
+    await hybrid.close();
+  });
+
+  it("waits at close() for the operations that run, closes the remote and the local copy one time, and refuses each later call", async () => {
+    const closes: string[] = [];
+    const remote = new FlakyRemote();
+    remote.close = async () => {
+      closes.push("remote");
+    };
+    const local = new InMemoryStorage<Item>();
+    const closeLocal = local.close.bind(local);
+    local.close = async () => {
+      closes.push("local");
+      await closeLocal();
+    };
+    let release: (() => void) | undefined;
+    const slowSet = remote.set.bind(remote);
+    remote.set = async (id, item) => {
+      await new Promise<void>((resolve) => (release = resolve));
+      return slowSet(id, item);
+    };
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-through", syncInterval: ms(0), local });
+    await hybrid.get("warm");
+    const write = hybrid.set("a", { n: 1 });
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    const closing = hybrid.close();
+    // close() waits for the write that runs, and a call after close() rejects at once
+    await expect(hybrid.get("a")).rejects.toThrow(/closed/);
+    await expect(hybrid.setMode("local-only")).rejects.toThrow(/closed/);
+    await expect(hybrid.sync()).rejects.toThrow(/closed/);
+    expect(closes).toEqual([]);
+    release!();
+    await write;
+    await closing;
+    expect(closes).toEqual(["remote", "local"]);
+    expect(await remote.data.get("a")).toEqual({ n: 1 });
+    await hybrid.close();
+    expect(closes).toEqual(["remote", "local"]);
+  });
+
+  it("makes no remote call when close() comes before the first sync", async () => {
+    const remote = new FlakyRemote();
+    const reads = vi.spyOn(remote, "getEntries");
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-through", syncInterval: ms(0) });
+    await hybrid.close();
+    expect(reads).not.toHaveBeenCalled();
+  });
+});

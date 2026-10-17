@@ -37,6 +37,7 @@ export {
 
 export type {
   GetInput,
+  GetFoundOutput,
   SetInput,
   DeleteInput,
   HasInput,

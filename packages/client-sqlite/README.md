@@ -524,6 +524,7 @@ The entry `@procedures/sqlite/storage` has the storage alone. The package root e
 - A version is `<epoch>:<seq>`, as in `InMemoryStorage`. The table `_storage_versions` keeps the epoch, so a version stays valid after a restart.
 - The table `_storage_log` keeps the last change of each id. The option `maxTombstones` (10000 by default) limits the deletes that it keeps.
 - A version that is older than the dropped deletes gives all items (`full: true`).
+- A delta follows the order of the last change of each id, as in each other storage. A full result follows the order of the items.
 - Write the table only through the storage. A change from other SQL is not in the change log.
 
 ### The transactions and the file
@@ -533,6 +534,7 @@ The entry `@procedures/sqlite/storage` has the storage alone. The package root e
 - When several writes wait, one file write holds their changes.
 - A failed file write fails the write. The change stays in memory, and `flush()` or the next write writes it.
 - A storage that only reads does not make the file.
+- `close()` writes the file and releases the database. After it, each operation rejects, also `flush()` and an empty batch. A second `close()` does nothing.
 - The storages of one file in one process share one database. Thus the storages of two tables in one file keep their items.
 - Another process, and the procedures `sqlite.query` and `sqlite.execute`, do not share this database. Do not write the file from them while a storage has it open.
 

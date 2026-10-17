@@ -79,8 +79,3 @@ export async function rejects(start: () => Promise<unknown>, what: string): Prom
   }
   throw new ContractViolation(`${what}: the promise did not reject`);
 }
-
-/** The entries sorted by id, for a comparison where the order is not part of the contract. */
-export function byId<T>(entries: ReadonlyArray<readonly [string, T]>): Array<[string, T]> {
-  return [...entries].map(([id, value]): [string, T] => [id, value]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-}

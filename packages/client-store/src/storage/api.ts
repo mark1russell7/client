@@ -117,6 +117,16 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined, d
 }
 
 /**
+ * True for the output `{ found, value }` of the core procedure `get` with `found: true`: an
+ * object with a boolean `found`, and no key other than `found` and `value`.
+ */
+function isFoundOutput(value: unknown): value is { found: boolean; value?: unknown } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record["found"] === "boolean" && Object.keys(record).every((key) => key === "found" || key === "value");
+}
+
+/**
  * API storage backed by universal client.
  *
  * Maps collection operations to the core collection procedures
@@ -154,7 +164,10 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     retryDelay: number;
     signal?: AbortSignal;
     closeClient: boolean;
+    /** True when the storage calls the `get` of the core collection procedures */
+    askFound: boolean;
   };
+  private closed = false;
 
   constructor(client: Client, options: ApiStorageOptions) {
     const service = options.service ?? (options.collection !== undefined ? `collections.${options.collection}` : undefined);
@@ -187,6 +200,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       retryDelay: optionalMs(options.retryDelay, "retryDelay") ?? 100,
       ...(options.signal !== undefined && { signal: options.signal }),
       closeClient: options.closeClient ?? false,
+      // A custom service can refuse an unknown input field: it gets the input { id }
+      askFound: options.service === undefined && (options.operations?.get ?? "get") === "get",
     };
   }
 
@@ -194,9 +209,19 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Read Operations ═══
   //
 
+  /**
+   * The item of an id. For the core collection procedures, the call asks for `{ found, value }`,
+   * so a stored `null` reads back as `null`. A custom `service` or `get` operation gets `{ id }`,
+   * and its `null` reads back as `undefined`.
+   */
   async get(id: string): Promise<T | undefined> {
-    const value = await this.call<T | null | undefined>("get", { id });
-    return value ?? undefined;
+    if (!this.options.askFound) {
+      return (await this.call<T | null | undefined>("get", { id })) ?? undefined;
+    }
+    const result = await this.call<unknown>("get", { id, found: true });
+    if (isFoundOutput(result)) return result.found ? (result.value as T) : undefined;
+    // A server before `found` ignores it and gives the item, or null for a missing id
+    return (result ?? undefined) as T | undefined;
   }
 
   async getAll(): Promise<T[]> {
@@ -298,8 +323,14 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Lifecycle & Metadata ═══
   //
 
+  /**
+   * This method closes the storage. After it, each operation rejects, and a second `close()` does
+   * nothing. The items stay on the server. The client belongs to the caller, unless the option
+   * `closeClient` gave it to the storage.
+   */
   async close(): Promise<void> {
-    // The client belongs to the caller, unless the caller gave it to this storage
+    if (this.closed) return;
+    this.closed = true;
     if (this.options.closeClient) {
       await this.client.close();
     }
@@ -327,6 +358,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
    * Make an RPC call via the universal client, with the timeout, the signal and the retries.
    */
   private async call<TRes>(operation: keyof Required<ApiStorageOptions>["operations"], payload: unknown): Promise<TRes> {
+    if (this.closed) throw new Error(`The ApiStorage of ${this.options.service} is closed`);
     const method: Method = {
       service: this.options.service,
       operation: this.options.operations[operation] ?? operation,

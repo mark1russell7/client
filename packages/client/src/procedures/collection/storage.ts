@@ -9,9 +9,16 @@
  * the collections package (roadmap 3.3).
  *
  * Each method gives a Promise: a caller cannot tell a local storage from a remote one.
+ *
+ * The contract (the suite of `@procedures/collections/testing` tests it for each storage):
+ * - A storage keeps a copy of each value that a write takes, and each read gives a new copy.
+ * - A stored `null` reads back as `null`. A missing id reads back as `undefined`.
+ * - A delta of `getChangesSince` follows the order of the last change of each id.
+ * - After `close()`, each operation rejects with an error whose message says "closed". A second
+ *   `close()` does nothing.
  */
 export interface CollectionStorage<T> {
-  /** The item with this id, or undefined. */
+  /** The item with this id, or undefined. A stored null is null. */
   get(id: string): Promise<T | undefined>;
   /** Every item of the collection. */
   getAll(): Promise<T[]>;
@@ -50,7 +57,10 @@ export interface CollectionStorage<T> {
    * that keeps no writes does not have this method. `ProcedureServer.useStorage` calls it.
    */
   flush?(): Promise<void>;
-  /** Release the resources of the storage. */
+  /**
+   * This method releases the resources of the storage. After it, each operation rejects. A second
+   * `close()` does nothing.
+   */
   close(): Promise<void>;
   /** The kind, the size and the statistics of the storage. */
   getMetadata?(): Promise<StorageMetadata>;
@@ -65,6 +75,8 @@ export interface CollectionStorage<T> {
  *   the first call, a version of an older run, or a change log that dropped old deletes.
  * - When `full` is false, `changed` has the items that changed after the version, and `deleted`
  *   has the ids that were deleted after it.
+ * - The order of a full result is the order of the entries. The order of a delta is the order of
+ *   the last change of each id.
  */
 export interface StorageChanges<T> {
   /** The version of the storage that includes these changes. */

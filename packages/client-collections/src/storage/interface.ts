@@ -17,6 +17,15 @@
  * All methods return Promise<T> to ensure consistent async behavior.
  * This guarantees client code remains agnostic to the storage backend,
  * enabling seamless switching between local and remote storage.
+ *
+ * The contract (the suite of `@procedures/collections/testing` tests it for each storage):
+ * - A storage keeps a copy of each value that a write takes, and each read gives a new copy. A
+ *   change of a written or a read value does not change the stored item.
+ * - A stored `null` reads back as `null`. A missing id reads back as `undefined`.
+ * - The entries keep the order of the first set of each id, as a `Map` does.
+ * - A delta of `getChangesSince` follows the order of the last change of each id.
+ * - After `close()`, each operation rejects with an error whose message says "closed". A second
+ *   `close()` does nothing.
  */
 export interface CollectionStorage<T> {
   //
@@ -27,7 +36,7 @@ export interface CollectionStorage<T> {
    * Get item by ID.
    *
    * @param id - Item identifier
-   * @returns Promise resolving to item or undefined if not found
+   * @returns Promise resolving to a copy of the item, or undefined if not found. A stored null is null.
    */
   get(id: string): Promise<T | undefined>;
 
@@ -48,7 +57,8 @@ export interface CollectionStorage<T> {
 
   /**
    * The changes after a version (roadmap R28). A storage without a change log does not have
-   * this method, and a sync uses `getEntries()`.
+   * this method, and a sync uses `getEntries()`. A full result follows the order of the entries.
+   * A delta follows the order of the last change of each id.
    *
    * @param since - A `version` that an earlier call gave. Without it, the result has all items.
    * @returns Promise resolving to the changed items, the deleted ids and the new version
@@ -147,8 +157,9 @@ export interface CollectionStorage<T> {
   flush?(): Promise<void>;
 
   /**
-   * Close storage and cleanup resources.
-   * Should be called when collection is no longer needed.
+   * This method closes the storage and releases its resources. After it, each operation rejects
+   * with an error whose message says "closed". A second `close()` does nothing. A durable storage
+   * keeps its items for a new storage of the same place.
    *
    * @returns Promise resolving when cleanup completes
    */
@@ -172,6 +183,8 @@ export interface CollectionStorage<T> {
  *   the first call, a version of an older run, or a change log that dropped old deletes.
  * - When `full` is false, `changed` has the items that changed after the version, and `deleted`
  *   has the ids that were deleted after it.
+ * - The order of a full result is the order of the entries. The order of a delta is the order of
+ *   the last change of each id: an id that changed again comes after the ids that changed before.
  */
 export interface StorageChanges<T> {
   /** The version of the storage that includes these changes. */

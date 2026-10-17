@@ -40,6 +40,7 @@ interface MongoDoc<T> extends Document {
  */
 export class MongoStorage<T> implements CollectionStorage<T> {
   private readonly collectionName: string;
+  private closed = false;
 
   constructor(options: MongoStorageOptions) {
     this.collectionName = options.collection;
@@ -50,6 +51,7 @@ export class MongoStorage<T> implements CollectionStorage<T> {
    * reconnect the old collection belongs to a closed client (deep dive DATA-6).
    */
   private async getCollection(): Promise<Collection<MongoDoc<T>>> {
+    this.checkOpen();
     const connection = await ensureConnection();
     return connection.getDb().collection<MongoDoc<T>>(this.collectionName);
   }
@@ -101,6 +103,7 @@ export class MongoStorage<T> implements CollectionStorage<T> {
   }
 
   async setBatch(items: Array<[string, T]>): Promise<void> {
+    this.checkOpen();
     if (items.length === 0) return;
 
     const operations = items.map(([id, value]) => ({
@@ -115,6 +118,7 @@ export class MongoStorage<T> implements CollectionStorage<T> {
   }
 
   async deleteBatch(ids: string[]): Promise<number> {
+    this.checkOpen();
     if (ids.length === 0) return 0;
 
     const result = await (await this.getCollection()).deleteMany({
@@ -125,6 +129,7 @@ export class MongoStorage<T> implements CollectionStorage<T> {
   }
 
   async getBatch(ids: string[]): Promise<Map<string, T>> {
+    this.checkOpen();
     if (ids.length === 0) return new Map();
 
     const docs = await (await this.getCollection())
@@ -138,8 +143,17 @@ export class MongoStorage<T> implements CollectionStorage<T> {
     return result;
   }
 
+  /**
+   * This method closes the storage. The connection belongs to the package, so it stays open. After
+   * `close()`, each operation rejects, and a second `close()` does nothing.
+   */
   async close(): Promise<void> {
-    // The storage keeps no connection state: the connection belongs to the package
+    this.closed = true;
+  }
+
+  /** This method throws after `close()`, so the promise of the operation rejects. */
+  private checkOpen(): void {
+    if (this.closed) throw new Error(`The MongoStorage of the collection ${this.collectionName} is closed`);
   }
 
   async getMetadata(): Promise<StorageMetadata> {

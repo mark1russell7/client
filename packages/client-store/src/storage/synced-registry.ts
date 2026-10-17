@@ -140,6 +140,12 @@ export class SyncedProcedureRegistry {
   /** Whether currently connected to remote storage */
   private connected = false;
 
+  /** True after `close()`: the registry writes nothing to its closed storage */
+  private closed = false;
+
+  /** The sync of the auto-sync timer that runs. `close()` waits for it. */
+  private autoSyncRun: Promise<unknown> | undefined;
+
   /** Remote endpoint (if connected) */
   private endpoint: string | undefined;
 
@@ -204,7 +210,8 @@ export class SyncedProcedureRegistry {
     }
     this.touch(key);
 
-    if (options?.persist === false) {
+    // After close(), the storage is closed: the registry keeps the procedure in memory only
+    if (options?.persist === false || this.closed) {
       return;
     }
     this.pendingDeletes.delete(key);
@@ -231,7 +238,7 @@ export class SyncedProcedureRegistry {
   unregister(path: ProcedurePath): boolean {
     const result = this.baseRegistry.unregister(path);
 
-    if (result) {
+    if (result && !this.closed) {
       const key = pathToKey(path);
       this.pendingChanges.delete(key);
       this.touch(key);
@@ -554,9 +561,16 @@ export class SyncedProcedureRegistry {
     const intervalMs = typeof interval === "number" ? interval : toMs(interval, "interval");
     this.stopAutoSync();
     const handle = setInterval(() => {
-      void this.sync("both").catch((err) => {
-        console.error("Auto-sync failed:", err);
-      });
+      // One auto-sync at a time, and none after close()
+      if (this.closed || this.autoSyncRun) return;
+      const run = this.sync("both")
+        .catch((err) => {
+          console.error("Auto-sync failed:", err);
+        })
+        .finally(() => {
+          if (this.autoSyncRun === run) this.autoSyncRun = undefined;
+        });
+      this.autoSyncRun = run;
     }, intervalMs);
     // Don't let the auto-sync timer keep the process alive. See BUGS-2026-07.md (M4).
     handle.unref?.();
@@ -726,10 +740,16 @@ export class SyncedProcedureRegistry {
   // ===========================================================================
 
   /**
-   * Close the synced registry and cleanup resources.
+   * This method closes the registry: it stops the auto-sync, waits for the sync that runs, writes
+   * the pending changes, and closes the storage. After it, `register()` and `unregister()` change
+   * only the registry in memory, because the storage rejects each operation. A second `close()`
+   * does nothing.
    */
   async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
     this.stopAutoSync();
+    await this.autoSyncRun;
 
     // Flush pending changes before closing
     await this.flushPending();

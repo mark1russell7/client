@@ -65,6 +65,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm --filter @procedures/client exec vitest bench --run --dir bench
+      # The copies of InMemoryStorage (the contract of CollectionStorage): with copies and with
+      # the option copies: false
+      - run: pnpm --filter @procedures/collections exec vitest bench --run --dir bench
       # The results of the last successful nightly run are the earlier results. The first run has
       # none: it only shows the times.
       - name: Compare with the last nightly run
@@ -82,6 +85,22 @@ jobs:
         with:
           name: bench-results
           path: packages/client/bench/results
+          retention-days: 30
+      - name: Compare the storage benchmarks with the last nightly run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/earlier-collections"
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name bench-results-collections --dir "$RUNNER_TEMP/earlier-collections" || true
+          fi
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-collections" packages/client-collections/bench/results --factor 2
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results-collections
+          path: packages/client-collections/bench/results
           retention-days: 30
 
   soak:

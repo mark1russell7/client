@@ -142,33 +142,65 @@ describeCollectionStorageContract(
   { describe, it },
 );
 
-describe("InMemoryStorage: what the contract does not fix", () => {
-  it("empties itself at close(), and a version of the closed storage gives all items", async () => {
-    const storage = new InMemoryStorage<{ n: number }>();
-    await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
-    const before = await storage.getChangesSince();
-    await storage.close();
-    expect(await storage.size()).toBe(0);
-    await storage.set("c", { n: 3 });
-    expect(await storage.getChangesSince(before.version)).toMatchObject({ full: true, changed: [["c", { n: 3 }]], deleted: [] });
-  });
+describeCollectionStorageContract(
+  "InMemoryStorage with copies: false (the contract of a caller that changes no value)",
+  {
+    create: () => new InMemoryStorage<ContractItem>({ copies: false }),
+    createWithMaxTombstones: (max) => new InMemoryStorage<ContractItem>({ maxTombstones: max, copies: false }),
+  },
+  {
+    describe,
+    // The case of the copies is the one difference of the option
+    it: (name, body) => (name.startsWith("the storage keeps copies") ? it.skip(name, body) : it(name, body)),
+  },
+);
 
-  it("keeps the values that set() takes, and gives them to the reads: it makes no copies", async () => {
-    const storage = new InMemoryStorage<{ n: number }>();
+describe("InMemoryStorage: what the contract does not fix", () => {
+  it("copies: false keeps the values that set() takes, and gives them to the reads", async () => {
+    const storage = new InMemoryStorage<{ n: number }>({ copies: false });
     const value = { n: 1 };
     await storage.set("a", value);
     expect(await storage.get("a")).toBe(value);
-    // The contract suite tests the copies only for a storage that declares them (SqliteStorage)
     value.n = 2;
     expect(await storage.get("a")).toEqual({ n: 2 });
   });
 
-  it("gives a delta in the order of the first write of each id since its last delete", async () => {
+  it("copies with structuredClone: a Date stays a Date, and a function is an error", async () => {
+    const storage = new InMemoryStorage<unknown>();
+    const when = new Date(0);
+    await storage.set("date", { when });
+    const read = (await storage.get("date")) as { when: Date };
+    expect(read.when).toBeInstanceOf(Date);
+    expect(read.when).not.toBe(when);
+    await expect(storage.set("function", { run: () => 1 })).rejects.toThrow();
+    // A batch with a value without a copy changes nothing
+    await expect(storage.setBatch([["one", 1], ["function", () => 1]])).rejects.toThrow();
+    expect(await storage.has("one")).toBe(false);
+  });
+
+  it("gives copies from the methods of the Map interface too", async () => {
     const storage = new InMemoryStorage<{ n: number }>();
     await storage.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
-    const start = await storage.getChangesSince();
-    await storage.set("b", { n: 20 });
-    await storage.set("a", { n: 10 });
-    expect((await storage.getChangesSince(start.version)).changed.map(([id]) => id)).toEqual(["a", "b"]);
+    expect([...storage.keys()]).toEqual(["a", "b"]);
+    for (const value of storage.values()) value.n = 0;
+    for (const [, value] of storage.entries()) value.n = 0;
+    for (const [, value] of storage) value.n = 0;
+    storage.forEach((value, key, map) => {
+      value.n = 0;
+      map.delete(key);
+    });
+    expect(await storage.getAll()).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+
+  it("drops its items at close(), and the methods of the Map interface throw after it", async () => {
+    const storage = new InMemoryStorage<{ n: number }>();
+    await storage.set("a", { n: 1 });
+    await storage.close();
+    expect(() => storage.keys()).toThrow(/closed/);
+    expect(() => storage.values()).toThrow(/closed/);
+    expect(() => storage.entries()).toThrow(/closed/);
+    expect(() => storage.forEach(() => undefined)).toThrow(/closed/);
+    expect(() => [...storage]).toThrow(/closed/);
+    await expect(storage.close()).resolves.toBeUndefined();
   });
 });

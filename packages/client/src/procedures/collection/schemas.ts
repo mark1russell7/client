@@ -117,6 +117,12 @@ export const valueSchema : ZodLike<unknown> = createSchema<unknown>((data) => {
  */
 export interface GetInput {
   id: string;
+  /**
+   * True: the output is `{ found, value }` (a `GetFoundOutput`), so a stored `null` and a missing
+   * id give different outputs. Without it, the output is the item, or `null` on the wire for a
+   * missing id. `ApiStorage` of `@procedures/store` sends it.
+   */
+  found?: boolean;
 }
 
 export const getInputSchema : ZodLike<GetInput> = createSchema<GetInput>((data) => {
@@ -138,11 +144,31 @@ export const getInputSchema : ZodLike<GetInput> = createSchema<GetInput>((data) 
       },
     };
   }
-  return { success: true, data: { id: data["id"] } };
+  const found = data["found"];
+  if (found !== undefined && typeof found !== "boolean") {
+    return {
+      success: false,
+      error: {
+        message: "found must be a boolean",
+        errors: [{ path: ["found"], message: "found must be a boolean" }],
+      },
+    };
+  }
+  return { success: true, data: found === true ? { id: data["id"], found: true } : { id: data["id"] } };
 });
 
 /**
- * Output for get operation - the item or undefined.
+ * The output of `get` with `found: true` in the input. `found` is true when the collection has
+ * the id. Then `value` is the item, also when the item is `null`.
+ */
+export interface GetFoundOutput {
+  found: boolean;
+  value?: unknown;
+}
+
+/**
+ * Output for get operation: the item, or undefined for a missing id. With `found: true` in the
+ * input, the output is a `GetFoundOutput`.
  */
 export const getOutputSchema : ZodLike<unknown> = createSchema<unknown>((data) => {
   // Accept any value (item) or undefined

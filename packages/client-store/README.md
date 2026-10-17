@@ -81,6 +81,22 @@ These parts moved here from `@procedures/client` (roadmap 3.2):
 
 An import of `@procedures/store/register` registers its procedures. An import of the package root registers nothing.
 
+### The contract of `ApiStorage` and `HybridStorage`
+
+The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and `HybridStorage` in each mode. The two storages agree with `InMemoryStorage` and `SqliteStorage`:
+
+- **Copies.** A change of a written or a read value does not change the stored item. `HybridStorage` takes a copy of each written value for the local copy, the queue and the remote. The values that `ApiStorage` sends and reads go through the transport.
+- **`null`.** A stored `null` reads back as `null`. `ApiStorage.get()` sends `{ id, found: true }` to the procedure `collections.<name>.get`. The procedure then gives `{ found, value }` in one call.
+- **The order of a delta.** `getChangesSince()` follows the order of the last change of each id.
+- **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
+
+Notes:
+
+- A custom `service` or a custom `get` operation gets the input `{ id }`, as before. Its `null` reads back as `undefined`.
+- A server before `found` ignores it and gives the item. Then a stored `null` reads back as `undefined`, as before.
+- `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.
+- `SyncedProcedureRegistry.close()` closes its storage. After it, `register()` and `unregister()` change only the registry in memory.
+
 ## The modes of `HybridStorage`
 
 `HybridStorage` keeps a local copy of a remote collection storage. It has four modes, and `setMode()` changes the mode while the storage operates.
@@ -136,7 +152,7 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - With a durable local copy, a new storage in `local-only` mode reads the items of the last run. It makes no remote call.
 - Give a durable `queueStore` with a durable local copy. A restart applies the loaded queue to the local copy again, and the result does not change.
 - The first sync after a restart reads all remote items. It removes each local item that the remote deleted and that no queued write changes.
-- `close()` closes the local copy. A durable local copy keeps its items.
+- `close()` closes the local copy and the remote. A durable local copy keeps its items. A remote stays open when its own `close()` leaves it open, as `ApiStorage.close()` leaves the server.
 
 ```ts
 import { ApiStorage, HybridStorage } from "@procedures/store";
@@ -163,6 +179,8 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 ### The change of a storage in a server
 
 `ProcedureServer.useStorage(name, storage, { drain: true, close: true })` first starts `flush()` of the old storage. Then it uses the new storage and closes the old one. When the flush fails, the old storage stays.
+
+`ProcedureServer.stop()` closes each storage one time and removes the storages from the server. A closed storage rejects each operation. Before the server starts again, give it new storages with `useStorage()`.
 
 ### The mode of a synced registry
 

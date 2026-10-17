@@ -16,6 +16,9 @@
  * - A sync asks for the changes since a version when the remote has `getChangesSince`.
  * - With `versionOf`, a conflict is a change on both sides, and `conflictResolution` decides.
  * - `pullInterval` keeps the local copy fresh.
+ * - Each write takes a copy of the value (`structuredClone`), for the local copy, the queue and the
+ *   remote. The reads give the copies of the local copy, or of the remote in `remote-only` mode.
+ * - After `close()`, each operation rejects, and a second `close()` does nothing.
  */
 
 import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
@@ -336,7 +339,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private active = 0;
   private idleWaiters: Array<() => void> = [];
   private isOnline = true;
+  /** True after `close()`: each operation rejects */
   private closed = false;
+  /** The work of the first `close()` */
+  private closing: Promise<void> | undefined;
   /** A counter of local writes for each id, so a sync does not restore an older remote value */
   private readonly writeVersions = new Map<string, number>();
   private clearVersion = 0;
@@ -406,6 +412,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    */
   async setMode(mode: HybridMode): Promise<void> {
     const target = checkMode(mode);
+    if (this.closed) throw this.closedError();
     const previous = this.gate;
     let release!: () => void;
     this.gate = new Promise<void>((resolve) => (release = resolve));
@@ -461,7 +468,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     const push = this.mode === "write-back" && this.options.syncInterval > 0;
     if (push && !this.syncTimer) {
       this.syncTimer = setInterval(() => {
-        this.syncToRemote().catch((err) => {
+        if (this.closed) return;
+        this.push().catch((err) => {
           console.error("Periodic sync failed:", err);
         });
       }, this.options.syncInterval);
@@ -475,7 +483,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     const pull = this.options.pullInterval > 0 && (this.mode === "write-through" || this.mode === "write-back");
     if (pull && !this.pullTimer) {
       this.pullTimer = setInterval(() => {
-        this.syncFromRemote().catch((err) => {
+        if (this.closed) return;
+        this.pull().catch((err) => {
           console.error("Periodic pull failed:", err);
         });
       }, this.options.pullInterval);
@@ -577,7 +586,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   // ═══ Write Operations ═══
   //
 
-  async set(id: string, value: T): Promise<void> {
+  /**
+   * This method sets an item. The storage takes a copy of the value, so a later change of the
+   * value does not change the local copy, the queue or the remote write.
+   */
+  async set(id: string, written: T): Promise<void> {
+    const value = structuredClone(written);
     await this.write("set", { id, value }, [id], async () => {
       this.bump(id);
       await this.local.set(id, value);
@@ -602,7 +616,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   // ═══ Bulk Operations ═══
   //
 
-  async setBatch(items: Array<[string, T]>): Promise<void> {
+  /** This method sets several items. The storage takes a copy of each value, as `set` does. */
+  async setBatch(written: Array<[string, T]>): Promise<void> {
+    const items = written.map(([id, value]): [string, T] => [id, structuredClone(value)]);
     await this.write("setBatch", { items }, items.map(([id]) => id), async () => {
       for (const [id] of items) this.bump(id);
       await this.local.setBatch(items);
@@ -752,11 +768,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * - Syncs run one at a time.
    */
   syncFromRemote(): Promise<void> {
-    return this.serialize(async () => {
-      await this.loaded;
-      if (this.loadError) throw this.loadError;
-      if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
-    });
+    if (this.closed) return Promise.reject(this.closedError());
+    return this.pull();
   }
 
   /**
@@ -766,11 +779,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * the call does nothing.
    */
   syncToRemote(): Promise<void> {
-    return this.serialize(async () => {
-      await this.loaded;
-      if (this.loadError) throw this.loadError;
-      if (this.mode !== "local-only") await this.pushQueue();
-    });
+    if (this.closed) return Promise.reject(this.closedError());
+    return this.push();
   }
 
   /**
@@ -789,17 +799,52 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     await this.syncFromRemote();
   }
 
+  /** The pull of `syncFromRemote()`, after the syncs that run. */
+  private pull(): Promise<void> {
+    return this.serialize(async () => {
+      await this.loaded;
+      if (this.loadError) throw this.loadError;
+      if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
+    });
+  }
+
+  /** The push of `syncToRemote()`, after the syncs that run. */
+  private push(): Promise<void> {
+    return this.serialize(async () => {
+      await this.loaded;
+      if (this.loadError) throw this.loadError;
+      if (this.mode !== "local-only") await this.pushQueue();
+    });
+  }
+
+  /** The error of an operation after `close()`. */
+  private closedError(): Error {
+    return new Error("The HybridStorage is closed");
+  }
+
   //
   // ═══ Lifecycle & Metadata ═══
   //
 
   /**
-   * This method stops the timers, sends the queue (not in `local-only` mode), and closes the remote and the
-   * local copy. The queue store keeps the operations that the remote did not take. A durable local
-   * copy keeps its items.
+   * This method closes the storage.
+   *
+   * - It stops the timers, and waits for the operations, the mode switch and the syncs that run.
+   * - It sends the queue (not in `local-only` mode). The queue store keeps the operations that
+   *   the remote did not take.
+   * - It closes the remote and the local copy. A durable local copy keeps its items.
+   * - After it, each operation rejects. A second `close()` does nothing: it gives the promise of
+   *   the first one, without its error.
    */
-  async close(): Promise<void> {
+  close(): Promise<void> {
+    if (this.closing) return this.closing.catch(() => undefined);
     this.closed = true;
+    this.closing = this.shutDown();
+    return this.closing;
+  }
+
+  /** The work of `close()`. */
+  private async shutDown(): Promise<void> {
     for (const timer of [this.syncTimer, this.pullTimer]) {
       if (timer) clearInterval(timer);
     }
@@ -811,14 +856,18 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
 
     await this.loaded;
-    // Sync pending operations before closing
-    if (this.offlineOps.length > 0 && this.mode !== "local-only") {
+    // The operations and the switch that started before close() end first
+    await this.gate;
+    await this.idle();
+    // After the syncs that run: send the pending operations
+    await this.serialize(async () => {
+      if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
       try {
-        await this.syncToRemote();
+        await this.pushQueue();
       } catch (error) {
         console.error("Failed to sync before close:", error);
       }
-    }
+    });
     await this.storeChain;
 
     // Close remote storage (an ApiStorage leaves the caller's client open)
@@ -869,6 +918,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    * and never during a mode switch.
    */
   private async run<R>(read: boolean, work: () => Promise<R>): Promise<R> {
+    if (this.closed) throw this.closedError();
     await (read ? this.ready : this.loaded);
     for (;;) {
       const gate = this.gate;
@@ -876,6 +926,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       // No new switch started while this operation waited
       if (this.gate === gate) break;
     }
+    // close() started while this operation waited
+    if (this.closed) throw this.closedError();
     if (this.loadError) throw this.loadError;
     this.active++;
     try {
@@ -921,15 +973,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /** The first sync: send the loaded queue, then read the remote. */
   private async initialSync(): Promise<void> {
-    if (this.loadError) return;
+    // A close() before the first sync: the storage makes no remote call
+    if (this.loadError || this.closed) return;
     if (this.options.syncOnInit && this.mode !== "local-only") {
       if (this.offlineOps.length > 0) {
-        await this.syncToRemote().catch((err) => {
+        await this.push().catch((err) => {
           console.error("Failed to send the queue on init:", err);
         });
       }
-      if (this.mode === "write-through" || this.mode === "write-back") {
-        await this.syncFromRemote().catch((err) => {
+      if (!this.closed && (this.mode === "write-through" || this.mode === "write-back")) {
+        await this.pull().catch((err) => {
           console.error("Failed to sync on init:", err);
         });
       }
@@ -1502,7 +1555,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     const delay = this.options.syncInterval > 0 ? this.options.syncInterval : 5000;
     this.drainTimer = setTimeout(() => {
       this.drainTimer = null;
-      this.syncToRemote().catch(() => this.scheduleDrain());
+      if (this.closed) return;
+      this.push().catch(() => this.scheduleDrain());
     }, delay);
     (this.drainTimer as { unref?: () => void }).unref?.();
   }

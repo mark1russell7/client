@@ -94,4 +94,4 @@ temp/
 # Mutation tests (roadmap R32)
 .stryker-tmp/
 packages/*/reports/
-packages/client/bench/results/
+packages/*/bench/results/

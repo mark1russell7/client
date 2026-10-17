@@ -45,4 +45,23 @@ describe("MongoStorage", () => {
     expect(await storage.delete("a")).toBe(true);
     expect(await storage.getAll()).toEqual(["y"]);
   });
+
+  it("rejects each operation after close(), also an empty batch, and a second close() does nothing", async () => {
+    setDefaultConnection(fakeConnection(new FakeServer()));
+    const storage = new MongoStorage<string>({ collection: "items" });
+    await storage.set("a", "x");
+    await storage.close();
+    await storage.close();
+    for (const operation of [
+      () => storage.get("a"),
+      () => storage.find(() => true),
+      () => storage.set("b", "y"),
+      () => storage.setBatch([]),
+      () => storage.deleteBatch([]),
+      () => storage.getBatch([]),
+      () => storage.getMetadata(),
+    ]) {
+      await expect(operation()).rejects.toThrow("The MongoStorage of the collection items is closed");
+    }
+  });
 });

@@ -723,17 +723,22 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   }
 
   /**
-   * Close all storage backends.
+   * This method closes each storage one time, also a storage of two collections, and removes the
+   * storages from the server. A closed storage rejects each operation, so the server does not keep
+   * it. Before a new `start()`, give the storages again with `useStorage()`.
    */
   async closeStorages(): Promise<void> {
-    const closePromises = Array.from(this.storages.values()).map((s) =>
-      s.close()
-    );
-    await Promise.all(closePromises);
+    const storages = new Set(this.storages.values());
+    this.storages.clear();
+    const results = await Promise.allSettled(Array.from(storages, (storage) => storage.close()));
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    if (failed) throw failed.reason;
   }
 
   /**
-   * Stop server and close storages.
+   * This method stops the server, then closes the storages and removes them (`closeStorages()`).
+   * The server can start again, with new storages from `useStorage()`. Before, a server that
+   * started again used the closed storages.
    */
   override async stop(options: StopOptions = {}): Promise<void> {
     const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.stopGraceMs;

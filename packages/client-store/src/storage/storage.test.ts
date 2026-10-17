@@ -3,7 +3,7 @@
  * (deep dive CORE-9 / DATA-9), and the synced registry (CORE-8 / DATA-8).
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { InMemoryStorage, type CollectionStorage } from "@procedures/collections";
 import { Client } from "@procedures/client";
 import { LocalTransport } from "@procedures/client";
@@ -52,6 +52,42 @@ describe("ApiStorage against the core collection procedures (deep dive CORE-9, D
     expect(closed).toBe(0);
     await new ApiStorage(new Client(transport), { collection: "x", closeClient: true }).close();
     expect(closed).toBe(1);
+  });
+
+  it("a second close() closes the client no second time, and each call after close() rejects", async () => {
+    let closed = 0;
+    const transport = { name: "t", send: async function* () {}, close: async () => void closed++ } as unknown as Transport;
+    const api = new ApiStorage(new Client(transport), { collection: "x", closeClient: true });
+    await api.close();
+    await api.close();
+    expect(closed).toBe(1);
+    await expect(api.get("a")).rejects.toThrow("The ApiStorage of collections.x is closed");
+  });
+
+  it("get() asks for { found, value }, so a stored null reads back as null, in one call", async () => {
+    const server = collectionServer<unknown>("x");
+    const api = new ApiStorage<unknown>(new Client(server.transport), { collection: "x", retry: false });
+    await api.set("none", null);
+    server.calls.length = 0;
+    expect(await api.get("none")).toBeNull();
+    expect(await api.get("missing")).toBeUndefined();
+    expect(server.calls).toEqual(["get", "get"]);
+  });
+
+  it("get() reads the bare item of a server before found, and sends { id } to a custom service", async () => {
+    const payloads: unknown[] = [];
+    const items: Record<string, unknown> = { a: { n: 1 }, none: null };
+    const handler = async (payload: unknown) => {
+      payloads.push(payload);
+      // A server before found: it gives the item, or null for a missing id
+      return items[(payload as { id: string }).id] ?? null;
+    };
+    const old = new ApiStorage(new Client(new LocalTransport({ handlers: { "collections.x.get": handler } })), { collection: "x", retry: false });
+    expect(await old.get("a")).toEqual({ n: 1 });
+    expect(await old.get("none")).toBeUndefined();
+    const custom = new ApiStorage(new Client(new LocalTransport({ handlers: { "users.get": handler } })), { service: "users", retry: false });
+    expect(await custom.get("a")).toEqual({ n: 1 });
+    expect(payloads).toEqual([{ id: "a", found: true }, { id: "none", found: true }, { id: "a" }]);
   });
 
   it("a call that takes longer than the timeout fails", async () => {
@@ -225,6 +261,31 @@ describe("SyncedProcedureRegistry (deep dive CORE-8, DATA-8)", () => {
     expect(current.handler).toBeTypeOf("function");
     expect(current.metadata.description).toBe("remote");
     await synced.close();
+  });
+
+  it("after close(), register() and unregister() write nothing to the closed storage, and a second close() does nothing", async () => {
+    const storage = new InMemoryStorage<SerializedProcedure>();
+    let closes = 0;
+    const closeStorage = storage.close.bind(storage);
+    storage.close = async () => {
+      closes++;
+      await closeStorage();
+    };
+    const synced = new SyncedProcedureRegistry(new ProcedureRegistry(), storage, { writeStrategy: "write-through" });
+    synced.register(procedure(["c", "a"], "a"));
+    await synced.close();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      synced.register(procedure(["c", "b"], "b"));
+      expect(synced.unregister(["c", "a"])).toBe(true);
+      await synced.flushWrites();
+      expect(synced.get(["c", "b"])).toBeDefined();
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+    }
+    await synced.close();
+    expect(closes).toBe(1);
   });
 
   it("register() with a pathPrefix stores the prefixed path", async () => {

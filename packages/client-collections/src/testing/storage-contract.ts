@@ -15,10 +15,14 @@
  *
  * describeCollectionStorageContract("MyStorage", { create: () => new MyStorage() }, { describe, it });
  * ```
+ *
+ * The suite has no option that hides a difference of a storage. Each storage keeps copies, keeps
+ * a stored `null`, gives a delta in the order of the last change of each id, and rejects each
+ * operation after `close()`.
  */
 
 import type { CollectionStorage, StorageChanges } from "../storage/interface.js";
-import { byId, holds, rejects, same, show } from "./check.js";
+import { holds, rejects, same, show } from "./check.js";
 
 /** The item of the suite. Its `id` is its key, so a `HybridStorage` can sync it. */
 export interface ContractItem {
@@ -30,26 +34,18 @@ export interface ContractItem {
 /** A storage of the suite. */
 export type ContractStorage = CollectionStorage<ContractItem>;
 
-/** The options of the suite: the factory of the storage, and what the storage keeps. */
+/** The options of the suite: the factories of the storage. */
 export interface CollectionStorageContractOptions {
-  /** This function makes a new, empty storage for each case. The case closes it at its end. */
+  /**
+   * This function makes a new, empty storage for each case. The case closes it at its end, also
+   * when the case closed it already.
+   */
   create(): ContractStorage | Promise<ContractStorage>;
   /**
    * This function makes a new, empty storage whose change log keeps at most `max` deletes. With it,
    * the suite tests the drop of the old deletes. A storage without such a limit does not give it.
    */
   createWithMaxTombstones?: ((max: number) => ContractStorage | Promise<ContractStorage>) | undefined;
-  /**
-   * True when the storage keeps a copy of each value: a change of a value after `set`, or of a read
-   * value, does not change the stored item. The interface does not ask for copies, so the default
-   * is false, and the suite then does not test them.
-   */
-  copies?: boolean | undefined;
-  /**
-   * False when a stored `null` reads back as `undefined`. A remote storage can lose the difference
-   * on the wire. The default is true.
-   */
-  nullValues?: boolean | undefined;
 }
 
 /** The context that a test framework gives to a case. Vitest gives `skip`. */
@@ -115,7 +111,6 @@ function seeded(seed: number): (below: number) => number {
  */
 export function collectionStorageContract(options: CollectionStorageContractOptions): ContractCase[] {
   const create = (): ContractStorage | Promise<ContractStorage> => options.create();
-  const nullValues = options.nullValues ?? true;
   const cases: ContractCase[] = [];
   const add = (name: string, run: (context?: ContractTestContext) => Promise<void>): void => {
     cases.push({ name, run });
@@ -265,26 +260,34 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
-  if (options.copies) {
-    add("the storage keeps copies: a change of a written or a read value does not change the item", () =>
-      withStorage(create, async (storage) => {
-        const value = item("a", 1, ["x"]);
-        await storage.set("a", value);
-        value.n = 99;
-        value.tags!.push("changed after set");
-        const read = (await storage.get("a"))!;
-        same(read, item("a", 1, ["x"]), "get() after a change of the value that set() took");
-        read.n = 98;
-        read.tags!.push("changed after get");
-        (await storage.getAll())[0]!.n = 97;
-        (await storage.getBatch(["a"])).get("a")!.n = 96;
-        (await storage.find(() => true))[0]!.n = 95;
-        same(await storage.get("a"), item("a", 1, ["x"]), "get() after changes of the read values");
-      }),
-    );
-  }
+  add("the storage keeps copies: a change of a written or a read value does not change the item", () =>
+    withStorage(create, async (storage) => {
+      const value = item("a", 1, ["x"]);
+      await storage.set("a", value);
+      value.n = 99;
+      value.tags!.push("changed after set");
+      const batch = item("b", 2, ["y"]);
+      await storage.setBatch([["b", batch]]);
+      batch.tags!.push("changed after setBatch");
+      const read = (await storage.get("a"))!;
+      same(read, item("a", 1, ["x"]), "get() after a change of the value that set() took");
+      same(await storage.get("b"), item("b", 2, ["y"]), "get() after a change of the value that setBatch() took");
+      read.n = 98;
+      read.tags!.push("changed after get");
+      (await storage.getAll())[0]!.n = 97;
+      (await storage.getBatch(["a"])).get("a")!.n = 96;
+      (await storage.find((found) => {
+        found.tags?.push("changed in the predicate");
+        return true;
+      }))[0]!.n = 95;
+      if (storage.getEntries) (await storage.getEntries())[0]![1].n = 94;
+      if (storage.getChangesSince) (await storage.getChangesSince()).changed[0]![1].n = 93;
+      same(await storage.get("a"), item("a", 1, ["x"]), "get() after changes of the read values");
+      same(await storage.get("b"), item("b", 2, ["y"]), "get() of the other item after changes of the read values");
+    }),
+  );
 
-  add(`the storage keeps JSON values${nullValues ? ", also null" : ""}`, () =>
+  add("the storage keeps JSON values, also null", () =>
     withStorage(create, async (typed) => {
       const storage = typed as unknown as CollectionStorage<unknown>;
       const values: Array<[string, unknown]> = [
@@ -295,14 +298,17 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["negative", -2.25],
         ["false", false],
         ["list", [1, "two", [3]]],
+        ["null", null],
       ];
-      if (nullValues) values.push(["null", null]);
       await storage.setBatch(values);
       for (const [id, value] of values) same(await storage.get(id), value, `get("${id}")`);
       same(await storage.getAll(), values.map(([, value]) => value), "getAll() of the JSON values");
       same(await storage.getBatch(values.map(([id]) => id)), new Map(values), "getBatch() of the JSON values");
       same(await storage.size(), values.length, "size() with the JSON values");
-      if (nullValues) same(await storage.has("null"), true, "has() of an id whose value is null");
+      same(await storage.has("null"), true, "has() of an id whose value is null");
+      await storage.set("single", null);
+      same(await storage.get("single"), null, "get() of an id that set() gave the value null");
+      same(await storage.get("missing"), undefined, "get() of a missing id, next to a stored null");
     }),
   );
 
@@ -315,16 +321,17 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
-  add("getChangesSince() without a version gives every item", (context) =>
+  add("getChangesSince() without a version gives every item, in the order of the entries", (context) =>
     withStorage(create, async (storage) => {
       if (lacks(storage, "getChangesSince", context)) return;
       const changes = changesOf(storage);
-      const entries: Array<[string, ContractItem]> = [["a", item("a", 1)], ["b", item("b", 2)], ["c", item("c", 3)]];
+      const entries: Array<[string, ContractItem]> = [["c", item("c", 3)], ["a", item("a", 1)], ["b", item("b", 2)]];
       await storage.setBatch(entries);
+      await storage.set("c", item("c", 30));
       const first = await changes();
       holds(typeof first.version === "string" && first.version !== "", `the version must be a text that is not empty, not ${show(first.version)}`);
       same(first.full, true, "full of the first call");
-      same(byId(first.changed), entries, "changed of the first call: every item");
+      same(first.changed, [["c", item("c", 30)], ["a", item("a", 1)], ["b", item("b", 2)]], "changed of the first call: every item, in the order of the entries");
       same(first.deleted, [], "deleted of a full result");
     }),
   );
@@ -341,13 +348,40 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.set("d", item("d", 4));
       const delta = await changes(start.version);
       same(delta.full, false, "full of a delta");
-      same(byId(delta.changed), [["a", item("a", 10)], ["d", item("d", 4)]], "changed of a delta");
+      same(delta.changed, [["a", item("a", 10)], ["d", item("d", 4)]], "changed of a delta");
       same(delta.deleted, ["b"], "deleted of a delta");
       holds(delta.version !== start.version, "the version must change after a write");
     }),
   );
 
-  add("getChangesSince(): a deleted id that comes back is a change, clear() deletes each id, and no write gives no change", (context) =>
+  add("getChangesSince(version) gives the changes in the order of the last change of each id", (context) =>
+    withStorage(create, async (storage) => {
+      if (lacks(storage, "getChangesSince", context)) return;
+      const changes = changesOf(storage);
+      await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)], ["c", item("c", 3)], ["d", item("d", 4)]]);
+      const start = await changes();
+      // b changes first, then a. Then b changes again: its last change comes after the change of a.
+      await storage.set("b", item("b", 20));
+      await storage.set("a", item("a", 10));
+      await storage.delete("d");
+      await storage.delete("c");
+      await storage.setBatch([["e", item("e", 5)], ["b", item("b", 21)]]);
+      const delta = await changes(start.version);
+      same(
+        { changed: delta.changed, deleted: delta.deleted },
+        { changed: [["a", item("a", 10)], ["e", item("e", 5)], ["b", item("b", 21)]], deleted: ["d", "c"] },
+        "the order of a delta: an id written again after another id comes after it",
+      );
+      // A delete of d again is not a change. A new set of c moves it from deleted to changed.
+      await storage.delete("d");
+      await storage.set("c", item("c", 30));
+      await storage.deleteBatch(["e", "a"]);
+      const next = await changes(delta.version);
+      same({ changed: next.changed, deleted: next.deleted }, { changed: [["c", item("c", 30)]], deleted: ["e", "a"] }, "the order of the next delta");
+    }),
+  );
+
+  add("getChangesSince(): a deleted id that comes back is a change, clear() deletes each id in the order of the entries, and no write gives no change", (context) =>
     withStorage(create, async (storage) => {
       if (lacks(storage, "getChangesSince", context)) return;
       const changes = changesOf(storage);
@@ -356,11 +390,12 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await storage.delete("b");
       await storage.set("b", item("b", 20));
       const back = await changes(start.version);
-      same({ full: back.full, changed: byId(back.changed), deleted: back.deleted }, { full: false, changed: [["b", item("b", 20)]], deleted: [] }, "a delete, then a set of the id");
+      same({ full: back.full, changed: back.changed, deleted: back.deleted }, { full: false, changed: [["b", item("b", 20)]], deleted: [] }, "a delete, then a set of the id");
 
+      // The entries are a, c, b now: b went to the end at its new set
       await storage.clear();
       const cleared = await changes(back.version);
-      same({ full: cleared.full, changed: cleared.changed, deleted: [...cleared.deleted].sort() }, { full: false, changed: [], deleted: ["a", "b", "c"] }, "the changes of clear()");
+      same({ full: cleared.full, changed: cleared.changed, deleted: cleared.deleted }, { full: false, changed: [], deleted: ["a", "c", "b"] }, "the changes of clear()");
       const quiet = await changes(cleared.version);
       same({ full: quiet.full, changed: quiet.changed, deleted: quiet.deleted }, { full: false, changed: [], deleted: [] }, "the changes without a write");
     }),
@@ -374,7 +409,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       await changes();
       for (const unknown of ["not a version", ""]) {
         const result = await changes(unknown);
-        same({ full: result.full, changed: byId(result.changed), deleted: result.deleted }, { full: true, changed: [["a", item("a", 1)], ["b", item("b", 2)]], deleted: [] }, `the changes since ${show(unknown)}`);
+        same({ full: result.full, changed: result.changed, deleted: result.deleted }, { full: true, changed: [["a", item("a", 1)], ["b", item("b", 2)]], deleted: [] }, `the changes since ${show(unknown)}`);
       }
       await withStorage(create, async (other) => {
         await other.set("x", item("x", 9));
@@ -395,23 +430,30 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         // Two deletes fit in the log
         await storage.deleteBatch(["a", "b"]);
         const two = await changes(start.version);
-        same({ full: two.full, changed: two.changed, deleted: [...two.deleted].sort() }, { full: false, changed: [], deleted: ["a", "b"] }, "two deletes in a log of two");
+        same({ full: two.full, changed: two.changed, deleted: two.deleted }, { full: false, changed: [], deleted: ["a", "b"] }, "two deletes in a log of two");
         // The third delete drops the oldest one: the start version gives all items now
         await storage.delete("c");
         const after = await changes(start.version);
-        same({ full: after.full, changed: byId(after.changed), deleted: after.deleted }, { full: true, changed: [["d", item("d", 4)]], deleted: [] }, "a version older than a dropped delete");
+        same({ full: after.full, changed: after.changed, deleted: after.deleted }, { full: true, changed: [["d", item("d", 4)]], deleted: [] }, "a version older than a dropped delete");
         same((await changes(after.version)).full, false, "a version after the dropped deletes still gives a delta");
       }),
     );
   }
 
-  add("a random sequence of writes agrees with a Map, and each version gives the right changes", () =>
+  add("a random sequence of writes agrees with a Map, and each version gives the right changes in the right order", () =>
     withStorage(create, async (storage) => {
       const random = seeded(45);
       const pool = ["a", "b", "c", "d", "e", "f", "g"];
       const pick = (): string => pool[random(pool.length)]!;
       const model = new Map<string, ContractItem>();
-      const versions: Array<{ version: string; entries: Map<string, ContractItem> }> = [];
+      // The model of the change log: the number of the last change of each id, oldest first
+      const lastChange = new Map<string, { at: number; deleted: boolean }>();
+      let clock = 0;
+      const note = (id: string, deleted: boolean): void => {
+        lastChange.delete(id);
+        lastChange.set(id, { at: ++clock, deleted });
+      };
+      const versions: Array<{ version: string; entries: Map<string, ContractItem>; at: number }> = [];
       const hasChanges = typeof storage.getChangesSince === "function";
       for (let step = 0; step < 80; step++) {
         const kind = random(20);
@@ -422,10 +464,13 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           label = `set(${id})`;
           await storage.set(id, value);
           model.set(id, value);
+          note(id, false);
         } else if (kind < 12) {
           const id = pick();
           label = `delete(${id})`;
-          same(await storage.delete(id), model.delete(id), `the result of step ${step}: ${label}`);
+          const existed = model.delete(id);
+          if (existed) note(id, true);
+          same(await storage.delete(id), existed, `the result of step ${step}: ${label}`);
         } else if (kind < 15) {
           const batch: Array<[string, ContractItem]> = Array.from({ length: 1 + random(3) }, (_, index) => {
             const id = pick();
@@ -433,19 +478,27 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           });
           label = `setBatch(${batch.map(([id]) => id).join(", ")})`;
           await storage.setBatch(batch);
-          for (const [id, value] of batch) model.set(id, value);
+          for (const [id, value] of batch) {
+            model.set(id, value);
+            note(id, false);
+          }
         } else if (kind < 18) {
           const batch = Array.from({ length: 1 + random(3) }, pick);
           label = `deleteBatch(${batch.join(", ")})`;
-          const expected = batch.filter((id) => model.delete(id)).length;
+          const expected = batch.filter((id) => {
+            const existed = model.delete(id);
+            if (existed) note(id, true);
+            return existed;
+          }).length;
           same(await storage.deleteBatch(batch), expected, `the result of step ${step}: ${label}`);
         } else if (kind < 19) {
           label = "clear()";
           await storage.clear();
+          for (const id of model.keys()) note(id, true);
           model.clear();
         } else {
           label = "a saved version";
-          if (hasChanges) versions.push({ version: (await storage.getChangesSince!()).version, entries: new Map(model) });
+          if (hasChanges) versions.push({ version: (await storage.getChangesSince!()).version, entries: new Map(model), at: clock });
         }
         same(await storage.getAll(), [...model.values()], `getAll() after step ${step}: ${label}`);
       }
@@ -455,12 +508,21 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       holds(versions.length > 0, "the sequence saved no version: change the seed");
       for (const [index, saved] of versions.entries()) {
         const result = await storage.getChangesSince!(saved.version);
-        const deleted = new Set(result.deleted);
-        holds(result.changed.every(([id]) => !deleted.has(id)), `the changes since version ${index} have an id in changed and in deleted`);
-        const rebuilt = result.full ? new Map<string, ContractItem>() : new Map(saved.entries);
+        if (result.full) {
+          same(result.changed, [...model.entries()], `the full changes since version ${index}: every item, in the order of the entries`);
+          continue;
+        }
+        // A delta: the changes after the version, in the order of the last change of each id
+        const after = [...lastChange].filter(([, change]) => change.at > saved.at);
+        const expected = {
+          changed: after.filter(([, change]) => !change.deleted).map(([id]): [string, ContractItem] => [id, model.get(id)!]),
+          deleted: after.filter(([, change]) => change.deleted).map(([id]) => id),
+        };
+        same({ changed: result.changed, deleted: result.deleted }, expected, `the changes since version ${index}`);
+        const rebuilt = new Map(saved.entries);
         for (const id of result.deleted) rebuilt.delete(id);
         for (const [id, value] of result.changed) rebuilt.set(id, value);
-        same(byId([...rebuilt.entries()]), byId([...model.entries()]), `the items of version ${index} with its changes`);
+        same(rebuilt, new Map(model), `the items of version ${index} with its changes`);
       }
     }),
   );
@@ -485,11 +547,43 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
-  add("close() resolves, and a second close() resolves too", () =>
+  add("after close(), each operation rejects with an error that says that the storage is closed, and a second close() does nothing", () =>
     withStorage(create, async (storage) => {
       await storage.set("a", item("a", 1));
       await storage.close();
+      const operations: Array<[string, () => Promise<unknown>]> = [
+        ["get", () => storage.get("a")],
+        ["getAll", () => storage.getAll()],
+        ["find", () => storage.find(() => true)],
+        ["has", () => storage.has("a")],
+        ["size", () => storage.size()],
+        ["getBatch", () => storage.getBatch(["a"])],
+        ["getBatch of no id", () => storage.getBatch([])],
+        ["set", () => storage.set("b", item("b", 2))],
+        ["delete", () => storage.delete("a")],
+        ["clear", () => storage.clear()],
+        ["setBatch", () => storage.setBatch([["b", item("b", 2)]])],
+        ["setBatch of no item", () => storage.setBatch([])],
+        ["deleteBatch", () => storage.deleteBatch(["a"])],
+        ["deleteBatch of no id", () => storage.deleteBatch([])],
+      ];
+      if (storage.getEntries) operations.push(["getEntries", () => storage.getEntries!()]);
+      if (storage.getChangesSince) operations.push(["getChangesSince", () => storage.getChangesSince!()]);
+      if (storage.flush) operations.push(["flush", () => storage.flush!()]);
+      if (storage.getMetadata) operations.push(["getMetadata", () => storage.getMetadata!()]);
+      const check = async (when: string): Promise<void> => {
+        for (const [name, start] of operations) {
+          const error = await rejects(start, `${name}() ${when}`);
+          holds(
+            error instanceof Error && /closed/i.test(error.message),
+            `${name}() ${when} must reject with an Error whose message says "closed", not ${show(error instanceof Error ? error.message : error)}`,
+          );
+        }
+      };
+      await check("after close()");
+      // A second close() resolves, and the storage stays closed
       await storage.close();
+      await check("after a second close()");
     }),
   );
 
