@@ -413,7 +413,9 @@ export function parseCommandLine<T extends CommandLike>(argv: readonly string[],
         return;
       }
       let value: unknown;
-      if (many && texts.length > 1) {
+      // Each argument of a last array field is one item, also when there is only one. Before, one
+      // argument was converted as the whole array, so `[]` gave no item and `["a","b"]` two.
+      if (many) {
         const items: unknown[] = [];
         for (const text of texts) {
           const converted = convertValue(text, type.item ?? ANY, field);

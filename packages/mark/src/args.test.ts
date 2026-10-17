@@ -138,6 +138,13 @@ describe("arrays, records and positional arguments (CLI-10)", () => {
     expect(line.input).toEqual({ container: "box", command: ["ls", "-la", "/tmp"] });
   });
 
+  it("gives each argument of a last array positional as one item, also a single one that looks like JSON", () => {
+    // A property test found it: one argument "[]" gave no item, because the parser read it as the array
+    expect(parse(["docker", "exec", "box", "--", "[]"]).input).toEqual({ container: "box", command: ["[]"] });
+    expect(parse(["docker", "exec", "box", "--", '["a","b"]']).input).toEqual({ container: "box", command: ['["a","b"]'] });
+    expect(parse(["docker", "exec", "box", "sh"]).input).toEqual({ container: "box", command: ["sh"] });
+  });
+
   it("gives one argument to an array positional that is not last", () => {
     expect(parse(["copy", "a", "b"]).input).toEqual({ sources: ["a"], dest: "b" });
   });
