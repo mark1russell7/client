@@ -1,27 +1,37 @@
 /**
- * The soak test of the WebSocket transport (roadmap R32). It starts only with `SOAK_MINUTES`:
- * the nightly workflow gives it 10 minutes.
+ * The soak tests of the WebSocket transport and of the HTTP transport (roadmap R32). They start
+ * only with `SOAK_MINUTES`: the nightly workflow gives each of them 10 minutes.
  *
- * Clients send a mix of calls for the whole time: values, streams that the reader stops, aborts,
- * calls of the server to the client, short subscriptions to remote events, and reconnects. Each
- * client also keeps one subscription for the whole time: it resubscribes after each reconnect
- * (`documentation/EVENTS.md`). At the end, each call has an answer, the maps of the two sides are
- * empty, no listener stays on the bus, and the heap grew less than a limit. Node runs the test
- * with `--expose-gc`, so the heap is measured after a collection.
+ * WebSocket: clients send a mix of calls for the whole time: values, streams that the reader
+ * stops, aborts, calls of the server to the client, short subscriptions to remote events, and
+ * reconnects. Each client also keeps one subscription for the whole time: it resubscribes after
+ * each reconnect (`documentation/EVENTS.md`). At the end, each call has an answer, the maps of the
+ * two sides are empty, no listener stays on the bus, and the heap grew less than a limit.
+ *
+ * HTTP: clients send values, streams that the reader stops, aborts, and quiet NDJSON streams with
+ * keep-alive lines between their items. At the end, no request is open, no keep-alive timer
+ * stays, and the heap grew less than a limit.
+ *
+ * Node runs the tests with `--expose-gc`, so the heap is measured after a collection.
  */
 
 import { describe, it, expect } from "vitest";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import express from "express";
 import { z } from "zod";
 import { Client } from "./client/client.js";
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";
 import { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";
+import { HttpTransport } from "./adapters/http/client/transport.js";
+import { HttpServerTransport } from "./adapters/http/server/transport.js";
 import { createProcedure } from "./procedures/define.js";
 import { createRegistry } from "./procedures/module.js";
 import { ProcedureServer } from "./server/procedure-server.js";
 import { pathToMethod } from "./server/method.js";
 import { createEventBus } from "./events/bus.js";
+import { ms } from "./duration.js";
+import { countingClock } from "../test/counting-clock.js";
 
 const minutes = Number(process.env["SOAK_MINUTES"] ?? 0);
 /** The growth of the heap that the test allows, in megabytes. */
@@ -71,7 +81,34 @@ function registry() {
           return "done";
         })
         .build(),
+      // A quiet stream: a pause before each item after the first. An abort ends the pause.
+      createProcedure()
+        .path(["soak", "quiet"])
+        .input(z.object({ items: z.number(), gap: z.number() }))
+        .output(z.number())
+        .meta({ effects: read })
+        .handler(async function* (input: { items: number; gap: number }, ctx: { signal?: AbortSignal }) {
+          for (let n = 1; n <= input.items; n++) {
+            if (n > 1) await pause(input.gap, ctx.signal);
+            if (ctx.signal?.aborted) return;
+            yield n;
+          }
+        } as never)
+        .build(),
     ],
+  });
+}
+
+/** This function waits `time` milliseconds, or until the signal aborts. */
+function pause(time: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, time);
+    signal?.addEventListener("abort", done, { once: true });
   });
 }
 
@@ -204,5 +241,82 @@ describe.runIf(minutes > 0)("the WebSocket transport under load (R32)", () => {
     expect(events.publisherBefore).toBe(transports.length);
     expect(events.publisherAfter).toBe(0);
     expect(events.channels).toEqual([]);
+  }, (minutes + 2) * 60_000);
+});
+
+describe.runIf(minutes > 0)("the HTTP transport under load (R32)", () => {
+  it(`keeps no open request and no keep-alive timer, and its heap flat, for ${minutes} minutes`, async () => {
+    const host = new ProcedureServer({ registry: registry(), autoRegister: true });
+    const app = express();
+    const http = createServer(app);
+    // A short keep-alive time: each quiet stream gets keep-alive lines between its items
+    const timers = countingClock();
+    const transport = new HttpServerTransport(host, { app, httpServer: http, keepAlive: ms(20), clock: timers });
+    host.addTransport(transport);
+    await host.start();
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    const baseUrl = `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`;
+    const clients = Array.from({ length: CLIENTS }, () => new Client({ transport: new HttpTransport({ baseUrl }), throwOnError: true }));
+    const end = Date.now() + minutes * 60_000;
+    const counts = { calls: 0, failures: 0, quietItems: 0 };
+    await sleep(500);
+    const heapBefore = heapMb();
+
+    const loop = async (index: number) => {
+      const client = clients[index]!;
+      let step = 0;
+      while (Date.now() < end) {
+        step++;
+        try {
+          if (step % 7 === 0) {
+            for await (const item of client.stream<unknown, number>(pathToMethod(["soak", "count"]), { to: 1000 })) {
+              if (item === 3) break;
+            }
+          } else if (step % 11 === 0) {
+            const controller = new AbortController();
+            const call = client.call(pathToMethod(["soak", "slow"]), {}, { signal: controller.signal });
+            setTimeout(() => controller.abort(), 5);
+            await call.catch(() => undefined);
+          } else if (step % 13 === 0) {
+            // A quiet stream to its end: the keep-alive lines between the items give no item
+            const items: number[] = [];
+            for await (const item of client.stream<unknown, number>(pathToMethod(["soak", "quiet"]), { items: 3, gap: 50 })) items.push(item);
+            expect(items).toEqual([1, 2, 3]);
+            counts.quietItems += items.length;
+          } else if (step % 17 === 0) {
+            // A quiet stream that the reader stops while the server is quiet
+            for await (const _item of client.stream<unknown, number>(pathToMethod(["soak", "quiet"]), { items: 3, gap: 50 })) break;
+          } else {
+            expect(await client.call(pathToMethod(["soak", "echo"]), { n: step })).toBe(step);
+          }
+          counts.calls++;
+        } catch {
+          counts.failures++;
+        }
+        // A pace that leaves the ports of the closed connections time to come back
+        await sleep(5);
+      }
+    };
+    await Promise.all(clients.map((_, index) => loop(index)));
+
+    await sleep(1000);
+    const heapAfter = heapMb();
+    const openRequests = (transport as unknown as { openRequests: Set<unknown> }).openRequests.size;
+    const report = { ...counts, heapBeforeMb: heapBefore, heapAfterMb: heapAfter, openRequests, timersLive: timers.live, timersStarted: timers.started, callsInFlight: host.callsInFlight };
+    console.log(JSON.stringify(report));
+
+    await host.stop();
+    http.closeAllConnections();
+    await new Promise<void>((resolve) => http.close(() => resolve()));
+
+    expect(counts.calls).toBeGreaterThan(minutes * 1000);
+    // HTTP has no reconnect: a failure is a fault, but a rare closed keep-alive connection
+    expect(counts.failures).toBeLessThanOrEqual(Math.ceil(counts.calls / 1000));
+    expect(counts.quietItems).toBeGreaterThan(0);
+    expect(report.openRequests).toBe(0);
+    expect(report.timersLive).toBe(0);
+    expect(report.timersStarted).toBeGreaterThan(0);
+    expect(report.callsInFlight).toBe(0);
+    expect(heapAfter - heapBefore).toBeLessThan(HEAP_LIMIT_MB);
   }, (minutes + 2) * 60_000);
 });

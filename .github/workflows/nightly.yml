@@ -134,10 +134,11 @@ jobs:
           retention-days: 30
 
   soak:
-    name: WebSocket soak (10 minutes)
+    name: WebSocket and HTTP soak (10 minutes each)
     if: ${{ !inputs.only || contains(inputs.only, 'soak') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Two soaks of 10 minutes, one after the other, and the install and the build
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -149,7 +150,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      # --expose-gc: the test measures the heap after a collection
+      # The WebSocket soak, then the HTTP soak with its keep-alive lines.
+      # --expose-gc: the tests measure the heap after a collection.
       - run: pnpm --filter @procedures/client exec vitest run src/soak.test.ts
         env:
           SOAK_MINUTES: "10"
