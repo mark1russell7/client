@@ -400,6 +400,13 @@ describe("FileQueueStore (R28)", () => {
 
       await writeFile(path, `not json\n${JSON.stringify(op("a", 1))}\n`, "utf8");
       await expect(new FileQueueStore(path).load()).rejects.toThrow("not JSON (line 1)");
+      // Blank lines, as keep-alive lines leave them, keep the number of a later line right
+      await writeFile(path, `${JSON.stringify(op("a", 1))}
+
+
+not json
+`, "utf8");
+      await expect(new FileQueueStore(path).load()).rejects.toThrow("not JSON (line 4)");
       await writeFile(path, `{"type":"rename"}\n`, "utf8");
       await expect(new FileQueueStore(path).load()).rejects.toThrow("not a queued operation");
     } finally {

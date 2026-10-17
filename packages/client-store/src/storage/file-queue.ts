@@ -39,7 +39,8 @@ export class FileQueueStore implements QueueStore {
       const lines = text.split("\n");
       // The text after the last newline is a part of a line, or empty
       const tail = lines.pop() ?? "";
-      const operations = lines.filter((line) => line.trim() !== "").map((line, index) => this.parse(line, index + 1));
+      // Each line keeps its number in the file, so an error names the right line after blank lines
+      const operations = lines.flatMap((line, index) => (line.trim() === "" ? [] : [this.parse(line, index + 1)]));
       if (tail.trim() !== "") {
         let last: QueuedOperation | undefined;
         try {
