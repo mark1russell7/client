@@ -152,6 +152,8 @@ A peer subscribes to the topics of the event bus of another peer with a call of 
 - The `credit` of the request is the backpressure. When the queue of a subscription is full, the publisher drops its oldest event.
 - A `cancel` is the unsubscribe. A closed connection ends each subscription of the connection.
 - A topic outside the topic rule of the host gives `TOPIC_NOT_FOUND`. A topic that the publisher refuses gives `FORBIDDEN` with the reason `topic-not-allowed`.
+- When `clear()` of the bus of the publisher removes a listener of a subscription, the stream ends with an `error` frame `TOPIC_CLEARED`. The code is not retryable.
+- Two subscribers of one topic on one transport share one call. The wire thus gets one `request` and one `cancel`, as for one subscriber.
 - Over HTTP, the subscription is an NDJSON stream. Without NDJSON, the server answers `NOT_ACCEPTABLE`. A quiet subscription gets keep-alive lines (refer to "The keep-alive of an NDJSON stream").
 
 ## Message port
@@ -197,6 +199,7 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `CONNECTION_CLOSED` | 503 | yes | The connection closed before the call left. |
 | `CONNECTION_NOT_FOUND` | 404 | no | The server has no connection with this id. |
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
+| `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
 
 ## MCP
 

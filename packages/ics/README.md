@@ -71,27 +71,34 @@ The reader changes a `TZID` time to UTC as RFC 5545 (3.3.5) tells. The function 
 
 ## Calendar days
 
-The package also exports four functions for calendar days. They use `Intl` only, without a time zone database, as `@procedures/schedule` does.
+The package also exports these functions for calendar days. They use `Intl` only, without a time zone database, as `@procedures/schedule` does.
 
 | Function | What it gives |
 | --- | --- |
 | `localDate(instant, timeZone)` | The date (`YYYY-MM-DD`) that a clock in the zone shows at the instant. The instant is a `Date`, the milliseconds since 1970 or a text. |
 | `zonedOffset(date, time, timeZone)` | The UTC offset (`+HH:MM` or `-HH:MM`) of a local time (`HH:MM` or `HH:MM:SS`) on a date, with the rules of RFC 5545. |
+| `localTime(instant, timeZone)` | The time (`HH:MM`, from 00:00 to 23:59) that a clock in the zone shows at the instant. |
 | `shiftDay(date, days)` | The date `days` days after a date. A negative number gives an earlier date. |
+| `shiftMonth(date, months)` | The date `months` months after a date. When the month does not have the day, the result is its last day. |
 | `daysBetween(from, to)` | The number of whole days from one date to another. It is negative when `to` is before `from`. |
+| `weekdayOf(date)` | The day of the week of a date: 0 for Sunday to 6 for Saturday. |
+| `weekdayName(date, options)` | The name of the day of the week of a date. The default is the long English name. |
 
 ```ts
-import { daysBetween, localDate, shiftDay, zonedOffset } from "@procedures/ics";
+import { daysBetween, localDate, shiftDay, shiftMonth, weekdayName, zonedOffset } from "@procedures/ics";
 
 localDate("2026-10-17T03:00:00Z", "America/New_York"); // "2026-10-16"
 zonedOffset("2026-03-08", "02:30", "America/New_York"); // "-05:00": 02:30-05:00 is 03:30 daylight time
 shiftDay("2026-03-07", 2); // "2026-03-09"
+shiftMonth("2026-01-31", 1); // "2026-02-28"
+shiftDay(shiftMonth("2026-01-01", 1), 30); // "2026-03-03": the arithmetic of Date.UTC
+weekdayName("2026-10-17"); // "Saturday"
 daysBetween("2026-10-31", "2026-11-02"); // 2
 ```
 
 - A date is a text `YYYY-MM-DD` of the years 0000 to 9999. `2026-02-30` is not a date.
 - `shiftDay` and `daysBetween` use the arithmetic of UTC. A change of daylight saving time does not move a date.
-- The number of days of `shiftDay` must be an integer.
+- The number of days of `shiftDay` and the number of months of `shiftMonth` must be integers.
 - `localDate` gives the result of the `en-CA` format of `Intl`, with the year in four digits.
 - The time zone is an IANA name that `Intl` knows, for example `Europe/Berlin` or `UTC`.
 - A value that is not correct throws a `RangeError`: a date, a time, an instant or a time zone.
@@ -99,3 +106,5 @@ daysBetween("2026-10-31", "2026-11-02"); // 2
 ## Private feeds
 
 The address of a private calendar feed is a secret. `ics.fetch` does not put the address in an error message.
+
+The function `fetchCalendar(url, timeoutMs, signal, { fetch })` gets the text of a feed. It refuses an HTTP error and a page that is not a calendar. The option `fetch` replaces the global `fetch`, for a test or a host with its own client.

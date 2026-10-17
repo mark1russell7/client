@@ -407,6 +407,43 @@ export const entriesOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Col
 });
 
 // =============================================================================
+// Ids Operation Schemas
+// =============================================================================
+
+/** Input for ids operation - empty object. */
+export interface IdsInput {}
+
+export const idsInputSchema : ZodLike<IdsInput> = createSchema<IdsInput>((data) => {
+  if (!isObject(data)) {
+    return {
+      success: false,
+      error: {
+        message: "Input must be an object",
+        errors: [{ path: [], message: "Input must be an object" }],
+      },
+    };
+  }
+  return { success: true, data: {} };
+});
+
+/**
+ * Output for ids operation: the ids of the items, in the order of the entries, without the
+ * values. A full sync needs only the ids.
+ */
+export const idsOutputSchema : ZodLike<string[]> = createSchema<string[]>((data) => {
+  if (isArray(data) && data.every((id) => isString(id))) {
+    return { success: true, data: data as string[] };
+  }
+  return {
+    success: false,
+    error: {
+      message: "Output must be an array of ids",
+      errors: [{ path: [], message: "Output must be an array of ids" }],
+    },
+  };
+});
+
+// =============================================================================
 // Changes Operation Schemas
 // =============================================================================
 

@@ -58,6 +58,11 @@ export interface TimerDefaults {
   readonly server: {
     /** The time that `ProcedureServer.stop()` waits for the calls that run. */
     readonly stopGraceMs: number;
+    /**
+     * The longest time that `ProcedureServer.useStorage` with `close` waits for the calls on the
+     * old storage, before it closes the old storage.
+     */
+    readonly storageGraceMs: number;
   };
 }
 
@@ -85,5 +90,7 @@ export const TIMER_DEFAULTS: TimerDefaults = Object.freeze({
   // stream then stays open (WIRE-PROTOCOL.md, "The keep-alive of an NDJSON stream").
   httpServer: Object.freeze({ keepAliveMs: 15_000 }),
   idempotency: Object.freeze({ ttlMs: 10 * 60_000 }),
-  server: Object.freeze({ stopGraceMs: 0 }),
+  // 30 s: the request time of the WebSocket client. A call that runs longer timed out at its
+  // client already.
+  server: Object.freeze({ stopGraceMs: 0, storageGraceMs: 30_000 }),
 });

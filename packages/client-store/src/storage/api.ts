@@ -44,6 +44,7 @@ export interface ApiStorageOptions {
     get?: string;
     getAll?: string;
     entries?: string;
+    ids?: string;
     changes?: string;
     find?: string;
     has?: string;
@@ -116,6 +117,11 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined, d
   });
 }
 
+/** True when the server does not know a procedure: an older server without `ids`. */
+function isNotFound(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "NOT_FOUND";
+}
+
 /**
  * True for the output `{ found, value }` of the core procedure `get` with `found: true`: an
  * object with a boolean `found`, and no key other than `found` and `value`.
@@ -134,6 +140,7 @@ function isFoundOutput(value: unknown): value is { found: boolean; value?: unkno
  * - get(id) → `collections.<collection>.get` with `{ id }`
  * - set(id, value) → `collections.<collection>.set` with `{ id, value }`
  * - setBatch(items) → `collections.<collection>.setBatch` with `{ items: [{ id, value }] }`
+ * - getIds() → `collections.<collection>.ids` with `{}`, or the entries of an older server
  * - etc.
  *
  * Before, the class expected a `{ data }` envelope and called `<service>.get`: no core
@@ -168,6 +175,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     askFound: boolean;
   };
   private closed = false;
+  /** True when the server does not know the procedure `ids`: `getIds()` reads the entries */
+  private idsUnsupported = false;
 
   constructor(client: Client, options: ApiStorageOptions) {
     const service = options.service ?? (options.collection !== undefined ? `collections.${options.collection}` : undefined);
@@ -182,6 +191,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         get: "get",
         getAll: "getAll",
         entries: "entries",
+        ids: "ids",
         changes: "changes",
         find: "find",
         has: "has",
@@ -239,6 +249,27 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       throw new Error(`${this.options.service}.entries did not return an array`);
     }
     return entries.map((entry) => [entry.id, entry.value]);
+  }
+
+  /**
+   * The ids of the items in the order of the entries, from the `ids` procedure of the collection.
+   * The values stay on the server. An older server without the procedure answers `NOT_FOUND`.
+   * Then this call and each later call read the ids from `getEntries()`.
+   */
+  async getIds(): Promise<string[]> {
+    if (!this.idsUnsupported) {
+      try {
+        const ids = await this.call<string[]>("ids", {});
+        if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) {
+          throw new Error(`${this.options.service}.ids did not return an array of ids`);
+        }
+        return ids;
+      } catch (error) {
+        if (!isNotFound(error)) throw error;
+        this.idsUnsupported = true;
+      }
+    }
+    return (await this.getEntries()).map(([id]) => id);
   }
 
   /**

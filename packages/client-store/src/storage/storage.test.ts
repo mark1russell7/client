@@ -21,8 +21,11 @@ import { getSerializedKey } from "./serialization.js";
 import type { HandlerLoader, SerializedProcedure } from "./types.js";
 import { ms } from "@procedures/client";
 
-/** A server side: the core collection procedures of one collection, with in-memory storage. */
-function collectionServer<T>(collection: string): {
+/**
+ * A server side: the core collection procedures of one collection, with in-memory storage. The
+ * procedures in `without` are missing, as on an older server.
+ */
+function collectionServer<T>(collection: string, without: string[] = []): {
   transport: LocalTransport;
   storage: InMemoryStorage<T>;
   calls: string[];
@@ -35,6 +38,7 @@ function collectionServer<T>(collection: string): {
   const calls: string[] = [];
   const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {};
   for (const procedure of createCollectionProcedures(collection)) {
+    if (without.includes(procedure.path[2]!)) continue;
     handlers[procedure.path.join(".")] = async (payload) => {
       calls.push(procedure.path[2]!);
       return outputValue(await invokeProcedure(procedure, payload, { repository }), procedure.path);
@@ -88,6 +92,40 @@ describe("ApiStorage against the core collection procedures (deep dive CORE-9, D
     const custom = new ApiStorage(new Client(new LocalTransport({ handlers: { "users.get": handler } })), { service: "users", retry: false });
     expect(await custom.get("a")).toEqual({ n: 1 });
     expect(payloads).toEqual([{ id: "a", found: true }, { id: "none", found: true }, { id: "a" }]);
+  });
+
+  it("getIds() calls the procedure ids, so the values stay on the server", async () => {
+    const server = collectionServer<{ n: number }>("x");
+    await server.storage.setBatch([["b", { n: 2 }], ["a", { n: 1 }]]);
+    const api = new ApiStorage<{ n: number }>(new Client(server.transport), { collection: "x", retry: false });
+    expect(await api.getIds()).toEqual(["b", "a"]);
+    expect(await api.getIds()).toEqual(["b", "a"]);
+    expect(server.calls).toEqual(["ids", "ids"]);
+  });
+
+  it("getIds() reads the entries of an older server without the procedure ids, and asks for ids no more", async () => {
+    const server = collectionServer<{ n: number }>("x", ["ids"]);
+    await server.storage.setBatch([["b", { n: 2 }], ["a", { n: 1 }]]);
+    const api = new ApiStorage<{ n: number }>(new Client(server.transport), { collection: "x", retry: false });
+    expect(await api.getIds()).toEqual(["b", "a"]);
+    await server.storage.delete("b");
+    expect(await api.getIds()).toEqual(["a"]);
+    // The first call found no procedure ids (NOT_FOUND, no handler): the server saw the entries only
+    expect(server.calls).toEqual(["entries", "entries"]);
+  });
+
+  it("getIds() passes another error of the procedure ids through, and refuses an output that is not ids", async () => {
+    const failing = new LocalTransport({
+      handlers: {
+        "collections.x.ids": async () => {
+          throw new Error("the disk is full");
+        },
+        "collections.y.ids": async () => [1, 2],
+      },
+    });
+    const client = new Client(failing);
+    await expect(new ApiStorage(client, { collection: "x", retry: false }).getIds()).rejects.toThrow("the disk is full");
+    await expect(new ApiStorage(client, { collection: "y", retry: false }).getIds()).rejects.toThrow("collections.y.ids did not return an array of ids");
   });
 
   it("a call that takes longer than the timeout fails", async () => {

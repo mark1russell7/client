@@ -128,6 +128,7 @@ export {
   registerModules,
   createRegistry,
   registerClientProcedures,
+  callerOf,
   // Procedure reference system (procedure-as-data)
   PROCEDURE_SYMBOL,
   PROCEDURE_JSON_KEY,
@@ -236,6 +237,8 @@ export type {
   StorageMetadata,
   ProcedureModule,
   ModuleInput,
+  Caller,
+  CallerOptions,
   RegistrationOptions,
   ProcedureRegistryLike,
   ProcedureDefinition,
@@ -412,6 +415,7 @@ export type {
   TypedEventBus,
   EventHandler,
   EventBusOptions,
+  EventListenOptions,
   EventWaitOptions,
   ChannelMap,
 } from "./events/index.js";
@@ -425,6 +429,7 @@ export type {
   RemoteEvent,
   RemoteEventHandler,
   RemoteEventsOptions,
+  ResubscribeBackoff,
   SubscribeOptions,
   Subscription,
 } from "./events/index.js";

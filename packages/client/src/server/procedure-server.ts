@@ -24,6 +24,7 @@ import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptio
 import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import { TIMER_DEFAULTS } from "../timers.js";
+import { realClock, type Clock } from "../clock.js";
 import { errorCodeOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
@@ -49,8 +50,18 @@ export interface UseStorageOptions {
    * flush fails, the old storage stays and `useStorage` throws.
    */
   drain?: boolean | undefined;
-  /** True: the server closes the old storage after the change. */
+  /**
+   * True: the server closes the old storage after the change. The close waits for the calls that
+   * took the old storage, for the time of `grace` at most.
+   */
   close?: boolean | undefined;
+  /**
+   * The longest time that the close waits for the calls on the old storage, for example
+   * `seconds(5)`. When the time ends, the server closes the old storage. A call that still uses it
+   * then fails with the error of a closed storage. 0: the server closes it at once.
+   * @default 30 seconds (`TIMER_DEFAULTS.server.storageGraceMs`)
+   */
+  grace?: Duration | undefined;
 }
 
 /**
@@ -65,6 +76,12 @@ export interface ProcedureServerOptions extends ServerOptions {
 
   /** Collections to configure with storage backends */
   collections?: Record<string, CollectionStorage<unknown>>;
+
+  /**
+   * The clock of the wait of `useStorage` for the calls on an old storage (roadmap R35). The
+   * default is the clock of the platform. A test gives a fake clock.
+   */
+  clock?: Clock | undefined;
 
   /**
    * The procedures that the callers of this server can reach. `registerFromRegistry()` registers
@@ -164,6 +181,15 @@ export interface StopOptions {
    * run. Absent or 0: the server aborts them at once.
    */
   grace?: Duration | undefined;
+}
+
+/** The items of a stream. At the end of the stream, or when its reader stops, `release` runs. */
+async function* releasedAtEnd<T>(items: AsyncIterable<T>, release: () => void): AsyncGenerator<T, void, undefined> {
+  try {
+    yield* items;
+  } finally {
+    release();
+  }
 }
 
 /** A signal that aborts when one of the signals aborts. */
@@ -271,6 +297,10 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
 export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly procedureRegistry: ProcedureRegistry;
   private readonly storages = new Map<string, CollectionStorage<unknown>>();
+  /** For each storage: the calls in flight that took it, and the closes that wait for them */
+  private readonly storageUses = new Map<CollectionStorage<unknown>, { calls: number; waiters: Array<() => void> }>();
+  /** The clock of the wait of `useStorage` */
+  private readonly clock: Clock;
   /** The procedures that `registerProcedure` pinned, by key */
   private readonly pinnedProcedures = new Map<string, AnyProcedure>();
   /**
@@ -308,6 +338,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     super(options);
 
     this.procedureRegistry = options.registry ?? PROCEDURE_REGISTRY;
+    this.clock = options.clock ?? realClock;
     this.expose = options.expose;
     this.strictCalls = options.strictCalls ?? false;
     this.interceptors = options.interceptors ?? [];
@@ -380,6 +411,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    *   to the old storage.
    * - `close`: the server closes the old storage after the change. The close of a
    *   `HybridStorage` sends the writes that arrived during the flush.
+   * - The new calls use the new storage at once. Before the close, the server waits for the calls
+   *   that took the old storage, for the time of `grace` at most. Before, such a call could fail
+   *   because the storage was closed.
    *
    * @param name - Collection name
    * @param storage - Storage backend
@@ -396,8 +430,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     return this.replaceStorage(name, storage as CollectionStorage<unknown>, options);
   }
 
-  /** The change of `useStorage` with options: flush the old storage, change, close the old one. */
+  /**
+   * The change of `useStorage` with options: flush the old storage, change, wait for the calls on
+   * the old storage, and close it.
+   */
   private async replaceStorage(name: string, storage: CollectionStorage<unknown>, options: UseStorageOptions): Promise<this> {
+    const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.storageGraceMs;
     const old = this.storages.get(name);
     const other = old !== undefined && old !== storage ? old : undefined;
     if (other && options.drain) {
@@ -405,9 +443,59 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     }
     this.storages.set(name, storage);
     if (other && options.close) {
+      await this.callsOnStorageEnded(other, graceMs);
       await other.close();
     }
     return this;
+  }
+
+  /** A promise that resolves when no call uses the storage, or when `graceMs` ends. */
+  private callsOnStorageEnded(storage: CollectionStorage<unknown>, graceMs: number): Promise<void> {
+    const use = this.storageUses.get(storage);
+    if (!use || graceMs <= 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const done = (): void => {
+        cancel();
+        const index = use.waiters.indexOf(done);
+        if (index >= 0) use.waiters.splice(index, 1);
+        resolve();
+      };
+      const cancel = this.clock.after(graceMs, done);
+      use.waiters.push(done);
+    });
+  }
+
+  /**
+   * The repository of one call. The call is a user of each storage that it takes, until
+   * `release()`. Then a close of `useStorage` can go on.
+   */
+  private callRepository(): { repository: RepositoryProvider; release: () => void } {
+    const taken = new Set<CollectionStorage<unknown>>();
+    let released = false;
+    const repository: RepositoryProvider = {
+      getStorage: <T>(collection: string): CollectionStorage<T> => {
+        const storage = this.getStorage<unknown>(collection);
+        if (!released && !taken.has(storage)) {
+          taken.add(storage);
+          const use = this.storageUses.get(storage) ?? { calls: 0, waiters: [] };
+          use.calls++;
+          this.storageUses.set(storage, use);
+        }
+        return storage as CollectionStorage<T>;
+      },
+      hasCollection: (collection: string): boolean => this.hasCollection(collection),
+    };
+    const release = (): void => {
+      if (released) return;
+      released = true;
+      for (const storage of taken) {
+        const use = this.storageUses.get(storage);
+        if (!use || --use.calls > 0) continue;
+        this.storageUses.delete(storage);
+        for (const waiter of use.waiters.slice()) waiter();
+      }
+    };
+    return { repository, release };
   }
 
   /**
@@ -645,6 +733,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
 
   /** Run a procedure for a request with a signal. */
   private async run(procedure: AnyProcedure, request: ServerRequest<unknown>, signal: AbortSignal | undefined): Promise<ServerResponse<unknown>> {
+    // The call uses the storages that it takes until its end: the end of a stream, for a stream
+    const { repository, release } = this.callRepository();
+    let streams = false;
     try {
       // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
       // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
@@ -653,7 +744,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         registry: this.procedureRegistry,
         metadata: request.metadata,
         signal,
-        repository: this,
+        repository,
         expose: this.expose,
         strictCalls: this.strictCalls,
         interceptors: this.interceptors,
@@ -669,16 +760,19 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       if (output.kind === "stream") {
         // The faces that collect a stream read this mark (roadmap R15)
         const unbounded = (procedure.metadata as { stream?: { unbounded?: boolean } } | undefined)?.stream?.unbounded === true;
+        streams = true;
         return {
           id: request.id,
           status: { type: "success", code: 200 },
-          stream: output.items,
+          stream: releasedAtEnd(output.items, release),
           metadata: unbounded ? { [STREAM_METADATA_KEY]: "unbounded" } : {},
         };
       }
       return { id: request.id, status: { type: "success", code: 200 }, payload: output.value, metadata: {} };
     } catch (error) {
       return errorResponse(request.id, error);
+    } finally {
+      if (!streams) release();
     }
   }
 

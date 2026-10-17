@@ -90,6 +90,12 @@ export class WebSocketServerTransport implements ServerTransport {
    */
   private readonly channels = new Map<string, { incoming: IncomingCalls; outgoing: OutgoingCalls }>();
 
+  /**
+   * The transport of the remote events of each connection: one object for each connection, so the
+   * subscriptions of one connection to the same topics share one call (EVENTS.md).
+   */
+  private readonly eventTransports = new Map<string, Transport>();
+
   /** The browser checks of each connection (see `server/browser-guard.ts`) */
   private readonly guard: BrowserGuardOptions;
 
@@ -303,6 +309,7 @@ export class WebSocketServerTransport implements ServerTransport {
       channel?.incoming.abortAll();
       channel?.outgoing.failAll("WebSocket connection closed");
       this.channels.delete(connectionId);
+      this.eventTransports.delete(connectionId);
       const conn = this.trackedConnections.get(connectionId);
       if (conn) {
         this.trackedConnections.delete(connectionId);
@@ -552,7 +559,7 @@ export class WebSocketServerTransport implements ServerTransport {
     handler: RemoteEventHandler<T>,
     options: SubscribeOptions = {},
   ): Subscription {
-    return subscribeRemote<T>(this.transportFor(connectionId), topics, handler, options, { resubscribe: false });
+    return subscribeRemote<T>(this.eventTransportFor(connectionId), topics, handler, options, { resubscribe: false });
   }
 
   /**
@@ -564,7 +571,21 @@ export class WebSocketServerTransport implements ServerTransport {
    * @param options - A signal, `onSubscribed`, the metadata of the call
    */
   events<T = unknown>(connectionId: string, topics: string | readonly string[], options: RemoteEventsOptions = {}): AsyncIterable<RemoteEvent<T>> {
-    return remoteEvents<T>(this.transportFor(connectionId), topics, options, { resubscribe: false });
+    return remoteEvents<T>(this.eventTransportFor(connectionId), topics, options, { resubscribe: false });
+  }
+
+  /**
+   * The transport of the remote events of a connection: the same object for each subscription of
+   * a tracked connection. The close of the connection removes it.
+   */
+  private eventTransportFor(connectionId: string): Transport {
+    if (!this.trackedConnections.has(connectionId)) return this.transportFor(connectionId);
+    let transport = this.eventTransports.get(connectionId);
+    if (!transport) {
+      transport = this.transportFor(connectionId);
+      this.eventTransports.set(connectionId, transport);
+    }
+    return transport;
   }
 
   /**

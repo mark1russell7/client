@@ -47,7 +47,8 @@ export type ProtocolErrorCode =
   | "UNAVAILABLE"
   | "CONNECTION_CLOSED"
   | "CONNECTION_NOT_FOUND"
-  | "TOPIC_NOT_FOUND";
+  | "TOPIC_NOT_FOUND"
+  | "TOPIC_CLEARED";
 
 /**
  * The error codes of the protocol, on each face (HTTP, WebSocket, MCP, local). An error that a
@@ -78,6 +79,7 @@ export const ERROR_CODES: Readonly<Record<ProtocolErrorCode, ErrorCodeInfo>> = {
   CONNECTION_CLOSED: { http: 503, retryable: true, meaning: "The connection closed before the call left" },
   CONNECTION_NOT_FOUND: { http: 404, retryable: false, meaning: "The server has no connection with this id" },
   TOPIC_NOT_FOUND: { http: 404, retryable: false, meaning: "The topic rule of the host has no topic with this name" },
+  TOPIC_CLEARED: { http: 410, retryable: false, meaning: "The host cleared a topic of the subscription: clear() of its bus removed the listener" },
 };
 
 /** True when a code is an error code of the protocol. */
