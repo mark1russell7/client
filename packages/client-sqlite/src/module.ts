@@ -9,7 +9,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { z } from "zod";
 import {
   withConnection,
@@ -57,6 +57,24 @@ import {
   type DbBackupInput,
   type DbBackupOutput,
 } from "./types.js";
+
+// =============================================================================
+// The rules under a root of the files (roadmap R33)
+// =============================================================================
+
+// The procedures open the file in the process with sql.js, which keeps the database in memory. An
+// ATTACH or a VACUUM INTO of the SQL goes to the memory file system of sql.js, not to the disk.
+// So the paths of the input are all the paths that a call reaches. The default database (the CLI
+// log database in the home folder) is outside a root, so under a root a call must give dbPath.
+
+/** A procedure of one database file. `:memory:` is a database in memory, not a path. */
+const DATABASE_IN_A_ROOT: FsRootRules = { paths: ["dbPath"], required: ["dbPath"], values: [":memory:"] };
+
+/** `sqlite.migrate`: the database file and the folder of the migrations. */
+const MIGRATE_IN_A_ROOT: FsRootRules = { paths: ["dbPath", "folder"], required: ["dbPath"], values: [":memory:"] };
+
+/** `sqlite.backup`: the database file and the new file. The copy of a database in memory has no use. */
+const BACKUP_IN_A_ROOT: FsRootRules = { paths: ["dbPath", "to"], required: ["dbPath"] };
 
 // =============================================================================
 // Schemas
@@ -204,6 +222,7 @@ const sqliteQueryProcedure = createProcedure()
     // PRAGMA query_only refuses each statement that changes the database, so the procedure only
     // reads (CAP-1). Before, any statement ran, and the file kept its changes.
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: DbQueryInput): Promise<DbQueryOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
@@ -231,6 +250,7 @@ const sqliteExecuteProcedure = createProcedure()
   .meta({
     description: "Execute a SQL statement (INSERT, UPDATE, DELETE)",
     effects: { reads: ["fs"], writes: ["fs"] },
+    fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: DbExecuteInput): Promise<DbExecuteOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
@@ -255,6 +275,7 @@ const logsStoreProcedure = createProcedure()
     description: "Store a log entry in the database",
     // It adds a row, and the logs table when it is missing
     effects: { reads: ["fs"], writes: ["fs"], destructive: false },
+    fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: LogsStoreInput): Promise<LogsStoreOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
@@ -319,6 +340,7 @@ const logsQueryProcedure = createProcedure()
     // A missing file or table gives no entries, and the query makes neither (CAP-3). Before, the
     // first query made the database file and its table.
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: DATABASE_IN_A_ROOT,
   })
   .handler(async (input: LogsQueryInput): Promise<LogsQueryOutput> => {
     const dbPath = input.dbPath ?? DEFAULT_DB_PATH;
@@ -424,6 +446,7 @@ const sqliteTablesProcedure = createProcedure()
   .meta({
     description: "The tables and views of a database (read only: a missing file is an error)",
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: DATABASE_IN_A_ROOT,
     args: [],
     shorts: {},
     output: "json",
@@ -438,6 +461,7 @@ const sqliteSchemaProcedure = createProcedure()
   .meta({
     description: "The columns, indexes and foreign keys of a table (read only)",
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: DATABASE_IN_A_ROOT,
     args: ["table"],
     shorts: {},
     output: "json",
@@ -453,6 +477,7 @@ const sqliteTransactionProcedure = createProcedure()
     description: "Run statements in one transaction: they all take effect, or none does",
     // The statements of the caller can change or delete any row
     effects: { reads: ["fs"], writes: ["fs"] },
+    fsRoot: DATABASE_IN_A_ROOT,
     args: [],
     shorts: {},
     output: "json",
@@ -468,6 +493,7 @@ const sqliteMigrateProcedure = createProcedure()
     description: "Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction",
     // A migration can drop a table: destructive. A second call applies nothing.
     effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    fsRoot: MIGRATE_IN_A_ROOT,
     args: [],
     shorts: {},
     output: "json",
@@ -483,6 +509,7 @@ const sqliteBackupProcedure = createProcedure()
     description: "Copy a database to a new file (it does not replace a file)",
     // It makes a new file, and never replaces one. A second call finds the file and fails.
     effects: { reads: ["fs"], writes: ["fs"], destructive: false, idempotent: false },
+    fsRoot: BACKUP_IN_A_ROOT,
     args: ["to"],
     shorts: {},
     output: "json",

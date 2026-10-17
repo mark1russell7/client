@@ -213,6 +213,7 @@ export {
 
 export type {
   Effects,
+  FsRootRules,
   PermittedEffects,
   Register,
   ClearanceOf,

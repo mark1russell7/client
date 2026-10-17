@@ -46,7 +46,7 @@ The extract reads all the entries first. It refuses the archive, and writes noth
 
 ## The root
 
-Without a root, the procedures read and write each path that the process can reach. `createArchiveModule({ root })` confines each path of the inputs to one folder (roadmap R33). The rules are the rules of `createFsModule({ root })` of `@procedures/fs`:
+Without a root, the procedures read and write each path that the process can reach. `createArchiveModule({ root })` confines each path of the inputs to one folder (roadmap R33). The rules are the rules of `createFsModule({ root })` of `@procedures/fs`. The package imports them from `@procedures/fs/root`, so the two packages have one copy of the rules:
 
 ```ts
 import { createRegistry } from "@procedures/client";
@@ -63,6 +63,14 @@ const registry = createRegistry(createArchiveModule({ root: "/srv/files" }));
 - The extract keeps its check of the entries in the target folder, and the target folder is in the root. An extract thus stays in the root.
 - A relative root starts at the working folder of the process. The root must exist when a call starts.
 - `isOutsideRoot(error)` tells the refusal of the root. On Windows, the comparison ignores the case of the letters.
+
+A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) does not need `createArchiveModule({ root })`. Its `confineToRoot()` reads the rules in `metadata.fsRoot` of each procedure:
+
+| Procedure | The inputs that the root examines |
+|---|---|
+| `archive.create` | `output` and `source` (from the root), `cwd` (the default is the root), and each name of `files` (from `cwd`) |
+| `archive.extract` | `archive` and `target` |
+| `archive.list` | `archive` |
 
 ## Limits
 

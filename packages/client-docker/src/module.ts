@@ -11,7 +11,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import {
   dockerRun,
@@ -131,6 +131,36 @@ import {
 } from "./types.js";
 
 // =============================================================================
+// The rules under a root of the files (roadmap R33)
+// =============================================================================
+
+/**
+ * A docker command that reaches the daemon and names no path of the host. Under a root, the docker
+ * program runs in a working folder of the root.
+ */
+const DOCKER_IN_A_ROOT: FsRootRules = { cwd: "cwd" };
+
+/** `docker run`: a root refuses it. */
+const RUN_UNDER_A_ROOT: FsRootRules = {
+  refuse: "its volumes bind host folders into the container, and the container runs the program of the caller",
+};
+
+/** `docker exec`: a root refuses it. */
+const EXEC_UNDER_A_ROOT: FsRootRules = {
+  refuse: "the container runs the program of the caller, and the container can have host folders",
+};
+
+/** `docker build`: a root refuses it. */
+const BUILD_UNDER_A_ROOT: FsRootRules = {
+  refuse: "the RUN steps of the Dockerfile run programs, and docker resolves the context and the Dockerfile itself",
+};
+
+/** The compose commands: a root refuses them. */
+const COMPOSE_UNDER_A_ROOT: FsRootRules = {
+  refuse: "a compose file can name host folders and files outside the root: bind mounts, env_file, include and extends",
+};
+
+// =============================================================================
 // Procedures
 // =============================================================================
 
@@ -144,6 +174,7 @@ const dockerRunProcedure = createProcedure()
     // The container runs the image and command of the caller. The volumes give it host files, and
     // docker pulls a missing image.
     effects: { reads: ["docker", "fs", "network"], writes: ["docker", "fs", "process"] },
+    fsRoot: RUN_UNDER_A_ROOT,
     args: ["image"],
     shorts: { name: "n", detach: "d" },
     output: "json",
@@ -163,6 +194,7 @@ const dockerBuildProcedure = createProcedure()
     // The RUN steps of the Dockerfile are code of the project. Docker reads the context and pulls
     // the base images. The tag goes to the new image, and the earlier image stays.
     effects: { reads: ["docker", "fs", "network"], writes: ["docker", "process"], destructive: false },
+    fsRoot: BUILD_UNDER_A_ROOT,
     args: ["context"],
     shorts: { tag: "t", dockerfile: "f" },
     output: "json",
@@ -180,6 +212,7 @@ const dockerPullProcedure = createProcedure()
     description: "Pull a Docker image",
     calls: ["shell.run"],
     effects: { reads: ["docker", "network"], writes: ["docker"], destructive: false, idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["image"],
     output: "json",
   })
@@ -197,6 +230,7 @@ const dockerExecProcedure = createProcedure()
     calls: ["shell.run"],
     // The container runs the command of the caller
     effects: { reads: ["docker"], writes: ["docker", "process"] },
+    fsRoot: EXEC_UNDER_A_ROOT,
     args: ["container", "command"],
     shorts: { interactive: "i", tty: "t", workdir: "w" },
     output: "json",
@@ -215,6 +249,7 @@ const dockerStopProcedure = createProcedure()
     calls: ["shell.run"],
     // The stop of a stopped container changes nothing
     effects: { reads: ["docker"], writes: ["docker"], idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["containers"],
     shorts: { time: "t" },
     output: "json",
@@ -232,6 +267,7 @@ const dockerRmProcedure = createProcedure()
     description: "Remove container(s)",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: ["docker"] },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["containers"],
     shorts: { force: "f", volumes: "v" },
     output: "json",
@@ -249,6 +285,7 @@ const dockerPsProcedure = createProcedure()
     description: "List containers",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: [] },
+    fsRoot: DOCKER_IN_A_ROOT,
     shorts: { all: "a", filter: "f", format: "F" },
     output: "json",
   })
@@ -266,6 +303,7 @@ const dockerLogsProcedure = createProcedure()
     description: "Get container logs",
     calls: ["shell.run", "shell.stream"],
     effects: { reads: ["docker"], writes: [] },
+    fsRoot: DOCKER_IN_A_ROOT,
     // With follow, the stream runs as long as the container (roadmap R15)
     stream: { unbounded: true },
     args: ["container"],
@@ -289,6 +327,7 @@ const dockerComposeUpProcedure = createProcedure()
     // The compose file of the caller sets the images, the commands and the host folders of the
     // services. An up can replace the containers of changed services.
     effects: { reads: ["docker", "fs", "network"], writes: ["docker", "fs", "process"] },
+    fsRoot: COMPOSE_UNDER_A_ROOT,
     shorts: { file: "f", detach: "d", build: "b" },
     output: "json",
   })
@@ -307,6 +346,7 @@ const dockerComposeDownProcedure = createProcedure()
     // It removes the containers of the project, and with volumes: true its volumes. A second down
     // changes nothing.
     effects: { reads: ["docker", "fs"], writes: ["docker"], idempotent: true },
+    fsRoot: COMPOSE_UNDER_A_ROOT,
     shorts: { file: "f", volumes: "v" },
     output: "json",
   })
@@ -328,6 +368,7 @@ const dockerComposePsProcedure = createProcedure()
     calls: ["shell.run"],
     // Docker reads the compose file
     effects: { reads: ["docker", "fs"], writes: [] },
+    fsRoot: COMPOSE_UNDER_A_ROOT,
     args: ["services"],
     shorts: { file: "f", all: "a", format: "F" },
     output: "json",
@@ -343,6 +384,7 @@ const dockerComposeLogsProcedure = createProcedure()
     description: "Get the logs of the services of a compose project (without follow)",
     calls: ["shell.run"],
     effects: { reads: ["docker", "fs"], writes: [] },
+    fsRoot: COMPOSE_UNDER_A_ROOT,
     args: ["services"],
     shorts: { file: "f", tail: "n", timestamps: "t" },
     output: "json",
@@ -360,6 +402,7 @@ const dockerComposeBuildProcedure = createProcedure()
     // As docker.build: the RUN steps are code of the project, and docker pulls the base images.
     // The tags go to the new images, and the earlier images stay.
     effects: { reads: ["docker", "fs", "network"], writes: ["docker", "process"], destructive: false },
+    fsRoot: COMPOSE_UNDER_A_ROOT,
     args: ["services"],
     shorts: { file: "f" },
     output: "json",
@@ -376,6 +419,7 @@ const dockerComposeRestartProcedure = createProcedure()
     calls: ["shell.run"],
     // A restart stops the processes of the services. Each call restarts them again.
     effects: { reads: ["docker", "fs"], writes: ["docker"] },
+    fsRoot: COMPOSE_UNDER_A_ROOT,
     args: ["services"],
     shorts: { file: "f", time: "t" },
     output: "json",
@@ -391,6 +435,7 @@ const dockerImagesProcedure = createProcedure()
     description: "List images",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: [] },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["repository"],
     shorts: { all: "a", filter: "f", format: "F" },
     output: "json",
@@ -406,6 +451,7 @@ const dockerInspectProcedure = createProcedure()
     description: "Give the details of containers, images, volumes or networks: data has the JSON of docker",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: [] },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["targets"],
     shorts: { type: "T", format: "F" },
     output: "json",
@@ -421,6 +467,7 @@ const dockerVolumeListProcedure = createProcedure()
     description: "List volumes",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: [] },
+    fsRoot: DOCKER_IN_A_ROOT,
     shorts: { filter: "f", format: "F" },
     output: "json",
   })
@@ -435,6 +482,7 @@ const dockerVolumeCreateProcedure = createProcedure()
     description: "Create a volume. A volume that exists stays as it is",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: ["docker"], destructive: false, idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["name"],
     shorts: { driver: "d" },
     output: "json",
@@ -450,6 +498,7 @@ const dockerVolumeRemoveProcedure = createProcedure()
     description: "Remove volumes. Their data is lost",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: ["docker"], destructive: true, idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["volumes"],
     shorts: { force: "f" },
     output: "json",
@@ -465,6 +514,7 @@ const dockerNetworkListProcedure = createProcedure()
     description: "List networks",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: [] },
+    fsRoot: DOCKER_IN_A_ROOT,
     shorts: { filter: "f", format: "F" },
     output: "json",
   })
@@ -479,6 +529,7 @@ const dockerNetworkCreateProcedure = createProcedure()
     description: "Create a network. A name that exists is an error",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: ["docker"], destructive: false, idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["name"],
     shorts: { driver: "d" },
     output: "json",
@@ -494,6 +545,7 @@ const dockerNetworkRemoveProcedure = createProcedure()
     description: "Remove networks",
     calls: ["shell.run"],
     effects: { reads: ["docker"], writes: ["docker"], destructive: true, idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["networks"],
     output: "json",
   })
@@ -509,6 +561,7 @@ const dockerTagProcedure = createProcedure()
     calls: ["shell.run"],
     // The name moves from another image, so it is destructive
     effects: { reads: ["docker"], writes: ["docker"], idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["source", "target"],
     output: "json",
   })
@@ -524,6 +577,7 @@ const dockerPushProcedure = createProcedure()
     calls: ["shell.run"],
     // A write to the registry: it replaces the image of the tag there
     effects: { reads: ["docker", "network"], writes: ["network"], idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     args: ["image"],
     shorts: { allTags: "a" },
     output: "json",
@@ -540,6 +594,7 @@ const dockerPruneProcedure = createProcedure()
     calls: ["shell.run"],
     // The removed objects and their data are lost. A second call finds less to remove.
     effects: { reads: ["docker"], writes: ["docker"], destructive: true, idempotent: true },
+    fsRoot: DOCKER_IN_A_ROOT,
     shorts: { kind: "k", all: "a", filter: "f" },
     output: "json",
   })

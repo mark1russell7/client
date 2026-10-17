@@ -46,6 +46,8 @@ const shellRunProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
     effects: RUNS_PROGRAM,
+    // Under a root of the host: only the nested call of a confined procedure that names shell.run
+    fsRoot: { cwd: "cwd", program: true },
   })
   .handler(async (input: ShellRunInput, ctx): Promise<ShellRunOutput> => {
     return shellRun(input, ctx);
@@ -62,6 +64,7 @@ const shellExecProcedure = createProcedure()
     shorts: { cwd: "C", timeout: "t" },
     output: "json",
     effects: RUNS_PROGRAM,
+    fsRoot: { refuse: "it runs a command line in a shell, and the command can reach each folder of the host" },
   })
   .handler(async (input: ShellExecInput, ctx): Promise<ShellExecOutput> => {
     return shellExec(input, ctx);
@@ -79,6 +82,7 @@ const shellWhichProcedure = createProcedure()
     output: "json",
     // A fixed program (`where` or `which`) reads the folders of PATH and changes nothing
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: { refuse: "it reads the folders of PATH, and they are outside the root" },
   })
   .handler(async (input: ShellWhichInput, ctx): Promise<ShellWhichOutput> => {
     return shellWhich(input, ctx);
@@ -98,6 +102,7 @@ const shellStreamProcedure = createProcedure()
     // A program can print without an end (tail -f, a server): roadmap R15
     stream: { unbounded: true },
     effects: RUNS_PROGRAM,
+    fsRoot: { cwd: "cwd", program: true },
   })
   .handler(shellStream)
   .build();

@@ -83,8 +83,54 @@ export interface ProcedureMetadata {
    */
   stream?: { readonly unbounded?: boolean } | undefined;
 
+  /**
+   * The rules of the procedure under a root of the files (roadmap R33): the inputs that name a
+   * path, or the reason that a root cannot confine it. A host with a root (`--fs-root`,
+   * `MCP_FS_ROOT`) reads them. Without the rules, the host decides from `effects`.
+   */
+  fsRoot?: FsRootRules | undefined;
+
   /** Custom metadata fields */
   [key: string]: unknown;
+}
+
+/**
+ * The rules of a procedure under a root of the files (roadmap R33). A host with a root keeps each
+ * path of these inputs in the root, or it refuses the procedure. `confineToRoot()` of
+ * `@procedures/fs` applies the rules. Without a root, the rules change nothing.
+ */
+export interface FsRootRules {
+  /**
+   * The input that names the working folder. When the call gives no value, the procedure gets the
+   * root. A relative value starts at the root.
+   */
+  readonly cwd?: string;
+  /**
+   * The inputs that name a file or a folder: a text, or a list of texts. A relative path starts at
+   * the root. The procedure gets the absolute path.
+   */
+  readonly paths?: readonly string[];
+  /**
+   * The inputs that name a file or a folder relative to the working folder, for example the files
+   * of an archive. A relative name starts at the working folder, or at the root without `cwd`.
+   * The host examines each path, and it does not change the value.
+   */
+  readonly names?: readonly string[];
+  /**
+   * The inputs of `paths` whose default is outside the working folder. Under a root, a call
+   * without a value of such an input is refused.
+   */
+  readonly required?: readonly string[];
+  /** The values of the inputs that are not paths, for example `:memory:` of SQLite. */
+  readonly values?: readonly string[];
+  /** The reason that a root cannot confine the procedure. Under a root, the host refuses it. */
+  readonly refuse?: string;
+  /**
+   * True for a procedure that starts the program of its input (`shell.run`). Under a root, the
+   * host refuses a call of a client. It accepts the nested call of a confined procedure that
+   * names this procedure in `metadata.calls`.
+   */
+  readonly program?: boolean;
 }
 
 // =============================================================================
@@ -294,6 +340,13 @@ export interface ProcedureContext {
    * database for a lower clearance, for example. Empty when the host gives none.
    */
   resources: ResourcesOf;
+
+  /**
+   * The procedure whose handler made this call through its `ctx.client`. A call of a host or a
+   * client has no caller. The framework sets it from the invocation, so an input cannot change
+   * it. The root of the files reads it (roadmap R33).
+   */
+  caller?: AnyProcedure | undefined;
 }
 
 /**

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 438 names
+## . (dist/index.d.ts): 439 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -68,6 +68,7 @@ type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
+type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type GuardResult: dist/server/browser-guard.d.ts#GuardResult
 type GuardedRequest: dist/server/browser-guard.d.ts#GuardedRequest
 type Handler: dist/adapters/local/client/types.d.ts#Handler
@@ -445,7 +446,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 421 names
+## ./browser (dist/browser.d.ts): 422 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -508,6 +509,7 @@ type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
 type ExecutionContext: dist/client/batch-executor.d.ts#ExecutionContext
 type ForbiddenReason: dist/procedures/invoke.d.ts#ForbiddenReason
+type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type Handler: dist/adapters/local/client/types.d.ts#Handler
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 type HiddenCall: dist/procedures/policy.d.ts#HiddenCall
@@ -1055,7 +1057,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 201 names
+## ./procedures (dist/procedures/index.d.ts): 202 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1075,6 +1077,7 @@ type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
 type DescribeRegistryOptions: dist/procedures/manifest.d.ts#DescribeRegistryOptions
 type Effects: dist/procedures/types.d.ts#Effects
 type EffectsViolation: dist/procedures/capability.d.ts#EffectsViolation
+type FsRootRules: dist/procedures/types.d.ts#FsRootRules
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
@@ -3937,6 +3940,17 @@ export interface Effects {
     readonly destructive?: boolean;
 }
 
+### dist/procedures/types.d.ts#FsRootRules
+export interface FsRootRules {
+    readonly cwd?: string;
+    readonly paths?: readonly string[];
+    readonly names?: readonly string[];
+    readonly required?: readonly string[];
+    readonly values?: readonly string[];
+    readonly refuse?: string;
+    readonly program?: boolean;
+}
+
 ### dist/procedures/types.d.ts#InferProcedureInput
 export type InferProcedureInput<T> = T extends Procedure<infer TInput, any, any> ? TInput : unknown;
 
@@ -3982,6 +3996,7 @@ export interface ProcedureContext {
     onRef?: ((event: HydrationEvent) => void) | undefined;
     capability: Capability;
     resources: ResourcesOf;
+    caller?: AnyProcedure | undefined;
 }
 
 ### dist/procedures/types.d.ts#ProcedureError
@@ -4007,6 +4022,7 @@ export interface ProcedureMetadata {
     stream?: {
         readonly unbounded?: boolean;
     } | undefined;
+    fsRoot?: FsRootRules | undefined;
     [key: string]: unknown;
 }
 

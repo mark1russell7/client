@@ -1,13 +1,15 @@
 /**
  * Shared utilities for cue procedures
  *
- * Uses ctx.client.call() for file system operations (dogfooding).
+ * Uses ctx.client.call() for the files of the project (dogfooding). The files of the installed
+ * cue package are read with `node:fs` (see `loadFeatures`).
  *
  * A file operation that fails is an error of the call. Only a missing file is a normal result.
  * (Before, each helper turned every error into "missing": with no fs.* procedures in the host,
  * cue.validate answered "No dependencies.json found", deep dive WRP-3.)
  */
 
+import { access, readFile as readInstalledFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
@@ -118,9 +120,39 @@ export async function writeJson<T>(path: string, data: T, ctx: ProcedureContext)
 // Core Functions
 // =============================================================================
 
-export async function loadFeatures(ctx: ProcedureContext): Promise<FeaturesManifest | null> {
+// =============================================================================
+// The files of the installed cue package
+// =============================================================================
+
+// The files of `@mark1russell7/cue` (features.json and its CUE files) are a part of the
+// procedures, as their code is. The procedures read them with `node:fs`, not through `fs.*`. A
+// root of the host (roadmap R33) confines the paths of the project, and these files are outside it.
+
+/** True when a file of the installed cue package exists. */
+export async function installedFileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The feature manifest of the installed cue package, or null when it is missing. Text that is not JSON throws. */
+export async function loadFeatures(_ctx?: ProcedureContext): Promise<FeaturesManifest | null> {
   const featuresPath = resolve(packageRoot, "features.json");
-  return readJson<FeaturesManifest>(featuresPath, ctx);
+  let content: string;
+  try {
+    content = await readInstalledFile(featuresPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    return JSON.parse(content) as FeaturesManifest;
+  } catch (error) {
+    throw new Error(`${featuresPath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export async function loadDependencies(
