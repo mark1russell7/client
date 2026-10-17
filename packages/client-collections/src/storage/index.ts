@@ -1,13 +1,13 @@
 /**
- * Collection Storage Backends
+ * The storages of the collections.
  *
- * Abstract storage layer enabling collections to be backed by:
- * - In-memory (fast, volatile)
+ * This package has the contract `CollectionStorage` and one storage, `InMemoryStorage` (fast,
+ * in memory only).
  *
- * The backends that need an RPC Client (ApiStorage: remote API, HybridStorage: local
- * cache + remote sync) live in @procedures/client and are exported from
- * "@procedures/client/collections". Keeping them there means this package
- * does not depend on the client package.
+ * The storages that need a `Client` are in `@procedures/store`: `ApiStorage` (a remote
+ * collection) and `HybridStorage` (a local copy that syncs with a remote). Thus this package
+ * does not depend on `@procedures/client`. `MongoStorage` is in `@procedures/mongo`, and
+ * `SqliteStorage` is in `@procedures/sqlite`.
  */
 
 export type { CollectionStorage, StorageChanges, StorageMetadata } from "./interface.js";

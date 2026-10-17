@@ -1,14 +1,16 @@
 /**
- * Collection Storage Interface
+ * The interface of the collection storages. These storages implement it:
+ * - `InMemoryStorage` (this package): a fast storage in a `Map`, in memory only.
+ * - `ApiStorage` (`@procedures/store`): a remote collection through a `Client`.
+ * - `HybridStorage` (`@procedures/store`): a local copy that syncs with a remote, with a
+ *   conflict policy and a queue of the local writes.
+ * - `MongoStorage` (`@procedures/mongo`).
  *
- * Abstract storage layer for collections, enabling different backends:
- * - InMemoryStorage: Fast, volatile storage using Map
- * - ApiStorage: Remote persistence via universal client
- * - HybridStorage: Local cache + remote sync with conflict resolution
- * - SyncedStorage: Periodic background sync with offline support
+ * `@procedures/client` declares a copy of this interface with the same shape, so that the core
+ * does not depend on this package. `SqliteStorage` (`@procedures/sqlite`) implements that copy.
  *
- * IMPORTANT: All methods return Promise to ensure client code is
- * transport-agnostic (cannot distinguish local from remote storage).
+ * Each method gives a `Promise`. Thus the code of a caller cannot tell a local storage from a
+ * remote storage.
  */
 
 /**
