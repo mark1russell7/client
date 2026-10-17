@@ -147,7 +147,7 @@ describeCollectionStorageContract(
 |---|---|---|
 | `InMemoryStorage` | `@procedures/collections` | It copies with `structuredClone`. The run with `copies: false` skips only the case of the copies. |
 | `SqliteStorage` (each engine, in memory and in a file) | `@procedures/sqlite` | It keeps JSON text, so it gives copies. |
-| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. It has no `getIds`. |
+| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. Its `getIds` uses the procedure `ids`. |
 | `HybridStorage` (each mode, and a queue in IndexedDB) | `@procedures/store` | It has no `getChangesSince`. |
 
 ## Storage Backends

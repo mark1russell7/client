@@ -7,7 +7,8 @@
  *   write that the remote refuses is undone. A full queue refuses a write.
  * - The reads wait for the first sync.
  * - The model: the four modes, switches at random times, restarts with the same queue store, a
- *   remote that goes down and up, a delta sync, and versions with the "remote" policy.
+ *   remote that goes down and up, a full or a delta sync, and versions with the "remote" policy.
+ * - A pull reads a local item only when the result depends on it.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -205,6 +206,7 @@ const MODES: HybridMode[] = ["local-only", "write-through", "write-back", "remot
 describe.each(
   MODES.flatMap((mode) => [
     { mode, sync: "entries", versions: false },
+    { mode, sync: "entries", versions: true },
     { mode, sync: "changes", versions: false },
     { mode, sync: "changes", versions: true },
   ]),
@@ -458,6 +460,139 @@ describe("HybridStorage: a full pull reads the local ids without copies", () => 
     remote.down = true;
     await expect(hybrid.getIds()).rejects.toThrow(/down/);
     expect(hybrid.isRemoteOnline()).toBe(false);
+    await hybrid.close();
+  });
+});
+
+describe("HybridStorage: a full pull reads only the local items that it needs", () => {
+  const versionOf = (item: Item): string | undefined => item.v;
+
+  /** The ids of the local items that the storage reads, and a reset. Each read of values counts. */
+  function countReads(local: InMemoryStorage<Item>): { ids: () => string[]; reset: () => void } {
+    const get = vi.spyOn(local, "get");
+    const others = [vi.spyOn(local, "getBatch"), vi.spyOn(local, "getEntries"), vi.spyOn(local, "getAll"), vi.spyOn(local, "find")];
+    return {
+      ids: () => {
+        for (const other of others) expect(other).not.toHaveBeenCalled();
+        return get.mock.calls.map(([id]) => id);
+      },
+      reset: () => {
+        get.mockClear();
+        for (const other of others) other.mockClear();
+      },
+    };
+  }
+
+  /** 20 remote items at version 1. FlakyRemote has no getChangesSince: each pull is a full pull. */
+  async function remoteOf20(): Promise<FlakyRemote> {
+    const remote = new FlakyRemote();
+    await remote.data.setBatch(Array.from({ length: 20 }, (_, index): [string, Item] => [`k${index}`, { n: index, v: "1" }]));
+    return remote;
+  }
+
+  it("with versionOf, reads no item whose version it knows, and an item with a queued write only for a conflict", async () => {
+    const remote = await remoteOf20();
+    const local = new InMemoryStorage<Item>();
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncOnInit: false, syncInterval: ms(0), local, versionOf });
+    const reads = countReads(local);
+
+    // The first pull does not know the local copy: it reads each id one time
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toHaveLength(20);
+    reads.reset();
+
+    // No remote change: the pull reads no local item
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toEqual([]);
+
+    // Two remote changes: the pull writes them, and it reads no local item
+    await remote.data.set("k1", { n: 100, v: "2" });
+    await remote.data.set("k2", { n: 200, v: "2" });
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toEqual([]);
+
+    // Two queued writes. The remote changed k3 only: the conflict reads k3, and nothing else.
+    await hybrid.set("k3", { n: 3, v: "L" });
+    await hybrid.set("k4", { n: 4, v: "L" });
+    await remote.data.set("k3", { n: 300, v: "2" });
+    reads.reset();
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toEqual(["k3"]);
+
+    // The results are the results of a pull that reads each item
+    const entries = new Map(await hybrid.getEntries());
+    expect(entries.get("k1")).toEqual({ n: 100, v: "2" });
+    expect(entries.get("k3")).toEqual({ n: 300, v: "2" });
+    expect(entries.get("k4")).toEqual({ n: 4, v: "L" });
+    expect(entries.size).toBe(20);
+    expect(hybrid.getPendingOpsCount()).toBe(1);
+    await hybrid.close();
+  });
+
+  it("with versionOf, reads a durable local copy one time after a restart, and keeps an equal version", async () => {
+    const remote = await remoteOf20();
+    // The local copy of the last run: k0 has the remote version with other content
+    const local = new InMemoryStorage<Item>();
+    await local.setBatch((await remote.data.getEntries()).map(([id, item]): [string, Item] => [id, id === "k0" ? { n: -1, v: "1" } : item]));
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-through", syncOnInit: false, syncInterval: ms(0), local, versionOf });
+    const reads = countReads(local);
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toHaveLength(20);
+    reads.reset();
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toEqual([]);
+    // An equal version is no change, as when the pull reads the item
+    expect(await local.get("k0")).toEqual({ n: -1, v: "1" });
+    await hybrid.close();
+  });
+
+  it("with versionOf, reads each item again after the local copy was dropped for remote-only", async () => {
+    const remote = await remoteOf20();
+    const local = new InMemoryStorage<Item>();
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-through", syncOnInit: false, syncInterval: ms(0), local, versionOf });
+    await hybrid.syncFromRemote();
+    await hybrid.setMode("remote-only");
+    await hybrid.set("k5", { n: 50, v: "2" });
+    await hybrid.setMode("write-through");
+    // The switch back pulled every item into the empty local copy
+    expect(await local.size()).toBe(20);
+    expect(await local.get("k5")).toEqual({ n: 50, v: "2" });
+    expect(await local.get("k6")).toEqual({ n: 6, v: "1" });
+    await hybrid.close();
+  });
+
+  it("with versionOf, reads an item again after a local write of it failed", async () => {
+    const remote = await remoteOf20();
+    const local = new InMemoryStorage<Item>();
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncOnInit: false, syncInterval: ms(0), local, versionOf });
+    await hybrid.syncFromRemote();
+    const set = local.set.bind(local);
+    local.set = async () => {
+      throw new Error("the disk is full");
+    };
+    await expect(hybrid.set("k7", { n: 70, v: "L" })).rejects.toThrow("the disk is full");
+    local.set = set;
+    const reads = countReads(local);
+    await hybrid.syncFromRemote();
+    expect(reads.ids()).toEqual(["k7"]);
+    expect(await local.get("k7")).toEqual({ n: 7, v: "1" });
+    await hybrid.close();
+  });
+
+  it("without versionOf, reads each local item without a queued write, for the comparison of the JSON", async () => {
+    const remote = await remoteOf20();
+    const local = new InMemoryStorage<Item>();
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncOnInit: false, syncInterval: ms(0), local });
+    await hybrid.syncFromRemote();
+    await hybrid.set("k0", { n: 0 });
+    await hybrid.set("k1", { n: 1 });
+    await hybrid.set("k2", { n: 2 });
+    const reads = countReads(local);
+    await hybrid.syncFromRemote();
+    // A queued write wins without versions: the pull does not read its item. Before, it read 20.
+    expect(reads.ids()).toHaveLength(17);
+    expect(reads.ids()).not.toContain("k0");
+    expect(await local.get("k0")).toEqual({ n: 0 });
     await hybrid.close();
   });
 });

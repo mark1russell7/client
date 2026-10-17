@@ -3028,6 +3028,7 @@ export interface CollectionStorage<T> {
     get(id: string): Promise<T | undefined>;
     getAll(): Promise<T[]>;
     getEntries?(): Promise<Array<[string, T]>>;
+    getIds?(): Promise<string[]>;
     getChangesSince?(since?: string): Promise<StorageChanges<T>>;
     find(predicate: (item: T) => boolean): Promise<T[]>;
     has(id: string): Promise<boolean>;
@@ -4291,6 +4292,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     registry?: ProcedureRegistry;
     autoRegister?: boolean;
     collections?: Record<string, CollectionStorage<unknown>>;
+    clock?: Clock | undefined;
     expose?: ((path: ProcedurePath) => boolean) | undefined;
     strictCalls?: boolean | undefined;
     interceptors?: readonly Interceptor[] | undefined;
@@ -4322,6 +4324,7 @@ export interface StorageConfig<T = unknown> {
 export interface UseStorageOptions {
     drain?: boolean | undefined;
     close?: boolean | undefined;
+    grace?: Duration | undefined;
 }
 
 ### dist/server/procedure-server.d.ts#createProcedureServer
@@ -4484,6 +4487,7 @@ export interface TimerDefaults {
     };
     readonly server: {
         readonly stopGraceMs: number;
+        readonly storageGraceMs: number;
     };
 }
 

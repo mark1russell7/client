@@ -88,13 +88,14 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **Copies.** A change of a written or a read value does not change the stored item. `HybridStorage` takes a copy of each written value for the local copy, the queue and the remote. The values that `ApiStorage` sends and reads go through the transport.
 - **`null`.** A stored `null` reads back as `null`. `ApiStorage.get()` sends `{ id, found: true }` to the procedure `collections.<name>.get`. The procedure then gives `{ found, value }` in one call.
 - **The order of a delta.** `getChangesSince()` follows the order of the last change of each id.
-- **The ids.** `HybridStorage.getIds()` gives the ids in the order of the entries. `ApiStorage` has no `getIds()`.
+- **The ids.** `getIds()` gives the ids in the order of the entries. `ApiStorage.getIds()` uses the procedure `collections.<name>.ids`, so the values stay on the server.
 - **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
 Notes:
 
 - A custom `service` or a custom `get` operation gets the input `{ id }`, as before. Its `null` reads back as `undefined`.
 - A server before `found` ignores it and gives the item. Then a stored `null` reads back as `undefined`, as before.
+- A server before the procedure `ids` answers `NOT_FOUND`. Then `ApiStorage.getIds()` reads the ids from the entries, and it does not ask for `ids` again.
 - `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.
 - `SyncedProcedureRegistry.close()` closes its storage. After it, `register()` and `unregister()` change only the registry in memory.
 
@@ -177,11 +178,19 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - With versions, a conflict is a queued local write of an id whose remote version changed. The option `conflictResolution` gives the result.
 - The values of `conflictResolution` are `local`, `remote`, `merge` with `mergeFn`, and `error`. With `error`, the sync throws `ConflictError`.
 - Without versions, a queued write always wins. A local value that differs from the remote value is a conflict.
+- A pull reads a local item only when the result depends on it. A pull does not read the item of a queued write that wins.
+- With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
+- Without versions, a pull reads each local item without a queued write. It compares the JSON of the local item and the remote item.
 - The option `pullInterval` starts a periodic pull in the modes `write-through` and `write-back`. `close()` stops it.
 
 ### The change of a storage in a server
 
 `ProcedureServer.useStorage(name, storage, { drain: true, close: true })` first starts `flush()` of the old storage. Then it uses the new storage and closes the old one. When the flush fails, the old storage stays.
+
+- The new calls use the new storage at once.
+- Before the close, the server waits for the calls that took the old storage. A stream holds its storage until its end.
+- The option `grace` gives the longest wait, for example `seconds(5)`. The default is 30 seconds. A plain number is a `TypeError`.
+- When the time ends, the server closes the old storage. A call that still uses it then fails with the error of a closed storage.
 
 `ProcedureServer.stop()` closes each storage one time and removes the storages from the server. A closed storage rejects each operation. Before the server starts again, give it new storages with `useStorage()`.
 
