@@ -18,7 +18,7 @@ import type { LlmRequestInput, LlmStreamToolCall, LlmStreamToolResult, LlmToolCa
 export interface TurnAnswer {
   /** The model that answered. */
   readonly model: string;
-  /** The content blocks of the answer. The next request has them unchanged. */
+  /** The content blocks of the answer. The next request sends them back, after `continuationOf()`. */
   readonly content: readonly ContentBlock[];
   /** Why the model stopped. */
   readonly stopReason: string;
@@ -57,6 +57,38 @@ export interface LoopEnd {
   readonly roundLimit: boolean;
 }
 
+/** The block types that the next turn drops before the final `fallback` block. */
+const DROPPED_BEFORE_FALLBACK = new Set(["thinking", "redacted_thinking", "connector_text", "tool_use"]);
+
+/**
+ * The content of an answer as the next request sends it back. After a server-side fallback in
+ * the middle of an answer, the blocks before the final `fallback` block came from the model that
+ * declined. The next turn drops their thinking, their `connector_text` and their client
+ * `tool_use` blocks, and each server tool use without its result. The `fallback` block, the
+ * text and each block after the final `fallback` block stay where they are. Without a `fallback`
+ * block, the content stays as it came. The rules are in the API docs, "Refusals and fallback",
+ * section "Continuing the conversation". Before, the loop sent the content back unchanged, and
+ * the next request could fail (tracker O34).
+ */
+export function continuationOf(content: readonly ContentBlock[]): ContentBlock[] {
+  let last = -1;
+  for (let index = content.length - 1; index >= 0; index--) {
+    if (content[index]!.type === "fallback") {
+      last = index;
+      break;
+    }
+  }
+  if (last < 0) return [...content];
+  // A server tool result names its tool use. The results can come after the fallback too.
+  const results = new Set(content.map((block) => block["tool_use_id"]).filter((id): id is string => typeof id === "string"));
+  const kept = content.slice(0, last).filter((block) => {
+    if (DROPPED_BEFORE_FALLBACK.has(block.type)) return false;
+    if (block.type.endsWith("_tool_use")) return typeof block["id"] === "string" && results.has(block["id"]);
+    return true;
+  });
+  return [...kept, ...content.slice(last)];
+}
+
 /** A forced `tool_choice` (`any` or `tool`) applies to the first request only. After it, the model can stop. */
 function releaseToolChoice(request: MessagesRequest): void {
   const choice = request.tool_choice;
@@ -92,7 +124,10 @@ export async function* toolLoop<T>(
     const answer = yield* send(request, settings, limits, retries);
     usage = addUsage(usage, answer.usage);
     text += answer.text;
-    const uses = answer.toolUses;
+    // Only the tool uses that the next turn sends back can get a result: none before a fallback
+    const content = continuationOf(answer.content);
+    const sent = new Set(content.filter((block) => block.type === "tool_use").map((block) => block["id"]));
+    const uses = answer.toolUses.filter((use) => sent.has(use.id));
     // The procedure runs the tools only when each tool of the answer is a procedure tool
     const runnable = answer.stopReason === "tool_use" && uses.length > 0 && uses.every((use) => byName.has(use.name));
     if (!runnable || round >= maxRounds) {
@@ -108,8 +143,9 @@ export async function* toolLoop<T>(
       results.push(result);
       yield { type: "tool_result", round, ...call };
     }
-    // The next request continues the conversation: the answer as it came, then the results
-    request.messages = [...request.messages, { role: "assistant", content: answer.content }, { role: "user", content: results }];
+    // The next request continues the conversation: the answer (without the blocks that a fallback
+    // replaced), then the results
+    request.messages = [...request.messages, { role: "assistant", content }, { role: "user", content: results }];
     releaseToolChoice(request);
   }
 }

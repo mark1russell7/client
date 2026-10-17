@@ -210,6 +210,7 @@ With `fallback: true` (the default), the request has `fallbacks: "default"` and 
 
 - Some models do not accept the field. For such a model, give `fallback: false` in the input, or give `fallback: false` to the module.
 - The fallback is a feature of the Claude API. A proxy to another platform can refuse it.
+- A fallback in the middle of an answer puts a `fallback` block at the change of the model. With procedures as tools, the next request of the loop sends the answer back without the blocks of the model that declined. Those blocks are its thinking, its `connector_text`, its `tool_use` blocks and each server tool use without a result. The loop runs only the tool uses after the final `fallback` block. The rules are in the API docs, "Refusals and fallback".
 
 ## The module
 
