@@ -1,5 +1,20 @@
 # @procedures/mark
 
+## 0.6.0
+
+### Patch Changes
+
+- @procedures/mcp-dev-tools@0.6.0
+  - @procedures/client@0.6.0
+  - @procedures/cli-run@0.6.0
+  - @procedures/lib@0.6.0
+  - @procedures/pnpm@0.6.0
+  - @procedures/procedure@0.6.0
+  - @procedures/peer@0.6.0
+  - @procedures/shell@0.6.0
+  - @procedures/vitest@0.6.0
+  - @procedures/server@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,5 +1,17 @@
 # @procedures/bundle-assistant
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [901c238]
+  - @procedures/ics@0.6.0
+  - @procedures/client@0.6.0
+  - @procedures/exif@0.6.0
+  - @procedures/geo@0.6.0
+  - @procedures/mail@0.6.0
+  - @procedures/weather@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes

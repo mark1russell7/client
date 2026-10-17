@@ -1,5 +1,12 @@
 # @procedures/git
 
+## 0.6.0
+
+### Patch Changes
+
+- @procedures/client@0.6.0
+  - @procedures/shell@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
