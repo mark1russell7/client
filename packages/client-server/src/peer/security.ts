@@ -11,7 +11,7 @@
  *   HTTP, `?token=<token>` for a WebSocket connection (a browser WebSocket cannot set headers).
  */
 
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
@@ -47,9 +47,11 @@ export function originAllowed(origin: string | undefined, allowlist: readonly st
 export function tokenMatches(expected: string | undefined, presented: string | undefined | null): boolean {
   if (expected === undefined) return true;
   if (!presented) return false;
-  const a = Buffer.from(expected);
-  const b = Buffer.from(presented);
-  return a.length === b.length && timingSafeEqual(a, b);
+  // Both sides become SHA-256 digests of 32 bytes, so the comparison takes the same time for
+  // each presented token. Before, a token of another length returned at once, and the time
+  // told the length of the token.
+  const digest = (token: string): Buffer => createHash("sha256").update(token, "utf8").digest();
+  return timingSafeEqual(digest(expected), digest(presented));
 }
 
 /** The token of an `Authorization: Bearer <token>` header. */
