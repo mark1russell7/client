@@ -179,6 +179,18 @@ const getUserProcedure = defineProcedure({
 registerProcedures([getUserProcedure]);
 ```
 
+### Procedures of a package in the same process
+
+`callerOf(...modules)` gives a function that runs the procedures of the modules. It makes the registry of the modules at the first call, and it does not use the global registry. Each call gives one value: the output, or the last item of a stream.
+
+```typescript
+import { callerOf } from "@procedures/client";
+import { ghModule } from "@procedures/gh";
+
+const gh = callerOf(ghModule);
+const runs = await gh<RunList>(["gh", "run", "list"], { repo: "owner/name" });
+```
+
 ## API Reference
 
 ### Client

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 440 names
+## . (dist/index.d.ts): 443 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -23,6 +23,8 @@ type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
+type Caller: dist/procedures/caller.d.ts#Caller
+type CallerOptions: dist/procedures/caller.d.ts#CallerOptions
 type Cancel: @mark1russell7/service/clock#Cancel (external)
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
@@ -267,6 +269,7 @@ assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 bearerOf: dist/server/request-auth.d.ts#bearerOf
 buildResponse: dist/client/call-types.d.ts#buildResponse
 callMatches: dist/procedures/policy.d.ts#callMatches
+callerOf: dist/procedures/caller.d.ts#callerOf
 capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
 chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
@@ -447,7 +450,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 423 names
+## ./browser (dist/browser.d.ts): 426 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -465,6 +468,8 @@ type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
 type CallResponse: dist/client/call-types.d.ts#CallResponse
+type Caller: dist/procedures/caller.d.ts#Caller
+type CallerOptions: dist/procedures/caller.d.ts#CallerOptions
 type Cancel: @mark1russell7/service/clock#Cancel (external)
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
@@ -699,6 +704,7 @@ assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 bearerOf: dist/server/request-auth.d.ts#bearerOf
 buildResponse: dist/client/call-types.d.ts#buildResponse
 callMatches: dist/procedures/policy.d.ts#callMatches
+callerOf: dist/procedures/caller.d.ts#callerOf
 capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
 chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
@@ -1012,9 +1018,10 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 46 names
+## ./events (dist/events/index.d.ts): 47 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
+type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
 type DefaultChannels: dist/events/types.d.ts#DefaultChannels
 DefaultEventBus: dist/events/bus.d.ts#DefaultEventBus
 EVENTS_SUBSCRIBE_PATH: dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
@@ -1061,11 +1068,13 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 201 names
+## ./procedures (dist/procedures/index.d.ts): 204 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
 type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
+type Caller: dist/procedures/caller.d.ts#Caller
+type CallerOptions: dist/procedures/caller.d.ts#CallerOptions
 type Capability: dist/procedures/types.d.ts#Capability
 type CapabilityRefusal: dist/procedures/capability.d.ts#CapabilityRefusal
 type CapabilityRefusalReason: dist/procedures/capability.d.ts#CapabilityRefusalReason
@@ -1161,6 +1170,7 @@ andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
+callerOf: dist/procedures/caller.d.ts#callerOf
 capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
 chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
@@ -2508,6 +2518,11 @@ export declare const seconds: (value: number) => Duration;
 ### dist/duration.d.ts#toMs
 export declare function toMs(duration: Duration, option?: string): number;
 
+### dist/events/bus.d.ts#ChannelTimingOptions
+export interface ChannelTimingOptions {
+    clock?: Clock;
+}
+
 ### dist/events/bus.d.ts#DefaultEventBus
 export declare class DefaultEventBus implements EventBus {
     constructor(options?: EventBusOptions);
@@ -2537,7 +2552,7 @@ export declare function createEventBus(options?: EventBusOptions): EventBus;
 export declare function createTypedEventBus<TChannels extends ChannelMap>(options?: EventBusOptions): TypedEventBus<TChannels>;
 
 ### dist/events/bus.d.ts#debounceChannel
-export declare function debounceChannel<T>(bus: EventBus, source: string, target: string, delay: number): Unsubscribe;
+export declare function debounceChannel<T>(bus: EventBus, source: string, target: string, delay: Duration, options?: ChannelTimingOptions): Unsubscribe;
 
 ### dist/events/bus.d.ts#filterChannel
 export declare function filterChannel<T>(bus: EventBus, source: string, target: string, predicate: (data: T) => boolean): Unsubscribe;
@@ -2558,7 +2573,7 @@ export declare function mergeChannels(bus: EventBus, sources: string[], target: 
 export declare function resetGlobalEventBus(): void;
 
 ### dist/events/bus.d.ts#throttleChannel
-export declare function throttleChannel<T>(bus: EventBus, source: string, target: string, interval: number): Unsubscribe;
+export declare function throttleChannel<T>(bus: EventBus, source: string, target: string, interval: Duration, options?: ChannelTimingOptions): Unsubscribe;
 
 ### dist/events/bus.d.ts#withEventBusSignal
 export declare function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus;
@@ -2918,6 +2933,18 @@ export type MiddlewaresContext<TMiddlewares extends readonly Middleware<any, any
 
 ### dist/middleware/types.d.ts#SyncMiddleware
 export type SyncMiddleware<TContextOut, TContextIn, TReturn> = Middleware<TContextOut, TContextIn, TReturn, false>;
+
+### dist/procedures/caller.d.ts#Caller
+export interface Caller {
+    <T = unknown>(path: ProcedurePath, input: unknown, options?: CallerOptions): Promise<T>;
+    readonly registry: ProcedureRegistry;
+}
+
+### dist/procedures/caller.d.ts#CallerOptions
+export type CallerOptions = Omit<InvokeOptions, "registry">;
+
+### dist/procedures/caller.d.ts#callerOf
+export declare function callerOf(...modules: ModuleInput[]): Caller;
 
 ### dist/procedures/capability.d.ts#CapabilityRefusal
 export interface CapabilityRefusal {

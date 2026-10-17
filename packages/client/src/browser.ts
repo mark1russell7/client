@@ -128,6 +128,7 @@ export {
   registerModules,
   createRegistry,
   registerClientProcedures,
+  callerOf,
   // Procedure reference system (procedure-as-data)
   PROCEDURE_SYMBOL,
   PROCEDURE_JSON_KEY,
@@ -235,6 +236,8 @@ export type {
   StorageMetadata,
   ProcedureModule,
   ModuleInput,
+  Caller,
+  CallerOptions,
   RegistrationOptions,
   ProcedureRegistryLike,
   ProcedureDefinition,
