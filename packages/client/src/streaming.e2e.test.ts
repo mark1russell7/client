@@ -245,10 +245,10 @@ describe("HTTP stream responses for a client without NDJSON", () => {
     });
     const lines = (await response.text()).trim().split("\n").map((line) => JSON.parse(line) as unknown);
     expect(lines).toEqual([
-      { type: "item", payload: "first" },
-      { type: "item", payload: "second" },
-      { type: "item", payload: "third" },
-      { type: "done" },
+      { type: "item", seq: 1, payload: "first" },
+      { type: "item", seq: 2, payload: "second" },
+      { type: "item", seq: 3, payload: "third" },
+      { type: "done", seq: 4 },
     ]);
   }, 10_000);
 });

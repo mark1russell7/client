@@ -323,6 +323,8 @@ export type { TraceContext } from "./tracing/traceparent.js";
 // Wire protocol v1: the version and the one list of error codes (roadmap R25)
 export { PROTOCOL_VERSION, PROTOCOL_HEADER, ERROR_CODES, isProtocolErrorCode, httpStatusOf, protocolVersionOf } from "./protocol.js";
 export type { ProtocolErrorCode, ErrorCodeInfo } from "./protocol.js";
+// The seq of the stream frames: the metadata key of an item after a gap (WIRE-PROTOCOL.md)
+export { STREAM_GAP_METADATA_KEY } from "./adapters/sequence.js";
 // The deadline of a call: the remaining time goes as procedure-timeout (roadmap R10)
 export { TIMEOUT_METADATA_KEY, DEADLINE_METADATA_KEY } from "./client/deadline.js";
 // Typed durations: each public option that is a time takes a Duration (roadmap R11)

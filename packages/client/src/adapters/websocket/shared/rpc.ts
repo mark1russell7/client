@@ -15,6 +15,7 @@ import type { Message, ResponseItem } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest } from "../../../server/types.js";
 import type { WebSocketMessage } from "../server/types.js";
 import { withoutInternalKeys } from "../../metadata.js";
+import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import { DELIVERY_METADATA_KEY } from "../../../client/middleware/items.js";
 
 /**
@@ -143,6 +144,8 @@ interface PendingCall {
   messageId: string;
   /** The response items of the call, in order */
   queue: ItemQueue<ResponseItem<unknown>>;
+  /** The `seq` of the stream frames: a duplicate or a late frame gives no item */
+  order: StreamSequence;
   /** The time limit until the first frame */
   timeout?: ReturnType<typeof setTimeout> | undefined;
 }
@@ -192,7 +195,7 @@ export class OutgoingCalls {
     const wireId = `${this.options.idPrefix}${message.id}~${++this.seq}`;
     const window = this.options.streamWindow;
     const queue = new ItemQueue<ResponseItem<unknown>>();
-    const pending: PendingCall = { messageId: message.id, queue };
+    const pending: PendingCall = { messageId: message.id, queue, order: new StreamSequence() };
     const limited = Number.isFinite(this.options.requestTimeoutMs) && this.options.requestTimeoutMs > 0;
     if (limited) pending.timeout = setTimeout(() => {
       if (this.pending.get(wireId) !== pending) return;
@@ -231,8 +234,10 @@ export class OutgoingCalls {
       let taken = 0;
       for await (const item of queue) {
         yield item as ResponseItem<TRes>;
-        // The reader took the item: give the other side credit, in batches of half the window
-        if (++taken >= window / 2 && this.pending.get(wireId) === pending) {
+        // The reader took the item: give the other side credit, in batches of half the window.
+        // The frames of a gap took credit too, and no reader takes them.
+        taken += 1 + gapOf(item.metadata);
+        if (taken >= window / 2 && this.pending.get(wireId) === pending) {
           this.sendCredit(wireId, taken);
           taken = 0;
         }
@@ -262,12 +267,15 @@ export class OutgoingCalls {
       pending.timeout = undefined;
     }
     if (frame.type === "stream" && !frame.status) {
+      // A duplicate or a late frame: its item came before, or the delivery is at most once
+      const gap = pending.order.next(frame.seq, frame.id);
+      if (gap < 0) return true;
       if (frame.stream?.done) {
         this.pending.delete(frame.id);
         pending.queue.end();
         return true;
       }
-      pending.queue.push({ id: pending.messageId, status: { type: "success", code: 200 }, payload: frame.payload, metadata: frame.metadata || {} });
+      pending.queue.push({ id: pending.messageId, status: { type: "success", code: 200 }, payload: frame.payload, metadata: itemMetadata(frame.metadata, gap) });
       return true;
     }
     this.pending.delete(frame.id);
@@ -394,13 +402,15 @@ export class IncomingCalls {
 
   /**
    * Send a stream (BUGS-2026-07 H5): one `stream` frame for each item, then a frame with
-   * `stream.done`. An error of the stream ends it with an `error` frame. When the signal aborts
-   * (a cancel frame, a closed socket), the loop stops, and the handler of the stream gets
-   * return(). The stream takes its next item only when the reader has credit for it.
+   * `stream.done`. Each `stream` frame has its `seq`, from 1. An error of the stream ends it with
+   * an `error` frame. When the signal aborts (a cancel frame, a closed socket), the loop stops,
+   * and the handler of the stream gets return(). The stream takes its next item only when the
+   * reader has credit for it.
    */
   private async sendStream(id: string, stream: AsyncIterable<unknown>, signal: AbortSignal, credit: StreamCredit | undefined): Promise<void> {
     const iterator = stream[Symbol.asyncIterator]();
     let done = false;
+    let seq = 0;
     try {
       for (;;) {
         if (credit && !(await credit.take(signal))) return;
@@ -411,11 +421,11 @@ export class IncomingCalls {
           break;
         }
         if (signal.aborted || !this.options.isOpen()) return;
-        const item: WebSocketMessage = { id, type: "stream", payload: result.value, stream: { done: false } };
+        const item: WebSocketMessage = { id, type: "stream", seq: ++seq, payload: result.value, stream: { done: false } };
         if (this.options.sendWithBackpressure) await this.options.sendWithBackpressure(item, signal);
         else this.send(item);
       }
-      this.send({ id, type: "stream", stream: { done: true } });
+      this.send({ id, type: "stream", seq: ++seq, stream: { done: true } });
     } catch (error) {
       done = true;
       if (signal.aborted) return;
