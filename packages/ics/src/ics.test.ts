@@ -84,6 +84,24 @@ describe("zonedToUtc", () => {
     expect(zonedToUtc(2026, 3, 7, 12, 0, 0, "America/New_York")).toBe("2026-03-07T17:00:00Z");
     expect(zonedToUtc(2026, 3, 9, 12, 0, 0, "America/New_York")).toBe("2026-03-09T16:00:00Z");
   });
+
+  it("gives the first occurrence of a local time that occurs two times (RFC 5545)", () => {
+    expect(zonedToUtc(2026, 11, 1, 1, 30, 0, "America/New_York")).toBe("2026-11-01T05:30:00Z");
+    expect(zonedToUtc(2026, 10, 25, 2, 30, 0, "Europe/Berlin")).toBe("2026-10-25T00:30:00Z");
+  });
+
+  it("uses the offset before the gap for a local time that does not occur (RFC 5545)", () => {
+    // 02:30 does not occur: it becomes 03:30 daylight time
+    expect(zonedToUtc(2026, 3, 8, 2, 30, 0, "America/New_York")).toBe("2026-03-08T07:30:00Z");
+    expect(zonedToUtc(2026, 3, 29, 2, 30, 0, "Europe/Berlin")).toBe("2026-03-29T01:30:00Z");
+    expect(zonedToUtc(2026, 3, 8, 1, 59, 0, "America/New_York")).toBe("2026-03-08T06:59:00Z");
+    expect(zonedToUtc(2026, 3, 8, 3, 0, 0, "America/New_York")).toBe("2026-03-08T07:00:00Z");
+  });
+
+  it("reads a TZID time in a gap as RFC 5545 tells", () => {
+    const [event] = parseIcs(calendar(["UID:gap", "DTSTART;TZID=America/New_York:20260308T023000"]));
+    expect(event?.start).toBe("2026-03-08T07:30:00Z");
+  });
 });
 
 const event = (lines: string[]): IcsEvent => {

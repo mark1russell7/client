@@ -4,6 +4,8 @@
  * it ignores the others (alarms, attendees, time zone definitions).
  */
 
+import { zonedInstant } from "./zone.js";
+
 /** One event of a calendar (one VEVENT). */
 export interface IcsEvent {
   readonly uid: string;
@@ -85,39 +87,13 @@ const parseProp = (line: string): IcsProp | undefined => {
   return { name: name.toUpperCase(), params, value };
 };
 
-const tzOffsetMs = (timeZone: string, date: Date): number => {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = new Map(dtf.formatToParts(date).map((part) => [part.type, part.value]));
-  const hour = parts.get("hour") === "24" ? "00" : (parts.get("hour") ?? "00");
-  const local = Date.UTC(
-    Number(parts.get("year")),
-    Number(parts.get("month")) - 1,
-    Number(parts.get("day")),
-    Number(hour),
-    Number(parts.get("minute")),
-    Number(parts.get("second"))
-  );
-  return local - date.getTime();
-};
-
-/** This function gives the UTC time (ISO 8601) of a local time in an IANA time zone. */
-export const zonedToUtc = (y: number, mo: number, d: number, h: number, mi: number, s: number, timeZone: string): string => {
-  const asUtc = Date.UTC(y, mo - 1, d, h, mi, s);
-  let ts = asUtc - tzOffsetMs(timeZone, new Date(asUtc));
-  // A second pass corrects the offset near a DST change
-  const second = asUtc - tzOffsetMs(timeZone, new Date(ts));
-  if (second !== ts) ts = second;
-  return toIso(ts);
-};
+/**
+ * This function gives the UTC time (ISO 8601) of a local time in an IANA time zone, as RFC 5545
+ * (3.3.5) tells. A local time that occurs two times gives its first occurrence. A local time in
+ * the gap of a change to daylight time uses the offset before the gap: 02:30 becomes 03:30.
+ */
+export const zonedToUtc = (y: number, mo: number, d: number, h: number, mi: number, s: number, timeZone: string): string =>
+  toIso(zonedInstant(Date.UTC(y, mo - 1, d, h, mi, s), timeZone));
 
 const parseIcsDate = (prop: IcsProp): { iso: string; allDay: boolean; tzid?: string } | undefined => {
   const value = prop.value;
