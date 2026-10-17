@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createRegistry, effectsOf, InvocationError, invokePath, outputValue, type Capability } from "@procedures/client";
+import { createRegistry, effectsOf, InvocationError, invokePath, isDataDriven, outputValue, takesRawInput, type Capability } from "@procedures/client";
 import { createLlmModule, llmModule, type LlmModuleOptions } from "./module.js";
 import { LlmError } from "./errors.js";
 import { constrainedSchema, parseAnswer } from "./schema.js";
@@ -51,7 +51,7 @@ function fakeFetch(answers: Array<unknown | Response | ((init: RequestInit) => P
 
 function setup(answers: Parameters<typeof fakeFetch>[0] = [], options: LlmModuleOptions = {}) {
   const fake = fakeFetch(answers);
-  const registry = createRegistry(createLlmModule({ env: { ANTHROPIC_API_KEY: KEY }, fetch: fake.fetch, ...options }));
+  const registry = createRegistry(createLlmModule({ env: { ANTHROPIC_API_KEY: KEY }, fetch: fake.fetch, backoff: { base: 1, cap: 2 }, ...options }));
   const call = async <T>(key: string, input: unknown, extra: { signal?: AbortSignal; capability?: Capability } = {}): Promise<T> => {
     const path = key.split(".");
     return outputValue(await invokePath<T>(path, input, { registry, ...extra }), path);
@@ -74,6 +74,10 @@ describe("llm.complete", () => {
       model: "claude-sonnet-5-5",
       stopReason: "end_turn",
       usage: { inputTokens: 10, outputTokens: 5, cacheReadInputTokens: 2, cacheCreationInputTokens: 1 },
+      toolUses: [],
+      toolCalls: [],
+      rounds: 1,
+      roundLimit: false,
     });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.url).toBe("https://api.anthropic.com/v1/messages");
@@ -155,7 +159,7 @@ describe("the errors", () => {
 
   it("mark a rate limit, an overload and a server error as retryable", async () => {
     const overloaded = JSON.stringify({ type: "error", error: { type: "overloaded_error", message: "Overloaded" } });
-    const { call } = setup([new Response("{}", { status: 429 }), new Response(overloaded, { status: 529 }), new Response("<html>", { status: 500 })]);
+    const { call } = setup([new Response("{}", { status: 429 }), new Response(overloaded, { status: 529 }), new Response("<html>", { status: 500 })], { retries: 0 });
     for (const status of [429, 529, 500]) {
       await expect(call("llm.complete", { prompt: "x" })).rejects.toMatchObject({ code: "API_ERROR", status, retryable: true });
     }
@@ -173,7 +177,7 @@ describe("the errors", () => {
       async () => {
         throw new TypeError("fetch failed");
       },
-    ]);
+    ], { retries: 0 });
     await expect(call("llm.complete", { prompt: "x" })).rejects.toMatchObject({ code: "BAD_RESPONSE" });
     await expect(call("llm.complete", { prompt: "x" })).rejects.toMatchObject({ code: "BAD_RESPONSE" });
     await expect(call("llm.complete", { prompt: "x" })).rejects.toMatchObject({ code: "CONNECTION", retryable: true });
@@ -334,9 +338,23 @@ describe("the schema helpers", () => {
 
 describe("the module", () => {
   it("declares that each procedure reads and writes the network, deletes nothing and is not idempotent", () => {
-    expect(llmModule.procedures.map((procedure) => procedure.path.join("."))).toEqual(["llm.complete", "llm.structured"]);
+    expect(llmModule.procedures.map((procedure) => procedure.path.join("."))).toEqual(["llm.complete", "llm.structured", "llm.stream"]);
     for (const procedure of llmModule.procedures) {
       expect(effectsOf(procedure)).toEqual({ reads: ["network"], writes: ["network"], destructive: false, idempotent: false });
     }
+  });
+
+  it("marks llm.complete as data-driven, and llm.stream as a stream with an end", () => {
+    const [complete, structured, stream] = llmModule.procedures;
+    expect(isDataDriven(complete!)).toBe(true);
+    expect(isDataDriven(structured!)).toBe(false);
+    expect(takesRawInput(complete!)).toBe(false);
+    expect(stream!.metadata).toMatchObject({ streaming: true, stream: { unbounded: false } });
+  });
+
+  it("refuses bad retries and a bad backoff", () => {
+    expect(() => createLlmModule({ retries: 11 })).toThrow(/retries/);
+    expect(() => createLlmModule({ retries: 1.5 })).toThrow(/retries/);
+    expect(() => createLlmModule({ backoff: { base: -1 } })).toThrow(/backoff/);
   });
 });

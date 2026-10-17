@@ -2,14 +2,14 @@
  * llm.structured procedure
  *
  * Send a prompt and a JSON Schema to a language model and give a value that the schema accepts.
- * An answer that is not JSON, or that the schema refuses, gets a new try: the request then has
+ * An answer that is not JSON, or that the schema refuses, gets a new try. The next request has
  * the answer (its content, unchanged) and a user turn with the problems. At most 2 new tries.
  */
 
 import { validateJson, type JsonValue } from "@procedures/json";
 import { LlmError } from "../../errors.js";
-import { addUsage, DEFAULT_LLM_SETTINGS, NO_USAGE, sendMessages, textOf, type CallLimits, type LlmSettings, type MessagesRequest } from "../../anthropic.js";
-import { baseRequest, timeoutOf } from "../../request.js";
+import { addUsage, DEFAULT_LLM_SETTINGS, NO_USAGE, sendWithRetries, textOf, type CallLimits, type LlmSettings, type MessagesRequest } from "../../anthropic.js";
+import { baseRequest, retriesOf, timeoutOf } from "../../request.js";
 import { constrainedSchema, parseAnswer } from "../../schema.js";
 import type { LlmStructuredInput, LlmStructuredOutput, LlmUsage } from "../../types.js";
 
@@ -42,6 +42,7 @@ function problemsOf(value: unknown, schema: Record<string, unknown>): { problems
 export async function llmStructured(input: LlmStructuredInput, ctx?: CallLimits["ctx"], settings: LlmSettings = DEFAULT_LLM_SETTINGS): Promise<LlmStructuredOutput> {
   const constrained = input.constrained ?? true;
   const retries = Math.min(Math.max(input.retries ?? MAX_RETRIES, 0), MAX_RETRIES);
+  const requestRetries = retriesOf(input.requestRetries, settings);
   const system = [input.system, instruction(input, constrained)].filter((part) => part !== undefined && part !== "").join("\n\n");
   const request: MessagesRequest = baseRequest(input, settings, system);
   if (constrained) {
@@ -51,7 +52,8 @@ export async function llmStructured(input: LlmStructuredInput, ctx?: CallLimits[
   let usage: LlmUsage = NO_USAGE;
   let lastProblem = "";
   for (let attempt = 1; attempt <= retries + 1; attempt++) {
-    const answer = await sendMessages(request, settings, { path: PATH, ctx, timeoutMs: timeoutOf(input) });
+    // A retryable error of the API gets new tries here: they do not count as attempts
+    const answer = await sendWithRetries(request, settings, { path: PATH, ctx, timeoutMs: timeoutOf(input) }, requestRetries);
     usage = addUsage(usage, answer.usage);
     if (answer.stopReason === "max_tokens") {
       throw new LlmError("MAX_TOKENS", `llm.structured: the answer stopped at maxTokens (${request.max_tokens}), so the JSON is not complete`);
