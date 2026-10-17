@@ -590,24 +590,42 @@ The owner decided these items. The changes are on `main`, and they go out in 0.4
 - Reported upstream by others: the `yaml` bug is issue #692 of `yaml`. The bug of the vitest runner of Stryker is issue #6210 of `stryker-js`. The `yaml` project accepts no issue text from an LLM.
 - Published: each new package is on npm. The git tags and the GitHub releases of 0.3.0 come from `scripts/release-tags.mjs`.
 
+### Decided on 2026-10-17
+
+The owner decided these items. The changes are on `main`, and they go out in 0.5.0.
+
+- Deleted: the repository tool `packages/cli`, which had no commands after the removals.
+- Fixed: the four differences between the storages. A stored `null` reads back as `null`, and each read gives a copy. A delta follows the last change of each id, and each operation rejects after `close()`.
+  - `InMemoryStorage` has the option `copies: false` for a hot path, because a copy costs approximately 4 µs for each item.
+  - `collections.<name>.get` takes `found: true` and then gives `{ found, value }`.
+- Fixed: `dag.traverse` gives an entry with `skipped: true` for each package that did not run after a failure.
+- Built: `lib audit` reports each procedure without `metadata.effects`. It found none.
+- Built: the remote events (`EVENTS.md`). A subscription is the streaming call `events.subscribe`, with credit, cancel, resubscribe and a rule for the topics.
+- Built: `procedure-server`, `mark serve` and `mark --server` take `--events <patterns>`. Without it, a subscription gives `TOPIC_NOT_FOUND`.
+- Built: `mark --fs-root <folder>` and `MCP_FS_ROOT` confine the `fs.*` procedures and their nested calls.
+- Built: each stream frame has `seq`. A receiver drops a duplicate or a late frame, and a gap marks the next item with `stream-gap`.
+- Built: `llm.stream`, tools, procedures as tools with the admission of the host, and an automatic retry with `retry-after`.
+- Built: IANA time zones in `schedule` with the rules of Vixie cron, a lock of `FileScheduleStore` across processes, and a root for `archive`.
+- Built: `SqliteStorage` on `node:sqlite` when the platform has it, and on sql.js otherwise. 1,000 writes to a file take 141 ms, against 1,246 ms on sql.js.
+- Built: `HybridStorage` reads the local ids without copies, so a full pull takes 30 % less time.
+- Built: one-click releases. The release workflow opens the pull request "Version the packages".
+- Built in systems: the WebSocket cells behind a router and a proxy (PR #27, harness 0.10.0). All nine cells with a band hold in two runs.
+- Fixed: the tests of `http` do not depend on the time of an abort, so its floor of the functions holds in each run.
+
 ### Open
 
-- `dag.traverse` has a block that cannot run: "ensure all nodes have results". Each visit records its own result.
-- The contract suite found four differences between the storages, and nothing fixes them yet:
-  - `ApiStorage` reads a stored `null` as a missing value.
-  - `InMemoryStorage` and `HybridStorage` keep references to the values, and `SqliteStorage` keeps copies.
-  - A delta follows the first write of each id in `InMemoryStorage`, and the last write in `SqliteStorage`.
-  - After `close()`, `InMemoryStorage` is empty and works, and `SqliteStorage` throws.
-- The README of `bundle-dev` gives 62 procedures. The bundle has 93.
-- A duplicate stream frame gives a duplicate item, because the frames have no sequence numbers.
-- `mark procedure new` makes a procedure without `metadata.effects`. A default of "pure" can be false, so the author writes them. A host with a capability refuses a procedure without effects.
-- The fs root (R33) is not in `mark` or the MCP host.
+- `mark --fs-root` does not confine the procedures that read files with `node:fs` or start a program: `git.*`, `docker.*`, `pnpm.*`, `cue.generate`, `sqlite.*`, `archive.*` and others. The README of the fs package lists them.
+- The `db.*` names of the sqlite procedures are deprecated aliases for one release. They go away in 0.5.0 or the release after it.
+- `packages/archive/src/root.ts` copies the rules of `packages/client-fs/src/root.ts`. One shared export removes the copy.
+- The test `body-stop.test.ts` of `packages/server` failed once with `EADDRINUSE`: two tests took the same port.
+- The WebSocket cells of systems run on client 0.3.0. A move to 0.4.0 changes the line numbers that their machine documents cite.
+- HAProxy has no machine document, so its timeout cells have no band.
+- `Verdict.left` of the cells with the global `WebSocket` class measures the end of the client process, not a close by the program. A fix is in progress in systems (harness 0.11.0).
+- `llm.complete` with procedures as tools uses a forced `toolChoice` only for the first request. A `tool_result` keeps at most 200,000 characters.
 - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
 - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.
-- `SqliteStorage` writes the whole database file after each write, because sql.js has no partial writes.
 - The MCP host has 91 tools. Some procedures can carry data out, change data in bulk, or run without an end. They are not tools: `http.*`, `docker.push`, `docker.prune`, `docker.volume.remove`, `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup`.
 - R46 adds no MCP tools. `llm.*` costs money and sends data out. `env.*` can show secrets. `fs` is not an MCP namespace, and `archive.list` reads files. It is not a tool for that reason. `schedule.next` has little use without `schedule.add`.
-- `llm` has no event stream, no tool use and no automatic retry. An error has a `retryable` flag. `schedule` has no IANA time zones, and `FileScheduleStore` has no lock for more than one process. `archive` has no file root.
 - The root `.gitignore` ignores `secrets.*`. An agent made `packages/env/src/secrets.ts`, and git did not take it. A negation line keeps that file in git. A merge of an agent branch checks the ignored files of the worktree.
 - Stryker 10.0.0 rewrites `tsconfig.json` in its sandbox with the JavaScript API of TypeScript. TypeScript 7 does not have that API, so the mutation job runs Stryker in place.
 - The fs root decides by the real path. A link from outside the root that leads into the root is accepted, because it reaches only files in the root. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
