@@ -1,0 +1,148 @@
+{
+  "sent": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "s1",
+      "type": "request",
+      "method": {
+        "service": "events",
+        "operation": "subscribe"
+      },
+      "payload": {
+        "topics": [
+          "orders.created"
+        ]
+      },
+      "metadata": {},
+      "credit": 2
+    },
+    {
+      "id": "s1",
+      "type": "credit",
+      "credit": 2
+    },
+    {
+      "id": "s2",
+      "type": "request",
+      "method": {
+        "service": "events",
+        "operation": "subscribe"
+      },
+      "payload": {
+        "topics": [
+          "orders.created",
+          "users.created"
+        ]
+      },
+      "metadata": {},
+      "credit": 64
+    },
+    {
+      "id": "s3",
+      "type": "request",
+      "method": {
+        "service": "events",
+        "operation": "subscribe"
+      },
+      "payload": {
+        "topics": [
+          "secret.plans"
+        ]
+      },
+      "metadata": {},
+      "credit": 64
+    },
+    {
+      "id": "s1",
+      "type": "cancel"
+    }
+  ],
+  "received": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "payload": {
+        "type": "subscribed",
+        "topics": [
+          "orders.created"
+        ]
+      },
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "payload": {
+        "type": "event",
+        "topic": "orders.created",
+        "data": {
+          "order": 1
+        },
+        "seq": 1
+      },
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "payload": {
+        "type": "event",
+        "topic": "orders.created",
+        "data": {
+          "order": 2
+        },
+        "seq": 2
+      },
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 2>",
+      "type": "error",
+      "metadata": {},
+      "status": {
+        "type": "error",
+        "code": "TOPIC_NOT_FOUND",
+        "message": "The host has no topic \"users.created\"",
+        "retryable": false
+      },
+      "error": {
+        "code": "TOPIC_NOT_FOUND",
+        "message": "The host has no topic \"users.created\"",
+        "retryable": false
+      }
+    },
+    {
+      "id": "<id 3>",
+      "type": "error",
+      "metadata": {
+        "reason": "topic-not-allowed"
+      },
+      "status": {
+        "type": "error",
+        "code": "FORBIDDEN",
+        "message": "The capability of the call does not permit the topic \"secret.plans\"",
+        "retryable": false
+      },
+      "error": {
+        "code": "FORBIDDEN",
+        "message": "The capability of the call does not permit the topic \"secret.plans\"",
+        "retryable": false
+      }
+    }
+  ]
+}

@@ -46,7 +46,8 @@ export type ProtocolErrorCode =
   | "TIMEOUT"
   | "UNAVAILABLE"
   | "CONNECTION_CLOSED"
-  | "CONNECTION_NOT_FOUND";
+  | "CONNECTION_NOT_FOUND"
+  | "TOPIC_NOT_FOUND";
 
 /**
  * The error codes of the protocol, on each face (HTTP, WebSocket, MCP, local). An error that a
@@ -76,6 +77,7 @@ export const ERROR_CODES: Readonly<Record<ProtocolErrorCode, ErrorCodeInfo>> = {
   UNAVAILABLE: { http: 503, retryable: true, meaning: "The server cannot take the call now: it stops, or it is busy" },
   CONNECTION_CLOSED: { http: 503, retryable: true, meaning: "The connection closed before the call left" },
   CONNECTION_NOT_FOUND: { http: 404, retryable: false, meaning: "The server has no connection with this id" },
+  TOPIC_NOT_FOUND: { http: 404, retryable: false, meaning: "The topic rule of the host has no topic with this name" },
 };
 
 /** True when a code is an error code of the protocol. */

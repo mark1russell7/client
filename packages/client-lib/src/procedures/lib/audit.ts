@@ -34,7 +34,8 @@ export const PACKAGE_TEMPLATE: { files: string[]; dirs: string[] } = {
 
 /**
  * Folders under packages/ that are not client packages.
- * packages/cli holds the repository tool from the template, which does not use cue-config.
+ * A workspace that comes from the template keeps its repository tool in packages/cli, which does not
+ * use cue-config. This repository has no such folder since 2026-10-17.
  */
 const NOT_CLIENT_PACKAGES = new Set(["cli"]);
 

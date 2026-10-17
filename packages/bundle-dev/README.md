@@ -31,7 +31,7 @@ const packages = await client.exec(["lib", "scan"], {});
 | `client-dag` | `dag.traverse`. It uses `lib.scan` of `client-lib`. |
 | `client-procedure` | `procedure.new`, `procedure.export` |
 
-The bundle registers 62 procedures, and the core adds its own. [PROCEDURES.md](../documentation/PROCEDURES.md) describes each procedure.
+The bundle registers 93 procedures (2026-10-17), and the core adds its own 20. [PROCEDURES.md](../documentation/PROCEDURES.md) describes each procedure.
 
 ## Where it is used
 

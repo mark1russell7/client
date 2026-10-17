@@ -25,6 +25,8 @@ import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import { TIMER_DEFAULTS } from "../timers.js";
 import { errorCodeOf } from "../protocol.js";
+import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
+import { getGlobalEventBus } from "../events/bus.js";
 
 // =============================================================================
 // Types
@@ -119,6 +121,14 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `request.principal`.
    */
   authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
+
+  /**
+   * The remote events of the server (`documentation/EVENTS.md`): a bus and its topic rule, or an
+   * `EventPublisher`. The server pins the procedure `events.subscribe`, outside its registry, so a
+   * peer can subscribe to the topics. The procedures of the server get this bus as `ctx.bus`.
+   * `stop()` ends each subscription first, with `UNAVAILABLE`.
+   */
+  events?: EventPublisherOptions | EventPublisher | undefined;
 }
 
 /**
@@ -288,6 +298,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly authenticate: ProcedureServerOptions["authenticate"];
   /** The functions that `stop()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
+  /** The publisher of the remote events, from the option `events`, or undefined. */
+  readonly publisher: EventPublisher | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -305,6 +317,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.idempotency = options.idempotency === false ? undefined : new IdempotencyCache(options.idempotency ?? {});
     this.token = options.token;
     this.authenticate = options.authenticate;
+    // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
+    this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
+    if (this.publisher) this.registerProcedure(this.publisher.procedure);
 
     // Configure collections
     if (options.collections) {
@@ -645,6 +660,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         clearanceOrder,
         resources,
         admitItem,
+        // The bus of the remote events is the bus of the procedures (EVENTS.md)
+        ...(this.publisher ? { bus: this.publisher.bus } : {}),
       });
       if (output.kind === "stream") {
         // The faces that collect a stream read this mark (roadmap R15)
@@ -723,6 +740,17 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   }
 
   /**
+   * This function publishes an event on the bus of the server: the bus of the option `events`, or
+   * the global bus. Each subscription of the topic gets it (`documentation/EVENTS.md`).
+   *
+   * @param topic - The topic: a channel of the bus
+   * @param data - The data of the event. It crosses the wire as JSON.
+   */
+  publish<T>(topic: string, data: T): void {
+    (this.publisher?.bus ?? getGlobalEventBus()).emit(topic, data);
+  }
+
+  /**
    * This method closes each storage one time, also a storage of two collections, and removes the
    * storages from the server. A closed storage rejects each operation, so the server does not keep
    * it. Before a new `start()`, give the storages again with `useStorage()`.
@@ -745,6 +773,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     // A graceful stop: new calls get UNAVAILABLE, and the calls in flight have the grace time
     // to end (roadmap R14). Before, the transports aborted every call at once.
     this.draining = true;
+    // A subscription has no end: it ends now, with a retryable UNAVAILABLE (EVENTS.md)
+    this.publisher?.end();
     if (graceMs > 0 && this.inFlight > 0) {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, graceMs);

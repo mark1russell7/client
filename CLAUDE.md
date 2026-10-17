@@ -10,13 +10,13 @@ Write all prose of this repository in the style of ASD-STE100 Simplified Technic
 - Use the active voice. Start each sentence of a doc comment with its subject: "This function returns the value", not "Returns the value".
 - Put code, file names and commands in code font. The linter counts each code span as one word.
 - Add a word to the glossary in `ste.config.json` only if it is a real technical term of the project.
-- At this time, the linter examines only the root files and `packages/cli`. The imported packages get the rules when their prose is rewritten.
+- The linter examines the files that `ste.config.json` names: the root files, the documentation, and the README of each package whose prose is rewritten.
 
 ## Repository structure
 
 - Each folder in `packages/` is one package. The folders keep the names of their old repositories.
 - The npm scope of the packages is `@procedures`. The npm name can differ from the folder: `packages/client-shell` holds `@procedures/shell`. The root README has the table of names.
-- The folder `packages/mark` holds `@procedures/mark`, the `mark` CLI. The folder `packages/cli` holds the repository tool.
+- The folder `packages/mark` holds `@procedures/mark`, the `mark` CLI.
 - `scripts/check-scope.mjs` fails when a file names a package of this repository with the old scope `@mark1russell7`.
 - The old repositories are archived. Do not change them. Make all changes in this repository.
 - Git ignores `dist/`. Do not commit build output.

@@ -227,6 +227,21 @@ for await (const event of client.stream(
 }
 ```
 
+### Remote events
+
+A client subscribes to topics of the event bus of the server, and the server to topics of the bus of a client ([EVENTS.md](../../documentation/EVENTS.md)). A subscription is a streaming call of `events.subscribe`, with credit and cancel.
+
+```typescript
+// The server: a ProcedureServer with the option events
+const server = new ProcedureServer({ registry, autoRegister: true, events: { bus, topics: ["orders.*"] } });
+
+// The client: the function gives the unsubscribe. After a drop, the transport resubscribes.
+const unsubscribe = transport.subscribe("orders.created", (order, event) => console.log(event.seq, order));
+await unsubscribe.ready;
+server.publish("orders.created", { order: 1 });
+unsubscribe();
+```
+
 ---
 
 ## Local Adapter

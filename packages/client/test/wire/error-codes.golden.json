@@ -82,5 +82,9 @@
   "CONNECTION_NOT_FOUND": {
     "http": 404,
     "retryable": false
+  },
+  "TOPIC_NOT_FOUND": {
+    "http": 404,
+    "retryable": false
   }
 }

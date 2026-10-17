@@ -32,6 +32,7 @@ import { createProcedure } from "./procedures/define.js";
 import { createRegistry } from "./procedures/module.js";
 import { ProcedureServer } from "./server/procedure-server.js";
 import { pathToMethod } from "./server/method.js";
+import { createEventBus } from "./events/bus.js";
 
 /** The number of aborted calls of each face. */
 const CALLS = 1000;
@@ -347,6 +348,85 @@ describe("no leak after 1,000 aborted calls (R30)", { timeout: 30_000 }, () => {
       { client: new Client({ transport: reverse, throwOnError: true }), handlers, servers: [served], maps: () => ({ ...clientMaps(transport), ...serverMaps(wsServer) }) },
       clock,
     );
+  });
+});
+
+// The remote events (documentation/EVENTS.md): a subscription is a stream without an end, so each
+// of its ends must remove the listeners on the bus and the entries of the two sides
+describe("no leak after 1,000 subscriptions (R30, EVENTS.md)", { timeout: 30_000 }, () => {
+  it("WebSocket: an unsubscribe before and after the confirmation, after an event, a break and an abort", async () => {
+    quiet();
+    const bus = createEventBus();
+    const host = new ProcedureServer({ registry: createRegistry(), events: { bus, topics: ["*"] } });
+    const http = createServer();
+    const wsServer = new WebSocketServerTransport(host, { server: http, path: "/ws", heartbeat: false });
+    host.addTransport(wsServer);
+    await host.start();
+    const port = await listen(http);
+    const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${port}/ws`, heartbeat: { enabled: false }, reconnect: { enabled: false } });
+    cleanups.push(async () => {
+      await transport.close();
+      await host.stop();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    await waitFor(() => transport.isConnected(), "the connection");
+
+    const signals: AbortSignal[] = [];
+    /** Subscription `n` of its kind, until its end. */
+    const subscription = async (n: number): Promise<void> => {
+      const topic = `topic-${n % 7}`;
+      const controller = new AbortController();
+      signals.push(controller.signal);
+      const kind = n % 5;
+      if (kind === 3) {
+        // An iterator that breaks after its first event
+        let confirmed = false;
+        const reader = (async () => {
+          for await (const _event of transport.events(topic, { signal: controller.signal, onSubscribed: () => (confirmed = true) })) break;
+        })();
+        await waitFor(() => confirmed, "the confirmation of an iterator");
+        bus.emit(topic, n);
+        await reader;
+        return;
+      }
+      let got = false;
+      const unsubscribe = transport.subscribe(topic, () => void (got = true), { signal: controller.signal });
+      if (kind === 0) {
+        // Before the confirmation
+        unsubscribe();
+        await unsubscribe.ready.catch(() => undefined);
+        return;
+      }
+      await unsubscribe.ready;
+      if (kind === 2) {
+        bus.emit(topic, n);
+        await waitFor(() => got, "an event");
+      }
+      // The abort of the signal of the options ends a subscription too
+      if (kind === 4) controller.abort();
+      else unsubscribe();
+    };
+    for (let first = 0; first < CALLS; first += BATCH) {
+      await Promise.all(Array.from({ length: BATCH }, (_, index) => subscription(first + index)));
+    }
+
+    await waitFor(() => host.publisher!.subscriptions === 0, "the subscriptions of the publisher end");
+    await waitFor(() => host.callsInFlight === 0, "no call in flight");
+    // A map that keeps an entry fails here with its name
+    await waitFor(() => Object.values({ ...clientMaps(transport), ...serverMaps(wsServer) }).every((size) => size === 0), "the maps are empty", 2000).catch(() => undefined);
+    expect({ ...clientMaps(transport), ...serverMaps(wsServer) }).toEqual({
+      "client.pendingRequests": 0,
+      "client.stateListeners": 0,
+      "client.incoming": 0,
+      "client.incoming.credits": 0,
+      "server.incoming": 0,
+      "server.incoming.credits": 0,
+      "server.outgoing": 0,
+    });
+    // No listener stays on the bus, or on the signal of a subscription
+    expect(bus.channels()).toEqual([]);
+    expect(signals.filter((signal) => getEventListeners(signal, "abort").length > 0)).toHaveLength(0);
   });
 });
 

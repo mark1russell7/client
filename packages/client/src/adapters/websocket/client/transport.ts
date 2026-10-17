@@ -20,6 +20,17 @@ import { heartbeat, type Heartbeat } from "@mark1russell7/service/heartbeat";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import type { MachineTransition } from "../../../machines.js";
 import { WEBSOCKET_CONNECTION_MACHINE } from "../../../machines.js";
+import {
+  SubscriptionError,
+  remoteEvents,
+  subscribeRemote,
+  type RemoteEvent,
+  type RemoteEventHandler,
+  type RemoteEventsOptions,
+  type SubscribeOptions,
+  type Subscription,
+  type SubscriptionHooks,
+} from "../../../events/remote.js";
 
 /**
  * Pending request waiting for response.
@@ -234,6 +245,8 @@ export class WebSocketTransport implements Transport {
   private incoming: IncomingCalls | undefined;
   /** The time limit of the handshake of the socket that opens now */
   private handshakeTimer: Cancel | undefined = undefined;
+  /** The signal of the subscriptions of the transport: `close()` aborts it, so they end (EVENTS.md) */
+  private readonly subscriptions = new AbortController();
 
   constructor(options: WebSocketTransportOptions) {
     this.options = {
@@ -562,7 +575,8 @@ export class WebSocketTransport implements Transport {
       return;
     }
 
-    // Handle event (subscription event from server)
+    // The frame type `event` is reserved: no side of protocol v1 sends it. A server outside this
+    // repository can send it, so the frame still goes to onEvent (EVENTS.md).
     if (message.type === "event") {
       if (this.options.onEvent && message.topic && message.subscriptionId) {
         try {
@@ -577,7 +591,8 @@ export class WebSocketTransport implements Transport {
     // Handle response
     const pending = this.pendingRequests.get(message.id);
     if (!pending) {
-      console.warn(`[${this.name}] Received response for unknown request: ${message.id}`);
+      // A stream frame that left before the cancel of its call is normal: an unsubscribe, a break
+      if (message.type !== "stream") console.warn(`[${this.name}] Received response for unknown request: ${message.id}`);
       return;
     }
 
@@ -849,9 +864,87 @@ export class WebSocketTransport implements Transport {
   }
 
   /**
-   * Close WebSocket connection. The requests in progress fail.
+   * This function subscribes to topics of the bus of the server (`documentation/EVENTS.md`). The
+   * handler gets each event in order. After a drop, the transport sends the subscription again on
+   * the new connection. The events between the drop and the new confirmation are lost.
+   *
+   * @param topics - One topic, or a list of 1 to 64 topics
+   * @param handler - The handler of each event. A promise that it gives holds the next event.
+   * @param options - `onSubscribed`, `onError`, a signal, the metadata of the call
+   * @returns The unsubscribe function, with the `ready` promise of the first confirmation
+   *
+   * @example
+   * ```typescript
+   * const unsubscribe = transport.subscribe("orders.created", (order) => console.log(order));
+   * await unsubscribe.ready;
+   * unsubscribe();
+   * ```
+   */
+  subscribe<T = unknown>(topics: string | readonly string[], handler: RemoteEventHandler<T>, options: SubscribeOptions = {}): Subscription {
+    return subscribeRemote<T>(this, topics, handler, options, this.subscriptionHooks());
+  }
+
+  /**
+   * This function gives the events of topics of the bus of the server as an async iterator. A
+   * `break` or the signal ends the subscription. The transport resubscribes after a drop, as for
+   * `subscribe()`. An error that ends the subscription ends the iteration.
+   *
+   * @param topics - One topic, or a list of 1 to 64 topics
+   * @param options - A signal, `onSubscribed`, the metadata of the call
+   */
+  events<T = unknown>(topics: string | readonly string[], options: RemoteEventsOptions = {}): AsyncIterable<RemoteEvent<T>> {
+    return remoteEvents<T>(this, topics, options, this.subscriptionHooks());
+  }
+
+  /** The parts of the subscriptions of this transport: its connection, its backoff, its close and `onEvent`. */
+  private subscriptionHooks(): SubscriptionHooks {
+    return {
+      lifetime: this.subscriptions.signal,
+      ready: (signal) => this.whenConnected(signal),
+      backoff: (attempt) => reconnectDelay(attempt, this.options.reconnect),
+      onEvent: (event) => {
+        if (!this.options.onEvent) return;
+        try {
+          this.options.onEvent(event.topic, event.data, event.subscription);
+        } catch (error) {
+          console.error(`[${this.name}] Event handler error:`, error);
+        }
+      },
+    };
+  }
+
+  /**
+   * This function resolves when the transport is connected, or when the signal aborts. It has no
+   * time limit: a subscription waits for each reconnect. It rejects when the transport closed or
+   * stopped its reconnects.
+   */
+  private whenConnected(signal: AbortSignal): Promise<void> {
+    const closed = (): SubscriptionError => new SubscriptionError("CONNECTION_CLOSED", "The WebSocket transport is closed", false);
+    if (this.state === WebSocketState.CONNECTED || signal.aborted) return Promise.resolve();
+    if (this.state === WebSocketState.DISCONNECTED || this.closing) return Promise.reject(closed());
+    return new Promise((resolve, reject) => {
+      const finish = (error?: SubscriptionError): void => {
+        this.stateListeners.delete(check);
+        signal.removeEventListener("abort", onAbort);
+        if (error) reject(error);
+        else resolve();
+      };
+      const check = (): void => {
+        if (this.state === WebSocketState.CONNECTED) finish();
+        else if (this.state === WebSocketState.DISCONNECTED) finish(closed());
+      };
+      const onAbort = (): void => finish();
+      this.stateListeners.add(check);
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+  }
+
+  /**
+   * Close WebSocket connection. The requests in progress fail, and the subscriptions end.
    */
   async close(): Promise<void> {
+    // The subscriptions end first: each one sends its cancel while the socket is open
+    this.subscriptions.abort();
     this.closing = true;
     this.setState(WebSocketState.DISCONNECTING, "close");
     this.stopHeartbeat();

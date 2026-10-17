@@ -24,6 +24,15 @@ import { optionalMs } from "../../../duration.js";
 import { credentialsOf, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
+import {
+  remoteEvents,
+  subscribeRemote,
+  type RemoteEvent,
+  type RemoteEventHandler,
+  type RemoteEventsOptions,
+  type SubscribeOptions,
+  type Subscription,
+} from "../../../events/remote.js";
 
 /**
  * WebSocket server transport adapter.
@@ -389,6 +398,8 @@ export class WebSocketServerTransport implements ServerTransport {
     if (channel.incoming.receive(message)) return;
     // A server-response frame of an older client, for a call that no longer exists
     if (message.type === "server-response") return;
+    // A late answer of a call that the server stopped: a cancel (an unsubscribe), a time limit
+    if (message.type === "stream" || message.type === "response" || message.type === "error") return;
     this.sendError(ws, message.id || "unknown", "Invalid message format");
   }
 
@@ -525,6 +536,38 @@ export class WebSocketServerTransport implements ServerTransport {
   }
 
   /**
+   * This function subscribes to topics of the bus of a client (`documentation/EVENTS.md`). The
+   * client serves them with its `serve` option: a `ProcedureServer` with the option `events`. The
+   * subscription ends with its connection: a reconnect is a new connection, so the server
+   * subscribes again in its `onConnect` handler. The `onError` handler gets the end.
+   *
+   * @param connectionId - The id of the connection of the client
+   * @param topics - One topic, or a list of 1 to 64 topics
+   * @param handler - The handler of each event, in order
+   * @param options - `onSubscribed`, `onError`, a signal, the metadata of the call
+   */
+  subscribe<T = unknown>(
+    connectionId: string,
+    topics: string | readonly string[],
+    handler: RemoteEventHandler<T>,
+    options: SubscribeOptions = {},
+  ): Subscription {
+    return subscribeRemote<T>(this.transportFor(connectionId), topics, handler, options, { resubscribe: false });
+  }
+
+  /**
+   * This function gives the events of topics of the bus of a client as an async iterator. The
+   * iteration ends with the connection, with an error.
+   *
+   * @param connectionId - The id of the connection of the client
+   * @param topics - One topic, or a list of 1 to 64 topics
+   * @param options - A signal, `onSubscribed`, the metadata of the call
+   */
+  events<T = unknown>(connectionId: string, topics: string | readonly string[], options: RemoteEventsOptions = {}): AsyncIterable<RemoteEvent<T>> {
+    return remoteEvents<T>(this.transportFor(connectionId), topics, options, { resubscribe: false });
+  }
+
+  /**
    * Call a procedure on a specific client (server-to-client RPC). It gives the value of the
    * call, and fails with its error. It is a wrapper of `callConnection` (roadmap R24).
    */
@@ -550,7 +593,6 @@ export class WebSocketServerTransport implements ServerTransport {
   }
 
   /**
-   * Register a handler for new connections.  /**
    * Register a handler for new connections.
    * Returns a function to unregister the handler.
    */

@@ -15,6 +15,7 @@ import { narrowCapability } from "../../../procedures/capability.js";
 import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { errorCodeOf } from "../../../protocol.js";
+import type { EventPublisher } from "../../../events/publisher.js";
 
 /** The value of `untilAborted` when the signal aborts first. */
 const ABORTED: unique symbol = Symbol("aborted");
@@ -89,6 +90,7 @@ export class LocalTransport implements Transport {
   private readonly interceptors: readonly Interceptor[] | undefined;
   private readonly capability: Capability | undefined;
   private readonly clearanceOrder: ClearanceOrder | undefined;
+  private readonly events: EventPublisher | undefined;
 
   constructor(options: LocalTransportOptions = {}) {
     this.throwOnMissing = options.throwOnMissing !== false;
@@ -96,6 +98,7 @@ export class LocalTransport implements Transport {
     this.interceptors = options.interceptors;
     this.capability = options.capability;
     this.clearanceOrder = options.clearanceOrder;
+    this.events = options.events;
 
     // Register pre-configured handlers. A key without a version ("users.get") gets the
     // empty version, as methodKey() makes it: before, such a key was never found.
@@ -134,10 +137,12 @@ export class LocalTransport implements Transport {
     return this.handlers.has(methodKey(method)) || this.procedureFor(method) !== undefined;
   }
 
-  /** The procedure of the registry at the path of a method. */
+  /** The procedure of the registry at the path of a method, or `events.subscribe` of the publisher. */
   private procedureFor(method: Method): AnyProcedure | undefined {
+    const path = methodToPath(method);
+    if (this.events && path.join(".") === "events.subscribe") return this.events.procedure;
     if (!this.registry) return undefined;
-    return this.registry.get(methodToPath(method));
+    return this.registry.get(path);
   }
 
   /**
@@ -188,6 +193,7 @@ export class LocalTransport implements Transport {
           ...(this.interceptors ? { interceptors: this.interceptors } : {}),
           ...(capability ? { capability } : {}),
           ...(this.clearanceOrder ? { clearanceOrder: this.clearanceOrder } : {}),
+          ...(this.events ? { bus: this.events.bus } : {}),
         }), message.signal);
         if (output === ABORTED) {
           // The caller stops waiting at once, as over HTTP and WebSocket (the conformance suite
