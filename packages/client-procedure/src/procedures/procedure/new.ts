@@ -512,6 +512,12 @@ export function registerSource(
 }
 
 /**
+ * The step after the scaffold for the effects. A host with a capability refuses a procedure
+ * without `metadata.effects`, and `lib audit` reports it.
+ */
+const EFFECTS_STEP ="Write metadata.effects: lib audit reports a procedure without them";
+
+/**
  * Generate index.ts export
  */
 function generateIndexExport(relativeFile: string, functionName: string): string {
@@ -663,6 +669,8 @@ export async function procedureNew(input: ProcedureNewInput, ctx: ProcedureConte
     }
 
     operations.push(`Next: implement ${segments.join(".")} in ${procedureFile}, then run pnpm build`);
+    // The scaffold writes no effects on purpose: a default of "pure" can be false
+    operations.push(EFFECTS_STEP);
 
     return {
       success: errors.length === 0,

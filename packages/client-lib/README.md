@@ -70,6 +70,12 @@ Input: `rootPath` and `fix`. For each package, the output gives the files and th
 
 The output also has `flagNotices`: the procedure flags whose short form is also a global flag of `mark`. After the command path, the flag of the procedure wins (deep dive CLI-7).
 
+The output also has `procedureIssues`. It has one issue of the kind `missing-effects` for each procedure without `metadata.effects`. A host with a capability refuses such a procedure. `procedure new` writes no effects, so the author writes them.
+
+- The issues are warnings. They do not change `success`, so the audit step of CI does not fail for them.
+- The audit examines the procedures of the registry of the host. It does not import the code of a package.
+- `mark` loads its registry from the built `./module` entry of each package. Thus start `pnpm build` before the audit. The audit does not examine a package without a build.
+
 ## `lib.rename`
 
 Input: `oldName`, `newName`, `rootPath` and `dryRun`. The procedure changes the package name, the dependencies, the imports and the dynamic imports in the workspace. The output lists each change and gives a summary.
