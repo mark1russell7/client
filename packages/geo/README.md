@@ -50,3 +50,22 @@ decodeGeohash("u09tunq"); // { south, west, north, east, center }
 ## The policy of the public servers
 
 The Nominatim policy permits at most one request each second. A `User-Agent` that names your application is necessary, so `geo.geocode` has the field `userAgent`. The OSRM demonstration server has a fair-use limit. Give `baseUrl` to use your own server of either kind.
+
+## Map tiles on disk
+
+The entry `@procedures/geo/tiles` is for Node only. The root of the package stays safe for a browser.
+
+```ts
+import { cachedTile, isTile } from "@procedures/geo/tiles";
+
+const tile = { z: 12, x: 1205, y: 1539 };
+if (isTile(tile)) {
+  const png = await cachedTile(tile, { dir: "var/tiles", userAgent: "my-app/1.0 (me@example.com)" });
+}
+```
+
+- `cachedTile` gets a tile from the server one time and keeps it as `<dir>/<z>/<x>/<y>.png`. After that, it gives the kept file without a request.
+- The default server is `OSM_TILES`, the standard tiles of OpenStreetMap. Their policy asks for a real `User-Agent` and for a cache, so `userAgent` is necessary.
+- The options `source`, `extension`, `timeoutMs`, `maxBytes` and `fetch` change the server, the file extension, the time limit, the largest tile and the fetch function.
+- An HTTP error, no answer, or a body larger than `maxBytes` throws an error, and nothing is kept. Each file is written to a temporary name and then renamed.
+- `isTile(tile, maxZoom)` tells if a tile exists at its zoom level. `tileUrl(template, tile)` fills `{z}`, `{x}` and `{y}`.
