@@ -108,6 +108,10 @@ export interface RetryOptions {
   /**
    * Hook called after each retry completes (success or failure).
    *
+   * The middleware calls it when the call ends: after the last item, or when the reader stops
+   * reading. A `Client` with `throwOnError` stops at the error item. Before, the hook then did
+   * not run, so it did not hear of a failure. A thrown error and an abort do not call it.
+   *
    * @param success - Whether the retry succeeded
    * @param attempt - Attempt number that just completed
    */
@@ -249,99 +253,106 @@ export function createRetryMiddleware(options: RetryOptions = {}): TypedClientMi
       const idempotencyKey = idempotencyKeyOf(context.message.metadata) ?? newIdempotencyKey();
       context.message.metadata[IDEMPOTENCY_KEY_METADATA] = idempotencyKey;
 
-      let attempt = 0;
-      for (;;) {
-        // Update retry metadata with current state
-        context.message.metadata.retry = {
-          ...(typeof given === "object" && given !== null ? (given as object) : {}),
-          attempt,
-          maxAttempts: maxRetries + 1,
-          idempotent,
-        };
-        // Each attempt gets its own request id. The id correlates the frames of one attempt
-        // on the wire: a cancelled attempt can still answer under its id (deep dive TRN-8/9).
-        context.message.id = attempt === 0 ? baseId : `${baseId}.retry${attempt}`;
+      // The outcome of the call for onAfterRetry. The hook runs in `finally`: a reader that stops
+      // at an error item (a Client with throwOnError) closes this generator at its yield. Before,
+      // the hook came after the yield, so it did not hear of a failure.
+      let outcome: { success: boolean; attempt: number } | undefined;
+      try {
+        let attempt = 0;
+        for (;;) {
+          // Update retry metadata with current state
+          context.message.metadata.retry = {
+            ...(typeof given === "object" && given !== null ? (given as object) : {}),
+            attempt,
+            maxAttempts: maxRetries + 1,
+            idempotent,
+          };
+          // Each attempt gets its own request id. The id correlates the frames of one attempt
+          // on the wire: a cancelled attempt can still answer under its id (deep dive TRN-8/9).
+          context.message.id = attempt === 0 ? baseId : `${baseId}.retry${attempt}`;
 
-        // Check if cancelled before attempt
-        if (signal?.aborted) {
-          yield abortedItem<TRes>(context.message.id);
-          return;
-        }
-
-        // The items pass through as they arrive (BUGS-2026-07 M2: before, the middleware
-        // collected the whole stream first). A retry is possible only while no item has
-        // reached the reader: the first item is a retryable error, or the attempt throws
-        // before its first item. After that, a retry would repeat items.
-        let started = false;
-        let lastItem: ResponseItem<TRes> | undefined;
-        let retryItem: ResponseItem<TRes> | undefined;
-        try {
-          for await (const item of next(context)) {
-            if (!started && attempt < maxRetries && shouldRetryItem(item, attempt)) {
-              retryItem = item;
-              break;
-            }
-            started = true;
-            lastItem = item;
-            yield item;
-          }
-        } catch (error) {
-          const isAborted = signal?.aborted || (error instanceof Error && error.name === "AbortError");
-          if (started || isAborted || attempt >= maxRetries) {
-            throw error;
-          }
-          // A thrown error is retried only when it is a network failure, or when shouldRetry
-          // says so. Before, every thrown error was retried: a validation error, an open
-          // circuit breaker, a rate limit (deep dive TRN-8).
-          const item = thrownItem<TRes>(context.message.id, error);
-          if (!shouldRetryItem(item, attempt)) {
-            throw error;
-          }
-          retryItem = item;
-        }
-
-        if (retryItem === undefined) {
-          // Success, a non-retryable error, or the last attempt
-          if (onAfterRetry) {
-            await onAfterRetry(lastItem?.status.type === "success", attempt);
-          }
-          return;
-        }
-
-        // The budget is empty: the error goes to the caller (R12)
-        if (!takeRetry()) {
-          yield retryItem;
-          if (onAfterRetry) await onAfterRetry(false, attempt);
-          return;
-        }
-
-        // A server that asks for a wait (Retry-After) gets at least that wait (R12)
-        let delay = Math.max(retryDelayOf(attempt, overrides), retryAfterOf(retryItem) ?? 0);
-
-        // Before retry hook
-        if (onBeforeRetry) {
-          const hookResult = await onBeforeRetry(retryItem, attempt);
-          if (!hookResult.shouldRetry) {
-            // Hook decided not to retry - yield the error and return
-            yield retryItem;
-            if (onAfterRetry) {
-              await onAfterRetry(false, attempt);
-            }
+          // Check if cancelled before attempt
+          if (signal?.aborted) {
+            yield abortedItem<TRes>(context.message.id);
             return;
           }
 
-          // Use custom delay if provided by hook
-          if (hookResult.delayMs !== undefined) {
-            delay = hookResult.delayMs;
+          // The items pass through as they arrive (BUGS-2026-07 M2: before, the middleware
+          // collected the whole stream first). A retry is possible only while no item has
+          // reached the reader: the first item is a retryable error, or the attempt throws
+          // before its first item. After that, a retry would repeat items.
+          let started = false;
+          let lastItem: ResponseItem<TRes> | undefined;
+          let retryItem: ResponseItem<TRes> | undefined;
+          try {
+            for await (const item of next(context)) {
+              if (!started && attempt < maxRetries && shouldRetryItem(item, attempt)) {
+                retryItem = item;
+                break;
+              }
+              started = true;
+              lastItem = item;
+              outcome = { success: item.status.type === "success", attempt };
+              yield item;
+            }
+          } catch (error) {
+            // A thrown error does not call onAfterRetry
+            outcome = undefined;
+            const isAborted = signal?.aborted || (error instanceof Error && error.name === "AbortError");
+            if (started || isAborted || attempt >= maxRetries) {
+              throw error;
+            }
+            // A thrown error is retried only when it is a network failure, or when shouldRetry
+            // says so. Before, every thrown error was retried: a validation error, an open
+            // circuit breaker, a rate limit (deep dive TRN-8).
+            const item = thrownItem<TRes>(context.message.id, error);
+            if (!shouldRetryItem(item, attempt)) {
+              throw error;
+            }
+            retryItem = item;
           }
-        }
 
-        // The backoff stops at once when the caller aborts (deep dive TRN-8)
-        if (!(await sleep(delay, signal, clock))) {
-          yield abortedItem<TRes>(context.message.id);
-          return;
+          if (retryItem === undefined) {
+            // Success, a non-retryable error, or the last attempt
+            outcome = { success: lastItem?.status.type === "success", attempt };
+            return;
+          }
+
+          // The budget is empty: the error goes to the caller (R12)
+          if (!takeRetry()) {
+            outcome = { success: false, attempt };
+            yield retryItem;
+            return;
+          }
+
+          // A server that asks for a wait (Retry-After) gets at least that wait (R12)
+          let delay = Math.max(retryDelayOf(attempt, overrides), retryAfterOf(retryItem) ?? 0);
+
+          // Before retry hook
+          if (onBeforeRetry) {
+            const hookResult = await onBeforeRetry(retryItem, attempt);
+            if (!hookResult.shouldRetry) {
+              // Hook decided not to retry - yield the error and return
+              outcome = { success: false, attempt };
+              yield retryItem;
+              return;
+            }
+
+            // Use custom delay if provided by hook
+            if (hookResult.delayMs !== undefined) {
+              delay = hookResult.delayMs;
+            }
+          }
+
+          // The backoff stops at once when the caller aborts (deep dive TRN-8)
+          if (!(await sleep(delay, signal, clock))) {
+            yield abortedItem<TRes>(context.message.id);
+            return;
+          }
+          attempt++;
         }
-        attempt++;
+      } finally {
+        if (outcome && onAfterRetry) await onAfterRetry(outcome.success, outcome.attempt);
       }
     };
   };

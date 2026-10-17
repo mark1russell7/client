@@ -91,3 +91,62 @@ describe("retry with streams", () => {
     expect(calls()).toBe(2);
   });
 });
+
+describe("onAfterRetry when the reader stops at the error (a Client with throwOnError)", () => {
+  // Before, the hook came after the yield of the error item. The Client stops reading there,
+  // so the hook did not run for a failure.
+  it("hears of the failure after the last attempt", async () => {
+    const after: Array<[boolean, number]> = [];
+    const { transport } = scripted([["error"]]);
+    const client = new Client(transport).use(
+      createRetryMiddleware({ maxRetries: 1, retryDelay: ms(1), jitter: 0, onAfterRetry: (success, attempt) => void after.push([success, attempt]) }),
+    );
+    await expect(client.call(method, {})).rejects.toThrow("try again");
+    expect(after).toEqual([[false, 1]]);
+  });
+
+  it("hears of the failure when onBeforeRetry refuses the retry", async () => {
+    const after: Array<[boolean, number]> = [];
+    const { transport } = scripted([["error"]]);
+    const client = new Client(transport).use(
+      createRetryMiddleware({
+        retryDelay: ms(1),
+        onBeforeRetry: () => ({ shouldRetry: false }),
+        onAfterRetry: (success, attempt) => void after.push([success, attempt]),
+      }),
+    );
+    await expect(client.call(method, {})).rejects.toThrow("try again");
+    expect(after).toEqual([[false, 0]]);
+  });
+
+  it("hears of the failure when the budget refuses the retry", async () => {
+    const after: Array<[boolean, number]> = [];
+    const { transport } = scripted([["error"]]);
+    const client = new Client(transport).use(
+      createRetryMiddleware({
+        maxRetries: 1,
+        retryDelay: ms(1),
+        jitter: 0,
+        budget: { ratio: 0.01, minPerSecond: 0 },
+        onAfterRetry: (success, attempt) => void after.push([success, attempt]),
+      }),
+    );
+    // The budget has one retry: the first call takes it, the second call gets none
+    await expect(client.call(method, {})).rejects.toThrow("try again");
+    await expect(client.call(method, {})).rejects.toThrow("try again");
+    expect(after).toEqual([
+      [false, 1],
+      [false, 0],
+    ]);
+  });
+
+  it("hears of the success, one time for each call", async () => {
+    const after: Array<[boolean, number]> = [];
+    const { transport } = scripted([["error"], [42]]);
+    const client = new Client(transport).use(
+      createRetryMiddleware({ retryDelay: ms(1), jitter: 0, onAfterRetry: (success, attempt) => void after.push([success, attempt]) }),
+    );
+    expect(await client.call(method, {})).toBe(42);
+    expect(after).toEqual([[true, 1]]);
+  });
+});
