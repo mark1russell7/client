@@ -107,6 +107,9 @@ export {
   registerClientProcedures,
 } from "./module.js";
 export type { ModuleInput } from "./module.js";
+// One call for a registry of some modules, `invokePath` and `outputValue`
+export { callerOf } from "./caller.js";
+export type { Caller, CallerOptions } from "./caller.js";
 
 // Procedure reference system (procedure-as-data)
 export {

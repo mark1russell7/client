@@ -14,10 +14,22 @@ import type {
   EventListenOptions,
   EventWaitOptions,
 } from "./types.js";
+import { realClock, type Clock } from "../clock.js";
+import { toMs, type Duration } from "../duration.js";
 
 /** The error of a wait that its signal ended. */
 function abortedError(channel: string): Error {
   const error = new Error(`The wait on channel "${channel}" was aborted`);
+  error.name = "AbortError";
+  return error;
+}
+
+/**
+ * The error of a wait that `clear()` ended. Its name is `AbortError`, so code that ignores a
+ * cancelled wait ignores this one too.
+ */
+function clearedError(channel: string): Error {
+  const error = new Error(`The wait on channel "${channel}" ended, because clear() removed the channel`);
   error.name = "AbortError";
   return error;
 }
@@ -193,14 +205,26 @@ export class DefaultEventBus implements EventBus {
         reject(abortedError(channel));
       };
       // on() can replay a buffered event before it returns: the handler must not need
-      // `unsubscribe` yet (before, it threw a ReferenceError, and the promise never settled)
-      unsubscribe = this.on<T>(channel, (data) => {
-        if (settled) return;
-        settled = true;
-        unsubscribe?.();
-        signal?.removeEventListener("abort", onAbort);
-        resolve(data);
-      });
+      // `unsubscribe` yet (before, it threw a ReferenceError, and the promise never settled).
+      // clear() rejects the wait: before, the promise never settled.
+      unsubscribe = this.on<T>(
+        channel,
+        (data) => {
+          if (settled) return;
+          settled = true;
+          unsubscribe?.();
+          signal?.removeEventListener("abort", onAbort);
+          resolve(data);
+        },
+        {
+          onClear: () => {
+            if (settled) return;
+            settled = true;
+            signal?.removeEventListener("abort", onAbort);
+            reject(clearedError(channel));
+          },
+        },
+      );
       if (settled) {
         unsubscribe();
         return;
@@ -560,68 +584,77 @@ export function mapChannel<TIn, TOut>(
   });
 }
 
+/** Options of `debounceChannel()` and `throttleChannel()`. */
+export interface ChannelTimingOptions {
+  /** The clock of the timers. The default is the clock of the platform. A test gives a fake clock. */
+  clock?: Clock;
+}
+
 /**
- * Debounce events on a channel.
+ * This function sends the last event of `source` to `target` after `delay` without a new event
+ * (a debounce). The delay is a `Duration`, such as `ms(300)`. A plain number throws a `TypeError`.
  *
  * @param bus - Event bus
  * @param source - Source channel
  * @param target - Target channel
- * @param delay - Debounce delay in milliseconds
+ * @param delay - The time without an event before the send
  * @returns Unsubscribe function
  */
 export function debounceChannel<T>(
   bus: EventBus,
   source: string,
   target: string,
-  delay: number
+  delay: Duration,
+  options: ChannelTimingOptions = {},
 ): Unsubscribe {
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  const delayMs = toMs(delay, "debounceChannel delay");
+  const clock = options.clock ?? realClock;
+  let cancel: (() => void) | null = null;
   let lastData: T | undefined;
 
   const unsub = bus.on<T>(source, (data) => {
     lastData = data;
-
-    if (timer) {
-      clearTimeout(timer);
-    }
-
-    timer = setTimeout(() => {
+    cancel?.();
+    cancel = clock.after(delayMs, () => {
+      cancel = null;
       if (lastData !== undefined) {
         bus.emit(target, lastData);
       }
-      timer = null;
-    }, delay);
+    });
   });
 
   return () => {
     unsub();
-    if (timer) {
-      clearTimeout(timer);
-    }
+    cancel?.();
+    cancel = null;
   };
 }
 
 /**
- * Throttle events on a channel.
+ * This function sends an event of `source` to `target` at most one time in each `interval` (a
+ * throttle). It drops the events between. The interval is a `Duration`, such as `seconds(1)`. A
+ * plain number throws a `TypeError`.
  *
  * @param bus - Event bus
  * @param source - Source channel
  * @param target - Target channel
- * @param interval - Throttle interval in milliseconds
+ * @param interval - The shortest time between two sends
  * @returns Unsubscribe function
  */
 export function throttleChannel<T>(
   bus: EventBus,
   source: string,
   target: string,
-  interval: number
+  interval: Duration,
+  options: ChannelTimingOptions = {},
 ): Unsubscribe {
-  let lastEmit = 0;
+  const intervalMs = toMs(interval, "throttleChannel interval");
+  const clock = options.clock ?? realClock;
+  let lastEmit: number | undefined;
 
   return bus.on<T>(source, (data) => {
-    const now = Date.now();
-
-    if (now - lastEmit >= interval) {
+    const now = clock.now();
+    if (lastEmit === undefined || now - lastEmit >= intervalMs) {
       lastEmit = now;
       bus.emit(target, data);
     }

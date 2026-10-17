@@ -83,3 +83,4 @@ export {
   debounceChannel,
   throttleChannel,
 } from "./bus.js";
+export type { ChannelTimingOptions } from "./bus.js";

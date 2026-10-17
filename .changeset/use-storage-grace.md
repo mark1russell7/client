@@ -1,8 +1,10 @@
 ---
-"@procedures/client": patch
+"@procedures/client": minor
 ---
 
 `ProcedureServer.useStorage` with `close` waits for the calls on the old storage before it closes it. Before, it closed the old storage at once, and a call that started on it could fail as closed.
+
+MINOR: the call of `useStorage` with `close` can now take up to 30 seconds to resolve. That is a change of behaviour that a caller can see. Give `grace: ms(0)` for the old behaviour.
 
 - The new calls use the new storage at once. The server waits only for the calls that took the old storage. A stream holds its storage until its end.
 - The new option `grace` of `UseStorageOptions` is the longest wait, a `Duration`. A plain number throws a `TypeError`. The default is 30 seconds, `TIMER_DEFAULTS.server.storageGraceMs`. 0 closes at once.

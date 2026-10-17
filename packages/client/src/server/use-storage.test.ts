@@ -71,6 +71,18 @@ describe("ProcedureServer.useStorage (roadmap R28)", () => {
     expect(events).toEqual([]);
   });
 
+  it("close keeps an old storage open while another collection uses it", async () => {
+    const events: string[] = [];
+    const shared = recordingStorage(events, "shared");
+    const server = new ProcedureServer().useStorage("a", shared).useStorage("b", shared);
+    await server.useStorage("a", recordingStorage(events, "newA"), { close: true });
+    expect(events).toEqual([]);
+    expect(server.getStorage("b")).toBe(shared);
+    // The last collection leaves the storage: now the close comes
+    await server.useStorage("b", recordingStorage(events, "newB"), { close: true });
+    expect(events).toEqual(["shared.close"]);
+  });
+
   it("drains a storage without flush(), and a new collection, without an error", async () => {
     const events: string[] = [];
     const server = new ProcedureServer({ collections: { things: recordingStorage(events, "old") } });

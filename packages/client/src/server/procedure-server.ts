@@ -410,7 +410,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    *   failed flush keeps the old storage and throws. A call that arrives during the flush goes
    *   to the old storage.
    * - `close`: the server closes the old storage after the change. The close of a
-   *   `HybridStorage` sends the writes that arrived during the flush.
+   *   `HybridStorage` sends the writes that arrived during the flush. An old storage that another
+   *   collection still uses stays open: the server closes it when the last collection leaves it.
    * - The new calls use the new storage at once. Before the close, the server waits for the calls
    *   that took the old storage, for the time of `grace` at most. Before, such a call could fail
    *   because the storage was closed.
@@ -442,7 +443,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       await other.flush?.();
     }
     this.storages.set(name, storage);
-    if (other && options.close) {
+    // Another collection that uses the same storage keeps it open. Before, the close broke the
+    // calls of that collection (tracker O31).
+    if (other && options.close && ![...this.storages.values()].includes(other)) {
       await this.callsOnStorageEnded(other, graceMs);
       await other.close();
     }
