@@ -43,6 +43,7 @@ The output is a stream of items. Each item has a `type`:
 | `event` | `topic`, `data`, `seq`, `dropped` | One event of the bus. |
 
 - `seq` is the number of the event in the subscription. It starts at 1. A gap in the numbers shows lost events.
+- The `stream` frame of each item has a `seq` of its own (WIRE-PROTOCOL.md). That number counts the frames of the call, and the `subscribed` item has the number 1.
 - `dropped` is in an item only after a loss. It is the number of events that the publisher dropped immediately before this event.
 - `data` crosses the wire as JSON. The publisher keeps a reference to the data until it sends the event. Do not change an object after you publish it.
 - An item of another `type` comes from a newer publisher. A subscriber ignores it.
@@ -63,10 +64,15 @@ Over WebSocket, a subscription is a call. The subscriber sends the request with 
 The publisher answers with stream items. The first item confirms the subscription:
 
 ```json
-{"id":"events-1.1~7","type":"stream","payload":{"type":"subscribed","topics":["orders.created"]},"stream":{"done":false}}
-{"id":"events-1.1~7","type":"stream","payload":{"type":"event","topic":"orders.created","data":{"order":1},"seq":1},"stream":{"done":false}}
-{"id":"events-1.1~7","type":"stream","payload":{"type":"event","topic":"orders.created","data":{"order":5},"seq":5,"dropped":3},"stream":{"done":false}}
+{"id":"events-1.1~7","type":"stream","seq":1,"payload":{"type":"subscribed","topics":["orders.created"]},"stream":{"done":false}}
+{"id":"events-1.1~7","type":"stream","seq":2,"payload":{"type":"event","topic":"orders.created","data":{"order":1},"seq":1},"stream":{"done":false}}
+{"id":"events-1.1~7","type":"stream","seq":3,"payload":{"type":"event","topic":"orders.created","data":{"order":5},"seq":5,"dropped":3},"stream":{"done":false}}
 ```
+
+The `seq` of a frame and the `seq` of an event are different numbers:
+
+- The `seq` of the frame counts the frames of the call. The subscriber drops a duplicate frame or a late frame by this number.
+- The `seq` of the event counts the events of the subscription. In the example, the publisher dropped the events 2, 3 and 4 from its queue. Thus the event `seq` has a gap, and the frame `seq` has none.
 
 The subscriber gives credit as it reads, and it cancels to unsubscribe:
 
@@ -97,6 +103,7 @@ Over HTTP, the subscriber posts the input to `{base}/events/subscribe` with `Acc
 
 - The publisher sends each event of a subscription one time or not at all. It does not send an event again, and the subscriber does not acknowledge an event.
 - The publisher loses an event in three cases: the subscriber is slow (refer to "A slow subscriber"), the connection drops, or the event comes before the `subscribed` item.
+- A duplicate `stream` frame gives no second event: the subscriber drops it by the `seq` of the frame. A gap of the frames does not end the subscription. The subscriber continues, as for a gap of the events.
 - A subscription that starts again after a reconnect is a new subscription. It gets only the events after its own `subscribed` item.
 
 ### The order

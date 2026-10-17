@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 436 names
+## . (dist/index.d.ts): 437 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -195,6 +195,7 @@ type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
+STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
@@ -443,7 +444,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 419 names
+## ./browser (dist/browser.d.ts): 420 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -628,6 +629,7 @@ type RouteResolutionError: dist/client/route-resolver.d.ts#RouteResolutionError
 type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResult
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
+STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
@@ -1478,6 +1480,9 @@ export interface PortTransportOptions {
     streamWindow?: number | undefined;
 }
 
+### dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
+export declare const STREAM_GAP_METADATA_KEY = "stream-gap";
+
 ### dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 export declare class WebSocketTransport extends PortableWebSocketTransport {
     constructor(options: WebSocketTransportOptions);
@@ -1596,6 +1601,7 @@ export interface WebSocketMessage<TReq = unknown> {
         retryable?: boolean;
     };
     credit?: number;
+    seq?: number;
     stream?: {
         done: boolean;
     };

@@ -252,6 +252,13 @@ export interface WebSocketMessage<T = unknown> {
    */
   credit?: number;
 
+  /**
+   * The number of a `stream` frame in its call: 1 in the first frame, and one more in each next
+   * frame. The receiver drops a frame whose `seq` is not above the last one. A frame of an older
+   * peer has no `seq`.
+   */
+  seq?: number;
+
   /** Stream indicator (for streaming responses) */
   stream?: {
     /** Is this the last message in the stream? */

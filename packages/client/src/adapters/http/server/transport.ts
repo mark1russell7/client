@@ -348,7 +348,9 @@ export class HttpServerTransport implements ServerTransport {
    * Send a stream response.
    *
    * A client that accepts `application/x-ndjson` gets one JSON line for each item
-   * (`{"type":"item","payload":...}`), then `{"type":"done"}`, or `{"type":"error","error":...}`.
+   * (`{"type":"item","seq":1,"payload":...}`), then `{"type":"done","seq":...}`, or
+   * `{"type":"error","error":...}`. The `seq` of the lines counts from 1, as in the `stream`
+   * frames of WebSocket.
    * Another client (curl, a browser fetch without the header) gets the last item as plain JSON,
    * the "sponge" mode, so a streaming procedure does not change its response format.
    */
@@ -414,17 +416,18 @@ export class HttpServerTransport implements ServerTransport {
         res.end(JSON.stringify({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } }) + "\n");
       }
     };
+    let seq = 0;
     try {
       for await (const item of stream) {
         if (signal.aborted) break;
-        await write(res, JSON.stringify({ type: "item", payload: item }) + "\n", signal);
+        await write(res, JSON.stringify({ type: "item", seq: ++seq, payload: item }) + "\n", signal);
         if (signal.aborted) break;
       }
       if (signal.aborted) {
         endAborted();
         return;
       }
-      res.end(JSON.stringify({ type: "done" }) + "\n");
+      res.end(JSON.stringify({ type: "done", seq: ++seq }) + "\n");
     } catch (error) {
       if (signal.aborted) {
         endAborted();

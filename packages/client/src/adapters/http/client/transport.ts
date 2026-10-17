@@ -13,6 +13,7 @@ import type {
 
 import type { HttpTransportOptions } from "./types.js";
 import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
+import { StreamSequence, itemMetadata } from "../../sequence.js";
 
 /**
  * The wait that an error response asks for, in milliseconds: `retryAfterMs` of the body of the
@@ -224,7 +225,8 @@ export class HttpTransport implements Transport {
   /**
    * The items of an NDJSON stream response: `{"type":"item"}` lines, then `{"type":"done"}`,
    * or an `{"type":"error"}` line. A stream that ends without one of the last two is an error
-   * that a retry can repair (the connection broke).
+   * that a retry can repair (the connection broke). An `item` or a `done` line whose `seq` is not
+   * above the last one gives nothing. The item after a gap has `stream-gap` in its metadata.
    */
   private async *readNdjson<TRes>(
     id: string,
@@ -235,6 +237,7 @@ export class HttpTransport implements Transport {
   ): AsyncGenerator<ResponseItem<TRes>, void, undefined> {
     const reader = body.getReader();
     const decoder = new TextDecoder();
+    const order = new StreamSequence();
     let buffer = "";
     try {
       for (;;) {
@@ -248,12 +251,16 @@ export class HttpTransport implements Transport {
           if (!line) continue;
           const frame = JSON.parse(line) as {
             type: string;
+            seq?: unknown;
             payload?: unknown;
             error?: { code?: string; message?: string; retryable?: boolean };
           };
           onFirstItem();
+          // A duplicate or a late line: its item came before, or the delivery is at most once
+          const gap = frame.type === "item" || frame.type === "done" ? order.next(frame.seq, id) : 0;
+          if (gap < 0) continue;
           if (frame.type === "item") {
-            yield { id, status: { type: "success", code: 200 }, payload: frame.payload as TRes, metadata };
+            yield { id, status: { type: "success", code: 200 }, payload: frame.payload as TRes, metadata: itemMetadata(metadata, gap) };
           } else if (frame.type === "done") {
             onEnd();
             return;

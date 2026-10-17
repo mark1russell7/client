@@ -1,0 +1,49 @@
+{
+  "lines": [
+    {
+      "type": "item",
+      "seq": 1,
+      "payload": 1
+    },
+    {
+      "type": "item",
+      "seq": 1,
+      "payload": 1
+    },
+    {
+      "type": "item",
+      "seq": 3,
+      "payload": 3
+    },
+    {
+      "type": "item",
+      "seq": 2,
+      "payload": 2
+    },
+    {
+      "type": "item",
+      "seq": 4,
+      "payload": 4
+    },
+    {
+      "type": "done",
+      "seq": 5
+    }
+  ],
+  "items": [
+    {
+      "payload": 1,
+      "metadata": {}
+    },
+    {
+      "payload": 3,
+      "metadata": {
+        "stream-gap": 1
+      }
+    },
+    {
+      "payload": 4,
+      "metadata": {}
+    }
+  ]
+}

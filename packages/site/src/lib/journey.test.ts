@@ -54,7 +54,9 @@ describe("runJourney", () => {
     // HTTP: NDJSON lines, then the done line
     const lines = journey.steps.filter((step) => step.lane === "wire" && step.direction === "up" && step.item !== undefined);
     expect(lines.map((step) => JSON.parse(step.detail ?? "{}").type)).toEqual(["item", "item", "item"]);
-    expect(journey.steps.some((step) => step.detail === JSON.stringify({ type: "done" }))).toBe(true);
+    // Each line has its seq, from 1: the done line comes after the three items
+    expect(lines.map((step) => JSON.parse(step.detail ?? "{}").seq)).toEqual([1, 2, 3]);
+    expect(journey.steps.some((step) => step.detail === JSON.stringify({ type: "done", seq: 4 }))).toBe(true);
   });
 
   it("opens a span for each nested call, with the span of its parent", async () => {

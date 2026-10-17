@@ -5,6 +5,7 @@
     "lines": [
       {
         "type": "item",
+        "seq": 1,
         "payload": {
           "type": "subscribed",
           "topics": [
@@ -14,6 +15,7 @@
       },
       {
         "type": "item",
+        "seq": 2,
         "payload": {
           "type": "event",
           "topic": "orders.created",

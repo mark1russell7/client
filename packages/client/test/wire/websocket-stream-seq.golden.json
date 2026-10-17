@@ -1,0 +1,98 @@
+{
+  "sent": [
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 1,
+      "payload": 1,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 1,
+      "payload": 1,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 3,
+      "payload": 3,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 2,
+      "payload": 2,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 4,
+      "payload": 4,
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 5,
+      "stream": {
+        "done": true
+      }
+    }
+  ],
+  "items": [
+    {
+      "payload": 1,
+      "metadata": {}
+    },
+    {
+      "payload": 3,
+      "metadata": {
+        "stream-gap": 1
+      }
+    },
+    {
+      "payload": 4,
+      "metadata": {}
+    }
+  ],
+  "received": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "<id 1>",
+      "type": "request",
+      "method": {
+        "service": "wire",
+        "operation": "count"
+      },
+      "payload": {
+        "to": 4
+      },
+      "metadata": {},
+      "credit": 4
+    },
+    {
+      "id": "<id 1>",
+      "type": "credit",
+      "credit": 3
+    }
+  ]
+}

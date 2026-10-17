@@ -9,7 +9,7 @@
     "status": 200,
     "protocol": "1",
     "contentType": "application/x-ndjson",
-    "body": "{\"type\":\"item\",\"payload\":1}\n{\"type\":\"item\",\"payload\":2}\n{\"type\":\"done\"}\n"
+    "body": "{\"type\":\"item\",\"seq\":1,\"payload\":1}\n{\"type\":\"item\",\"seq\":2,\"payload\":2}\n{\"type\":\"done\",\"seq\":3}\n"
   },
   "forbidden": {
     "status": 403,
