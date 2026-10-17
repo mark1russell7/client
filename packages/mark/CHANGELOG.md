@@ -1,5 +1,48 @@
 # @procedures/mark
 
+## 0.5.0
+
+### Minor Changes
+
+- a47bee6: The hosts can confine the file procedures to a root (roadmap R33).
+  
+  - `confineFsProcedures(registry, root)` of `@procedures/fs` replaces the handler of each `fs.*` procedure of a registry with the handler of `createFsModule({ root })`. It adds no procedure. A nested `fs.*` call of another procedure is confined too. The root must be a folder that exists.
+  - `mark --fs-root <folder>` confines the `fs.*` procedures of each mode and host of `mark`: a command, the REPL, `--server`, `serve` and `mcp`. Give the flag before the command.
+  - A `mark` command uses a CLI server only when the server has the same root. The lockfile of `@procedures/peer` has the new field `fsRoot`, and `findServer()` compares it.
+  - `procedure-server --fs-root <folder>` and `mark serve --fs-root <folder>` confine the procedures of the server.
+  - The MCP server reads `MCP_FS_ROOT`, and `mark mcp` has the flag `--fs-root`. `fs` is not a tool namespace, so the tools do not change.
+  - A path outside the root gives `FORBIDDEN` with the reason `outside-root`. A procedure that reads files with `node:fs`, or that starts a program, is not confined.
+  - `@procedures/lib/cli-flags` has the global flags `--fs-root` and `--events`, and the field `repeatable`.
+- a47bee6: The hosts serve the remote events (`documentation/EVENTS.md`).
+  
+  - `hostPolicy()` takes the option `events`: the topic rule, with an optional bus, `allow` function and buffer. `procedureServerOptions()` gives it to the `ProcedureServer`, which pins `events.subscribe`. `HostPolicy` has the new field `events`.
+  - `procedure-server` and `mark serve` have the option `--events <patterns>`. The option is repeatable, and it takes comma-separated patterns: exact names, prefixes (`orders.*`) or `*`. `parseTopicPatterns()` checks them.
+  - `mark --server` has the same option `--events`.
+  - These hosts always serve `events.subscribe`. Without `--events`, they serve no topic, and each subscription gets `TOPIC_NOT_FOUND`. The bus is the global bus, which is also the `ctx.bus` of their procedures.
+  - The MCP server serves no events, because its transport carries only MCP.
+  - `mark --port`, `--host`, `--transport` and `--events` without `--server` are an error now, also before `serve` and `mcp`. Before, `mark --port 4000 serve` ignored `--port`.
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [a47bee6]
+- Updated dependencies [64120d9]
+- Updated dependencies [64120d9]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+  - @procedures/server@0.5.0
+  - @procedures/mcp-dev-tools@0.5.0
+  - @procedures/peer@0.5.0
+  - @procedures/lib@0.5.0
+  - @procedures/procedure@0.5.0
+  - @procedures/cli-run@0.5.0
+  - @procedures/pnpm@0.5.0
+  - @procedures/shell@0.5.0
+  - @procedures/vitest@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

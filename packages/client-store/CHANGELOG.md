@@ -1,5 +1,32 @@
 # @procedures/store
 
+## 0.5.0
+
+### Minor Changes
+
+- 89481b0: A full pull of `HybridStorage` reads the local ids with `getIds()` of the local copy. Before, it read each local entry only for the ids, and `InMemoryStorage` copied each value (`structuredClone`) for it. A local copy without `getIds()` gives its entries, as before.
+  
+  - `HybridStorage.getIds()` gives the ids of the local copy, or of the remote in `remote-only` mode.
+  - A new nightly benchmark measures a full pull of 1,000 items with and without `getIds()`. In one CI run, the mean time went from 15.3 ms to 10.7 ms.
+- bc74091: `ApiStorage` and `HybridStorage` agree with the contract of `CollectionStorage`:
+  
+  - `ApiStorage.get()` asks the procedure `collections.<name>.get` for `{ found, value }`. A stored `null` reads back as `null`. Before, it read back as `undefined`. A custom `service` or `get` operation gets the input `{ id }`, as before.
+  - `HybridStorage` takes a copy of each written value for the local copy, the queue and the remote. Before, a change of a value after a `set()` in the mode `write-back` changed the queued write.
+  - After `close()`, each operation of `ApiStorage` and `HybridStorage` rejects with an error that says "closed", and a second `close()` does nothing. `HybridStorage.close()` waits for the operations, the mode switch and the syncs that run. A `close()` before the first sync makes no remote call.
+  - After `close()`, `SyncedProcedureRegistry.register()` and `unregister()` change only the registry in memory, and a second `close()` does nothing. `close()` waits for the auto-sync that runs.
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+- Updated dependencies [bc74091]
+- Updated dependencies [89481b0]
+  - @procedures/client@0.5.0
+  - @procedures/collections@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

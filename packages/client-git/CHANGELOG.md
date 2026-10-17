@@ -1,5 +1,24 @@
 # @procedures/git
 
+## 0.5.0
+
+### Minor Changes
+
+- da56027: Two fixes of roadmap R33:
+  
+  - `git.isClean` fails outside a repository with the error of git. Before, it gave true.
+  - `git.init` gives `created: false` for an existing bare repository, and it does not make the repository again. Before, it looked only for a `.git` folder.
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+  - @procedures/shell@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

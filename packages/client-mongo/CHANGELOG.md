@@ -1,5 +1,23 @@
 # @procedures/mongo
 
+## 0.5.0
+
+### Minor Changes
+
+- bc74091: After `close()`, each operation of `SqliteStorage` and `MongoStorage` rejects with an error that says "closed", and a second `close()` does nothing. Before, `SqliteStorage.flush()` and an empty batch resolved after `close()`, and `MongoStorage` kept working.
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+- Updated dependencies [bc74091]
+- Updated dependencies [89481b0]
+  - @procedures/client@0.5.0
+  - @procedures/collections@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

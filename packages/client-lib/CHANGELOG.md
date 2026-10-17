@@ -1,5 +1,42 @@
 # @procedures/lib
 
+## 0.5.0
+
+### Minor Changes
+
+- a47bee6: The hosts can confine the file procedures to a root (roadmap R33).
+  
+  - `confineFsProcedures(registry, root)` of `@procedures/fs` replaces the handler of each `fs.*` procedure of a registry with the handler of `createFsModule({ root })`. It adds no procedure. A nested `fs.*` call of another procedure is confined too. The root must be a folder that exists.
+  - `mark --fs-root <folder>` confines the `fs.*` procedures of each mode and host of `mark`: a command, the REPL, `--server`, `serve` and `mcp`. Give the flag before the command.
+  - A `mark` command uses a CLI server only when the server has the same root. The lockfile of `@procedures/peer` has the new field `fsRoot`, and `findServer()` compares it.
+  - `procedure-server --fs-root <folder>` and `mark serve --fs-root <folder>` confine the procedures of the server.
+  - The MCP server reads `MCP_FS_ROOT`, and `mark mcp` has the flag `--fs-root`. `fs` is not a tool namespace, so the tools do not change.
+  - A path outside the root gives `FORBIDDEN` with the reason `outside-root`. A procedure that reads files with `node:fs`, or that starts a program, is not confined.
+  - `@procedures/lib/cli-flags` has the global flags `--fs-root` and `--events`, and the field `repeatable`.
+- 64120d9: `lib.audit` reports each procedure without `metadata.effects`. A host with a capability refuses such a procedure.
+  
+  - The output has the new list `procedureIssues`. Each issue has the kind `missing-effects`, the procedure path (for example `git.status`) and a message.
+  - The issues are warnings. They do not change `success`, so the audit step of CI does not fail for them. CI shows each one as a warning annotation.
+  - The audit examines the procedures of the registry of the host, as it does for `flagNotices`. It imports no package code, so its effects do not change.
+  - `mark` loads its registry from the built `./module` entry of each package. Thus the audit does not examine a package without a build.
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [01e5b1f]
+- Updated dependencies [da56027]
+- Updated dependencies [a47bee6]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+  - @procedures/dag@0.5.0
+  - @procedures/git@0.5.0
+  - @procedures/fs@0.5.0
+  - @procedures/pnpm@0.5.0
+  - @procedures/shell@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

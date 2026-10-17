@@ -1,5 +1,17 @@
 # @procedures/procedure
 
+## 0.5.0
+
+### Patch Changes
+
+- 64120d9: `procedure.new` ends its `operations` with the step "Write metadata.effects: lib audit reports a procedure without them". The scaffold writes no effects on purpose, because a default of "pure" can be false.
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
