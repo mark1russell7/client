@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { calendarOccurrences, expandOccurrences, isCalendar, parseIcs, unescapeText, zonedToUtc, type IcsEvent } from "./ics.js";
-import { icsProcedures } from "./procedures.js";
+import { fetchCalendar, icsProcedures } from "./procedures.js";
 
 /** A calendar of made-up events. */
 const calendar = (...events: string[][]): string =>
@@ -239,4 +239,23 @@ describe("the procedures", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("no", { status: 404 })));
     await expect(call(["ics", "fetch"], { url: secret })).rejects.toThrow(/^(?!.*private).*HTTP 404/);
   });
+
+  it("fetchCalendar uses the fetch of its option, with the accept header and a signal", async () => {
+    const global = vi.fn(async () => new Response("not called", { status: 500 }));
+    vi.stubGlobal("fetch", global);
+    const seen: Array<{ url: string; accept: string | undefined; signal: boolean }> = [];
+    const own = async (url: string, init: { headers: Record<string, string>; signal: AbortSignal }) => {
+      seen.push({ url, accept: init.headers["accept"], signal: init.signal instanceof AbortSignal });
+      return { ok: true, status: 200, text: async () => text };
+    };
+    expect(await fetchCalendar("https://calendar.example.com/a.ics", 1000, undefined, { fetch: own })).toBe(text);
+    expect(seen).toEqual([{ url: "https://calendar.example.com/a.ics", accept: "text/calendar, */*", signal: true }]);
+    expect(global).not.toHaveBeenCalled();
+
+    const page = async () => ({ ok: true, status: 200, text: async () => "<html>Sign in</html>" });
+    await expect(fetchCalendar("https://calendar.example.com/a.ics", 1000, undefined, { fetch: page })).rejects.toThrow(/did not give an iCalendar text/);
+    const missing = async () => ({ ok: false, status: 503, text: async () => "" });
+    await expect(fetchCalendar("https://calendar.example.com/a.ics", 1000, undefined, { fetch: missing })).rejects.toThrow(/HTTP 503/);
+  });
 });
+

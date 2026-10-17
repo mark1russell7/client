@@ -36,6 +36,34 @@ export function shiftDay(date: string, days: number): string {
   return text.slice(0, 10);
 }
 
+/** This function tells if a year has a 29th of February, in the Gregorian calendar (the year 0000 has one). */
+const isLeapYear = (year: number): boolean => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+/** The number of days of each month of a year that is not a leap year. */
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
+
+/**
+ * This function gives the date `months` months after a date (`YYYY-MM-DD`). A negative number gives
+ * an earlier date. The number of months must be an integer.
+ *
+ * - When the day is not in the month of the result, the result is the last day of that month: one
+ *   month after `2026-01-31` is `2026-02-28`.
+ * - For the arithmetic of `Date.UTC`, where the 31st goes into the next month, add the days to the
+ *   1st: `shiftDay(shiftMonth("2026-01-01", 1), 30)` is `2026-03-03`.
+ * - A date that is not valid, or a result outside the years 0000 to 9999, throws a `RangeError`.
+ */
+export function shiftMonth(date: string, months: number): string {
+  if (!Number.isSafeInteger(months)) throw new RangeError(`shiftMonth: the number of months ${String(months)} is not an integer`);
+  dateTime(date, "shiftMonth");
+  const total = Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1 + months;
+  const year = Math.floor(total / 12);
+  if (!(year >= 0 && year <= 9999)) throw new RangeError(`shiftMonth: ${date} plus ${String(months)} months is not from the year 0000 to 9999`);
+  const month = total - year * 12;
+  const last = month === 1 && isLeapYear(year) ? 29 : MONTH_DAYS[month]!;
+  const day = Math.min(Number(date.slice(8, 10)), last);
+  return `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /**
  * This function gives the number of whole days from the date `from` to the date `to`
  * (`YYYY-MM-DD`). It is negative when `to` is before `from`, and 0 for the same date.

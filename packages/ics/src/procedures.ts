@@ -118,15 +118,27 @@ const FetchInputSchema = z.object({
 });
 type FetchInput = z.infer<typeof FetchInputSchema>;
 
+/** The part of `fetch` that `fetchCalendar` uses. A test or a host gives its own with the option `fetch`. */
+export type FetchText = (
+  url: string,
+  init: { headers: Record<string, string>; signal: AbortSignal }
+) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
+
 /**
  * This function gets the text of a calendar feed. The address of a private feed is a secret, so
- * an error never includes it.
+ * an error never includes it. The option `fetch` replaces the global `fetch`.
  */
-export async function fetchCalendar(url: string, timeoutMs: number, signal?: AbortSignal): Promise<string> {
+export async function fetchCalendar(
+  url: string,
+  timeoutMs: number,
+  signal?: AbortSignal,
+  options: { readonly fetch?: FetchText | undefined } = {}
+): Promise<string> {
   const signals = signal ? [signal, AbortSignal.timeout(timeoutMs)] : [AbortSignal.timeout(timeoutMs)];
-  let response: Response;
+  const fetchText: FetchText = options.fetch ?? fetch;
+  let response: Awaited<ReturnType<FetchText>>;
   try {
-    response = await fetch(url, { signal: AbortSignal.any(signals), headers: { accept: "text/calendar, */*" } });
+    response = await fetchText(url, { signal: AbortSignal.any(signals), headers: { accept: "text/calendar, */*" } });
   } catch (error) {
     const reason = (error as { name?: string }).name === "TimeoutError" ? `no answer in ${timeoutMs} ms` : "the request failed";
     throw new Error(`The calendar feed did not answer: ${reason}`);
