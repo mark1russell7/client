@@ -1,5 +1,17 @@
 # @procedures/systems
 
+## 0.5.0
+
+### Patch Changes
+
+- 0f75644: The dependencies go to `@mark1russell7/algebra` `^0.7.0` and `@mark1russell7/service` `^0.4.1`. A host that uses algebra 0.7.0 gets one copy of it. Algebra 0.7.0 only adds to 0.6.0.
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

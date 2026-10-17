@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/pnpm",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "pnpm commands as typed procedures: install, add, remove, run, exec, list, why, outdated, update, pack and link, with --filter and -r, run with argv and option-injection guards.",
   "keywords": [
     "pnpm",

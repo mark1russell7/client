@@ -1,5 +1,44 @@
 # @procedures/client
 
+## 0.5.0
+
+### Minor Changes
+
+- 09e5566: Remote events (`documentation/EVENTS.md`): a peer subscribes to the topics of the event bus of another peer. A subscription is a streaming call of the procedure `events.subscribe`, so it uses the frames of each call: credit is the backpressure, and a cancel is the unsubscribe. It works over WebSocket in the two directions, HTTP with NDJSON, a message port and the local transport. The protocol stays v1.
+  
+  - `WebSocketTransport.subscribe(topics, handler)` gives the unsubscribe function, with the `ready` promise of the first confirmation. `WebSocketTransport.events(topics)` gives an async iterator. After a drop, the transport resubscribes on the new connection.
+  - `subscribeRemote()` and `remoteEvents()` do the same over each transport. After a failure that a retry can repair, they resubscribe with a backoff.
+  - `ProcedureServer` has the option `events`: a bus, a topic rule (`topics`), an `allow` function and a `buffer`. The server pins `events.subscribe` outside its registry, so it is not an MCP tool. `ProcedureServer.publish()` emits on the bus. `stop()` ends each subscription with `UNAVAILABLE`.
+  - `WebSocketServerTransport.subscribe(connectionId, topics, handler)` and `events(connectionId, topics)` subscribe to the bus of a client. `LocalTransport` takes an `EventPublisher` with its option `events`.
+  - The delivery is at most once, in the order of `emit()`. When the queue of a slow subscriber is full, the publisher drops the oldest event, and the next event tells the loss (`dropped`).
+  - The new error code `TOPIC_NOT_FOUND` (404) is for a topic outside the topic rule. A topic that `allow` refuses gives `FORBIDDEN` with the reason `topic-not-allowed`.
+  - The `onEvent` option of `WebSocketTransport` is now a wrapper: it gets each event of each subscription of the transport. A raw `event` frame still goes to it.
+  - The WebSocket client does not warn about a `stream` frame of a call that it cancelled. The WebSocket server ignores a late `stream`, `response` or `error` frame of a call that it stopped. Before, it answered such a frame with an `error` frame.
+- ab77f75: Sequence numbers of the stream frames (`documentation/WIRE-PROTOCOL.md`). Before, a duplicate `stream` frame gave a duplicate item. The change is additive, and the protocol stays v1.
+  
+  - Each `stream` frame has the field `seq`: 1 in the first frame of a call, and one more in each next frame. The end frame has a number too. Each NDJSON line `item` or `done` has the same field.
+  - The receiver drops a frame whose `seq` is not above the last one. Thus a duplicate frame or a late frame gives no item.
+  - A gap does not end the stream, because the delivery is at most once. The next item has the number of lost frames in the metadata key `stream-gap` (`STREAM_GAP_METADATA_KEY`), and the console gets a warning. The receiver gives back the credit of the lost frames.
+  - A frame without `seq` comes from an older peer. The receiver takes it as before.
+  - The rules apply to WebSocket in the two directions, the message port and HTTP with NDJSON. The local transport has no frames.
+  - `WebSocketMessage` has the optional field `seq`.
+- a47bee6: The hosts serve the remote events (`documentation/EVENTS.md`).
+  
+  - `hostPolicy()` takes the option `events`: the topic rule, with an optional bus, `allow` function and buffer. `procedureServerOptions()` gives it to the `ProcedureServer`, which pins `events.subscribe`. `HostPolicy` has the new field `events`.
+  - `procedure-server` and `mark serve` have the option `--events <patterns>`. The option is repeatable, and it takes comma-separated patterns: exact names, prefixes (`orders.*`) or `*`. `parseTopicPatterns()` checks them.
+  - `mark --server` has the same option `--events`.
+  - These hosts always serve `events.subscribe`. Without `--events`, they serve no topic, and each subscription gets `TOPIC_NOT_FOUND`. The bus is the global bus, which is also the `ctx.bus` of their procedures.
+  - The MCP server serves no events, because its transport carries only MCP.
+  - `mark --port`, `--host`, `--transport` and `--events` without `--server` are an error now, also before `serve` and `mcp`. Before, `mark --port 4000 serve` ignored `--port`.
+- bc74091: Two changes for the contract of `CollectionStorage`:
+  
+  - The collection procedure `collections.<name>.get` takes the input `found: true`. Then its output is `{ found, value }`, so a stored `null` and a missing id give different outputs in one call. Without `found`, the output is the item, as before.
+  - `ProcedureServer.stop()` and `closeStorages()` close each storage one time, also a storage of two collections, and remove the storages from the server. Before, a server that started again used the closed storages.
+
+### Patch Changes
+
+- 0f75644: The dependencies go to `@mark1russell7/algebra` `^0.7.0` and `@mark1russell7/service` `^0.4.1`. A host that uses algebra 0.7.0 gets one copy of it. Algebra 0.7.0 only adds to 0.6.0.
+
 ## 0.4.0
 
 ### Minor Changes

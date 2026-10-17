@@ -1,5 +1,24 @@
 # @procedures/dag
 
+## 0.5.0
+
+### Minor Changes
+
+- 01e5b1f: `dag.traverse` reports the packages that it did not visit. A failed visit stops the traversal after its level when `continueOnError` is false. Before, the output did not list the packages of the later levels.
+  
+  - Each package without a visit has a result with `skipped: true`, `success: false`, `duration: 0` and a `reason`. These results come after the results of the visits, in dependency order.
+  - The output has the new count `skipped`. `failed` counts only the visits that failed.
+  - The loop that "ensured a result for each node" is removed. It could not add a result, because each visit records its own result.
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

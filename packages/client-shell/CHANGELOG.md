@@ -1,5 +1,16 @@
 # @procedures/shell
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [0f75644]
+- Updated dependencies [09e5566]
+- Updated dependencies [ab77f75]
+- Updated dependencies [a47bee6]
+- Updated dependencies [bc74091]
+  - @procedures/client@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
