@@ -610,12 +610,12 @@ The owner decided these items. The changes are on `main`, and they go out in 0.5
 - Built: `HybridStorage` reads the local ids without copies, so a full pull takes 30 % less time.
 - Built: one-click releases. The release workflow opens the pull request "Version the packages".
 - Built in systems: the WebSocket cells behind a router and a proxy (PR #27, harness 0.10.0). All nine cells with a band hold in two runs.
+- Removed in 0.6.0: the deprecated `db.*` aliases of the sqlite procedures (`72a8c65`). jarvis called none of them.
 - Fixed: the tests of `http` do not depend on the time of an abort, so its floor of the functions holds in each run.
 
 ### Open
 
 - `mark --fs-root` does not confine the procedures that read files with `node:fs` or start a program: `git.*`, `docker.*`, `pnpm.*`, `cue.generate`, `sqlite.*`, `archive.*` and others. The README of the fs package lists them.
-- The `db.*` names of the sqlite procedures are deprecated aliases. They go away in 0.6.0.
 - `packages/archive/src/root.ts` copies the rules of `packages/client-fs/src/root.ts`. One shared export removes the copy.
 - The test `body-stop.test.ts` of `packages/server` failed once with `EADDRINUSE`: two tests took the same port.
 - The WebSocket cells of systems run on client 0.3.0. A move to 0.4.0 changes the line numbers that their machine documents cite.
