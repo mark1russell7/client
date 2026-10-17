@@ -1,15 +1,17 @@
 /**
- * Procedures as tools of the model (`llm.complete` with `procedures`).
+ * Procedures as tools of the model (`llm.complete` and `llm.stream` with `procedures`).
  *
- * The caller names the procedures. `llm.complete` gives the model a tool for each one. The name
+ * The caller names the procedures. The procedure gives the model a tool for each one. The name
  * is the key with `_` in place of each `.`. The description and the input schema come from the
- * procedure. When the model asks for a tool, `llm.complete` calls the procedure through
- * `ctx.client` with the input of the model. The output goes back as a `tool_result`.
+ * procedure. When the model asks for a tool, the procedure starts it through `ctx.client` with
+ * the input of the model. The output goes back as a `tool_result`.
  *
- * The procedure `llm.complete` is data-driven (`markDataDriven`): its input chooses its callees.
- * Thus the admission of the host examines each nested call: its capability and its expose rule.
- * Before the first request, the same rules examine each named procedure, so a refused tool costs
- * no request.
+ * `loop.ts` has the loop of the two procedures.
+ *
+ * The procedures `llm.complete` and `llm.stream` are data-driven (`markDataDriven`): the input
+ * chooses the callees. Thus the admission of the host examines each nested call: its capability
+ * and its expose rule. Before the first request, the same rules examine each named procedure,
+ * so a refused tool costs no request.
  */
 
 import {
@@ -38,7 +40,7 @@ export interface ProcedureTool {
   readonly param: ToolParam;
 }
 
-/** The default of `maxRounds`: the most requests to the model in one call of `llm.complete`. */
+/** The default of `maxRounds`: the most requests to the model in one call of `llm.complete` or `llm.stream`. */
 export const DEFAULT_MAX_ROUNDS = 8;
 /** The most characters of the output of a tool that the model gets. */
 export const MAX_TOOL_RESULT_CHARS = 200_000;
@@ -153,6 +155,29 @@ function resultText(output: unknown): string {
 }
 
 /**
+ * This function waits for a nested call. The abort of the signal stops the wait at once with
+ * `ABORTED`. The nested call gets the same signal, so a procedure that reads it stops too.
+ */
+function untilAbort<T>(work: Promise<T>, signal: AbortSignal | undefined, path: ProcedurePath): Promise<T> {
+  if (signal === undefined) return work;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(new InvocationError("ABORTED", `Procedure was aborted: ${path.join(".")}`, path));
+    if (signal.aborted) onAbort();
+    else signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
  * This function runs one `tool_use` block with the procedure of its tool, through `ctx.client`.
  * It gives the record of the call and the `tool_result` block. An error of the procedure goes to
  * the model with `is_error: true`. A refusal of the host, the abort and the deadline stop the call.
@@ -160,7 +185,7 @@ function resultText(output: unknown): string {
 export async function runToolUse(use: LlmToolUse, tool: ProcedureTool, ctx: ToolContext): Promise<{ call: LlmToolCall; result: ContentBlock }> {
   const base = { id: use.id, name: use.name, procedure: tool.key, input: use.input };
   try {
-    const output = await ctx.client!.call(tool.path, use.input);
+    const output = await untilAbort(ctx.client!.call(tool.path, use.input), ctx.signal, tool.path);
     return {
       call: { ...base, isError: false, output },
       result: { type: "tool_result", tool_use_id: use.id, content: resultText(output) },

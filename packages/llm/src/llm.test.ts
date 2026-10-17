@@ -344,13 +344,16 @@ describe("the module", () => {
     }
   });
 
-  it("marks llm.complete as data-driven, and llm.stream as a stream with an end", () => {
+  it("marks llm.complete and llm.stream as data-driven, and llm.stream as a stream with an end", () => {
     const [complete, structured, stream] = llmModule.procedures;
     expect(isDataDriven(complete!)).toBe(true);
+    expect(isDataDriven(stream!)).toBe(true);
     expect(isDataDriven(structured!)).toBe(false);
     // The registry keeps a copy of each procedure: the copy is data-driven too
     expect(isDataDriven(createRegistry(createLlmModule({ retries: 1 })).get(["llm", "complete"])!)).toBe(true);
+    expect(isDataDriven(createRegistry(createLlmModule({ retries: 1 })).get(["llm", "stream"])!)).toBe(true);
     expect(takesRawInput(complete!)).toBe(false);
+    expect(takesRawInput(stream!)).toBe(false);
     expect(stream!.metadata).toMatchObject({ streaming: true, stream: { unbounded: false } });
   });
 
