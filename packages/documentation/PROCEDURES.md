@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 301 across 50 namespaces. Loaded 47 package register(s).
+**Total procedures:** 302 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -29,7 +29,7 @@
 - [`iosBackup.*`](#iosBackup) — 3 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
 - [`lib.*`](#lib) — 5 procedure(s)
-- [`llm.*`](#llm) — 2 procedure(s)
+- [`llm.*`](#llm) — 3 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`mail.*`](#mail) — 2 procedure(s)
 - [`manifest.*`](#manifest) — 1 procedure(s)
@@ -339,7 +339,8 @@
 
 | Procedure | Description |
 |-----------|-------------|
-| `llm.complete` | Send a prompt to a language model and give the text and the usage |
+| `llm.complete` | Send a prompt to a language model and give the text and the usage. The model can use tools and procedures |
+| `llm.stream` | Send a prompt to a language model and stream the events of the answer |
 | `llm.structured` | Send a prompt and a JSON Schema to a language model and give a value that the schema accepts |
 
 ## logs
