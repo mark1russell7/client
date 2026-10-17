@@ -164,7 +164,7 @@ procedure-server -p @procedures/mongo/register -t http,websocket
 | `--no-token` | - | - | Serve without a token (only on a trusted host) |
 | `--expose` | `-e` | every loaded procedure | Comma-separated procedures to serve: exact keys (`git.status`) or prefixes (`git.*`) |
 | `--events` | - | no topics | The topics of the event bus that a peer can subscribe to. Exact names (`orders.created`), prefixes (`orders.*`) or `*`. Repeat the option, or separate the patterns with commas. |
-| `--fs-root` | - | no root | The folder that confines each path of the `fs.*` procedures, also in their nested calls |
+| `--fs-root` | - | no root | The root of the files: each procedure keeps its paths in this folder, also in the nested calls, or the server refuses it |
 | `--verbose` | `-v` | - | Verbose output |
 | `--help` | `-h` | - | Show help |
 
@@ -184,14 +184,16 @@ The server always serves the procedure `events.subscribe` ([EVENTS.md](../docume
 procedure-server -p ./my-procedures.js -t http,websocket --events "orders.*" --events audit.created
 ```
 
-### The root of the file procedures
+### The root of the files
 
-With `--fs-root <folder>`, the server starts `confineFsProcedures()` of `@procedures/fs` after it builds its registry (roadmap R33):
+With `--fs-root <folder>`, the server starts `confineToRoot()` of `@procedures/fs` after it builds its registry (roadmap R33):
 
-- Each `fs.*` procedure refuses a path outside the folder with `FORBIDDEN` and the reason `outside-root`. A relative path starts at the folder.
-- A nested `fs.*` call of another procedure is confined too.
-- The server does not start when the folder does not exist, or when it cannot load `@procedures/fs`.
-- A procedure that reads files with `node:fs`, or that starts a program, is not confined. The [README of the MCP server](../impl-mcp-dev/README.md) lists them.
+- Each procedure refuses a path outside the folder with `FORBIDDEN` and the reason `outside-root`. A relative path starts at the folder. A working folder without a value is the folder.
+- The `fs.*` procedures get the handlers of the root. A procedure with rules (`metadata.fsRoot`) gets each path of its rules examined. A nested call is confined too.
+- The server refuses each procedure that the folder cannot confine, with the same error: `git.*`, `pnpm.*`, `docker.run`, a call of `shell.run`, and a procedure that reaches files without rules.
+- The server does not start when the folder does not exist, or when it cannot load a version of `@procedures/fs` with `confineToRoot()`.
+
+The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
 
 The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. The `server.*` procedures come from two modules: the module of `@procedures/peer` (`server.create`, `server.call` and the others) and the module of this package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@procedures/client`.
 

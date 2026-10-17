@@ -1,10 +1,27 @@
 /**
  * The fakes of the llm tests: a fake fetch that records each request and gives recorded answers
- * of the Messages API, as JSON or as server-sent events. No test reaches the network.
+ * of the Messages API, as JSON or as server-sent events. No test reaches the network. The fake
+ * procedures are the procedure tools of the tests.
  */
 
-import { createRegistry, invokePath, outputItems, outputValue, type Capability, type Interceptor, type ProcedureModule } from "@procedures/client";
+import { z } from "zod";
+import {
+  createProcedure,
+  createRegistry,
+  defineModule,
+  invokePath,
+  outputItems,
+  outputValue,
+  zodAdapter,
+  type AnyProcedure,
+  type Capability,
+  type Effects,
+  type Interceptor,
+  type ProcedureContext,
+  type ProcedureModule,
+} from "@procedures/client";
 import { createLlmModule, type LlmModuleOptions } from "../src/module.js";
+import { MAX_TOOL_RESULT_CHARS } from "../src/tools.js";
 
 export const KEY = "sk-ant-test-key";
 
@@ -136,3 +153,51 @@ export const hang = (init: RequestInit): Promise<Response> =>
   new Promise((_resolve, reject) => {
     init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
   });
+
+export const READS_WEATHER: Effects = { reads: ["weather"], writes: [], destructive: false, idempotent: true };
+export const WRITES_FS: Effects = { reads: ["fs"], writes: ["fs"], destructive: true };
+
+/** A fake procedure of a test: its path, its input schema, its effects and its handler. */
+export function procedure(
+  path: string[],
+  handler: (input: never, ctx: ProcedureContext) => Promise<unknown>,
+  options: { input?: z.ZodType; effects?: Effects; description?: string; meta?: Record<string, unknown> } = {},
+): AnyProcedure {
+  return createProcedure()
+    .path(path)
+    .input(zodAdapter(options.input ?? z.object({ city: z.string().describe("The city") })))
+    .output(zodAdapter(z.unknown()))
+    .meta({ ...(options.description !== undefined ? { description: options.description } : {}), effects: options.effects ?? READS_WEATHER, ...options.meta })
+    .handler(handler as never)
+    .build() as AnyProcedure;
+}
+
+/** The fake procedure tools of the tests, and the inputs that they got. */
+export function toolProcedures() {
+  const got: unknown[] = [];
+  const weather = procedure(
+    ["weather", "current"],
+    async (input: { city: string }) => {
+      got.push(input);
+      return { city: input.city, celsius: 21 };
+    },
+    { description: "The current weather of a city" },
+  );
+  const notes = procedure(
+    ["notes", "write"],
+    async (input) => {
+      got.push(input);
+      return "written";
+    },
+    { effects: WRITES_FS },
+  );
+  const failing = procedure(["weather", "fail"], async () => {
+    throw new Error("the weather service is down");
+  });
+  const anything = procedure(["any", "value"], async () => "x".repeat(MAX_TOOL_RESULT_CHARS + 5), { input: z.any() });
+  const number = procedure(["any", "number"], async () => 1, { input: z.number() });
+  const endless = procedure(["any", "follow"], async () => 1, { meta: { stream: { unbounded: true } } });
+  const long = procedure(["long", "n".repeat(130)], async () => 1);
+  const module = defineModule("test-tools", [weather, notes, failing, anything, number, endless, long]);
+  return { got, module };
+}

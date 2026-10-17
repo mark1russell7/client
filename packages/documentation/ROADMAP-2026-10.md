@@ -465,6 +465,8 @@ More tests for `client-git`, `client-splay`, `client-s3` and `client-fs`. `clien
 
 **Result.** Each procedure of the four packages has tests. The tests of `client-git` run real `git` in temporary repositories without the global configuration. The tests of `client-s3` use an S3 fake in memory. `createFsModule({ root })` confines each path of `fs.*`. It refuses `..`, an absolute path, another drive and a symbolic link out of the root. The error is `FORBIDDEN` with the reason `outside-root`. The tests found three defects, which are fixed. `git.commit` failed for an untracked file, `git.init` called `fs.exists` through the client, and a splay child used the global registry.
 
+**Result, part 2 (2026-10-17).** The root confines all the procedures of a host, not only `fs.*`. The three hosts start `confineToRoot()` of `@procedures/fs`. Each procedure declares its path inputs in `metadata.fsRoot`, or the reason that a root cannot confine it. A procedure without rules is refused when its effects are not known, name `fs`, or write `process`. `archive.*`, `sqlite.*`, `cue.*`, `lib.*` and most `docker.*` procedures are confined. `git.*`, `pnpm.*`, `docker.run`, `docker.build` and `docker.compose.*` are refused. `@procedures/archive` uses the rules of `@procedures/fs/root`, so the copy is gone. The rules and the table are in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
 ## Tier 8: systems
 
 ### R34. `@procedures/systems` and the timer law
@@ -575,16 +577,16 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O1 | Apps | MiniMongo on `@procedures/*` 0.7.0 | M | done | — | Client session | [MiniMongo 9aec9c1](https://github.com/mark1russell7/MiniMongo/commit/9aec9c1) |
 | O2 | Testing | The flaky peer test `body-stop.test.ts` | S | done | — | Client session | [600c497](https://github.com/mark1russell7/client/commit/600c497) |
 | O3 | Docs | The size note of the port transport | S | done | — | Client session | [600c497](https://github.com/mark1russell7/client/commit/600c497) |
-| O4 | fs root | One copy of the fs root rules | S | in progress | R33 | Client session | `integration-fs-root-all` |
-| O5 | fs root | `--fs-root` confines git, docker, pnpm, cue, sqlite and archive | M–L | in progress | O4, R33 | Client session | `integration-fs-root-all` |
+| O4 | fs root | One copy of the fs root rules | S | done | R33 | Client session | [90ea741](https://github.com/mark1russell7/client/commit/90ea741), [3f376af](https://github.com/mark1russell7/client/commit/3f376af), [d09aed8](https://github.com/mark1russell7/client/commit/d09aed8) |
+| O5 | fs root | `--fs-root` confines git, docker, pnpm, cue, sqlite and archive | M–L | done | O4, R33 | Client session | [90ea741](https://github.com/mark1russell7/client/commit/90ea741), [3f376af](https://github.com/mark1russell7/client/commit/3f376af), [d09aed8](https://github.com/mark1russell7/client/commit/d09aed8) |
 | O6 | Events | Subscribers of one topic share one wire subscription | M | done | — | Client session | [698e24d](https://github.com/mark1russell7/client/commit/698e24d), [2f490e8](https://github.com/mark1russell7/client/commit/2f490e8) |
 | O7 | Events | `bus.clear()` ends the remote subscriptions with notice | S | done | — | Client session | [698e24d](https://github.com/mark1russell7/client/commit/698e24d), [2f490e8](https://github.com/mark1russell7/client/commit/2f490e8) |
 | O8 | Events | HTTP resubscribe stops after `maxAttempts` | S | done | — | Client session | [698e24d](https://github.com/mark1russell7/client/commit/698e24d), [2f490e8](https://github.com/mark1russell7/client/commit/2f490e8) |
 | O9 | Storage | `ApiStorage.getIds()` | M | done | — | Client session | [aa6e3aa](https://github.com/mark1russell7/client/commit/aa6e3aa), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
 | O10 | Storage | A full pull of `HybridStorage` reads only what can conflict | S–M | done | O9 | Client session | [276b93c](https://github.com/mark1russell7/client/commit/276b93c), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
 | O11 | Storage | `replaceStorage` waits for the running calls | S | done | — | Client session | [d25805a](https://github.com/mark1russell7/client/commit/d25805a), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
-| O12 | LLM | `llm.stream` runs procedures as tools | M | in progress | — | Client session | `integration-llm-stream-tools` |
-| O13 | Testing | Raise the weakest mutation scores, then the floor | M | next | — | Client session | — |
+| O12 | LLM | `llm.stream` runs procedures as tools | M | done | — | Client session | [ed71c8b](https://github.com/mark1russell7/client/commit/ed71c8b), [4084b7b](https://github.com/mark1russell7/client/commit/4084b7b) |
+| O13 | Testing | Raise the weakest mutation scores, then the floor | M | in progress | — | Client session | `integration-mutation-scores` |
 | O14 | Systems | The WebSocket cells on client 0.7.0 | M | in progress | R36 | Client session (PR to systems) | `ws-server-heartbeat` |
 | O15 | Systems | Two new WebSocket cells | M | in progress | O14 | Client session (PR to systems) | `ws-server-heartbeat` |
 | O16 | Systems | The machine documents cite client 0.7.0 | S | blocked | O14, O20 | Client session (PR to systems) | — |
@@ -594,7 +596,7 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O20 | Releases | `@mark1russell7/machines` 0.3.0 on npm | S | blocked | — | markt-54 | [npm tracker](https://claude.ai/artifact/W5oqQFc9Ty1miMP63z1XwS) |
 | O21 | Systems | jarvis on a newer harness | S | later | — | Systems session | — |
 | O22 | Decisions | The raw `event` frame of old peers | S | waits for the owner | — | Mark | — |
-| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | later | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33 | markt-54 and Mark | — |
+| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | later | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33, O34 | markt-54 and Mark | — |
 | O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | Host-ownership session | [the brief](https://github.com/mark1russell7/client/blob/main/packages/documentation/HOST-OWNERSHIP-BRIEF.md) |
 | O25 | Apps | jarvis on client 0.7.0 | M | in progress | — | jarvis session | — |
 | O26 | New packages | `shiftMonth` in `@procedures/ics` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
@@ -602,9 +604,12 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O28 | Contracts | `callerOf(module)` in the client root | S | done | — | Client session | [4b09a03](https://github.com/mark1russell7/client/commit/4b09a03), [4989f1e](https://github.com/mark1russell7/client/commit/4989f1e) |
 | O29 | Events | `bus.once()` settles when `clear()` removes its handler | S | done | O7 | Client session | [4b09a03](https://github.com/mark1russell7/client/commit/4b09a03), [4989f1e](https://github.com/mark1russell7/client/commit/4989f1e) |
 | O30 | Events | `debounceChannel` and `throttleChannel` take a `Duration` | S | done | — | Client session | [4b09a03](https://github.com/mark1russell7/client/commit/4b09a03), [4989f1e](https://github.com/mark1russell7/client/commit/4989f1e) |
-| O31 | Storage | `replaceStorage` can close a storage that another collection uses | S | next | O11 | Client session | — |
-| O32 | Docs | The storage sections of the `client-collections` README | S | next | — | Client session | — |
-| O33 | Testing | The coverage floor of the functions of `http` is flaky | S | next | — | Client session | — |
+| O31 | Storage | `replaceStorage` can close a storage that another collection uses | S | done | O11 | Client session | [c4cfa34](https://github.com/mark1russell7/client/commit/c4cfa34) |
+| O32 | Docs | The storage sections of the `client-collections` README | S | done | — | Client session | [c4cfa34](https://github.com/mark1russell7/client/commit/c4cfa34) |
+| O33 | Testing | The coverage floor of the functions of `http` is flaky | S | done | — | Client session | [0fc2ecb](https://github.com/mark1russell7/client/commit/0fc2ecb) |
+| O34 | LLM | The tool loop and a `fallback` block of an answer | S | done | O12 | Client session | [a9f5420](https://github.com/mark1russell7/client/commit/a9f5420), [ac7af4c](https://github.com/mark1russell7/client/commit/ac7af4c), [API docs: Refusals and fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) |
+| O35 | fs root | Confine git under a root | M | later | O5 | Client session | — |
+| O36 | fs root | Root rules for the other procedures that reach files | M | later | O5 | Client session | — |
 
 ## Items for a decision
 
@@ -657,6 +662,7 @@ The owner decided these items. The changes are on `main`, and they go out in 0.5
 
 The open work has an ID in the section "Open work after 0.7.0". These items are limits and notes that stay.
 
+- Under a root, `git.*` and `pnpm.*` are refused. A later change can confine git with `GIT_CEILING_DIRECTORIES` and a check of the configuration of the repository. The procedures that reach files without `metadata.fsRoot` are refused too, for example `s3.download`, `snapshot.*` and `schedule.*`. `gh.*` fails at its nested `shell.run`.
 - `llm.complete` with procedures as tools uses a forced `toolChoice` only for the first request. A `tool_result` keeps at most 200,000 characters.
 - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
 - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.

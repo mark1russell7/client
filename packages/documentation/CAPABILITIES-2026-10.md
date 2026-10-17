@@ -180,3 +180,82 @@ Each question has a default. The work uses the default when there is no other an
 2. **The effect names: free strings only, or also a standard set?** Default: free strings, plus the standard names `fs`, `process` and `network` for the packages of this repository.
 3. **Reach: keep `expose` and `calls` separate, or move them into the capability?** Default: separate in phase A to C. A later change can move them, without a change of behavior.
 4. **Resources: `ctx.resources`, or fields directly on `ctx`?** Default: `ctx.resources`, so the names of an application cannot hide the fields of the framework.
+
+## The root of the files (roadmap R33)
+
+A host can confine its procedures to one folder, the root: `mark --fs-root <folder>`, `procedure-server --fs-root <folder>` and `MCP_FS_ROOT` of the MCP host. Before 2026-10-17, the root confined only the `fs.*` procedures and their nested calls. A procedure that read with `node:fs` or started a program reached each folder of the host.
+
+### The rule
+
+Under a root, each procedure keeps each path that it reaches in the root, or the host refuses it. A refusal is the error of a path outside the root: `FORBIDDEN` with the reason `outside-root`. Without a root, nothing changes.
+
+### The mechanism
+
+The three hosts start `confineToRoot(registry, root)` of `@procedures/fs` after their last registration. It is the general form of `confineFsProcedures()`. It replaces handlers, and it adds no procedure, so the lists of the tools do not change. For each procedure, `rootDecisionOf()` gives one of five kinds:
+
+| Kind | The procedure | What the root does |
+|---|---|---|
+| `fs` | `fs.*` | The handlers of `createFsModule({ root })`, as before |
+| `confined` | It declares its path inputs in `metadata.fsRoot` | It examines each path before the handler starts. A working folder without a value is the root. |
+| `program` | It starts the program of its input (`shell.run`, `shell.stream`) | It refuses a call of a client. It accepts the nested call of a confined procedure that names the procedure in `metadata.calls`. |
+| `refused` | Its rules give a reason (`refuse`), or the default refuses it | It refuses each call |
+| `unchanged` | It reaches no file | Nothing |
+
+The declaration is `FsRootRules` of the core: `cwd`, `paths`, `names`, `required`, `values`, `refuse` and `program`. The guide [CAPABILITIES.md](../client/docs/CAPABILITIES.md#declare-the-paths-of-a-procedure) tells what each field does. These rules apply:
+
+- A path of `paths` starts at the root, and the handler gets the absolute path. A procedure in the process resolves a path against the working folder of the process, which is not the root.
+- A name of `names` starts at the working folder. The handler gets it as the caller gave it, because the procedure or its program resolves it in the same way.
+- The check is the check of the `fs.*` procedures (`inRoot()` of `@procedures/fs/root`). It follows each symbolic link and junction.
+- A program procedure operates only for a confined caller. That caller chose the program and its arguments, and the root examined the paths of the caller. The core gives the caller to the handler as `ctx.caller`, so an input cannot give it. This is one level: a program procedure cannot start another one.
+- The context of the call holds the caller, so the rule also holds for a stream (`docker.logs` with `follow` starts `shell.stream`).
+
+### The default for a procedure without rules
+
+A procedure without `metadata.fsRoot` gets a decision from its effects. The decision fails closed, as the admission of a capability does:
+
+- Its effects are not known: refused. The host cannot know which files it reaches.
+- Its effects read or write `fs`: refused. It reaches files, and it does not tell which inputs name them.
+- Its effects write `process`: refused. It starts any program.
+- A data-driven procedure (`client.chain`, a procedure of `procedure.define`): unchanged. It starts the refs of its caller, and each nested call gets its own decision.
+- Any other procedure: unchanged. Its effects name no file and no program.
+
+Refusal is the safe default. A procedure of another package that reaches files works under a root only after its package declares the rules. The effects tell which procedures reach files, so a procedure that reaches no file (`mongo.*`, `json.*`, `http.*`) keeps working.
+
+### The procedures under a root
+
+| Procedures | Under a root | The inputs that the root examines | Why |
+|---|---|---|---|
+| `fs.*` | confined (the `fs` kind) | each path, the `cwd` of `fs.glob`, the matches of `fs.glob`, the stats of `fs.readdir` | The handlers of `createFsModule({ root })` |
+| `archive.create` | confined | `output` and `source` (from the root), `cwd` (the default is the root), each name of `files` (from `cwd`) | The procedure reads and writes in the process. The walk does not follow a link. |
+| `archive.extract` | confined | `archive`, `target` | The checks of the entries keep the extract in the target |
+| `archive.list` | confined | `archive` | |
+| `sqlite.query`, `sqlite.execute`, `sqlite.tables`, `sqlite.schema`, `sqlite.transaction`, `logs.store`, `logs.query` | confined | `dbPath`, which a call must give. `:memory:` is not a path. | sql.js keeps the database in memory, so an `ATTACH` or a `VACUUM INTO` does not reach the disk. The default database is in the home folder. |
+| `sqlite.migrate` | confined | `dbPath` (a call must give it), `folder` | |
+| `sqlite.backup` | confined | `dbPath` (a call must give it), `to` | |
+| `cue.init`, `cue.add`, `cue.remove`, `cue.generate`, `cue.validate` | confined | `cwd` (the default is the root) | The files of the project go through `fs.*`. The `cue` program starts in a folder of the installed cue package, with its files only. |
+| `lib.scan`, `lib.graph`, `lib.audit`, `lib.rename` | confined | `rootPath` (the default is the root) | The files go through `fs.*`. Their nested git calls are refused, and `lib.scan` gives a warning. |
+| `lib.new` | refused | | It starts the cue program of the workspace, which is code of the project |
+| `procedure.new` | confined | `path` (the default is the root) | The files go through `fs.*` |
+| `docker.ps`, `docker.logs`, `docker.stop`, `docker.rm`, `docker.images`, `docker.inspect`, `docker.pull`, `docker.push`, `docker.tag`, `docker.prune`, `docker.volume.*`, `docker.network.*` | confined | `cwd` (the default is the root) | The command goes to the daemon, and the input names no path of the host |
+| `docker.run` | refused | | A volume binds a host folder into the container |
+| `docker.exec` | refused | | The container starts the program of the caller, and it can have host folders |
+| `docker.build` | refused | | The Dockerfile runs programs, and docker resolves the context and the Dockerfile itself |
+| `docker.compose.*` | refused | | A compose file can name host paths: bind mounts, `env_file`, `include` and `extends` |
+| `git.*` | refused | | Git looks for the repository above the working folder. The configuration of a repository can start a program: a hook, `core.fsmonitor` or a filter. |
+| `pnpm.*` | refused | | pnpm reads the workspace, the store and `.npmrc` outside the working folder. The scripts and `.pnpmfile.cjs` of a project start programs. |
+| `shell.run`, `shell.stream` | program | `cwd` (the default is the root) | Only the nested call of a confined procedure that names them, for example `docker.ps` |
+| `shell.exec`, `shell.which` | refused | | A command line in a shell, and the folders of `PATH` |
+| `vitest.run`, `vitest.coverage`, `vitest.watch`, `vite.dev`, `vite.build`, `vite.preview`, `node.run`, `node.spawn`, `restic.run`, `tailscale.run`, `pdf.render`, `claude.start`, `cli.run`, `npm.pack`, `ecosystem.procedures` | refused (the default) | | They write `process` |
+| `s3.download`, `s3.presign`, `snapshot.create`, `snapshot.restore`, `snapshot.diff`, `schedule.add`, `schedule.list`, `schedule.remove`, `exif.read`, `iosBackup.*`, `privacyScan.files`, `dag.traverse`, `claude.read`, `claude.follow`, `manifest.generate`, `server.start`, `server.stop`, `server.status`, `procedure.store`, `procedure.load`, `procedure.sync` and the other procedures with `fs` in their effects | refused (the default) | | They read or write files, and they declare no rules |
+| `gh.*` | unchanged, but refused at the nested `shell.run` | | `gh` is not a confined procedure, so its program does not start |
+| `mongo.*`, `json.*`, `yaml.*`, `http.*`, `client.*`, `program.*`, `procedure.list`, `vitest.stop`, `node.kill` and the other procedures without `fs` and `process` | unchanged | | They reach no file of the host |
+
+The tests of each package pin the kind of each of its procedures. They also show a path in the root that works and a path outside that is refused. A refused procedure works without a root.
+
+### The limits
+
+- The check and the operation are two steps. The check does not see a link that another process changes between them.
+- A confined procedure answers for its handler. A handler that reads a path that its rules do not name is a defect of its rules. The tests of the packages examine the rules.
+- A program that a confined procedure starts reads its own configuration. For example, the docker program reads its configuration in the home folder.
+- `confineToRoot()` examines the procedures of the registry when it starts. A procedure that a host registers later gets no rules. `procedure.define` makes data-driven procedures, and their nested calls get the rules.
+- The root does not replace the permissions of the operating system.

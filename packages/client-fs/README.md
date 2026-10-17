@@ -117,18 +117,29 @@ const registry = createRegistry(createFsModule({ root: "/work/project" }), bundl
 
 `registerFsProcedures(registry, { root })` registers the procedures with the root in one registry.
 
-A host that has a registry already starts `confineFsProcedures(registry, root)`. The function replaces the handler of each `fs.*` procedure of the registry, and it adds no procedure:
+A host that has a registry already starts `confineToRoot(registry, root)`. The function confines each procedure of the registry, and it adds no procedure:
 
 ```ts
-import { confineFsProcedures } from "@procedures/fs/module";
+import { confineToRoot } from "@procedures/fs/module";
 
-const { root, procedures } = confineFsProcedures(registry, "/work/project");
+const { root, fs, confined, programs, refused, unchanged } = confineToRoot(registry, "/work/project");
 ```
 
+- Each `fs.*` procedure gets the handler of `createFsModule({ root })`.
+- Each other procedure gets the decision of `rootDecisionOf(procedure)`. The decision reads the rules of `metadata.fsRoot`, or the effects of a procedure without rules.
+- A confined procedure gets each path of its rules in the root. A procedure that the root cannot confine gives `FORBIDDEN` with the reason `outside-root`, as a path outside the root does.
 - A nested call of another procedure finds the new handler in the registry. Thus `lib.scan`, which calls `fs.readdir`, reads only the folders in the root.
 - The root must be a folder that exists. Otherwise the function throws, and the host does not start.
-- An `fs.*` procedure of another package is an error, because the root cannot confine it.
+- An `fs.*` procedure of another package is an error, because the root cannot confine it. Rules that are not correct are an error too. The function changes nothing when it throws.
 - The hosts use this function: `mark --fs-root <folder>`, `procedure-server --fs-root <folder>` and `MCP_FS_ROOT` of the MCP server.
+
+`confineFsProcedures(registry, root)` changes only the `fs.*` procedures, as before 0.8.0.
+
+The rules, the default for a procedure without rules, and the table of the procedures of this repository are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
+### The rules for other packages
+
+The entry `@procedures/fs/root` has the rules of the root without the procedures: `inRoot()`, `resolveRoot()`, `realPathOf()`, `isInside()`, `outsideRoot()` and `isOutsideRoot()`. A package that confines its own paths imports them. `@procedures/archive` uses them for `createArchiveModule({ root })`.
 
 ### Rules
 
@@ -151,7 +162,7 @@ const { root, procedures } = confineFsProcedures(registry, "/work/project");
 ### Limits
 
 - The check and the operation are two steps. The check does not see a symlink that a process changes between the two steps.
-- The root applies only to the `fs.*` procedures and their nested calls. A procedure that uses `node:fs` directly, or that starts a program, does not get the root. Examples are `git.*`, `archive.*`, `snapshot.*`, `sqlite.*`, the `existsSync` of `lib.*` and the TypeScript files of `lib.rename`.
+- `createFsModule({ root })` and `confineFsProcedures()` confine only the `fs.*` procedures and their nested calls. `confineToRoot()` also confines or refuses the other procedures.
 - The root does not replace the permissions of the operating system.
 
 ## API Reference
@@ -928,8 +939,9 @@ client-fs/
 │   ├── register.ts               # Auto-registration
 │   ├── index.ts                  # Main entry point
 │   ├── module.ts                 # fsModule, createFsModule({ root })
-│   ├── root.ts                   # The check of a path against the root
+│   ├── root.ts                   # The check of a path against the root (the ./root entry)
 │   ├── handlers.ts               # The handlers with a root
+│   ├── confine.ts                # The root for the other procedures of a registry
 │   ├── procedures/
 │   │   ├── fs.ts                 # Barrel export
 │   │   └── fs/

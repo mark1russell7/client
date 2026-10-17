@@ -36,7 +36,7 @@ export const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[] = [
   {
     long: "fs-root",
     takesValue: true,
-    description: "Confine each path of fs.* to this folder, also in nested calls (before the command)",
+    description: "Keep each path of each procedure in this folder, and refuse the procedures that it cannot confine (before the command)",
   },
   { long: "interactive", short: "i", takesValue: false, mode: true, description: "Start the REPL" },
   { long: "server", takesValue: false, mode: true, description: "Start the CLI server" },

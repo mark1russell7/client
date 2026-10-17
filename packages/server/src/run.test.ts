@@ -182,6 +182,11 @@ describe("the root of the file procedures (--fs-root, roadmap R33)", () => {
     // A nested call of another procedure goes through the confined fs.read
     expect(await post(port, "fixture/readFile", { path: join(root, "inside.txt") })).toMatchObject({ status: 200, body: { content: "inside" } });
     expect((await post(port, "fixture/readFile", { path: join(base, "outside.txt") })).status).toBe(403);
+    // A procedure without effects and root rules is refused, also for a path in the root
+    const undeclared = await post(port, "fixture/readFileUndeclared", { path: join(root, "inside.txt") });
+    expect(undeclared.status).toBe(403);
+    expect(JSON.stringify(undeclared.body)).toContain("cannot confine");
+    expect(server.refusedUnderRoot).toContain("fixture.readFileUndeclared");
   });
 
   it("does not start with a root that does not exist", async () => {

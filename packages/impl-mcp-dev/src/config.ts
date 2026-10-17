@@ -31,9 +31,9 @@ export interface McpServerConfig {
    */
   programCheck?: boolean | undefined;
   /**
-   * The folder that confines each path of the `fs.*` procedures of the host (roadmap R33). The
-   * nested `fs.*` calls of the tools (`lib.scan`, `cue.add`) are confined too. A path outside
-   * gives `FORBIDDEN` with the reason `outside-root`. No value: no root.
+   * The root of the files of the host (roadmap R33). Each procedure keeps its paths in it, also
+   * in the nested calls (`lib.scan`, `cue.add`), or the root refuses it. A path outside, and a
+   * refused tool, give `FORBIDDEN` with the reason `outside-root`. No value: no root.
    */
   fsRoot?: string | undefined;
 }
@@ -50,7 +50,7 @@ export interface McpServerConfig {
  * - MCP_READ_ONLY: "true" or "1" gives only the tools that change nothing (default: false)
  * - MCP_HTTP_PORT, MCP_HTTP_HOST, MCP_HTTP_TOKEN: serve over Streamable HTTP, not stdio
  * - MCP_PROGRAM_CHECK: "false" or "0" starts a program without the check before the run
- * - MCP_FS_ROOT: the folder that confines each path of the fs.* procedures (default: no root)
+ * - MCP_FS_ROOT: the root of the files: each tool keeps its paths in it, or it is refused (default: no root)
  */
 /** The default time limit of a tool call: a build or a test run can take minutes. */
 export const DEFAULT_TOOL_TIMEOUT_MS = 600_000;

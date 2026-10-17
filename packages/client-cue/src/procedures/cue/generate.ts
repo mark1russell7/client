@@ -2,8 +2,10 @@
  * cue.generate procedure
  *
  * Generate config files (package.json, tsconfig.json, .gitignore).
- * Uses ctx.client.call() for file system operations (dogfooding).
- * Runs the cue program through runCommand of client-shell (async, no shell).
+ * Uses ctx.client.call() for the files of the project (dogfooding).
+ * Runs the cue program through runCommand of client-shell (async, no shell), in a folder of the
+ * installed cue package, with the CUE files of that package only. The program reads no path of
+ * the call, so a root of the host (roadmap R33) confines only the folder of the project.
  */
 
 import { resolve } from "node:path";
@@ -19,6 +21,7 @@ import {
   featureToFieldName,
   packageRoot,
   fileExists,
+  installedFileExists,
   readJson,
   writeJson,
   writeFile,
@@ -55,7 +58,7 @@ async function generatePackageJson(
   for (const feature of resolvedFeatures) {
     const fieldName = featureToFieldName(feature);
     const cuePath = resolve(configDir, `${fieldName}.cue`);
-    if (await fileExists(cuePath, ctx)) {
+    if (await installedFileExists(cuePath)) {
       files.push(`${fieldName}.cue`);
     }
   }
@@ -111,7 +114,7 @@ async function generateGitignore(
   const files: string[] = ["base.cue"];
   for (const feature of resolvedFeatures) {
     const cuePath = resolve(configDir, `${feature}.cue`);
-    if (await fileExists(cuePath, ctx)) {
+    if (await installedFileExists(cuePath)) {
       files.push(`${feature}.cue`);
     }
   }

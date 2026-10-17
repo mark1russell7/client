@@ -72,13 +72,14 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@procedures/client": "workspace:*",
     "@mark1russell7/docker-sqlite": "^0.1.0",
+    "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.0",
     "@procedures/collections": "workspace:*",
+    "@procedures/fs": "workspace:*",
     "@procedures/store": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",

@@ -7,7 +7,7 @@
  */
 
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { pnpmInstall, pnpmAdd, pnpmRemove, pnpmLink, pnpmRun, pnpmStorePath } from "./procedures/pnpm/index.js";
 import {
@@ -271,6 +271,26 @@ const pnpmPackProcedure = createProcedure()
   .build();
 
 // =============================================================================
+// The rule under a root of the files (roadmap R33)
+// =============================================================================
+
+/**
+ * The rule of each pnpm procedure under a root of the files: a host with a root refuses it.
+ * - pnpm reads the workspace and the configuration (`.npmrc`) in the folders above the working
+ *   folder, and the store is outside the project.
+ * - install, add, update, run and exec start the scripts of the project, and `.pnpmfile.cjs` is
+ *   code. A client with `fs.write` in the root can write them.
+ */
+const REFUSED_UNDER_A_ROOT: FsRootRules = {
+  refuse: "pnpm reads the workspace, the store and the configuration outside the working folder, and the scripts of a project start programs",
+};
+
+/** The procedure with the rule of a root. */
+function underARoot(procedure: AnyProcedure): AnyProcedure {
+  return { ...procedure, metadata: { ...procedure.metadata, fsRoot: REFUSED_UNDER_A_ROOT } };
+}
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -291,7 +311,7 @@ export const pnpmModule: ProcedureModule = defineModule("@procedures/pnpm", [
     pnpmOutdatedProcedure,
     pnpmUpdateProcedure,
     pnpmPackProcedure,
-  ], [shellModule]);
+  ].map(underARoot), [shellModule]);
 
 export default pnpmModule;
 

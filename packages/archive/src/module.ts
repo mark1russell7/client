@@ -115,6 +115,8 @@ function archiveProcedures(settings: ArchiveSettings): AnyProcedure[] {
       shorts: { source: "s", format: "f" },
       output: "json",
       effects: READS_WRITES_FS,
+      // A root of the host examines the archive, the source, the base folder and each file
+      fsRoot: { cwd: "cwd", paths: ["output", "source"], names: ["files"] },
     })
     .handler(async (input: ArchiveCreateInput): Promise<ArchiveCreateOutput> => archiveCreate(input, settings))
     .build();
@@ -130,6 +132,8 @@ function archiveProcedures(settings: ArchiveSettings): AnyProcedure[] {
       shorts: { format: "f" },
       output: "json",
       effects: READS_WRITES_FS,
+      // The checks of the entries keep the extract in the target
+      fsRoot: { paths: ["archive", "target"] },
     })
     .handler(async (input: ArchiveExtractInput): Promise<ArchiveExtractOutput> => archiveExtract(input, settings))
     .build();
@@ -145,6 +149,7 @@ function archiveProcedures(settings: ArchiveSettings): AnyProcedure[] {
       shorts: { format: "f" },
       output: "json",
       effects: READS_FS,
+      fsRoot: { paths: ["archive"] },
     })
     .handler(async (input: ArchiveListInput): Promise<ArchiveListOutput> => archiveList(input, settings))
     .build();

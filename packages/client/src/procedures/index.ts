@@ -25,6 +25,7 @@ export type {
   RegistrationOptions,
   ProcedureRegistryLike,
   Effects,
+  FsRootRules,
   PermittedEffects,
   Register,
   ClearanceOf,
