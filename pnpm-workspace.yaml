@@ -10,11 +10,9 @@ minimumReleaseAgeExclude:
   - "@mark1russell7/cue@1.0.0"
   - "@mark1russell7/docker-sqlite@0.1.0"
   - "@mark1russell7/splay@0.1.0"
-  - "@mark1russell7/algebra@0.2.0"
-  - "@mark1russell7/service@0.2.0"
+  - "@mark1russell7/algebra@0.2.0 || 0.5.0 || 0.7.0"
+  - "@mark1russell7/service@0.2.0 || 0.4.0 || 0.4.1"
   - "@mark1russell7/quantity@0.2.0"
-  - "@mark1russell7/algebra@0.5.0"
-  - "@mark1russell7/service@0.4.0"
 
 patchedDependencies:
   '@stryker-mutator/vitest-runner@10.0.0': patches/@stryker-mutator__vitest-runner@10.0.0.patch
