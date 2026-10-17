@@ -363,8 +363,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /** With `versionOf`: the last known remote version of each id. `null`: the remote has no item. */
   private readonly bases = new Map<string, string | null>();
   /**
-   * With `versionOf`: the version of each local item that the storage wrote. A pull does not read
-   * an item whose version it knows. The version of an id that is not here is unknown.
+   * With `versionOf`: the version of each local item that the storage wrote or read. A pull does
+   * not read an item whose version it knows. The version of an id that is not here is unknown.
    */
   private readonly localVersions = new Map<string, string>();
   /** The number of the last local write of each id that runs: only that write records a version */
