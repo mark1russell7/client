@@ -12,6 +12,12 @@ Write all prose of this repository in the style of ASD-STE100 Simplified Technic
 - Add a word to the glossary in `ste.config.json` only if it is a real technical term of the project.
 - The linter examines the files that `ste.config.json` names: the root files, the documentation, and the README of each package whose prose is rewritten.
 
+## The roadmap and its tracker
+
+- The roadmap is `packages/documentation/ROADMAP-2026-10.md`. The open work after 0.7.0 is in its section "Open work after 0.7.0".
+- The live tracker is https://claude.ai/artifact/49vNStauE2K7pScAuxDGWr. Each item is a row of the `items` collection of the database of that page.
+- When an item starts, ships, gets blocked or changes, change the roadmap file and the tracker together.
+
 ## Repository structure
 
 - Each folder in `packages/` is one package. The folders keep the names of their old repositories.
