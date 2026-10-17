@@ -13,6 +13,7 @@
  * The contract (the suite of `@procedures/collections/testing` tests it for each storage):
  * - A storage keeps a copy of each value that a write takes, and each read gives a new copy.
  * - A stored `null` reads back as `null`. A missing id reads back as `undefined`.
+ * - `getIds()` gives the ids of `getEntries()`, in the same order.
  * - A delta of `getChangesSince` follows the order of the last change of each id.
  * - After `close()`, each operation rejects with an error whose message says "closed". A second
  *   `close()` does nothing.
@@ -27,6 +28,11 @@ export interface CollectionStorage<T> {
    * them does not have this method.
    */
   getEntries?(): Promise<Array<[string, T]>>;
+  /**
+   * The ids of the items, in the order of the entries, without the values. A storage that cannot
+   * give the ids cheaply does not have this method.
+   */
+  getIds?(): Promise<string[]>;
   /**
    * The changes after a version (roadmap R28). A storage without a change log does not have
    * this method, and a sync uses `getEntries()`.

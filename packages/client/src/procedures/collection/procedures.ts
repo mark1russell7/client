@@ -20,6 +20,8 @@ import {
   getAllOutputSchema,
   entriesInputSchema,
   entriesOutputSchema,
+  idsInputSchema,
+  idsOutputSchema,
   changesInputSchema,
   changesOutputSchema,
   sizeInputSchema,
@@ -39,6 +41,7 @@ import {
   type HasInput,
   type GetAllInput,
   type EntriesInput,
+  type IdsInput,
   type ChangesInput,
   type ChangesOutput,
   type SizeInput,
@@ -196,6 +199,25 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
           throw new Error(`The storage of ${collectionName} cannot give the ids of its items`);
         }
         return (await storage.getEntries()).map(([id, value]) => ({ id, value }));
+      },
+    }),
+
+    // Ids: the ids of the items without the values, for a full sync
+    defineProcedure({
+      path: [...basePath, "ids"],
+      input: idsInputSchema,
+      output: idsOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [] },
+        description: `Get the ids of the items of ${collectionName}, without the values`,
+        tags: ["collections", collectionName, "read"],
+      },
+      handler: async (_input: IdsInput, ctx: ProcedureContext) => {
+        const storage = getStorage(ctx);
+        if (storage.getIds) return storage.getIds();
+        // A storage without getIds() gives its entries: the values stay on the server
+        if (storage.getEntries) return (await storage.getEntries()).map(([id]) => id);
+        throw new Error(`The storage of ${collectionName} cannot give the ids of its items`);
       },
     }),
 
