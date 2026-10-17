@@ -615,12 +615,11 @@ The owner decided these items. The changes are on `main`, and they go out in 0.5
 ### Open
 
 - `mark --fs-root` does not confine the procedures that read files with `node:fs` or start a program: `git.*`, `docker.*`, `pnpm.*`, `cue.generate`, `sqlite.*`, `archive.*` and others. The README of the fs package lists them.
-- The `db.*` names of the sqlite procedures are deprecated aliases for one release. They go away in 0.5.0 or the release after it.
+- The `db.*` names of the sqlite procedures are deprecated aliases. They go away in 0.6.0.
 - `packages/archive/src/root.ts` copies the rules of `packages/client-fs/src/root.ts`. One shared export removes the copy.
 - The test `body-stop.test.ts` of `packages/server` failed once with `EADDRINUSE`: two tests took the same port.
 - The WebSocket cells of systems run on client 0.3.0. A move to 0.4.0 changes the line numbers that their machine documents cite.
 - HAProxy has no machine document, so its timeout cells have no band.
-- `Verdict.left` of the cells with the global `WebSocket` class measures the end of the client process, not a close by the program. A fix is in progress in systems (harness 0.11.0).
 - `llm.complete` with procedures as tools uses a forced `toolChoice` only for the first request. A `tool_result` keeps at most 200,000 characters.
 - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
 - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.
