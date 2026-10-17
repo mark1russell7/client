@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 304 across 51 namespaces. Loaded 47 package register(s).
+**Total procedures:** 297 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -16,7 +16,6 @@
 - [`csv.*`](#csv) — 2 procedure(s)
 - [`cue.*`](#cue) — 5 procedure(s)
 - [`dag.*`](#dag) — 1 procedure(s)
-- [`db.*`](#db) — 7 procedure(s)
 - [`docker.*`](#docker) — 25 procedure(s)
 - [`ecosystem.*`](#ecosystem) — 1 procedure(s)
 - [`env.*`](#env) — 3 procedure(s)
@@ -133,18 +132,6 @@
 | Procedure | Description |
 |-----------|-------------|
 | `dag.traverse` | Traverse ecosystem packages in dependency order, executing visit procedure for each |
-
-## db
-
-| Procedure | Description |
-|-----------|-------------|
-| `db.backup` | Deprecated: use sqlite.backup. Copy a database to a new file (it does not replace a file) |
-| `db.execute` | Deprecated: use sqlite.execute. Execute a SQL statement (INSERT, UPDATE, DELETE) |
-| `db.migrate` | Deprecated: use sqlite.migrate. Apply the numbered migrations (a folder or a list) that a database does not have, in one transaction |
-| `db.query` | Deprecated: use sqlite.query. Execute a SQL SELECT query (read only: a statement that changes data fails) |
-| `db.schema` | Deprecated: use sqlite.schema. The columns, indexes and foreign keys of a table (read only) |
-| `db.tables` | Deprecated: use sqlite.tables. The tables and views of a database (read only: a missing file is an error) |
-| `db.transaction` | Deprecated: use sqlite.transaction. Run statements in one transaction: they all take effect, or none does |
 
 ## docker
 
