@@ -47,6 +47,10 @@ export interface TimerDefaults {
     /** The time until the first frame of a call of the server to a client. */
     readonly reverseRequestTimeoutMs: number;
   };
+  readonly httpServer: {
+    /** The quiet time of an NDJSON stream. After it, the server writes a keep-alive line. */
+    readonly keepAliveMs: number;
+  };
   readonly idempotency: {
     /** The time that the server keeps the result of a keyed write. */
     readonly ttlMs: number;
@@ -77,6 +81,9 @@ export const TIMER_DEFAULTS: TimerDefaults = Object.freeze({
   // 15 s: with 2 misses, the server finds a dead client after 30 s, not later than a call of the
   // server to it reaches its request time of 30 s. Before, 30 s gave 60 s (the timer law, R34).
   webSocketServer: Object.freeze({ heartbeatIntervalMs: 15_000, heartbeatMisses: 2, reverseRequestTimeoutMs: 30_000 }),
+  // 15 s: less than the idle time of 60 s that many proxies and load balancers use. A quiet NDJSON
+  // stream then stays open (WIRE-PROTOCOL.md, "The keep-alive of an NDJSON stream").
+  httpServer: Object.freeze({ keepAliveMs: 15_000 }),
   idempotency: Object.freeze({ ttlMs: 10 * 60_000 }),
   server: Object.freeze({ stopGraceMs: 0 }),
 });

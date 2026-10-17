@@ -21,7 +21,7 @@ import { PROTOCOL_VERSION } from "../protocol.js";
 import { PortTransport, type PortLike } from "./port/transport.js";
 import { WebSocketTransport } from "./websocket/client/transport.js";
 import { HttpTransport } from "./http/client/transport.js";
-import { STREAM_GAP_METADATA_KEY, StreamSequence, gapOf, itemMetadata } from "./sequence.js";
+import { STREAM_GAP_METADATA_KEY, STREAM_ITEM_METADATA_KEY, StreamSequence, gapOf, itemMetadata, streamItemMetadata } from "./sequence.js";
 
 /** One stream frame of the fake peer: an item, or the end. A step without `seq` comes from an older peer. */
 interface Step {
@@ -138,7 +138,8 @@ async function overHttp(script: Script): Promise<Outcome> {
     req.resume();
     req.on("end", () => {
       res.writeHead(200, { "content-type": "application/x-ndjson" });
-      res.end([...script.first, ...(script.afterCredit ?? [])].map(ndjsonLine).join(""));
+      // A keep-alive line before and after each line: it has no seq, so each case gives the same items
+      res.end(`\n${[...script.first, ...(script.afterCredit ?? [])].map(ndjsonLine).join("\n")}\n`);
     });
   });
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
@@ -167,6 +168,11 @@ describe("StreamSequence", () => {
     expect(itemMetadata({ [STREAM_GAP_METADATA_KEY]: 1000, other: 1 }, 0)).toEqual({ other: 1 });
     expect(itemMetadata({ [STREAM_GAP_METADATA_KEY]: 1000 }, 2)).toEqual({ [STREAM_GAP_METADATA_KEY]: 2 });
     expect(itemMetadata(undefined, 0)).toEqual({});
+  });
+
+  it("marks an item of an NDJSON stream with stream: true, and removes the stream key of the peer", () => {
+    expect(streamItemMetadata({ [STREAM_ITEM_METADATA_KEY]: "unbounded", [STREAM_GAP_METADATA_KEY]: 7, other: 1 }, 0)).toEqual({ other: 1, [STREAM_ITEM_METADATA_KEY]: true });
+    expect(streamItemMetadata(undefined, 2)).toEqual({ [STREAM_GAP_METADATA_KEY]: 2, [STREAM_ITEM_METADATA_KEY]: true });
   });
 });
 

@@ -13,7 +13,7 @@ import type {
 
 import type { HttpTransportOptions } from "./types.js";
 import { DELIVERY_METADATA_KEY, RETRY_AFTER_METADATA_KEY, isNotSentError } from "../../../client/middleware/items.js";
-import { StreamSequence, itemMetadata } from "../../sequence.js";
+import { StreamSequence, streamItemMetadata } from "../../sequence.js";
 
 /**
  * The wait that an error response asks for, in milliseconds: `retryAfterMs` of the body of the
@@ -227,6 +227,11 @@ export class HttpTransport implements Transport {
    * or an `{"type":"error"}` line. A stream that ends without one of the last two is an error
    * that a retry can repair (the connection broke). An `item` or a `done` line whose `seq` is not
    * above the last one gives nothing. The item after a gap has `stream-gap` in its metadata.
+   *
+   * A blank line is a keep-alive line of the server. The reader skips it: it has no `seq`, so the
+   * check sees no gap, and the `timeout` of the first item continues. Each item of the stream,
+   * also its error item, has the metadata key `stream` with the value `true`
+   * (`STREAM_ITEM_METADATA_KEY`).
    */
   private async *readNdjson<TRes>(
     id: string,
@@ -248,6 +253,7 @@ export class HttpTransport implements Transport {
         while ((newline = buffer.indexOf("\n")) >= 0) {
           const line = buffer.slice(0, newline).trim();
           buffer = buffer.slice(newline + 1);
+          // A keep-alive line of the server (WIRE-PROTOCOL.md)
           if (!line) continue;
           const frame = JSON.parse(line) as {
             type: string;
@@ -260,7 +266,7 @@ export class HttpTransport implements Transport {
           const gap = frame.type === "item" || frame.type === "done" ? order.next(frame.seq, id) : 0;
           if (gap < 0) continue;
           if (frame.type === "item") {
-            yield { id, status: { type: "success", code: 200 }, payload: frame.payload as TRes, metadata: itemMetadata(metadata, gap) };
+            yield { id, status: { type: "success", code: 200 }, payload: frame.payload as TRes, metadata: streamItemMetadata(metadata, gap) };
           } else if (frame.type === "done") {
             onEnd();
             return;
@@ -275,7 +281,7 @@ export class HttpTransport implements Transport {
                 retryable: frame.error?.retryable ?? false,
               },
               payload: null as TRes,
-              metadata,
+              metadata: streamItemMetadata(metadata, 0),
             };
             return;
           }
@@ -286,7 +292,7 @@ export class HttpTransport implements Transport {
         id,
         status: { type: "error", code: "STREAM_ENDED", message: "The stream ended without its end line", retryable: true },
         payload: null as TRes,
-        metadata: { ...metadata, [DELIVERY_METADATA_KEY]: "indeterminate" },
+        metadata: { ...streamItemMetadata(metadata, 0), [DELIVERY_METADATA_KEY]: "indeterminate" },
       };
     } finally {
       reader.releaseLock();

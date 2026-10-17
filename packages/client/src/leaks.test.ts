@@ -8,7 +8,7 @@
  * the handlers end. Then it reads the counters and the private maps:
  *
  * - `ProcedureServer.callsInFlight` and the entries of the idempotency cache, which expire.
- * - HTTP: the open requests of the server transport.
+ * - HTTP: the open requests of the server transport, and its keep-alive timers.
  * - WebSocket: the pending calls of the client, and the calls and the stream credit of each
  *   connection of the server, in the two directions.
  * - Each face: the handlers that run, and the abort listeners on the signal of each call.
@@ -33,6 +33,7 @@ import { createRegistry } from "./procedures/module.js";
 import { ProcedureServer } from "./server/procedure-server.js";
 import { pathToMethod } from "./server/method.js";
 import { createEventBus } from "./events/bus.js";
+import { countingClock } from "../test/counting-clock.js";
 
 /** The number of aborted calls of each face. */
 const CALLS = 1000;
@@ -258,7 +259,9 @@ describe("no leak after 1,000 aborted calls (R30)", { timeout: 30_000 }, () => {
     const server = serverOf(handlers, clock);
     const app = express();
     const http = createServer(app);
-    const transport = new HttpServerTransport(server, { app, httpServer: http });
+    // Each NDJSON stream starts a keep-alive timer: each stream that ends must stop its timer
+    const timers = countingClock();
+    const transport = new HttpServerTransport(server, { app, httpServer: http, clock: timers });
     server.addTransport(transport);
     await server.start();
     const port = await listen(http);
@@ -273,10 +276,15 @@ describe("no leak after 1,000 aborted calls (R30)", { timeout: 30_000 }, () => {
         client,
         handlers,
         servers: [server],
-        maps: () => ({ "HttpServerTransport.openRequests": (transport as unknown as { openRequests: Set<unknown> }).openRequests.size }),
+        maps: () => ({
+          "HttpServerTransport.openRequests": (transport as unknown as { openRequests: Set<unknown> }).openRequests.size,
+          "HttpServerTransport.keepAliveTimers": timers.live,
+        }),
       },
       clock,
     );
+    // The streams started keep-alive timers, so the count of 0 above is a real check
+    expect(timers.started).toBeGreaterThan(0);
   });
 
   it("WebSocket", async () => {

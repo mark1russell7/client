@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 437 names
+## . (dist/index.d.ts): 438 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -196,6 +196,7 @@ type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResul
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
+STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
@@ -444,7 +445,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 420 names
+## ./browser (dist/browser.d.ts): 421 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -630,6 +631,7 @@ type RouteResolutionResult: dist/client/route-resolver.d.ts#RouteResolutionResul
 RouteResolver: dist/client/route-resolver.d.ts#RouteResolver
 STANDARD_RESOURCES: dist/procedures/capability.d.ts#STANDARD_RESOURCES
 STREAM_GAP_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
+STREAM_ITEM_METADATA_KEY: dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
@@ -867,11 +869,14 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 3 names
+## ./node (dist/node.d.ts): 6 names
 
+type NdjsonError: dist/adapters/http/server/ndjson.d.ts#NdjsonError
 type WebSocketClass: dist/adapters/websocket/client/types.d.ts#WebSocketClass
 WebSocketTransport: dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+type WriteNdjsonStreamOptions: dist/adapters/http/server/ndjson.d.ts#WriteNdjsonStreamOptions
+writeNdjsonStream: dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 
 ## ./register (dist/register.d.ts): 0 names
 
@@ -1327,6 +1332,24 @@ export interface HttpTransportOptions {
     timeout?: Duration;
 }
 
+### dist/adapters/http/server/ndjson.d.ts#NdjsonError
+export interface NdjsonError {
+    code: string;
+    message: string;
+    retryable: boolean;
+}
+
+### dist/adapters/http/server/ndjson.d.ts#WriteNdjsonStreamOptions
+export interface WriteNdjsonStreamOptions {
+    readonly signal?: AbortSignal | undefined;
+    readonly keepAlive?: Duration | false | undefined;
+    readonly errorOf?: ((error: unknown) => NdjsonError) | undefined;
+    readonly clock?: Clock | undefined;
+}
+
+### dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
+export declare function writeNdjsonStream(res: ServerResponse, items: AsyncIterable<unknown>, options?: WriteNdjsonStreamOptions): Promise<void>;
+
 ### dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 export declare function defaultServerUrlStrategy(req: Request): Method | null;
 
@@ -1352,6 +1375,8 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
     basePath?: string;
     cors?: boolean;
     bodyLimit?: number;
+    keepAlive?: Duration | false;
+    clock?: Clock;
     corsOptions?: {
         origin?: string | string[];
         methods?: string[];
@@ -1482,6 +1507,9 @@ export interface PortTransportOptions {
 
 ### dist/adapters/sequence.d.ts#STREAM_GAP_METADATA_KEY
 export declare const STREAM_GAP_METADATA_KEY = "stream-gap";
+
+### dist/adapters/sequence.d.ts#STREAM_ITEM_METADATA_KEY
+export declare const STREAM_ITEM_METADATA_KEY = "stream";
 
 ### dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 export declare class WebSocketTransport extends PortableWebSocketTransport {
@@ -4396,6 +4424,9 @@ export interface TimerDefaults {
         readonly heartbeatIntervalMs: number;
         readonly heartbeatMisses: number;
         readonly reverseRequestTimeoutMs: number;
+    };
+    readonly httpServer: {
+        readonly keepAliveMs: number;
     };
     readonly idempotency: {
         readonly ttlMs: number;

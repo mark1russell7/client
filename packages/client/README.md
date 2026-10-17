@@ -567,12 +567,51 @@ await server.stop()
 new HttpServerTransport(server: Server, options: HttpServerTransportOptions)
 
 interface HttpServerTransportOptions {
-  port: number;
-  hostname?: string;
+  app: Express;                  // required
+  httpServer?: HttpServer;       // an existing server: the transport does not listen
+  port?: number;                 // default: 3000
+  host?: string;                 // default: "127.0.0.1"
+  basePath?: string;             // default: "/api"
   urlStrategy?: HttpUrlStrategy;
-  cors?: boolean | CorsOptions;
+  cors?: boolean;
+  corsOptions?: { origin?: string | string[]; methods?: string[]; allowedHeaders?: string[]; credentials?: boolean };
+  bodyLimit?: number;            // default: 1 MiB
+  keepAlive?: Duration | false;  // default: seconds(15)
+  clock?: Clock;                 // the clock of the keep-alive timers
 }
 ```
+
+A client that accepts `application/x-ndjson` gets a stream as NDJSON lines ([WIRE-PROTOCOL.md](../documentation/WIRE-PROTOCOL.md)).
+
+- After each quiet time of `keepAlive`, the server writes a keep-alive line: a blank line. Thus a proxy or a client with an idle timeout does not close a long, quiet stream.
+- Each line starts the quiet time again. No keep-alive line comes after the end, an error, an abort or a closed connection.
+- `keepAlive: false` turns the keep-alive lines off.
+- The HTTP client skips each blank line. Each item that it reads from an NDJSON stream has the metadata key `stream: true` (`STREAM_ITEM_METADATA_KEY`).
+
+A server without Express writes the same lines with `writeNdjsonStream` of `@procedures/client/node`:
+
+```typescript
+import { createServer } from "node:http";
+import { seconds } from "@procedures/client";
+import { writeNdjsonStream } from "@procedures/client/node";
+
+async function* progress() {
+  for (let step = 1; step <= 3; step++) {
+    await new Promise((resolve) => setTimeout(resolve, 60_000)); // a quiet minute: 4 keep-alive lines
+    yield { step };
+  }
+}
+
+createServer((req, res) => {
+  // The headers, the item, done and error lines with seq, the keep-alive lines and the backpressure
+  void writeNdjsonStream(res, progress(), {
+    keepAlive: seconds(15),
+    errorOf: (error) => ({ code: "UNAVAILABLE", message: String(error), retryable: true }),
+  });
+}).listen(3000);
+```
+
+The promise of `writeNdjsonStream` resolves when the response ends. A closed connection or an abort of `signal` stops the stream, and the iterator of the items gets `return()`.
 
 #### WebSocket Server Transport
 ```typescript
@@ -642,7 +681,7 @@ import { ... } from "@procedures/client/events";
 |---|---|
 | `@procedures/client` | Node. The browser entry and the server transports. Its `WebSocketTransport` uses the global `WebSocket`. |
 | `@procedures/client/browser` | A browser bundle. It does not import `http` or `ws`. |
-| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. |
+| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. |
 | `@procedures/client/register` | It registers the core procedures in the global registry. |
 
 ## Procedure Discovery

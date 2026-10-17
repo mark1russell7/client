@@ -98,7 +98,7 @@ postOnlyStrategy(method)
 
 ```typescript
 import express from "express";
-import { HttpServerTransport } from "@procedures/client";
+import { HttpServerTransport, seconds } from "@procedures/client";
 
 const app = express();
 // A body parser is optional: without one, the transport reads the JSON body itself.
@@ -117,10 +117,31 @@ const transport = new HttpServerTransport(server, {
   // CORS is off by default. origin is "*", one origin or a list.
   cors: true,
   corsOptions: { origin: ["https://app.example"] },
+
+  // A quiet NDJSON stream gets a keep-alive line, a blank line, after each 15 s without a line.
+  // false turns it off. The client skips each blank line (WIRE-PROTOCOL.md).
+  keepAlive: seconds(15),
 });
 
 server.addTransport(transport);
 ```
+
+### NDJSON streams without Express
+
+`writeNdjsonStream(res, items, options?)` of `@procedures/client/node` writes the NDJSON stream response of `HttpServerTransport` for a `ServerResponse` of `node:http`. The two write the same bytes.
+
+```typescript
+import { writeNdjsonStream } from "@procedures/client/node";
+
+// options: signal, keepAlive (default seconds(15)), errorOf, clock
+await writeNdjsonStream(res, items, { signal: controller.signal });
+```
+
+- It writes the headers, then an `item` line for each item, then the `done` line or an `error` line.
+- After each quiet time of `keepAlive`, it writes a keep-alive line. No keep-alive line comes after the last line.
+- When the buffer of the response is full, it waits for `drain` before it reads the next item.
+- A closed connection or an abort of `signal` stops it, and the iterator of the items gets `return()`. After an abort, an open response gets the error line `ABORTED`.
+- `errorOf` gives the `error` line of an error. The default gives the code of the error, or `HANDLER_ERROR`.
 
 ### Server URL Strategies
 

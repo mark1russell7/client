@@ -1,0 +1,22 @@
+{
+  "server": {
+    "status": 200,
+    "contentType": "application/x-ndjson",
+    "protocol": "1",
+    "body": "{\"type\":\"item\",\"seq\":1,\"payload\":1}\n\n\n{\"type\":\"item\",\"seq\":2,\"payload\":2}\n{\"type\":\"done\",\"seq\":3}\n"
+  },
+  "items": [
+    {
+      "payload": 1,
+      "metadata": {
+        "stream": true
+      }
+    },
+    {
+      "payload": 2,
+      "metadata": {
+        "stream": true
+      }
+    }
+  ]
+}

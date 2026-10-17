@@ -5,6 +5,7 @@ This document specifies the bytes between a client and a server of `@procedures/
 ## Compatibility
 
 - A change after v1 adds only an optional field, a new frame type that an older side can ignore, or a new error code. The `seq` of the stream frames is such a field (refer to "The sequence numbers of a stream").
+- The keep-alive line of an NDJSON stream is such a change too. Each reader of v1 skipped a blank line before it (refer to "The keep-alive of an NDJSON stream").
 - Each other change makes v2. A side that gets a newer version refuses it with the error code `PROTOCOL_VERSION`.
 - A side that sends no version is older than v1. Its formats are the formats of v1, so the other side accepts it.
 - The procedure has no version. `Method.version` is deprecated, and the server ignores it. A procedure that changes in a way that is not compatible gets a new path.
@@ -22,7 +23,7 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
 | `reason` | response | The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`, `deadline`, `outside-root` (a path outside the root of `@procedures/fs`), `host-not-allowed` (a URL host that `@procedures/http` refuses) or `topic-not-allowed` (a topic that the publisher of the events refuses). |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
-| `stream` | response | The value `unbounded`: the stream can run without an end. |
+| `stream` | response | The value `unbounded`: the stream can run without an end. The HTTP client also sets this key on each item of an NDJSON stream, with the value `true`. |
 
 A key that starts with `__` stays in the process of the caller. A transport does not send it.
 
@@ -43,13 +44,37 @@ A key that starts with `__` stays in the process of the caller. A transport does
 
 - Each response has the header `Procedures-Protocol: 1`.
 - A value: the status 200, and the value as JSON. No value: the status 204, with no body.
-- A stream with NDJSON: the status 200 and `Content-Type: application/x-ndjson`. Each line is one JSON object:
-  - `{"type":"item","seq":1,"payload":...}` for each item.
-  - `{"type":"done","seq":...}` at the end.
-  - `{"type":"error","error":{"code":...,"message":...,"retryable":...}}` when the stream fails.
-- The `seq` of the `item` and `done` lines follows the rules of the stream frames (refer to "The sequence numbers of a stream").
+- A stream with NDJSON: the status 200, `Content-Type: application/x-ndjson` and `Cache-Control: no-cache`. Each line is one JSON object or a keep-alive line (refer to "The lines of an NDJSON stream").
 - An error: the HTTP status of its code (refer to "Error codes"), and the body `{"error": message, "code": code, "retryable": boolean}`. The body can also have `reason` and `retryAfterMs`. An error with a wait has the header `Retry-After` in seconds.
 - A stream that can run without an end, for a client without NDJSON: the status 406 and the code `NOT_ACCEPTABLE`.
+
+### The lines of an NDJSON stream
+
+Each line ends with LF. A frame line is one JSON object.
+
+| Line | Fields | Meaning |
+|---|---|---|
+| `{"type":"item","seq":1,"payload":...}` | `seq`, `payload` | One item of the stream. |
+| `{"type":"done","seq":...}` | `seq` | The end of the stream. |
+| `{"type":"error","error":{"code":...,"message":...,"retryable":...}}` | `error` | The stream failed. This line has no `seq`. |
+| A blank line | none | A keep-alive line. It is not a frame, and it has no `seq`. |
+
+- The `seq` of the `item` and `done` lines follows the rules of the stream frames (refer to "The sequence numbers of a stream").
+- The `done` line or the `error` line is the last line. A stream that ends without one of them is a broken stream.
+- `writeNdjsonStream` of `@procedures/client/node` writes these lines for a `ServerResponse` of `node:http`. `HttpServerTransport` uses it, so the two write the same bytes.
+
+### The keep-alive of an NDJSON stream
+
+A proxy or a client often closes a connection that sends no bytes for a time, for example 60 or 300 seconds. A long procedure can be quiet for a longer time, so the server sends keep-alive lines.
+
+- The server writes a blank line, one LF, after each quiet time: no line went out for that time. The default time is 15 seconds (`TIMER_DEFAULTS.httpServer.keepAliveMs`). The option `keepAlive` changes it, and `keepAlive: false` turns it off.
+- Each line starts the quiet time again. The server writes no keep-alive line after the `done` line or the `error` line, after an abort, or after the connection closes.
+- While the reader does not read and the send buffer is full, the server writes no keep-alive line.
+- A keep-alive line has no `seq`. The reader skips it before the sequence check, so a keep-alive line shows no gap.
+- A reader skips each blank line: an empty line, a line with only spaces, or a line with only CR.
+- A keep-alive line is not the first item. The `timeout` of `HttpTransport` covers the time to the first item, so a keep-alive line does not stop that timeout.
+
+The HTTP client gives each item of an NDJSON stream the metadata key `stream` with the value `true` (`STREAM_ITEM_METADATA_KEY`). The error item that ends the stream has it too. Thus the reader of an item knows that the item came from a stream, not from a JSON response. This key does not cross the wire, and the client removes a key with this name that the peer sent.
 
 ## WebSocket
 
@@ -127,7 +152,7 @@ A peer subscribes to the topics of the event bus of another peer with a call of 
 - The `credit` of the request is the backpressure. When the queue of a subscription is full, the publisher drops its oldest event.
 - A `cancel` is the unsubscribe. A closed connection ends each subscription of the connection.
 - A topic outside the topic rule of the host gives `TOPIC_NOT_FOUND`. A topic that the publisher refuses gives `FORBIDDEN` with the reason `topic-not-allowed`.
-- Over HTTP, the subscription is an NDJSON stream. Without NDJSON, the server answers `NOT_ACCEPTABLE`.
+- Over HTTP, the subscription is an NDJSON stream. Without NDJSON, the server answers `NOT_ACCEPTABLE`. A quiet subscription gets keep-alive lines (refer to "The keep-alive of an NDJSON stream").
 
 ## Message port
 

@@ -17,10 +17,10 @@ import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { bearerOf, withoutSecretHeaders } from "../../../server/request-auth.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, errorCodeOf, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
-
-/** The media type of a stream response: one JSON value on each line. */
-const NDJSON = "application/x-ndjson";
+import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
+import { realClock, type Clock } from "../../../clock.js";
+import { ms, type Duration } from "../../../duration.js";
+import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
 
 /** True when a stream response can run without an end (`STREAM_METADATA_KEY` of procedure-server.ts). */
 function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
@@ -38,36 +38,6 @@ class BodyError extends Error {
   ) {
     super(message);
   }
-}
-
-/** The code and message of a thrown error, with its retryable flag (deep dive TRN-7). */
-function errorOf(error: unknown): { code: string; message: string; retryable: boolean } {
-  const retryable = (error as { retryable?: unknown } | undefined)?.retryable;
-  return {
-    code: errorCodeOf(error),
-    message: error instanceof Error ? error.message : String(error),
-    retryable: typeof retryable === "boolean" ? retryable : false,
-  };
-}
-
-/**
- * Write one chunk. When the response's buffer is full, wait for "drain", or for the end of the
- * request (deep dive TRN-3: before, the server ignored the result of write() and ran a stream
- * to its end whatever the reader did).
- */
-function write(res: Response, chunk: string, signal: AbortSignal): Promise<void> {
-  if (res.write(chunk) || signal.aborted) return Promise.resolve();
-  return new Promise<void>((resolve) => {
-    const done = (): void => {
-      res.off("drain", done);
-      res.off("close", done);
-      signal.removeEventListener("abort", done);
-      resolve();
-    };
-    res.on("drain", done);
-    res.on("close", done);
-    signal.addEventListener("abort", done, { once: true });
-  });
 }
 
 /**
@@ -108,7 +78,7 @@ export class HttpServerTransport implements ServerTransport {
   private options: Required<
     Omit<
       HttpServerTransportOptions,
-      "app" | "corsOptions" | "httpServer" | "bodyLimit" | "allowedOrigins" | "allowedHosts" | "allowGet"
+      "app" | "corsOptions" | "httpServer" | "bodyLimit" | "allowedOrigins" | "allowedHosts" | "allowGet" | "keepAlive" | "clock"
     >
   > & {
     corsOptions: HttpServerTransportOptions["corsOptions"] | undefined;
@@ -121,6 +91,10 @@ export class HttpServerTransport implements ServerTransport {
   private readonly bodyLimit: number;
   /** The browser checks of each procedure call (see `server/browser-guard.ts`) */
   private readonly guard: BrowserGuardOptions;
+  /** The quiet time of an NDJSON stream before a keep-alive line, or false for none */
+  private readonly keepAlive: Duration | false;
+  /** The clock of the keep-alive timers (roadmap R35) */
+  private readonly clock: Clock;
 
   constructor(server: RequestHandler, options: HttpServerTransportOptions = {}) {
     this.server = server;
@@ -138,6 +112,10 @@ export class HttpServerTransport implements ServerTransport {
       httpServer: options.httpServer,
     };
     this.bodyLimit = options.bodyLimit ?? 1024 * 1024;
+    // A value that is not a duration fails here, not at the first stream
+    const keepAliveMs = keepAliveMsOf(options.keepAlive);
+    this.keepAlive = keepAliveMs > 0 ? ms(keepAliveMs) : false;
+    this.clock = options.clock ?? realClock;
     this.guard = {
       allowedOrigins: options.allowedOrigins ?? corsOrigins(options),
       allowedHosts: options.allowedHosts,
@@ -342,15 +320,13 @@ export class HttpServerTransport implements ServerTransport {
   }
 
   /**
-   * Convert HTTP request to ServerRequest.
-   */
-  /**
    * Send a stream response.
    *
    * A client that accepts `application/x-ndjson` gets one JSON line for each item
    * (`{"type":"item","seq":1,"payload":...}`), then `{"type":"done","seq":...}`, or
    * `{"type":"error","error":...}`. The `seq` of the lines counts from 1, as in the `stream`
-   * frames of WebSocket.
+   * frames of WebSocket. A quiet stream gets a keep-alive line, a blank line, after each quiet
+   * time of `keepAlive`. `writeNdjsonStream` writes these lines.
    * Another client (curl, a browser fetch without the header) gets the last item as plain JSON,
    * the "sponge" mode, so a streaming procedure does not change its response format.
    */
@@ -406,37 +382,13 @@ export class HttpServerTransport implements ServerTransport {
       return;
     }
 
-    res.status(200);
-    res.setHeader("Content-Type", NDJSON);
-    res.setHeader("Cache-Control", "no-cache");
-    res.flushHeaders();
-    // stop() aborted the request while the reader still listens: end the stream with an error
-    const endAborted = (): void => {
-      if (!res.writableEnded && !res.destroyed) {
-        res.end(JSON.stringify({ type: "error", error: { code: "ABORTED", message: "The server stopped the request", retryable: true } }) + "\n");
-      }
-    };
-    let seq = 0;
-    try {
-      for await (const item of stream) {
-        if (signal.aborted) break;
-        await write(res, JSON.stringify({ type: "item", seq: ++seq, payload: item }) + "\n", signal);
-        if (signal.aborted) break;
-      }
-      if (signal.aborted) {
-        endAborted();
-        return;
-      }
-      res.end(JSON.stringify({ type: "done", seq: ++seq }) + "\n");
-    } catch (error) {
-      if (signal.aborted) {
-        endAborted();
-        return;
-      }
-      res.end(JSON.stringify({ type: "error", error: errorOf(error) }) + "\n");
-    }
+    // The lines, the backpressure, the keep-alive and the abort of stop() (WIRE-PROTOCOL.md)
+    await writeNdjsonStream(res, stream, { signal, keepAlive: this.keepAlive, errorOf, clock: this.clock });
   }
 
+  /**
+   * This method converts an HTTP request to a `ServerRequest`.
+   */
   private httpToServerRequest(req: Request, body: unknown): ServerRequest | null {
     // Parse method from URL using strategy
     const method = this.options.urlStrategy(req);

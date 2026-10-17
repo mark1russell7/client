@@ -10,6 +10,8 @@
  *   number of lost frames in its metadata key `stream-gap`, and the caller writes a warning. The
  *   caller also gives back the credit of the lost frames.
  * - A frame without `seq` comes from an older peer. The caller takes it as before.
+ * - A blank line of an NDJSON stream is a keep-alive line. It is not a frame and it has no `seq`,
+ *   so the reader skips it before the check.
  */
 
 /**
@@ -17,6 +19,14 @@
  * immediately before this item. The receiver sets it. It does not cross the wire.
  */
 export const STREAM_GAP_METADATA_KEY = "stream-gap";
+
+/**
+ * The metadata key of an item that the HTTP client transport read from an NDJSON stream. Its value
+ * is `true`. The receiver sets it. It does not cross the wire, and the receiver removes a key of
+ * this name that the peer sent. The constant `STREAM_METADATA_KEY` of the server has the same
+ * name, with the value `unbounded` in the metadata of a response.
+ */
+export const STREAM_ITEM_METADATA_KEY = "stream";
 
 /** The order of the stream frames of one call, at the side that receives them. */
 export class StreamSequence {
@@ -46,6 +56,14 @@ export function itemMetadata(metadata: Record<string, unknown> | undefined, gap:
   delete out[STREAM_GAP_METADATA_KEY];
   if (gap > 0) out[STREAM_GAP_METADATA_KEY] = gap;
   return out;
+}
+
+/**
+ * This function gives the metadata of an item of an NDJSON stream: the metadata of `itemMetadata`,
+ * and the key `stream` with the value `true`. The value of the peer for this key goes away.
+ */
+export function streamItemMetadata(metadata: Record<string, unknown> | undefined, gap: number): Record<string, unknown> {
+  return { ...itemMetadata(metadata, gap), [STREAM_ITEM_METADATA_KEY]: true };
 }
 
 /** The number of frames that did not arrive immediately before an item: 0 without a gap. */

@@ -15,11 +15,13 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { z } from "zod";
 import { WebSocket as WsClient, WebSocketServer } from "ws";
+import { fakeClock } from "@mark1russell7/service/testing";
 import { createProcedure } from "./procedures/define.js";
 import { createRegistry } from "./procedures/module.js";
 import { ProcedureServer } from "./server/procedure-server.js";
 import { pathToMethod } from "./server/method.js";
 import { HttpServerTransport } from "./adapters/http/server/transport.js";
+import { writeNdjsonStream } from "./adapters/http/server/ndjson.js";
 import { HttpTransport } from "./adapters/http/client/transport.js";
 import { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";
@@ -29,6 +31,7 @@ import type { Message, Transport } from "./client/types.js";
 import { ERROR_CODES, PROTOCOL_VERSION, httpStatusOf } from "./protocol.js";
 import { createEventBus } from "./events/bus.js";
 import type { EventBus } from "./events/types.js";
+import { feedOf, itemLine, openStream } from "../test/streams.js";
 
 const GOLDENS = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "wire");
 const UPDATE = process.env["UPDATE_WIRE_GOLDENS"] === "1";
@@ -519,5 +522,104 @@ describe("the HTTP exchange of protocol v1 (R25)", () => {
     const items = await itemsOf(new HttpTransport({ baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api` }));
     expect(items.map((item) => item.payload)).toEqual([1, 3, 4]);
     golden("http-stream-seq", { lines, items });
+  });
+
+  it("writeNdjsonStream without Express: the bytes of the NDJSON stream of the golden server", async () => {
+    const http = createServer((req: IncomingMessage, res) => {
+      req.resume();
+      req.on("end", () => {
+        void writeNdjsonStream(
+          res,
+          (async function* () {
+            yield 1;
+            yield 2;
+          })(),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const response = await fetch(`http://127.0.0.1:${(http.address() as AddressInfo).port}/api/wire/count`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/x-ndjson, application/json", "procedures-protocol": "1" },
+      body: JSON.stringify({ to: 2 }),
+    });
+    const stream = {
+      status: response.status,
+      protocol: response.headers.get("procedures-protocol"),
+      contentType: (response.headers.get("content-type") ?? "").split(";")[0],
+      body: await response.text(),
+    };
+    // The stream of HttpServerTransport in the golden of the server: the same bytes
+    const recorded = (JSON.parse(readFileSync(join(GOLDENS, "http-server.golden.json"), "utf8")) as { stream: unknown }).stream;
+    expect(stream).toEqual(recorded);
+  });
+
+  it("the keep-alive lines of an NDJSON stream: the server writes them in a quiet stream, and the client skips them", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const clock = fakeClock();
+    const feed = feedOf();
+    const server = new ProcedureServer({
+      registry: createRegistry({
+        name: "wire",
+        procedures: [
+          createProcedure()
+            .path(["wire", "feed"])
+            .input(z.object({}))
+            .output(z.number())
+            .meta({ effects: { reads: [], writes: [] } })
+            .handler(async function* (_input: unknown, ctx: { signal?: AbortSignal }) {
+              yield* feed.items(ctx.signal);
+            } as never)
+            .build(),
+        ],
+      }),
+    });
+    server.registerFromRegistry();
+    const app = express();
+    const http = createServer(app);
+    // The default keep-alive time: 15 s on the fake clock
+    server.addTransport(new HttpServerTransport(server, { app, httpServer: http, clock }));
+    await server.start();
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      await server.stop();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const stream = openStream(`http://127.0.0.1:${(http.address() as AddressInfo).port}/api/wire/feed`);
+    const head = await stream.head;
+    feed.push(1);
+    await stream.until((text) => text === itemLine(1, 1), "the first item");
+    // Two quiet times: two keep-alive lines, then the next item and the end
+    await clock.advance(30_000);
+    await stream.until((text) => text === `${itemLine(1, 1)}\n\n`, "two keep-alive lines");
+    feed.push(2);
+    feed.end();
+    await stream.ended;
+    expect(clock.pending).toBe(0);
+
+    // The client reads the same bytes: the keep-alive lines give no item and no gap
+    const replay = createServer((req: IncomingMessage, res) => {
+      req.resume();
+      req.on("end", () => {
+        res.setHeader("content-type", "application/x-ndjson");
+        res.end(stream.text);
+      });
+    });
+    await new Promise<void>((resolve) => replay.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      replay.closeAllConnections();
+      await new Promise<void>((resolve) => replay.close(() => resolve()));
+    });
+    const items = await itemsOf(new HttpTransport({ baseUrl: `http://127.0.0.1:${(replay.address() as AddressInfo).port}/api` }));
+    expect(items.map((item) => item.payload)).toEqual([1, 2]);
+    golden("http-stream-keep-alive", {
+      server: { status: head.status, contentType: head.headers["content-type"], protocol: head.headers["procedures-protocol"], body: stream.text },
+      items,
+    });
   });
 });

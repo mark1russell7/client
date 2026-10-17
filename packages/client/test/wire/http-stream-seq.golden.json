@@ -33,17 +33,22 @@
   "items": [
     {
       "payload": 1,
-      "metadata": {}
+      "metadata": {
+        "stream": true
+      }
     },
     {
       "payload": 3,
       "metadata": {
-        "stream-gap": 1
+        "stream-gap": 1,
+        "stream": true
       }
     },
     {
       "payload": 4,
-      "metadata": {}
+      "metadata": {
+        "stream": true
+      }
     }
   ]
 }
