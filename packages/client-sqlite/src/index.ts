@@ -10,7 +10,7 @@
  *
  * const client = new Client(...);
  *
- * // Execute a query (sqlite.query: the old name db.query is a deprecated alias)
+ * // Execute a query (sqlite.query: version 0.6.0 removed the old name db.query)
  * const result = await client.call(["sqlite", "query"], {
  *   sql: "SELECT * FROM logs WHERE level = ?",
  *   params: ["error"]

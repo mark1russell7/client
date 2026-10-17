@@ -25,9 +25,9 @@ The package has 9 procedures. Its register entry (`import "@procedures/sqlite/re
 
 In version 0.3.0 and before, the database procedures had the namespace `db`. The general name `db` did not tell the database. Since version 0.4.0, the namespace is `sqlite`.
 
-The old names stay for one release as deprecated aliases: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup`. Each alias has the same handler, the same schemas and the same effects as its new procedure. Its description starts with `Deprecated: use sqlite.<name>`. The next release removes the aliases.
+Version 0.4.0 kept the old names for one release as deprecated aliases. Version 0.6.0 removed them: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup` give `NOT_FOUND`. Use the `sqlite.*` names.
 
-The MCP server (`bundle-mcp`) does not expose the aliases. Its tools are `sqlite.query`, `sqlite.execute`, `sqlite.tables` and `sqlite.schema`. The `logs.*` procedures keep their names.
+The tools of the MCP server (`bundle-mcp`) are `sqlite.query`, `sqlite.execute`, `sqlite.tables` and `sqlite.schema`. The `logs.*` procedures keep their names.
 
 ## Architecture
 

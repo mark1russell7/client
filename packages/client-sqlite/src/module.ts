@@ -5,8 +5,7 @@
  *
  * The module has the database and logging procedures: sqlite.query, sqlite.execute,
  * sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate, sqlite.backup, logs.store
- * and logs.query. The old names db.* stay for one release as deprecated aliases (refer to
- * `deprecatedDbAlias`).
+ * and logs.query. Version 0.4.0 renamed the namespace db to sqlite, and 0.6.0 removed the old names.
  * This file is referenced by package.json's client.procedures field.
  */
 
@@ -506,29 +505,6 @@ const sqliteProcedures: readonly AnyProcedure[] = [
   sqliteBackupProcedure,
 ];
 
-/**
- * This function gives the deprecated alias `db.<name>` of the procedure `sqlite.<name>`. The alias
- * has the same schemas, handler and effects. Its description names the new procedure. The aliases
- * go away in the next release. The MCP server does not expose them (`bundle-mcp`).
- */
-export function deprecatedDbAlias(procedure: AnyProcedure): AnyProcedure {
-  const name = procedure.path.slice(1).join(".");
-  const description = typeof procedure.metadata.description === "string" ? ` ${procedure.metadata.description}` : "";
-  return {
-    ...procedure,
-    path: ["db", ...procedure.path.slice(1)],
-    metadata: {
-      ...procedure.metadata,
-      description: `Deprecated: use sqlite.${name}.${description}`,
-      deprecated: true,
-      deprecationMessage: `Use sqlite.${name}. The alias db.${name} goes away in the next release.`,
-    },
-  };
-}
-
-/** The deprecated aliases `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup`. */
-export const dbAliasProcedures: readonly AnyProcedure[] = sqliteProcedures.map(deprecatedDbAlias);
-
 // =============================================================================
 // Registration
 // =============================================================================
@@ -541,8 +517,6 @@ export const sqliteModule: ProcedureModule = defineModule("@procedures/sqlite", 
     ...sqliteProcedures,
     logsStoreProcedure,
     logsQueryProcedure,
-    // The old names, for one release
-    ...dbAliasProcedures,
   ]);
 
 export default sqliteModule;

@@ -64,36 +64,17 @@ describe("the effects of the R44 procedures", () => {
   });
 });
 
-describe("the deprecated db.* aliases (one release)", () => {
+describe("the names of the module (0.6.0 removed the db.* aliases)", () => {
   const names = ["query", "execute", "tables", "schema", "transaction", "migrate", "backup"];
 
-  it("give each sqlite.* procedure an alias with the same handler, schemas and effects", () => {
+  it("has each sqlite.* procedure and no db.* name", () => {
     for (const name of names) {
-      const current = registry.get(["sqlite", name]);
-      const alias = registry.get(["db", name]);
-      expect(current, `sqlite.${name}`).toBeDefined();
-      expect(alias, `db.${name}`).toBeDefined();
-      expect(alias!.handler).toBe(current!.handler);
-      expect(alias!.input).toBe(current!.input);
-      expect(alias!.output).toBe(current!.output);
-      expect(alias!.metadata.effects).toEqual(current!.metadata.effects);
-      expect(alias!.metadata.description).toMatch(new RegExp(`^Deprecated: use sqlite\\.${name}\\b`));
-      expect(alias!.metadata).toMatchObject({ deprecated: true });
-      expect(current!.metadata.deprecated).toBeUndefined();
+      expect(registry.get(["sqlite", name]), `sqlite.${name}`).toBeDefined();
+      expect(registry.get(["db", name]), `db.${name}`).toBeUndefined();
     }
-  });
-
-  it("keep the names of the logs.* procedures, with no alias", () => {
     const keys = sqliteModule.procedures.map((procedure) => procedure.path.join(".")).sort();
+    expect(keys.filter((key) => key.startsWith("db."))).toEqual([]);
     expect(keys.filter((key) => key.startsWith("logs."))).toEqual(["logs.query", "logs.store"]);
-    expect(keys.filter((key) => key.startsWith("db."))).toEqual(names.map((name) => `db.${name}`).sort());
-  });
-
-  it("run the procedure of the new name", async () => {
-    const dbPath = await sampleDb();
-    const viaAlias = await call<DbTablesOutput>("db.tables", { dbPath });
-    const viaName = await call<DbTablesOutput>("sqlite.tables", { dbPath });
-    expect(viaAlias).toEqual(viaName);
   });
 });
 

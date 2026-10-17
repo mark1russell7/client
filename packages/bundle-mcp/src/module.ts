@@ -67,9 +67,8 @@ export default bundleMcpModule;
 /**
  * The namespaces (first path segments) of the procedures that the MCP server gives to Claude as tools.
  * `cli` is not one: `cli.run` runs any `mark` command, also `shell exec`, so it would give back what
- * the list keeps out (deep dive CLI-5, TRN-2). `db` is not one: the `db.*` procedures of
- * `@procedures/sqlite` are deprecated aliases of `sqlite.*` for one release, and the tools have
- * only the new names. `dag` is not one: `dag.traverse` runs refs, and a tool list does not need it.
+ * the list keeps out (deep dive CLI-5, TRN-2). `db` is not one: version 0.4.0 renamed the
+ * procedures of `@procedures/sqlite` to `sqlite.*`, and 0.6.0 removed the old names. `dag` is not one: `dag.traverse` runs refs, and a tool list does not need it.
  */
 export const mcpNamespaces: readonly string[] = [
   "client",

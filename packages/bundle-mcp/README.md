@@ -45,7 +45,7 @@ The result is 91 tools (October 2026):
 - `fs.*`, `git.*` and `pnpm.*` are not tools: Claude Code has its own tools for files, git and the shell.
 - `snapshot.*` and `s3.*` are not in the bundle: `snapshot.restore` and `s3.delete` change data.
 - `sdk.openrpc` and `sdk.typescript` of the compiler module are registered, but `sdk` is not a tool namespace. They write an OpenRPC document and a TypeScript SDK, and `mark sdk openrpc` gives them.
-- `db` is not a tool namespace. In version 0.4.0, the SQLite procedures changed their namespace from `db` to `sqlite`. The old names stay for one release as deprecated aliases. The tools have only the new names: a client that used the tool `db.query` must use `sqlite.query`.
+- `db` is not a tool namespace. In version 0.4.0, the SQLite procedures changed their namespace from `db` to `sqlite`, and 0.6.0 removed the old names. A client that used the tool `db.query` uses `sqlite.query`.
 - `dag` is not a tool namespace. `dag.traverse` is registered, because the bundle has the module of `client-dag`.
 
 A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only the exposed procedures. Thus `client.chain` cannot reach `shell.exec`. A procedure of code still uses its dependencies: `docker.run` uses `shell.run`.
