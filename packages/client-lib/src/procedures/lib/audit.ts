@@ -3,16 +3,22 @@
  *
  * Validates the workspace packages against the package template, and checks for
  * pnpm settings that do not work in a workspace.
+ *
+ * The audit also examines the procedures of the registry of the host. This registry is the
+ * place where the audit finds the procedures: it imports no package code. `mark` builds its
+ * registry from the built `./module` entry of each package that declares `client.procedures`.
+ * Thus the audit does not examine a package that has no build.
  */
 
 import { basename, join } from "node:path";
-import { PROCEDURE_REGISTRY, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { PROCEDURE_REGISTRY, effectsOf, pathToKey, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import type {
   FlagNotice,
   LibAuditInput,
   LibAuditOutput,
   PackageAuditResult,
   PnpmIssue,
+  ProcedureIssue,
 } from "../../types.js";
 import { libScan } from "./scan.js";
 import { resolveWorkspaceRoot } from "../../workspace.js";
@@ -259,15 +265,37 @@ export function findFlagNotices(procedures: readonly AnyProcedure[]): FlagNotice
 }
 
 /**
+ * This function gives a `missing-effects` issue for each procedure without `metadata.effects`,
+ * in the order of the paths. A host with a capability refuses such a procedure. `procedure new`
+ * writes no effects on purpose, because a default of "pure" can be false. The author writes them.
+ */
+export function findMissingEffects(procedures: readonly AnyProcedure[]): ProcedureIssue[] {
+  return procedures
+    .filter((procedure) => effectsOf(procedure) === undefined)
+    .map((procedure) => pathToKey(procedure.path))
+    .sort()
+    .map((procedure) => ({
+      type: "missing-effects",
+      procedure,
+      message: `${procedure} has no metadata.effects: a host with a capability refuses it`,
+    }));
+}
+
+/**
  * Audit all client packages of the workspace against the package template. The result also
- * lists the procedure flags that hide a global flag of `mark` (information only).
+ * lists the procedure flags that hide a global flag of `mark` (information only), and the
+ * procedures without `metadata.effects` (warnings). The two lists come from the registry of the
+ * invocation, else from the global registry. They do not change `success`.
  */
 export async function libAudit(input: LibAuditInput, ctx: ProcedureContext): Promise<LibAuditOutput> {
   const template = PACKAGE_TEMPLATE;
-  const flagNotices = findFlagNotices((ctx?.registry ?? PROCEDURE_REGISTRY).getAll());
+  const procedures = (ctx?.registry ?? PROCEDURE_REGISTRY).getAll();
+  const flagNotices = findFlagNotices(procedures);
+  const procedureIssues = findMissingEffects(procedures);
   const empty: LibAuditOutput = {
     success: false,
     flagNotices,
+    procedureIssues,
     template,
     results: [],
     summary: { total: 0, valid: 0, invalid: 0 },
@@ -297,6 +325,7 @@ export async function libAudit(input: LibAuditInput, ctx: ProcedureContext): Pro
   return {
     success: invalidCount === 0,
     flagNotices,
+    procedureIssues,
     template,
     results,
     summary: {

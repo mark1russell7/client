@@ -83,7 +83,7 @@ The script starts `npm trust github <package> --file release.yml --repo mark1rus
 ### 5. Set the repository and the packages
 
 - The release job has no GitHub environment, and the trusted publishers name none. The owner starts each run by hand, and that start is the approval. Refer to "The OIDC exchange of npm".
-- The setting `Allow GitHub Actions to create and approve pull requests` is off (2026-10-16). Thus the release workflow cannot open the version pull request, and the version step is a commit on `main` (refer to "A release"). If you turn the setting on, the workflow opens the pull request "Version the packages".
+- The setting `Allow GitHub Actions to create and approve pull requests` is on (2026-10-17). Thus the release workflow opens the pull request "Version the packages", and nobody pushes the version commit by hand. Before 2026-10-17, the version step was a commit on `main` (ae9ed9f, 41007b6, 844a317).
 - After the first release from the workflow, set "Require two-factor authentication and disallow tokens" for each package. Start this command in a terminal. npm opens the browser for the 2FA:
 
   ```sh
@@ -104,8 +104,8 @@ A user who installs an old package sees "Moved to `@procedures/<name>`". The old
 ## A release
 
 1. For each change that users see, add a changeset: start `pnpm changeset` and answer the questions. Commit the file.
-2. Start `pnpm exec changeset version`. It sets the new versions and writes the change logs. Commit the result as "Version the packages" on `main`, and push it.
-3. Wait for a green CI run of that commit. Then start `gh workflow run release.yml --repo mark1russell7/client`. You can also start "Release" from Actions on GitHub.
+2. Start `gh workflow run release.yml --repo mark1russell7/client`, or "Release" from Actions on GitHub. With changesets on `main`, the workflow opens or updates the pull request "Version the packages". It sets the new versions and writes the change logs.
+3. Merge that pull request. Wait for the green CI run of the merge on `main`. Then start the release workflow again. Without changesets, it publishes.
 4. The workflow does the checks and the strict package check. Then `scripts/publish-ci.mjs` publishes each version that is not on npm, with provenance. pnpm packs each package. The npm CLI publishes it with the OIDC token of the job.
 5. For each version that it publishes, the workflow pushes the git tag `<name>@<version>` and makes a GitHub release with the change log of that version.
    - If a release made no tags or no GitHub releases, start `node scripts/release-tags.mjs --commit <sha of "Version the packages">`. It makes the missing ones, and `--dry-run` tells them first. The tags and releases of 0.3.0 come from this script.
