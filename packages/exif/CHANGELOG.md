@@ -1,5 +1,13 @@
 # @procedures/exif
 
+## 0.7.0
+
+### Patch Changes
+
+- Updated dependencies [841d083]
+- Updated dependencies [389b054]
+  - @procedures/client@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

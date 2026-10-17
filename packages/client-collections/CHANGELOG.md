@@ -1,5 +1,11 @@
 # @procedures/collections
 
+## 0.7.0
+
+### Minor Changes
+
+- 5837c2d: `asSettled(promises)` gives the result of each promise when it settles, in settle order, with the index of its promise. A rejection is a result, not an error. jarvis used the same `Promise.race` loop in two places.
+
 ## 0.6.0
 
 No changes in this release.
