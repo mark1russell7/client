@@ -23,7 +23,8 @@ interface ClientModeResult {
 export async function tryClientMode(
   path: string[],
   input: unknown,
-  onItem?: (item: unknown) => void
+  onItem?: (item: unknown) => void,
+  fsRoot?: string
 ): Promise<ClientModeResult | null> {
   // A running server of this build, started in this folder, that answers as the peer of its
   // lockfile and has a token. Otherwise the CLI runs the command itself. (Before, any server
@@ -34,7 +35,8 @@ export async function tryClientMode(
   if (path[0] === "server") {
     return null;
   }
-  const lockfile = await findServer({ cwd: process.cwd(), build: currentBuild() });
+  // The server must have the same fs root (--fs-root), or none when this run has none
+  const lockfile = await findServer({ cwd: process.cwd(), build: currentBuild(), fsRoot });
   // mark sends its commands over HTTP: a WebSocket-only server cannot take them
   if (!lockfile?.token || lockfile.transport === "websocket") {
     return null;

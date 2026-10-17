@@ -20,6 +20,29 @@ function parsePort(value: string): number {
   return port;
 }
 
+/** The number of characters of a topic name (`MAX_TOPIC_LENGTH` of the core). */
+const MAX_TOPIC_LENGTH = 256;
+
+/**
+ * This function gives the topic patterns of an `--events` value: comma-separated exact names
+ * (`orders.created`), prefixes (`orders.*`) or `*` (`documentation/EVENTS.md`). A `*` is
+ * permitted only at the end of a pattern. The patterns are the topic rule of `topicMatcher()`.
+ */
+export function parseTopicPatterns(value: string): string[] {
+  const patterns = value
+    .split(",")
+    .map((pattern) => pattern.trim())
+    .filter((pattern) => pattern.length > 0);
+  if (patterns.length === 0) throw new Error("--events needs a topic pattern: an exact name, a prefix such as orders.*, or *");
+  for (const pattern of patterns) {
+    if (pattern.length > MAX_TOPIC_LENGTH) throw new Error(`The topic pattern "${pattern.slice(0, 40)}..." has more than ${MAX_TOPIC_LENGTH} characters`);
+    if (pattern.slice(0, -1).includes("*")) {
+      throw new Error(`Invalid topic pattern: "${pattern}". A * is permitted only at the end (orders.* or *).`);
+    }
+  }
+  return patterns;
+}
+
 /**
  * Parse command line arguments into server configuration.
  *
@@ -40,6 +63,8 @@ export function parseConfig(argv: string[]): ServerConfig {
   let verbose = false;
   let serverToken: string | null | undefined;
   const expose: string[] = [];
+  const events: string[] = [];
+  let fsRoot: string | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]!;
@@ -98,6 +123,15 @@ export function parseConfig(argv: string[]): ServerConfig {
       case "-e":
         expose.push(...value().split(",").map((p) => p.trim()).filter((p) => p.length > 0));
         break;
+      case "--events":
+        // Repeatable: each value adds its patterns to the topic rule
+        for (const pattern of parseTopicPatterns(value())) {
+          if (!events.includes(pattern)) events.push(pattern);
+        }
+        break;
+      case "--fs-root":
+        fsRoot = value();
+        break;
       case "--verbose":
       case "-v":
         verbose = true;
@@ -136,7 +170,7 @@ export function parseConfig(argv: string[]): ServerConfig {
     return { type };
   });
 
-  return { procedures, transports, verbose, token: serverToken, expose };
+  return { procedures, transports, verbose, token: serverToken, expose, events, ...(fsRoot !== undefined ? { fsRoot } : {}) };
 }
 
 function printHelp(): void {
@@ -176,6 +210,17 @@ OPTIONS:
                             (git.status) or prefixes (git.*)
                             Default: every loaded procedure
 
+  --events <patterns>       The topics of the event bus that a peer can
+                            subscribe to with events.subscribe: exact names
+                            (orders.created), prefixes (orders.*) or *.
+                            Repeatable, or comma-separated.
+                            Default: no topics (TOPIC_NOT_FOUND)
+
+  --fs-root <folder>        Confine each path of the fs.* procedures to this
+                            folder, also the paths of their nested calls
+                            from other procedures. A path outside gives
+                            FORBIDDEN (outside-root). Default: no root
+
   --verbose, -v             Verbose output
 
   --help, -h                Show this help
@@ -189,5 +234,11 @@ EXAMPLES:
 
   # Start with both HTTP and WebSocket
   procedure-server -p @procedures/mongo/register -t http,websocket
+
+  # Serve the topics orders.* to subscribers over WebSocket
+  procedure-server -p ./my-procedures.js -t websocket --events "orders.*"
+
+  # Confine the file procedures to one folder
+  procedure-server -p @procedures/fs --fs-root ./data
 `);
 }

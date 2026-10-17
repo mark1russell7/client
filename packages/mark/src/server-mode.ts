@@ -3,7 +3,8 @@
  *
  * Runs the CLI as a persistent server, exposing all ecosystem procedures
  * via HTTP. The server has the registry of mark (the module of each package, roadmap 3.1) and
- * the host policy of the core (roadmap 2.3): the token in the lockfile.
+ * the host policy of the core (roadmap 2.3): the token in the lockfile, and the topics of
+ * `--events`. With `--fs-root`, the `fs.*` procedures confine each path to the root.
  */
 
 import { print } from "./print.js";
@@ -17,6 +18,13 @@ export interface ServerModeOptions {
   host?: string;
   transport?: "http" | "websocket" | "both";
   verbose?: boolean;
+  /**
+   * The topic patterns of the remote events (`--events`, `documentation/EVENTS.md`). Empty or no
+   * value: the server serves no topic, and each subscription gets `TOPIC_NOT_FOUND`.
+   */
+  events?: readonly string[] | undefined;
+  /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). */
+  fsRoot?: string | undefined;
 }
 
 interface ServerCreateResult {
@@ -75,7 +83,7 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   if (verbose) {
     print.info("Loading ecosystem procedures...");
   }
-  const { registry } = await loadEcosystemRegistry(verbose);
+  const { registry, fsRoot } = await loadEcosystemRegistry(verbose, true, { fsRoot: options.fsRoot });
 
   // Build transport config
   const transports = buildTransports(options);
@@ -91,14 +99,17 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   }
 
   // The host policy of the core (roadmap 2.3): the token of each transport. The server of mark
-  // serves every procedure of the workspace to its one user, so it has no expose list.
+  // serves every procedure of the workspace to its one user, so it has no expose list. It always
+  // serves events.subscribe (EVENTS.md): the topic rule is the --events patterns, else empty.
+  // The bus is the global bus, which is also the ctx.bus of the procedures.
+  const events = [...(options.events ?? [])];
   const { hostPolicy } = await import("@procedures/client");
   const { createPeer } = await import("@procedures/peer");
   const peer = await createPeer({
     id: `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     transports,
     registry,
-    policy: hostPolicy({ token }),
+    policy: hostPolicy({ token, events: { topics: events } }),
   });
   await peer.start();
   const result: ServerCreateResult = {
@@ -119,6 +130,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
     cwd: process.cwd(),
     build: currentBuild(),
     peerId: result.serverId,
+    // A client uses this server only with the same --fs-root (or none)
+    ...(fsRoot !== undefined ? { fsRoot } : {}),
   });
 
   print.success("\nCLI Server running!");
@@ -129,6 +142,10 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   print.info("\nEndpoints:");
   for (const endpoint of result.endpoints) {
     print.info(`  [${endpoint.type}] ${endpoint.address}`);
+  }
+  print.info(events.length > 0 ? `\nEvent topics (events.subscribe): ${events.join(", ")}` : "\nEvent topics: none (--events adds them)");
+  if (fsRoot !== undefined) {
+    print.info(`File root: ${fsRoot} (fs.* refuses each path outside it)`);
   }
   print.info("\nPress Ctrl+C to stop.");
 

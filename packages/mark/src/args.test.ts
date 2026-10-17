@@ -58,6 +58,20 @@ describe("global flags and procedure flags (CLI-7)", () => {
     ]);
   });
 
+  it("collects a repeated --events, keeps the last value of another flag, and reads --fs-root", () => {
+    expect(parseLeadingGlobals(["--server", "--events", "orders.*", "--events=audit.created", "--port", "1", "--port", "2"]).globals).toEqual({
+      server: true,
+      events: "orders.*,audit.created",
+      port: "2",
+    });
+    expect(parseLeadingGlobals(["--fs-root", "./data", "fs", "read", "a.txt"])).toEqual({
+      globals: { "fs-root": "./data" },
+      rest: ["fs", "read", "a.txt"],
+      errors: [],
+    });
+    expect(parseLeadingGlobals(["--fs-root"]).errors).toEqual(["--fs-root needs a value"]);
+  });
+
   it("reports a flag that neither the procedure nor the globals have", () => {
     expect(parse(["fs", "exists", "x", "--bogus"]).errors).toEqual(["Unknown option for mark fs exists: --bogus"]);
     expect(parse(["docker", "exec", "-iz", "box", "sh"]).errors).toEqual(["Unknown option -z in -iz"]);

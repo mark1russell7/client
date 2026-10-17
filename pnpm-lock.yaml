@@ -1204,6 +1204,9 @@ importers:
       '@procedures/compiler':
         specifier: workspace:*
         version: link:../compiler
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@procedures/mcp-server':
         specifier: workspace:*
         version: link:../client-mcp
@@ -1676,6 +1679,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5

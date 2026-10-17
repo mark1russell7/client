@@ -14,6 +14,7 @@ describe("parseConfig", () => {
       verbose: false,
       token: undefined,
       expose: [],
+      events: [],
     });
   });
 
@@ -25,6 +26,22 @@ describe("parseConfig", () => {
       "mongo.documents.find",
       "fs.read",
     ]);
+  });
+
+  it("reads the topic patterns of --events, repeated or comma-separated, and --fs-root", () => {
+    const config = parseConfig(["--events", "orders.*", "--events=audit.created, orders.*", "--fs-root", "./data"]);
+    expect(config.events).toEqual(["orders.*", "audit.created"]);
+    expect(config.fsRoot).toBe("./data");
+    expect(parseConfig(["--events", "*"]).events).toEqual(["*"]);
+    expect(parseConfig([]).fsRoot).toBeUndefined();
+  });
+
+  it("reports an invalid topic pattern", () => {
+    expect(() => parseConfig(["--events", "orders.*.created"])).toThrow('Invalid topic pattern: "orders.*.created"');
+    expect(() => parseConfig(["--events", " , "])).toThrow("--events needs a topic pattern");
+    expect(() => parseConfig(["--events", "x".repeat(257)])).toThrow("more than 256 characters");
+    expect(() => parseConfig(["--events"])).toThrow("--events needs a value");
+    expect(() => parseConfig(["--fs-root"])).toThrow("--fs-root needs a value");
   });
 
   it("reads the options in any order", () => {

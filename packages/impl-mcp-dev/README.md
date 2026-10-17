@@ -45,6 +45,30 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 | `MCP_READ_ONLY` | `false` | With `true`, the tools are only the procedures that change nothing |
 | `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN` | not set | The server uses Streamable HTTP on this port, not stdio. The host is `127.0.0.1` by default. |
 | `MCP_PROGRAM_CHECK` | `true` | With `false`, a program starts without the check before the run |
+| `MCP_FS_ROOT` | not set | The folder that confines each path of the `fs.*` procedures. Refer to "The root of the file procedures". |
+
+`mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token` and `--fs-root`.
+
+The server serves no remote events (`documentation/EVENTS.md`). Its transport carries only MCP, and `events.subscribe` is not a tool. Thus the host has no variable for the topics.
+
+## The root of the file procedures
+
+With `MCP_FS_ROOT` (or `mark mcp --fs-root <folder>`), the host confines each path of the `fs.*` procedures to the folder (roadmap R33):
+
+- The host starts `confineFsProcedures()` of `@procedures/fs` after it builds its registry. The function replaces the handlers of the `fs.*` procedures, and it adds no procedure.
+- `fs` is not a tool namespace, so the tools and `tools.snapshot.txt` do not change. Only the behavior of the tools changes.
+- A tool reads files through nested `fs.*` calls, so the root confines these calls too. For example, `lib.scan` of a workspace outside the root gives a warning and no packages.
+- A path outside the root gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the root.
+- The host does not start when the folder does not exist.
+
+The root does not confine a procedure that reads files with `node:fs`, or that starts a program. In the tools of `bundle-mcp`, these are:
+
+- `lib.*`: `existsSync` of `pnpm-workspace.yaml`, and the TypeScript files of `lib.rename` (`ts-morph`). The `cue-config` program of `lib.new` writes files too.
+- `cue.generate` and `cue.validate`: the `cue` program, and the read of `dependencies.json`.
+- `git.*`, `docker.*`, `pnpm.*` and `vitest.*`: their programs. `git.init` also uses `realpath` and `access`, and `vitest.run` reads its JSON report.
+- `sqlite.*` and `logs.*`: the database file.
+
+`cue.init`, `cue.add`, `cue.remove` and `procedure.new` use only `fs.*`, so the root confines them completely. Each `cue.*` procedure except `cue.remove` reads `features.json` of the installed `@mark1russell7/cue` through `fs.read`. Thus they fail when that package is outside the root.
 
 ## How it selects the tools
 

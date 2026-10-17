@@ -6,6 +6,9 @@
  * the host policy of the core (`hostPolicy()`): the token, the `--expose` list and the browser
  * checks. A package without a module entry still works: the server imports it and takes the
  * procedures that the import added to the global registry.
+ *
+ * The server always serves `events.subscribe` (`documentation/EVENTS.md`). Its topic rule is the
+ * `--events` patterns, and no topic without them. `--fs-root` confines the `fs.*` procedures.
  */
 
 import { randomBytes } from "node:crypto";
@@ -103,6 +106,26 @@ async function importedModule(name: string, target: string): Promise<ProcedureMo
   return { name, procedures: added };
 }
 
+/** The function of `@procedures/fs` that confines the `fs.*` procedures of a registry to a root. */
+type ConfineFs = (registry: ProcedureRegistry, root: string) => { root: string; procedures: string[] };
+
+/**
+ * This function confines the `fs.*` procedures of the registry to the root of `--fs-root`, with
+ * `confineFsProcedures()` of `@procedures/fs` (roadmap R33). The package resolves from the
+ * folders of `resolveFrom`, then from this package. Without it, the server does not start.
+ */
+async function confineFs(registry: ProcedureRegistry, root: string, resolveFrom: readonly string[]): Promise<{ root: string; procedures: string[] }> {
+  const target = importTarget("@procedures/fs", "./module", resolveFrom) ?? "@procedures/fs/module";
+  let confine: ConfineFs | undefined;
+  try {
+    confine = ((await import(target)) as { confineFsProcedures?: ConfineFs }).confineFsProcedures;
+  } catch (error) {
+    throw new Error(`--fs-root needs the package @procedures/fs: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (typeof confine !== "function") throw new Error("--fs-root needs @procedures/fs 0.5.0 or later (confineFsProcedures)");
+  return confine(registry, root);
+}
+
 /** The server that `runServer()` started. */
 export interface RunningServer {
   peer: Peer;
@@ -112,6 +135,8 @@ export interface RunningServer {
   token: string | undefined;
   /** True when the token is random, for this run */
   generatedToken: boolean;
+  /** The absolute path of the root of the `fs.*` procedures (`--fs-root`), or undefined. */
+  fsRoot?: string | undefined;
 }
 
 /** The token of a configuration: `--token`, else `SERVER_TOKEN`, else a random one. `--no-token`: none. */
@@ -149,12 +174,20 @@ export async function startServer(
   const registry = createRegistry(...modules);
   if (config.verbose) log(`  Registered procedures: ${registry.getAll().length}`);
 
+  // --fs-root: each fs.* procedure of the registry confines its paths, also for a nested call
+  const confined = config.fsRoot === undefined ? undefined : await confineFs(registry, config.fsRoot, options.resolveFrom ?? [process.cwd()]);
+  if (confined && config.verbose) log(`  Confined to ${confined.root}: ${confined.procedures.length} fs procedures`);
+
   // A token by default: the server serves every procedure it loads, and any local program
   // could call it. `--no-token` turns this off on purpose.
   const { token, generated } = tokenOf(config);
   const policy = hostPolicy({
     ...(config.expose.length > 0 ? { expose: config.expose } : {}),
     ...(token !== undefined ? { token } : {}),
+    // The remote events (EVENTS.md): the server always pins events.subscribe. Without --events,
+    // the topic rule is empty, so each subscription gets TOPIC_NOT_FOUND. The bus is the global
+    // bus, which is also the ctx.bus of the procedures.
+    events: { topics: config.events ?? [] },
   });
   const peer = await createPeer({
     id: `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -163,7 +196,15 @@ export async function startServer(
     policy,
   });
   await peer.start();
-  return { peer, registry, policy, endpoints: peer.getEndpoints(), token, generatedToken: generated };
+  return {
+    peer,
+    registry,
+    policy,
+    endpoints: peer.getEndpoints(),
+    token,
+    generatedToken: generated,
+    ...(confined ? { fsRoot: confined.root } : {}),
+  };
 }
 
 /**
@@ -195,6 +236,11 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
   }
   if (config.expose.length > 0) {
     console.log(`Serves only: ${config.expose.join(", ")}`);
+  }
+  const events = config.events ?? [];
+  console.log(events.length > 0 ? `Event topics (events.subscribe): ${events.join(", ")}` : "Event topics: none (--events adds them)");
+  if (running.fsRoot !== undefined) {
+    console.log(`File root: ${running.fsRoot} (fs.* refuses each path outside it)`);
   }
   console.log("\nPress Ctrl+C to stop the server.");
 

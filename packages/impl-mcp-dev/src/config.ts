@@ -30,6 +30,12 @@ export interface McpServerConfig {
    * true: a program with an error does not start, so no step of it writes.
    */
   programCheck?: boolean | undefined;
+  /**
+   * The folder that confines each path of the `fs.*` procedures of the host (roadmap R33). The
+   * nested `fs.*` calls of the tools (`lib.scan`, `cue.add`) are confined too. A path outside
+   * gives `FORBIDDEN` with the reason `outside-root`. No value: no root.
+   */
+  fsRoot?: string | undefined;
 }
 
 /**
@@ -44,6 +50,7 @@ export interface McpServerConfig {
  * - MCP_READ_ONLY: "true" or "1" gives only the tools that change nothing (default: false)
  * - MCP_HTTP_PORT, MCP_HTTP_HOST, MCP_HTTP_TOKEN: serve over Streamable HTTP, not stdio
  * - MCP_PROGRAM_CHECK: "false" or "0" starts a program without the check before the run
+ * - MCP_FS_ROOT: the folder that confines each path of the fs.* procedures (default: no root)
  */
 /** The default time limit of a tool call: a build or a test run can take minutes. */
 export const DEFAULT_TOOL_TIMEOUT_MS = 600_000;
@@ -58,6 +65,7 @@ export function parseTimeout(value: string | undefined): number {
 export function loadConfig(): McpServerConfig {
   const bundlesEnv = process.env["MCP_BUNDLES"] ?? "@procedures/bundle-mcp";
   const bundles = bundlesEnv.split(",").map((b) => b.trim()).filter(Boolean);
+  const fsRoot = process.env["MCP_FS_ROOT"]?.trim();
 
   return {
     bundles,
@@ -67,6 +75,7 @@ export function loadConfig(): McpServerConfig {
     toolTimeoutMs: parseTimeout(process.env["MCP_TOOL_TIMEOUT_MS"]),
     readOnly: process.env["MCP_READ_ONLY"] === "true" || process.env["MCP_READ_ONLY"] === "1",
     programCheck: !(process.env["MCP_PROGRAM_CHECK"] === "false" || process.env["MCP_PROGRAM_CHECK"] === "0"),
+    ...(fsRoot ? { fsRoot } : {}),
     ...(process.env["MCP_HTTP_PORT"]
       ? {
           http: {

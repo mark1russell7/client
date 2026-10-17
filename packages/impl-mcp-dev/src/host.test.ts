@@ -4,25 +4,31 @@
  * the same hidden reach (tools.snapshot.txt and reachable.snapshot.txt stay valid).
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
-import { PROCEDURE_REGISTRY, hiddenReach, pathToKey, type AnyProcedure } from "@procedures/client";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { PROCEDURE_REGISTRY, hiddenReach, invokePath, outputValue, pathToKey, pathToMethod, type AnyProcedure } from "@procedures/client";
 import { exposeRule, mergeSurfaces, procedureToMcpTool } from "@procedures/mcp-server";
+import type { McpServerConfig } from "./config.js";
 import { createDevToolsHost, type DevToolsHost } from "./host.js";
 
 const keys = (procedures: readonly AnyProcedure[]): string[] => procedures.map((procedure) => pathToKey(procedure.path)).sort();
+
+const config: McpServerConfig = {
+  bundles: ["@procedures/bundle-mcp"],
+  serverName: "test",
+  serverVersion: "0",
+  debug: false,
+  toolTimeoutMs: 0,
+};
 
 let host: DevToolsHost;
 let globalProcedures: AnyProcedure[];
 let globalExpose: (path: string[]) => boolean;
 
 beforeAll(async () => {
-  host = await createDevToolsHost({
-    bundles: ["@procedures/bundle-mcp"],
-    serverName: "test",
-    serverVersion: "0",
-    debug: false,
-    toolTimeoutMs: 0,
-  });
+  host = await createDevToolsHost(config);
   // The old way: import the bundle, which registers in the global registry
   const bundle = await import("@procedures/bundle-mcp/register.js");
   globalProcedures = PROCEDURE_REGISTRY.getAll();
@@ -70,6 +76,78 @@ describe("the dev-tools host", () => {
     expect(tool.description).toBe("List the procedures. It reads registry and changes nothing.");
     expect(tool.annotations).toMatchObject({ readOnlyHint: true });
     host.registry.unregister(["r23", "names"]);
+  });
+});
+
+describe("the dev-tools host with MCP_FS_ROOT (roadmap R33)", () => {
+  let rooted: DevToolsHost;
+  let base: string;
+  let root: string;
+  let outside: string;
+
+  /** A small pnpm workspace with one package, for lib.scan. */
+  function workspace(folder: string, name: string): void {
+    mkdirSync(join(folder, "packages", name), { recursive: true });
+    writeFileSync(join(folder, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+    writeFileSync(join(folder, "packages", name, "package.json"), JSON.stringify({ name }));
+  }
+
+  beforeAll(async () => {
+    base = mkdtempSync(join(tmpdir(), "mcp-fs-root-"));
+    root = join(base, "root");
+    outside = join(base, "outside");
+    workspace(root, "inside-package");
+    workspace(outside, "outside-package");
+    rooted = await createDevToolsHost({ ...config, fsRoot: root });
+  });
+
+  afterAll(() => {
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  /** The output of a tool call on the server of a host. */
+  async function tool<T>(on: DevToolsHost, path: string[], payload: unknown): Promise<{ type: string; code?: string; value: T }> {
+    const response = await on.server.handle({ id: "fs-root", method: pathToMethod(path), payload, metadata: {} });
+    const status = response.status as { type: string; code?: string };
+    return { type: status.type, ...(status.code ? { code: status.code } : {}), value: (response as { payload?: unknown }).payload as T };
+  }
+
+  it("keeps the procedures, the tools and the hidden reach of the host without a root", () => {
+    expect(rooted.fsRoot).toBe(root);
+    expect(host.fsRoot).toBeUndefined();
+    expect(keys(rooted.registry.getAll())).toEqual(keys(host.registry.getAll()));
+    const tools = (on: DevToolsHost) => keys(on.registry.getAll().filter((procedure) => procedure.handler && on.policy.expose!(procedure.path)));
+    expect(tools(rooted)).toEqual(tools(host));
+    expect(rooted.policy.expose!(["fs", "read"])).toBe(false);
+  });
+
+  it("accepts a path in the root, and refuses a path outside it with FORBIDDEN (outside-root)", async () => {
+    const inside = await invokePath<{ data: unknown }>(["fs", "read.json"], { path: join(root, "packages", "inside-package", "package.json") }, { registry: rooted.registry });
+    expect((await outputValue(inside, ["fs", "read.json"])).data).toEqual({ name: "inside-package" });
+    await expect(
+      invokePath(["fs", "read.json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry: rooted.registry }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
+    // Without the root, the same path is accepted
+    const free = await invokePath(["fs", "read.json"], { path: join(outside, "packages", "outside-package", "package.json") }, { registry: host.registry });
+    expect(await outputValue(free, ["fs", "read.json"])).toMatchObject({ data: { name: "outside-package" } });
+  });
+
+  it("confines the nested fs calls of a tool: lib.scan reads only the workspaces in the root", async () => {
+    const inside = await tool<{ packages: Record<string, unknown> }>(rooted, ["lib", "scan"], { rootPath: root });
+    expect(inside.type).toBe("success");
+    expect(Object.keys(inside.value.packages)).toEqual(["inside-package"]);
+
+    const refused = await tool<{ packages: Record<string, unknown>; warnings: Array<{ issue: string }> }>(rooted, ["lib", "scan"], { rootPath: outside });
+    expect(refused.type).toBe("success");
+    expect(refused.value.packages).toEqual({});
+    expect(refused.value.warnings[0]?.issue).toContain("outside the root");
+    // The host without a root reads the same workspace
+    const free = await tool<{ packages: Record<string, unknown> }>(host, ["lib", "scan"], { rootPath: outside });
+    expect(Object.keys(free.value.packages)).toEqual(["outside-package"]);
+  });
+
+  it("does not start with a root that does not exist", async () => {
+    await expect(createDevToolsHost({ ...config, fsRoot: join(base, "missing") })).rejects.toThrow("does not exist");
   });
 });
 

@@ -23,6 +23,13 @@ export interface ServerConfig {
   token: string | null | undefined;
   /** The procedures to serve (`--expose`): exact keys or `prefix.*`. Empty: every procedure. */
   expose: string[];
+  /**
+   * The topic patterns of the remote events (`--events`): exact names, prefixes (`orders.*`) or
+   * `*`. Empty: the server serves no topic, and each subscription gets `TOPIC_NOT_FOUND`.
+   */
+  events?: string[] | undefined;
+  /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). Undefined: no root. */
+  fsRoot?: string | undefined;
 }
 
 export interface ServerCreateResult {

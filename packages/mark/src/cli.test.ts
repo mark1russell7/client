@@ -9,6 +9,7 @@ import { executeArgs, type CliContext } from "./cli.js";
 import { failureOf } from "./failure.js";
 import { lineReader, runLines, tokenize } from "./repl.js";
 import { PassThrough, Readable } from "node:stream";
+import { resolve } from "node:path";
 import { testProcedures } from "../test/procedures.js";
 
 function context(): CliContext {
@@ -89,6 +90,20 @@ describe("exit codes (CLI-8)", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     expect(await exitCodeOf(["fs", "exists", "x", "--server"])).toBe(1);
     expect(await exitCodeOf(["fs", "exists", "x", "--port", "4000"])).toBe(1);
+    expect(await exitCodeOf(["fs", "exists", "x", "--events", "orders.*"])).toBe(1);
+  });
+
+  it("is 1 for an --fs-root that is not the root of the run, and 0 for the same root", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    // After the command, the root comes too late: the procedures loaded without it
+    expect(await exitCodeOf(["result", "ok", "--fs-root", "data"])).toBe(1);
+    expect(errors.mock.calls.flat().join("\n")).toContain("give it before the command");
+    process.exitCode = 0;
+    await executeArgs(["--fs-root", "data", "result", "ok", "--local"], { ...context(), fsRoot: resolve("data") });
+    expect(Number(process.exitCode ?? 0)).toBe(0);
+    await executeArgs(["--fs-root", "other", "result", "ok", "--local"], { ...context(), fsRoot: resolve("data") });
+    expect(Number(process.exitCode ?? 0)).toBe(1);
   });
 });
 

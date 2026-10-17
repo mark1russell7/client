@@ -130,10 +130,11 @@ The package provides a `mark` binary for command-line usage.
 
 ```bash
 mark [global options] <path...> [positional...] [--options]
-mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns]
-mark mcp [--bundles list] [--tool-timeout ms] [--debug]
-mark --server [--port N] [--host H] [--transport http|websocket|both]
+mark serve [--procedures pkgs] [--port N] [--token T | --no-token] [--expose patterns] [--events topics] [--fs-root folder]
+mark mcp [--bundles list] [--tool-timeout ms] [--read-only] [--http port] [--fs-root folder] [--debug]
+mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics]
 mark -i
+mark --fs-root <folder> <command | --server | -i | serve | mcp>
 ```
 
 The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@procedures/mark` runs nothing.
@@ -151,6 +152,38 @@ The bin is `dist/bin.js`. `node dist/cli.js` also runs the CLI. Importing `@proc
 
 `mark mcp <procedure>` runs an `mcp.*` procedure (for example `mark mcp listTools`), not the server. Each host gets its policy from `hostPolicy()` of `@procedures/client`.
 
+#### Remote events of the hosts
+
+`mark --server` and `mark serve` always serve the procedure `events.subscribe` ([EVENTS.md](../documentation/EVENTS.md)):
+
+- `--events <patterns>` gives the topics that a peer can subscribe to: exact names (`orders.created`), prefixes (`orders.*`) or `*`. Repeat the flag, or separate the patterns with commas.
+- Without `--events`, the host serves no topic. Each subscription gets `TOPIC_NOT_FOUND`.
+- The bus is the global bus of the process. The procedures get it as `ctx.bus`, so a procedure publishes with `ctx.bus.emit()`.
+- The token of the host applies to a subscription. The hosts have no capability limits, so they permit each subscription to a topic of the rule.
+- `mark mcp` serves no events: MCP carries only the tool calls, and `events.subscribe` is not a tool.
+
+```bash
+mark --server --transport both --events "orders.*"
+mark serve --procedures ./my-procedures.js --events orders.created --events audit.created
+```
+
+#### The root of the file procedures
+
+`--fs-root <folder>` confines each path of the `fs.*` procedures to the folder (roadmap R33). It applies to each mode and host of `mark`:
+
+- A command in this process, the REPL (`-i`) and the CLI server (`--server`): the registry of `mark` gets the root.
+- `mark serve` and `mark mcp`: the root goes to their servers. `mark mcp` also reads `MCP_FS_ROOT`.
+- A path outside the folder gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the folder.
+- The nested `fs.*` calls of the other commands are confined too. For example, `mark --fs-root ./data lib scan` cannot list the packages of a workspace outside `./data`.
+- Give `--fs-root` before the command. After the command, it is an error, because the procedures loaded without it.
+- A command uses a CLI server only when the server has the same root. The lockfile of the server records its root.
+- A procedure that reads files with `node:fs`, or that starts a program, is not confined. The [README of the MCP server](../impl-mcp-dev/README.md) lists them.
+
+```bash
+mark --fs-root ./data fs read notes.txt
+mark --fs-root ./data --server
+```
+
 #### Global Options
 
 A flag before the command path is a global flag. After the path, a flag is the command's flag when the command declares it. Otherwise it is a global flag. For example, `mark docker compose down -v` gives `-v` (volumes) to the command. To show the version, write `mark -v`. `mark lib audit` lists the command flags that hide a global flag.
@@ -163,7 +196,8 @@ A flag before the command path is a global flag. After the path, a flag is the c
 | `--format <format>` | `-f` | Override output format (text, json, table, streaming) |
 | `--local` | | Run the command in this process, not on the CLI server |
 | `--json <json>` | | Execute raw procedure reference |
-| `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`) |
+| `--fs-root <folder>` | | Confine each path of `fs.*` to the folder, also in the nested calls. Give it before the command. |
+| `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`, `--events`) |
 | `--interactive` | `-i` | Start the REPL |
 
 #### Exit Codes and Failures

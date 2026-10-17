@@ -26,6 +26,8 @@ export interface LockfileData {
   build?: string;
   /** The peer id that the server's health endpoint answers */
   peerId?: string;
+  /** The absolute path of the root of the `fs.*` procedures of the server (`--fs-root`). No value: no root. */
+  fsRoot?: string;
 }
 
 const MARK_DIR = path.join(os.homedir(), ".mark");
@@ -115,12 +117,14 @@ export async function checkServer(lockfile: LockfileData, timeoutMs = 1000): Pro
 
 /**
  * The lockfile of a running server that this caller can use: it has a token, it runs in `cwd`
- * with the build `build`, and it answers as the peer of its lockfile. A dead server's lockfile
- * is removed.
+ * with the build `build` and the fs root `fsRoot`, and it answers as the peer of its lockfile. A
+ * caller without `fsRoot` uses only a server without a root. A dead server's lockfile is removed.
  */
-export async function findServer(match: { cwd: string; build: string }): Promise<LockfileData | null> {
+export async function findServer(match: { cwd: string; build: string; fsRoot?: string | undefined }): Promise<LockfileData | null> {
   for (const lockfile of readAllLockfiles()) {
     if (!lockfile.token || lockfile.cwd !== match.cwd || lockfile.build !== match.build) continue;
+    // The root confines the fs.* procedures: a command never runs with another root, or with none
+    if ((lockfile.fsRoot ?? undefined) !== (match.fsRoot ?? undefined)) continue;
     const state = await checkServer(lockfile);
     if (state === "alive") return lockfile;
     if (state === "dead") removeLockfileForPort(lockfile.port);

@@ -9,7 +9,7 @@
 import { print } from "./print.js";
 import type { Method, AnyProcedure } from "@procedures/client";
 import { readFileSync, realpathSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fieldsOf, generateHelp, resultFieldsOf, type CLIMeta, type CommandLike } from "./parse.js";
 import { readFreshManifest, writeManifest, type ManifestCommand } from "./manifest.js";
@@ -139,9 +139,25 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
   }
 
   print.info("Run 'mark <command> --help' for more information.");
-  print.info("Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns]' (the procedure server),");
+  print.info("Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),");
   print.info("       'mark mcp' (the dev-tools MCP server over stdio).");
-  print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both]' and 'mark -i' (the REPL).");
+  print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics]' and 'mark -i' (the REPL).");
+  print.info("Root:  'mark --fs-root <folder> <command>' confines each path of fs.* to the folder, also in each mode and host.");
+}
+
+/** The global flags that only `--server` takes. */
+const SERVER_OPTIONS = ["port", "host", "transport", "events"] as const;
+
+/** True when the global flags give an option of `--server`. */
+function hasServerOption(globals: Readonly<Record<string, unknown>>): boolean {
+  return SERVER_OPTIONS.some((name) => globals[name] !== undefined);
+}
+
+/** The topic patterns of `--events`, checked as `mark serve` checks them. */
+async function eventPatterns(value: string | boolean | undefined): Promise<string[]> {
+  if (value === undefined) return [];
+  const { parseTopicPatterns } = await import("@procedures/server");
+  return parseTopicPatterns(String(value));
 }
 
 /**
@@ -151,6 +167,8 @@ export interface CliContext {
   client: InstanceType<typeof import("@procedures/client").Client>;
   procedures: AnyProcedure[];
   verbose: boolean;
+  /** The absolute path of the root of the `fs.*` procedures (`--fs-root`), or undefined. */
+  fsRoot?: string | undefined;
 }
 
 /**
@@ -160,6 +178,8 @@ export interface CliContext {
 export interface ManifestContext {
   commands: readonly ManifestCommand[];
   verbose: boolean;
+  /** The absolute path of the root that `load()` gives to the `fs.*` procedures, or undefined. */
+  fsRoot?: string | undefined;
   load: () => Promise<CliContext>;
 }
 
@@ -186,14 +206,16 @@ function interruptSignal(): { signal: AbortSignal; release: () => void } {
 
 /**
  * Initialize the CLI context (load ecosystem, create client)
- * This is the expensive part (~4s). Call once, reuse many times.
+ * This is the expensive part (~4s). Call once, reuse many times. With `fsRoot` (`--fs-root`),
+ * the `fs.*` procedures confine each path to the root, also in the nested calls.
  */
-export async function initCli(verbose = false): Promise<CliContext> {
+export async function initCli(verbose = false, fsRoot?: string): Promise<CliContext> {
   const clientModule = await import("@procedures/client");
   const { Client, LocalTransport } = clientModule;
 
   // A registry of its own, from the module of each package (roadmap 3.1): not the global one
-  const { registry } = await loadEcosystemRegistry(verbose);
+  const ecosystem = await loadEcosystemRegistry(verbose, true, { fsRoot });
+  const { registry } = ecosystem;
 
   // The transport runs each procedure of the registry through invokeProcedure() (ARCHITECTURE-PROPOSALS P1).
   // useRegistry(): exec() of a program (--json) uses the same registry.
@@ -202,7 +224,7 @@ export async function initCli(verbose = false): Promise<CliContext> {
 
   const procedures = registry.getAll();
 
-  return { client, procedures, verbose };
+  return { client, procedures, verbose, ...(ecosystem.fsRoot !== undefined ? { fsRoot: ecosystem.fsRoot } : {}) };
 }
 
 /**
@@ -254,8 +276,16 @@ export async function executeArgs(
     fail("--server and -i start a mode of mark: give them alone, before any command.");
     return;
   }
-  if (globals.port !== undefined || globals.host !== undefined || globals.transport !== undefined) {
-    fail("--port, --host and --transport are options of --server.");
+  if (hasServerOption(globals)) {
+    fail("--port, --host, --transport and --events are options of --server.");
+    return;
+  }
+  // The root applies to the whole run: the procedures load with it, and a warm server must have it
+  if (globals["fs-root"] !== undefined && resolve(String(globals["fs-root"])) !== ctx.fsRoot) {
+    fail(
+      `--fs-root ${String(globals["fs-root"])} does not apply here: give it before the command (mark --fs-root <folder> <command>).`,
+      ctx.fsRoot === undefined ? undefined : `This run has the root ${ctx.fsRoot}.`
+    );
     return;
   }
 
@@ -371,7 +401,7 @@ export async function executeArgs(
 
   // Try client mode: connect to running server if available (unless --local)
   if (!globals.local) {
-    const clientResult = await tryClientMode(path, validated, printItem);
+    const clientResult = await tryClientMode(path, validated, printItem, ctx.fsRoot);
     if (clientResult !== null) {
       if (clientResult.success) {
         if (!clientResult.printed) {
@@ -455,18 +485,23 @@ Options:
   --http <port>         Serve over Streamable HTTP on this port, not over stdio (MCP_HTTP_PORT)
   --host <host>         The address of --http (default: 127.0.0.1, only this computer)
   --token <token>       A secret that each HTTP request must send as a bearer token
+  --fs-root <folder>    Confine each path of fs.* to this folder, also the nested fs calls
+                        of the tools (default: MCP_FS_ROOT, or no root). The tools stay the same.
   --debug               Write debug lines to stderr
   -h, --help            Show this help
 
+The MCP server serves no remote events: MCP carries only the tool calls.
 \`mark mcp <procedure>\` runs an mcp.* procedure instead (mark mcp serve, mark mcp listTools).`;
 
 /**
  * Start the dev-tools MCP server (`mark mcp`). stdout carries the protocol: this function
  * writes nothing to stdout, and the server sends console.log to stderr.
  */
-async function startMcp(args: string[]): Promise<void> {
+async function startMcp(args: string[], fsRoot?: string): Promise<void> {
   const { loadConfig, startDevToolsServer } = await import("@procedures/mcp-dev-tools");
   const config = loadConfig();
+  // `mark --fs-root <folder> mcp` replaces MCP_FS_ROOT, and `mark mcp --fs-root` replaces both
+  if (fsRoot !== undefined) config.fsRoot = fsRoot;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     const eq = arg.indexOf("=");
@@ -496,6 +531,8 @@ async function startMcp(args: string[]): Promise<void> {
       config.http = { port: config.http?.port ?? 3003, ...config.http, host: value() };
     } else if (name === "--token") {
       config.http = { port: config.http?.port ?? 3003, ...config.http, token: value() };
+    } else if (name === "--fs-root") {
+      config.fsRoot = value();
     } else if (name === "--debug") {
       config.debug = true;
     } else {
@@ -529,6 +566,9 @@ async function run(argv: string[]): Promise<void> {
     return;
   }
 
+  // --fs-root (roadmap R33): the root of the fs.* procedures for each mode and host of this run
+  const fsRoot = globals["fs-root"] === undefined ? undefined : resolve(String(globals["fs-root"]));
+
   // Handle --server flag: start server mode
   if (globals.server) {
     if (leading.rest.length > 0) {
@@ -539,7 +579,13 @@ async function run(argv: string[]): Promise<void> {
     // Loopback unless --host says otherwise (deep dive CLI-1)
     const host = globals.host === undefined ? "127.0.0.1" : String(globals.host);
     const transport = globals.transport === undefined ? "http" : parseTransport(String(globals.transport));
-    await startServerMode({ port, host, transport, verbose });
+    const events = await eventPatterns(globals.events);
+    await startServerMode({ port, host, transport, verbose, events, ...(fsRoot !== undefined ? { fsRoot } : {}) });
+    return;
+  }
+  // Before, `mark --port 4000 serve` ignored --port without a word
+  if (hasServerOption(globals)) {
+    fail("--port, --host, --transport and --events are options of --server.", "For mark serve, give them after serve.");
     return;
   }
 
@@ -549,7 +595,7 @@ async function run(argv: string[]): Promise<void> {
       fail(`-i takes no command: ${leading.rest.join(" ")}`);
       return;
     }
-    await startRepl({ verbose });
+    await startRepl({ verbose, fsRoot });
     return;
   }
 
@@ -562,12 +608,14 @@ async function run(argv: string[]): Promise<void> {
     // A --procedures package resolves from the current folder, then from mark, which depends on
     // every procedure package of the workspace
     const markDir = dirname(dirname(fileURLToPath(import.meta.url)));
-    await runServer(commandArgs, { resolveFrom: [process.cwd(), markDir] });
+    // `mark --fs-root <folder> serve`: the root goes first, so a --fs-root after serve wins
+    const serveArgs = fsRoot === undefined ? commandArgs : ["--fs-root", fsRoot, ...commandArgs];
+    await runServer(serveArgs, { resolveFrom: [process.cwd(), markDir] });
     return;
   }
   // `mark mcp` and `mark mcp --option value`: the server. `mark mcp <procedure>`: an mcp.* command.
   if (command === "mcp" && (commandArgs.length === 0 || commandArgs[0]!.startsWith("-"))) {
-    await startMcp(commandArgs);
+    await startMcp(commandArgs, fsRoot);
     return;
   }
 
@@ -575,13 +623,13 @@ async function run(argv: string[]): Promise<void> {
   // server do not load them (roadmap 1.3)
   const manifest = readFreshManifest();
   if (manifest) {
-    await executeArgs(argv, { commands: manifest.commands, verbose, load: () => initCli(verbose) });
+    await executeArgs(argv, { commands: manifest.commands, verbose, fsRoot, load: () => initCli(verbose, fsRoot) });
     return;
   }
 
   // No manifest, or a stale one (a package was built again): load the procedures as before, and
   // write the manifest for the next run. A failure to write costs only time.
-  const ctx = await initCli(verbose);
+  const ctx = await initCli(verbose, fsRoot);
   try {
     await writeManifest(ctx.procedures);
   } catch (error) {

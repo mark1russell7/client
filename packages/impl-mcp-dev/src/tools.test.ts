@@ -20,7 +20,7 @@
 
 import { describe, it, expect } from "vitest";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
@@ -70,10 +70,17 @@ function hintsOf(annotations: ToolAnnotations | undefined): string {
   return parts.join(", ");
 }
 
-/** This function starts the built server over stdio, runs `use` with a request function, then stops the server. */
-async function withServer<T>(use: (request: (method: string, params: unknown) => Promise<RpcResponse>) => Promise<T>): Promise<T> {
+/**
+ * This function starts the built server over stdio, runs `use` with a request function, then
+ * stops the server. `env` adds environment variables to the server process.
+ */
+async function withServer<T>(
+  use: (request: (method: string, params: unknown) => Promise<RpcResponse>) => Promise<T>,
+  env: Record<string, string> = {},
+): Promise<T> {
   const child = spawn(process.execPath, [join(packageDir, "dist", "server.js")], {
     stdio: ["pipe", "pipe", "ignore"],
+    env: { ...process.env, ...env },
   });
   const pending = new Map<number, (message: RpcResponse) => void>();
   let nextId = 1;
@@ -182,6 +189,41 @@ describe("dev-tools MCP server", () => {
       request("tools/call", { name: "docker.logs", arguments: { container: `x & echo marker> "${marker}"` } }),
     );
     expect(existsSync(marker)).toBe(false);
+  }, 60_000);
+
+  it("keeps the tool list with MCP_FS_ROOT, and confines the nested fs calls of lib.scan (roadmap R33)", async () => {
+    const base = mkdtempSync(join(tmpdir(), "mcp-tools-fs-root-"));
+    try {
+      const root = join(base, "root");
+      const outside = join(base, "outside");
+      for (const [folder, name] of [[root, "inside-package"], [outside, "outside-package"]] as const) {
+        mkdirSync(join(folder, "packages", name), { recursive: true });
+        writeFileSync(join(folder, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+        writeFileSync(join(folder, "packages", name, "package.json"), JSON.stringify({ name }));
+      }
+      const expected = readFileSync(join(packageDir, "tools.snapshot.txt"), "utf8").trim().split(/\r?\n/);
+      const { tools, inside, refused } = await withServer(
+        async (request) => {
+          const names: string[] = [];
+          let cursor: string | undefined;
+          do {
+            const response = await request("tools/list", cursor ? { cursor } : {});
+            for (const tool of response.result?.tools ?? []) names.push(tool.name);
+            cursor = response.result?.nextCursor;
+          } while (cursor);
+          const scan = async (rootPath: string) => (await request("tools/call", { name: "lib.scan", arguments: { rootPath } })).result;
+          return { tools: names.sort(), inside: await scan(root), refused: await scan(outside) };
+        },
+        { MCP_FS_ROOT: root },
+      );
+      expect(tools).toEqual(expected);
+      expect(inside?.isError).toBeFalsy();
+      expect(inside?.content?.[0]?.text).toContain("inside-package");
+      expect(refused?.content?.[0]?.text).toContain("outside the root");
+      expect(refused?.content?.[0]?.text).not.toContain("outside-package");
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   }, 60_000);
 
   it("lets client.chain call an exposed procedure", async () => {

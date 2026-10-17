@@ -209,6 +209,36 @@ const allCoreModule: ProcedureModule = defineModule("@procedures/client (all cor
 export interface EcosystemRegistry {
   registry: ProcedureRegistry;
   loaded: string[];
+  /** The absolute path of the root of the `fs.*` procedures (`--fs-root`), or undefined. */
+  fsRoot?: string | undefined;
+}
+
+/** The options of `loadEcosystemRegistry()`. */
+export interface EcosystemOptions {
+  /**
+   * The folder that confines each path of the `fs.*` procedures (`--fs-root`, roadmap R33). The
+   * nested `fs.*` calls of the other procedures are confined too.
+   */
+  fsRoot?: string | undefined;
+}
+
+/** The function of `@procedures/fs` that confines the `fs.*` procedures of a registry to a root. */
+type ConfineFs = (registry: ProcedureRegistry, root: string) => { root: string; procedures: string[] };
+
+/**
+ * This function confines the `fs.*` procedures of the registry to a root, with
+ * `confineFsProcedures()` of the workspace package `@procedures/fs`. Without that package, it
+ * throws: a root that does not apply is an error, not a silent no-op.
+ */
+async function confineFs(registry: ProcedureRegistry, root: string, discovered: readonly DiscoveredPackage[]): Promise<string> {
+  const fsPackage = discovered.find((pkg) => pkg.name === "@procedures/fs");
+  const file = fsPackage?.modulePath ? path.join(fsPackage.path, fsPackage.modulePath) : undefined;
+  if (!file || !fs.existsSync(file)) {
+    throw new Error("--fs-root needs the package @procedures/fs of the workspace: build packages/client-fs");
+  }
+  const { confineFsProcedures } = (await import(pathToFileURL(file).href)) as { confineFsProcedures?: ConfineFs };
+  if (typeof confineFsProcedures !== "function") throw new Error("--fs-root needs a build of @procedures/fs with confineFsProcedures");
+  return confineFsProcedures(registry, root).root;
 }
 
 /**
@@ -235,12 +265,14 @@ async function moduleOfPackage(pkg: DiscoveredPackage): Promise<ProcedureModule 
  * The registry of `mark` (roadmap 3.1): a registry of its own, built from the module of each
  * workspace package that declares `client.procedures`, with all the core procedures. The global
  * registry does not change for a package with a module entry. A package that fails to load gives
- * one warning line on stderr, as with `loadEcosystemProcedures()`.
+ * one warning line on stderr, as with `loadEcosystemProcedures()`. With `options.fsRoot`, the
+ * `fs.*` procedures confine each path to the root.
  */
-export async function loadEcosystemRegistry(verbose = false, warn = true): Promise<EcosystemRegistry> {
+export async function loadEcosystemRegistry(verbose = false, warn = true, options: EcosystemOptions = {}): Promise<EcosystemRegistry> {
   const registry = createRegistry(allCoreModule);
   const loaded: string[] = [];
-  for (const pkg of discoverFromEcosystem()) {
+  const discovered = discoverFromEcosystem();
+  for (const pkg of discovered) {
     try {
       const module = await moduleOfPackage(pkg);
       if (!module) {
@@ -256,5 +288,8 @@ export async function loadEcosystemRegistry(verbose = false, warn = true): Promi
       if (verbose && error instanceof Error && error.stack) console.warn(error.stack);
     }
   }
-  return { registry, loaded };
+  if (options.fsRoot === undefined) return { registry, loaded };
+  // After the last package: each fs.* procedure of the registry gets the handler of the root
+  const fsRoot = await confineFs(registry, options.fsRoot, discovered);
+  return { registry, loaded, fsRoot };
 }

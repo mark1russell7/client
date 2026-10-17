@@ -73,6 +73,17 @@ describe("lockfiles", () => {
     lockfile.removeLockfileForPort(healthPort);
   });
 
+  it("findServer: only a server with the same fs root, and a caller without a root only a server without one", async () => {
+    lockfile.writeLockfile(lock(healthPort, { fsRoot: "/work/data" }));
+    expect((await lockfile.findServer({ cwd: "/work", build: "build-1", fsRoot: "/work/data" }))?.port).toBe(healthPort);
+    expect(await lockfile.findServer({ cwd: "/work", build: "build-1", fsRoot: "/work/other" })).toBeNull();
+    expect(await lockfile.findServer({ cwd: "/work", build: "build-1" })).toBeNull();
+    lockfile.writeLockfile(lock(healthPort));
+    expect(await lockfile.findServer({ cwd: "/work", build: "build-1", fsRoot: "/work/data" })).toBeNull();
+    expect((await lockfile.findServer({ cwd: "/work", build: "build-1" }))?.port).toBe(healthPort);
+    lockfile.removeLockfileForPort(healthPort);
+  });
+
   it("findServer: never a server without a token (a lockfile of an older version)", async () => {
     const { token: _token, ...withoutToken } = lock(healthPort);
     lockfile.writeLockfile(withoutToken);

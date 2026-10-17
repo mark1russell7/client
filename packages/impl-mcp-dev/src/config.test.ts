@@ -19,6 +19,23 @@ describe("parseTimeout", () => {
   });
 });
 
+describe("MCP_FS_ROOT (roadmap R33)", () => {
+  it("gives the root of the fs procedures, and no root when it is empty or not set", () => {
+    const before = process.env["MCP_FS_ROOT"];
+    try {
+      delete process.env["MCP_FS_ROOT"];
+      expect(loadConfig().fsRoot).toBeUndefined();
+      process.env["MCP_FS_ROOT"] = "  ";
+      expect(loadConfig().fsRoot).toBeUndefined();
+      process.env["MCP_FS_ROOT"] = " /work/data ";
+      expect(loadConfig().fsRoot).toBe("/work/data");
+    } finally {
+      if (before === undefined) delete process.env["MCP_FS_ROOT"];
+      else process.env["MCP_FS_ROOT"] = before;
+    }
+  });
+});
+
 describe("MCP_PROGRAM_CHECK (roadmap R22)", () => {
   it("is on by default, and false or 0 turns it off", () => {
     const before = process.env["MCP_PROGRAM_CHECK"];

@@ -163,10 +163,35 @@ procedure-server -p @procedures/mongo/register -t http,websocket
 | `--token` | - | `SERVER_TOKEN`, or a random token that the server prints | The token that every request sends: `Authorization: Bearer <token>`, or `?token=` for WebSocket |
 | `--no-token` | - | - | Serve without a token (only on a trusted host) |
 | `--expose` | `-e` | every loaded procedure | Comma-separated procedures to serve: exact keys (`git.status`) or prefixes (`git.*`) |
+| `--events` | - | no topics | The topics of the event bus that a peer can subscribe to. Exact names (`orders.created`), prefixes (`orders.*`) or `*`. Repeat the option, or separate the patterns with commas. |
+| `--fs-root` | - | no root | The folder that confines each path of the `fs.*` procedures, also in their nested calls |
 | `--verbose` | `-v` | - | Verbose output |
 | `--help` | `-h` | - | Show help |
 
-`mark serve` takes the same options and starts the same server.
+`mark serve` takes the same options and starts the same server. `mark --fs-root <folder> serve` gives the root to the server too.
+
+### Remote events
+
+The server always serves the procedure `events.subscribe` ([EVENTS.md](../documentation/EVENTS.md)). The `--events` patterns are its topic rule:
+
+- Without `--events`, the rule is empty. Each subscription gets `TOPIC_NOT_FOUND`.
+- The `--expose` list does not apply to `events.subscribe`. The topic rule is its expose rule.
+- The bus is the global bus of the process. The procedures of the server get it as `ctx.bus`, so a procedure publishes with `ctx.bus.emit()`.
+- The token applies to a subscription as to each call. The server has no capability, so it permits each subscription to a topic of the rule.
+- A subscriber uses WebSocket (`transport.subscribe()`) or HTTP with NDJSON (`subscribeRemote()`).
+
+```bash
+procedure-server -p ./my-procedures.js -t http,websocket --events "orders.*" --events audit.created
+```
+
+### The root of the file procedures
+
+With `--fs-root <folder>`, the server starts `confineFsProcedures()` of `@procedures/fs` after it builds its registry (roadmap R33):
+
+- Each `fs.*` procedure refuses a path outside the folder with `FORBIDDEN` and the reason `outside-root`. A relative path starts at the folder.
+- A nested `fs.*` call of another procedure is confined too.
+- The server does not start when the folder does not exist, or when it cannot load `@procedures/fs`.
+- A procedure that reads files with `node:fs`, or that starts a program, is not confined. The [README of the MCP server](../impl-mcp-dev/README.md) lists them.
 
 The server has a registry of its own (roadmap 3.1): the `server.*` procedures and the `./module` entry of each `--procedures` package. The `server.*` procedures come from two modules: the module of `@procedures/peer` (`server.create`, `server.call` and the others) and the module of this package. Two servers in one process serve only their own packages. `pkg/register`, the form of the old examples, gives the module of `pkg`. A package without a `./module` entry still works: the server takes the procedures that its import registers. The token, the `--expose` list and the browser checks come from `hostPolicy()` of `@procedures/client`.
 

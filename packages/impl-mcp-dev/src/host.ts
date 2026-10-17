@@ -9,6 +9,9 @@
  *
  * `server.ts` (the file in the MCP configuration of Claude Code) and `mark mcp` both start the
  * server with `startDevToolsServer()`.
+ *
+ * `MCP_FS_ROOT` confines the `fs.*` procedures to one folder. The host serves no remote events:
+ * its transport carries only MCP, and `events.subscribe` is not a tool.
  */
 
 import {
@@ -83,12 +86,21 @@ export interface DevToolsHost {
   surface: ToolSurface | undefined;
   policy: HostPolicy;
   server: ProcedureServer;
+  /** The absolute path of the root of the `fs.*` procedures (`MCP_FS_ROOT`), or undefined. */
+  fsRoot?: string | undefined;
 }
 
 /** This function builds the host. It starts no transport. */
 export async function createDevToolsHost(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
   const loaded = await loadBundles(config.bundles);
   const registry = loaded.global ? PROCEDURE_REGISTRY : createRegistry(...loaded.modules);
+  // MCP_FS_ROOT (roadmap R33): each fs.* procedure of the registry confines its paths, so the
+  // nested fs calls of the tools are confined too. It adds no procedure: the tools stay the same.
+  let fsRoot: string | undefined;
+  if (config.fsRoot !== undefined) {
+    const { confineFsProcedures } = await import("@procedures/fs/module");
+    fsRoot = confineFsProcedures(registry, config.fsRoot).root;
+  }
   // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool
   const surface = mergeSurfaces(loaded.surfaces);
   // Read only: the tools are the procedures that the capability permits, so the list shows only
@@ -115,7 +127,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     ...(programCheck.length > 0 ? { interceptors: programCheck } : {}),
   });
   const server = new ProcedureServer(procedureServerOptions(policy, registry));
-  return { registry, surface, policy, server };
+  return { registry, surface, policy, server, ...(fsRoot !== undefined ? { fsRoot } : {}) };
 }
 
 /**
@@ -160,6 +172,7 @@ export async function startDevToolsServer(config: McpServerConfig = loadConfig()
   if (config.debug) {
     console.error(`[mcp-server] Started with ${transport.getState().toolCount} tools`);
   }
+  if (host.fsRoot !== undefined) console.error(`[mcp-server] fs.* refuses each path outside ${host.fsRoot}`);
   const url = transport.getState().url;
   if (url) console.error(`[mcp-server] Streamable HTTP at ${url}${config.http?.token ? " (send Authorization: Bearer <token>)" : ""}`);
   return host;

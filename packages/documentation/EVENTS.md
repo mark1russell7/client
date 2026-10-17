@@ -224,6 +224,22 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 - The client serves its own bus with a `ProcedureServer` with `events`, given as the `serve` option of `WebSocketTransport`.
 - The server subscribes with `wsServer.subscribe(connectionId, topics, handler)` or `wsServer.events(connectionId, topics)`.
 
+### The hosts
+
+`hostPolicy()` takes the option `events`, and `procedureServerOptions()` gives it to the `ProcedureServer` of the host. The hosts of the repository use it as follows:
+
+| Host | Option | Default |
+|---|---|---|
+| `procedure-server` and `mark serve` | `--events <patterns>`, repeatable or comma-separated | No topic |
+| `mark --server` | `--events <patterns>`, repeatable or comma-separated | No topic |
+| The MCP server (`mark mcp`) | None | No `events.subscribe` |
+
+- The patterns are the topic rule of `topicMatcher()`: an exact name, a prefix that ends with `*`, or `*`.
+- `procedure-server`, `mark serve` and `mark --server` always pin `events.subscribe`. Without `--events`, the topic rule is empty, so each subscription gets `TOPIC_NOT_FOUND`.
+- The bus of these hosts is the global bus. It is also the `ctx.bus` of their procedures, so a procedure of the host publishes with `ctx.bus.emit()`.
+- These hosts have no capability limits. A read-only host (`readOnly` of `hostPolicy()`) permits a subscription too, because `events.subscribe` writes nothing.
+- The MCP server serves no events. Its transport carries only MCP, and `events.subscribe` is not a tool.
+
 ## The tests
 
 - `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face.

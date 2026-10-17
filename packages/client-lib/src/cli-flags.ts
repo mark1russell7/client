@@ -19,6 +19,8 @@ export interface CliGlobalFlag {
   readonly mode?: boolean;
   /** True when the flag is an option of `--server` */
   readonly serverOption?: boolean;
+  /** True when the flag can be given more than one time: its values add up, separated by commas */
+  readonly repeatable?: boolean;
   /** The help text */
   readonly description: string;
 }
@@ -31,6 +33,11 @@ export const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[] = [
   { long: "local", takesValue: false, description: "Run the command in this process, not on the CLI server" },
   { long: "json", takesValue: true, description: "Run a procedure reference that is given as JSON" },
   { long: "no-input", takesValue: false, description: "Never ask for a missing argument (also when CI is set)" },
+  {
+    long: "fs-root",
+    takesValue: true,
+    description: "Confine each path of fs.* to this folder, also in nested calls (before the command)",
+  },
   { long: "interactive", short: "i", takesValue: false, mode: true, description: "Start the REPL" },
   { long: "server", takesValue: false, mode: true, description: "Start the CLI server" },
   { long: "port", takesValue: true, serverOption: true, description: "The port of the CLI server (with --server)" },
@@ -40,6 +47,13 @@ export const CLI_GLOBAL_FLAGS: readonly CliGlobalFlag[] = [
     takesValue: true,
     serverOption: true,
     description: "The transport of the CLI server: http, websocket or both (with --server)",
+  },
+  {
+    long: "events",
+    takesValue: true,
+    serverOption: true,
+    repeatable: true,
+    description: "The topics that a peer can subscribe to: names, prefixes (orders.*) or * (with --server)",
   },
 ];
 

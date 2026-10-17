@@ -12,6 +12,8 @@ import { initCli, executeArgs, type CliContext } from "./cli.js";
 export interface ReplOptions {
   /** Verbose output */
   verbose?: boolean | undefined;
+  /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). */
+  fsRoot?: string | undefined;
 }
 
 /**
@@ -22,7 +24,7 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 
   // One-time initialization (same as CLI startup)
   const spinner = print.spin("Loading procedures...");
-  const ctx: CliContext = await initCli(verbose);
+  const ctx: CliContext = await initCli(verbose, options.fsRoot);
   spinner.succeed(`Ready (${ctx.procedures.length} procedures)`);
 
   print.info("Type any command (without 'mark' prefix). Ctrl+C to exit.\n");

@@ -63,6 +63,7 @@
     "@procedures/bundle-mcp": "workspace:*",
     "@procedures/client": "workspace:*",
     "@procedures/compiler": "workspace:*",
+    "@procedures/fs": "workspace:*",
     "@procedures/mcp-server": "workspace:*"
   },
   "devDependencies": {

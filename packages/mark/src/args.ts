@@ -11,6 +11,8 @@
  * - Each value is converted by the type of its field: a string field keeps its text.
  * - A repeated array flag collects its values. A repeated record flag (`--env A=1 --env B=2`) merges.
  * - A boolean flag takes `true`/`false` after it, or `--flag=false`, or `--no-flag`.
+ * - A repeated global flag with a value keeps the last value. A repeatable one (`--events`)
+ *   collects its values, separated by commas.
  * - A negative number is a value, not a flag. `--` ends the flags.
  * - The positional fields take the arguments in order. A last array field takes the rest.
  *   An argument that no field takes is an error.
@@ -37,11 +39,13 @@ export type GlobalName =
   | "local"
   | "json"
   | "no-input"
+  | "fs-root"
   | "interactive"
   | "server"
   | "port"
   | "host"
-  | "transport";
+  | "transport"
+  | "events";
 
 /** The global flags that the command line gives: true for a flag, text for a flag with a value */
 export type Globals = Partial<Record<GlobalName, string | boolean>>;
@@ -183,7 +187,9 @@ function readGlobal(
     if (value === undefined) {
       return `${label} needs a value`;
     }
-    globals[name] = value;
+    // A repeatable flag (--events) collects its values, separated by commas
+    const previous = globals[name];
+    globals[name] = flag.repeatable && typeof previous === "string" ? `${previous},${value}` : value;
     return undefined;
   }
   if (inline !== undefined && inline !== "true" && inline !== "false") {
