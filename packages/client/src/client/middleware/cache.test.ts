@@ -39,3 +39,36 @@ describe("cache key generation (regression: BUGS-2026-07 C1)", () => {
     expect(stableStringify([{ a: 1 }])).toBe(stableStringify([{ a: 1 }]));
   });
 });
+
+describe("the cache key of a payload", () => {
+  it("is the JSON text of a JSON payload, with the keys in order", () => {
+    const payload = { b: [1, "two", { d: null, c: true }, []], a: { y: 2, x: 1 }, e: {} };
+    expect(JSON.parse(stableStringify(payload))).toEqual(payload);
+    expect(stableStringify(payload)).toBe(stableStringify({ e: {}, a: { x: 1, y: 2 }, b: [1, "two", { c: true, d: null }, []] }));
+  });
+
+  it("keeps apart the payloads that differ only in type or in the bounds of their items", () => {
+    expect(stableStringify("1")).not.toBe(stableStringify(1));
+    expect(stableStringify([1, 2])).not.toBe(stableStringify({ 0: 1, 1: 2 }));
+    expect(stableStringify([1, 23])).not.toBe(stableStringify([12, 3]));
+    expect(defaultKeyGenerator(method, { id: "1" })).not.toBe(defaultKeyGenerator(method, { id: 1 }));
+  });
+
+  it("gives a key to a bigint payload, and keeps it apart from other bigints and from numbers", () => {
+    expect(() => stableStringify({ id: 1n })).not.toThrow();
+    expect(stableStringify({ id: 1n })).not.toBe(stableStringify({ id: 2n }));
+    expect(stableStringify(1n)).not.toBe(stableStringify(1));
+  });
+
+  it("keeps the versions of a method apart", () => {
+    const v1 = defaultKeyGenerator({ ...method, version: "v1" }, {});
+    const v2 = defaultKeyGenerator({ ...method, version: "v2" }, {});
+    expect(v1).not.toBe(v2);
+    expect(v1).not.toBe(defaultKeyGenerator(method, {}));
+  });
+
+  it("ignores a metadata key whose value is undefined: it is the same as an absent key", () => {
+    expect(defaultKeyGenerator(method, {}, { tenant: undefined })).toBe(defaultKeyGenerator(method, {}, {}));
+    expect(defaultKeyGenerator(method, {}, { tenant: "a" })).not.toBe(defaultKeyGenerator(method, {}, {}));
+  });
+});

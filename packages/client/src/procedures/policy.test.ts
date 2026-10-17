@@ -12,7 +12,7 @@ import { ProcedureRegistry, RegistryError } from "./registry.js";
 import { defineProcedure } from "./define.js";
 import { outputSchema } from "./core/schemas.js";
 import { invokePath, outputValue, InvocationError, type InvokeOptions } from "./invoke.js";
-import { callMatches, validateCalls, nestedCallRefusal, hiddenReach } from "./policy.js";
+import { callMatches, validateCalls, nestedCallRefusal, hiddenReach, hasCallPolicy } from "./policy.js";
 import { RUNS_REFS_TAG } from "./ref.js";
 import type { AnyProcedure, ProcedureContext, ProcedurePath } from "./types.js";
 
@@ -153,5 +153,110 @@ describe("the calls declaration", () => {
     expect(nestedCallRefusal(caller, ["a", "b"], { expose: () => false })).toBeUndefined();
     expect(nestedCallRefusal(caller, ["a", "c"], { expose: () => false })?.code).toBe("NOT_DECLARED");
     expect(nestedCallRefusal(caller, ["a", "c"], {})).toBeUndefined();
+  });
+
+  it("lets a declared caller call each procedure that one of its entries names", () => {
+    const caller = { path: ["tool", "x"], metadata: { calls: ["a.b", "c.d"] } } as unknown as AnyProcedure;
+    expect(nestedCallRefusal(caller, ["a", "b"], { expose: () => false })).toBeUndefined();
+    expect(nestedCallRefusal(caller, ["c", "d"], { expose: () => false })).toBeUndefined();
+  });
+
+  it("names the callee, the caller and the rule in each refusal", () => {
+    const hidden = { expose: () => false, strictCalls: true };
+    const declared = { path: ["tool", "declared"], metadata: { calls: ["a.b"] } } as unknown as AnyProcedure;
+    const plain = { path: ["tool", "plain"], metadata: {} } as unknown as AnyProcedure;
+    const runner = { path: ["tool", "runner"], metadata: { tags: [RUNS_REFS_TAG] } } as unknown as AnyProcedure;
+
+    const notDeclared = nestedCallRefusal(declared, ["secret", "run"], hidden)?.message ?? "";
+    expect(notDeclared).toMatch(/^Procedure not declared: tool\.declared calls secret\.run/);
+    expect(notDeclared).toMatch(/its metadata\.calls does not name it/);
+
+    const notExposed = nestedCallRefusal(plain, ["secret", "run"], hidden)?.message ?? "";
+    expect(notExposed).toMatch(/^Procedure not exposed: secret\.run\. tool\.plain declares no metadata\.calls/);
+    expect(notExposed).toMatch(/call only the procedures that it exposes\.$/);
+
+    const dataDriven = nestedCallRefusal(runner, ["secret", "run"], hidden)?.message ?? "";
+    expect(dataDriven).toMatch(/^Procedure not exposed: secret\.run\. tool\.runner runs procedure refs from its input/);
+    expect(dataDriven).toMatch(/can call only the procedures that this server exposes\.$/);
+  });
+});
+
+describe("a host with a policy", () => {
+  it("has a policy when it has an expose rule or strictCalls, and not without", () => {
+    expect(hasCallPolicy({})).toBe(false);
+    expect(hasCallPolicy({ expose: undefined, strictCalls: undefined })).toBe(false);
+    expect(hasCallPolicy({ strictCalls: false })).toBe(false);
+    expect(hasCallPolicy({ strictCalls: true })).toBe(true);
+    expect(hasCallPolicy({ expose: () => true })).toBe(true);
+  });
+
+  it("exposes every procedure when it has strictCalls and no expose rule", async () => {
+    const registry = setup();
+    await expect(run(registry, ["tool", "undeclared"], { strictCalls: true })).resolves.toBe("secret ran");
+    await expect(run(registry, ["tool", "runner"], { strictCalls: true }, { path: ["secret", "run"] })).resolves.toBe("secret ran");
+  });
+});
+
+describe("an invalid calls declaration", () => {
+  const where = ["x", "y"];
+
+  it("names the procedure and the problem", () => {
+    expect(() => validateCalls("shell.run", where)).toThrow(/^metadata\.calls of x\.y must be a list of procedure keys$/);
+    expect(() => validateCalls({ 0: "shell.run" }, where)).toThrow(/^metadata\.calls of x\.y must be a list of procedure keys$/);
+    expect(() => validateCalls([42], where)).toThrow(/^metadata\.calls of x\.y has an entry that is not a procedure key: 42$/);
+    expect(() => validateCalls([""], where)).toThrow(/^metadata\.calls of x\.y has an entry that is not a procedure key: ""$/);
+    expect(() => validateCalls(["*"], where)).toThrow(/^metadata\.calls of x\.y is "\*"\. A procedure whose callees come from its input is data-driven/);
+  });
+
+  it("refuses an entry with an empty segment", () => {
+    for (const entry of ["a..b", "a.", ".b", "a..*", ".*"]) {
+      expect(() => validateCalls([entry], where)).toThrow(`metadata.calls of x.y has an invalid entry: "${entry}". Use "ns.name" or "ns.*".`);
+    }
+  });
+
+  it("accepts short names and namespaces of one letter", () => {
+    expect(validateCalls(["fs.ls", "a.*", "a.b.*", "a.b"], where)).toEqual(["fs.ls", "a.*", "a.b.*", "a.b"]);
+  });
+});
+
+describe("the hidden reach", () => {
+  const add = (registry: ProcedureRegistry, path: string[], metadata: Record<string, unknown> = {}): void =>
+    registry.register(defineProcedure({ path, input: any, output: any, metadata, handler: () => 1 }) as AnyProcedure);
+
+  it("ends on a cycle of hidden procedures", () => {
+    const registry = new ProcedureRegistry();
+    add(registry, ["tool", "entry"], { calls: ["loop.a"] });
+    add(registry, ["loop", "a"], { calls: ["loop.b"] });
+    add(registry, ["loop", "b"], { calls: ["loop.a"] });
+    expect(hiddenReach(registry.getAll(), exposeTools)).toEqual([
+      { from: "loop.a", to: "loop.b" },
+      { from: "loop.b", to: "loop.a" },
+      { from: "tool.entry", to: "loop.a" },
+    ]);
+  });
+
+  it("adds no edge from a data-driven procedure, also when it declares calls", () => {
+    const registry = new ProcedureRegistry();
+    add(registry, ["secret", "run"]);
+    add(registry, ["tool", "runner"], { tags: [RUNS_REFS_TAG], calls: ["secret.run"] });
+    expect(hiddenReach(registry.getAll(), exposeTools)).toEqual([]);
+    // The rule of the nested calls agrees: the declaration does not open a hidden procedure
+    const runner = registry.getAll().find((procedure) => procedure.path[1] === "runner")!;
+    expect(nestedCallRefusal(runner, ["secret", "run"], { expose: exposeTools })?.code).toBe("NOT_EXPOSED");
+  });
+
+  it("starts only at the exposed procedures", () => {
+    const registry = new ProcedureRegistry();
+    add(registry, ["secret", "run"]);
+    add(registry, ["hidden", "lonely"], { calls: ["secret.run"] });
+    expect(hiddenReach(registry.getAll(), exposeTools)).toEqual([]);
+  });
+
+  it("leaves out a stub without a handler: it does not run, so it calls nothing", () => {
+    const stub = { path: ["tool", "stub"], metadata: { calls: ["secret.run"] } } as unknown as AnyProcedure;
+    const target = { path: ["secret", "run"], metadata: {}, handler: () => 1 } as unknown as AnyProcedure;
+    const ghost = { path: ["secret", "ghost"], metadata: {} } as unknown as AnyProcedure;
+    const caller = { path: ["tool", "caller"], metadata: { calls: ["secret.ghost"] }, handler: () => 1 } as unknown as AnyProcedure;
+    expect(hiddenReach([stub, target, ghost, caller], exposeTools)).toEqual([]);
   });
 });
