@@ -186,4 +186,13 @@ describe("procedure.new", () => {
     expect(module).toContain("registerModules(registry, [demoModule]);");
     expect(files.get(join(root, "src", "procedures", "demo", "hello.ts"))).toContain("export async function demoHello(");
   });
+
+  it("writes no effects, and tells the author to write them", async () => {
+    const files = new Map([[moduleFile, VARIABLE]]);
+    const { ctx } = memoryContext(files);
+    const result = await procedureNew({ name: "demo.hello", path: root, dryRun: false }, ctx);
+    expect(result.success).toBe(true);
+    expect(files.get(moduleFile)).not.toContain("effects");
+    expect(result.operations.at(-1)).toBe("Write metadata.effects: lib audit reports a procedure without them");
+  });
 });

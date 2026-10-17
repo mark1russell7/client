@@ -245,11 +245,29 @@ export interface FlagNotice {
   global: string;
 }
 
+/**
+ * A problem of a procedure of the registry. The problem is a warning: it does not change
+ * `success`.
+ */
+export interface ProcedureIssue {
+  /** The kind of problem. `missing-effects`: the procedure has no `metadata.effects`. */
+  type: "missing-effects";
+  /** The procedure path, for example "git.status" */
+  procedure: string;
+  /** The description of the problem */
+  message: string;
+}
+
 export interface LibAuditOutput {
   /** Overall success (all packages valid) */
   success: boolean;
   /** Procedure flags that hide a global flag of mark after the command path (information only) */
   flagNotices: FlagNotice[];
+  /**
+   * The procedures of the registry of the host without `metadata.effects` (warnings). A host
+   * with a capability refuses such a procedure.
+   */
+  procedureIssues: ProcedureIssue[];
   /** Project template used for validation */
   template: {
     files: string[];
@@ -337,6 +355,17 @@ export const LibAuditOutputSchema: z.ZodType<LibAuditOutput> = z.looseObject({
       })
     )
     .describe("Procedure flags that hide a global flag of mark after the command path (information only)"),
+  procedureIssues: z
+    .array(
+      z.looseObject({
+        type: z.enum(["missing-effects"]).describe("The kind of problem. missing-effects: the procedure has no metadata.effects."),
+        procedure: z.string().describe('The procedure path, for example "git.status"'),
+        message: z.string().describe("The description of the problem"),
+      })
+    )
+    .describe(
+      "The procedures of the registry of the host without metadata.effects. A host with a capability refuses them. These warnings do not change success."
+    ),
   template: z
     .looseObject({
       files: z.array(z.string()).describe("The files that each package needs"),
