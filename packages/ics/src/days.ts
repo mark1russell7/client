@@ -46,3 +46,18 @@ export function shiftDay(date: string, days: number): string {
 export function daysBetween(from: string, to: string): number {
   return (dateTime(to, "daysBetween") - dateTime(from, "daysBetween")) / DAY;
 }
+
+/** This function gives the day of the week of a date (`YYYY-MM-DD`): 0 for Sunday to 6 for Saturday. */
+export function weekdayOf(date: string): number {
+  return new Date(dateTime(date, "weekdayOf")).getUTCDay();
+}
+
+/**
+ * This function gives the name of the day of the week of a date (`YYYY-MM-DD`). The default is the
+ * long English name ("Monday"). `locale` and `style` give another name from `Intl`. A date has no
+ * time zone, so the name is the same in each zone.
+ */
+export function weekdayName(date: string, options: { readonly locale?: string; readonly style?: "long" | "short" | "narrow" } = {}): string {
+  const noon = dateTime(date, "weekdayName") + DAY / 2;
+  return new Intl.DateTimeFormat(options.locale ?? "en-US", { timeZone: "UTC", weekday: options.style ?? "long" }).format(noon);
+}
