@@ -169,39 +169,21 @@ const user = await storage.get("user-1");
 - `getIds()` gives the ids without a copy of the values.
 - `close()` drops the items. After it, each operation rejects, and the methods of the `Map` interface (`keys()`, `values()`, `entries()`, `forEach()`) throw.
 
-### ApiStorage
+### ApiStorage and HybridStorage
 
-Remote storage via RPC client:
+These two storages need a `Client`, so they are in [`@procedures/store`](../client-store/README.md), not in this package.
 
-```typescript
-import { ApiStorage } from "@procedures/collections";
-import { Client } from "@procedures/client";
-
-const client = new Client({ transport });
-const storage = new ApiStorage<User>(client, {
-  collection: "users",
-  endpoints: {
-    get: { service: "users", operation: "get" },
-    set: { service: "users", operation: "set" },
-    // ... other endpoints
-  }
-});
-```
-
-### HybridStorage
-
-Local cache with remote synchronization:
+- `ApiStorage` sends each operation to the collection procedures of a server: `collections.<collection>.<operation>`. The server registers them with `createCollectionProcedures(collection)`.
+- `HybridStorage` keeps a local copy of a remote storage. It has four modes: `local-only`, `write-through`, `write-back` and `remote-only`. `setMode()` changes the mode while the storage operates.
 
 ```typescript
-import { HybridStorage, MemoryStorage, ApiStorage } from "@procedures/collections";
+import { ApiStorage, HybridStorage } from "@procedures/store";
 
-const hybrid = new HybridStorage<User>({
-  local: new MemoryStorage<User>(),
-  remote: apiStorage,
-  syncStrategy: "write-through", // or "write-behind"
-  conflictResolver: (local, remote) => remote.updatedAt > local.updatedAt ? remote : local
-});
+const remote = new ApiStorage<User>(client, { collection: "users" });
+const users = new HybridStorage<User>(remote, { mode: "write-through", conflictResolution: "remote" });
 ```
+
+The README of `@procedures/store` gives the options, the queue of `write-back`, the conflict rules and the contract of the two storages.
 
 ## Collection Implementations
 

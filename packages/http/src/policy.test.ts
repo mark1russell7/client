@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { InvocationError } from "@procedures/client";
 import { formatAddress, isPublicAddress, parseAddress, parseRange, rangeHas, specialClass } from "./address.js";
-import { checkHost, createHostPolicy, DEFAULT_HOST_POLICY, HOST_NOT_ALLOWED, isHostNotAllowed, type HostPolicyOptions, type ResolvedAddress } from "./policy.js";
+import { checkHost, createHostPolicy, DEFAULT_HOST_POLICY, HOST_NOT_ALLOWED, isHostNotAllowed, systemResolver, type HostPolicyOptions, type ResolvedAddress } from "./policy.js";
 
 const PATH = ["http", "request"];
 
@@ -213,5 +213,15 @@ describe("checkHost", () => {
     const p = policy({}, { "empty.test": [] });
     await expect(checkHost(p, new URL("http://missing.test/"), PATH)).rejects.toThrow("the host missing.test of the URL has no address (ENOTFOUND)");
     await expect(checkHost(p, new URL("http://empty.test/"), PATH)).rejects.toThrow("has no address");
+  });
+});
+
+describe("systemResolver", () => {
+  it("gives each address of a name from the system, with its family", async () => {
+    // localhost comes from the hosts file of the system, so the test needs no network
+    const found = await systemResolver("localhost");
+    expect(found.length).toBeGreaterThan(0);
+    for (const entry of found) expect([4, 6]).toContain(entry.family);
+    expect(found.some((entry) => entry.address === "127.0.0.1" || entry.address === "::1")).toBe(true);
   });
 });
