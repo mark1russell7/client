@@ -657,10 +657,10 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-32 | Streams | A batch: one request with several calls, and one stream of tagged results | M | later | — | Client session | — |
 | CLI-33 | CI | The client owns its procedures test subject for the harness of `systems` | M | blocked | SYS-17 | Client session | — |
 | CI-2 | CI | Client CI: an end-to-end test of the host lifecycle, and checks of the entry purity | M | open | — | Client session | — |
-| DOC-1 | Docs | [SERVER-LAYERS.md](./SERVER-LAYERS.md) replaces the host ownership brief | M | in progress | D14 | markt-02 | `server-stack/docs` |
-| DOC-2 | Docs | Correct the stale storage docs, and record the server-stack items in this roadmap | S | in progress | — | markt-02 | `server-stack/docs` |
-| DOC-3 | Docs | Link the cross-repo tracker and the layer contract from `CLAUDE.md` and this roadmap | S | in progress | DOC-1 | markt-02 | `server-stack/docs` |
-| DOC-4 | Docs | A migration note in each MINOR, and a deprecation one release before the break | S | in progress | D13 | markt-02 | `server-stack/docs` |
+| DOC-1 | Docs | [SERVER-LAYERS.md](./SERVER-LAYERS.md) replaces the host ownership brief | M | in progress | D14 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| DOC-2 | Docs | Correct the stale storage docs, and record the server-stack items in this roadmap | S | in progress | — | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| DOC-3 | Docs | Link the cross-repo tracker and the layer contract from `CLAUDE.md` and this roadmap | S | in progress | DOC-1 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| DOC-4 | Docs | A migration note in each MINOR, and a deprecation one release before the break | S | in progress | D13 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
 | REL-2 | Releases | Release the additive pieces of the server stack as a PATCH of the client group | S | blocked | CLI-2a, CLI-3, CLI-10, D13 | markt-54 and Mark | — |
 
 - These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11 and CLI-16. Each one is its own MINOR of the client group (D13).
