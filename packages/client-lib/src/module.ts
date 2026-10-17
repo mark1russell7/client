@@ -111,7 +111,8 @@ const libAuditProcedure = createProcedure()
   .meta({
     description: "Audit ecosystem packages for issues",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote", "fs.exists", "fs.mkdir", "fs.write"],
-    // It reads the registry for the flag notices. With `fix`, it makes only the missing folders
+    // It reads the registry for the flag notices and the procedures without effects. It imports no
+    // package code, so it does not write `process`. With `fix`, it makes only the missing folders
     // and files, so a second call changes nothing more.
     effects: { reads: ["fs", "registry"], writes: ["fs"], destructive: false, idempotent: true },
     args: [],
