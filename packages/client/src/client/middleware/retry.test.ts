@@ -154,6 +154,24 @@ describe("onAfterRetry when the reader stops at the error (a Client with throwOn
     expect(await client.call(method, {})).toBe(42);
     expect(after).toEqual([[true, 1]]);
   });
+
+  it("hears of the outcome of the last item when the reader stops a stream", async () => {
+    for (const [script, expected] of [
+      [[[1, 2, 3]], [true, 0]],
+      [[["error"], [1, "error", 3]], [false, 1]],
+    ] as const) {
+      const after: Array<[boolean, number]> = [];
+      const { transport } = scripted(script.map((attempt) => [...attempt]));
+      const client = new Client({ transport, throwOnError: false }).use(
+        createRetryMiddleware({ retryDelay: ms(1), jitter: 0, onAfterRetry: (success, attempt) => void after.push([success, attempt]) }),
+      );
+      let read = 0;
+      for await (const _ of client.stream(method, {})) {
+        if (++read === 2) break;
+      }
+      expect(after).toEqual([expected]);
+    }
+  });
 });
 
 /** A clock that runs each timer at once, and keeps the delay of each timer. A test can set its time. */
