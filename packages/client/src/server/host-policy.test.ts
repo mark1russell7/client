@@ -11,6 +11,7 @@ import { createRegistry, defineModule } from "../procedures/module.js";
 import type { AnyProcedure, ProcedureContext } from "../procedures/types.js";
 import { exposePatterns, hostPolicy, procedureServerOptions, surfaceRule } from "./host-policy.js";
 import { ms } from "../duration.js";
+import { createEventBus } from "../events/bus.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -97,5 +98,51 @@ describe("hostPolicy", () => {
     const policy = hostPolicy({ token: "t", browser: { allowedOrigins: ["https://app.example"] } });
     expect(policy.token).toBe("t");
     expect(policy.browser.allowedOrigins).toEqual(["https://app.example"]);
+  });
+});
+
+/** The first items of a subscription on a server, or the code of its refusal. */
+async function subscribe(server: ProcedureServer, topics: string[]): Promise<{ code?: string; items?: AsyncIterator<unknown> }> {
+  const response = await server.handle({ id: "s", method: { service: "events", operation: "subscribe" }, payload: { topics }, metadata: {} });
+  const status = response.status as { type: string; code?: string };
+  if (status.type !== "success") return { code: status.code ?? "?" };
+  return { items: (response.stream as AsyncIterable<unknown>)[Symbol.asyncIterator]() };
+}
+
+describe("hostPolicy with events (EVENTS.md)", () => {
+  it("gives a ProcedureServer the topic rule, and its procedures publish on the bus of the events", async () => {
+    const bus = createEventBus();
+    const publish = proc(["tool", "publish"], (_input, ctx) => {
+      ctx.bus?.emit("orders.created", { order: 7 });
+      return "published";
+    });
+    const policy = hostPolicy({ expose: ["tool.*"], events: { bus, topics: ["orders.*"] } });
+    expect(policy.events?.topics).toEqual(["orders.*"]);
+    const server = new ProcedureServer(procedureServerOptions(policy, createRegistry(defineModule("events-test", [publish]))));
+    // The expose rule does not apply to events.subscribe: the topic rule is its expose rule
+    expect(await subscribe(server, ["other.topic"])).toEqual({ code: "TOPIC_NOT_FOUND" });
+    const { items } = await subscribe(server, ["orders.created"]);
+    expect((await items!.next()).value).toEqual({ type: "subscribed", topics: ["orders.created"] });
+    expect(await call(server, ["tool", "publish"])).toMatchObject({ type: "success" });
+    expect((await items!.next()).value).toEqual({ type: "event", topic: "orders.created", data: { order: 7 }, seq: 1 });
+    await items!.return?.();
+    expect(bus.subscriberCount("orders.created")).toBe(0);
+  });
+
+  it("permits a subscription on a read-only host, because a subscription changes nothing", async () => {
+    const bus = createEventBus();
+    const policy = hostPolicy({ readOnly: true, events: { bus, topics: ["*"] } });
+    const server = new ProcedureServer(procedureServerOptions(policy, createRegistry()));
+    const { items } = await subscribe(server, ["any.topic"]);
+    expect((await items!.next()).value).toMatchObject({ type: "subscribed" });
+    await items!.return?.();
+  });
+
+  it("serves no events.subscribe without the option, and an empty topic rule serves no topic", async () => {
+    expect(hostPolicy().events).toBeUndefined();
+    const none = new ProcedureServer(procedureServerOptions(hostPolicy(), createRegistry()));
+    expect(await subscribe(none, ["orders.created"])).toEqual({ code: "NOT_FOUND" });
+    const empty = new ProcedureServer(procedureServerOptions(hostPolicy({ events: { bus: createEventBus(), topics: [] } }), createRegistry()));
+    expect(await subscribe(empty, ["orders.created"])).toEqual({ code: "TOPIC_NOT_FOUND" });
   });
 });

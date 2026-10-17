@@ -117,6 +117,19 @@ const registry = createRegistry(createFsModule({ root: "/work/project" }), bundl
 
 `registerFsProcedures(registry, { root })` registers the procedures with the root in one registry.
 
+A host that has a registry already starts `confineFsProcedures(registry, root)`. The function replaces the handler of each `fs.*` procedure of the registry, and it adds no procedure:
+
+```ts
+import { confineFsProcedures } from "@procedures/fs/module";
+
+const { root, procedures } = confineFsProcedures(registry, "/work/project");
+```
+
+- A nested call of another procedure finds the new handler in the registry. Thus `lib.scan`, which calls `fs.readdir`, reads only the folders in the root.
+- The root must be a folder that exists. Otherwise the function throws, and the host does not start.
+- An `fs.*` procedure of another package is an error, because the root cannot confine it.
+- The hosts use this function: `mark --fs-root <folder>`, `procedure-server --fs-root <folder>` and `MCP_FS_ROOT` of the MCP server.
+
 ### Rules
 
 - A relative path starts at the root, not at the working folder of the process.
@@ -138,7 +151,7 @@ const registry = createRegistry(createFsModule({ root: "/work/project" }), bundl
 ### Limits
 
 - The check and the operation are two steps. The check does not see a symlink that a process changes between the two steps.
-- The root applies only to the `fs.*` procedures. A package that uses `node:fs` directly does not get the root. Examples are `git.*` and `lib.*`.
+- The root applies only to the `fs.*` procedures and their nested calls. A procedure that uses `node:fs` directly, or that starts a program, does not get the root. Examples are `git.*`, `archive.*`, `snapshot.*`, `sqlite.*`, the `existsSync` of `lib.*` and the TypeScript files of `lib.rename`.
 - The root does not replace the permissions of the operating system.
 
 ## API Reference

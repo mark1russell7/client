@@ -11,6 +11,8 @@
  */
 
 import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
 import { HANDLER_NAMES, rootedHandlers } from "./handlers.js";
 import { read } from "./procedures/fs/read.js";
 import { write } from "./procedures/fs/write.js";
@@ -375,6 +377,47 @@ export function createFsModule(options: FsModuleOptions = {}): ProcedureModule {
     return { ...procedure, handler: handlers[name] as AnyProcedure["handler"] };
   });
   return defineModule("@procedures/fs", procedures);
+}
+
+/** What `confineFsProcedures()` changed. */
+export interface ConfinedFs {
+  /** The absolute path of the root. */
+  root: string;
+  /** The keys of the `fs.*` procedures whose handlers now confine each path to the root. */
+  procedures: string[];
+}
+
+/**
+ * This function confines the `fs.*` procedures of a registry to a root (roadmap R33). A host
+ * starts it after it builds its registry. It replaces the handler of each `fs.*` procedure of the
+ * registry with the handler of `createFsModule({ root })`, and it adds no procedure.
+ *
+ * A nested call of another procedure (`lib.scan` calls `fs.readdir`) finds the procedure in the
+ * registry, so the root confines that call too. The root must be a folder that exists. An `fs.*`
+ * procedure that this package does not have is an error, because the root cannot confine it.
+ */
+export function confineFsProcedures(registry: ProcedureRegistry, root: string): ConfinedFs {
+  const folder = resolve(root);
+  let isFolder: boolean;
+  try {
+    isFolder = statSync(folder).isDirectory();
+  } catch {
+    throw new Error(`The root of the file procedures does not exist: ${folder}`);
+  }
+  if (!isFolder) throw new Error(`The root of the file procedures is not a folder: ${folder}`);
+  const rooted = new Map(createFsModule({ root: folder }).procedures.map((procedure) => [procedure.path.join("."), procedure]));
+  const present = registry.getAll().filter((procedure) => procedure.path[0] === "fs");
+  for (const procedure of present) {
+    const key = procedure.path.join(".");
+    if (!rooted.has(key)) throw new Error(`The root of the file procedures cannot confine ${key}: @procedures/fs has no such procedure`);
+  }
+  const procedures: string[] = [];
+  for (const procedure of present) {
+    const key = procedure.path.join(".");
+    registry.register(rooted.get(key)!, { override: true });
+    procedures.push(key);
+  }
+  return { root: folder, procedures };
 }
 
 /**

@@ -4116,6 +4116,7 @@ export interface HostPolicy {
     readonly clearanceOrder: ClearanceOrder | undefined;
     readonly resources: ((invocation: Invocation) => ResourcesOf) | undefined;
     readonly admitItem: AdmitItem | undefined;
+    readonly events: EventPublisherOptions | undefined;
 }
 
 ### dist/server/host-policy.d.ts#HostPolicyOptions
@@ -4132,6 +4133,7 @@ export interface HostPolicyOptions {
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
+    events?: EventPublisherOptions | undefined;
 }
 
 ### dist/server/host-policy.d.ts#ToolSurface

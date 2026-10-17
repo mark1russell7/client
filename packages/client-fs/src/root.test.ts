@@ -16,13 +16,17 @@ import {
   ProcedureServer,
   createRegistry,
   defineModule,
+  defineProcedure,
   hostPolicy,
   invokePath,
+  outputSchema,
   outputValue,
   procedureServerOptions,
+  type AnyProcedure,
+  type ProcedureContext,
   type ProcedureRegistry,
 } from "@procedures/client";
-import { createFsModule, fsModule, registerFsProcedures } from "./module.js";
+import { confineFsProcedures, createFsModule, fsModule, registerFsProcedures } from "./module.js";
 import { OUTSIDE_ROOT, isInside, isOutsideRoot } from "./root.js";
 import type { ExistsOutput, GlobOutput, ReadOutput, ReaddirOutput, WriteOutput } from "./types.js";
 
@@ -144,6 +148,48 @@ describe("createFsModule", () => {
     const missing = createRegistry(createFsModule({ root: join(base, "missing") }));
     await expect(call("fs.read", { path: "a.txt" }, missing)).rejects.toMatchObject({ code: "ENOENT" });
     await expect(call("fs.read", { path: "a.txt" }, missing)).rejects.toThrow("The root of the file procedures does not exist");
+  });
+});
+
+describe("confineFsProcedures (the root of a host)", () => {
+  /** A procedure of another package that reads a file with a nested call of fs.read. */
+  const reader = defineProcedure({
+    path: ["tool", "readFile"],
+    input: outputSchema<{ path: string }>(),
+    output: outputSchema<unknown>(),
+    metadata: { calls: ["fs.read"] },
+    handler: (async (input: { path: string }, ctx: ProcedureContext) => ctx.client.call(["fs", "read"], { path: input.path })) as never,
+  }) as AnyProcedure;
+
+  it("replaces the handlers of the fs procedures of a registry, and confines the nested calls", async () => {
+    const host = createRegistry(fsModule, defineModule("tool", [reader], [fsModule]));
+    const before = host.getAll().length;
+    const confined = confineFsProcedures(host, root);
+    expect(confined.root).toBe(root);
+    expect(confined.procedures.sort()).toEqual(fsModule.procedures.map((procedure) => procedure.path.join(".")).sort());
+    expect(host.getAll().length).toBe(before);
+    expect((await call<ReadOutput>("fs.read", { path: "a.txt" }, host)).content).toBe("alpha");
+    await expect(call("fs.read", { path: join(outside, "secret.txt") }, host)).rejects.toMatchObject({ code: "FORBIDDEN", reason: OUTSIDE_ROOT });
+    // The nested call of another procedure goes to the confined fs.read
+    expect(await call("tool.readFile", { path: join(root, "a.txt") }, host)).toMatchObject({ content: "alpha" });
+    await expect(call("tool.readFile", { path: join(outside, "secret.txt") }, host)).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("adds no procedure to a registry without fs procedures", () => {
+    const host = createRegistry();
+    const before = host.getAll().length;
+    expect(confineFsProcedures(host, root).procedures).toEqual([]);
+    expect(host.getAll().length).toBe(before);
+  });
+
+  it("refuses a root that does not exist or is a file, and an fs procedure of another package", () => {
+    expect(() => confineFsProcedures(createRegistry(fsModule), join(base, "missing"))).toThrow("does not exist");
+    expect(() => confineFsProcedures(createRegistry(fsModule), join(root, "a.txt"))).toThrow("is not a folder");
+    const other = defineProcedure({ path: ["fs", "other"], input: outputSchema<unknown>(), output: outputSchema<unknown>(), handler: () => 1 }) as AnyProcedure;
+    const host = createRegistry(fsModule, defineModule("other", [other]));
+    expect(() => confineFsProcedures(host, root)).toThrow("cannot confine fs.other");
+    // The refusal changes nothing: fs.read still reads outside the root
+    return expect(call<ReadOutput>("fs.read", { path: join(outside, "secret.txt") }, host)).resolves.toMatchObject({ content: "secret" });
   });
 });
 

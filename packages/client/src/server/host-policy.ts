@@ -14,6 +14,8 @@
  * - `token`, `browser`: the checks of the network transports (`client-server` applies them).
  * - `capability`, `readOnly`, `clearanceOrder`, `resources`, `admitItem`: the capability of each
  *   call and what the host gives for it (CAPABILITIES-2026-10).
+ * - `events`: the remote events of the host (`documentation/EVENTS.md`). The server pins
+ *   `events.subscribe` with this topic rule, and its procedures get the bus as `ctx.bus`.
  */
 
 import type { Capability, ClearanceOrder, ProcedurePath, ResourcesOf } from "../procedures/types.js";
@@ -24,6 +26,7 @@ import { timeoutInterceptor } from "../procedures/interceptors.js";
 import type { BrowserGuardOptions } from "./browser-guard.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { ProcedureServerOptions } from "./procedure-server.js";
+import type { EventPublisherOptions } from "../events/publisher.js";
 import { toMs, type Duration } from "../duration.js";
 
 /** The procedures of a host that are tools: namespaces (first path segments), less some keys. */
@@ -86,6 +89,12 @@ export interface HostPolicyOptions {
   resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
   /** The filter of the output that leaves the host. */
   admitItem?: AdmitItem | undefined;
+  /**
+   * The remote events of the host (`documentation/EVENTS.md`): the topic rule, with an optional
+   * bus, `allow` function and buffer. The default bus is the global bus, which is also the default
+   * `ctx.bus`. Without this option, the host does not serve `events.subscribe`.
+   */
+  events?: EventPublisherOptions | undefined;
 }
 
 /** What a host lets its callers do. */
@@ -100,6 +109,8 @@ export interface HostPolicy {
   readonly clearanceOrder: ClearanceOrder | undefined;
   readonly resources: ((invocation: Invocation) => ResourcesOf) | undefined;
   readonly admitItem: AdmitItem | undefined;
+  /** The remote events: each server of the policy makes its own publisher from these options. */
+  readonly events: EventPublisherOptions | undefined;
 }
 
 /** The capability function of a policy: the capability of the options, narrowed by `readOnly`. */
@@ -145,6 +156,7 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
     clearanceOrder: options.clearanceOrder,
     resources: options.resources,
     admitItem: options.admitItem,
+    events: options.events,
   };
 }
 
@@ -162,5 +174,7 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),
     ...(policy.resources ? { resources: policy.resources } : {}),
     ...(policy.admitItem ? { admitItem: policy.admitItem } : {}),
+    // The remote events: the server makes its publisher and pins events.subscribe (EVENTS.md)
+    ...(policy.events ? { events: policy.events } : {}),
   };
 }
