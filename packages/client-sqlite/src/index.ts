@@ -83,7 +83,15 @@ export { registerSqliteProcedures } from "./module.js";
 // The collection storage (roadmap R45). The entry @procedures/sqlite/storage has it alone.
 // =============================================================================
 
-export { SqliteStorage, checkTableName, MEMORY_PATH, type SqliteStorageOptions } from "./storage.js";
+export {
+  SqliteStorage,
+  checkTableName,
+  isNodeSqliteAvailable,
+  MEMORY_PATH,
+  type SqliteEngine,
+  type SqliteEngineName,
+  type SqliteStorageOptions,
+} from "./storage.js";
 
 // =============================================================================
 // Re-export docker-sqlite utilities for direct use
