@@ -577,13 +577,13 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O3 | Docs | The size note of the port transport | S | done | — | Client session | [600c497](https://github.com/mark1russell7/client/commit/600c497) |
 | O4 | fs root | One copy of the fs root rules | S | in progress | R33 | Client session | `integration-fs-root-all` |
 | O5 | fs root | `--fs-root` confines git, docker, pnpm, cue, sqlite and archive | M–L | in progress | O4, R33 | Client session | `integration-fs-root-all` |
-| O6 | Events | Subscribers of one topic share one wire subscription | M | in progress | — | Client session | `integration-events-gaps` |
-| O7 | Events | `bus.clear()` ends the remote subscriptions with notice | S | in progress | — | Client session | `integration-events-gaps` |
-| O8 | Events | HTTP resubscribe stops after `maxAttempts` | S | in progress | — | Client session | `integration-events-gaps` |
-| O9 | Storage | `ApiStorage.getIds()` | M | in progress | — | Client session | `integration-storage-gaps` |
-| O10 | Storage | A full pull of `HybridStorage` reads only what can conflict | S–M | in progress | O9 | Client session | `integration-storage-gaps` |
-| O11 | Storage | `replaceStorage` waits for the running calls | S | in progress | — | Client session | `integration-storage-gaps` |
-| O12 | LLM | `llm.stream` runs procedures as tools | M | next | — | Client session | — |
+| O6 | Events | Subscribers of one topic share one wire subscription | M | done | — | Client session | [698e24d](https://github.com/mark1russell7/client/commit/698e24d), [2f490e8](https://github.com/mark1russell7/client/commit/2f490e8) |
+| O7 | Events | `bus.clear()` ends the remote subscriptions with notice | S | done | — | Client session | [698e24d](https://github.com/mark1russell7/client/commit/698e24d), [2f490e8](https://github.com/mark1russell7/client/commit/2f490e8) |
+| O8 | Events | HTTP resubscribe stops after `maxAttempts` | S | done | — | Client session | [698e24d](https://github.com/mark1russell7/client/commit/698e24d), [2f490e8](https://github.com/mark1russell7/client/commit/2f490e8) |
+| O9 | Storage | `ApiStorage.getIds()` | M | done | — | Client session | [aa6e3aa](https://github.com/mark1russell7/client/commit/aa6e3aa), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
+| O10 | Storage | A full pull of `HybridStorage` reads only what can conflict | S–M | done | O9 | Client session | [276b93c](https://github.com/mark1russell7/client/commit/276b93c), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
+| O11 | Storage | `replaceStorage` waits for the running calls | S | done | — | Client session | [d25805a](https://github.com/mark1russell7/client/commit/d25805a), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
+| O12 | LLM | `llm.stream` runs procedures as tools | M | in progress | — | Client session | `integration-llm-stream-tools` |
 | O13 | Testing | Raise the weakest mutation scores, then the floor | M | next | — | Client session | — |
 | O14 | Systems | The WebSocket cells on client 0.7.0 | M | in progress | R36 | Client session (PR to systems) | `ws-server-heartbeat` |
 | O15 | Systems | Two new WebSocket cells | M | in progress | O14 | Client session (PR to systems) | `ws-server-heartbeat` |
@@ -594,9 +594,17 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O20 | Releases | `@mark1russell7/machines` 0.3.0 on npm | S | blocked | — | markt-54 | [npm tracker](https://claude.ai/artifact/W5oqQFc9Ty1miMP63z1XwS) |
 | O21 | Systems | jarvis on a newer harness | S | later | — | Systems session | — |
 | O22 | Decisions | The raw `event` frame of old peers | S | waits for the owner | — | Mark | — |
-| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | later | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13 | markt-54 and Mark | — |
+| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | later | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33 | markt-54 and Mark | — |
 | O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | Host-ownership session | [the brief](https://github.com/mark1russell7/client/blob/main/packages/documentation/HOST-OWNERSHIP-BRIEF.md) |
 | O25 | Apps | jarvis on client 0.7.0 | M | in progress | — | jarvis session | — |
+| O26 | New packages | `shiftMonth` in `@procedures/ics` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
+| O27 | New packages | A `fetch` option of `fetchCalendar` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
+| O28 | Contracts | `callerOf(module)` in the client root | S | done | — | Client session | [4b09a03](https://github.com/mark1russell7/client/commit/4b09a03), [4989f1e](https://github.com/mark1russell7/client/commit/4989f1e) |
+| O29 | Events | `bus.once()` settles when `clear()` removes its handler | S | done | O7 | Client session | [4b09a03](https://github.com/mark1russell7/client/commit/4b09a03), [4989f1e](https://github.com/mark1russell7/client/commit/4989f1e) |
+| O30 | Events | `debounceChannel` and `throttleChannel` take a `Duration` | S | done | — | Client session | [4b09a03](https://github.com/mark1russell7/client/commit/4b09a03), [4989f1e](https://github.com/mark1russell7/client/commit/4989f1e) |
+| O31 | Storage | `replaceStorage` can close a storage that another collection uses | S | next | O11 | Client session | — |
+| O32 | Docs | The storage sections of the `client-collections` README | S | next | — | Client session | — |
+| O33 | Testing | The coverage floor of the functions of `http` is flaky | S | next | — | Client session | — |
 
 ## Items for a decision
 
