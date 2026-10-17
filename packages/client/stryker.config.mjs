@@ -7,7 +7,9 @@
  * the resolver of references, the capabilities, the expose rule and the middleware of
  * `resilience()`. The report is an artifact of the workflow. A score below the floor fails the run.
  * The floor only goes up. The first full report had 72.6 % (nightly run 38945671443). The tests
- * of R32 raised it to 79.8 % (nightly run 38955591268), and the floor is 79.
+ * of R32 raised it to 79.8 % (nightly run 38955591268), and the floor was 79. The tests of O13
+ * for the cache, the retry and the call policy raised it to 88.2 % (nightly run 39076114467),
+ * and the floor is 88.
  *
  * Stryker runs in place: it changes the files of the checkout and puts them back at the end. Its
  * sandbox copy rewrites `tsconfig.json` with the JavaScript API of TypeScript, and TypeScript 7
@@ -36,7 +38,7 @@ export default {
   reporters: ["clear-text", "progress", "html", "json"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
-  thresholds: { high: 80, low: 60, break: 79 },
+  thresholds: { high: 80, low: 60, break: 88 },
   timeoutMS: 30_000,
   concurrency: 4,
   tempDirName: ".stryker-tmp",

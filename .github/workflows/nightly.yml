@@ -39,7 +39,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       # The resolver of references, the capabilities, the expose rule and the middleware
-      # (packages/client/stryker.config.mjs). The score does not fail the run yet.
+      # (packages/client/stryker.config.mjs). A score below `thresholds.break` of that file
+      # makes Stryker exit with code 1, so it fails the run.
       - run: pnpm --filter @procedures/client exec stryker run
       - if: always()
         uses: actions/upload-artifact@v7
