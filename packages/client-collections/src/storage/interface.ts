@@ -56,6 +56,15 @@ export interface CollectionStorage<T> {
   getEntries?(): Promise<Array<[string, T]>>;
 
   /**
+   * The ids of the items, in the order of the entries. The storage does not read or copy the
+   * values, so a sync that needs only the ids does not copy each item. A storage that cannot
+   * give the ids cheaply does not have this method, and a caller uses `getEntries()`.
+   *
+   * @returns Promise resolving to the ids, as a new array
+   */
+  getIds?(): Promise<string[]>;
+
+  /**
    * The changes after a version (roadmap R28). A storage without a change log does not have
    * this method, and a sync uses `getEntries()`. A full result follows the order of the entries.
    * A delta follows the order of the last change of each id.

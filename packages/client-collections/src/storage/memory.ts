@@ -49,6 +49,7 @@ const clone: Copy = (value) => structuredClone(value);
  * - A change log: `getChangesSince(version)` gives the changes after a version (roadmap R28)
  * - Copies: a change of a written or a read value does not change the stored item (the option
  *   `copies: false` turns this off)
+ * - `getIds()` gives the ids without a copy of the values
  * - After `close()`, each operation rejects, and a second `close()` does nothing
  *
  * @example
@@ -97,6 +98,12 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   async getEntries(): Promise<Array<[string, T]>> {
     this.checkOpen();
     return this.copiedEntries();
+  }
+
+  /** The ids of the items, in the order of the entries. This method copies no value. */
+  async getIds(): Promise<string[]> {
+    this.checkOpen();
+    return Array.from(this.data.keys());
   }
 
   /**

@@ -418,3 +418,46 @@ describe("HybridStorage: the copies and close() of the CollectionStorage contrac
     expect(reads).not.toHaveBeenCalled();
   });
 });
+
+describe("HybridStorage: a full pull reads the local ids without copies", () => {
+  // FlakyRemote has no getChangesSince, so each pull is a full pull
+  it("reads the local ids with getIds(), and not the local entries", async () => {
+    const remote = new FlakyRemote();
+    await remote.data.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
+    const local = new InMemoryStorage<Item>();
+    const entries = vi.spyOn(local, "getEntries");
+    const ids = vi.spyOn(local, "getIds");
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-through", syncInterval: ms(0), local });
+    await hybrid.syncFromRemote();
+    await remote.data.delete("a");
+    await hybrid.syncFromRemote();
+    expect(await hybrid.getIds()).toEqual(["b"]);
+    expect(ids).toHaveBeenCalled();
+    expect(entries).not.toHaveBeenCalled();
+    await hybrid.close();
+  });
+
+  it("reads the local entries when the local copy has no getIds()", async () => {
+    const remote = new FlakyRemote();
+    await remote.data.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
+    const local = Object.assign(new InMemoryStorage<Item>(), { getIds: undefined });
+    const entries = vi.spyOn(local, "getEntries");
+    const hybrid = new HybridStorage<Item>(remote, { mode: "write-back", syncInterval: ms(0), local });
+    await remote.data.delete("b");
+    await hybrid.syncFromRemote();
+    expect(await hybrid.getIds()).toEqual(["a"]);
+    expect(entries).toHaveBeenCalled();
+    await hybrid.close();
+  });
+
+  it("gives the ids of the remote in remote-only mode, also from a remote without getIds()", async () => {
+    const remote = new FlakyRemote();
+    await remote.data.setBatch([["a", { n: 1 }], ["b", { n: 2 }]]);
+    const hybrid = new HybridStorage<Item>(remote, { mode: "remote-only", syncInterval: ms(0) });
+    expect(await hybrid.getIds()).toEqual(["a", "b"]);
+    remote.down = true;
+    await expect(hybrid.getIds()).rejects.toThrow(/down/);
+    expect(hybrid.isRemoteOnline()).toBe(false);
+    await hybrid.close();
+  });
+});

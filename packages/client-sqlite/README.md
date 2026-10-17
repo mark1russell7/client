@@ -504,10 +504,37 @@ const users = new SqliteStorage<User>({ path: "./data/app.db", table: "users" })
 await users.set("u1", { name: "Ada" });
 await users.setBatch([["u2", { name: "Bob" }], ["u3", { name: "Cy" }]]);
 const changes = await users.getChangesSince(); // { version, full: true, changed, deleted: [] }
+await users.getEngine(); // "node" on Node.js 22.13 or later
 await users.close();
 ```
 
 The entry `@procedures/sqlite/storage` has the storage alone. The package root exports it too.
+
+### The engines
+
+The storage has two SQLite engines. The option `engine` selects one.
+
+| `engine` | The engine | The file write |
+|---|---|---|
+| `node` | `node:sqlite` of Node.js, without a native build | SQLite writes only the changed pages. The file is in WAL mode. |
+| `sqljs` | sql.js (SQLite in WebAssembly), through `@mark1russell7/docker-sqlite` | The storage keeps the database in memory, and it writes the whole file after a write. |
+| `auto` (the default) | `node` when Node.js has `node:sqlite`, and else `sqljs` | |
+
+- Node.js 22.13 and later have `node:sqlite` without a flag. Node.js 22.5 to 22.12 have it only with the flag `--experimental-sqlite`. Node.js 22.0 to 22.4 do not have it.
+- Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open of the engine `node`. Node.js 24 and 26 do not show it.
+- Node.js 26.11 renamed the class `DatabaseSync` to `Database`. The storage uses `Database` when the module has it, and else `DatabaseSync`.
+- With `auto`, the storage uses `sqljs` when the import of `node:sqlite` fails. With `node`, the open fails then, and each operation gives the error.
+- The two engines use the same file format. A file that one engine writes opens with the other engine, with its items and its versions.
+- `getEngine()` gives the engine of the storage. `getMetadata()` gives it in `stats.engine`. `isNodeSqliteAvailable()` tells if this Node.js has `node:sqlite`.
+
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the mean times of one CI run with Node.js 26 on Linux:
+
+| The benchmark | `node` | `sqljs` |
+|---|---|---|
+| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | 141 ms | 1,246 ms |
+| One `getAll()` of a table of 10,000 items | 20 ms | 28 ms |
+
+The engine `sqljs` writes the whole file at each write, so its write time grows with the size of the file.
 
 ### The table and the values
 
@@ -516,6 +543,7 @@ The entry `@procedures/sqlite/storage` has the storage alone. The package root e
 - The table has the columns `id` and `value`. The value is the JSON text of the item.
 - A value without JSON text, for example `undefined` or a `BigInt`, is a `TypeError`. The storage writes nothing then.
 - A read gives a new copy of the item.
+- `getIds()` gives the ids in the order of the items, and it does not read the values. A full sync of `HybridStorage` uses it.
 - The order of the items is the order of the first write of each id, as in a `Map`.
 
 ### The change log and the versions
@@ -530,13 +558,34 @@ The entry `@procedures/sqlite/storage` has the storage alone. The package root e
 ### The transactions and the file
 
 - Each write runs in a transaction with the change log. A batch that fails changes nothing.
-- The storage keeps the database in memory, and it writes the file after each write. The write ends after the file write.
-- When several writes wait, one file write holds their changes.
-- A failed file write fails the write. The change stays in memory, and `flush()` or the next write writes it.
-- A storage that only reads does not make the file.
+- A write ends after its change is in the file.
+- A storage that only reads does not make the file. The storage makes the file, and its folder, at the first write that changes an item.
 - `close()` writes the file and releases the database. After it, each operation rejects, also `flush()` and an empty batch. A second `close()` does nothing.
 - The storages of one file in one process share one database. Thus the storages of two tables in one file keep their items.
-- Another process, and the procedures `sqlite.query` and `sqlite.execute`, do not share this database. Do not write the file from them while a storage has it open.
+- The first storage of a file sets the engine of the shared database. A later storage with the engine `auto` uses it. A later storage with the other engine refuses it.
+
+The engine `node`:
+
+- The commit of a transaction writes the change to the file. `flush()` has nothing to write.
+- The file is in WAL mode, with `synchronous = NORMAL`. After a crash, the file stays consistent. A power loss can lose the last commits.
+- A write that cannot make the file fails, and it changes nothing.
+- A read-only file opens. The reads work, and each write fails.
+
+The engine `sqljs`:
+
+- The storage keeps the database in memory, and it writes the whole file after each write. When several writes wait, one file write holds their changes.
+- A failed file write fails the write. The change stays in memory, and `flush()` or the next write writes it.
+- The storage refuses a file with a write-ahead log (`<file>-wal`) of the engine `node`. The log can hold changes that are not in the file. Open the file with the engine `node` one time, or close the process that has it open.
+
+### Two processes on one file
+
+- With the engine `node` in each process, two processes can use one file at the same time.
+- SQLite locks the file for each write. A write waits for the lock of another process for `busyTimeout` (5 seconds by default). After it, the write fails with `database is locked`.
+- In WAL mode, a read does not wait for a write of another process.
+- Each write reads the version counter in its transaction, so the versions of the two processes agree. `getChangesSince()` reads in one read transaction.
+- A storage that opened before the file existed opens the file when another process makes it.
+- The engine `sqljs` does not coordinate with another process. Its whole-file write replaces the writes of the other process. Do not use it on a file that another process writes.
+- The procedures `sqlite.query` and `sqlite.execute` use sql.js, and they do not share the database of the storages. Do not write the file from them while a storage has it open.
 
 ### The durable local copy of `HybridStorage`
 
@@ -840,8 +889,10 @@ client-sqlite/
 │   ├── module.ts             # The procedures as data, and the sqlite.query, sqlite.execute and logs.* handlers
 │   ├── register.ts           # The ./register entry: registers the module
 │   ├── storage.ts            # SqliteStorage, the collection storage (the ./storage entry)
+│   ├── engines.ts            # The engines of SqliteStorage: node:sqlite and sql.js
 │   ├── procedures/db/        # sqlite.tables, sqlite.schema, sqlite.transaction, sqlite.migrate, sqlite.backup
 │   └── index.ts              # Main entry point
+├── bench/                    # The benchmarks of the engines (the nightly workflow runs them)
 ├── dist/                     # Compiled output
 ├── package.json
 ├── tsconfig.json
