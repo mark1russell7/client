@@ -5,7 +5,7 @@
  * from the time.
  */
 
-import { formatTime, nextTimes, parseCron } from "../../cron.js";
+import { checkTimeZone, formatTime, nextTimes, parseCron, zoneFor } from "../../cron.js";
 import { ScheduleError } from "../../errors.js";
 import { DEFAULT_SCHEDULE_SETTINGS, type ScheduleSettings } from "../../programs.js";
 import type { ScheduleNextInput, ScheduleNextOutput } from "../../types.js";
@@ -13,9 +13,9 @@ import type { ScheduleNextInput, ScheduleNextOutput } from "../../types.js";
 /**
  * The next times of a cron expression
  */
-export async function scheduleNext(input: ScheduleNextInput, settings: Pick<ScheduleSettings, "now"> = DEFAULT_SCHEDULE_SETTINGS): Promise<ScheduleNextOutput> {
-  const timeZone = input.timeZone ?? "local";
+export async function scheduleNext(input: ScheduleNextInput, settings: Pick<ScheduleSettings, "now" | "timeZone"> = DEFAULT_SCHEDULE_SETTINGS): Promise<ScheduleNextOutput> {
   const cron = parseCron(input.cron);
+  const timeZone = zoneFor(checkTimeZone(input.timeZone ?? "local"), settings.timeZone);
   let after = settings.now();
   if (input.after !== undefined) {
     after = Date.parse(input.after);

@@ -1,12 +1,16 @@
 /**
  * The schedule procedures (roadmap R46) and the stores: add, list, remove and next, the checks
- * of the program and of the expression, the effects, and the memory and file stores.
+ * of the program, of the expression and of the time zone, the effects, the memory and file
+ * stores, and the lock file of the file store with two processes.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRegistry, effectsOf, invokePath, isReadOnly, outputValue, type Capability, type ProcedureRegistry } from "@procedures/client";
 import { attachProgramStore, MemoryProgramStore } from "@procedures/store";
 import { createScheduleModule, registerScheduleProcedures, scheduleModule } from "./module.js";
@@ -87,6 +91,16 @@ describe("schedule.add", () => {
     expect((await store.get("jobs.ping"))!.capability).toEqual({ clearance: "public", effects: { reads: "any", writes: ["fs", "schedules"] } });
   });
 
+  it("takes an IANA time zone, with the case of Intl, and refuses an unknown zone", async () => {
+    const { call, store } = await setup();
+    const { schedule } = await call<ScheduleAddOutput>("schedule.add", { id: "berlin", cron: "0 9 * * *", program: "jobs.ping", timeZone: "europe/berlin" });
+    expect(schedule).toMatchObject({ timeZone: "Europe/Berlin", nextRunAt: "2026-10-17T09:00:00+02:00" });
+    expect((await store.get("berlin"))!.timeZone).toBe("Europe/Berlin");
+    await expect(call("schedule.add", { id: "mars", cron: "0 9 * * *", program: "jobs.ping", timeZone: "Mars/Olympus" })).rejects.toMatchObject({ code: "BAD_TIME_ZONE" });
+    await expect(call("schedule.add", { id: "offset", cron: "0 9 * * *", program: "jobs.ping", timeZone: "+05:30" })).rejects.toMatchObject({ code: "BAD_TIME_ZONE" });
+    expect((await store.list()).map((each) => each.id)).toEqual(["berlin"]);
+  });
+
   it("is refused to a caller that cannot change the schedules", async () => {
     const { call, store } = await setup();
     await expect(call("schedule.add", { cron: "@daily", program: "jobs.ping" }, { effects: { writes: [] } })).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -134,6 +148,28 @@ describe("schedule.next", () => {
       "2026-10-16T16:00:00Z",
       "2026-10-16T17:00:00Z",
     ]);
+  });
+
+  it("gives the times in an IANA time zone, across a change of daylight saving time", async () => {
+    const { call } = await setup();
+    const adelaide = await call<ScheduleNextOutput>("schedule.next", { cron: "30 2 * * *", after: "2026-10-03T00:00:00Z", count: 2, timeZone: "Australia/Adelaide" });
+    expect(adelaide.times).toEqual(["2026-10-04T03:00:00+10:30", "2026-10-05T02:30:00+10:30"]);
+    const kolkata = await call<ScheduleNextOutput>("schedule.next", { cron: "0 9 * * *", count: 1, timeZone: "Asia/Kolkata" });
+    expect(kolkata.times).toEqual(["2026-10-17T09:00:00+05:30"]);
+    await expect(call("schedule.next", { cron: "0 9 * * *", timeZone: "Nowhere/Land" })).rejects.toMatchObject({ code: "BAD_TIME_ZONE" });
+  });
+
+  it("gives local the zone of the option timeZone of the module", async () => {
+    const store = new MemoryScheduleStore();
+    const registry = createRegistry(createScheduleModule({ store, now: () => NOW, timeZone: "Asia/Kolkata" }));
+    await outputValue(await invokePath(["procedure", "define"], { path: ["j", "k"], aggregation: { $proc: ["client", "identity"], input: { value: 1 } } }, { registry }));
+    const next = await outputValue(await invokePath<ScheduleNextOutput>(["schedule", "next"], { cron: "0 9 * * *", count: 1 }, { registry }));
+    expect(next.times).toEqual(["2026-10-17T09:00:00+05:30"]);
+    const added = await outputValue(await invokePath<ScheduleAddOutput>(["schedule", "add"], { cron: "0 9 * * *", program: "j.k" }, { registry }));
+    expect(added.schedule).toMatchObject({ timeZone: "local", nextRunAt: "2026-10-17T09:00:00+05:30" });
+    const listed = await outputValue(await invokePath<ScheduleListOutput>(["schedule", "list"], {}, { registry }));
+    expect(listed.schedules[0]!.nextRunAt).toBe("2026-10-17T09:00:00+05:30");
+    expect(() => createScheduleModule({ timeZone: "Nowhere/Land" })).toThrow(expect.objectContaining({ code: "BAD_TIME_ZONE" }));
   });
 
   it("refuses a bad expression, a bad time and more than 100 times", async () => {
@@ -211,8 +247,11 @@ describe.each([
 
   it("refuses a schedule of a bad shape", async () => {
     const store = make();
-    await expect(store.put({ ...schedule("x"), timeZone: "mars" as never })).rejects.toMatchObject({ code: "BAD_STORE" });
+    await expect(store.put({ ...schedule("x"), timeZone: "mars" })).rejects.toMatchObject({ code: "BAD_STORE" });
+    await expect(store.put({ ...schedule("x"), timeZone: 5 as never })).rejects.toMatchObject({ code: "BAD_STORE" });
     await expect(store.put({ ...schedule("x"), runs: -1 })).rejects.toMatchObject({ code: "BAD_STORE" });
+    await store.put({ ...schedule("x"), timeZone: "America/New_York" });
+    expect((await store.get("x"))!.timeZone).toBe("America/New_York");
   });
 });
 
@@ -246,5 +285,192 @@ describe("the file store", () => {
     expect(() => checkSchedule({ id: "" })).toThrow(/id/);
     expect(() => checkSchedule({ id: "a", cron: "@daily" })).toThrow(/program/);
     expect(() => checkSchedule({ ...schedule("a"), createdAt: "now" })).toThrow(/createdAt/);
+  });
+});
+
+/** The loader of tsx: a child process imports `store.ts` with it. */
+const TSX = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
+const STORE_MODULE = pathToFileURL(fileURLToPath(new URL("./store.ts", import.meta.url))).href;
+
+/** A child process: it waits for the file `go`, then writes `count` schedules with its prefix to the store file. */
+const CHILD = `
+const { existsSync } = await import("node:fs");
+const { FileScheduleStore } = await import(process.env.STORE_MODULE);
+const store = new FileScheduleStore(process.env.STORE_FILE);
+console.log("ready");
+while (!existsSync(process.env.STORE_GO)) await new Promise((resolve) => setTimeout(resolve, 5));
+for (let index = 0; index < Number(process.env.STORE_COUNT); index++) {
+  await store.put({ id: process.env.STORE_PREFIX + "-" + index, cron: "@daily", program: "jobs.ping", timeZone: "utc", createdAt: index, runs: 0, failures: 0, skipped: 0 });
+}
+console.log("done");
+`;
+
+/** This function starts a child process that writes schedules. `ready` comes when it waits for `go`, `exit` with its end. */
+function writer(file: string, go: string, prefix: string, count: number): { ready: Promise<void>; exit: Promise<void> } {
+  const child = spawn(process.execPath, ["--import", TSX, "--input-type=module", "-e", CHILD], {
+    env: { ...process.env, STORE_MODULE, STORE_FILE: file, STORE_GO: go, STORE_PREFIX: prefix, STORE_COUNT: String(count) },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stderr.on("data", (chunk: Buffer) => (stderr += String(chunk)));
+  const exit = new Promise<void>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 && stdout.includes("done") ? resolve() : reject(new Error(`The writer ${prefix} ended with ${code}: ${stderr}`))));
+  });
+  const ready = new Promise<void>((resolve, reject) => {
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += String(chunk);
+      if (stdout.includes("ready")) resolve();
+    });
+    exit.catch(reject);
+  });
+  return { ready, exit };
+}
+
+describe("the lock of the file store", () => {
+  const files = (): { folder: string; path: string; lock: string } => {
+    const folder = mkdtempSync(join(tmpdir(), "schedule-lock-"));
+    folders.push(folder);
+    const path = join(folder, "schedules.json");
+    return { folder, path, lock: `${path}.lock` };
+  };
+  /** A time in the past: a lock file with it is stale. */
+  const old = (seconds: number): Date => new Date(Date.now() - seconds * 1000);
+
+  it("keeps the writes of two processes on one file: 50 schedules each, 100 in the file", { timeout: 120_000 }, async () => {
+    const { folder, path, lock } = files();
+    const go = join(folder, "go");
+    const a = writer(path, go, "a", 50);
+    const b = writer(path, go, "b", 50);
+    await Promise.all([a.ready, b.ready]);
+    writeFileSync(go, "");
+    await Promise.all([a.exit, b.exit]);
+    const stored = await new FileScheduleStore(path).list();
+    expect(stored).toHaveLength(100);
+    expect(stored.filter((each) => each.id.startsWith("a-"))).toHaveLength(50);
+    expect(stored.filter((each) => each.id.startsWith("b-"))).toHaveLength(50);
+    expect(existsSync(lock)).toBe(false);
+    expect(readdirSync(folder).sort()).toEqual(["go", "schedules.json"]);
+  });
+
+  it("holds the lock for each change, and removes it after", async () => {
+    const { path, lock } = files();
+    const store = new FileScheduleStore(path);
+    expect(store.lockPath).toBe(lock);
+    let held = false;
+    await store.put(schedule("a"));
+    await store.update("a", (each) => {
+      held = existsSync(lock);
+      return { ...each, runs: 1 };
+    });
+    expect(held).toBe(true);
+    expect(existsSync(lock)).toBe(false);
+    expect(await store.delete("a")).toBe(true);
+    expect(existsSync(lock)).toBe(false);
+  });
+
+  it("reads the file again under the lock: a change of another store stays", async () => {
+    const { path } = files();
+    const first = new FileScheduleStore(path);
+    const second = new FileScheduleStore(path);
+    await first.put(schedule("a"));
+    await second.put(schedule("b"));
+    await first.update("a", (each) => ({ ...each, runs: 3 }));
+    expect((await second.list()).map((each) => [each.id, each.runs])).toEqual([
+      ["a", 3],
+      ["b", 0],
+    ]);
+  });
+
+  it("waits while another store holds the lock, then writes", async () => {
+    const { path, lock } = files();
+    writeFileSync(lock, "another store");
+    const store = new FileScheduleStore(path);
+    let done = false;
+    const put = store.put(schedule("a")).then(() => (done = true));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(done).toBe(false);
+    expect(existsSync(path)).toBe(false);
+    rmSync(lock);
+    await put;
+    expect(await store.get("a")).toMatchObject({ id: "a" });
+    expect(existsSync(lock)).toBe(false);
+  });
+
+  it("takes over a stale lock, older than staleMs", async () => {
+    const { path, lock } = files();
+    writeFileSync(lock, "a process that stopped");
+    utimesSync(lock, old(60), old(60));
+    const store = new FileScheduleStore(path);
+    await store.put(schedule("a"));
+    expect(await store.get("a")).toMatchObject({ id: "a" });
+    expect(existsSync(lock)).toBe(false);
+    // A short limit: a lock of 2 seconds is stale
+    writeFileSync(lock, "a process that stopped");
+    utimesSync(lock, old(2), old(2));
+    await new FileScheduleStore(path, { staleMs: 1000 }).put(schedule("b"));
+    expect((await store.list()).map((each) => each.id)).toEqual(["a", "b"]);
+  });
+
+  it("removes a stale breaker of a process that stopped during a takeover", async () => {
+    const { path, lock } = files();
+    writeFileSync(lock, "stale");
+    writeFileSync(`${lock}.break`, "stale");
+    utimesSync(lock, old(60), old(60));
+    utimesSync(`${lock}.break`, old(60), old(60));
+    await new FileScheduleStore(path).put(schedule("a"));
+    expect(existsSync(lock)).toBe(false);
+    expect(existsSync(`${lock}.break`)).toBe(false);
+  });
+
+  it("gives up with LOCKED after twice staleMs, and keeps a lock that is not stale", async () => {
+    const { path, lock } = files();
+    writeFileSync(lock, "a lock from the future");
+    // A lock with a time in the future never gets stale
+    const future = new Date(Date.now() + 3_600_000);
+    utimesSync(lock, future, future);
+    const store = new FileScheduleStore(path, { staleMs: 50 });
+    await expect(store.put(schedule("a"))).rejects.toMatchObject({ code: "LOCKED" });
+    expect(readFileSync(lock, "utf8")).toBe("a lock from the future");
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("removes the lock after an error, and the next change works", async () => {
+    const { path, lock } = files();
+    const store = new FileScheduleStore(path);
+    await store.put(schedule("a"));
+    await expect(
+      store.update("a", () => {
+        throw new Error("the change failed");
+      }),
+    ).rejects.toThrow("the change failed");
+    expect(existsSync(lock)).toBe(false);
+    await expect(store.update("a", (each) => ({ ...each, cron: 5 as never }))).rejects.toMatchObject({ code: "BAD_STORE" });
+    expect(existsSync(lock)).toBe(false);
+    writeFileSync(path, "{ not json");
+    await expect(store.put(schedule("b"))).rejects.toMatchObject({ code: "BAD_STORE" });
+    expect(existsSync(lock)).toBe(false);
+    writeFileSync(path, JSON.stringify({ schemaVersion: 1, schedules: {} }));
+    await store.put(schedule("b"));
+    expect((await store.list()).map((each) => each.id)).toEqual(["b"]);
+  });
+
+  it("does not remove a lock that another store took over", async () => {
+    const { path, lock } = files();
+    const store = new FileScheduleStore(path);
+    await store.put(schedule("a"));
+    await store.update("a", (each) => {
+      // Another store took the lock over during the change
+      writeFileSync(lock, "the token of another store");
+      return { ...each, runs: 1 };
+    });
+    expect(readFileSync(lock, "utf8")).toBe("the token of another store");
+  });
+
+  it("refuses a staleMs that is not above 0", () => {
+    expect(() => new FileScheduleStore("x.json", { staleMs: 0 })).toThrow(TypeError);
+    expect(() => new FileScheduleStore("x.json", { staleMs: Number.NaN })).toThrow(TypeError);
+    expect(() => new FileScheduleStore("x.json", { staleMs: Number.POSITIVE_INFINITY })).toThrow(TypeError);
   });
 });

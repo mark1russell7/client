@@ -15,6 +15,6 @@ export async function scheduleList(input: ScheduleListInput, settings: ScheduleS
   const now = settings.now();
   const schedules = await settings.store.list();
   return {
-    schedules: schedules.filter((schedule) => input.program === undefined || schedule.program === input.program).map((schedule) => viewOf(schedule, now)),
+    schedules: schedules.filter((schedule) => input.program === undefined || schedule.program === input.program).map((schedule) => viewOf(schedule, now, settings.timeZone)),
   };
 }

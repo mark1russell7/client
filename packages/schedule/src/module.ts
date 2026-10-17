@@ -25,6 +25,7 @@ import { scheduleAdd } from "./procedures/schedule/add.js";
 import { scheduleList } from "./procedures/schedule/list.js";
 import { scheduleRemove } from "./procedures/schedule/remove.js";
 import { scheduleNext } from "./procedures/schedule/next.js";
+import { checkTimeZone } from "./cron.js";
 import { DEFAULT_SCHEDULE_SETTINGS, PROGRAM_KEY, type ScheduleSettings } from "./programs.js";
 import type { ScheduleStore } from "./store.js";
 import type {
@@ -44,7 +45,11 @@ import type {
 // =============================================================================
 
 const cron = z.string().min(1).max(200).describe("The cron expression: 5 fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @yearly");
-const timeZone = z.enum(["utc", "local"]).describe("The time zone of the expression (default local)");
+const timeZone = z
+  .string()
+  .min(1)
+  .max(100)
+  .describe("The time zone of the expression: utc, local (default) or an IANA name such as Europe/Berlin");
 const scheduleId = z
   .string()
   .regex(/^[A-Za-z0-9._:-]{1,200}$/, "Letters, digits, and . _ : -")
@@ -63,7 +68,7 @@ const view = z.object({
   cron: z.string(),
   program: z.string(),
   input: z.unknown().optional(),
-  timeZone: z.enum(["utc", "local"]),
+  timeZone: z.string().describe("The time zone: utc, local or an IANA name"),
   createdAt: z.number().describe("When the schedule was added, in milliseconds since 1970"),
   capability: z
     .custom<NonNullable<Schedule["capability"]>>((value) => value !== null && typeof value === "object")
@@ -196,6 +201,11 @@ export interface ScheduleModuleOptions {
   readonly store?: ScheduleStore | undefined;
   /** The wall time, in milliseconds since 1970. The default is `Date.now`. A test gives the time of its fake clock. */
   readonly now?: (() => number) | undefined;
+  /**
+   * The IANA time zone of the schedules with the time zone `local`, for example `Europe/Berlin`.
+   * The default is the time zone of the process. A host gives the same zone to its `Scheduler`.
+   */
+  readonly timeZone?: string | undefined;
 }
 
 /**
@@ -214,6 +224,7 @@ export function createScheduleModule(options: ScheduleModuleOptions = {}): Proce
   const settings: ScheduleSettings = {
     store: options.store ?? DEFAULT_SCHEDULE_SETTINGS.store,
     now: options.now ?? DEFAULT_SCHEDULE_SETTINGS.now,
+    ...(options.timeZone !== undefined ? { timeZone: checkTimeZone(options.timeZone) } : {}),
   };
   return defineModule("@procedures/schedule", scheduleProcedures(settings));
 }

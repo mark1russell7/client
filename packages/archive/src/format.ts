@@ -7,12 +7,14 @@ import { open } from "node:fs/promises";
 import { ArchiveError } from "./errors.js";
 import type { ArchiveFormat } from "./types.js";
 
-/** The limits of the procedures of a module. */
+/** The limits and the root of the procedures of a module. */
 export interface ArchiveSettings {
   /** The most bytes of the files of one archive: `extract` and `create` refuse more. */
   readonly maxBytes: number;
   /** The most entries of one archive. */
   readonly maxEntries: number;
+  /** The absolute folder that confines each path of the inputs (roadmap R33), or undefined for no root. */
+  readonly root?: string | undefined;
 }
 
 /** The default most bytes: 1 GiB. */

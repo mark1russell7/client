@@ -17,6 +17,8 @@
  *   missed during a run or a slow minute give one run, not one for each time.
  * - The timers use an injectable `Clock` (`after` and `now`), and the calendar uses an injectable
  *   wall clock (`now`, default `Date.now`). A test gives `fakeClock` of `@mark1russell7/service/testing`.
+ * - Each schedule runs in its time zone: `utc`, `local` or an IANA name. The option `timeZone`
+ *   gives the zone of `local`. The changes of daylight saving time follow Vixie cron (`cron.ts`).
  */
 
 import {
@@ -36,7 +38,7 @@ import {
   type InvokeOptions,
   type ProcedureRegistry,
 } from "@procedures/client";
-import { nextTime, parseCron } from "./cron.js";
+import { checkTimeZone, nextTime, parseCron, zoneFor } from "./cron.js";
 import { ScheduleError } from "./errors.js";
 import { findProgram } from "./programs.js";
 import { defaultScheduleStore, type ScheduleStore } from "./store.js";
@@ -70,6 +72,11 @@ export interface SchedulerOptions {
   readonly clock?: Clock | undefined;
   /** The wall time, in milliseconds since 1970. The default is `Date.now`. */
   readonly now?: (() => number) | undefined;
+  /**
+   * The IANA time zone of the schedules with the time zone `local`, for example `Europe/Berlin`.
+   * The default is the time zone of the process. The host gives the same zone to `createScheduleModule()`.
+   */
+  readonly timeZone?: string | undefined;
   /** The time limit of a run, in milliseconds. 0: no limit. The default is 10 minutes. */
   readonly runTimeoutMs?: number | undefined;
   /** This function gets each run and each skipped time. */
@@ -93,10 +100,10 @@ function errorInfo(error: unknown): { code?: string; message: string } {
   return typeof code === "string" ? { code, message } : { message };
 }
 
-/** The next time of a schedule after a time, or undefined for an expression that is not correct. */
-function nextOf(schedule: Schedule, after: number): number | undefined {
+/** The next time of a schedule after a time, or undefined for an expression or a time zone that is not correct. */
+function nextOf(schedule: Schedule, after: number, local: string | undefined): number | undefined {
   try {
-    return nextTime(parseCron(schedule.cron), after, schedule.timeZone);
+    return nextTime(parseCron(schedule.cron), after, zoneFor(schedule.timeZone, local));
   } catch {
     return undefined;
   }
@@ -109,6 +116,8 @@ export class Scheduler {
   private readonly clock: Clock;
   private readonly now: () => number;
   private readonly runTimeoutMs: number;
+  /** The IANA time zone of `local`, or undefined for the time zone of the process. */
+  private readonly timeZone: string | undefined;
   private readonly options: SchedulerOptions;
   private readonly due = new Map<string, Due>();
   private readonly runs = new Map<string, { promise: Promise<void>; controller: AbortController }>();
@@ -124,6 +133,7 @@ export class Scheduler {
     this.now = options.now ?? (() => Date.now());
     this.runTimeoutMs = options.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MS;
     if (!(this.runTimeoutMs >= 0)) throw new TypeError("Scheduler: runTimeoutMs must be 0 or more");
+    this.timeZone = options.timeZone === undefined ? undefined : checkTimeZone(options.timeZone);
   }
 
   /** True after `start()` and before `stop()`. */
@@ -199,12 +209,12 @@ export class Scheduler {
       let due = this.due.get(schedule.id);
       if (due === undefined || due.version !== version) {
         // A new or a changed schedule: its first time is after it was added, and after the start
-        due = { version, at: nextOf(schedule, Math.max(schedule.createdAt, this.startedAt) - 1) };
+        due = { version, at: nextOf(schedule, Math.max(schedule.createdAt, this.startedAt) - 1, this.timeZone) };
         this.due.set(schedule.id, due);
       }
       if (due.at === undefined || due.at > now) continue;
       // The times that passed give one run: the next time comes after now
-      due.at = nextOf(schedule, now);
+      due.at = nextOf(schedule, now, this.timeZone);
       if (!this.launch(schedule, now)) void this.skip(schedule, now);
     }
   }
