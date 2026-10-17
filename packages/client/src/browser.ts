@@ -411,6 +411,7 @@ export type {
   TypedEventBus,
   EventHandler,
   EventBusOptions,
+  EventListenOptions,
   EventWaitOptions,
   ChannelMap,
 } from "./events/index.js";
@@ -424,6 +425,7 @@ export type {
   RemoteEvent,
   RemoteEventHandler,
   RemoteEventsOptions,
+  ResubscribeBackoff,
   SubscribeOptions,
   Subscription,
 } from "./events/index.js";

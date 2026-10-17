@@ -86,5 +86,9 @@
   "TOPIC_NOT_FOUND": {
     "http": 404,
     "retryable": false
+  },
+  "TOPIC_CLEARED": {
+    "http": 410,
+    "retryable": false
   }
 }

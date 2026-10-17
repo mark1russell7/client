@@ -11,6 +11,7 @@ import type {
   EventHandler,
   Unsubscribe,
   EventBusOptions,
+  EventListenOptions,
   EventWaitOptions,
 } from "./types.js";
 
@@ -32,8 +33,11 @@ function abortedError(channel: string): Error {
 export class DefaultEventBus implements EventBus {
   private readonly subscribers = new Map<string, Set<EventHandler<unknown>>>();
   private readonly buffer = new Map<string, unknown[]>();
-  /** For each channel, a function per open stream that ends it (for `clear()`). */
-  private readonly streamEnders = new Map<string, Set<() => void>>();
+  /**
+   * For each channel, the functions that `clear()` runs: the `onClear` of each handler of `on()`
+   * that has one. Each open stream has one too, so `clear()` ends it.
+   */
+  private readonly clearHandlers = new Map<string, Set<() => void>>();
   private readonly options: Required<EventBusOptions>;
 
   constructor(options: EventBusOptions = {}) {
@@ -85,9 +89,10 @@ export class DefaultEventBus implements EventBus {
   }
 
   /**
-   * Subscribe to events on a channel.
+   * Subscribe to events on a channel. The `onClear` of the options runs one time when `clear()`
+   * or `clearAll()` removes the handler, not at an unsubscribe.
    */
-  on<T>(channel: string, handler: EventHandler<T>): Unsubscribe {
+  on<T>(channel: string, handler: EventHandler<T>, options: EventListenOptions = {}): Unsubscribe {
     if (this.options.debug) {
       console.log(`[EventBus] subscribe "${channel}"`);
     }
@@ -99,6 +104,30 @@ export class DefaultEventBus implements EventBus {
     }
 
     channelSubs.add(handler as EventHandler<unknown>);
+
+    // The unsubscribe function works once, and removes only the set it added to. (Before, a
+    // repeated call of an old unsubscribe removed the set of a newer subscriber: deep dive CORE-15.)
+    // A clear() also ends the handler: then its unsubscribe does nothing.
+    let subscribed = true;
+    const { onClear } = options;
+    let cleared: (() => void) | undefined;
+    if (onClear) {
+      cleared = () => {
+        if (!subscribed) return;
+        subscribed = false;
+        try {
+          onClear();
+        } catch (error) {
+          this.options.onError(error instanceof Error ? error : new Error(String(error)), channel);
+        }
+      };
+      let handlers = this.clearHandlers.get(channel);
+      if (!handlers) {
+        handlers = new Set();
+        this.clearHandlers.set(channel, handlers);
+      }
+      handlers.add(cleared);
+    }
 
     // Replay buffered events if any
     const buffered = this.buffer.get(channel);
@@ -115,9 +144,6 @@ export class DefaultEventBus implements EventBus {
       }
     }
 
-    // The unsubscribe function works once, and removes only the set it added to. (Before, a
-    // repeated call of an old unsubscribe removed the set of a newer subscriber: deep dive CORE-15.)
-    let subscribed = true;
     return () => {
       if (!subscribed) return;
       subscribed = false;
@@ -130,7 +156,21 @@ export class DefaultEventBus implements EventBus {
       if (channelSubs.size === 0 && this.subscribers.get(channel) === channelSubs) {
         this.subscribers.delete(channel);
       }
+      if (cleared) {
+        const handlers = this.clearHandlers.get(channel);
+        if (handlers?.delete(cleared) && handlers.size === 0) this.clearHandlers.delete(channel);
+      }
     };
+  }
+
+  /** This function runs the clear handlers of the channels, after it removed them from the bus. */
+  private runClearHandlers(channels: readonly string[]): void {
+    const handlers: Array<() => void> = [];
+    for (const channel of channels) {
+      handlers.push(...(this.clearHandlers.get(channel) ?? []));
+      this.clearHandlers.delete(channel);
+    }
+    for (const cleared of handlers) cleared();
   }
 
   /**
@@ -182,11 +222,24 @@ export class DefaultEventBus implements EventBus {
         const queue: T[] = [];
         let resolve: ((value: IteratorResult<T>) => void) | null = null;
         let done = signal?.aborted ?? false;
+        let unsubscribe: Unsubscribe = () => {};
 
-        // Subscribe to channel
-        const unsubscribe = done
-          ? () => {}
-          : self.on<T>(channel, (data) => {
+        // End the stream: no more events, and a waiting reader gets `done`
+        const end = (): void => {
+          if (done) return;
+          done = true;
+          unsubscribe();
+          signal?.removeEventListener("abort", end);
+          const r = resolve;
+          resolve = null;
+          r?.({ value: undefined, done: true });
+        };
+
+        // Subscribe to channel. A clear() of the channel ends the stream.
+        if (!done) {
+          unsubscribe = self.on<T>(
+            channel,
+            (data) => {
               if (done) return;
 
               if (resolve) {
@@ -198,27 +251,10 @@ export class DefaultEventBus implements EventBus {
                 // Queue for later
                 queue.push(data);
               }
-            });
-
-        // End the stream: no more events, and a waiting reader gets `done`
-        const end = (): void => {
-          if (done) return;
-          done = true;
-          unsubscribe();
-          signal?.removeEventListener("abort", end);
-          self.streamEnders.get(channel)?.delete(end);
-          const r = resolve;
-          resolve = null;
-          r?.({ value: undefined, done: true });
-        };
-        if (!done) {
+            },
+            { onClear: end },
+          );
           signal?.addEventListener("abort", end, { once: true });
-          let enders = self.streamEnders.get(channel);
-          if (!enders) {
-            enders = new Set();
-            self.streamEnders.set(channel, enders);
-          }
-          enders.add(end);
         }
 
         return {
@@ -276,7 +312,8 @@ export class DefaultEventBus implements EventBus {
   }
 
   /**
-   * Remove all subscribers from a channel.
+   * Remove all subscribers from a channel. The `onClear` of each removed handler runs, and each
+   * stream of the channel ends.
    */
   clear(channel: string): void {
     if (this.options.debug) {
@@ -284,13 +321,14 @@ export class DefaultEventBus implements EventBus {
     }
     this.subscribers.delete(channel);
     this.buffer.delete(channel);
-    // The streams of the channel end: before, their readers waited forever (deep dive CORE-15)
-    for (const end of [...(this.streamEnders.get(channel) ?? [])]) end();
-    this.streamEnders.delete(channel);
+    // The streams of the channel end: before, their readers waited forever (deep dive CORE-15).
+    // The remote subscriptions end with notice too (EVENTS.md).
+    this.runClearHandlers([channel]);
   }
 
   /**
-   * Remove all subscribers from all channels.
+   * Remove all subscribers from all channels. The `onClear` of each removed handler runs, and
+   * each stream ends.
    */
   clearAll(): void {
     if (this.options.debug) {
@@ -298,10 +336,7 @@ export class DefaultEventBus implements EventBus {
     }
     this.subscribers.clear();
     this.buffer.clear();
-    for (const enders of [...this.streamEnders.values()]) {
-      for (const end of [...enders]) end();
-    }
-    this.streamEnders.clear();
+    this.runClearHandlers([...this.clearHandlers.keys()]);
   }
 }
 
@@ -398,7 +433,7 @@ export function withEventBusSignal(bus: EventBus, signal: AbortSignal): EventBus
   const waitOptions = (options?: EventWaitOptions): EventWaitOptions => ({ signal: options?.signal ?? signal });
   return {
     emit: (channel, data) => bus.emit(channel, data),
-    on: (channel, handler) => bus.on(channel, handler),
+    on: (channel, handler, options) => bus.on(channel, handler, options),
     once: (channel, options) => bus.once(channel, waitOptions(options)),
     stream: (channel, options) => bus.stream(channel, waitOptions(options)),
     subscriberCount: (channel) => bus.subscriberCount(channel),
@@ -435,8 +470,8 @@ export function createChannelPrefix(bus: EventBus, prefix: string) {
       bus.emit(prefixed(channel), data);
     },
 
-    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe {
-      return bus.on(prefixed(channel), handler);
+    on<T>(channel: string, handler: EventHandler<T>, options?: EventListenOptions): Unsubscribe {
+      return bus.on(prefixed(channel), handler, options);
     },
 
     once<T>(channel: string, options?: EventWaitOptions): Promise<T> {

@@ -40,6 +40,7 @@ export type {
   ProcedureChannels,
   DefaultChannels,
   EventBusOptions,
+  EventListenOptions,
   EventWaitOptions,
 } from "./types.js";
 
@@ -65,6 +66,7 @@ export type {
   RemoteEvent,
   RemoteEventHandler,
   RemoteEventsOptions,
+  ResubscribeBackoff,
   SubscribeInput,
   SubscribeOptions,
   Subscription,
