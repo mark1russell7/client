@@ -1,6 +1,7 @@
 /**
- * `mark --fs-root <folder>` (roadmap R33): the registry of mark confines each path of the `fs.*`
- * procedures to the root, also the nested `fs.*` calls of the other procedures (`lib.scan`).
+ * `mark --fs-root <folder>` (roadmap R33): the registry of mark confines each procedure to the
+ * root (`confineToRoot()`): each path of `fs.*`, the nested `fs.*` calls of the other procedures
+ * and their path inputs (`lib.scan`). It refuses the procedures that the root cannot confine.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -46,11 +47,20 @@ describe("the registry of mark with a root", () => {
 
     const scanned = await outputValue(await invokePath<{ packages: Record<string, unknown> }>(["lib", "scan"], { rootPath: root }, { registry }));
     expect(Object.keys(scanned.packages)).toEqual(["inside-package"]);
-    const refused = await outputValue(
-      await invokePath<{ packages: Record<string, unknown>; warnings: Array<{ issue: string }> }>(["lib", "scan"], { rootPath: outside }, { registry }),
-    );
-    expect(refused.packages).toEqual({});
-    expect(refused.warnings[0]?.issue).toContain("outside the root");
+    // The root examines rootPath before lib.scan starts (metadata.fsRoot)
+    await expect(invokePath(["lib", "scan"], { rootPath: outside }, { registry })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
+  }, 120000);
+
+  it("refuses the procedures that the root cannot confine, also for a path in the root", async () => {
+    const { registry, refusedUnderRoot } = await loadEcosystemRegistry(false, false, { fsRoot: root });
+    expect(refusedUnderRoot).toEqual(expect.arrayContaining(["git.status", "pnpm.install", "docker.run", "shell.exec"]));
+    for (const [path, input] of [
+      [["git", "status"], { cwd: root }],
+      [["shell", "run"], { command: process.execPath, args: ["--version"], cwd: root }],
+      [["docker", "run"], { image: "alpine", volumes: [`${outside}:/host`] }],
+    ] as const) {
+      await expect(invokePath([...path], input, { registry }), path.join(".")).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
+    }
   }, 120000);
 
   it("keeps the procedures of the registry without a root", async () => {

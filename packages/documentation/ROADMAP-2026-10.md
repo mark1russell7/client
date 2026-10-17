@@ -465,6 +465,8 @@ More tests for `client-git`, `client-splay`, `client-s3` and `client-fs`. `clien
 
 **Result.** Each procedure of the four packages has tests. The tests of `client-git` run real `git` in temporary repositories without the global configuration. The tests of `client-s3` use an S3 fake in memory. `createFsModule({ root })` confines each path of `fs.*`. It refuses `..`, an absolute path, another drive and a symbolic link out of the root. The error is `FORBIDDEN` with the reason `outside-root`. The tests found three defects, which are fixed. `git.commit` failed for an untracked file, `git.init` called `fs.exists` through the client, and a splay child used the global registry.
 
+**Result, part 2 (2026-10-17).** The root confines all the procedures of a host, not only `fs.*`. The three hosts start `confineToRoot()` of `@procedures/fs`. Each procedure declares its path inputs in `metadata.fsRoot`, or the reason that a root cannot confine it. A procedure without rules is refused when its effects are not known, name `fs`, or write `process`. `archive.*`, `sqlite.*`, `cue.*`, `lib.*` and most `docker.*` procedures are confined. `git.*`, `pnpm.*`, `docker.run`, `docker.build` and `docker.compose.*` are refused. `@procedures/archive` uses the rules of `@procedures/fs/root`, so the copy is gone. The rules and the table are in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
 ## Tier 8: systems
 
 ### R34. `@procedures/systems` and the timer law
@@ -615,8 +617,7 @@ The owner decided these items. The changes are on `main`, and they go out in 0.5
 
 ### Open
 
-- `mark --fs-root` does not confine the procedures that read files with `node:fs` or start a program: `git.*`, `docker.*`, `pnpm.*`, `cue.generate`, `sqlite.*`, `archive.*` and others. The README of the fs package lists them.
-- `packages/archive/src/root.ts` copies the rules of `packages/client-fs/src/root.ts`. One shared export removes the copy.
+- Under a root, `git.*` and `pnpm.*` are refused. A later change can confine git with `GIT_CEILING_DIRECTORIES` and a check of the configuration of the repository. The procedures that reach files without `metadata.fsRoot` are refused too, for example `s3.download`, `snapshot.*` and `schedule.*`. `gh.*` fails at its nested `shell.run`.
 - The test `body-stop.test.ts` of `packages/server` failed once with `EADDRINUSE`: two tests took the same port.
 - The WebSocket cells of systems run on client 0.3.0. A move to 0.4.0 changes the line numbers that their machine documents cite.
 - HAProxy has no machine document, so its timeout cells have no band.

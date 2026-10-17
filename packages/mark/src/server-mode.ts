@@ -4,7 +4,7 @@
  * Runs the CLI as a persistent server, exposing all ecosystem procedures
  * via HTTP. The server has the registry of mark (the module of each package, roadmap 3.1) and
  * the host policy of the core (roadmap 2.3): the token in the lockfile, and the topics of
- * `--events`. With `--fs-root`, the `fs.*` procedures confine each path to the root.
+ * `--events`. With `--fs-root`, each procedure keeps its paths in the root, or the root refuses it.
  */
 
 import { print } from "./print.js";
@@ -83,7 +83,7 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   if (verbose) {
     print.info("Loading ecosystem procedures...");
   }
-  const { registry, fsRoot } = await loadEcosystemRegistry(verbose, true, { fsRoot: options.fsRoot });
+  const { registry, fsRoot, refusedUnderRoot } = await loadEcosystemRegistry(verbose, true, { fsRoot: options.fsRoot });
 
   // Build transport config
   const transports = buildTransports(options);
@@ -145,7 +145,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   }
   print.info(events.length > 0 ? `\nEvent topics (events.subscribe): ${events.join(", ")}` : "\nEvent topics: none (--events adds them)");
   if (fsRoot !== undefined) {
-    print.info(`File root: ${fsRoot} (fs.* refuses each path outside it)`);
+    print.info(`File root: ${fsRoot} (each procedure refuses a path outside it)`);
+    print.info(`  Refused under the root: ${refusedUnderRoot?.length ?? 0} procedures that the root cannot confine`);
   }
   print.info("\nPress Ctrl+C to stop.");
 
