@@ -89,7 +89,7 @@ function changesOf(storage: ContractStorage): (since?: string) => Promise<Storag
 }
 
 /** This function skips a case for a storage without an optional method, and gives true. */
-function lacks(storage: ContractStorage, method: "getEntries" | "getChangesSince" | "flush" | "getMetadata", context: ContractTestContext | undefined): boolean {
+function lacks(storage: ContractStorage, method: "getEntries" | "getIds" | "getChangesSince" | "flush" | "getMetadata", context: ContractTestContext | undefined): boolean {
   if (typeof storage[method] === "function") return false;
   context?.skip?.(`The storage has no ${method}()`);
   return true;
@@ -106,8 +106,8 @@ function seeded(seed: number): (below: number) => number {
 
 /**
  * This function gives the cases of the contract for a storage. Each case makes its own storage
- * with `options.create`. A case for an optional method (`getEntries`, `getChangesSince`, `flush`,
- * `getMetadata`) skips a storage without the method.
+ * with `options.create`. A case for an optional method (`getEntries`, `getIds`, `getChangesSince`,
+ * `flush`, `getMetadata`) skips a storage without the method.
  */
 export function collectionStorageContract(options: CollectionStorageContractOptions): ContractCase[] {
   const create = (): ContractStorage | Promise<ContractStorage> => options.create();
@@ -153,6 +153,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       same(await storage.delete("a"), false, "delete() of a missing id");
       same(await storage.deleteBatch(["a", "b"]), 0, "deleteBatch() of missing ids");
       if (storage.getEntries) same(await storage.getEntries(), [], "getEntries() of an empty storage");
+      if (storage.getIds) same(await storage.getIds(), [], "getIds() of an empty storage");
     }),
   );
 
@@ -210,6 +211,23 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       same(await storage.getAll(), expected.map(([, value]) => value), "getAll() after a delete and a new set() of an id");
       same(ids(await storage.find(() => true)), ["a", "b", "c"], "find() keeps the order of the entries");
       if (storage.getEntries) same(await storage.getEntries(), expected, "getEntries() keeps the order of the entries");
+      if (storage.getIds) same(await storage.getIds(), ["a", "b", "c"], "getIds() keeps the order of the entries");
+    }),
+  );
+
+  add("getIds() gives the ids of the entries in their order, as a new array", (context) =>
+    withStorage(create, async (storage) => {
+      if (lacks(storage, "getIds", context)) return;
+      await storage.setBatch([["c", item("c", 3)], ["a", item("a", 1)], ["b", item("b", 2)]]);
+      await storage.delete("a");
+      await storage.set("a", item("a", 10));
+      const first = await storage.getIds!();
+      same(first, ["c", "b", "a"], "getIds() after a delete and a new set() of an id");
+      first.splice(0);
+      same(await storage.getIds!(), ["c", "b", "a"], "getIds() after a change of an earlier result");
+      if (storage.getEntries) same(await storage.getIds!(), (await storage.getEntries()).map(([id]) => id), "getIds() and the ids of getEntries()");
+      await storage.clear();
+      same(await storage.getIds!(), [], "getIds() after clear()");
     }),
   );
 
@@ -504,6 +522,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       }
       same(await storage.size(), model.size, "size() after the sequence");
       if (storage.getEntries) same(await storage.getEntries(), [...model.entries()], "getEntries() after the sequence");
+      if (storage.getIds) same(await storage.getIds(), [...model.keys()], "getIds() after the sequence");
       if (!hasChanges) return;
       holds(versions.length > 0, "the sequence saved no version: change the seed");
       for (const [index, saved] of versions.entries()) {
@@ -568,6 +587,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         ["deleteBatch of no id", () => storage.deleteBatch([])],
       ];
       if (storage.getEntries) operations.push(["getEntries", () => storage.getEntries!()]);
+      if (storage.getIds) operations.push(["getIds", () => storage.getIds!()]);
       if (storage.getChangesSince) operations.push(["getChangesSince", () => storage.getChangesSince!()]);
       if (storage.flush) operations.push(["flush", () => storage.flush!()]);
       if (storage.getMetadata) operations.push(["getMetadata", () => storage.getMetadata!()]);

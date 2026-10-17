@@ -18,6 +18,7 @@
  * - `pullInterval` keeps the local copy fresh.
  * - Each write takes a copy of the value (`structuredClone`), for the local copy, the queue and the
  *   remote. The reads give the copies of the local copy, or of the remote in `remote-only` mode.
+ * - A full sync reads the local ids with `getIds()`, so it does not copy each local item.
  * - After `close()`, each operation rejects, and a second `close()` does nothing.
  */
 
@@ -263,7 +264,8 @@ type PulledChanges<T> = Omit<StorageChanges<T>, "version"> & { version?: string 
 /**
  * A storage for the local copy of a `HybridStorage` (roadmap R45): a collection storage that gives
  * its entries. A durable one, for example `SqliteStorage` of `@procedures/sqlite`, keeps the local
- * copy after a restart.
+ * copy after a restart. With `getIds()`, a full sync reads the local ids without a copy of the
+ * values.
  */
 export type LocalCopyStorage<T> = CollectionStorage<T> & { getEntries(): Promise<Array<[string, T]>> };
 
@@ -547,6 +549,15 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /** Every item with its id. */
   async getEntries(): Promise<Array<[string, T]>> {
     return this.run(true, () => (this.mode === "remote-only" ? this.remoteRead(() => this.remoteEntries()) : this.local.getEntries()));
+  }
+
+  /**
+   * The ids of the items, in the order of the entries: the ids of the local copy, or of the remote
+   * in `remote-only` mode. The ids come without a copy of the values when the storage under them
+   * has `getIds()`.
+   */
+  async getIds(): Promise<string[]> {
+    return this.run(true, () => (this.mode === "remote-only" ? this.remoteRead(() => this.remoteIds()) : this.localIds()));
   }
 
   async find(predicate: (item: T) => boolean): Promise<T[]> {
@@ -1041,10 +1052,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       remoteIds.add(id);
       if (await this.pullItem(id, item, changedLocally, conflicts)) queueChanged = true;
     }
-    // The remote deleted these items
-    const gone = changes.full
-      ? (await this.local.getEntries()).map(([id]) => id).filter((id) => !remoteIds.has(id))
-      : changes.deleted;
+    // The remote deleted these items. A full pull reads only the local ids: before, it read each
+    // local entry, and the local copy copied each value for it.
+    const gone = changes.full ? (await this.localIds()).filter((id) => !remoteIds.has(id)) : changes.deleted;
     for (const id of gone) {
       if (await this.pullDelete(id, changedLocally, conflicts)) queueChanged = true;
     }
@@ -1234,6 +1244,18 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
     if (missing > 0) throw new MissingKeysError(missing);
     return entries;
+  }
+
+  /** The ids of the local copy: from `getIds()` when it has it, without a copy of the values. */
+  private async localIds(): Promise<string[]> {
+    if (this.local.getIds) return this.local.getIds();
+    return (await this.local.getEntries()).map(([id]) => id);
+  }
+
+  /** The ids of the remote: from `getIds()` when it has it, or else from its entries. */
+  private async remoteIds(): Promise<string[]> {
+    if (this.remote.getIds) return this.remote.getIds();
+    return (await this.remoteEntries()).map(([id]) => id);
   }
 
   /**

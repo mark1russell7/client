@@ -88,6 +88,7 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **Copies.** A change of a written or a read value does not change the stored item. `HybridStorage` takes a copy of each written value for the local copy, the queue and the remote. The values that `ApiStorage` sends and reads go through the transport.
 - **`null`.** A stored `null` reads back as `null`. `ApiStorage.get()` sends `{ id, found: true }` to the procedure `collections.<name>.get`. The procedure then gives `{ found, value }` in one call.
 - **The order of a delta.** `getChangesSince()` follows the order of the last change of each id.
+- **The ids.** `HybridStorage.getIds()` gives the ids in the order of the entries. `ApiStorage` has no `getIds()`.
 - **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
 Notes:
@@ -152,6 +153,8 @@ await users.setMode("write-through"); // The switch sends the queue, then syncs 
 - With a durable local copy, a new storage in `local-only` mode reads the items of the last run. It makes no remote call.
 - Give a durable `queueStore` with a durable local copy. A restart applies the loaded queue to the local copy again, and the result does not change.
 - The first sync after a restart reads all remote items. It removes each local item that the remote deleted and that no queued write changes.
+- A full sync reads the local ids with `getIds()` of the local copy. `InMemoryStorage` and `SqliteStorage` give the ids without a copy of the values. A local copy without `getIds()` gives its entries.
+- `HybridStorage.getIds()` gives the ids of the local copy, or of the remote in `remote-only` mode.
 - `close()` closes the local copy and the remote. A durable local copy keeps its items. A remote stays open when its own `close()` leaves it open, as `ApiStorage.close()` leaves the server.
 
 ```ts
