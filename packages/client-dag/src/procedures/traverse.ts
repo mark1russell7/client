@@ -162,6 +162,7 @@ export async function dagTraverse(
         totalDuration: Date.now() - startTime,
         visited: 0,
         failed: 0,
+        skipped: 0,
       };
     }
     allNodes = filterDAGFromRoot(allNodes, input.root);
@@ -273,36 +274,33 @@ export async function dagTraverse(
     failFast: !input.continueOnError,
   });
 
-  // If dry run, we already populated results in the processor
-  if (!input.dryRun) {
-    // Ensure all nodes have results (some may have been skipped due to errors)
-    for (const [name, nodeResult] of dagResult.results) {
-      const existing = results.find((r) => r.name === name);
-      // No test reaches this branch: each visit adds its result before it ends or throws, and
-      // executeDAG gives no result for a node of a level that it skipped. The branch came with
-      // the procedure from client-lib (2026-10). It stays until a decision about it.
-      /* v8 ignore if -- @preserve */
-      if (!existing) {
-        const node = allNodes.get(name);
-        const result: TraverseNodeResult = {
-          name,
-          path: node?.repoPath ?? "unknown",
-          success: nodeResult.success,
-          duration: nodeResult.duration,
-        };
-        if (nodeResult.error?.message) {
-          result.error = nodeResult.error.message;
-        }
-        results.push(result);
-      }
-    }
-  }
+  const skipped = skippedResults(dag.levels.flat(), results, dagResult.failedNodes);
 
   return {
     success: dagResult.success,
-    results,
+    results: [...results, ...skipped],
     totalDuration: Date.now() - startTime,
     visited: results.filter((r) => r.success).length,
     failed: results.filter((r) => !r.success).length,
+    skipped: skipped.length,
   };
+}
+
+/**
+ * This function gives one result for each node without a result, in the order of the levels.
+ * Each visit records its own result. Thus a node without a result is in a level that
+ * `executeDAG` did not start. An earlier visit failed, and `failFast` stopped the traversal.
+ */
+export function skippedResults(
+  nodes: readonly PackageNode[],
+  results: readonly TraverseNodeResult[],
+  failedNodes: readonly string[]
+): TraverseNodeResult[] {
+  const done = new Set(results.map((result) => result.name));
+  const reason =
+    `The visit of ${failedNodes.join(", ")} failed, and the traversal stopped before this package ` +
+    "(continueOnError is false)";
+  return nodes
+    .filter((node) => !done.has(node.name))
+    .map((node) => ({ name: node.name, path: node.repoPath, success: false, duration: 0, skipped: true, reason }));
 }
