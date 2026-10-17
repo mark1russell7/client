@@ -70,6 +70,10 @@ export const DagTraverseInputSchema: z.ZodObject<{
 
 export type DagTraverseInput = z.infer<typeof DagTraverseInputSchema>;
 
+/**
+ * The result of one node. A node that the traversal did not visit has `skipped: true`,
+ * `success: false` and a `reason`.
+ */
 export interface TraverseNodeResult {
   name: string;
   path: string;
@@ -77,14 +81,23 @@ export interface TraverseNodeResult {
   duration: number;
   error?: string | undefined;
   output?: unknown | undefined;
+  /** True when the traversal did not start the visit of the node */
+  skipped?: boolean | undefined;
+  /** The reason that the traversal did not start the visit, with `skipped` */
+  reason?: string | undefined;
 }
 
 export interface DagTraverseOutput {
   success: boolean;
+  /** The result of each node of the graph: the visited nodes, then the skipped nodes */
   results: TraverseNodeResult[];
   totalDuration: number;
+  /** The number of visits that succeeded */
   visited: number;
+  /** The number of visits that failed. A skipped node is not in this number. */
   failed: number;
+  /** The number of nodes that the traversal did not visit */
+  skipped: number;
 }
 
 export const DagTraverseOutputSchema: z.ZodType<DagTraverseOutput> = z.looseObject({
@@ -98,12 +111,18 @@ export const DagTraverseOutputSchema: z.ZodType<DagTraverseOutput> = z.looseObje
         duration: z.number().describe("The time of the visit, in milliseconds"),
         error: z.string().optional().describe("The error of a failed visit"),
         output: z.unknown().optional().describe("The result of the visit"),
+        skipped: z
+          .boolean()
+          .optional()
+          .describe("True when the traversal did not start the visit, because an earlier visit failed and continueOnError is false"),
+        reason: z.string().optional().describe("The reason that the traversal did not start the visit of a skipped node"),
       })
     )
-    .describe("The result of each visited node"),
+    .describe("The result of each node of the graph: the visited nodes, then the skipped nodes"),
   totalDuration: z.number().describe("The time of the traversal, in milliseconds"),
-  visited: z.number().describe("The number of visited nodes"),
-  failed: z.number().describe("The number of failed visits"),
+  visited: z.number().describe("The number of visits that succeeded"),
+  failed: z.number().describe("The number of visits that failed. A skipped node is not in this number."),
+  skipped: z.number().describe("The number of nodes that the traversal did not visit"),
 });
 
 /**
