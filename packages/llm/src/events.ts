@@ -10,12 +10,16 @@
  *
  * A stream gets a new try only before its first item. After the first item, an error goes to the
  * caller.
+ *
+ * The stream of one request gives the `start`, `text` and `tool_use` items. Its return value is
+ * the answer with its content blocks. `llm.stream` gives the `stop` item at the end of its tool loop.
  */
 
 import { HttpError, sseEvents, type ServerSentEvent } from "@procedures/http";
 import { InvocationError } from "@procedures/client";
-import { openScope, postMessages, safeMessage, usageOf, NO_USAGE, type CallLimits, type LlmSettings, type MessagesRequest } from "./anthropic.js";
+import { openScope, postMessages, safeMessage, usageOf, NO_USAGE, type CallLimits, type ContentBlock, type LlmSettings, type MessagesRequest } from "./anthropic.js";
 import { LlmError } from "./errors.js";
+import type { TurnAnswer } from "./loop.js";
 import { waitToRetry } from "./retry.js";
 import type { LlmStreamOutput, LlmToolUse, LlmUsage } from "./types.js";
 
@@ -66,15 +70,39 @@ function streamError(data: Record<string, unknown>): LlmError {
   return new LlmError("API_ERROR", `llm: the API sent an error event: ${type}: ${message}`, { retryable: RETRYABLE_ERROR_TYPES.has(type) });
 }
 
-/** One content block of a stream while its deltas come. */
+/**
+ * One content block of a stream while its deltas come. `block` is the block as the event
+ * `content_block_start` gave it, with the deltas added.
+ */
 interface OpenBlock {
-  readonly type: string;
-  readonly id: string;
-  readonly name: string;
+  readonly block: Record<string, unknown>;
+  /** The parts of `input_json_delta`, joined. */
   json: string;
 }
 
-/** The state of one stream: it turns each event into the items of the procedure. */
+/** The type of block that each delta changes. An `input_json_delta` changes each block with an input. */
+const DELTA_TARGETS: ReadonlyMap<string, string> = new Map([
+  ["text_delta", "text"],
+  ["citations_delta", "text"],
+  ["thinking_delta", "thinking"],
+  ["signature_delta", "thinking"],
+]);
+
+/** The `input` of a block: the JSON of its deltas, parsed. A JSON that does not parse gives null and the text. */
+function inputOf(block: OpenBlock): { input: unknown; partialJson?: string } {
+  if (block.json.trim() === "") return { input: block.block["input"] ?? {} };
+  try {
+    return { input: JSON.parse(block.json) as unknown };
+  } catch {
+    return { input: null, partialJson: block.json };
+  }
+}
+
+/**
+ * The state of one stream. It turns each event into the items of the procedure. It also puts
+ * the content blocks of the answer together, as the JSON answer has them. The next request of the
+ * tool loop sends them back.
+ */
 class StreamState {
   private model: string;
   private id = "";
@@ -83,12 +111,56 @@ class StreamState {
   private category: string | undefined;
   private text = "";
   private readonly blocks = new Map<number, OpenBlock>();
+  private readonly content: Array<readonly [number, ContentBlock]> = [];
   private readonly toolUses: LlmToolUse[] = [];
   /** True after the event `message_stop`. */
   stopped = false;
 
   constructor(model: string) {
     this.model = model;
+  }
+
+  /** The answer, after the event `message_stop`. */
+  answer(): TurnAnswer {
+    return {
+      model: this.model,
+      content: [...this.content].sort((a, b) => a[0] - b[0]).map(([, block]) => block),
+      stopReason: this.stopReason!,
+      usage: this.usage,
+      text: this.text,
+      toolUses: [...this.toolUses],
+    };
+  }
+
+  /**
+   * This function adds a delta to its open block. A delta for a block of another type, and a
+   * delta of a type that the procedure does not know, change nothing.
+   */
+  private addDelta(index: number, delta: Record<string, unknown>): void {
+    const open = this.blocks.get(index);
+    const type = stringOf(delta["type"]) ?? "";
+    const target = DELTA_TARGETS.get(type);
+    if (open === undefined || (target !== undefined && open.block["type"] !== target)) return;
+    const { block } = open;
+    switch (type) {
+      case "text_delta":
+        block["text"] = (stringOf(block["text"]) ?? "") + (stringOf(delta["text"]) ?? "");
+        return;
+      case "input_json_delta":
+        open.json += stringOf(delta["partial_json"]) ?? "";
+        return;
+      case "thinking_delta":
+        block["thinking"] = (stringOf(block["thinking"]) ?? "") + (stringOf(delta["thinking"]) ?? "");
+        return;
+      case "signature_delta":
+        block["signature"] = stringOf(delta["signature"]) ?? "";
+        return;
+      case "citations_delta":
+        block["citations"] = [...(Array.isArray(block["citations"]) ? (block["citations"] as unknown[]) : []), delta["citation"]];
+        return;
+      default:
+        return;
+    }
   }
 
   /** The items of one event. The event `error` and a refusal at the end throw. */
@@ -105,12 +177,12 @@ class StreamState {
         return [{ type: "start", id: this.id, model: this.model, usage: this.usage }];
       }
       case "content_block_start": {
-        const block = recordOf(data["content_block"]);
+        const block = { ...recordOf(data["content_block"]) };
         const type = stringOf(block["type"]) ?? "";
         // A server-side fallback puts a fallback block at the change of the model
         const to = stringOf(recordOf(block["to"])["model"]);
         if (type === "fallback" && to) this.model = to;
-        this.blocks.set(index, { type, id: stringOf(block["id"]) ?? "", name: stringOf(block["name"]) ?? "", json: "" });
+        this.blocks.set(index, { block, json: "" });
         const text = stringOf(block["text"]);
         if (type === "text" && text) {
           this.text += text;
@@ -120,34 +192,28 @@ class StreamState {
       }
       case "content_block_delta": {
         const delta = recordOf(data["delta"]);
-        const deltaType = stringOf(delta["type"]);
-        if (deltaType === "text_delta") {
+        this.addDelta(index, delta);
+        if (stringOf(delta["type"]) === "text_delta") {
           const text = stringOf(delta["text"]) ?? "";
           this.text += text;
           return text === "" ? [] : [{ type: "text", index, text }];
         }
-        if (deltaType === "input_json_delta") {
-          const block = this.blocks.get(index);
-          if (block) block.json += stringOf(delta["partial_json"]) ?? "";
-        }
         return [];
       }
       case "content_block_stop": {
-        const block = this.blocks.get(index);
+        const open = this.blocks.get(index);
+        if (open === undefined) return [];
         this.blocks.delete(index);
-        if (block?.type !== "tool_use") return [];
-        let input: unknown = {};
-        let partialJson: string | undefined;
-        if (block.json.trim() !== "") {
-          try {
-            input = JSON.parse(block.json);
-          } catch {
-            input = null;
-            partialJson = block.json;
-          }
-        }
-        this.toolUses.push({ id: block.id, name: block.name, input });
-        return [{ type: "tool_use", index, id: block.id, name: block.name, input, ...(partialJson !== undefined ? { partialJson } : {}) }];
+        const { block } = open;
+        const { input, partialJson } = inputOf(open);
+        // A tool_use block and a server_tool_use block get their input from the deltas
+        if (open.json !== "" || block["type"] === "tool_use") block["input"] = input;
+        this.content.push([index, block as ContentBlock]);
+        if (block["type"] !== "tool_use") return [];
+        const id = stringOf(block["id"]) ?? "";
+        const name = stringOf(block["name"]) ?? "";
+        this.toolUses.push({ id, name, input });
+        return [{ type: "tool_use", index, id, name, input, ...(partialJson !== undefined ? { partialJson } : {}) }];
       }
       case "message_delta": {
         const delta = recordOf(data["delta"]);
@@ -162,7 +228,7 @@ class StreamState {
           throw new LlmError("REFUSAL", `llm: a safety classifier declined the request (category: ${this.category ?? "not given"})`);
         }
         this.stopped = true;
-        return [{ type: "stop", model: this.model, stopReason: this.stopReason, usage: this.usage, text: this.text, toolUses: [...this.toolUses] }];
+        return [];
       }
       case "error":
         throw streamError(data);
@@ -172,8 +238,13 @@ class StreamState {
   }
 }
 
-/** The items of one try of a stream, in one request scope. */
-async function* streamOnce(request: MessagesRequest, settings: LlmSettings, limits: CallLimits): AsyncGenerator<LlmStreamOutput, void, undefined> {
+/** The progress of one try: true after its first item. */
+interface TryProgress {
+  started: boolean;
+}
+
+/** The items of one try of a stream, in one request scope. The return value is the answer. */
+async function* streamOnce(request: MessagesRequest, settings: LlmSettings, limits: CallLimits, progress: TryProgress): AsyncGenerator<LlmStreamOutput, TurnAnswer, undefined> {
   const scope = openScope(settings, limits);
   try {
     const response = await postMessages(request, settings, scope);
@@ -181,8 +252,11 @@ async function* streamOnce(request: MessagesRequest, settings: LlmSettings, limi
     const state = new StreamState(request.model);
     try {
       for await (const event of sseEvents(chunksOf(response.body), MAX_EVENT_BYTES, limits.path.join("."))) {
-        for (const item of state.apply(event)) yield item;
-        if (state.stopped) return;
+        for (const item of state.apply(event)) {
+          progress.started = true;
+          yield item;
+        }
+        if (state.stopped) return state.answer();
       }
     } catch (error) {
       if (error instanceof LlmError || error instanceof InvocationError || scope.stopped() !== undefined) throw error;
@@ -198,21 +272,18 @@ async function* streamOnce(request: MessagesRequest, settings: LlmSettings, limi
 }
 
 /**
- * This function sends a request with `"stream": true` and gives each item of the answer. Before
- * the first item, a retryable error gets a new try, at most `retries` times.
+ * This function sends a request with `"stream": true` and gives each item of the answer: the
+ * `start`, `text` and `tool_use` items. The return value is the answer. Before the first item, a
+ * retryable error gets a new try, at most `retries` times.
  */
-export async function* streamMessages(request: MessagesRequest, settings: LlmSettings, limits: CallLimits, retries: number): AsyncGenerator<LlmStreamOutput, void, undefined> {
+export async function* streamMessages(request: MessagesRequest, settings: LlmSettings, limits: CallLimits, retries: number): AsyncGenerator<LlmStreamOutput, TurnAnswer, undefined> {
   const body: MessagesRequest = { ...request, stream: true };
   for (let retry = 1; ; retry++) {
-    let started = false;
+    const progress: TryProgress = { started: false };
     try {
-      for await (const item of streamOnce(body, settings, limits)) {
-        started = true;
-        yield item;
-      }
-      return;
+      return yield* streamOnce(body, settings, limits, progress);
     } catch (error) {
-      if (started || !(await waitToRetry(error, retry, { backoff: settings.backoff, retries }, limits))) throw error;
+      if (progress.started || !(await waitToRetry(error, retry, { backoff: settings.backoff, retries }, limits))) throw error;
     }
   }
 }

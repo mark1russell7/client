@@ -79,6 +79,13 @@ export interface LlmToolInput {
   toolChoice?: LlmToolChoice | undefined;
   /** The number of new tries after an error with `retryable: true`: 0 to 10. The default is the option of the module (2). */
   retries?: number | undefined;
+  /**
+   * The keys of the procedures that the model can use as tools, for example `weather.current`.
+   * The procedure starts each one through `ctx.client`, sends the result to the model, and asks again.
+   */
+  procedures?: string[] | undefined;
+  /** The most requests to the model in one call: 1 to 64. The default is 8. */
+  maxRounds?: number | undefined;
 }
 
 /** A `tool_use` block of an answer: a call of a tool that the model asks for. */
@@ -91,7 +98,7 @@ export interface LlmToolUse {
   input: unknown;
 }
 
-/** A call of a procedure tool that `llm.complete` made for the model. */
+/** A call of a procedure tool that `llm.complete` or `llm.stream` made for the model. */
 export interface LlmToolCall {
   /** The ID of the `tool_use` block. */
   id: string;
@@ -113,15 +120,7 @@ export interface LlmToolCall {
 // llm.complete
 // =============================================================================
 
-export interface LlmCompleteInput extends LlmRequestInput, LlmToolInput {
-  /**
-   * The keys of the procedures that the model can use as tools, for example `weather.current`.
-   * `llm.complete` calls each one through `ctx.client`, sends the result to the model, and asks again.
-   */
-  procedures?: string[] | undefined;
-  /** The most requests to the model in one call: 1 to 64. The default is 8. */
-  maxRounds?: number | undefined;
-}
+export interface LlmCompleteInput extends LlmRequestInput, LlmToolInput {}
 
 export interface LlmCompleteOutput {
   /** The text of the last answer: its text blocks, joined. */
@@ -215,20 +214,57 @@ export interface LlmStreamToolUse {
   partialJson?: string | undefined;
 }
 
-/** The last item of a stream: the event `message_stop`, with the stop reason and the usage. */
+/**
+ * The start of a procedure tool: `llm.stream` starts the procedure for a `tool_use` block of the
+ * model. Only an input with `procedures` gives this item.
+ */
+export interface LlmStreamToolCall {
+  type: "tool_call";
+  /** The number of the request whose answer asked for the tool. The first request is 1. */
+  round: number;
+  /** The ID of the `tool_use` block. */
+  id: string;
+  /** The name of the tool. */
+  name: string;
+  /** The key of the procedure, for example `weather.current`. */
+  procedure: string;
+  /** The input that the model gave. */
+  input: unknown;
+}
+
+/**
+ * The end of a procedure tool: its output, or its error. The model gets it as a `tool_result`.
+ * Only an input with `procedures` gives this item.
+ */
+export interface LlmStreamToolResult extends LlmToolCall {
+  type: "tool_result";
+  /** The number of the request whose answer asked for the tool. The first request is 1. */
+  round: number;
+}
+
+/**
+ * The last item of a stream, after the event `message_stop` of the last answer: the stop reason,
+ * the usage and the text.
+ */
 export interface LlmStreamStop {
   type: "stop";
-  /** The model that answered. After a fallback, it is the fallback model. */
+  /** The model of the last answer. After a fallback, it is the fallback model. */
   model: string;
-  /** Why the model stopped. */
+  /** Why the model stopped in the last answer. */
   stopReason: string;
-  /** The tokens of the call. */
+  /** The tokens of all the requests, added together. */
   usage: LlmUsage;
-  /** The text of the answer: all the text deltas, joined. */
+  /** The text of all the answers: all the text deltas, joined. */
   text: string;
-  /** The `tool_use` blocks of the answer. */
+  /** The `tool_use` blocks of the last answer. No procedure started them. */
   toolUses: LlmToolUse[];
+  /** The calls of procedure tools, in their sequence. Only an input with `procedures` gives this field. */
+  toolCalls?: LlmToolCall[] | undefined;
+  /** The number of requests to the model. Only an input with `procedures` gives this field. */
+  rounds?: number | undefined;
+  /** True when `maxRounds` stopped the loop before the model stopped. Only an input with `procedures` gives this field. */
+  roundLimit?: boolean | undefined;
 }
 
 /** One item of `llm.stream`. */
-export type LlmStreamOutput = LlmStreamStart | LlmStreamText | LlmStreamToolUse | LlmStreamStop;
+export type LlmStreamOutput = LlmStreamStart | LlmStreamText | LlmStreamToolUse | LlmStreamToolCall | LlmStreamToolResult | LlmStreamStop;

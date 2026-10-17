@@ -110,16 +110,17 @@ const toolCall = z.object({
   error: z.string().optional().describe("The error of the procedure"),
 });
 
-const LlmCompleteInputSchema = z.object({
-  ...requestFields,
-  ...toolFields,
+/** The fields of procedures as tools, for `llm.complete` and `llm.stream`. */
+const procedureFields = {
   procedures: z
     .array(z.string().regex(/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/, "A procedure key, for example weather.current"))
     .max(64)
     .optional()
-    .describe("The procedures that the model can use as tools: llm.complete calls them and sends the results back"),
+    .describe("The procedures that the model can use as tools: the procedure calls them and sends the results back"),
   maxRounds: z.number().int().min(1).max(64).optional().describe("The most requests to the model in one call, 1 to 64 (default 8)"),
-});
+};
+
+const LlmCompleteInputSchema = z.object({ ...requestFields, ...toolFields, ...procedureFields });
 
 const LlmCompleteOutputSchema = z.object({
   text: z.string().describe("The text of the last answer"),
@@ -148,9 +149,11 @@ const LlmStructuredOutputSchema = z.object({
   unchecked: z.array(z.string()).describe("The keywords of the schema that the check does not examine fully"),
 });
 
-const LlmStreamInputSchema = z.object({ ...requestFields, ...toolFields });
+const LlmStreamInputSchema = z.object({ ...requestFields, ...toolFields, ...procedureFields });
 
 const index = z.number().int().describe("The index of the content block");
+
+const round = z.number().int().describe("The number of the request whose answer asked for the tool");
 
 const LlmStreamOutputSchema = z
   .discriminatedUnion("type", [
@@ -165,15 +168,27 @@ const LlmStreamOutputSchema = z
       partialJson: z.string().optional().describe("The JSON text of an input that does not parse"),
     }),
     z.object({
+      type: z.literal("tool_call"),
+      round,
+      id: z.string().describe("The ID of the tool_use block"),
+      name: z.string().describe("The name of the tool"),
+      procedure: z.string().describe("The key of the procedure"),
+      input: z.unknown().describe("The input that the model gave"),
+    }),
+    toolCall.extend({ type: z.literal("tool_result"), round }),
+    z.object({
       type: z.literal("stop"),
-      model: z.string().describe("The model that answered"),
-      stopReason: z.string().describe("Why the model stopped"),
-      usage,
-      text: z.string().describe("The text of the answer: all the text deltas, joined"),
-      toolUses: z.array(toolUse).describe("The tool_use blocks of the answer"),
+      model: z.string().describe("The model of the last answer"),
+      stopReason: z.string().describe("Why the model stopped in the last answer"),
+      usage: usage.describe("The tokens of all the requests, added together"),
+      text: z.string().describe("The text of all the answers: all the text deltas, joined"),
+      toolUses: z.array(toolUse).describe("The tool_use blocks of the last answer that no procedure ran"),
+      toolCalls: z.array(toolCall).optional().describe("The calls of the procedure tools, in their sequence. Only with procedures"),
+      rounds: z.number().int().optional().describe("The number of requests to the model. Only with procedures"),
+      roundLimit: z.boolean().optional().describe("True when maxRounds stopped the loop before the model stopped. Only with procedures"),
     }),
   ])
-  .describe("One item of the stream: start, text, tool_use or stop");
+  .describe("One item of the stream: start, text, tool_use, tool_call, tool_result or stop");
 
 // =============================================================================
 // Procedures
@@ -182,8 +197,8 @@ const LlmStreamOutputSchema = z
 /**
  * The effects of each procedure: it sends data to a system outside the host and gets an answer.
  * A call costs money and can change the state of an account, so it declares a write. It deletes
- * nothing and a second call is a new call. The procedure tools of `llm.complete` are nested calls:
- * the admission of the host examines each one.
+ * nothing and a second call is a new call. The procedure tools of `llm.complete` and `llm.stream`
+ * are nested calls: the admission of the host examines each one.
  */
 const SENDS_TO_MODEL: Effects = Object.freeze({ reads: Object.freeze(["network"]), writes: Object.freeze(["network"]), destructive: false, idempotent: false });
 
@@ -228,8 +243,8 @@ function llmProcedures(settings: LlmSettings): AnyProcedure[] {
     .input(zodAdapter<LlmStreamInput>(LlmStreamInputSchema))
     .output(zodAdapter<LlmStreamOutput>(LlmStreamOutputSchema))
     .meta({
-      description: "Send a prompt to a language model and stream the events of the answer",
-      tags: ["llm", "anthropic", "stream"],
+      description: "Send a prompt to a language model and stream the events of the answer. The model can use tools and procedures",
+      tags: ["llm", "anthropic", "stream", "tools"],
       args: ["prompt"],
       shorts: { model: "m", system: "s" },
       output: "json",
@@ -240,6 +255,8 @@ function llmProcedures(settings: LlmSettings): AnyProcedure[] {
     })
     .handler(((input: LlmStreamInput, ctx: ProcedureContext) => llmStream(input, ctx, settings)) as ProcedureHandler<LlmStreamInput, LlmStreamOutput>)
     .build();
+  // The same rule as for llm.complete: the input names the procedures that the model can call
+  markDataDriven(llmStreamProcedure);
 
   return [llmCompleteProcedure, llmStructuredProcedure, llmStreamProcedure];
 }

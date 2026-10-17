@@ -13,7 +13,7 @@ A language model as procedures: a completion, a stream of the answer, and a stru
 | Procedure | What it does | Effects |
 |---|---|---|
 | `llm.complete` | It sends a prompt and a system text, and gives the text, the model, the stop reason and the usage. The model can use tools and procedures. | reads and writes `network` |
-| `llm.stream` | It sends the same request with `"stream": true`, and gives the events of the answer as stream items. | reads and writes `network` |
+| `llm.stream` | It sends the same request with `"stream": true`, and gives the events of the answer as stream items. The model can use tools and procedures. | reads and writes `network` |
 | `llm.structured` | It sends a prompt and a JSON Schema, and gives a value that the schema accepts. | reads and writes `network` |
 
 - Each procedure declares `reads: ["network"]` and `writes: ["network"]`, with `destructive: false` and `idempotent: false`. A call sends data out of the host and costs money.
@@ -50,7 +50,9 @@ The key comes from an environment variable. The default variable is `ANTHROPIC_A
 | `start` | `message_start` | `id`, `model`, and the `usage` at the start: the tokens of the input |
 | `text` | `content_block_delta` with `text_delta` | `index` of the content block, and the new `text` |
 | `tool_use` | `content_block_stop` of a `tool_use` block | `index`, `id`, `name`, and the parsed `input` |
-| `stop` | `message_stop` | `model`, `stopReason`, the full `usage`, the full `text` and the `toolUses` |
+| `tool_call` | None: a procedure tool starts | `round`, `id`, `name`, `procedure` and `input`. Only an input with `procedures` gives it. |
+| `tool_result` | None: a procedure tool ended | The fields of `tool_call`, and `isError` with `output` or `error`. Only an input with `procedures` gives it. |
+| `stop` | `message_stop` of the last answer | `model`, `stopReason`, the full `usage`, the full `text` and the `toolUses` |
 
 ```ts
 for await (const item of client.stream(["llm", "stream"], { prompt: "Write a haiku." })) {
@@ -61,6 +63,7 @@ for await (const item of client.stream(["llm", "stream"], { prompt: "Write a hai
 - The stream has the key rule, the injectable `fetch`, the time limit, the deadline and the abort of the other procedures.
 - The usage of a `message_delta` event is cumulative. The `stop` item has the last value.
 - `client.call` of a stream gives its last item. For `llm.stream`, that is the `stop` item, with the full text.
+- The stream has one `stop` item, at the end. The section "Procedures as tools" tells about a stream with more than one answer.
 - The procedure ignores the `ping` events, the thinking deltas and the event types that it does not know.
 - A `tool_use` item gives `input: null` and the text in `partialJson` when the JSON of the input does not parse. An answer that stops at `maxTokens` can do this.
 - After a server-side fallback, the `stop` item gives the fallback model.
@@ -82,7 +85,7 @@ for await (const item of client.stream(["llm", "stream"], { prompt: "Write a hai
 
 ## Procedures as tools
 
-With `procedures`, `llm.complete` starts the tools itself. The input names the keys of the procedures, for example `weather.current`.
+With `procedures`, `llm.complete` and `llm.stream` start the tools themselves. The input names the keys of the procedures, for example `weather.current`.
 
 ```ts
 const { text, toolCalls, rounds } = await client.call(["llm", "complete"], {
@@ -94,11 +97,13 @@ const { text, toolCalls, rounds } = await client.call(["llm", "complete"], {
 
 1. Each procedure becomes a tool. The name is the key with `_` in place of each `.`, for example `weather_current`.
 2. The description of the procedure and the JSON Schema of its input go to the API. The input of the procedure must be an object.
-3. When the model asks for a tool, `llm.complete` starts the procedure through `ctx.client` with the input of the model.
+3. When the model asks for a tool, the procedure starts the tool through `ctx.client` with the input of the model.
 4. The output goes back as a `tool_result`, and the next request has the answer and the results.
 5. The loop continues until the model stops, or until `maxRounds` requests went out. The default of `maxRounds` is 8, and the maximum is 64.
 
-The output has these fields:
+The two procedures use one loop (`src/loop.ts`), so the rules of this section and of the next section apply to both.
+
+The output of `llm.complete` has these fields:
 
 | Field | Meaning |
 |---|---|
@@ -114,17 +119,54 @@ The output has these fields:
 - A `tool_result` has at most 200000 characters of the output. A longer output gets a note with its length.
 - A procedure without an end (`stream: { unbounded: true }`) gives `BAD_TOOL`.
 
+### Procedures as tools in a stream
+
+`llm.stream` streams each answer with its items, as a stream without procedures does. When an answer stops for its procedure tools, the stream gives two items for each tool, in the sequence of the answer.
+
+```ts
+for await (const item of client.stream(["llm", "stream"], { prompt: "What is the weather in Paris?", procedures: ["weather.current"] })) {
+  if (item.type === "text") process.stdout.write(item.text);
+  if (item.type === "tool_call") console.log(`\n[${item.procedure} starts]`);
+  if (item.type === "tool_result") console.log(`[${item.procedure} ended: ${item.isError ? item.error : "ok"}]`);
+}
+```
+
+1. The items of the answer come first: `start`, the `text` items and the `tool_use` items.
+2. Before a tool starts, the stream gives a `tool_call` item.
+3. After the tool ends, the stream gives a `tool_result` item. It has `isError`, and `output` or `error`.
+4. Then the next answer streams in the same output, with its own `start` item.
+5. At the end, the stream gives one `stop` item.
+
+The items of a tool have `round`: the number of the request whose answer asked for the tool. The first request is 1. The `index` of a `text` item or a `tool_use` item counts from 0 in each answer.
+
+The `stop` item has these values:
+
+| Field | Meaning |
+|---|---|
+| `model` and `stopReason` | The model and the stop reason of the last answer |
+| `usage` | The tokens of all the requests, added together. The `start` item of each answer gives the tokens of the input of that request. |
+| `text` | The text of all the answers: all the `text` items, joined |
+| `toolUses` | The `tool_use` blocks of the last answer. No procedure started them. |
+| `toolCalls`, `rounds` and `roundLimit` | The same fields as in the output of `llm.complete`. Only an input with `procedures` gives them. |
+
+- A stream without `procedures` gives the same items as before. Its `stop` item has no `toolCalls`, `rounds` or `roundLimit`.
+- The `output` of a `tool_result` item is the full output of the procedure. The model gets at most 200000 characters of it.
+- The next request has each content block of the answer, as the events gave it. Thus the text keeps its citations, and the thinking keeps its signature.
+- Each request of the loop gets the automatic retry. A request tries again only before its first item.
+- An error of the stream after the first item of an answer goes to the reader. The loop does not send that answer again.
+
 ### The admission of the host
 
-`llm.complete` is a data-driven procedure (`markDataDriven` of `@procedures/client`), because its input chooses its callees. Thus the host examines each nested call, as it examines the calls of `client.chain`.
+`llm.complete` and `llm.stream` are data-driven procedures (`markDataDriven` of `@procedures/client`), because the input chooses the callees. Thus the host examines each nested call, as it examines the calls of `client.chain`.
 
 - The capability of the call applies to each procedure tool. A host that permits only `writes: ["network"]` permits only read-only tools.
 - The expose rule of the host applies too. A host with `expose` lets the model call only the procedures that it exposes.
-- Before the first request, `llm.complete` examines each named procedure with the same rules. A refused procedure gives `FORBIDDEN` or `NOT_EXPOSED`, and no request goes out.
+- Before the first request, the procedure examines each named procedure with the same rules. A refused procedure gives `FORBIDDEN` or `NOT_EXPOSED`, and no request goes out.
 - A procedure that is not in the registry gives `NOT_FOUND`. A refused path tells nothing about the procedure.
 - When the host refuses a nested call later (an interceptor can narrow the capability), the call stops with that error.
 - The abort of the caller and the deadline also stop the call during a tool.
-- The procedure is not `runs-refs`: the refs of its input still run before the call. It declares no `calls`, because its callees come from the input.
+- The abort stops the wait for a tool at once, with `ABORTED`. The tool gets the same signal, so a tool that reads the signal stops too.
+- The procedures are not `runs-refs`: the refs of the input still run before the call. They declare no `calls`, because their callees come from the input.
 
 ## Automatic retry
 
@@ -139,6 +181,7 @@ A request that fails with `retryable: true` gets a new try.
 - When the wait ends after the deadline of the call, or `retry-after` asks for more than 60 seconds, the call gives the error at once.
 - The abort of the caller stops a wait with `ABORTED`.
 - A stream tries again only before its first item. After the first item, an error goes to the caller.
+- In the tool loop, each request gets its own new tries. A stream request tries again only before the first item of its answer.
 - A `TIMEOUT` does not get a new try.
 
 ## Structured answers

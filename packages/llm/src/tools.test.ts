@@ -6,56 +6,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
-import { createProcedure, defineModule, InvocationError, zodAdapter, type AnyProcedure, type Effects, type Interceptor, type ProcedureContext } from "@procedures/client";
+import { defineModule, InvocationError, type Interceptor } from "@procedures/client";
+import { DEFAULT_LLM_SETTINGS, type LlmSettings } from "./anthropic.js";
 import { llmComplete } from "./procedures/llm/complete.js";
 import { MAX_TOOL_RESULT_CHARS, toolNameOf } from "./tools.js";
 import type { LlmCompleteOutput } from "./types.js";
-import { message, setup, text, toolUse } from "../test/fakes.js";
-
-const READS_WEATHER: Effects = { reads: ["weather"], writes: [], destructive: false, idempotent: true };
-const WRITES_FS: Effects = { reads: ["fs"], writes: ["fs"], destructive: true };
-
-/** A fake procedure of a test: its path, its input schema, its effects and its handler. */
-function procedure(path: string[], handler: (input: never, ctx: ProcedureContext) => Promise<unknown>, options: { input?: z.ZodType; effects?: Effects; description?: string; meta?: Record<string, unknown> } = {}): AnyProcedure {
-  return createProcedure()
-    .path(path)
-    .input(zodAdapter(options.input ?? z.object({ city: z.string().describe("The city") })))
-    .output(zodAdapter(z.unknown()))
-    .meta({ ...(options.description !== undefined ? { description: options.description } : {}), effects: options.effects ?? READS_WEATHER, ...options.meta })
-    .handler(handler as never)
-    .build() as AnyProcedure;
-}
-
-/** The fake procedures and the inputs that they got. */
-function fakes() {
-  const got: unknown[] = [];
-  const weather = procedure(
-    ["weather", "current"],
-    async (input: { city: string }) => {
-      got.push(input);
-      return { city: input.city, celsius: 21 };
-    },
-    { description: "The current weather of a city" },
-  );
-  const notes = procedure(
-    ["notes", "write"],
-    async (input) => {
-      got.push(input);
-      return "written";
-    },
-    { effects: WRITES_FS },
-  );
-  const failing = procedure(["weather", "fail"], async () => {
-    throw new Error("the weather service is down");
-  });
-  const anything = procedure(["any", "value"], async () => "x".repeat(MAX_TOOL_RESULT_CHARS + 5), { input: z.any() });
-  const number = procedure(["any", "number"], async () => 1, { input: z.number() });
-  const endless = procedure(["any", "follow"], async () => 1, { meta: { stream: { unbounded: true } } });
-  const long = procedure(["long", "n".repeat(130)], async () => 1);
-  const module = defineModule("test-tools", [weather, notes, failing, anything, number, endless, long]);
-  return { got, module };
-}
+import { fakeFetch, KEY, message, procedure, setup, text, toolProcedures as fakes, toolUse } from "../test/fakes.js";
 
 const toolAnswer = (...uses: Array<Record<string, unknown>>) => message([text("Let me check."), ...uses], { stop_reason: "tool_use" });
 
@@ -235,6 +191,19 @@ describe("procedures as tools", () => {
     setTimeout(() => controller.abort(), 30);
     await expect(call("llm.complete", { prompt: "x", procedures: ["slow.wait"] }, { signal: controller.signal })).rejects.toMatchObject({ code: "ABORTED" });
     await expect(call("llm.complete", { prompt: "x", procedures: ["slow.late"] }, { capability: { deadline: Date.now() + 40 } })).rejects.toMatchObject({ code: "TIMEOUT" });
+  });
+
+  it("stops the wait for a tool that does not read the signal when the caller aborts", async () => {
+    const { module } = fakes();
+    const { registry } = setup([], {}, [module]);
+    const fake = fakeFetch([toolAnswer(toolUse("toolu_1", "weather_current", { city: "Paris" }))]);
+    const settings: LlmSettings = { ...DEFAULT_LLM_SETTINGS, env: () => ({ ANTHROPIC_API_KEY: KEY }), fetch: fake.fetch };
+    const controller = new AbortController();
+    // The nested call never ends, and it does not read the signal. The caller aborts during the call
+    const client = { call: async <T>(): Promise<T> => new Promise<T>(() => setTimeout(() => controller.abort(), 10)), stream: () => [] as never };
+    const running = llmComplete({ prompt: "x", procedures: ["weather.current"] }, { client, registry, signal: controller.signal, capability: {} }, settings);
+    await expect(running).rejects.toMatchObject({ code: "ABORTED", path: ["weather", "current"] });
+    expect(fake.sent).toHaveLength(1);
   });
 
   it("gives a TIMEOUT or an ABORTED of a tool to the model when the call itself goes on", async () => {

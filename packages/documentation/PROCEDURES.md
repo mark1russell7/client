@@ -335,7 +335,7 @@
 | Procedure | Description |
 |-----------|-------------|
 | `llm.complete` | Send a prompt to a language model and give the text and the usage. The model can use tools and procedures |
-| `llm.stream` | Send a prompt to a language model and stream the events of the answer |
+| `llm.stream` | Send a prompt to a language model and stream the events of the answer. The model can use tools and procedures |
 | `llm.structured` | Send a prompt and a JSON Schema to a language model and give a value that the schema accepts |
 
 ## logs
