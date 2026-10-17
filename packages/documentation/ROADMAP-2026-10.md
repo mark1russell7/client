@@ -575,7 +575,7 @@ The review found code that is a candidate for removal or a move. These items nee
 The owner decided these items. The changes are on `main`, and they go out in 0.4.0.
 
 - Removed: the `client-registry` command with `discover`, `announce` and the scaffolder `init`. `_discovery.announce` stays, because a server connection calls it.
-- Removed: `core.catch`, `package add` and `repo rename` of `packages/cli`, and the old workflow file of `client-snapshot`.
+- Removed: `core.catch`, the repository tool `packages/cli` with its commands `package add` and `repo rename`, and the old workflow file of `client-snapshot`.
 - Removed: the lines that the mutation tests found unreachable, `QueuedRequest.reject` and two checks of `timedOut()`. The defensive guards stay.
 - Moved: `dag.traverse` to `@procedures/dag`, and `server.start`, `server.stop` and `server.status` to `@procedures/server`.
 - Renamed: `db.*` is `sqlite.*`. The `db.*` names stay for one release as deprecated aliases. The MCP tools have the new names.
@@ -592,7 +592,6 @@ The owner decided these items. The changes are on `main`, and they go out in 0.4
 
 ### Open
 
-- `packages/cli` has no commands after the removals. Its runner and `src/paths.ts` have no use. The decision: delete the package, or keep it for later commands.
 - `dag.traverse` has a block that cannot run: "ensure all nodes have results". Each visit records its own result.
 - The contract suite found four differences between the storages, and nothing fixes them yet:
   - `ApiStorage` reads a stored `null` as a missing value.

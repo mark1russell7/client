@@ -85,7 +85,7 @@ All packages are in `packages/`. The public packages are in the npm scope `@proc
 | Servers and MCP | [`@procedures/peer`](packages/client-server), [`@procedures/server`](packages/server), [`@procedures/mcp`](packages/mcp), [`@procedures/mcp-server`](packages/client-mcp), [`@procedures/mcp-dev-tools`](packages/impl-mcp-dev) (an MCP server for Claude Code) |
 | Tools | [`@procedures/mark`](packages/mark) (the `mark` CLI), [`@procedures/lib`](packages/client-lib), [`@procedures/procedure`](packages/client-procedure), [`@procedures/playground`](packages/client-playground), [`@procedures/schedule`](packages/schedule) (a cron for stored programs), [`@procedures/env`](packages/env) (environment variables, with the secrets masked) |
 | Bundles | [`@procedures/bundle-dev`](packages/bundle-dev), [`@procedures/bundle-mcp`](packages/bundle-mcp), [`@procedures/bundle-assistant`](packages/bundle-assistant) (the opt-in tools of the assistant) |
-| Private | [`site`](packages/site) (the website), [`documentation`](packages/documentation), [`cli`](packages/cli) (the repository tool) |
+| Private | [`site`](packages/site) (the website), [`documentation`](packages/documentation) |
 
 Until October 2026, these packages had the scope `@mark1russell7` (for example `@mark1russell7/client-shell`). The general packages `@mark1russell7/cue`, `@mark1russell7/splay` and `@mark1russell7/docker-sqlite` keep their scope. <!-- scope-check: allow -->
 

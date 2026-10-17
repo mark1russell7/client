@@ -6,7 +6,7 @@ This document tells how the packages of the monorepo go to npm. The first releas
 
 - The npm scope of the packages is `@procedures`. The npm name can differ from the folder (the root README has the table). Until 2026-10-12 the scope was `@mark1russell7`. `scripts/lib/old-names.mjs` maps each old name to its new name.
 - The 30 public packages have one version together. The `fixed` group of `.changeset/config.json` names each one.
-- `site`, `documentation` and the repository tool (`packages/cli`) are private. They are not published.
+- `site` and `documentation` are private. They are not published.
 - The MCP server of `packages/impl-mcp-dev` is published as `@procedures/mcp-dev-tools`, with the bin `mcp-dev-tools`.
 - Three packages use general packages from other repositories: `client-cue` uses `@mark1russell7/cue`, `client-splay` uses `@mark1russell7/splay`, and `client-sqlite` uses `@mark1russell7/docker-sqlite`.
 

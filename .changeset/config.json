@@ -4,8 +4,7 @@
   "access": "public",
   "ignore": [
     "@procedures/site",
-    "@procedures/documentation",
-    "@procedures/repo-cli"
+    "@procedures/documentation"
   ],
   "fixed": [
     [
