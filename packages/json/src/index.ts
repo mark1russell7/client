@@ -3,6 +3,7 @@ export * from "./module.js";
 export * from "./types.js";
 export { jsonQuery, jsonPatch, jsonDiff, jsonMerge, jsonValidate } from "./procedures/json/index.js";
 export { yamlParse, yamlStringify } from "./procedures/yaml/index.js";
+export { csvParse, csvStringify } from "./procedures/csv/index.js";
 // The functions behind the procedures, for a program in the same process
 export { assertJson, cloneJson, jsonEqual, JsonError, PROTOTYPE_KEYS, formatPointer, escapeToken, type JsonErrorCode } from "./value.js";
 export { parsePointer, lookup, arrayIndex, type Lookup } from "./pointer.js";
@@ -12,3 +13,4 @@ export { diffJson } from "./diff.js";
 export { mergePatch } from "./merge.js";
 export { validateJson, NOT_EXAMINED, type ValidationIssue, type ValidationResult } from "./schema.js";
 export { parseYaml, stringifyYaml, type YamlParseOptions, type YamlStringifyOptions } from "./yaml.js";
+export { parseCsv, stringifyCsv, type CsvCell, type CsvParseOptions, type CsvRecord, type CsvStringifyOptions } from "./csv.js";

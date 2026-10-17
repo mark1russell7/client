@@ -16,7 +16,13 @@ import { jsonMerge } from "./procedures/json/merge.js";
 import { jsonValidate } from "./procedures/json/validate.js";
 import { yamlParse } from "./procedures/yaml/parse.js";
 import { yamlStringify } from "./procedures/yaml/stringify.js";
+import { csvParse } from "./procedures/csv/parse.js";
+import { csvStringify } from "./procedures/csv/stringify.js";
 import type {
+  CsvParseInput,
+  CsvParseOutput,
+  CsvStringifyInput,
+  CsvStringifyOutput,
   JsonDiffInput,
   JsonDiffOutput,
   JsonMergeInput,
@@ -108,6 +114,31 @@ const YamlStringifyInputSchema = z.object({
 });
 
 const YamlStringifyOutputSchema = z.object({ text: z.string().describe("The YAML text") });
+
+const delimiter = z.string().length(1).optional().describe("The character between two fields (default: a comma)");
+
+const CsvParseInputSchema = z.object({
+  text: z.string().describe("The CSV text (RFC 4180)"),
+  header: z.boolean().optional().describe("True: the first row has the names of the columns, and each other row is an object"),
+  delimiter,
+  trim: z.boolean().optional().describe("True: remove the white space at the start and at the end of each field"),
+  skipEmptyLines: z.boolean().optional().describe("False: an empty line gives a row with one empty field (default: true, skip each empty line)"),
+});
+
+// The schema does not copy the rows, so a column `__proto__` stays data. The handler gives the type of the rows
+const CsvParseOutputSchema = z.object({
+  rows: z.array(json("A row: an array of fields, or with header an object of fields by column name")).describe("The rows, in the order of the text"),
+}) as z.ZodType<CsvParseOutput>;
+
+const CsvStringifyInputSchema = z.object({
+  rows: z.array(json("A row: an array of fields, or an object of fields by column name")).describe("The rows: all arrays or all objects. A field is a string, a number, a boolean or null"),
+  columns: z.array(z.string()).optional().describe("The names of the columns. For objects, they select the keys and give their order. For arrays, they are the first row"),
+  header: z.boolean().optional().describe("False: no row with the names of the columns (default: true)"),
+  delimiter,
+  lineBreak: z.enum(["\r\n", "\n"]).optional().describe("The line break after each row (default: CRLF)"),
+});
+
+const CsvStringifyOutputSchema = z.object({ text: z.string().describe("The CSV text") });
 
 // =============================================================================
 // Procedures
@@ -211,6 +242,34 @@ const yamlStringifyProcedure = createProcedure()
   .handler(async (input: YamlStringifyInput): Promise<YamlStringifyOutput> => yamlStringify(input))
   .build();
 
+const csvParseProcedure = createProcedure()
+  .path(["csv", "parse"])
+  .input(zodAdapter<CsvParseInput>(CsvParseInputSchema))
+  .output(zodAdapter<CsvParseOutput>(CsvParseOutputSchema))
+  .meta({
+    description: "Parse CSV text into rows",
+    args: ["text"],
+    shorts: { delimiter: "d", trim: "t" },
+    output: "json",
+    effects: PURE_EFFECTS,
+  })
+  .handler(async (input: CsvParseInput): Promise<CsvParseOutput> => csvParse(input))
+  .build();
+
+const csvStringifyProcedure = createProcedure()
+  .path(["csv", "stringify"])
+  .input(zodAdapter<CsvStringifyInput>(CsvStringifyInputSchema))
+  .output(zodAdapter<CsvStringifyOutput>(CsvStringifyOutputSchema))
+  .meta({
+    description: "Write rows as CSV text",
+    args: [],
+    shorts: { delimiter: "d" },
+    output: "json",
+    effects: PURE_EFFECTS,
+  })
+  .handler(async (input: CsvStringifyInput): Promise<CsvStringifyOutput> => csvStringify(input))
+  .build();
+
 /**
  * The module of this package, for `createRegistry()`: its procedures as data. Importing this
  * file registers nothing.
@@ -223,6 +282,8 @@ export const jsonModule: ProcedureModule = defineModule("@procedures/json", [
   jsonValidateProcedure,
   yamlParseProcedure,
   yamlStringifyProcedure,
+  csvParseProcedure,
+  csvStringifyProcedure,
 ]);
 
 export default jsonModule;

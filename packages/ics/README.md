@@ -62,6 +62,40 @@ const text = writeIcs(
 
 `ics.occurrences` knows `FREQ` `DAILY`, `WEEKLY` (with `BYDAY`), `MONTHLY` and `YEARLY`, with `INTERVAL`, `COUNT`, `UNTIL` and `EXDATE`. An event with a `TZID` keeps its local time across a change of daylight saving time. A month without the day of a monthly event (a 31st in April) has no occurrence. An all-day event starts at noon UTC of its date, so each time zone reads the same date.
 
+## Local times
+
+The reader changes a `TZID` time to UTC as RFC 5545 (3.3.5) tells. The function `zonedToUtc` does the same:
+
+- A local time that occurs two times, after the change back to standard time, gives its first occurrence. In `America/New_York`, 01:30 on 2026-11-01 is 05:30 UTC.
+- A local time in the gap of the change to daylight time uses the offset before the gap. In `America/New_York`, 02:30 on 2026-03-08 is 07:30 UTC (03:30 daylight time).
+
+## Calendar days
+
+The package also exports four functions for calendar days. They use `Intl` only, without a time zone database, as `@procedures/schedule` does.
+
+| Function | What it gives |
+| --- | --- |
+| `localDate(instant, timeZone)` | The date (`YYYY-MM-DD`) that a clock in the zone shows at the instant. The instant is a `Date`, the milliseconds since 1970 or a text. |
+| `zonedOffset(date, time, timeZone)` | The UTC offset (`+HH:MM` or `-HH:MM`) of a local time (`HH:MM` or `HH:MM:SS`) on a date, with the rules of RFC 5545. |
+| `shiftDay(date, days)` | The date `days` days after a date. A negative number gives an earlier date. |
+| `daysBetween(from, to)` | The number of whole days from one date to another. It is negative when `to` is before `from`. |
+
+```ts
+import { daysBetween, localDate, shiftDay, zonedOffset } from "@procedures/ics";
+
+localDate("2026-10-17T03:00:00Z", "America/New_York"); // "2026-10-16"
+zonedOffset("2026-03-08", "02:30", "America/New_York"); // "-05:00": 02:30-05:00 is 03:30 daylight time
+shiftDay("2026-03-07", 2); // "2026-03-09"
+daysBetween("2026-10-31", "2026-11-02"); // 2
+```
+
+- A date is a text `YYYY-MM-DD` of the years 0000 to 9999. `2026-02-30` is not a date.
+- `shiftDay` and `daysBetween` use the arithmetic of UTC. A change of daylight saving time does not move a date.
+- The number of days of `shiftDay` must be an integer.
+- `localDate` gives the result of the `en-CA` format of `Intl`, with the year in four digits.
+- The time zone is an IANA name that `Intl` knows, for example `Europe/Berlin` or `UTC`.
+- A value that is not correct throws a `RangeError`: a date, a time, an instant or a time zone.
+
 ## Private feeds
 
 The address of a private calendar feed is a secret. `ics.fetch` does not put the address in an error message.

@@ -125,3 +125,45 @@ export interface YamlStringifyInput {
 export interface YamlStringifyOutput {
   text: string;
 }
+
+// =============================================================================
+// csv.parse Types - Parse CSV text into rows
+// =============================================================================
+
+export interface CsvParseInput {
+  text: string;
+  /** True: the first row has the names of the columns, and each other row is an object. */
+  header?: boolean | undefined;
+  /** The character between two fields. The default is a comma. */
+  delimiter?: string | undefined;
+  /** True: the parse removes the white space at the start and at the end of each field. */
+  trim?: boolean | undefined;
+  /** False: an empty line gives a row with one empty field. The default skips each empty line. */
+  skipEmptyLines?: boolean | undefined;
+}
+
+export interface CsvParseOutput {
+  /** The rows: arrays of fields, or with `header`, objects of fields by the names of the columns. */
+  rows: string[][] | Record<string, string>[];
+}
+
+// =============================================================================
+// csv.stringify Types - Write rows as CSV text
+// =============================================================================
+
+export interface CsvStringifyInput {
+  /** The rows: all arrays of fields, or all objects of fields by the names of the columns. */
+  rows: unknown[];
+  /** The names of the columns. For objects, they select the keys and give their order. For arrays, they are the first row. */
+  columns?: string[] | undefined;
+  /** False: the text has no row with the names of the columns. */
+  header?: boolean | undefined;
+  /** The character between two fields. The default is a comma. */
+  delimiter?: string | undefined;
+  /** The line break after each row. The default is CRLF. */
+  lineBreak?: "\r\n" | "\n" | undefined;
+}
+
+export interface CsvStringifyOutput {
+  text: string;
+}

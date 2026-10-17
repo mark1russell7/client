@@ -1,9 +1,9 @@
 {
   "@procedures/archive": {
-    "lines": 96.7,
-    "statements": 92.5,
-    "functions": 92.4,
-    "branches": 87
+    "lines": 96.8,
+    "statements": 92.7,
+    "functions": 94.2,
+    "branches": 87.7
   },
   "@procedures/bundle-assistant": {
     "lines": 44.4,
@@ -36,16 +36,16 @@
     "branches": 44
   },
   "@procedures/client": {
-    "lines": 78.4,
-    "statements": 78.1,
-    "functions": 75.4,
-    "branches": 71.8
+    "lines": 81.1,
+    "statements": 80.7,
+    "functions": 77.4,
+    "branches": 74.3
   },
   "@procedures/collections": {
-    "lines": 54.8,
-    "statements": 53.7,
-    "functions": 47.6,
-    "branches": 46
+    "lines": 59.5,
+    "statements": 58.9,
+    "functions": 54,
+    "branches": 48.1
   },
   "@procedures/compiler": {
     "lines": 95.5,
@@ -61,9 +61,9 @@
   },
   "@procedures/dag": {
     "lines": 100,
-    "statements": 98.8,
+    "statements": 99.2,
     "functions": 100,
-    "branches": 89.4
+    "branches": 93.9
   },
   "@procedures/docker": {
     "lines": 99.6,
@@ -90,10 +90,10 @@
     "branches": 74.4
   },
   "@procedures/fs": {
-    "lines": 95.7,
-    "statements": 94.2,
+    "lines": 96,
+    "statements": 94.6,
     "functions": 100,
-    "branches": 88.1
+    "branches": 88.6
   },
   "@procedures/geo": {
     "lines": 91.2,
@@ -108,22 +108,22 @@
     "branches": 86
   },
   "@procedures/git": {
-    "lines": 96.2,
-    "statements": 94.9,
+    "lines": 96.4,
+    "statements": 95.1,
     "functions": 99.2,
-    "branches": 84.1
+    "branches": 84.4
   },
   "@procedures/http": {
-    "lines": 96.4,
-    "statements": 94.9,
-    "functions": 97,
-    "branches": 88
+    "lines": 96.6,
+    "statements": 95.3,
+    "functions": 97.1,
+    "branches": 88.8
   },
   "@procedures/ics": {
-    "lines": 96.3,
-    "statements": 94.6,
-    "functions": 98,
-    "branches": 87.4
+    "lines": 96.7,
+    "statements": 95.3,
+    "functions": 98.3,
+    "branches": 89.2
   },
   "@procedures/ios-backup": {
     "lines": 96.8,
@@ -132,22 +132,22 @@
     "branches": 94.7
   },
   "@procedures/json": {
-    "lines": 98.7,
-    "statements": 97.3,
+    "lines": 99,
+    "statements": 97.7,
     "functions": 100,
-    "branches": 96.3
+    "branches": 96.6
   },
   "@procedures/lib": {
-    "lines": 75,
-    "statements": 75.7,
-    "functions": 73.1,
-    "branches": 60
+    "lines": 88.8,
+    "statements": 89.3,
+    "functions": 93.9,
+    "branches": 78
   },
   "@procedures/llm": {
-    "lines": 96.1,
-    "statements": 94.8,
-    "functions": 91.8,
-    "branches": 89.4
+    "lines": 98.4,
+    "statements": 97.2,
+    "functions": 97.5,
+    "branches": 91.5
   },
   "@procedures/mail": {
     "lines": 87.9,
@@ -156,10 +156,10 @@
     "branches": 70.1
   },
   "@procedures/mark": {
-    "lines": 59.1,
-    "statements": 57.9,
-    "functions": 53.6,
-    "branches": 57.9
+    "lines": 64.9,
+    "statements": 63.6,
+    "functions": 58.4,
+    "branches": 62.1
   },
   "@procedures/mcp": {
     "lines": 50.9,
@@ -168,10 +168,10 @@
     "branches": 42.3
   },
   "@procedures/mcp-dev-tools": {
-    "lines": 57.4,
-    "statements": 57.6,
+    "lines": 59.3,
+    "statements": 58.4,
     "functions": 60,
-    "branches": 61.4
+    "branches": 62.8
   },
   "@procedures/mcp-server": {
     "lines": 79.1,
@@ -180,16 +180,16 @@
     "branches": 62.8
   },
   "@procedures/mongo": {
-    "lines": 88,
-    "statements": 87.3,
-    "functions": 80.1,
-    "branches": 82.5
+    "lines": 88.8,
+    "statements": 88,
+    "functions": 84.3,
+    "branches": 82.9
   },
   "@procedures/node": {
-    "lines": 79.5,
-    "statements": 79.4,
-    "functions": 81.8,
-    "branches": 72.3
+    "lines": 82.2,
+    "statements": 82.3,
+    "functions": 82.1,
+    "branches": 74.2
   },
   "@procedures/notify": {
     "lines": 74,
@@ -210,10 +210,10 @@
     "branches": 98.6
   },
   "@procedures/peer": {
-    "lines": 49.2,
-    "statements": 50,
-    "functions": 58.6,
-    "branches": 44.2
+    "lines": 66.8,
+    "statements": 66.7,
+    "functions": 64.8,
+    "branches": 59.7
   },
   "@procedures/playground": {
     "lines": 0,
@@ -228,22 +228,22 @@
     "branches": 53.9
   },
   "@procedures/privacy-scan": {
-    "lines": 94.7,
-    "statements": 94.7,
+    "lines": 94.9,
+    "statements": 94.9,
     "functions": 95,
-    "branches": 94.3
+    "branches": 94.7
   },
   "@procedures/procedure": {
-    "lines": 7.4,
-    "statements": 7.1,
-    "functions": 3.7,
-    "branches": 0.7
+    "lines": 84.9,
+    "statements": 85.1,
+    "functions": 91.4,
+    "branches": 63.4
   },
   "@procedures/restic": {
     "lines": 88.8,
     "statements": 90.1,
     "functions": 85.7,
-    "branches": 89.1
+    "branches": 89.7
   },
   "@procedures/s3": {
     "lines": 94.4,
@@ -252,22 +252,22 @@
     "branches": 79.6
   },
   "@procedures/schedule": {
-    "lines": 95.4,
-    "statements": 94.4,
-    "functions": 94.5,
-    "branches": 90.1
+    "lines": 96.6,
+    "statements": 95.3,
+    "functions": 96.6,
+    "branches": 90.2
   },
   "@procedures/server": {
-    "lines": 49,
-    "statements": 48.8,
-    "functions": 57.1,
-    "branches": 47.8
+    "lines": 76.5,
+    "statements": 75.2,
+    "functions": 76.7,
+    "branches": 66.2
   },
   "@procedures/shell": {
-    "lines": 86.5,
-    "statements": 83.7,
-    "functions": 77.7,
-    "branches": 73.7
+    "lines": 88.9,
+    "statements": 86.7,
+    "functions": 82.1,
+    "branches": 76.2
   },
   "@procedures/site": {
     "lines": 33.5,
@@ -282,22 +282,22 @@
     "branches": 42.4
   },
   "@procedures/splay": {
-    "lines": 59.7,
-    "statements": 59,
-    "functions": 55.8,
-    "branches": 54
+    "lines": 59.9,
+    "statements": 59.3,
+    "functions": 56.1,
+    "branches": 54.3
   },
   "@procedures/sqlite": {
-    "lines": 97,
-    "statements": 95.5,
-    "functions": 96.6,
-    "branches": 80.5
+    "lines": 97.7,
+    "statements": 96.3,
+    "functions": 97,
+    "branches": 82.4
   },
   "@procedures/store": {
-    "lines": 85.2,
-    "statements": 84.1,
-    "functions": 86.6,
-    "branches": 76
+    "lines": 86,
+    "statements": 84.5,
+    "functions": 86.8,
+    "branches": 77.4
   },
   "@procedures/systems": {
     "lines": 90,
