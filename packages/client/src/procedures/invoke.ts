@@ -68,8 +68,10 @@ export type InvocationErrorCode =
  *   of `@procedures/fs`).
  * - `host-not-allowed`: the input has a URL whose host the host does not allow, or a redirect goes
  *   to such a host (`createHttpModule({ allow })` of `@procedures/http`).
+ * - `topic-not-allowed`: the `allow` function of an `EventPublisher` refuses a topic of a
+ *   subscription (`documentation/EVENTS.md`).
  */
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -79,7 +81,7 @@ export class InvocationError extends Error {
   readonly retryable: boolean = false;
   /**
    * The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`,
-   * `deadline`, `outside-root` or `host-not-allowed`.
+   * `deadline`, `outside-root`, `host-not-allowed` or `topic-not-allowed`.
    */
   readonly reason: ForbiddenReason | undefined;
 

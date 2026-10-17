@@ -27,7 +27,7 @@ The core depends on no other package of the repository. The procedure components
 - **Type-Safe Procedures**: Schema-validated procedures with auto-discovery and registry management
 - **Middleware System**: Composable middleware for retry, cache, timeout, circuit breaker, rate limiting, auth, tracing, and validation
 - **Procedure-as-Data**: JSON programs of calls, references and control flow ([PROGRAM-FORMAT.md](../documentation/PROGRAM-FORMAT.md))
-- **Event Bus**: Pub/sub messaging with async iteration support
+- **Event Bus**: Pub/sub messaging with async iteration support. A peer subscribes to the bus of another peer over each transport ([EVENTS.md](../documentation/EVENTS.md))
 - **Error System**: 70+ error codes with rich metadata and recovery suggestions
 
 ## Installation
@@ -284,6 +284,17 @@ new WebSocketServerTransport(server, { server: http, heartbeat: { interval: seco
 const transport = new WebSocketTransport({ url, serve: new ProcedureServer({ registry: uiRegistry, autoRegister: true }) });
 const toClient = new Client({ transport: wsServer.transportFor(connectionId) });   // or peer.clientFor(id)
 await toClient.call({ service: "ui", operation: "notify" }, { text: "Build done" });
+
+// Remote events (documentation/EVENTS.md): subscribe to topics of the bus of the server. The
+// function gives the unsubscribe. After a drop, the transport resubscribes on the new connection.
+const unsubscribe = transport.subscribe("orders.created", (order, event) => console.log(event.seq, order), {
+  onSubscribed: (topics) => console.log("subscribed", topics),
+  onError: (error) => console.error(error.code),   // TOPIC_NOT_FOUND, FORBIDDEN, NOT_FOUND
+});
+await unsubscribe.ready;
+unsubscribe();
+// The same events as an async iterator: a break or the signal unsubscribes
+for await (const event of transport.events(["orders.created", "orders.paid"], { signal })) console.log(event.topic, event.data);
 ```
 
 #### `LocalTransport`
@@ -500,6 +511,39 @@ const unsubscribe = bus.on("event", handler)
 unsubscribe()
 ```
 
+#### Remote events
+
+A peer subscribes to the topics of the bus of another peer ([EVENTS.md](../documentation/EVENTS.md)). A subscription is a streaming call of the procedure `events.subscribe`, so it works over WebSocket (in the two directions), HTTP with NDJSON, a message port and the local transport.
+
+```typescript
+// The publisher: a ProcedureServer with the option events
+const bus = createEventBus()
+const server = new ProcedureServer({
+  registry,
+  autoRegister: true,
+  events: {
+    bus,                                  // the procedures of the server get it as ctx.bus
+    topics: ["orders.*", "system:*"],     // the topic rule: an exact name, a prefix with *, or *
+    allow: (topic, call) => !topic.startsWith("system:") || call.capability.clearance === "admin",
+    buffer: 1024,                         // the events that one subscription holds for a slow subscriber
+  },
+})
+server.publish("orders.created", { order: 1 })   // the same as bus.emit()
+
+// The subscriber, over each transport
+const unsubscribe = subscribeRemote(transport, "orders.created", (order, event) => console.log(order, event.seq))
+for await (const event of remoteEvents(transport, ["orders.created"], { signal })) console.log(event.data)
+
+// The server subscribes to the bus of a client: the client serves it with `serve`
+new WebSocketTransport({ url, serve: new ProcedureServer({ events: { bus: clientBus, topics: ["ui.*"] } }) })
+wsServer.subscribe(connectionId, "ui.clicked", (click) => console.log(click))
+```
+
+- The delivery is at most once, in the order of `emit()`. `seq` numbers the events of a subscription, and `dropped` tells the events that the publisher dropped for a slow subscriber.
+- A topic outside the topic rule gives `TOPIC_NOT_FOUND`. A topic that `allow` refuses gives `FORBIDDEN` with the reason `topic-not-allowed`. The procedure reads the resource `events`, so the capability of the host applies to it.
+- `ProcedureServer.stop()` ends each subscription with `UNAVAILABLE`, and the subscriber resubscribes later.
+- `events.subscribe` is not in a registry: it is not an MCP tool.
+
 ### Server
 
 ```typescript
@@ -550,6 +594,7 @@ interface ProcedureServerOptions {
   registry?: ProcedureRegistry;
   storage?: StorageConfig;
   transports?: ServerTransport[];
+  events?: EventPublisherOptions | EventPublisher;   // the remote events: refer to "Remote events"
 }
 ```
 

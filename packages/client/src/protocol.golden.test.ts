@@ -24,6 +24,8 @@ import { WebSocketServerTransport } from "./adapters/websocket/server/transport.
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";
 import { Client } from "./client/client.js";
 import { ERROR_CODES, PROTOCOL_VERSION, httpStatusOf } from "./protocol.js";
+import { createEventBus } from "./events/bus.js";
+import type { EventBus } from "./events/types.js";
 
 const GOLDENS = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "wire");
 const UPDATE = process.env["UPDATE_WIRE_GOLDENS"] === "1";
@@ -185,7 +187,158 @@ describe("the WebSocket frames of protocol v1 (R25)", () => {
   });
 });
 
+/** A host with the remote events: `orders.*` for each call, and `secret.*` that `allow` refuses. */
+function eventHost(bus: EventBus): ProcedureServer {
+  return new ProcedureServer({
+    registry: createRegistry(),
+    events: { bus, topics: ["orders.*", "secret.*"], allow: (topic) => !topic.startsWith("secret.") },
+  });
+}
+
+/** This function waits until the list has `count` frames, or two seconds pass. */
+async function framesUntil(frames: unknown[], count: number): Promise<void> {
+  const until = Date.now() + 2000;
+  while (frames.length < count && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 5));
+}
+
+describe("the WebSocket frames of the remote events (EVENTS.md, R25)", () => {
+  it("the publisher: a subscription, its events with credit, the refusals and the cancel", async () => {
+    const bus = createEventBus();
+    const server = eventHost(bus);
+    const http = createServer();
+    server.addTransport(new WebSocketServerTransport(server, { server: http, path: "/ws", heartbeat: false }));
+    await server.start();
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      await server.stop();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const socket = new WsClient(`ws://127.0.0.1:${(http.address() as AddressInfo).port}/ws`);
+    cleanups.push(async () => socket.terminate());
+    const received: Array<Record<string, unknown>> = [];
+    socket.on("message", (data) => received.push(JSON.parse(String(data)) as Record<string, unknown>));
+    await new Promise((resolve) => socket.once("open", resolve));
+    const method = { service: "events", operation: "subscribe" };
+    const sent: Array<Record<string, unknown>> = [];
+    const send = (frame: Record<string, unknown>): void => {
+      sent.push(frame);
+      socket.send(JSON.stringify(frame));
+    };
+
+    send({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION });
+    await framesUntil(received, 1);
+    // A credit of 2: the confirmation and one event. The second event waits for more credit.
+    send({ id: "s1", type: "request", method, payload: { topics: ["orders.created"] }, metadata: {}, credit: 2 });
+    await framesUntil(received, 2);
+    bus.emit("orders.created", { order: 1 });
+    bus.emit("orders.created", { order: 2 });
+    await framesUntil(received, 3);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(received).toHaveLength(3);
+    send({ id: "s1", type: "credit", credit: 2 });
+    await framesUntil(received, 4);
+    send({ id: "s2", type: "request", method, payload: { topics: ["orders.created", "users.created"] }, metadata: {}, credit: 64 });
+    await framesUntil(received, 5);
+    send({ id: "s3", type: "request", method, payload: { topics: ["secret.plans"] }, metadata: {}, credit: 64 });
+    await framesUntil(received, 6);
+    // The cancel has no answer, and the publisher removes its listener
+    send({ id: "s1", type: "cancel" });
+    const until = Date.now() + 2000;
+    while (bus.subscriberCount("orders.created") > 0 && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 5));
+    bus.emit("orders.created", { order: 3 });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(bus.subscriberCount("orders.created")).toBe(0);
+    golden("websocket-events-server", { sent, received: normalize(received) });
+  });
+
+  it("the subscriber: the request of a subscription with its credit, and the cancel of the unsubscribe", async () => {
+    const http = createServer();
+    const wss = new WebSocketServer({ server: http, path: "/ws" });
+    const received: Array<Record<string, unknown>> = [];
+    wss.on("connection", (socket) => {
+      socket.on("message", (data) => {
+        const frame = JSON.parse(String(data)) as Record<string, unknown>;
+        received.push(frame);
+        if (frame["type"] === "hello") socket.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
+        if (frame["type"] === "request") {
+          const id = frame["id"];
+          socket.send(JSON.stringify({ id, type: "stream", payload: { type: "subscribed", topics: ["orders.created"] }, stream: { done: false } }));
+          socket.send(JSON.stringify({ id, type: "stream", payload: { type: "event", topic: "orders.created", data: { order: 1 }, seq: 1 }, stream: { done: false } }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      for (const client of wss.clients) client.terminate();
+      await new Promise<void>((resolve) => wss.close(() => resolve()));
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${(http.address() as AddressInfo).port}/ws`, heartbeat: { enabled: false }, reconnect: { enabled: false } });
+    cleanups.push(() => transport.close());
+    const events: unknown[] = [];
+    const unsubscribe = transport.subscribe("orders.created", (data) => void events.push(data));
+    await unsubscribe.ready;
+    const until = Date.now() + 2000;
+    while (events.length === 0 && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 5));
+    unsubscribe();
+    await framesUntil(received, 3);
+    expect(events).toEqual([{ order: 1 }]);
+    golden("websocket-events-client", normalize(received));
+  });
+});
+
 describe("the HTTP exchange of protocol v1 (R25)", () => {
+  it("the remote events: the first lines of a subscription, and the status of each refusal (EVENTS.md)", async () => {
+    const bus = createEventBus();
+    const server = eventHost(bus);
+    const app = express();
+    const http = createServer(app);
+    server.addTransport(new HttpServerTransport(server, { app, httpServer: http }));
+    await server.start();
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      await server.stop();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const url = `http://127.0.0.1:${(http.address() as AddressInfo).port}/api/events/subscribe`;
+    const post = async (body: unknown, accept = "application/x-ndjson, application/json") => {
+      const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json", accept }, body: JSON.stringify(body) });
+      return { status: response.status, contentType: (response.headers.get("content-type") ?? "").split(";")[0], body: await response.json() };
+    };
+
+    // The stream has no end: the test reads two lines, then aborts the request
+    const controller = new AbortController();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/x-ndjson, application/json" },
+      body: JSON.stringify({ topics: ["orders.created"] }),
+      signal: controller.signal,
+    });
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    const lines = (): string[] => text.split("\n").filter((line) => line.length > 0);
+    const read = async (count: number): Promise<void> => {
+      while (lines().length < count) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        if (lines().length === 1) bus.emit("orders.created", { order: 1 });
+      }
+    };
+    await read(2);
+    controller.abort();
+    golden("http-events", {
+      stream: { status: response.status, contentType: (response.headers.get("content-type") ?? "").split(";")[0], lines: lines().slice(0, 2).map((line) => JSON.parse(line)) },
+      unknownTopic: await post({ topics: ["users.created"] }),
+      refusedTopic: await post({ topics: ["secret.plans"] }),
+      withoutNdjson: await post({ topics: ["orders.created"] }, "application/json"),
+    });
+  });
+
   it("the server: a value, an NDJSON stream and a refused write, with the version header", async () => {
     const server = new ProcedureServer({ registry: registry(), capability: { effects: { writes: [] } } });
     server.registerFromRegistry();
