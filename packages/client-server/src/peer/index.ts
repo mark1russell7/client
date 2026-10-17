@@ -73,6 +73,12 @@ export interface PeerOptions {
   policy?: HostPolicy | undefined;
 }
 
+/** The port that a listening server got, or undefined. With port 0 the system gives a free port. */
+function listeningPort(server: import("node:http").Server): number | undefined {
+  const address = server.address();
+  return typeof address === "object" && address !== null ? address.port : undefined;
+}
+
 export interface PeerEndpoint {
   type: TransportType;
   address: string;
@@ -271,7 +277,8 @@ class PeerImpl implements Peer {
 
     this.endpoints.push({
       type: "http",
-      address: `http://${host === "0.0.0.0" ? "localhost" : host}:${port}${basePath}`,
+      // The real port: with port 0 the system gives a free port
+      address: `http://${host === "0.0.0.0" ? "localhost" : host}:${httpTransport.port() ?? port}${basePath}`,
     });
   }
 
@@ -332,7 +339,7 @@ class PeerImpl implements Peer {
 
     this.endpoints.push({
       type: "websocket",
-      address: `ws://${host === "0.0.0.0" ? "localhost" : host}:${port}${path}`,
+      address: `ws://${host === "0.0.0.0" ? "localhost" : host}:${listeningPort(httpServer) ?? port}${path}`,
     });
   }
 

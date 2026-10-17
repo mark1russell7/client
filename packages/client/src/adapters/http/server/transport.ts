@@ -566,7 +566,7 @@ export class HttpServerTransport implements ServerTransport {
 
         server.listen(this.options.port, this.options.host, () => {
           console.log(
-            `[${this.name}] Server listening on http://${this.options.host}:${this.options.port}`
+            `[${this.name}] Server listening on http://${this.options.host}:${this.port() ?? this.options.port}`
           );
           resolve();
         });
@@ -609,5 +609,15 @@ export class HttpServerTransport implements ServerTransport {
 
   isRunning(): boolean {
     return !this.stopped && this.httpServer !== null && this.httpServer.listening;
+  }
+
+  /**
+   * The port that the server of the transport listens on. With the option `port` 0, the system
+   * gives a free port, and this function returns that port. Before `start()` and after `stop()`,
+   * the function returns undefined.
+   */
+  port(): number | undefined {
+    const address = this.httpServer?.listening ? this.httpServer.address() : null;
+    return typeof address === "object" && address !== null ? address.port : undefined;
   }
 }

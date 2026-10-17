@@ -370,7 +370,7 @@ The SSE transport of `client-mcp` only throws today. The current MCP specificati
 
 The site has two worker protocols of its own. A `MessagePort` transport replaces them.
 
-**Result.** `PortTransport` sends the frames of the WebSocket transport over a worker, a `MessageChannel` or a `worker_threads` port, in the two directions. The site serves `site.run` and `site.journey` from its workers with it. The transport does not import the Durations, because `quantity` brings zod (R37). Alone, the transport is 2.5 kB of gzip.
+**Result.** `PortTransport` sends the frames of the WebSocket transport over a worker, a `MessageChannel` or a `worker_threads` port, in the two directions. The site serves `site.run` and `site.journey` from its workers with it. The transport does not import the Durations, because `quantity` brings zod (R37). Alone, the transport is 2.8 kB of gzip: 2,760 bytes on 2026-10-17, after a bundle and a minify with esbuild.
 
 ## Tier 6: the collection mode switch
 
@@ -566,6 +566,38 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 | R53 | Generic code of jarvis. `pdf` finds Edge, Chrome or Chromium and prints a page. `claude-cli` starts a turn that outlives its host, reads its output file and normalizes the events. |
 | R54 | Part 1 used the packages of 0.3.0: `STATUS.yaml` through `parseYaml`, `git log` and `docker ps` through `runCommand`, map tiles through `http.request`. Part 2 (0.4.0) removed the copies of the vault git code, restic, the `.ics` writer, the distances and the geohash, the private-terms scan, the iPhone reader, the PDF print, the chat runner and the gh calls of the stage runner. |
 
+## Open work after 0.7.0
+
+The live tracker shows these items with the items R1 to R54: https://claude.ai/artifact/49vNStauE2K7pScAuxDGWr. Each item is a row of the database of that page. Change this table and the tracker together.
+
+| ID | Area | Item | Size | Status | Needs | Owner | Where |
+|---|---|---|---|---|---|---|---|
+| O1 | Apps | MiniMongo on `@procedures/*` 0.7.0 | M | done | — | Client session | [MiniMongo 9aec9c1](https://github.com/mark1russell7/MiniMongo/commit/9aec9c1) |
+| O2 | Testing | The flaky peer test `body-stop.test.ts` | S | done | — | Client session | [600c497](https://github.com/mark1russell7/client/commit/600c497) |
+| O3 | Docs | The size note of the port transport | S | done | — | Client session | [600c497](https://github.com/mark1russell7/client/commit/600c497) |
+| O4 | fs root | One copy of the fs root rules | S | in progress | R33 | Client session | `integration-fs-root-all` |
+| O5 | fs root | `--fs-root` confines git, docker, pnpm, cue, sqlite and archive | M–L | in progress | O4, R33 | Client session | `integration-fs-root-all` |
+| O6 | Events | Subscribers of one topic share one wire subscription | M | in progress | — | Client session | `integration-events-gaps` |
+| O7 | Events | `bus.clear()` ends the remote subscriptions with notice | S | in progress | — | Client session | `integration-events-gaps` |
+| O8 | Events | HTTP resubscribe stops after `maxAttempts` | S | in progress | — | Client session | `integration-events-gaps` |
+| O9 | Storage | `ApiStorage.getIds()` | M | in progress | — | Client session | `integration-storage-gaps` |
+| O10 | Storage | A full pull of `HybridStorage` reads only what can conflict | S–M | in progress | O9 | Client session | `integration-storage-gaps` |
+| O11 | Storage | `replaceStorage` waits for the running calls | S | in progress | — | Client session | `integration-storage-gaps` |
+| O12 | LLM | `llm.stream` runs procedures as tools | M | next | — | Client session | — |
+| O13 | Testing | Raise the weakest mutation scores, then the floor | M | next | — | Client session | — |
+| O14 | Systems | The WebSocket cells on client 0.7.0 | M | in progress | R36 | Client session (PR to systems) | `ws-server-heartbeat` |
+| O15 | Systems | Two new WebSocket cells | M | in progress | O14 | Client session (PR to systems) | `ws-server-heartbeat` |
+| O16 | Systems | The machine documents cite client 0.7.0 | S | blocked | O14, O20 | Client session (PR to systems) | — |
+| O17 | Systems | A machine document for HAProxy | M | later | — | Systems session | [systems tracker](https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V) |
+| O18 | Systems | A delayed-ACK term in the T03 bands | S | done | — | Systems session | [systems PR #31](https://github.com/mark1russell7/systems/pull/31), [systems PR #32](https://github.com/mark1russell7/systems/pull/32) |
+| O19 | Systems | The void runs of the silent-drop cell | S–M | later | — | Systems session | [systems tracker](https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V) |
+| O20 | Releases | `@mark1russell7/machines` 0.3.0 on npm | S | blocked | — | markt-54 | [npm tracker](https://claude.ai/artifact/W5oqQFc9Ty1miMP63z1XwS) |
+| O21 | Systems | jarvis on a newer harness | S | later | — | Systems session | — |
+| O22 | Decisions | The raw `event` frame of old peers | S | waits for the owner | — | Mark | — |
+| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | later | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13 | markt-54 and Mark | — |
+| O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | Host-ownership session | [the brief](https://github.com/mark1russell7/client/blob/main/packages/documentation/HOST-OWNERSHIP-BRIEF.md) |
+| O25 | Apps | jarvis on client 0.7.0 | M | in progress | — | jarvis session | — |
+
 ## Items for a decision
 
 The review found code that is a candidate for removal or a move. These items need a decision of the owner. Nobody deletes them without one.
@@ -615,11 +647,8 @@ The owner decided these items. The changes are on `main`, and they go out in 0.5
 
 ### Open
 
-- `mark --fs-root` does not confine the procedures that read files with `node:fs` or start a program: `git.*`, `docker.*`, `pnpm.*`, `cue.generate`, `sqlite.*`, `archive.*` and others. The README of the fs package lists them.
-- `packages/archive/src/root.ts` copies the rules of `packages/client-fs/src/root.ts`. One shared export removes the copy.
-- The test `body-stop.test.ts` of `packages/server` failed once with `EADDRINUSE`: two tests took the same port.
-- The WebSocket cells of systems run on client 0.3.0. A move to 0.4.0 changes the line numbers that their machine documents cite.
-- HAProxy has no machine document, so its timeout cells have no band.
+The open work has an ID in the section "Open work after 0.7.0". These items are limits and notes that stay.
+
 - `llm.complete` with procedures as tools uses a forced `toolChoice` only for the first request. A `tool_result` keeps at most 200,000 characters.
 - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
 - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.

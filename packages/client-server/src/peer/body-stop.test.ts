@@ -5,6 +5,10 @@
  *   400, and its limit of 100 kB replaced `bodyLimit`. The transport reads the body itself now.
  * - `stop()` did not close the HTTP server that the peer made for its WebSocket transport, so
  *   the port stayed bound.
+ *
+ * Each peer listens on port 0 and reads its real port from `getEndpoints()`. Before, a helper
+ * found a free port and closed it, and the peer took it later. In that gap another test or
+ * process took the port, and one CI run failed with EADDRINUSE.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -13,14 +17,12 @@ import { request } from "node:http";
 import { ProcedureRegistry, defineProcedure, outputSchema } from "@procedures/client";
 import { createPeer, type Peer } from "./index.js";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
+/** The port of the only endpoint of a started peer. */
+function portOf(peer: Peer): number {
+  const [endpoint] = peer.getEndpoints();
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
 }
 
 function post(port: number, path: string, body: string): Promise<{ status: number; body: string }> {
@@ -68,24 +70,24 @@ function registry(): ProcedureRegistry {
 
 describe("the body of a peer request (R5)", () => {
   it("accepts a bare JSON value", async () => {
-    const port = await freePort();
-    const peer = await createPeer({ id: "peer-body", registry: registry(), transports: [{ type: "http", port, host: "127.0.0.1" }] });
+    const peer = await createPeer({ id: "peer-body", registry: registry(), transports: [{ type: "http", port: 0, host: "127.0.0.1" }] });
     peers.push(peer);
     await peer.start();
+    const port = portOf(peer);
     const response = await post(port, "/api/test/double", "21");
     expect(response.status).toBe(200);
     expect(JSON.parse(response.body)).toBe(42);
   });
 
   it("obeys bodyLimit, not the 100 kB of express", async () => {
-    const port = await freePort();
     const peer = await createPeer({
       id: "peer-limit",
       registry: registry(),
-      transports: [{ type: "http", port, host: "127.0.0.1", bodyLimit: 300_000 }],
+      transports: [{ type: "http", port: 0, host: "127.0.0.1", bodyLimit: 300_000 }],
     });
     peers.push(peer);
     await peer.start();
+    const port = portOf(peer);
     const big = JSON.stringify({ text: "x".repeat(200_000) });
     const accepted = await post(port, "/api/test/length", big);
     expect(accepted.status).toBe(200);
@@ -97,9 +99,9 @@ describe("the body of a peer request (R5)", () => {
 
 describe("the stop of a peer (R5)", () => {
   it("closes the HTTP server of its WebSocket transport, so the port is free again", async () => {
-    const port = await freePort();
-    const peer = await createPeer({ id: "peer-stop", registry: registry(), transports: [{ type: "websocket", port, host: "127.0.0.1" }] });
+    const peer = await createPeer({ id: "peer-stop", registry: registry(), transports: [{ type: "websocket", port: 0, host: "127.0.0.1" }] });
     await peer.start();
+    const port = portOf(peer);
     await peer.stop();
     const again = createServer();
     await new Promise<void>((resolve, reject) => {
