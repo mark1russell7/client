@@ -4,11 +4,15 @@
  * A host gives one store to the module of the procedures (`createScheduleModule({ store })`) and
  * the same store to its `Scheduler`. `update()` changes one schedule in one step, so the record of
  * a run does not lose a change of `schedule.add` that came at the same time.
+ *
+ * Two processes can share the file of a `FileScheduleStore`: a lock file next to it keeps their
+ * changes apart (see the comment of the class).
  */
 
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomBytes } from "node:crypto";
+import { checkTimeZone } from "./cron.js";
 import { ScheduleError } from "./errors.js";
 import type { Schedule } from "./types.js";
 
@@ -34,6 +38,16 @@ const byId = (a: Schedule, b: Schedule): number => (a.id < b.id ? -1 : a.id > b.
 
 const isCount = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 
+/** True for `utc`, `local` and an IANA name that `Intl` knows. */
+function isTimeZone(timeZone: string): boolean {
+  try {
+    checkTimeZone(timeZone);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The schedule of a record that came from a file: its shape is not trusted. */
 export function checkSchedule(value: unknown): Schedule {
   const record = value as Partial<Schedule> | null;
@@ -42,7 +56,9 @@ export function checkSchedule(value: unknown): Schedule {
   if (typeof record.cron !== "string" || typeof record.program !== "string" || record.program === "") {
     throw new ScheduleError("BAD_STORE", `The schedule ${record.id} needs a cron expression and a program`);
   }
-  if (record.timeZone !== "utc" && record.timeZone !== "local") throw new ScheduleError("BAD_STORE", `The schedule ${record.id} needs the time zone utc or local`);
+  if (typeof record.timeZone !== "string" || !isTimeZone(record.timeZone)) {
+    throw new ScheduleError("BAD_STORE", `The schedule ${record.id} needs the time zone utc, local or an IANA name that Intl knows`);
+  }
   if (typeof record.createdAt !== "number" || !Number.isFinite(record.createdAt)) throw new ScheduleError("BAD_STORE", `The schedule ${record.id} needs createdAt`);
   if (!isCount(record.runs) || !isCount(record.failures) || !isCount(record.skipped)) throw new ScheduleError("BAD_STORE", `The schedule ${record.id} needs the counts of its runs`);
   return record as Schedule;
@@ -96,18 +112,64 @@ function isContention(error: unknown): boolean {
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** This function starts `operation` again while Windows holds the file for a moment: at most 20 times. */
+async function retried<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= 20 || !isContention(error)) throw error;
+      await pause(10 * attempt);
+    }
+  }
+}
+
+/** This function removes a file. A file that does not exist is not an error. */
+const removeFile = (path: string): Promise<void> => retried(() => rm(path, { force: true }));
+
+/** The default age of a stale lock file: 30 seconds. */
+export const DEFAULT_LOCK_STALE_MS = 30_000;
+
+/** The options of a `FileScheduleStore`. */
+export interface FileScheduleStoreOptions {
+  /**
+   * The age in milliseconds after which a lock file is stale: its process stopped, and another
+   * store takes it over. The default is 30 seconds. A change holds the lock for one read and one write.
+   */
+  readonly staleMs?: number | undefined;
+}
+
 /**
  * A store in one JSON file: `{ "schemaVersion": 1, "schedules": { "<id>": <Schedule> } }`. Each
  * operation reads the file again. A write goes through a temporary file and a rename, so a reader
- * never sees a part of a write. The writes of this process go one at a time. The store is for
- * one process: two processes on one file can lose a write.
+ * does not see a part of a write. The changes of this process go one at a time.
+ *
+ * Two processes can share the file. Each change holds a lock file next to it (`lockPath`):
+ * - The store makes the lock file with the flag `wx`. Only one process can make it.
+ * - Under the lock, the store reads the file again, changes it, writes it, and then removes the lock.
+ * - A lock file older than `staleMs` (default 30 seconds) is stale, and the store takes it over.
+ * - A store that waits for twice `staleMs` gives up with `LOCKED`.
+ * - The store removes only its own lock: the lock file holds a token of the store.
  */
 export class FileScheduleStore implements ScheduleStore {
   readonly kind = "file";
+  /** The lock file: the path of the store with `.lock`. */
+  readonly lockPath: string;
+  private readonly staleMs: number;
   private queue: Promise<unknown> = Promise.resolve();
 
-  /** @param path - The JSON file. The store makes it, and its folder, at the first write. */
-  constructor(readonly path: string) {}
+  /**
+   * @param path - The JSON file. The store makes it, and its folder, at the first write.
+   * @param options - The age of a stale lock file.
+   */
+  constructor(
+    readonly path: string,
+    options: FileScheduleStoreOptions = {},
+  ) {
+    this.lockPath = `${path}.lock`;
+    this.staleMs = options.staleMs ?? DEFAULT_LOCK_STALE_MS;
+    if (!(this.staleMs > 0) || !Number.isFinite(this.staleMs)) throw new TypeError("FileScheduleStore: staleMs must be a number above 0");
+  }
 
   async get(id: string): Promise<Schedule | undefined> {
     return (await this.read()).schedules[id];
@@ -158,7 +220,7 @@ export class FileScheduleStore implements ScheduleStore {
   private async read(): Promise<ScheduleFile> {
     let text: string;
     try {
-      text = await readFile(this.path, "utf8");
+      text = await retried(() => readFile(this.path, "utf8"));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return { schemaVersion: 1, schedules: {} };
       throw error;
@@ -182,30 +244,110 @@ export class FileScheduleStore implements ScheduleStore {
     return { schemaVersion: 1, schedules };
   }
 
-  /** One change of the file, after the changes before it. `edit` gives false for no change. */
+  /**
+   * One change of the file, after the changes before it, under the lock file. The read under the
+   * lock gets the changes of the other processes. `edit` gives false for no change.
+   */
   private change(edit: (file: ScheduleFile) => boolean): Promise<void> {
     const run = this.queue.then(async () => {
-      const file = await this.read();
-      if (!edit(file)) return;
-      await mkdir(dirname(this.path), { recursive: true });
-      const temporary = `${this.path}.${randomBytes(6).toString("hex")}.tmp`;
-      await writeFile(temporary, JSON.stringify(file, null, 2) + "\n", "utf8");
-      for (let attempt = 1; ; attempt++) {
-        try {
-          await rename(temporary, this.path);
-          return;
-        } catch (error) {
-          if (attempt >= 20 || !isContention(error)) {
-            await rm(temporary, { force: true });
-            throw error;
-          }
-          await pause(10 * attempt);
-        }
+      const token = await this.lock();
+      try {
+        const file = await this.read();
+        if (!edit(file)) return;
+        await this.write(file);
+      } finally {
+        await this.unlock(token);
       }
     });
     // A failed change does not stop the next one
     this.queue = run.catch(() => undefined);
     return run;
+  }
+
+  /** This method writes the file through a temporary file and a rename. */
+  private async write(file: ScheduleFile): Promise<void> {
+    const temporary = `${this.path}.${randomBytes(6).toString("hex")}.tmp`;
+    await writeFile(temporary, JSON.stringify(file, null, 2) + "\n", "utf8");
+    try {
+      await retried(() => rename(temporary, this.path));
+    } catch (error) {
+      await rm(temporary, { force: true });
+      throw error;
+    }
+  }
+
+  /**
+   * This method makes the lock file and gives its token. It waits while another store holds the
+   * lock, and it takes over a stale lock. After twice `staleMs`, it throws `LOCKED`.
+   */
+  private async lock(): Promise<string> {
+    const token = `${process.pid}:${randomBytes(8).toString("hex")}`;
+    const deadline = Date.now() + 2 * this.staleMs;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await writeFile(this.lockPath, token, { encoding: "utf8", flag: "wx" });
+        return token;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "ENOENT" && attempt === 0) {
+          // The folder of the store does not exist yet
+          await mkdir(dirname(this.lockPath), { recursive: true });
+          continue;
+        }
+        if (code !== "EEXIST" && !isContention(error)) throw error;
+      }
+      if (await this.breakStale()) continue;
+      if (Date.now() >= deadline) {
+        throw new ScheduleError("LOCKED", `The lock file ${this.lockPath} stays held: another process holds it for more than ${2 * this.staleMs} ms`);
+      }
+      // A short wait with a random part: two waiting processes do not try again at the same time
+      await pause(Math.min(50, 2 + attempt) + Math.random() * 5);
+    }
+  }
+
+  /** This method removes the lock file when it holds the token of this store. A lock that another store took over stays. */
+  private async unlock(token: string): Promise<void> {
+    let content: string;
+    try {
+      content = await retried(() => readFile(this.lockPath, "utf8"));
+    } catch {
+      return;
+    }
+    if (content === token) await removeFile(this.lockPath);
+  }
+
+  /** True when the file exists and its last change is older than `staleMs`. */
+  private async isStale(path: string): Promise<boolean> {
+    try {
+      return Date.now() - (await stat(path)).mtimeMs > this.staleMs;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * This method removes a stale lock file, and gives true then. A second lock file (`.lock.break`)
+   * lets one store at a time examine and remove a stale lock. A second store thus finds the new
+   * lock of the first store, not the stale lock, and does not remove it.
+   */
+  private async breakStale(): Promise<boolean> {
+    if (!(await this.isStale(this.lockPath))) return false;
+    const breaker = `${this.lockPath}.break`;
+    try {
+      await writeFile(breaker, String(process.pid), { encoding: "utf8", flag: "wx" });
+    } catch {
+      // Another store examines the lock now. The breaker of a process that stopped is stale too.
+      if (await this.isStale(breaker)) await removeFile(breaker).catch(() => undefined);
+      return false;
+    }
+    try {
+      // The examination again, under the breaker: another store can have taken over the lock
+      if (!(await this.isStale(this.lockPath))) return false;
+      await removeFile(this.lockPath);
+      return true;
+    } finally {
+      await removeFile(breaker).catch(() => undefined);
+    }
   }
 }
 

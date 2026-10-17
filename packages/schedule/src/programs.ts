@@ -11,11 +11,13 @@ import { getProgramStore } from "@procedures/store";
 import { ScheduleError } from "./errors.js";
 import { defaultScheduleStore, type ScheduleStore } from "./store.js";
 
-/** What the procedures of a module use: the store and the wall clock. */
+/** What the procedures of a module use: the store, the wall clock and the time zone of `local`. */
 export interface ScheduleSettings {
   readonly store: ScheduleStore;
   /** The wall time, in milliseconds since 1970. */
   readonly now: () => number;
+  /** The IANA time zone of the schedules with the time zone `local`. Without it, `local` is the time zone of the process. */
+  readonly timeZone?: string | undefined;
 }
 
 /** The settings of the default module: `defaultScheduleStore` and `Date.now`. */

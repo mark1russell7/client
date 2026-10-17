@@ -45,10 +45,14 @@ async function until(condition: () => boolean | Promise<boolean>, turns = 200): 
 
 const ok = zodAdapter<{ ok: boolean }>(z.object({ ok: z.boolean() }));
 
-/** A registry with the schedule procedures, the program store procedures and three test procedures, and a scheduler on a fake clock. */
-async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleStore = new MemoryScheduleStore()) {
+/**
+ * A registry with the schedule procedures, the program store procedures and three test procedures,
+ * and a scheduler on a fake clock. The wall time starts at `start`. The module gets the `timeZone`
+ * of the options of the scheduler.
+ */
+async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleStore = new MemoryScheduleStore(), start = T0) {
   const clock = fakeClock();
-  const now = () => T0 + clock.now();
+  const now = () => start + clock.now();
   const calls: unknown[] = [];
   let blocked = 0;
   let current = gate();
@@ -91,7 +95,7 @@ async function harness(options: Partial<SchedulerOptions> = {}, store: ScheduleS
       })
       .build(),
   ]);
-  const registry: ProcedureRegistry = createRegistry(createScheduleModule({ store, now }), storeModule, test);
+  const registry: ProcedureRegistry = createRegistry(createScheduleModule({ store, now, timeZone: options.timeZone }), storeModule, test);
   const call = async <T>(key: string, input: unknown, capability?: Capability): Promise<T> => {
     const path = key.split(".");
     return outputValue(await invokePath<T>(path, input, { registry, ...(capability ? { capability } : {}) }), path);
@@ -351,6 +355,77 @@ describe("the times", () => {
     h.open();
     await h.scheduler.settled();
     expect(await h.get("jobs.block")).toMatchObject({ cron: "0 0 * * *", runs: 0 });
+  });
+});
+
+describe("the time zones and the changes of daylight saving time (fakeClock)", () => {
+  /** The scheduler wakes at each minute of the fake clock, for `minutes` minutes, and gives the times of the runs. */
+  async function runMinutes(h: Awaited<ReturnType<typeof harness>>, minutes: number): Promise<string[]> {
+    await h.scheduler.start();
+    await h.step(30_000);
+    await h.scheduler.settled();
+    for (let minute = 1; minute < minutes; minute++) {
+      await h.step(60_000);
+      await h.scheduler.settled();
+    }
+    await h.scheduler.stop();
+    return h.events.map((event) => `${new Date(event.startedAt).toISOString()} ${event.outcome}`);
+  }
+
+  it("runs a fixed time in the hour that does not exist once, at the first minute after the change (Europe/Berlin)", async () => {
+    // 2026-03-29 01:58:30 CET: at 01:00Z, 02:00 CET becomes 03:00 CEST
+    const h = await harness({}, new MemoryScheduleStore(), Date.UTC(2026, 2, 29, 0, 58, 30));
+    await h.add({ id: "gap", cron: "0,30 2 * * *", program: "jobs.ping", input: { n: 1 }, timeZone: "Europe/Berlin" });
+    await h.add({ id: "clock", cron: "*/30 2 * * *", program: "jobs.ping", input: { n: 2 }, timeZone: "Europe/Berlin" });
+    expect((await h.call<{ schedules: Array<{ nextRunAt: string | null }> }>("schedule.list", {})).schedules.map((each) => each.nextRunAt)).toEqual([
+      "2026-03-30T02:00:00+02:00",
+      "2026-03-29T03:00:00+02:00",
+    ]);
+    expect(await runMinutes(h, 40)).toEqual(["2026-03-29T01:00:00.000Z success"]);
+    expect(h.calls).toEqual([1]);
+    expect(await h.get("gap")).toMatchObject({ runs: 1, timeZone: "Europe/Berlin" });
+  });
+
+  it("runs a fixed time in the hour that occurs twice once, and a time with * at each occurrence (Europe/Berlin)", async () => {
+    // 2026-10-25 02:28:30 CEST: at 01:00Z, 03:00 CEST becomes 02:00 CET
+    const h = await harness({}, new MemoryScheduleStore(), Date.UTC(2026, 9, 25, 0, 28, 30));
+    await h.add({ id: "fixed", cron: "30 2 * * *", program: "jobs.ping", input: { n: 1 }, timeZone: "Europe/Berlin" });
+    await h.add({ id: "clock", cron: "*/30 2 * * *", program: "jobs.ping", input: { n: 2 }, timeZone: "Europe/Berlin" });
+    const runs = await runMinutes(h, 95);
+    expect(runs).toEqual(["2026-10-25T00:30:00.000Z success", "2026-10-25T00:30:00.000Z success", "2026-10-25T01:00:00.000Z success", "2026-10-25T01:30:00.000Z success"]);
+    expect(h.events.filter((event) => event.id === "fixed")).toHaveLength(1);
+    expect(h.events.filter((event) => event.id === "clock")).toHaveLength(3);
+  });
+
+  it("runs a fixed time once across the two changes of a zone with a half-hour offset (Australia/Adelaide)", async () => {
+    // 2026-10-04 01:58:30 ACST: at 16:30Z, 02:00 ACST becomes 03:00 ACDT
+    const spring = await harness({}, new MemoryScheduleStore(), Date.UTC(2026, 9, 3, 16, 28, 30));
+    await spring.add({ cron: "30 2 * * *", program: "jobs.ping", input: { n: 1 }, timeZone: "Australia/Adelaide" });
+    expect(await runMinutes(spring, 60)).toEqual(["2026-10-03T16:30:00.000Z success"]);
+    // 2026-04-05 02:28:30 ACDT: at 16:30Z, 03:00 ACDT becomes 02:00 ACST
+    const autumn = await harness({}, new MemoryScheduleStore(), Date.UTC(2026, 3, 4, 15, 58, 30));
+    await autumn.add({ cron: "30 2 * * *", program: "jobs.ping", input: { n: 1 }, timeZone: "Australia/Adelaide" });
+    expect(await runMinutes(autumn, 95)).toEqual(["2026-04-04T16:00:00.000Z success"]);
+  });
+
+  it("gives the zone of local with the option timeZone, to the scheduler and to the module", async () => {
+    // 2026-01-01 08:59:30 in Kolkata (+05:30) is 03:29:30Z
+    const h = await harness({ timeZone: "Asia/Kolkata" }, new MemoryScheduleStore(), Date.UTC(2026, 0, 1, 3, 29, 30));
+    const { schedule } = await h.call<{ schedule: { timeZone: string; nextRunAt: string } }>("schedule.add", { cron: "0 9 * * *", program: "jobs.ping", input: { n: 9 } });
+    expect(schedule).toMatchObject({ timeZone: "local", nextRunAt: "2026-01-01T09:00:00+05:30" });
+    expect(await runMinutes(h, 3)).toEqual(["2026-01-01T03:30:00.000Z success"]);
+  });
+
+  it("refuses an unknown zone, and gives no run to a stored schedule with one", async () => {
+    expect(() => new Scheduler({ timeZone: "Mars/Olympus" })).toThrow(expect.objectContaining({ code: "BAD_TIME_ZONE" }));
+    const h = await harness();
+    await expect(h.add({ cron: "* * * * *", program: "jobs.ping", timeZone: "Mars/Olympus" })).rejects.toMatchObject({ code: "BAD_TIME_ZONE" });
+    expect(await h.store.list()).toEqual([]);
+    // A store that does not examine the zone: the scheduler starts no run for it
+    const loose = new MemoryScheduleStore();
+    loose.list = async () => [{ id: "far", cron: "* * * * *", program: "jobs.ping", timeZone: "Mars/Olympus", createdAt: T0, runs: 0, failures: 0, skipped: 0 }];
+    const other = await harness({}, loose);
+    expect(await runMinutes(other, 3)).toEqual([]);
   });
 });
 

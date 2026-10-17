@@ -7,8 +7,11 @@
 
 import type { PermittedEffects } from "@procedures/client";
 
-/** The time zone of a cron expression: the UTC time, or the local time of the host. */
-export type ScheduleTimeZone = "utc" | "local";
+/**
+ * The time zone of a cron expression: `utc`, `local` (the time zone of the host), or an IANA name
+ * that `Intl` knows, for example `Europe/Berlin`.
+ */
+export type ScheduleTimeZone = "utc" | "local" | (string & {});
 
 /** The last run of a schedule. */
 export interface ScheduleRun {
@@ -31,6 +34,7 @@ export interface Schedule {
   program: string;
   /** The input of the program. */
   input?: unknown;
+  /** The time zone of the expression: `utc`, `local` or an IANA name. */
   timeZone: ScheduleTimeZone;
   /** When the schedule was added, in milliseconds since 1970. A schedule starts no run for a time before it. */
   createdAt: number;
@@ -65,7 +69,7 @@ export interface ScheduleAddInput {
   /** The dotted key of the stored program. */
   program: string;
   input?: unknown;
-  /** The time zone of the expression. The default is `local`. */
+  /** The time zone of the expression: `utc`, `local` or an IANA name such as `Europe/Berlin`. The default is `local`. */
   timeZone?: ScheduleTimeZone | undefined;
   /** True: replace a schedule of the same name. The default is false: a second schedule of a name is an error. */
   replace?: boolean | undefined;
@@ -112,7 +116,7 @@ export interface ScheduleNextInput {
   count?: number | undefined;
   /** The times come after this time: an ISO text. The default is now. */
   after?: string | undefined;
-  /** The time zone of the expression. The default is `local`. */
+  /** The time zone of the expression: `utc`, `local` or an IANA name such as `Europe/Berlin`. The default is `local`. */
   timeZone?: ScheduleTimeZone | undefined;
 }
 

@@ -7,20 +7,25 @@
  */
 
 import { PROCEDURE_REGISTRY, type ProcedureContext } from "@procedures/client";
-import { formatTime, nextTime, parseCron } from "../../cron.js";
+import { checkTimeZone, formatTime, nextTime, parseCron, zoneFor } from "../../cron.js";
 import { ScheduleError } from "../../errors.js";
 import { DEFAULT_SCHEDULE_SETTINGS, findProgram, type ScheduleSettings } from "../../programs.js";
 import type { Schedule, ScheduleAddInput, ScheduleAddOutput, ScheduleView } from "../../types.js";
 
-/** The view of a schedule: with its next time after `now`. */
-export function viewOf(schedule: Schedule, now: number): ScheduleView {
-  let next: number | undefined;
+/**
+ * The view of a schedule: with its next time after `now`. The optional `local` is the IANA time
+ * zone of `local`. Without it, `local` is the time zone of the process.
+ */
+export function viewOf(schedule: Schedule, now: number, local?: string): ScheduleView {
+  let nextRunAt: string | null;
   try {
-    next = nextTime(parseCron(schedule.cron), now, schedule.timeZone);
+    const zone = zoneFor(schedule.timeZone, local);
+    const next = nextTime(parseCron(schedule.cron), now, zone);
+    nextRunAt = next === undefined ? null : formatTime(next, zone);
   } catch {
-    next = undefined;
+    nextRunAt = null;
   }
-  return { ...schedule, nextRunAt: next === undefined ? null : formatTime(next, schedule.timeZone) };
+  return { ...schedule, nextRunAt };
 }
 
 /** The capability of the caller to keep: its clearance and its permitted effects, without its deadline. */
@@ -38,9 +43,9 @@ function callerCapability(ctx: Pick<ProcedureContext, "capability"> | undefined)
  */
 export async function scheduleAdd(input: ScheduleAddInput, ctx?: Pick<ProcedureContext, "capability" | "registry">, settings: ScheduleSettings = DEFAULT_SCHEDULE_SETTINGS): Promise<ScheduleAddOutput> {
   const now = settings.now();
-  const timeZone = input.timeZone ?? "local";
   const cron = parseCron(input.cron);
-  if (nextTime(cron, now, timeZone) === undefined) {
+  const timeZone = checkTimeZone(input.timeZone ?? "local");
+  if (nextTime(cron, now, zoneFor(timeZone, settings.timeZone)) === undefined) {
     throw new ScheduleError("BAD_CRON", `The cron expression ${JSON.stringify(input.cron)} has no time in the next 9 years`);
   }
   await findProgram(ctx?.registry ?? PROCEDURE_REGISTRY, input.program);
@@ -62,5 +67,5 @@ export async function scheduleAdd(input: ScheduleAddInput, ctx?: Pick<ProcedureC
     throw new ScheduleError("EXISTS", `A schedule named ${id} exists: give replace: true, or another id`);
   }
   await settings.store.put(schedule);
-  return { schedule: viewOf(schedule, now) };
+  return { schedule: viewOf(schedule, now, settings.timeZone) };
 }
