@@ -43,7 +43,7 @@ describe("asSettled", () => {
     };
     process.on("unhandledRejection", onUnhandled);
     try {
-      for await (const result of asSettled([after(1, "first"), after(5, 0, "late")])) {
+      for await (const result of asSettled([after(1, "first"), after(5, "never", "late")])) {
         expect(result.index).toBe(0);
         break;
       }
