@@ -1363,6 +1363,7 @@ export declare class HttpServerTransport implements ServerTransport {
     start(): Promise<void>;
     stop(): Promise<void>;
     isRunning(): boolean;
+    port(): number | undefined;
 }
 
 ### dist/adapters/http/server/types.d.ts#HttpServerTransportOptions

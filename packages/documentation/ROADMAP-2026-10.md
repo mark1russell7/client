@@ -370,7 +370,7 @@ The SSE transport of `client-mcp` only throws today. The current MCP specificati
 
 The site has two worker protocols of its own. A `MessagePort` transport replaces them.
 
-**Result.** `PortTransport` sends the frames of the WebSocket transport over a worker, a `MessageChannel` or a `worker_threads` port, in the two directions. The site serves `site.run` and `site.journey` from its workers with it. The transport does not import the Durations, because `quantity` brings zod (R37). Alone, the transport is 2.5 kB of gzip.
+**Result.** `PortTransport` sends the frames of the WebSocket transport over a worker, a `MessageChannel` or a `worker_threads` port, in the two directions. The site serves `site.run` and `site.journey` from its workers with it. The transport does not import the Durations, because `quantity` brings zod (R37). Alone, the transport is 2.8 kB of gzip: 2,760 bytes on 2026-10-17, after a bundle and a minify with esbuild.
 
 ## Tier 6: the collection mode switch
 
