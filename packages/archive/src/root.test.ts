@@ -148,7 +148,9 @@ describe("paths in the root", () => {
     expect((await call<ArchiveListOutput>("archive.list", { archive: "files.zip" })).entries.map((entry) => entry.path)).toEqual(["a.txt", "sub/b.txt"]);
     const extracted = await call<ArchiveExtractOutput>("archive.extract", { archive: "made.tgz", target: "out/made" });
     expect(extracted).toMatchObject({ files: 1 });
-    expect(isInside(root, extracted.target) || isInside(join(base, "root"), extracted.target)).toBe(true);
+    // The target is a real path: on Windows, a short 8.3 name of the temporary folder (RUNNER~1) becomes its long name
+    expect(isInside(await realpath(root), extracted.target)).toBe(true);
+    expect(extracted.target).toBe(join(await realpath(root), "out", "made"));
     expect(existsSync(join(root, "out", "made", "b.txt"))).toBe(true);
   });
 
