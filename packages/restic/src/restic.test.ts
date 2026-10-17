@@ -31,6 +31,8 @@ describe("argv", () => {
   it("reads one JSON document or NDJSON", () => {
     expect(parseJsonOutput('[{"id":"a"}]')).toEqual([{ id: "a" }]);
     expect(parseJsonOutput('{"a":1}\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }]);
+    // A blank line between the documents gives no document
+    expect(parseJsonOutput('{"a":1}\n\n  \r\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }]);
     expect(parseJsonOutput("not json")).toBeUndefined();
     expect(parseJsonOutput("")).toBeUndefined();
   });

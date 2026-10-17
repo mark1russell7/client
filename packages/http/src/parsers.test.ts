@@ -33,6 +33,15 @@ describe("ndjsonLines", () => {
     ]);
   });
 
+  it("skips the keep-alive lines of a server: blank lines in their own chunks, between the parts of a line too", async () => {
+    // The keep-alive line of wire protocol v1 is a lone LF (WIRE-PROTOCOL.md). A CRLF is blank too.
+    const lines = await collect(ndjsonLines(chunksOf("\n", '{"a":1}\n', "\n", "\n", '{"b"', ":2}\n", "\r\n", "\n"), 100));
+    expect(lines).toEqual([
+      { line: 2, text: '{"a":1}' },
+      { line: 5, text: '{"b":2}' },
+    ]);
+  });
+
   it("gives the same lines for each split of the bytes", async () => {
     const text = '﻿{"name":"Zoë 🎉"}\r\n{"b":2}\n';
     for (const [first, second] of splits(text)) {

@@ -149,6 +149,11 @@ describe("normalizeText", () => {
     const text = [INIT, line({ type: "assistant", message: { content: [{ type: "text", text: "Hi" }] } }), "", line({ type: "result", result: "Hi" })].join("\n");
     expect(normalizeText(text).map((event) => event.type)).toEqual(["meta", "text", "result"]);
   });
+
+  it("gives no event for a blank line: LF, spaces or CRLF", () => {
+    expect(normalizeText("\n  \n\r\n")).toEqual([]);
+    expect(normalizeText(`\r\n${INIT}\r\n\r\n`).map((event) => event.type)).toEqual(["meta"]);
+  });
 });
 
 describe("preview and toolResultText", () => {

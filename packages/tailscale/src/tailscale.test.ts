@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
 import { tailscaleExecutable, tailscaleProcedures } from "./procedures.js";
+import { parseJsonOutput } from "./argv.js";
 
 afterEach(() => {
   delete process.env["TAILSCALE_EXE"];
@@ -20,5 +21,14 @@ describe("tailscale.run", () => {
       (output) => outputValue(output, ["tailscale", "run"])
     );
     await expect(call).rejects.toThrow(/tailscale did not start/);
+  });
+});
+
+describe("parseJsonOutput", () => {
+  it("reads one JSON document or NDJSON, and skips a blank line between the documents", () => {
+    expect(parseJsonOutput('{"Self":{"Online":true}}')).toEqual({ Self: { Online: true } });
+    expect(parseJsonOutput('{"a":1}\n\n  \r\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }]);
+    expect(parseJsonOutput("not json")).toBeUndefined();
+    expect(parseJsonOutput("\n\n")).toBeUndefined();
   });
 });

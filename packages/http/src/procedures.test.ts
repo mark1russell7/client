@@ -164,6 +164,22 @@ function routes(req: IncomingMessage, res: ServerResponse, body: string): void {
       res.writeHead(200, { "content-type": "application/x-ndjson" });
       res.write('{"n":1}\n');
       return;
+    case "/ndjson/keep-alive": {
+      // A quiet stream of 200 ms between two items, with a keep-alive line every 20 ms
+      res.writeHead(200, { "content-type": "application/x-ndjson" });
+      res.write('{"n":1}\n');
+      let lines = 0;
+      const timer = setInterval(() => {
+        if (++lines <= 10) {
+          res.write("\n");
+          return;
+        }
+        clearInterval(timer);
+        res.end('{"n":2}\n');
+      }, 20);
+      res.on("close", () => clearInterval(timer));
+      return;
+    }
     case "/sse":
       res.writeHead(200, { "content-type": "text/event-stream; charset=utf-8" });
       res.end(`: hello\n\nevent: start\ndata: ${req.headers["last-event-id"] ?? "none"}\n\nid: 42\ndata: line 1\ndata: line 2\n\n`);
@@ -541,6 +557,11 @@ describe("the time limits and the abort", () => {
     const items = await stream<unknown>("http.ndjson", { url: `${base}/ndjson/idle`, idleTimeoutMs: 150 });
     expect((await items.next()).value).toEqual({ n: 1 });
     expect(await failure(items.next())).toMatchObject({ code: "TIMEOUT", message: expect.stringContaining("idleTimeoutMs") });
+  });
+
+  it("takes a keep-alive line as data: a quiet stream with keep-alive lines does not reach idleTimeoutMs", async () => {
+    const items = await stream<unknown>("http.ndjson", { url: `${base}/ndjson/keep-alive`, idleTimeoutMs: 150 });
+    expect(await collect(items)).toEqual([{ n: 1 }, { n: 2 }]);
   });
 
   it("does not count the time that the reader holds an item as idle time", async () => {

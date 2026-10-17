@@ -378,6 +378,17 @@ describe("FileQueueStore (R28)", () => {
     }
   });
 
+  it("skips a blank line between the lines of the file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "file-queue-"));
+    try {
+      const path = join(dir, "items.jsonl");
+      await writeFile(path, `\n${JSON.stringify(op("a", 1))}\n\n  \r\n${JSON.stringify(op("b", 2))}\n`, "utf8");
+      expect(await new FileQueueStore(path).load()).toEqual([op("a", 1), op("b", 2)]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("drops a part of a line at the end, and refuses a bad line in the middle", async () => {
     const dir = await mkdtemp(join(tmpdir(), "file-queue-"));
     try {
