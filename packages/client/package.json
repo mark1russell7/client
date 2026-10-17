@@ -99,9 +99,9 @@
     "watch": "tsc -b --watch"
   },
   "dependencies": {
-    "@mark1russell7/algebra": "^0.5.0",
+    "@mark1russell7/algebra": "^0.7.0",
     "@mark1russell7/quantity": "^0.2.0",
-    "@mark1russell7/service": "^0.4.0",
+    "@mark1russell7/service": "^0.4.1",
     "ws": "^8.18.3",
     "zod": "^4.6.5"
   },

@@ -370,14 +370,14 @@ importers:
   packages/client:
     dependencies:
       '@mark1russell7/algebra':
-        specifier: ^0.5.0
-        version: 0.5.0(zod@4.6.5)
+        specifier: ^0.7.0
+        version: 0.7.0(zod@4.6.5)
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.5)
       '@mark1russell7/service':
-        specifier: ^0.4.0
-        version: 0.4.0(zod@4.6.5)
+        specifier: ^0.4.1
+        version: 0.4.1(zod@4.6.5)
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -1277,8 +1277,8 @@ importers:
   packages/llm:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.4.0
-        version: 0.4.0(zod@4.6.5)
+        specifier: ^0.4.1
+        version: 0.4.1(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1661,8 +1661,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       '@mark1russell7/service':
-        specifier: ^0.4.0
-        version: 0.4.0(zod@4.6.5)
+        specifier: ^0.4.1
+        version: 0.4.1(zod@4.6.5)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1909,8 +1909,8 @@ importers:
   packages/systems:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.4.0
-        version: 0.4.0(zod@4.6.5)
+        specifier: ^0.4.1
+        version: 0.4.1(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2922,8 +2922,8 @@ packages:
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/algebra@0.5.0':
-    resolution: {integrity: sha512-rNKCWvZBGDUYtA1BOPftPY7+zG6LWdISWrjkZwsHf3IS4bfz6JCeWVpJ0LV/vEvNRz1OnVjh9WgwoEUn1Y4cCQ==}
+  '@mark1russell7/algebra@0.7.0':
+    resolution: {integrity: sha512-757FXCN0+un6vsr6Z73ZjxYKCmzg8hhJ3hpjcLgeFMv+7/XVHupt15k5SCGbTyd+oPVHZ4gtqzq6r5EboKLzGw==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -2946,8 +2946,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.4.0':
-    resolution: {integrity: sha512-Zby/XIGWTWax927/pkQgeY9ljlzLmBkUnTlDcpGDKnNpEmXhM0WpnK948hnDqvUd2bwXM3/CcM2cYQDAaTA+2A==}
+  '@mark1russell7/service@0.4.1':
+    resolution: {integrity: sha512-9lxVPWJ/oZ1wfyl0NhZ7WX0w53L2HwG++78XmWr3gh0IhCiMZSJi3cuvgiRfF/uS2uf3u7TGXmb2MctEZDtF3g==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -5784,7 +5784,7 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.5.0(zod@4.6.5)':
+  '@mark1russell7/algebra@0.7.0(zod@4.6.5)':
     dependencies:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
       zod: 4.6.5
@@ -5800,9 +5800,9 @@ snapshots:
     optionalDependencies:
       zod: 4.6.5
 
-  '@mark1russell7/service@0.4.0(zod@4.6.5)':
+  '@mark1russell7/service@0.4.1(zod@4.6.5)':
     dependencies:
-      '@mark1russell7/algebra': 0.5.0(zod@4.6.5)
+      '@mark1russell7/algebra': 0.7.0(zod@4.6.5)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
       zod: 4.6.5
 
