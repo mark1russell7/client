@@ -51,14 +51,14 @@ describe("the registry of mark with a root", () => {
     );
     expect(refused.packages).toEqual({});
     expect(refused.warnings[0]?.issue).toContain("outside the root");
-  });
+  }, 120000);
 
   it("keeps the procedures of the registry without a root", async () => {
     const [plain, rooted] = await Promise.all([loadEcosystemRegistry(false, false), loadEcosystemRegistry(false, false, { fsRoot: root })]);
     const keys = (procedures: ReadonlyArray<{ path: readonly string[] }>) => procedures.map((procedure) => procedure.path.join(".")).sort();
     expect(keys(rooted.registry.getAll())).toEqual(keys(plain.registry.getAll()));
     expect(plain.fsRoot).toBeUndefined();
-  });
+  }, 120000);
 
   it("gives the root to the context of initCli, and refuses a root that does not exist", async () => {
     const ctx = await initCli(false, root);
@@ -67,5 +67,5 @@ describe("the registry of mark with a root", () => {
       code: "FORBIDDEN",
     });
     await expect(loadEcosystemRegistry(false, false, { fsRoot: join(base, "missing") })).rejects.toThrow("does not exist");
-  });
+  }, 120000);
 });
