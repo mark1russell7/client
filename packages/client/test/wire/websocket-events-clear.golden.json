@@ -1,0 +1,81 @@
+{
+  "sent": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "s1",
+      "type": "request",
+      "method": {
+        "service": "events",
+        "operation": "subscribe"
+      },
+      "payload": {
+        "topics": [
+          "orders.created",
+          "orders.paid"
+        ]
+      },
+      "metadata": {},
+      "credit": 64
+    }
+  ],
+  "received": [
+    {
+      "id": "hello",
+      "type": "hello",
+      "protocol": 1
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 1,
+      "payload": {
+        "type": "subscribed",
+        "topics": [
+          "orders.created",
+          "orders.paid"
+        ]
+      },
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "stream",
+      "seq": 2,
+      "payload": {
+        "type": "event",
+        "topic": "orders.created",
+        "data": {
+          "order": 1
+        },
+        "seq": 1
+      },
+      "stream": {
+        "done": false
+      }
+    },
+    {
+      "id": "<id 1>",
+      "type": "error",
+      "status": {
+        "type": "error",
+        "code": "TOPIC_CLEARED",
+        "message": "The host cleared the topic \"orders.created\", so the subscription ends",
+        "retryable": false
+      },
+      "error": {
+        "code": "TOPIC_CLEARED",
+        "message": "The host cleared the topic \"orders.created\", so the subscription ends",
+        "retryable": false
+      },
+      "stream": {
+        "done": true
+      }
+    }
+  ]
+}

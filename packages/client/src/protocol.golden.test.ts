@@ -348,6 +348,42 @@ describe("the WebSocket frames of the remote events (EVENTS.md, R25)", () => {
     golden("websocket-events-server", { sent, received: normalize(received) });
   });
 
+  it("the publisher: clear() of the bus ends a subscription with an error frame TOPIC_CLEARED", async () => {
+    const bus = createEventBus();
+    const server = eventHost(bus);
+    const http = createServer();
+    server.addTransport(new WebSocketServerTransport(server, { server: http, path: "/ws", heartbeat: false }));
+    await server.start();
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      await server.stop();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const socket = new WsClient(`ws://127.0.0.1:${(http.address() as AddressInfo).port}/ws`);
+    cleanups.push(async () => socket.terminate());
+    const received: Array<Record<string, unknown>> = [];
+    socket.on("message", (data) => received.push(JSON.parse(String(data)) as Record<string, unknown>));
+    await new Promise((resolve) => socket.once("open", resolve));
+    const sent: Array<Record<string, unknown>> = [];
+    const send = (frame: Record<string, unknown>): void => {
+      sent.push(frame);
+      socket.send(JSON.stringify(frame));
+    };
+    send({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION });
+    await framesUntil(received, 1);
+    send({ id: "s1", type: "request", method: { service: "events", operation: "subscribe" }, payload: { topics: ["orders.created", "orders.paid"] }, metadata: {}, credit: 64 });
+    await framesUntil(received, 2);
+    bus.emit("orders.created", { order: 1 });
+    await framesUntil(received, 3);
+    // The clear of one topic ends the whole subscription, and the listener of the other topic goes
+    bus.clear("orders.created");
+    await framesUntil(received, 4);
+    expect(bus.subscriberCount("orders.paid")).toBe(0);
+    expect(server.publisher!.subscriptions).toBe(0);
+    golden("websocket-events-clear", { sent, received: normalize(received) });
+  });
+
   it("the subscriber: the request of a subscription with its credit, and the cancel of the unsubscribe", async () => {
     const http = createServer();
     const wss = new WebSocketServer({ server: http, path: "/ws" });
@@ -381,6 +417,49 @@ describe("the WebSocket frames of the remote events (EVENTS.md, R25)", () => {
     unsubscribe();
     await framesUntil(received, 3);
     expect(events).toEqual([{ order: 1 }]);
+    golden("websocket-events-client", normalize(received));
+  });
+
+  it("the subscriber: two subscribers of one topic send one request, and the last unsubscribe sends the one cancel", async () => {
+    const http = createServer();
+    const wss = new WebSocketServer({ server: http, path: "/ws" });
+    const received: Array<Record<string, unknown>> = [];
+    wss.on("connection", (socket) => {
+      socket.on("message", (data) => {
+        const frame = JSON.parse(String(data)) as Record<string, unknown>;
+        received.push(frame);
+        if (frame["type"] === "hello") socket.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
+        if (frame["type"] === "request") {
+          const id = frame["id"];
+          socket.send(JSON.stringify({ id, type: "stream", payload: { type: "subscribed", topics: ["orders.created"] }, stream: { done: false } }));
+          socket.send(JSON.stringify({ id, type: "stream", payload: { type: "event", topic: "orders.created", data: { order: 1 }, seq: 1 }, stream: { done: false } }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      for (const client of wss.clients) client.terminate();
+      await new Promise<void>((resolve) => wss.close(() => resolve()));
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${(http.address() as AddressInfo).port}/ws`, heartbeat: { enabled: false }, reconnect: { enabled: false } });
+    cleanups.push(() => transport.close());
+    const first: unknown[] = [];
+    const second: unknown[] = [];
+    const a = transport.subscribe("orders.created", (data) => void first.push(data));
+    const b = transport.subscribe("orders.created", (data) => void second.push(data));
+    await Promise.all([a.ready, b.ready]);
+    const until = Date.now() + 2000;
+    while ((first.length === 0 || second.length === 0) && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 5));
+    expect([first, second]).toEqual([[{ order: 1 }], [{ order: 1 }]]);
+    // The first unsubscribe sends nothing: the other subscriber keeps the call
+    a();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(received).toHaveLength(2);
+    b();
+    await framesUntil(received, 3);
+    // The frames are the frames of one subscriber: one request and one cancel (EVENTS.md)
     golden("websocket-events-client", normalize(received));
   });
 });

@@ -874,11 +874,12 @@ export class WebSocketTransport implements Transport {
   /**
    * This function subscribes to topics of the bus of the server (`documentation/EVENTS.md`). The
    * handler gets each event in order. After a drop, the transport sends the subscription again on
-   * the new connection. The events between the drop and the new confirmation are lost.
+   * the new connection. The events between the drop and the new confirmation are lost. The
+   * subscribers of the same topics with the same options share one call.
    *
    * @param topics - One topic, or a list of 1 to 64 topics
    * @param handler - The handler of each event. A promise that it gives holds the next event.
-   * @param options - `onSubscribed`, `onError`, a signal, the metadata of the call
+   * @param options - `onSubscribed`, `onError`, a signal, the metadata of the call, the resubscribe rules
    * @returns The unsubscribe function, with the `ready` promise of the first confirmation
    *
    * @example
@@ -904,12 +905,17 @@ export class WebSocketTransport implements Transport {
     return remoteEvents<T>(this, topics, options, this.subscriptionHooks());
   }
 
-  /** The parts of the subscriptions of this transport: its connection, its backoff, its close and `onEvent`. */
+  /**
+   * The parts of the subscriptions of this transport: its connection, its backoff, its
+   * `maxAttempts`, its clock, its close and `onEvent`.
+   */
   private subscriptionHooks(): SubscriptionHooks {
     return {
       lifetime: this.subscriptions.signal,
       ready: (signal) => this.whenConnected(signal),
       backoff: (attempt) => reconnectDelay(attempt, this.options.reconnect),
+      maxAttempts: this.options.reconnect.maxAttempts,
+      clock: this.clock,
       onEvent: (event) => {
         if (!this.options.onEvent) return;
         try {

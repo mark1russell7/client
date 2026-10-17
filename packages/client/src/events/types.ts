@@ -82,9 +82,10 @@ export interface EventBus {
    *
    * @param channel - Channel to subscribe to
    * @param handler - Handler function called for each event
+   * @param options - `onClear`: the function that runs when `clear()` or `clearAll()` removes the handler
    * @returns Unsubscribe function
    */
-  on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+  on<T>(channel: string, handler: EventHandler<T>, options?: EventListenOptions): Unsubscribe;
 
   /**
    * Subscribe to a single event on a channel.
@@ -177,7 +178,8 @@ export interface TypedEventBus<TChannels extends ChannelMap> {
   emit<K extends keyof TChannels & string>(channel: K, data: TChannels[K]): void;
   on<K extends keyof TChannels & string>(
     channel: K,
-    handler: EventHandler<TChannels[K]>
+    handler: EventHandler<TChannels[K]>,
+    options?: EventListenOptions
   ): Unsubscribe;
   once<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): Promise<TChannels[K]>;
   stream<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): AsyncIterable<TChannels[K]>;
@@ -236,6 +238,17 @@ export interface DefaultChannels extends SystemChannels, ProcedureChannels {
 export interface EventWaitOptions {
   /** When this signal aborts, the wait ends */
   signal?: AbortSignal | undefined;
+}
+
+/**
+ * Options for a handler of `on()`.
+ */
+export interface EventListenOptions {
+  /**
+   * This function runs one time when `clear()` or `clearAll()` removes the handler. An unsubscribe
+   * does not run it. The publisher of the remote events uses it to end a subscription with notice.
+   */
+  onClear?: (() => void) | undefined;
 }
 
 /**

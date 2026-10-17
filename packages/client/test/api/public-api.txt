@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 438 names
+## . (dist/index.d.ts): 440 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -63,6 +63,7 @@ EventBus: dist/events/bus.d.ts#DefaultEventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventItem: dist/events/remote.d.ts#EventItem
+type EventListenOptions: dist/events/types.d.ts#EventListenOptions
 EventPublisher: dist/events/publisher.d.ts#EventPublisher
 type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
@@ -186,6 +187,7 @@ type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type ResponseItem: dist/client/types.d.ts#ResponseItem
 type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
+type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
 type Route: dist/client/call-types.d.ts#Route
@@ -445,7 +447,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 421 names
+## ./browser (dist/browser.d.ts): 423 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -503,6 +505,7 @@ EventBus: dist/events/bus.d.ts#DefaultEventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventItem: dist/events/remote.d.ts#EventItem
+type EventListenOptions: dist/events/types.d.ts#EventListenOptions
 EventPublisher: dist/events/publisher.d.ts#EventPublisher
 type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventWaitOptions: dist/events/types.d.ts#EventWaitOptions
@@ -621,6 +624,7 @@ type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type ResponseItem: dist/client/types.d.ts#ResponseItem
 type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
+type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
 type Route: dist/client/call-types.d.ts#Route
@@ -1008,7 +1012,7 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 44 names
+## ./events (dist/events/index.d.ts): 46 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type DefaultChannels: dist/events/types.d.ts#DefaultChannels
@@ -1019,6 +1023,7 @@ type EventBus: dist/events/types.d.ts#EventBus
 type EventBusOptions: dist/events/types.d.ts#EventBusOptions
 type EventHandler: dist/events/types.d.ts#EventHandler
 type EventItem: dist/events/remote.d.ts#EventItem
+type EventListenOptions: dist/events/types.d.ts#EventListenOptions
 EventPublisher: dist/events/publisher.d.ts#EventPublisher
 type EventPublisherOptions: dist/events/publisher.d.ts#EventPublisherOptions
 type EventTransport: dist/events/remote.d.ts#EventTransport
@@ -1029,6 +1034,7 @@ type ProcedureChannels: dist/events/types.d.ts#ProcedureChannels
 type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
 type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
+type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type SubscribeInput: dist/events/remote.d.ts#SubscribeInput
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
 type Subscription: dist/events/remote.d.ts#Subscription
@@ -2505,7 +2511,7 @@ export declare function toMs(duration: Duration, option?: string): number;
 export declare class DefaultEventBus implements EventBus {
     constructor(options?: EventBusOptions);
     emit<T>(channel: string, data: T): void;
-    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+    on<T>(channel: string, handler: EventHandler<T>, options?: EventListenOptions): Unsubscribe;
     once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
     stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
     subscriberCount(channel: string): number;
@@ -2518,7 +2524,7 @@ export declare class DefaultEventBus implements EventBus {
 ### dist/events/bus.d.ts#createChannelPrefix
 export declare function createChannelPrefix(bus: EventBus, prefix: string): {
     emit<T>(channel: string, data: T): void;
-    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+    on<T>(channel: string, handler: EventHandler<T>, options?: EventListenOptions): Unsubscribe;
     once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
     stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
 };
@@ -2626,9 +2632,19 @@ export type RemoteEventHandler<T = unknown> = (data: T, event: RemoteEvent<T>) =
 export interface RemoteEventsOptions {
     signal?: AbortSignal | undefined;
     resubscribe?: boolean | undefined;
-    backoff?: ((attempt: number) => number) | undefined;
+    maxAttempts?: number | undefined;
+    backoff?: ResubscribeBackoff | undefined;
+    clock?: Clock | undefined;
     onSubscribed?: ((topics: readonly string[]) => void) | undefined;
     metadata?: Record<string, unknown> | undefined;
+}
+
+### dist/events/remote.d.ts#ResubscribeBackoff
+export interface ResubscribeBackoff {
+    initialDelay?: Duration | undefined;
+    maxDelay?: Duration | undefined;
+    backoffMultiplier?: number | undefined;
+    jitter?: number | undefined;
 }
 
 ### dist/events/remote.d.ts#SubscribeInput
@@ -2665,6 +2681,8 @@ export interface SubscriptionHooks {
     readonly lifetime?: AbortSignal | undefined;
     readonly ready?: ((signal: AbortSignal) => Promise<void>) | undefined;
     readonly backoff?: ((attempt: number) => number) | undefined;
+    readonly maxAttempts?: number | undefined;
+    readonly clock?: Clock | undefined;
     readonly onEvent?: ((event: RemoteEvent) => void) | undefined;
     readonly resubscribe?: boolean | undefined;
 }
@@ -2695,7 +2713,7 @@ export interface Event<T = unknown> {
 ### dist/events/types.d.ts#EventBus
 export interface EventBus {
     emit<T>(channel: string, data: T): void;
-    on<T>(channel: string, handler: EventHandler<T>): Unsubscribe;
+    on<T>(channel: string, handler: EventHandler<T>, options?: EventListenOptions): Unsubscribe;
     once<T>(channel: string, options?: EventWaitOptions): Promise<T>;
     stream<T>(channel: string, options?: EventWaitOptions): AsyncIterable<T>;
     subscriberCount(channel: string): number;
@@ -2714,6 +2732,11 @@ export interface EventBusOptions {
 
 ### dist/events/types.d.ts#EventHandler
 export type EventHandler<T = unknown> = (data: T) => void | Promise<void>;
+
+### dist/events/types.d.ts#EventListenOptions
+export interface EventListenOptions {
+    onClear?: (() => void) | undefined;
+}
 
 ### dist/events/types.d.ts#EventWaitOptions
 export interface EventWaitOptions {
@@ -2761,7 +2784,7 @@ export interface SystemChannels {
 ### dist/events/types.d.ts#TypedEventBus
 export interface TypedEventBus<TChannels extends ChannelMap> {
     emit<K extends keyof TChannels & string>(channel: K, data: TChannels[K]): void;
-    on<K extends keyof TChannels & string>(channel: K, handler: EventHandler<TChannels[K]>): Unsubscribe;
+    on<K extends keyof TChannels & string>(channel: K, handler: EventHandler<TChannels[K]>, options?: EventListenOptions): Unsubscribe;
     once<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): Promise<TChannels[K]>;
     stream<K extends keyof TChannels & string>(channel: K, options?: EventWaitOptions): AsyncIterable<TChannels[K]>;
     subscriberCount(channel: string): number;
@@ -4090,7 +4113,7 @@ export declare const PROTOCOL_HEADER = "Procedures-Protocol";
 export declare const PROTOCOL_VERSION = 1;
 
 ### dist/protocol.d.ts#ProtocolErrorCode
-export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND";
+export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND" | "TOPIC_CLEARED";
 
 ### dist/protocol.d.ts#httpStatusOf
 export declare function httpStatusOf(code: unknown): number | undefined;

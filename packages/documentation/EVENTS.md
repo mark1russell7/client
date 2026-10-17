@@ -1,6 +1,6 @@
 # Remote events
 
-> **Status:** design of 2026-10-16. The owner chose to complete the event feature of the WebSocket transport, not to remove it. The implementation is in `@procedures/client`: `src/events/publisher.ts` and `src/events/remote.ts`.
+> **Status:** design of 2026-10-16. The owner chose to complete the event feature of the WebSocket transport, not to remove it. The implementation is in `@procedures/client`: `src/events/publisher.ts` and `src/events/remote.ts`. The change of 2026-10-17 adds the shared subscriptions, the end at `clear()` and the limit of the resubscribe tries.
 
 This document specifies how a peer subscribes to the topics of the event bus of another peer. It extends [wire protocol v1](./WIRE-PROTOCOL.md) and keeps its rules.
 
@@ -95,7 +95,55 @@ Over HTTP, the subscriber posts the input to `{base}/events/subscribe` with `Acc
 - A `stream` frame that left before the cancel can still arrive. The subscriber ignores the frames of a call that it stopped.
 - Over HTTP, the subscriber aborts the request. The server sees the closed request and removes the listeners.
 - A closed connection ends each subscription of that connection. The publisher removes their listeners.
-- `clear()` and `clearAll()` of the bus remove the listeners of the subscriptions too. Such a subscription gets no more events.
+- `clear()` and `clearAll()` of the bus end each subscription with a listener on a cleared topic. Refer to "The end at `clear()`".
+- Two subscribers of one topic on one transport share one call. Only the last unsubscribe sends the `cancel`. Refer to "The shared subscriptions".
+
+## The end at `clear()`
+
+`clear(topic)` and `clearAll()` of the bus of the publisher remove the listeners of the subscriptions. Before, such a subscription got no more events, and the subscriber saw no end. The subscription ends with notice:
+
+- The publisher ends each subscription with a listener on a cleared topic. A subscription of two topics ends too, and the publisher removes the listener of the other topic.
+- The stream of the call ends with the error `TOPIC_CLEARED`. The error is not retryable, so the subscriber does not resubscribe. The host removed the topic on purpose.
+- The subscriber first gets the events in the queue of the subscription, and then the error.
+- The error is the signal of each other end with an error. `subscribeRemote()` gives it to `onError`, `ready` rejects with it before the confirmation, and the iterator of `remoteEvents()` throws it.
+- The bus gives this notice through the option `onClear` of `on()`. The function `onClear` starts one time when `clear()` or `clearAll()` removes the handler. An unsubscribe does not start it.
+
+## The shared subscriptions
+
+Before, each subscriber made its own call, also for the same topic in one process. The subscribers of the same topics on one transport share one call. The share has a count of its subscribers.
+
+- Two subscribers share a call when they have the same transport, the same set of topics and the same options of the call. These options are `metadata`, `resubscribe`, `maxAttempts`, `backoff` and `clock`.
+- The order of the topics and a repeated topic do not change the set.
+- The first subscriber sends the call. The id of each request of the call starts with the id of that subscriber.
+- Each other subscriber joins the call. The wire gets no second `request`.
+- An unsubscribe removes one subscriber. The last unsubscribe sends the `cancel`, and the publisher removes its listeners.
+- After the end of a call, a new subscriber makes a new call.
+- Each subscriber keeps its own id. Its events have its id in `subscription`, and `onEvent` of `WebSocketTransport` gets each event of each subscriber.
+- `WebSocketServerTransport` shares the subscriptions of one connection.
+- The hooks of the first subscriber apply to the call. A transport gives equal hooks to each of its subscribers.
+
+### A late subscriber
+
+A subscriber that joins a call after its confirmation gets the same events as a new subscription:
+
+- It gets no replay. It gets only the events that the call gets after the join.
+- Its `ready` resolves at once, and its `onSubscribed` gets the topics of the confirmation.
+- Its `seq` starts at 1 with its first event. Each subscriber thus counts its own events, and a gap shows a loss as before.
+- The first event after the join can have `dropped`: the publisher dropped these events immediately before it. The subscriber cannot know if they came before the join.
+- A subscriber that joins during a resubscribe waits for the new confirmation.
+- At a resubscribe, each subscriber gets the new confirmation, and its `seq` starts again at 1.
+
+### A queue for each subscriber
+
+- The call reads the next item of the wire only when a subscriber waits for an event. Thus a slow subscriber alone holds the credit, as before the share.
+- When one subscriber waits, the call reads the next item. Each other subscriber gets the event in its own queue. A slow subscriber thus does not slow a fast one.
+- The queue of a subscriber holds at most 1024 events. When it is full, the oldest event goes. The next event of that subscriber has the lost events in `dropped`, as at the publisher.
+
+### The end of a call goes to each subscriber
+
+- An error that ends the call goes to each subscriber. `onError` gets it, `ready` rejects with it before the confirmation, and an iterator throws it.
+- Each subscriber first gets the events of its own queue, and then the end.
+- An end without an error, for example the `close()` of the transport, ends each iterator. `ready` rejects with `ABORTED` before the confirmation.
 
 ## The delivery
 
@@ -118,7 +166,8 @@ Over HTTP, the subscriber posts the input to `{base}/events/subscribe` with `Acc
 - The request of the subscription gives the publisher credit, as each stream does. The default is 64 items (`streamWindow`).
 - The publisher sends an item only when it has credit. The subscriber gives more credit as its handler takes the items.
 - The bus of the publisher does not wait for a subscriber. `emit()` only puts the event into the queue of each subscription.
-- `subscribeRemote()` waits for a promise that the handler gives. A slow handler thus holds the credit of its own subscription. It does not slow another subscription.
+- `subscribeRemote()` waits for a promise that the handler gives. A slow handler thus holds the credit of its own call. It does not slow another call.
+- In a shared call, a slow handler holds the credit only when no other subscriber of the call waits. Refer to "A queue for each subscriber".
 
 ### A slow subscriber
 
@@ -136,6 +185,44 @@ Over HTTP, the subscriber posts the input to `{base}/events/subscribe` with `Acc
 - Each other error ends the subscription. The client tells the `onError` handler, and the `ready` promise rejects when the first `subscribed` item did not come.
 - A server that subscribes to the bus of a client does not resubscribe. A reconnect is a new connection with a new id. The server subscribes again in its `onConnect` handler.
 - Over HTTP, `subscribeRemote()` sends the call again after a failed request, with a backoff.
+
+### The limit of the tries
+
+Before, the subscriber over HTTP resubscribed forever. The option `maxAttempts` sets the limit of the resubscribe tries:
+
+- `maxAttempts` is the number of resubscribe tries, one after the other, without a confirmation. Each confirmation starts the count again.
+- When the tries run out, the subscription ends with a `SubscriptionError`. The error has the code of the last failure, and its message tells the number of tries.
+- The default is 10 tries. With the default backoff, the waits are at most approximately two minutes.
+- 0 is the same as `resubscribe: false`: the first failure ends the subscription.
+- The WebSocket transport uses `reconnect.maxAttempts` of its options. The default of that option is `Infinity`, so a subscription over WebSocket keeps its behavior.
+
+### The backoff
+
+The option `backoff` is an object of durations, as each other time of the client since 0.3.0. It has the names of the `reconnect` options of `WebSocketTransport`:
+
+| Field | Type | Default |
+|---|---|---|
+| `initialDelay` | `Duration` | `ms(250)` |
+| `maxDelay` | `Duration` | `seconds(30)` |
+| `backoffMultiplier` | number | 2 |
+| `jitter` | number from 0 to 1 | 1 (full jitter) |
+
+- The delay before try `n` is `initialDelay × backoffMultiplier^(n − 1)`, at most `maxDelay`. With `jitter`, the delay is a random time below it.
+- A plain number throws a `TypeError`, as for each other duration option. A function throws a `TypeError` too: before, `backoff` was a function of milliseconds.
+- The WebSocket transport uses its reconnect backoff when the options give none.
+- The option `clock` is the clock of the backoff. A test gives the `fakeClock` of `@mark1russell7/service/testing`. The WebSocket transport uses its own clock.
+
+To migrate from a function of milliseconds:
+
+```ts
+// Before
+subscribeRemote(transport, "orders.created", handler, { backoff: (attempt) => Math.min(30_000, 500 * 2 ** (attempt - 1)) });
+// Now
+subscribeRemote(transport, "orders.created", handler, {
+  backoff: { initialDelay: ms(500), maxDelay: seconds(30), jitter: 0 },
+  maxAttempts: Infinity, // the old behavior: no limit
+});
+```
 
 ## The authorization
 
@@ -165,8 +252,10 @@ Other facts:
 | An empty list of topics, or a topic that is not a string | `VALIDATION_ERROR` | 400 | |
 | The publisher stops (`ProcedureServer.stop()`) | `UNAVAILABLE` | 503 | |
 | The time limit of the host passed | `TIMEOUT` | 504 | |
+| `clear()` or `clearAll()` of the bus removed a listener of the subscription | `TOPIC_CLEARED` | 410 | |
 
 - `TOPIC_NOT_FOUND` is a new code of the protocol. Its message names the first unknown topic.
+- `TOPIC_CLEARED` is a new code of the protocol too. Its message names the cleared topic. The error comes in the stream, after the confirmation, so the HTTP status of the response stays 200.
 - An unknown topic comes before a refused topic. The publisher examines each topic for the topic rule first.
 
 ## The stop of a publisher
@@ -179,7 +268,9 @@ Other facts:
 The change is additive in v1. `PROTOCOL_VERSION` stays 1.
 
 - No frame type is new. A subscription uses the frames of a call.
-- The new parts are the path `events.subscribe`, the item types `subscribed` and `event`, the code `TOPIC_NOT_FOUND` and the reason `topic-not-allowed`.
+- The new parts are the path `events.subscribe`, the item types `subscribed` and `event`, the codes `TOPIC_NOT_FOUND` and `TOPIC_CLEARED`, and the reason `topic-not-allowed`.
+- An older subscriber does not know `TOPIC_CLEARED`. The code is not retryable, so it ends the subscription with `onError`.
+- The shared subscriptions and the limit of the tries change only the subscriber. The wire of one subscriber stays the same.
 - An older peer does not know `events.subscribe`. It answers `NOT_FOUND`, and the subscriber reports this error.
 - The frame type `event` stays reserved. No side of v1 sends it. The WebSocket client still gives such a frame to `onEvent`, for a server outside this repository.
 
@@ -207,6 +298,8 @@ for await (const event of transport.events(["orders.created", "orders.paid"], { 
 ```
 
 - `subscribeRemote(transport, topics, handler, options)` and `remoteEvents(transport, topics, options)` do the same over each transport: HTTP, a message port, the local transport, or `transportFor()` of a WebSocket server.
+- The options are `signal`, `onSubscribed`, `metadata`, `resubscribe`, `maxAttempts`, `backoff` and `clock`. `subscribeRemote()` also takes `onError`.
+- A bad `backoff` or `maxAttempts` throws a `TypeError` at the call, before any request.
 - The `onEvent` option of `WebSocketTransport` is a wrapper. It gets each event of each subscription of the transport, with the id of its subscription.
 
 ### The publisher
@@ -249,9 +342,11 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 
 ## The tests
 
-- `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face.
+- `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face. The shared call, a late subscriber and the end at `clear()` on each face.
+- `src/events/remote.test.ts` also tests the share: one call and one cancel, the keys, an error for each subscriber, and a slow subscriber. The limit of the tries and the backoff of durations use a fake clock.
+- `src/events/bus.test.ts`: the option `onClear` of `on()`, with `clear()` and `clearAll()`.
 - `src/adapters/websocket/events.test.ts`: two subscribers and their order, a slow subscriber with credit, and the resubscribe after a drop. It also tests the two directions, the stop of the publisher, and the listeners after `close()`.
 - `src/leaks.test.ts` (roadmap R30): the maps of the two sides and the listeners of the bus are empty after many subscriptions.
-- `src/protocol.golden.test.ts` (roadmap R25): the frames of a subscription, of its errors and of its cancel.
+- `src/protocol.golden.test.ts` (roadmap R25): the frames of a subscription, of its errors and of its cancel. Two subscribers of one topic send the frames of one subscriber, and the end at `clear()` is an `error` frame with `TOPIC_CLEARED`.
 - `src/events/properties.test.ts`: a property test with fast-check. For each subscription, the events arrive in the order of `emit()`, at most once, and `seq` and `dropped` count each loss.
 - `src/soak.test.ts` (roadmap R32): the clients of the soak test also subscribe and unsubscribe.

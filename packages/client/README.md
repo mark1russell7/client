@@ -289,7 +289,7 @@ await toClient.call({ service: "ui", operation: "notify" }, { text: "Build done"
 // function gives the unsubscribe. After a drop, the transport resubscribes on the new connection.
 const unsubscribe = transport.subscribe("orders.created", (order, event) => console.log(event.seq, order), {
   onSubscribed: (topics) => console.log("subscribed", topics),
-  onError: (error) => console.error(error.code),   // TOPIC_NOT_FOUND, FORBIDDEN, NOT_FOUND
+  onError: (error) => console.error(error.code),   // TOPIC_NOT_FOUND, FORBIDDEN, NOT_FOUND, TOPIC_CLEARED
 });
 await unsubscribe.ready;
 unsubscribe();
@@ -531,7 +531,10 @@ const server = new ProcedureServer({
 server.publish("orders.created", { order: 1 })   // the same as bus.emit()
 
 // The subscriber, over each transport
-const unsubscribe = subscribeRemote(transport, "orders.created", (order, event) => console.log(order, event.seq))
+const unsubscribe = subscribeRemote(transport, "orders.created", (order, event) => console.log(order, event.seq), {
+  maxAttempts: 10,                                                   // the resubscribe tries without a confirmation (default 10; WebSocket: reconnect.maxAttempts)
+  backoff: { initialDelay: ms(250), maxDelay: seconds(30), backoffMultiplier: 2, jitter: 1 },   // Durations: a plain number throws a TypeError
+})
 for await (const event of remoteEvents(transport, ["orders.created"], { signal })) console.log(event.data)
 
 // The server subscribes to the bus of a client: the client serves it with `serve`
@@ -541,7 +544,9 @@ wsServer.subscribe(connectionId, "ui.clicked", (click) => console.log(click))
 
 - The delivery is at most once, in the order of `emit()`. `seq` numbers the events of a subscription, and `dropped` tells the events that the publisher dropped for a slow subscriber.
 - A topic outside the topic rule gives `TOPIC_NOT_FOUND`. A topic that `allow` refuses gives `FORBIDDEN` with the reason `topic-not-allowed`. The procedure reads the resource `events`, so the capability of the host applies to it.
-- `ProcedureServer.stop()` ends each subscription with `UNAVAILABLE`, and the subscriber resubscribes later.
+- `ProcedureServer.stop()` ends each subscription with `UNAVAILABLE`, and the subscriber resubscribes later, at most `maxAttempts` times without a confirmation.
+- `clear()` or `clearAll()` of the bus ends each subscription of a cleared topic with `TOPIC_CLEARED`. The subscriber does not resubscribe. `bus.on(channel, handler, { onClear })` gives the same notice to a local handler.
+- The subscribers of the same topics with the same options on one transport share one call. The last unsubscribe sends the cancel. A late subscriber gets no replay: its `ready` resolves at once, and its `seq` starts at 1.
 - `events.subscribe` is not in a registry: it is not an MCP tool.
 
 ### Server

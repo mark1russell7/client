@@ -92,6 +92,14 @@ function stoppedError(): Error {
   return Object.assign(new Error("The publisher of the events stops"), { code: "UNAVAILABLE", retryable: true });
 }
 
+/**
+ * The error that ends a subscription when `clear()` or `clearAll()` of the bus removes the
+ * listener of one of its topics. The subscriber does not resubscribe: the host removed the topic.
+ */
+function clearedError(topic: string): Error {
+  return Object.assign(new Error(`The host cleared the topic "${topic}", so the subscription ends`), { code: "TOPIC_CLEARED", retryable: false });
+}
+
 const topicSchema = z.string().min(1).max(MAX_TOPIC_LENGTH);
 
 const subscribeInput = z.object({
@@ -115,7 +123,8 @@ const eventItemSchema = z.discriminatedUnion("type", [
 /**
  * One subscription: the listeners on the bus and the queue of its events. It is the async
  * iterator of the stream of the call. `return()`, the abort of the signal of the call and
- * `fail()` remove the listeners.
+ * `fail()` remove the listeners. When `clear()` of the bus removes a listener, the subscription
+ * gives the events of its queue, and then it ends with `TOPIC_CLEARED`.
  */
 class TopicSubscription implements AsyncIterableIterator<EventItem> {
   private confirmation: EventItem | undefined;
@@ -135,7 +144,10 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     private readonly onClose: (subscription: TopicSubscription) => void,
   ) {
     this.confirmation = { type: "subscribed", topics };
-    this.unsubscribes = topics.map((topic) => bus.on(topic, (data) => this.push(topic, data)));
+    // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
+    this.unsubscribes = topics.map((topic) =>
+      bus.on(topic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
+    );
     signal?.addEventListener("abort", this.onAbort, { once: true });
   }
 
@@ -201,14 +213,19 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     return this;
   }
 
-  /** This function ends the subscription with an error: the reader gets it at its next item. */
-  fail(error: unknown): void {
+  /**
+   * This function ends the subscription with an error: the reader gets it at its next item. With
+   * `keepQueue`, the reader first gets the confirmation and the events of the queue.
+   */
+  fail(error: unknown, options: { keepQueue?: boolean } = {}): void {
     if (this.closed) return;
     const waiter = this.waiter;
     this.waiter = undefined;
     this.release();
-    this.queue.length = 0;
-    this.confirmation = undefined;
+    if (!options.keepQueue) {
+      this.queue.length = 0;
+      this.confirmation = undefined;
+    }
     if (waiter) waiter.reject(error);
     else this.failure = error;
   }

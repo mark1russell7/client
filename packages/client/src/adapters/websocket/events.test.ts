@@ -156,14 +156,15 @@ describe("the resubscribe after a drop (EVENTS.md)", () => {
       }
     })();
     await subscription.ready;
-    await waitFor(() => bus.subscriberCount("orders.created") === 2, "two listeners");
+    // The handler and the iterator subscribe to one topic on one transport: they share one call
+    await waitFor(() => bus.subscriberCount("orders.created") === 1 && publisher.subscriptions === 1, "one shared listener");
     publisher.publish("orders.created", "before");
     await waitFor(() => events.length === 1 && iterated.length === 1, "the first event");
 
     // The server drops the connection: the client reconnects and resubscribes
     for (const connection of wsServer.getTrackedConnections()) connection.socket.terminate();
     await waitFor(() => confirmations.length === 2, "the second confirmation");
-    await waitFor(() => bus.subscriberCount("orders.created") === 2 && publisher.subscriptions === 2, "the new listeners");
+    await waitFor(() => bus.subscriberCount("orders.created") === 1 && publisher.subscriptions === 1, "the new shared listener");
     expect(transport.getState()).toBe(WebSocketState.CONNECTED);
     publisher.publish("orders.created", "after");
     await waitFor(() => events.length === 2, "the event after the reconnect");
@@ -223,6 +224,31 @@ describe("the events in the two directions (EVENTS.md)", () => {
     await waitFor(() => serverErrors.length === 1, "the end of the server's subscription");
     expect(clientBus.subscriberCount("ui.clicked")).toBe(0);
     expect(served.publisher!.subscriptions).toBe(0);
+  });
+
+  it("two subscriptions of the server on one connection share one call, and the close removes the transport of the connection", async () => {
+    quiet();
+    const { wsServer, client } = await host();
+    const clientBus = createEventBus();
+    const served = new ProcedureServer({ registry: createRegistry(), events: { bus: clientBus, topics: ["ui.*"] } });
+    const transport = client({ serve: served });
+    await waitFor(() => wsServer.getTrackedConnections().length === 1, "the connection");
+    const id = wsServer.getTrackedConnections()[0]!.id;
+    const got: string[] = [];
+    const errors: string[] = [];
+    const first = wsServer.subscribe(id, "ui.clicked", () => void got.push("first"), { onError: (error) => errors.push(error.code) });
+    const second = wsServer.subscribe(id, "ui.clicked", () => void got.push("second"), { onError: (error) => errors.push(error.code) });
+    await Promise.all([first.ready, second.ready]);
+    expect(served.publisher!.subscriptions).toBe(1);
+    served.publish("ui.clicked", 1);
+    await waitFor(() => got.length === 2, "the event for each subscription");
+    expect(got.sort()).toEqual(["first", "second"]);
+
+    // The close of the client ends the shared call: each subscription gets the end
+    await transport.close();
+    await waitFor(() => errors.length === 2, "the end of each subscription");
+    expect(served.publisher!.subscriptions).toBe(0);
+    await waitFor(() => (wsServer as unknown as { eventTransports: Map<string, unknown> }).eventTransports.size === 0, "the transport of the connection goes");
   });
 
   it("gives an iterator of the events of a client to the server", async () => {

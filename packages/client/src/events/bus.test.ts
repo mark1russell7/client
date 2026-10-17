@@ -1,10 +1,11 @@
 /**
  * The event bus (deep dive CORE-15): `once()` on a buffered channel, a repeated unsubscribe,
- * `clear()` with stream readers, an aborted stream, and the bus of a procedure context.
+ * `clear()` with stream readers and with the `onClear` of `on()`, an aborted stream, and the bus
+ * of a procedure context.
  */
 
 import { describe, it, expect } from "vitest";
-import { createEventBus } from "./bus.js";
+import { createChannelPrefix, createEventBus, withEventBusSignal } from "./bus.js";
 import { Client } from "../client/client.js";
 import type { Transport } from "../client/types.js";
 import { defineProcedure } from "../procedures/define.js";
@@ -91,6 +92,80 @@ describe("DefaultEventBus", () => {
     controller.abort();
     await expect(waiting).rejects.toThrow(/abort/i);
     expect(bus.subscriberCount("ch")).toBe(0);
+  });
+});
+
+describe("the onClear option of on() (EVENTS.md)", () => {
+  it("clear() runs onClear one time and removes the handler; the other channels keep theirs", () => {
+    const bus = createEventBus();
+    const cleared: string[] = [];
+    const seen: unknown[] = [];
+    const unsubscribe = bus.on("a", (data) => void seen.push(data), { onClear: () => cleared.push("a") });
+    bus.on("b", () => undefined, { onClear: () => cleared.push("b") });
+    bus.on("a", () => undefined);
+    bus.emit("a", 1);
+    bus.clear("a");
+    bus.clear("a");
+    bus.emit("a", 2);
+    expect(cleared).toEqual(["a"]);
+    expect(seen).toEqual([1]);
+    expect(bus.subscriberCount("b")).toBe(1);
+    // After the clear, the old unsubscribe does nothing
+    unsubscribe();
+    expect(cleared).toEqual(["a"]);
+  });
+
+  it("an unsubscribe does not run onClear, and a later clear() does not run it", () => {
+    const bus = createEventBus();
+    let cleared = 0;
+    const unsubscribe = bus.on("a", () => undefined, { onClear: () => cleared++ });
+    unsubscribe();
+    bus.clear("a");
+    bus.clearAll();
+    expect(cleared).toBe(0);
+  });
+
+  it("clearAll() runs the onClear of each channel, also when one handler removes another", () => {
+    const bus = createEventBus();
+    const cleared: string[] = [];
+    // The first handler unsubscribes the second, as a subscription of two topics does
+    let unsubscribeB: () => void = () => undefined;
+    bus.on("a", () => undefined, {
+      onClear: () => {
+        cleared.push("a");
+        unsubscribeB();
+      },
+    });
+    unsubscribeB = bus.on("b", () => undefined, { onClear: () => cleared.push("b") });
+    bus.on("c", () => undefined, { onClear: () => cleared.push("c") });
+    bus.clearAll();
+    expect(cleared).toEqual(["a", "c"]);
+    expect(bus.channels()).toEqual([]);
+  });
+
+  it("an error of onClear goes to onError, and the other handlers still run", () => {
+    const errors: Array<[string, string]> = [];
+    const bus = createEventBus({ onError: (error, channel) => errors.push([error.message, channel]) });
+    const cleared: number[] = [];
+    bus.on("a", () => undefined, {
+      onClear: () => {
+        throw new Error("boom");
+      },
+    });
+    bus.on("a", () => undefined, { onClear: () => cleared.push(2) });
+    bus.clear("a");
+    expect(errors).toEqual([["boom", "a"]]);
+    expect(cleared).toEqual([2]);
+  });
+
+  it("withEventBusSignal() and createChannelPrefix() pass the option on", () => {
+    const bus = createEventBus();
+    const cleared: string[] = [];
+    withEventBusSignal(bus, new AbortController().signal).on("a", () => undefined, { onClear: () => cleared.push("view") });
+    createChannelPrefix(bus, "p").on("b", () => undefined, { onClear: () => cleared.push("prefix") });
+    bus.clear("a");
+    bus.clear("p:b");
+    expect(cleared).toEqual(["view", "prefix"]);
   });
 });
 
