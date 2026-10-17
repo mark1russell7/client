@@ -4,6 +4,6 @@ export * from "./procedures.js";
 export * from "./ics.js";
 export * from "./write.js";
 // The calendar days: the date of an instant in a zone, and the arithmetic of dates
-export { localDate, zonedOffset } from "./zone.js";
-export { daysBetween, shiftDay } from "./days.js";
+export { localDate, localTime, zonedOffset } from "./zone.js";
+export { daysBetween, shiftDay, weekdayName, weekdayOf } from "./days.js";
 export * from "./types.js";

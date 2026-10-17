@@ -126,3 +126,16 @@ export function localDate(instant: Date | number | string, timeZone: string): st
   if (fields.year < 0 || fields.year > 9999) throw new RangeError(`localDate: the year ${fields.year} is not from 0 to 9999`);
   return `${pad(fields.year, 4)}-${pad(fields.month)}-${pad(fields.day)}`;
 }
+
+/**
+ * This function gives the time (`HH:MM`, 24 hours, `00:00` at midnight) that a clock in an IANA
+ * time zone shows at an instant. The seconds are cut, not rounded. The instant is a `Date`,
+ * milliseconds since 1970, or a text that `Date.parse` reads. An instant that is not valid, or a
+ * zone that `Intl` does not know, throws a `RangeError`.
+ */
+export function localTime(instant: Date | number | string, timeZone: string): string {
+  const time = instant instanceof Date ? instant.getTime() : typeof instant === "number" ? instant : Date.parse(instant);
+  if (!Number.isFinite(time)) throw new RangeError(`localTime: ${JSON.stringify(String(instant))} is not a valid instant`);
+  const fields = fieldsAt(time, timeZone);
+  return `${pad(fields.hour)}:${pad(fields.minute)}`;
+}
