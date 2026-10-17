@@ -10,6 +10,7 @@ import type { WebSocketTransportOptions, WebSocketMessage, ServerRequestHandler,
 import { WebSocketState } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
 import { IncomingCalls } from "../shared/rpc.js";
+import { StreamSequence, gapOf, itemMetadata } from "../../sequence.js";
 import type { RequestHandler, ServerResponse } from "../../../server/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { optionalMs } from "../../../duration.js";
@@ -85,6 +86,8 @@ interface PendingRequest {
   messageId: string;
   /** The response items of the request, in order */
   queue: ItemQueue<ResponseItem<unknown>>;
+  /** The `seq` of the stream frames: a duplicate or a late frame gives no item */
+  order: StreamSequence;
   /** The request timeout: it runs until the first frame arrives */
   timeout?: Cancel | undefined;
 }
@@ -605,6 +608,9 @@ export class WebSocketTransport implements Transport {
     // A stream frame: one item, or the end of the stream (BUGS-2026-07 H5: before, the
     // transport resolved on the first frame and dropped the others)
     if (message.type === "stream") {
+      // A duplicate or a late frame: its item came before, or the delivery is at most once
+      const gap = pending.order.next(message.seq, message.id);
+      if (gap < 0) return;
       if (message.stream?.done) {
         this.pendingRequests.delete(message.id);
         pending.queue.end();
@@ -614,7 +620,7 @@ export class WebSocketTransport implements Transport {
         id: pending.messageId,
         status: { type: "success", code: 200 },
         payload: message.payload,
-        metadata: message.metadata || {},
+        metadata: itemMetadata(message.metadata, gap),
       });
       return;
     }
@@ -715,7 +721,7 @@ export class WebSocketTransport implements Transport {
     };
 
     const queue = new ItemQueue<ResponseItem<unknown>>();
-    const pending: PendingRequest = { messageId: message.id, queue };
+    const pending: PendingRequest = { messageId: message.id, queue, order: new StreamSequence() };
     pending.timeout = this.clock.after(this.options.requestTimeout, () => {
       if (this.pendingRequests.get(wireId) !== pending) return;
       this.pendingRequests.delete(wireId);
@@ -748,8 +754,10 @@ export class WebSocketTransport implements Transport {
       let taken = 0;
       for await (const item of queue) {
         yield item as ResponseItem<TRes>;
-        // The reader took the item: give the server credit, in batches of half the window
-        if (++taken >= window / 2 && this.pendingRequests.get(wireId) === pending) {
+        // The reader took the item: give the server credit, in batches of half the window.
+        // The frames of a gap took credit too, and no reader takes them.
+        taken += 1 + gapOf(item.metadata);
+        if (taken >= window / 2 && this.pendingRequests.get(wireId) === pending) {
           this.sendCredit(wireId, taken);
           taken = 0;
         }

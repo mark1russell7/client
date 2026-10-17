@@ -5,9 +5,10 @@
  * start the tests with `UPDATE_WIRE_GOLDENS=1` and review the diff of the golden files.
  */
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
+import { MessageChannel, type MessagePort } from "node:worker_threads";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +23,9 @@ import { HttpServerTransport } from "./adapters/http/server/transport.js";
 import { HttpTransport } from "./adapters/http/client/transport.js";
 import { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";
+import { PortTransport, type PortLike } from "./adapters/port/transport.js";
 import { Client } from "./client/client.js";
+import type { Message, Transport } from "./client/types.js";
 import { ERROR_CODES, PROTOCOL_VERSION, httpStatusOf } from "./protocol.js";
 import { createEventBus } from "./events/bus.js";
 import type { EventBus } from "./events/types.js";
@@ -98,7 +101,28 @@ let cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});
   cleanups = [];
+  vi.restoreAllMocks();
 });
+
+/** This function reads one call of a transport to its end: the payload and the metadata of each item. */
+async function itemsOf(transport: Transport, method = pathToMethod(["wire", "count"])): Promise<Array<{ payload: unknown; metadata: unknown }>> {
+  const message: Message = { id: "m1", method, payload: { to: 4 }, metadata: {} };
+  const items: Array<{ payload: unknown; metadata: unknown }> = [];
+  for await (const item of transport.send(message)) items.push({ payload: item.payload, metadata: item.metadata });
+  return items;
+}
+
+/**
+ * The frames of a stream with a duplicate, a late frame and a gap. Frame 2 arrives after frame 3,
+ * and frame 1 arrives two times. The end frame waits for the first credit of the caller.
+ */
+const DISORDERED_STREAM = [
+  { seq: 1, payload: 1 },
+  { seq: 1, payload: 1 },
+  { seq: 3, payload: 3 },
+  { seq: 2, payload: 2 },
+  { seq: 4, payload: 4 },
+];
 
 describe("the error codes of protocol v1 (R25)", () => {
   it("each code has its HTTP status", () => {
@@ -161,7 +185,8 @@ describe("the WebSocket frames of protocol v1 (R25)", () => {
         const frame = JSON.parse(String(data)) as Record<string, unknown>;
         received.push(frame);
         if (frame["type"] === "hello") socket.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
-        // A stream of 40 items: the client gives credit after 32, then cancels at the 35th
+        // A stream of 40 items: the client gives credit after 32, then cancels at the 35th. This
+        // server is an older peer: its stream frames have no seq, and the client takes them.
         if (frame["type"] === "request") {
           for (let n = 1; n <= 40; n++) socket.send(JSON.stringify({ id: frame["id"], type: "stream", payload: n, stream: { done: false } }));
         }
@@ -184,6 +209,74 @@ describe("the WebSocket frames of protocol v1 (R25)", () => {
     while (!received.some((frame) => frame["type"] === "cancel") && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 5));
     expect(transport.getServerProtocol()).toBe(PROTOCOL_VERSION);
     golden("websocket-client", normalize(received));
+  });
+
+  it("the client: the seq of the stream frames, with a duplicate, a late frame and a gap", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const http = createServer();
+    const wss = new WebSocketServer({ server: http, path: "/ws" });
+    const sent: Array<Record<string, unknown>> = [];
+    const received: Array<Record<string, unknown>> = [];
+    wss.on("connection", (socket) => {
+      const send = (frame: Record<string, unknown>): void => {
+        sent.push(frame);
+        socket.send(JSON.stringify(frame));
+      };
+      socket.on("message", (data) => {
+        const frame = JSON.parse(String(data)) as Record<string, unknown>;
+        received.push(frame);
+        if (frame["type"] === "hello") socket.send(JSON.stringify({ id: "hello", type: "hello", protocol: PROTOCOL_VERSION }));
+        if (frame["type"] === "request") {
+          for (const step of DISORDERED_STREAM) send({ id: frame["id"], type: "stream", ...step, stream: { done: false } });
+        }
+        if (frame["type"] === "credit") send({ id: frame["id"], type: "stream", seq: 5, stream: { done: true } });
+      });
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      for (const client of wss.clients) client.terminate();
+      await new Promise<void>((resolve) => wss.close(() => resolve()));
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    // A window of 4: the client gives credit after 2 items. The lost frame 2 counts as read.
+    const transport = new WebSocketTransport({ url: `ws://127.0.0.1:${(http.address() as AddressInfo).port}/ws`, heartbeat: { enabled: false }, reconnect: { enabled: false }, streamWindow: 4 });
+    cleanups.push(() => transport.close());
+    const items = await itemsOf(transport);
+    expect(items.map((item) => item.payload)).toEqual([1, 3, 4]);
+    golden("websocket-stream-seq", { sent: normalize(sent), items, received: normalize(received) });
+  });
+});
+
+describe("the message port frames of protocol v1 (R27)", () => {
+  it("the frames of a value and of a stream with seq: the frames of WebSocket, as objects", async () => {
+    const server = new ProcedureServer({ registry: registry() });
+    server.registerFromRegistry();
+    const channel = new MessageChannel();
+    /** A port that records the frames that its side posts. */
+    const recording = (port: MessagePort, frames: unknown[]): PortLike => ({
+      postMessage: (frame) => {
+        frames.push(frame);
+        port.postMessage(frame);
+      },
+      addEventListener: (type, listener) => port.addEventListener(type, listener),
+      removeEventListener: (type, listener) => port.removeEventListener(type, listener),
+      start: () => port.start(),
+    });
+    const fromWorker: Array<Record<string, unknown>> = [];
+    const fromPage: Array<Record<string, unknown>> = [];
+    const worker = new PortTransport(recording(channel.port1, fromWorker), { serve: server });
+    const page = new PortTransport(recording(channel.port2, fromPage));
+    cleanups.push(async () => {
+      await page.close();
+      await worker.close();
+      channel.port1.close();
+      channel.port2.close();
+    });
+    const client = new Client(page);
+    expect(await client.call(pathToMethod(["wire", "echo"]), { text: "hi" })).toEqual({ text: "hi" });
+    expect(await itemsOf(page)).toEqual([1, 2, 3, 4].map((payload) => ({ payload, metadata: {} })));
+    golden("port-stream", { page: normalize(fromPage), worker: normalize(fromWorker) });
   });
 });
 
@@ -406,5 +499,25 @@ describe("the HTTP exchange of protocol v1 (R25)", () => {
     const client = new Client(new HttpTransport({ baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api` }));
     await client.call(pathToMethod(["wire", "echo"]), { text: "hi" }, { context: { tenant: "a" } });
     golden("http-client", requests);
+  });
+
+  it("the client: the seq of the NDJSON lines, with a duplicate, a late line and a gap", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const lines = [...DISORDERED_STREAM.map((step) => ({ type: "item", ...step })), { type: "done", seq: 5 }];
+    const http = createServer((req: IncomingMessage, res) => {
+      req.resume();
+      req.on("end", () => {
+        res.setHeader("content-type", "application/x-ndjson");
+        res.end(lines.map((line) => `${JSON.stringify(line)}\n`).join(""));
+      });
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const items = await itemsOf(new HttpTransport({ baseUrl: `http://127.0.0.1:${(http.address() as AddressInfo).port}/api` }));
+    expect(items.map((item) => item.payload)).toEqual([1, 3, 4]);
+    golden("http-stream-seq", { lines, items });
   });
 });

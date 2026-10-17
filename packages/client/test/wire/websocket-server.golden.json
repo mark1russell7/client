@@ -74,6 +74,7 @@
     {
       "id": "<id 2>",
       "type": "stream",
+      "seq": 1,
       "payload": 1,
       "stream": {
         "done": false
@@ -82,6 +83,7 @@
     {
       "id": "<id 2>",
       "type": "stream",
+      "seq": 2,
       "payload": 2,
       "stream": {
         "done": false
@@ -90,6 +92,7 @@
     {
       "id": "<id 2>",
       "type": "stream",
+      "seq": 3,
       "stream": {
         "done": true
       }

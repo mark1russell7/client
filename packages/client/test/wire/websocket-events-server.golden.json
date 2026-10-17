@@ -70,6 +70,7 @@
     {
       "id": "<id 1>",
       "type": "stream",
+      "seq": 1,
       "payload": {
         "type": "subscribed",
         "topics": [
@@ -83,6 +84,7 @@
     {
       "id": "<id 1>",
       "type": "stream",
+      "seq": 2,
       "payload": {
         "type": "event",
         "topic": "orders.created",
@@ -98,6 +100,7 @@
     {
       "id": "<id 1>",
       "type": "stream",
+      "seq": 3,
       "payload": {
         "type": "event",
         "topic": "orders.created",
