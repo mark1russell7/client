@@ -1,5 +1,24 @@
 # @procedures/bundle-mcp
 
+## 0.6.0
+
+### Patch Changes
+
+- 72a8c65: The deprecated `db.*` aliases are gone: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup`. Use `sqlite.query` and the other `sqlite.*` names. Version 0.4.0 renamed them and kept the old names for one release.
+- Updated dependencies [f3e23e3]
+- Updated dependencies [72a8c65]
+  - @procedures/json@0.6.0
+  - @procedures/sqlite@0.6.0
+  - @procedures/client@0.6.0
+  - @procedures/cue@0.6.0
+  - @procedures/dag@0.6.0
+  - @procedures/docker@0.6.0
+  - @procedures/lib@0.6.0
+  - @procedures/mongo@0.6.0
+  - @procedures/procedure@0.6.0
+  - @procedures/vitest@0.6.0
+  - @procedures/compiler@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes

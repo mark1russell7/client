@@ -1,5 +1,15 @@
 # @procedures/sqlite
 
+## 0.6.0
+
+### Minor Changes
+
+- 72a8c65: The deprecated `db.*` aliases are gone: `db.query`, `db.execute`, `db.tables`, `db.schema`, `db.transaction`, `db.migrate` and `db.backup`. Use `sqlite.query` and the other `sqlite.*` names. Version 0.4.0 renamed them and kept the old names for one release.
+
+### Patch Changes
+
+- @procedures/client@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
