@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { continuationOf } from "./loop.js";
+import type { ContentBlock } from "./anthropic.js";
 import type { LlmCompleteOutput } from "./types.js";
 import { message, setup, text, toolProcedures as fakes, toolUse } from "../test/fakes.js";
 
@@ -14,7 +15,7 @@ const fallback = { type: "fallback", from: { model: "claude-fable-5-1" }, to: { 
 describe("continuationOf", () => {
   it("keeps an answer without a fallback block as it came, in a new array", () => {
     const content = [{ type: "thinking", thinking: "x", signature: "s" }, text("a"), toolUse("t1", "x", {})];
-    const out = continuationOf(content);
+    const out = continuationOf(content as ContentBlock[]);
     expect(out).toEqual(content);
     expect(out).not.toBe(content);
   });
@@ -34,7 +35,7 @@ describe("continuationOf", () => {
       text("answer"),
       toolUse("t2", "weather_current", { city: "Rome" }),
     ];
-    expect(continuationOf(content)).toEqual([
+    expect(continuationOf(content as ContentBlock[])).toEqual([
       text("partial"),
       { type: "server_tool_use", id: "s1", name: "web_search", input: {} },
       { type: "web_search_tool_result", tool_use_id: "s1", content: [] },
@@ -48,12 +49,12 @@ describe("continuationOf", () => {
   it("drops only before the final fallback when an answer has two", () => {
     const second = { ...fallback, to: { model: "claude-haiku-5-5" } };
     const content = [{ type: "thinking", thinking: "a", signature: "1" }, fallback, { type: "thinking", thinking: "b", signature: "2" }, second, text("c")];
-    expect(continuationOf(content)).toEqual([fallback, second, text("c")]);
+    expect(continuationOf(content as ContentBlock[])).toEqual([fallback, second, text("c")]);
   });
 
   it("keeps a server tool use whose result comes after the fallback", () => {
     const content = [{ type: "server_tool_use", id: "s1", name: "web_fetch", input: {} }, fallback, { type: "web_fetch_tool_result", tool_use_id: "s1", content: {} }];
-    expect(continuationOf(content)).toEqual(content);
+    expect(continuationOf(content as ContentBlock[])).toEqual(content);
   });
 });
 
