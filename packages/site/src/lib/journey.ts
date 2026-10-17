@@ -320,8 +320,8 @@ class WireTransport implements Transport {
         title: this.host === "http" ? `Item ${item} goes over the wire as one NDJSON line.` : `Item ${item} goes over the WebSocket as a stream frame.`,
         detail:
           this.host === "http"
-            ? JSON.stringify({ type: "item", payload: value })
-            : JSON.stringify({ id, type: "stream", payload: value, stream: { done: false } }),
+            ? JSON.stringify({ type: "item", seq: item, payload: value })
+            : JSON.stringify({ id, type: "stream", seq: item, payload: value, stream: { done: false } }),
       });
       this.record({ lane: "transport", direction: "up", item, title: `${transportName} reads item ${item} and gives it to the middleware.` });
       yield { id: message.id, status: { type: "success", code: 200 }, payload: value as TRes, metadata: {} };
@@ -330,7 +330,7 @@ class WireTransport implements Transport {
       lane: "wire",
       direction: "up",
       title: this.host === "http" ? "The last line tells the client that the stream is done." : "The end frame tells the client that the stream is done.",
-      detail: this.host === "http" ? JSON.stringify({ type: "done" }) : JSON.stringify({ id, type: "stream", stream: { done: true } }),
+      detail: this.host === "http" ? JSON.stringify({ type: "done", seq: item + 1 }) : JSON.stringify({ id, type: "stream", seq: item + 1, stream: { done: true } }),
     });
   }
 
