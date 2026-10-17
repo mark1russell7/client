@@ -1,5 +1,14 @@
 # @procedures/peer
 
+## 0.7.0
+
+### Patch Changes
+
+- 389b054: A token check no longer tells the length of the token through its time. The peer compares the SHA-256 digests of the two tokens with `timingSafeEqual`. The `tokenMatches` of the client, which runs in a browser too, compares each character of the expected token for each presented token. Before, a token of another length returned at once. The re-audit of jarvis found it.
+- Updated dependencies [841d083]
+- Updated dependencies [389b054]
+  - @procedures/client@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @procedures/geo
 
+## 0.7.0
+
+### Minor Changes
+
+- 01dce14: The Web Mercator helpers of the slippy maps: `project(lat, lon, zoom)` gives the pixel of a point, `fitZoom(points, width, height)` the zoom that fits the points into a box, and `tilesFor(topLeft, width, height, zoom)` the tiles of a view. They are pure, so a browser bundle can use them.
+
+### Patch Changes
+
+- Updated dependencies [841d083]
+- Updated dependencies [389b054]
+  - @procedures/client@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

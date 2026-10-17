@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/notify",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Push notifications through ntfy, the public server or your own, with a title, a priority, tags and a tap address.",
   "keywords": [
     "notification",

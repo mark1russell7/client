@@ -1,5 +1,22 @@
 # @procedures/bundle-dev
 
+## 0.7.0
+
+### Patch Changes
+
+- Updated dependencies [841d083]
+- Updated dependencies [389b054]
+  - @procedures/client@0.7.0
+  - @procedures/cli-run@0.7.0
+  - @procedures/dag@0.7.0
+  - @procedures/fs@0.7.0
+  - @procedures/git@0.7.0
+  - @procedures/lib@0.7.0
+  - @procedures/pnpm@0.7.0
+  - @procedures/procedure@0.7.0
+  - @procedures/shell@0.7.0
+  - @procedures/compiler@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

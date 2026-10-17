@@ -1,5 +1,17 @@
 # @procedures/ics
 
+## 0.7.0
+
+### Minor Changes
+
+- 01dce14: `localTime(instant, timeZone)` gives the time (`HH:MM`, 24 hours) that a clock in a zone shows at an instant. `weekdayOf(date)` gives the day of the week (0 for Sunday), and `weekdayName(date)` its name. jarvis had seven copies of these.
+
+### Patch Changes
+
+- Updated dependencies [841d083]
+- Updated dependencies [389b054]
+  - @procedures/client@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
