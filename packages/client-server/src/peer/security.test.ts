@@ -123,5 +123,10 @@ describe("check helpers", () => {
     expect(tokenMatches("abc", "abc")).toBe(true);
     expect(tokenMatches("abc", "abd")).toBe(false);
     expect(tokenMatches("abc", undefined)).toBe(false);
+    // Another length gives false through the same digest comparison
+    expect(tokenMatches("abc", "abcd")).toBe(false);
+    expect(tokenMatches("abcd", "abc")).toBe(false);
+    expect(tokenMatches("abc", "")).toBe(false);
+    expect(tokenMatches("t\u00f6ken", "t\u00f6ken")).toBe(true);
   });
 });
