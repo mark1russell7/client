@@ -458,6 +458,8 @@ The package has one procedure, `dag.traverse`. It came from `client-lib` in vers
 
 All packages of the monorepo are in one git repository. Concurrent `git add` commands fail on `index.lock`, so `auto` starts git visits one at a time (deep dive DATA-17).
 
+The output has one result for each package of the graph. A failed visit stops the traversal after its level when `continueOnError` is false. Each package that the traversal did not visit then has a result with `skipped: true`, `success: false` and a `reason`. These results come after the results of the visits. `visited` counts the visits that succeeded, `failed` counts the visits that failed, and `skipped` counts the packages without a visit.
+
 ```typescript
 import { Client, LocalTransport, PROCEDURE_REGISTRY } from "@procedures/client";
 import "@procedures/lib/register"; // lib.scan, and the fs and git procedures that it uses
