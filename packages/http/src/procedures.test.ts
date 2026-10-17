@@ -129,6 +129,16 @@ function routes(req: IncomingMessage, res: ServerResponse, body: string): void {
     case "/hang":
       // No answer: the request waits until the client stops it
       return;
+    case "/hold":
+      // No answer, as /hang. A test aborts after `seen` has the request, so the client waits for the answer then
+      return;
+    case "/gzip-reset": {
+      // Half of a gzip body, then a reset: the decoder of the client gets an error in the middle
+      const zipped = gzipSync("x".repeat(64 * 1024));
+      res.writeHead(200, { "content-type": "text/plain", "content-encoding": "gzip" });
+      res.write(zipped.subarray(0, Math.floor(zipped.length / 2)), () => res.socket?.destroy());
+      return;
+    }
     case "/ndjson":
       res.writeHead(200, { "content-type": "application/x-ndjson" });
       res.end('{"n":1}\n\n{"n":2}\r\n[3]\n"four"');
@@ -493,6 +503,24 @@ describe("the time limits and the abort", () => {
     setTimeout(() => controller.abort(), 50);
     const error = await failure(call("http.request", { url: `${base}/hang`, timeoutMs: 60_000 }, { signal: controller.signal }));
     expect(error).toMatchObject({ code: "ABORTED" });
+  });
+
+  it("stops with ABORTED at an abort that comes while the request waits for its answer", async () => {
+    // The abort comes after the server has the request, thus always while the client waits. The test
+    // above aborts after 50 ms, and on a slow computer that abort can come before the request goes out.
+    seen.delete("/hold");
+    const controller = new AbortController();
+    const pending = failure(call("http.request", { url: `${base}/hold`, timeoutMs: 60_000 }, { signal: controller.signal }));
+    for (let tries = 0; !seen.has("/hold"); tries++) {
+      if (tries > 500) throw new Error("the server did not get the request");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    controller.abort();
+    expect(await pending).toMatchObject({ code: "ABORTED" });
+  });
+
+  it("fails when a gzip body ends in the middle with a reset", async () => {
+    await expect(call("http.request", { url: `${base}/gzip-reset`, timeoutMs: 10_000 })).rejects.toThrow();
   });
 
   it("stops at timeoutMs while the DNS does not answer", async () => {

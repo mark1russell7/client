@@ -93,7 +93,7 @@ describe("dag.traverse in a registry", () => {
   it("visits nothing for a root that the scan did not find", async () => {
     const { registry: target, calls } = registry();
     const result = await traverse(target, { visit: ["test", "visit"], root: "missing" });
-    expect(result).toMatchObject({ success: false, results: [], visited: 0, failed: 0 });
+    expect(result).toMatchObject({ success: false, results: [], visited: 0, failed: 0, skipped: 0 });
     expect(calls.map((call) => call.path)).toEqual(["lib.scan"]);
   });
 
@@ -115,18 +115,38 @@ describe("dag.traverse in a registry", () => {
   });
 
   it("stops after the level of a failed visit, and gives its error", async () => {
-    const { registry: target } = registry(["a"]);
+    const { registry: target, calls } = registry(["a"]);
     const result = await traverse(target, { visit: ["test", "visit"] });
     expect(result.success).toBe(false);
     expect(result.failed).toBe(1);
     expect(result.results.find((entry) => entry.name === "a")).toMatchObject({ success: false, error: "visit of a failed" });
-    expect(names(result)).not.toContain("b");
+    const visits = calls.filter((call) => call.path === "test.visit").map((call) => (call.input["node"] as { name: string }).name);
+    expect(visits.sort()).toEqual(["a", "d"]);
   });
 
-  it("continues after a failed visit with continueOnError", async () => {
+  it("lists the packages that a failure with continueOnError false skipped, in dependency order", async () => {
+    const { registry: target } = registry(["a"]);
+    const result = await traverse(target, { visit: ["test", "visit"], continueOnError: false });
+    expect(result).toMatchObject({ success: false, visited: 1, failed: 1, skipped: 2 });
+    const reason = "The visit of a failed, and the traversal stopped before this package (continueOnError is false)";
+    expect(result.results.filter((entry) => entry.skipped)).toEqual([
+      { name: "b", path: "/w/packages/b", success: false, duration: 0, skipped: true, reason },
+      { name: "c", path: "/w/packages/c", success: false, duration: 0, skipped: true, reason },
+    ]);
+    expect(names(result).sort()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("lists no skipped package for a full run", async () => {
+    const { registry: target } = registry();
+    const result = await traverse(target, { visit: ["test", "visit"] });
+    expect(result).toMatchObject({ success: true, visited: 4, failed: 0, skipped: 0 });
+    expect(result.results.some((entry) => entry.skipped)).toBe(false);
+  });
+
+  it("continues after a failed visit with continueOnError, and skips no package", async () => {
     const { registry: target } = registry(["a"]);
     const result = await traverse(target, { visit: ["test", "visit"], continueOnError: true });
-    expect(result).toMatchObject({ success: false, visited: 3, failed: 1 });
+    expect(result).toMatchObject({ success: false, visited: 3, failed: 1, skipped: 0 });
   });
 
   it("refuses a visit that is neither a path nor a procedure reference", async () => {
