@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import fsModule from "@procedures/fs/module";
 import { cueInit } from "./procedures/cue/init.js";
 import { cueAdd } from "./procedures/cue/add.js";
@@ -37,6 +37,14 @@ import {
   CueValidateOutputSchema,
 } from "./types.js";
 
+/**
+ * The rule of each cue procedure under a root of the files (roadmap R33): the folder of the
+ * project (`cwd`) must be in the root, and without `cwd` it is the root. The files of the project
+ * go through `fs.*`, so the root confines them too. The files of the installed cue package are
+ * not paths of the call.
+ */
+const CUE_IN_A_ROOT: FsRootRules = { cwd: "cwd" };
+
 // =============================================================================
 // Procedure Definitions
 // =============================================================================
@@ -50,6 +58,7 @@ const cueInitProcedure = createProcedure()
     calls: ["fs.exists", "fs.read", "fs.write", "fs.mkdir"],
     // With `force`, it overwrites dependencies.json. A second call writes the same preset again.
     effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    fsRoot: CUE_IN_A_ROOT,
     args: [],
     shorts: { preset: "p", force: "f", cwd: "C" },
     output: "json",
@@ -68,6 +77,7 @@ const cueAddProcedure = createProcedure()
     calls: ["fs.exists", "fs.read", "fs.write"],
     // It writes dependencies.json again with only `$schema` and `dependencies`. Other fields go.
     effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    fsRoot: CUE_IN_A_ROOT,
     args: ["feature"],
     shorts: { cwd: "C" },
     output: "json",
@@ -85,6 +95,7 @@ const cueRemoveProcedure = createProcedure()
     description: "Remove a feature from dependencies.json",
     calls: ["fs.exists", "fs.read", "fs.write"],
     effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    fsRoot: CUE_IN_A_ROOT,
     args: ["feature"],
     shorts: { cwd: "C" },
     output: "json",
@@ -104,6 +115,7 @@ const cueGenerateProcedure = createProcedure()
     // The cue program evaluates the CUE files of @mark1russell7/cue, not code of the project.
     // The procedure rewrites package.json, tsconfig.json and .gitignore.
     effects: { reads: ["fs"], writes: ["fs"], idempotent: true },
+    fsRoot: CUE_IN_A_ROOT,
     args: [],
     shorts: { cwd: "C" },
     output: "json",
@@ -121,6 +133,7 @@ const cueValidateProcedure = createProcedure()
     description: "Validate dependencies.json",
     calls: ["fs.exists", "fs.read"],
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: CUE_IN_A_ROOT,
     args: [],
     shorts: { cwd: "C" },
     output: "json",

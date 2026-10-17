@@ -199,6 +199,9 @@ importers:
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       tar:
         specifier: ^7.5.0
         version: 7.5.22
@@ -524,6 +527,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -571,6 +577,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -736,6 +745,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -758,6 +770,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -837,6 +852,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -930,6 +948,9 @@ importers:
       '@procedures/collections':
         specifier: workspace:*
         version: link:../client-collections
+      '@procedures/fs':
+        specifier: workspace:*
+        version: link:../client-fs
       '@procedures/store':
         specifier: workspace:*
         version: link:../client-store

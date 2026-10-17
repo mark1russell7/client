@@ -37,6 +37,10 @@
     "./register": {
       "types": "./dist/register.d.ts",
       "import": "./dist/register.js"
+    },
+    "./root": {
+      "types": "./dist/root.d.ts",
+      "import": "./dist/root.js"
     }
   },
   "files": [

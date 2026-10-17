@@ -132,18 +132,31 @@ describe("the dev-tools host with MCP_FS_ROOT (roadmap R33)", () => {
     expect(await outputValue(free, ["fs", "read.json"])).toMatchObject({ data: { name: "outside-package" } });
   });
 
-  it("confines the nested fs calls of a tool: lib.scan reads only the workspaces in the root", async () => {
+  it("confines the paths of a tool: lib.scan reads only the workspaces in the root", async () => {
     const inside = await tool<{ packages: Record<string, unknown> }>(rooted, ["lib", "scan"], { rootPath: root });
     expect(inside.type).toBe("success");
     expect(Object.keys(inside.value.packages)).toEqual(["inside-package"]);
 
-    const refused = await tool<{ packages: Record<string, unknown>; warnings: Array<{ issue: string }> }>(rooted, ["lib", "scan"], { rootPath: outside });
-    expect(refused.type).toBe("success");
-    expect(refused.value.packages).toEqual({});
-    expect(refused.value.warnings[0]?.issue).toContain("outside the root");
+    // The root examines rootPath (metadata.fsRoot) before lib.scan starts
+    const refused = await tool(rooted, ["lib", "scan"], { rootPath: outside });
+    expect(refused.type).toBe("error");
+    expect(refused.code).toBe("FORBIDDEN");
     // The host without a root reads the same workspace
     const free = await tool<{ packages: Record<string, unknown> }>(host, ["lib", "scan"], { rootPath: outside });
     expect(Object.keys(free.value.packages)).toEqual(["outside-package"]);
+  });
+
+  it("refuses the tools that the root cannot confine, and keeps them without a root", async () => {
+    expect(rooted.refusedUnderRoot).toEqual(expect.arrayContaining(["docker.run", "docker.compose.up", "lib.new", "vitest.run"]));
+    expect(host.refusedUnderRoot).toBeUndefined();
+    // A refused tool gives FORBIDDEN before it starts docker
+    const run = await tool(rooted, ["docker", "run"], { image: "alpine", volumes: [`${outside}:/host`] });
+    expect(run).toMatchObject({ type: "error", code: "FORBIDDEN" });
+    // A confined tool with a path in the root works: sqlite in a database of the root
+    const tables = await tool<{ tables: unknown[] }>(rooted, ["sqlite", "tables"], { dbPath: ":memory:" });
+    expect(tables.type).toBe("success");
+    const outsideDb = await tool(rooted, ["sqlite", "tables"], { dbPath: join(outside, "x.db") });
+    expect(outsideDb).toMatchObject({ type: "error", code: "FORBIDDEN" });
   });
 
   it("does not start with a root that does not exist", async () => {

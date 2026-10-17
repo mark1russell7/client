@@ -486,6 +486,8 @@ export function createProcedureContext(
   if (options.expose) context.expose = options.expose;
   if (options.repository) context.repository = options.repository;
   if (options.onRef) context.onRef = options.onRef;
+  // The procedure of the parent invocation made this call (roadmap R33: the root of the files)
+  if (invocation?.parent) context.caller = invocation.parent.procedure;
   // Every context has a bus. With a signal, the waits of the handler on the bus end when the
   // invocation aborts, so a stream handler that waits on ctx.bus.stream() can finish. (Before,
   // no host set ctx.bus: deep dive CORE-15.)

@@ -43,7 +43,22 @@ import {
   LibAuditOutputSchema,
 } from "./types.js";
 import { LibGraphInputSchema, LibGraphOutputSchema, type LibGraphInput, type LibGraphOutput } from "./types.js";
-import type { ProcedureContext } from "@procedures/client";
+import type { FsRootRules, ProcedureContext } from "@procedures/client";
+
+// =============================================================================
+// The rules under a root of the files (roadmap R33)
+// =============================================================================
+
+/**
+ * A procedure of a workspace: `rootPath` must be in the root, and without it the workspace is the
+ * root. The procedure reads and writes the files of the workspace through `fs.*`, so the root
+ * confines them too. The nested git calls of `lib.scan` and `lib.audit` are refused under a root,
+ * and the two procedures report a warning in their place.
+ */
+const WORKSPACE_IN_A_ROOT: FsRootRules = { cwd: "rootPath" };
+
+/** `lib.new`: a root refuses it. */
+const NEW_UNDER_A_ROOT: FsRootRules = { refuse: "it starts the cue program of the workspace, and that program is code of the project" };
 
 // =============================================================================
 // lib.* Procedures
@@ -57,6 +72,7 @@ const libScanProcedure = createProcedure()
     description: "Scan for packages in the git directory",
     calls: ["fs.readdir", "fs.read.json", "git.status", "git.remote"],
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: WORKSPACE_IN_A_ROOT,
     args: [],
     shorts: {},
     output: "json",
@@ -75,6 +91,7 @@ const libRenameProcedure = createProcedure()
     calls: ["fs.glob", "fs.read.json", "fs.write", "fs.exists"],
     // It rewrites package.json files and TypeScript imports of the whole workspace
     effects: { reads: ["fs"], writes: ["fs"] },
+    fsRoot: WORKSPACE_IN_A_ROOT,
     args: ["oldName", "newName"],
     shorts: { dryRun: "n" },
     output: "json",
@@ -95,6 +112,7 @@ const libNewProcedure = createProcedure()
     // so it writes process. That CLI writes only files of the new package folder. An existing
     // folder is an error, so the procedure overwrites nothing.
     effects: { reads: ["fs"], writes: ["fs", "process"], destructive: false },
+    fsRoot: NEW_UNDER_A_ROOT,
     args: ["name"],
     shorts: { dryRun: "n" },
     output: "json",
@@ -115,6 +133,7 @@ const libAuditProcedure = createProcedure()
     // package code, so it does not write `process`. With `fix`, it makes only the missing folders
     // and files, so a second call changes nothing more.
     effects: { reads: ["fs", "registry"], writes: ["fs"], destructive: false, idempotent: true },
+    fsRoot: WORKSPACE_IN_A_ROOT,
     args: [],
     shorts: { fix: "f" },
     output: "json",
@@ -133,6 +152,7 @@ const libGraphProcedure = createProcedure()
     description: "The dependency graph of the workspace packages: nodes, workspace: edges, cycles and build levels",
     calls: ["fs.readdir", "fs.read.json"],
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: WORKSPACE_IN_A_ROOT,
     args: [],
     shorts: {},
     output: "json",

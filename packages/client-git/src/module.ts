@@ -7,7 +7,7 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type Effects, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
 import { gitCommit } from "./procedures/git/commit.js";
@@ -243,6 +243,23 @@ const CHANGES_REPOSITORY: Effects = { reads: ["fs"], writes: ["fs"] };
  * that only the reference-transaction event starts (branch, fetch, stash) is not counted.
  */
 const RUNS_HOOKS: Effects = { reads: ["fs"], writes: ["fs", "process"] };
+
+/**
+ * The rule of each git procedure under a root of the files (roadmap R33): a host with a root
+ * refuses it. A root cannot keep git in its folder for two reasons:
+ * - Git looks for the repository in the folders above the working folder, so a working folder in
+ *   the root can open a repository outside it.
+ * - The configuration of a repository can start a program: a hook, `core.fsmonitor` or a filter.
+ *   A client with `fs.write` in the root can write that configuration.
+ */
+const REFUSED_UNDER_A_ROOT: FsRootRules = {
+  refuse: "the configuration of a repository can start a program (a hook, core.fsmonitor, a filter), and git looks for the repository in the folders above the working folder",
+};
+
+/** The procedure with the rule of a root. */
+function underARoot(procedure: AnyProcedure): AnyProcedure {
+  return { ...procedure, metadata: { ...procedure.metadata, fsRoot: REFUSED_UNDER_A_ROOT } };
+}
 
 // =============================================================================
 // Procedure Definitions
@@ -1051,7 +1068,7 @@ export const gitModule: ProcedureModule = defineModule("@procedures/git", [
     gitBranchListProcedure,
     gitBranchAddProcedure,
     gitBranchDeleteProcedure,
-  ]);
+  ].map(underARoot));
 
 export default gitModule;
 

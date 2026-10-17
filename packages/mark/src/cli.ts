@@ -142,7 +142,8 @@ function showRootHelp(procedures: readonly CommandLike[]): void {
   print.info("Hosts: 'mark serve [--procedures pkgs] [--port N] [--expose patterns] [--events topics]' (the procedure server),");
   print.info("       'mark mcp' (the dev-tools MCP server over stdio).");
   print.info("Modes: 'mark --server [--port N] [--host H] [--transport http|websocket|both] [--events topics]' and 'mark -i' (the REPL).");
-  print.info("Root:  'mark --fs-root <folder> <command>' confines each path of fs.* to the folder, also in each mode and host.");
+  print.info("Root:  'mark --fs-root <folder> <command>' keeps each path of each procedure in the folder, also in each mode and host.");
+  print.info("       It refuses the procedures that it cannot confine: git, pnpm, docker run, a program (FORBIDDEN, outside-root).");
 }
 
 /** The global flags that only `--server` takes. */
@@ -207,7 +208,7 @@ function interruptSignal(): { signal: AbortSignal; release: () => void } {
 /**
  * Initialize the CLI context (load ecosystem, create client)
  * This is the expensive part (~4s). Call once, reuse many times. With `fsRoot` (`--fs-root`),
- * the `fs.*` procedures confine each path to the root, also in the nested calls.
+ * each procedure keeps its paths in the root, also in the nested calls, or the root refuses it.
  */
 export async function initCli(verbose = false, fsRoot?: string): Promise<CliContext> {
   const clientModule = await import("@procedures/client");
@@ -485,8 +486,9 @@ Options:
   --http <port>         Serve over Streamable HTTP on this port, not over stdio (MCP_HTTP_PORT)
   --host <host>         The address of --http (default: 127.0.0.1, only this computer)
   --token <token>       A secret that each HTTP request must send as a bearer token
-  --fs-root <folder>    Confine each path of fs.* to this folder, also the nested fs calls
-                        of the tools (default: MCP_FS_ROOT, or no root). The tools stay the same.
+  --fs-root <folder>    Keep each path of each tool in this folder, also in the nested calls,
+                        and refuse each tool that the folder cannot confine (default:
+                        MCP_FS_ROOT, or no root). The list of the tools stays the same.
   --debug               Write debug lines to stderr
   -h, --help            Show this help
 

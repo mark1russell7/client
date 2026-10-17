@@ -45,30 +45,37 @@ Claude Code starts the server once for each session. After a rebuild, restart th
 | `MCP_READ_ONLY` | `false` | With `true`, the tools are only the procedures that change nothing |
 | `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_TOKEN` | not set | The server uses Streamable HTTP on this port, not stdio. The host is `127.0.0.1` by default. |
 | `MCP_PROGRAM_CHECK` | `true` | With `false`, a program starts without the check before the run |
-| `MCP_FS_ROOT` | not set | The folder that confines each path of the `fs.*` procedures. Refer to "The root of the file procedures". |
+| `MCP_FS_ROOT` | not set | The root of the files: each tool keeps its paths in this folder, or the host refuses it. Refer to "The root of the files". |
 
 `mark mcp` starts the same server. Its flags replace the variables: `--bundles`, `--tool-timeout`, `--read-only`, `--http`, `--host`, `--token` and `--fs-root`.
 
 The server serves no remote events (`documentation/EVENTS.md`). Its transport carries only MCP, and `events.subscribe` is not a tool. Thus the host has no variable for the topics.
 
-## The root of the file procedures
+## The root of the files
 
-With `MCP_FS_ROOT` (or `mark mcp --fs-root <folder>`), the host confines each path of the `fs.*` procedures to the folder (roadmap R33):
+With `MCP_FS_ROOT` (or `mark mcp --fs-root <folder>`), the host confines each tool to the folder (roadmap R33):
 
-- The host starts `confineFsProcedures()` of `@procedures/fs` after it builds its registry. The function replaces the handlers of the `fs.*` procedures, and it adds no procedure.
-- `fs` is not a tool namespace, so the tools and `tools.snapshot.txt` do not change. Only the behavior of the tools changes.
-- A tool reads files through nested `fs.*` calls, so the root confines these calls too. For example, `lib.scan` of a workspace outside the root gives a warning and no packages.
-- A path outside the root gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the root.
+- The host starts `confineToRoot()` of `@procedures/fs` after it builds its registry. The function replaces handlers, and it adds no procedure.
+- The list of the tools and `tools.snapshot.txt` do not change. The host refuses some tools under a root.
+- A tool keeps its paths in the root. The host examines the path inputs of its rules (`metadata.fsRoot`) before it starts. The nested `fs.*` calls are confined too.
+- A path outside the root gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the root. A working folder without a value is the root.
+- The host refuses each tool that the root cannot confine, with the same error. At the start, it writes the refused procedures to stderr.
 - The host does not start when the folder does not exist.
 
-The root does not confine a procedure that reads files with `node:fs`, or that starts a program. In the tools of `bundle-mcp`, these are:
+The tools of `bundle-mcp` under a root:
 
-- `lib.*`: `existsSync` of `pnpm-workspace.yaml`, and the TypeScript files of `lib.rename` (`ts-morph`). The `cue-config` program of `lib.new` writes files too.
-- `cue.generate` and `cue.validate`: the `cue` program, and the read of `dependencies.json`.
-- `git.*`, `docker.*`, `pnpm.*` and `vitest.*`: their programs. `git.init` also uses `realpath` and `access`, and `vitest.run` reads its JSON report.
-- `sqlite.*` and `logs.*`: the database file.
+| Tools | Under a root |
+|---|---|
+| `cue.*` | Confined: `cwd` |
+| `lib.scan`, `lib.graph`, `lib.audit`, `lib.rename` | Confined: `rootPath`. Their nested git calls are refused, and `lib.scan` gives a warning. |
+| `procedure.new` | Confined: `path` |
+| `sqlite.*`, `logs.*` | Confined: `dbPath`, which a call must give, or `:memory:` |
+| `docker.ps`, `docker.logs`, `docker.stop`, `docker.rm`, `docker.images`, `docker.inspect`, `docker.pull`, `docker.tag`, `docker.volume.*`, `docker.network.*` | Confined: `cwd`. Docker runs in a folder of the root. |
+| `docker.run`, `docker.exec`, `docker.build`, `docker.compose.*` | Refused: a volume, a compose file or a Dockerfile reaches host folders, or runs a program |
+| `lib.new`, `vitest.run`, `vitest.coverage` | Refused: they start code of the project |
+| `client.*`, `json.*`, `yaml.*`, `mongo.*`, `program.*`, the other `procedure.*` tools | Unchanged: they reach no file |
 
-`cue.init`, `cue.add`, `cue.remove` and `procedure.new` use only `fs.*`, so the root confines them completely. Each `cue.*` procedure except `cue.remove` reads `features.json` of the installed `@mark1russell7/cue` through `fs.read`. Thus they fail when that package is outside the root.
+The rules and the table of all the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
 
 ## How it selects the tools
 

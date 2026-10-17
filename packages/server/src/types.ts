@@ -28,7 +28,7 @@ export interface ServerConfig {
    * `*`. Empty: the server serves no topic, and each subscription gets `TOPIC_NOT_FOUND`.
    */
   events?: string[] | undefined;
-  /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). Undefined: no root. */
+  /** The root of the files (`--fs-root`): each procedure keeps its paths in it, or it is refused. Undefined: no root. */
   fsRoot?: string | undefined;
 }
 

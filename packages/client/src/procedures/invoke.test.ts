@@ -325,3 +325,44 @@ describe("the scope of a raw input survives input validation (docs review DOC-10
     expect(seen).toBe(42);
   });
 });
+
+describe("the caller of a nested call (roadmap R33)", () => {
+  it("is the procedure of the parent invocation, and a call of a host has none", async () => {
+    const registry = new ProcedureRegistry();
+    const seen: unknown[] = [];
+    registry.register(
+      defineProcedure({
+        path: ["test", "inner"],
+        input: outputSchema<Record<string, never>>(),
+        output: outputSchema<null>(),
+        handler: (_input: Record<string, never>, ctx: ProcedureContext) => {
+          seen.push(ctx.caller);
+          return null;
+        },
+      }),
+    );
+    registry.register(
+      defineProcedure({
+        path: ["test", "outer"],
+        input: outputSchema<Record<string, never>>(),
+        output: outputSchema<null>(),
+        handler: async (_input: Record<string, never>, ctx: ProcedureContext) => {
+          seen.push(ctx.caller);
+          await ctx.client.call(["test", "inner"], {});
+          return null;
+        },
+      }),
+    );
+    // The caller is the procedure of the registry, so a host can compare it by identity
+    const outer = registry.get(["test", "outer"]);
+    await outputValue(await invokePath(["test", "outer"], {}, { registry }));
+    expect(seen).toEqual([undefined, outer]);
+    expect(seen[1]).toBe(outer);
+
+    seen.length = 0;
+    const client = new Client(new LocalTransport({ registry })).useRegistry(registry);
+    await client.call({ service: "test", operation: "outer" }, {});
+    expect(seen[0]).toBeUndefined();
+    expect(seen[1]).toBe(outer);
+  });
+});

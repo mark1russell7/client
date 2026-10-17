@@ -167,20 +167,23 @@ mark --server --transport both --events "orders.*"
 mark serve --procedures ./my-procedures.js --events orders.created --events audit.created
 ```
 
-#### The root of the file procedures
+#### The root of the files
 
-`--fs-root <folder>` confines each path of the `fs.*` procedures to the folder (roadmap R33). It applies to each mode and host of `mark`:
+`--fs-root <folder>` confines each procedure to the folder (roadmap R33). Each procedure keeps its paths in the folder, or `mark` refuses it. It applies to each mode and host of `mark`:
 
-- A command in this process, the REPL (`-i`) and the CLI server (`--server`): the registry of `mark` gets the root.
+- A command in this process, the REPL (`-i`) and the CLI server (`--server`): the registry of `mark` gets the root (`confineToRoot()` of `@procedures/fs`).
 - `mark serve` and `mark mcp`: the root goes to their servers. `mark mcp` also reads `MCP_FS_ROOT`.
-- A path outside the folder gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the folder.
-- The nested `fs.*` calls of the other commands are confined too. For example, `mark --fs-root ./data lib scan` cannot list the packages of a workspace outside `./data`.
+- A path outside the folder gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the folder. A working folder without a value is the folder.
+- The nested calls are confined too. For example, `mark --fs-root ./data lib scan` cannot list the packages of a workspace outside `./data`.
+- A procedure that the folder cannot confine gives the same error, also for a path in the folder. Examples are `git.*`, `pnpm.*`, `docker.run`, `docker.compose.*`, `shell.run` and `vitest.run`.
 - Give `--fs-root` before the command. After the command, it is an error, because the procedures loaded without it.
 - A command uses a CLI server only when the server has the same root. The lockfile of the server records its root.
-- A procedure that reads files with `node:fs`, or that starts a program, is not confined. The [README of the MCP server](../impl-mcp-dev/README.md) lists them.
+
+The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
 
 ```bash
 mark --fs-root ./data fs read notes.txt
+mark --fs-root ./data sqlite tables --dbPath notes.db
 mark --fs-root ./data --server
 ```
 
@@ -196,7 +199,7 @@ A flag before the command path is a global flag. After the path, a flag is the c
 | `--format <format>` | `-f` | Override output format (text, json, table, streaming) |
 | `--local` | | Run the command in this process, not on the CLI server |
 | `--json <json>` | | Execute raw procedure reference |
-| `--fs-root <folder>` | | Confine each path of `fs.*` to the folder, also in the nested calls. Give it before the command. |
+| `--fs-root <folder>` | | Keep each path of each procedure in the folder, also in the nested calls, and refuse the procedures that it cannot confine. Give it before the command. |
 | `--server` | | Start the CLI server (with `--port`, `--host`, `--transport`, `--events`) |
 | `--interactive` | `-i` | Start the REPL |
 

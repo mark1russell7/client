@@ -1,6 +1,9 @@
 /**
  * The root of the file procedures: one folder that confines each path (roadmap R33).
  *
+ * This file is the `./root` entry of the package: the rules without the procedures. Another
+ * package that confines its own paths imports them, for example `@procedures/archive`.
+ *
  * `createFsModule({ root })` sends each path of an input through `inRoot()`:
  * - A relative path starts at the root, not at the working folder of the process.
  * - A path outside the root gives `FORBIDDEN` with the reason `outside-root`. This includes a
@@ -88,14 +91,17 @@ export interface ResolvedRoot {
   real: string;
 }
 
-/** This function gives the absolute path and the real path of a root. The root must exist. */
-export async function resolveRoot(root: string): Promise<ResolvedRoot> {
+/**
+ * This function gives the absolute path and the real path of a root. The root must exist. The
+ * error of a missing root names `owner`, for example "the archive procedures".
+ */
+export async function resolveRoot(root: string, owner = "the file procedures"): Promise<ResolvedRoot> {
   const folder = resolve(root);
   try {
     return { folder, real: await realpath(folder) };
   } catch (error) {
     if (!isMissing(error)) throw error;
-    const missing = new Error(`The root of the file procedures does not exist: ${folder}`) as NodeJS.ErrnoException;
+    const missing = new Error(`The root of ${owner} does not exist: ${folder}`) as NodeJS.ErrnoException;
     missing.code = "ENOENT";
     throw missing;
   }
@@ -120,12 +126,12 @@ export async function realPathIsInside(root: ResolvedRoot, absolute: string): Pr
 }
 
 /**
- * This function gives the absolute path of `path` in the root. A relative path starts at the
- * root. The real path decides: a path whose real path is outside the real path of the root gives
- * `FORBIDDEN` with the reason `outside-root`.
+ * This function gives the absolute path of `path` in the root. A relative path starts at `base`,
+ * and the default `base` is the root. The real path decides: a path whose real path is outside the
+ * real path of the root gives `FORBIDDEN` with the reason `outside-root`.
  */
-export async function inRoot(root: ResolvedRoot, path: string, procedure: ProcedurePath): Promise<string> {
-  const absolute = resolve(root.folder, path);
+export async function inRoot(root: ResolvedRoot, path: string, procedure: ProcedurePath, base: string = root.folder): Promise<string> {
+  const absolute = resolve(base, path);
   const real = await realPathOf(absolute);
   // A path counts as inside by its given form or by its real form. On Windows, the two forms of a
   // folder can differ by more than the links: a short 8.3 name (RUNNER~1) has a long real name.

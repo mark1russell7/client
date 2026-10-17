@@ -5,7 +5,7 @@
  * Uses ctx.client.call() for file system operations (dogfooding).
  */
 
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import type { ProcedureContext } from "@procedures/client";
 import type { CueValidateInput, CueValidateOutput } from "../../types.js";
 import {
@@ -14,7 +14,7 @@ import {
   checkCue,
   runCue,
   packageRoot,
-  fileExists,
+  installedFileExists,
 } from "../../shared.js";
 
 /**
@@ -69,9 +69,11 @@ export async function cueValidate(
   // If CUE is available, validate against schema
   if (await checkCue(ctx.signal)) {
     const schemaPath = resolve(packageRoot, "dependencies/schema.cue");
-    if (await fileExists(schemaPath, ctx)) {
+    if (await installedFileExists(schemaPath)) {
       const depsPath = resolve(projectPath, "dependencies.json");
-      const result = await runCue(["vet", "-d", "#Dependencies", schemaPath, depsPath], { signal: ctx.signal });
+      // cue runs in the folder of the schema: a folder of the installed cue package, not the
+      // working folder of the host (roadmap R33)
+      const result = await runCue(["vet", "-d", "#Dependencies", schemaPath, depsPath], { cwd: dirname(schemaPath), signal: ctx.signal });
 
       if (!result.success) {
         errors.push(`CUE schema validation failed: ${result.stderr || result.stdout}`);

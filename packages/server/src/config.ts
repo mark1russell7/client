@@ -216,10 +216,11 @@ OPTIONS:
                             Repeatable, or comma-separated.
                             Default: no topics (TOPIC_NOT_FOUND)
 
-  --fs-root <folder>        Confine each path of the fs.* procedures to this
-                            folder, also the paths of their nested calls
-                            from other procedures. A path outside gives
-                            FORBIDDEN (outside-root). Default: no root
+  --fs-root <folder>        Keep each path of each procedure in this folder,
+                            also in the nested calls. A path outside gives
+                            FORBIDDEN (outside-root). A procedure that the
+                            folder cannot confine (git.*, pnpm.*, docker.run,
+                            a program) gives the same error. Default: no root
 
   --verbose, -v             Verbose output
 
@@ -238,7 +239,7 @@ EXAMPLES:
   # Serve the topics orders.* to subscribers over WebSocket
   procedure-server -p ./my-procedures.js -t websocket --events "orders.*"
 
-  # Confine the file procedures to one folder
-  procedure-server -p @procedures/fs --fs-root ./data
+  # Confine the procedures to one folder
+  procedure-server -p @procedures/fs,@procedures/sqlite --fs-root ./data
 `);
 }

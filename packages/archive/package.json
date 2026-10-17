@@ -70,6 +70,7 @@
   },
   "dependencies": {
     "@procedures/client": "workspace:*",
+    "@procedures/fs": "workspace:*",
     "tar": "^7.5.0",
     "zod": "^4.6.5"
   },

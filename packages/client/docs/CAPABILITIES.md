@@ -52,6 +52,29 @@ A procedure that starts one fixed program (`git status` starts `git`) does not d
 
 **A procedure without a declaration has unknown effects.** A host with a restriction refuses it.
 
+## Declare the paths of a procedure
+
+A host can confine all its procedures to one folder: `mark --fs-root`, `procedure-server --fs-root` and `MCP_FS_ROOT`. A procedure that reaches files declares its path inputs in `metadata.fsRoot`:
+
+```ts
+.meta({
+  effects: { reads: ["fs"], writes: ["fs"] },
+  fsRoot: { cwd: "cwd", paths: ["dbPath"], required: ["dbPath"], values: [":memory:"] },
+})
+```
+
+| Field | Meaning |
+|---|---|
+| `cwd` | The input of the working folder. Without a value, the procedure gets the root. |
+| `paths` | The inputs that name a file or a folder. A relative path starts at the root. The handler gets the absolute path. |
+| `names` | The inputs that name a file relative to the working folder. The host examines them, and does not change them. |
+| `required` | The inputs of `paths` whose default is outside the root. Under a root, a call must give them. |
+| `values` | The values that are not paths, for example `:memory:` |
+| `refuse` | The reason that a root cannot confine the procedure. Under a root, the host refuses it. |
+| `program` | True for a procedure that starts the program of its input (`shell.run`) |
+
+A procedure without `metadata.fsRoot` gets a decision from its effects. The host refuses it when its effects are not known, name `fs`, or write `process`. The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
 ## Give a host a capability
 
 The host makes the capability from its authentication: a token, a session cookie, the user of a local CLI. The input, the metadata and an unauthenticated header do not give it.
@@ -142,7 +165,7 @@ A failed try has one of three outcomes. The retry middleware uses the outcome an
 | `FORBIDDEN` | `effects-undeclared`: the procedure declares no effects, and the capability has a restriction | 403 |
 | `FORBIDDEN` | `effects-exceeded`: the declared effects are more than the permitted effects | 403 |
 | `FORBIDDEN` | `clearance`: the output filter refused a single value | 403 |
-| `FORBIDDEN` | `outside-root`: a path of the input is outside the root of the host (`createFsModule({ root })` of `@procedures/fs`) | 403 |
+| `FORBIDDEN` | `outside-root`: a path of the input is outside the root of the host, or the root cannot confine the procedure (`confineToRoot()` of `@procedures/fs`) | 403 |
 | `FORBIDDEN` | `host-not-allowed`: the HTTP procedures refuse the host of a URL or of a redirect (`createHttpModule({ allow })` of `@procedures/http`) | 403 |
 | `TIMEOUT` | the deadline passed | 504 |
 

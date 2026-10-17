@@ -465,6 +465,8 @@ More tests for `client-git`, `client-splay`, `client-s3` and `client-fs`. `clien
 
 **Result.** Each procedure of the four packages has tests. The tests of `client-git` run real `git` in temporary repositories without the global configuration. The tests of `client-s3` use an S3 fake in memory. `createFsModule({ root })` confines each path of `fs.*`. It refuses `..`, an absolute path, another drive and a symbolic link out of the root. The error is `FORBIDDEN` with the reason `outside-root`. The tests found three defects, which are fixed. `git.commit` failed for an untracked file, `git.init` called `fs.exists` through the client, and a splay child used the global registry.
 
+**Result, part 2 (2026-10-17).** The root confines all the procedures of a host, not only `fs.*`. The three hosts start `confineToRoot()` of `@procedures/fs`. Each procedure declares its path inputs in `metadata.fsRoot`, or the reason that a root cannot confine it. A procedure without rules is refused when its effects are not known, name `fs`, or write `process`. `archive.*`, `sqlite.*`, `cue.*`, `lib.*` and most `docker.*` procedures are confined. `git.*`, `pnpm.*`, `docker.run`, `docker.build` and `docker.compose.*` are refused. `@procedures/archive` uses the rules of `@procedures/fs/root`, so the copy is gone. The rules and the table are in [CAPABILITIES-2026-10.md](./CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
 ## Tier 8: systems
 
 ### R34. `@procedures/systems` and the timer law
@@ -657,6 +659,7 @@ The owner decided these items. The changes are on `main`, and they go out in 0.5
 
 The open work has an ID in the section "Open work after 0.7.0". These items are limits and notes that stay.
 
+- Under a root, `git.*` and `pnpm.*` are refused. A later change can confine git with `GIT_CEILING_DIRECTORIES` and a check of the configuration of the repository. The procedures that reach files without `metadata.fsRoot` are refused too, for example `s3.download`, `snapshot.*` and `schedule.*`. `gh.*` fails at its nested `shell.run`.
 - `llm.complete` with procedures as tools uses a forced `toolChoice` only for the first request. A `tool_result` keeps at most 200,000 characters.
 - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
 - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.
