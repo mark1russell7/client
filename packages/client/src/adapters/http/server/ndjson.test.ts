@@ -231,6 +231,26 @@ describe("writeNdjsonStream on node:http", () => {
     expect(broken).toEqual(byDefault);
   });
 
+  it("starts one timer for each quiet time, not one for each item", async () => {
+    const clock = fakeClock();
+    let started = 0;
+    const counting = { now: () => clock.now(), after: (time: number, run: () => void) => (started++, clock.after(time, run)) };
+    const plain = await plainServer((res) =>
+      writeNdjsonStream(
+        res,
+        (async function* () {
+          for (let n = 1; n <= 500; n++) yield n;
+        })(),
+        { clock: counting },
+      ),
+    );
+    const stream = openStream(plain.url);
+    await stream.ended;
+    expect(stream.text.trim().split("\n")).toHaveLength(501);
+    expect(started).toBe(1);
+    expect(clock.pending).toBe(0);
+  });
+
   it("writes keep-alive lines on its clock, and none with keepAlive: false", async () => {
     for (const keepAlive of [undefined, false] as const) {
       const clock = fakeClock();

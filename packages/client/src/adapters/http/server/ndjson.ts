@@ -157,21 +157,33 @@ export async function writeNdjsonStream(res: ServerResponse, items: AsyncIterabl
   signal?.addEventListener("abort", onAbort, { once: true });
   res.on("close", onClose);
 
-  // The keep-alive timer: it starts again at each line, and it stops at the end
+  // The keep-alive timer. Each line starts the quiet time again, but a line does not start a new
+  // timer: when the timer comes due, it examines the time of the last line. Thus a fast stream
+  // has one timer for each quiet time, not one for each item.
   let timer: Cancel | undefined;
+  let lastLine = 0;
   const stopTimer = (): void => {
     timer?.();
     timer = undefined;
   };
-  const startTimer = (): void => {
-    stopTimer();
-    if (interval <= 0 || stop.signal.aborted || res.writableEnded) return;
-    timer = clock.after(interval, keepAlive);
+  const arm = (delay: number): void => {
+    timer = clock.after(delay, keepAlive);
     timer.unref?.();
+  };
+  /** This function records a line: the quiet time starts again. */
+  const startTimer = (): void => {
+    lastLine = clock.now();
+    if (timer === undefined && interval > 0 && !stop.signal.aborted && !res.writableEnded) arm(interval);
   };
   function keepAlive(): void {
     timer = undefined;
     if (stop.signal.aborted || res.writableEnded || res.destroyed) return;
+    const quiet = clock.now() - lastLine;
+    if (quiet < interval) {
+      // A line went out after the start of this timer: wait for the rest of the quiet time
+      arm(interval - quiet);
+      return;
+    }
     // A full buffer waits for the reader. One more byte there does not reach the reader sooner.
     if (!res.writableNeedDrain) res.write(KEEP_ALIVE_LINE);
     startTimer();
