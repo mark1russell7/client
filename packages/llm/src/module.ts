@@ -5,26 +5,32 @@
  *
  * `llmModule` sends each request to the Anthropic Messages API with the key of the environment
  * variable `ANTHROPIC_API_KEY`. `createLlmModule()` gives the same procedures with another
- * variable, another default model, another base URL or another `fetch` (roadmap R46).
+ * variable, another default model, another base URL, another `fetch`, another number of new
+ * tries or another backoff (roadmap R46).
  */
 
 import { z } from "zod";
+import { backoffProblems, type Backoff } from "@mark1russell7/service/backoff";
 import {
   defineModule,
   registerModules,
   PROCEDURE_REGISTRY,
   createProcedure,
+  markDataDriven,
   zodAdapter,
   type AnyProcedure,
   type Effects,
   type ProcedureContext,
+  type ProcedureHandler,
   type ProcedureModule,
   type ProcedureRegistry,
 } from "@procedures/client";
 import { llmComplete } from "./procedures/llm/complete.js";
 import { llmStructured, MAX_RETRIES } from "./procedures/llm/structured.js";
+import { llmStream } from "./procedures/llm/stream.js";
 import { DEFAULT_LLM_SETTINGS, type EnvSource, type FetchFunction, type LlmSettings } from "./anthropic.js";
-import type { LlmCompleteInput, LlmCompleteOutput, LlmStructuredInput, LlmStructuredOutput } from "./types.js";
+import { MAX_REQUEST_RETRIES } from "./retry.js";
+import type { LlmCompleteInput, LlmCompleteOutput, LlmStreamInput, LlmStreamOutput, LlmStructuredInput, LlmStructuredOutput } from "./types.js";
 
 // =============================================================================
 // Schemas
@@ -43,7 +49,7 @@ const requestFields = {
   maxTokens: z.number().int().min(1).max(64_000).optional().describe("The most tokens of the output, with the thinking (default 16000)"),
   temperature: z.number().min(0).max(1).optional().describe("The temperature, 0 to 1. Some models accept only the default"),
   effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional().describe("The effort of the model (default: the default of the model)"),
-  timeoutMs: z.number().int().positive().max(3_600_000).optional().describe("The time limit of the call, in milliseconds (default 600000)"),
+  timeoutMs: z.number().int().positive().max(3_600_000).optional().describe("The time limit of each request, in milliseconds (default 600000)"),
   fallback: z.boolean().optional().describe("True: the API runs a declined request again on its fallback model (default: the option of the module, true)"),
 };
 
@@ -56,13 +62,74 @@ const usage = z
   })
   .describe("The tokens of the call");
 
-const LlmCompleteInputSchema = z.object(requestFields);
+const TOOL_NAME = /^[a-zA-Z0-9_-]{1,128}$/;
+
+const tool = z.object({
+  name: z.string().regex(TOOL_NAME, "1 to 128 letters, digits, _ and -").describe("The name of the tool"),
+  description: z.string().max(100_000).optional().describe("What the tool does and when the model uses it"),
+  inputSchema: z.record(z.string(), z.unknown()).describe("The JSON Schema of the input of the tool, with type object"),
+  strict: z.boolean().optional().describe("True: the API makes each input agree with the schema (strict tool use)"),
+});
+
+const parallel = z.boolean().optional().describe("True: the model uses at most one tool in an answer");
+
+const toolChoice = z
+  .discriminatedUnion("type", [
+    z.object({ type: z.literal("auto"), disableParallelToolUse: parallel }),
+    z.object({ type: z.literal("any"), disableParallelToolUse: parallel }),
+    z.object({ type: z.literal("tool"), name: z.string().regex(TOOL_NAME).describe("The tool that the model uses"), disableParallelToolUse: parallel }),
+    z.object({ type: z.literal("none") }),
+  ])
+  .describe("How the model uses the tools: auto (default), any, tool or none. Some models refuse any and tool");
+
+const toolFields = {
+  tools: z.array(tool).max(128).optional().describe("The tools that the model can use. The output gives each tool_use block"),
+  toolChoice: toolChoice.optional(),
+  retries: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_REQUEST_RETRIES)
+    .optional()
+    .describe("The new tries after a retryable error (429, 529, 5xx, a connection error), 0 to 10 (default: the option of the module, 2)"),
+};
+
+const toolUse = z.object({
+  id: z.string().describe("The ID of the tool_use block"),
+  name: z.string().describe("The name of the tool"),
+  input: z.unknown().describe("The input of the call"),
+});
+
+const toolCall = z.object({
+  id: z.string().describe("The ID of the tool_use block"),
+  name: z.string().describe("The name of the tool"),
+  procedure: z.string().describe("The key of the procedure"),
+  input: z.unknown().describe("The input that the model gave"),
+  isError: z.boolean().describe("True when the procedure failed: the model got the error"),
+  output: z.unknown().optional().describe("The output of the procedure"),
+  error: z.string().optional().describe("The error of the procedure"),
+});
+
+const LlmCompleteInputSchema = z.object({
+  ...requestFields,
+  ...toolFields,
+  procedures: z
+    .array(z.string().regex(/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/, "A procedure key, for example weather.current"))
+    .max(64)
+    .optional()
+    .describe("The procedures that the model can use as tools: llm.complete calls them and sends the results back"),
+  maxRounds: z.number().int().min(1).max(64).optional().describe("The most requests to the model in one call, 1 to 64 (default 8)"),
+});
 
 const LlmCompleteOutputSchema = z.object({
-  text: z.string().describe("The text of the answer"),
+  text: z.string().describe("The text of the last answer"),
   model: z.string().describe("The model that answered"),
-  stopReason: z.string().describe("Why the model stopped: end_turn, max_tokens, stop_sequence or another reason"),
+  stopReason: z.string().describe("Why the model stopped: end_turn, max_tokens, stop_sequence, tool_use or another reason"),
   usage,
+  toolUses: z.array(toolUse).describe("The tool_use blocks of the last answer that no procedure ran"),
+  toolCalls: z.array(toolCall).describe("The calls of the procedure tools, in their sequence"),
+  rounds: z.number().int().describe("The number of requests to the model"),
+  roundLimit: z.boolean().describe("True when maxRounds stopped the loop before the model stopped"),
 });
 
 const LlmStructuredInputSchema = z.object({
@@ -70,6 +137,7 @@ const LlmStructuredInputSchema = z.object({
   schema: z.record(z.string(), z.unknown()).describe("The JSON Schema of the value"),
   constrained: z.boolean().optional().describe("True (default): the API constrains the output to the schema. False: the system text gives the schema"),
   retries: z.number().int().min(0).max(MAX_RETRIES).optional().describe("The new tries after an answer that is not valid, 0 to 2 (default 2)"),
+  requestRetries: toolFields.retries,
 });
 
 const LlmStructuredOutputSchema = z.object({
@@ -80,6 +148,33 @@ const LlmStructuredOutputSchema = z.object({
   unchecked: z.array(z.string()).describe("The keywords of the schema that the check does not examine fully"),
 });
 
+const LlmStreamInputSchema = z.object({ ...requestFields, ...toolFields });
+
+const index = z.number().int().describe("The index of the content block");
+
+const LlmStreamOutputSchema = z
+  .discriminatedUnion("type", [
+    z.object({ type: z.literal("start"), id: z.string().describe("The ID of the message"), model: z.string().describe("The model that answers"), usage }),
+    z.object({ type: z.literal("text"), index, text: z.string().describe("The new text") }),
+    z.object({
+      type: z.literal("tool_use"),
+      index,
+      id: z.string().describe("The ID of the tool_use block"),
+      name: z.string().describe("The name of the tool"),
+      input: z.unknown().describe("The input of the call, or null when its JSON is not complete"),
+      partialJson: z.string().optional().describe("The JSON text of an input that does not parse"),
+    }),
+    z.object({
+      type: z.literal("stop"),
+      model: z.string().describe("The model that answered"),
+      stopReason: z.string().describe("Why the model stopped"),
+      usage,
+      text: z.string().describe("The text of the answer: all the text deltas, joined"),
+      toolUses: z.array(toolUse).describe("The tool_use blocks of the answer"),
+    }),
+  ])
+  .describe("One item of the stream: start, text, tool_use or stop");
+
 // =============================================================================
 // Procedures
 // =============================================================================
@@ -87,19 +182,20 @@ const LlmStructuredOutputSchema = z.object({
 /**
  * The effects of each procedure: it sends data to a system outside the host and gets an answer.
  * A call costs money and can change the state of an account, so it declares a write. It deletes
- * nothing and a second call is a new call.
+ * nothing and a second call is a new call. The procedure tools of `llm.complete` are nested calls:
+ * the admission of the host examines each one.
  */
 const SENDS_TO_MODEL: Effects = Object.freeze({ reads: Object.freeze(["network"]), writes: Object.freeze(["network"]), destructive: false, idempotent: false });
 
-/** The two procedures, with handlers that use the settings. */
+/** The three procedures, with handlers that use the settings. */
 function llmProcedures(settings: LlmSettings): AnyProcedure[] {
   const llmCompleteProcedure = createProcedure()
     .path(["llm", "complete"])
     .input(zodAdapter<LlmCompleteInput>(LlmCompleteInputSchema))
     .output(zodAdapter<LlmCompleteOutput>(LlmCompleteOutputSchema))
     .meta({
-      description: "Send a prompt to a language model and give the text and the usage",
-      tags: ["llm", "anthropic"],
+      description: "Send a prompt to a language model and give the text and the usage. The model can use tools and procedures",
+      tags: ["llm", "anthropic", "tools"],
       args: ["prompt"],
       shorts: { model: "m", system: "s" },
       output: "json",
@@ -107,6 +203,10 @@ function llmProcedures(settings: LlmSettings): AnyProcedure[] {
     })
     .handler(async (input: LlmCompleteInput, ctx: ProcedureContext): Promise<LlmCompleteOutput> => llmComplete(input, ctx, settings))
     .build();
+  // The input names the procedures that the model can call, so the procedure is data-driven: the
+  // host examines each nested call with its capability, and permits only the procedures that it
+  // exposes. It is not "runs-refs": the refs of its input still run before the call.
+  markDataDriven(llmCompleteProcedure);
 
   const llmStructuredProcedure = createProcedure()
     .path(["llm", "structured"])
@@ -123,7 +223,25 @@ function llmProcedures(settings: LlmSettings): AnyProcedure[] {
     .handler(async (input: LlmStructuredInput, ctx: ProcedureContext): Promise<LlmStructuredOutput> => llmStructured(input, ctx, settings))
     .build();
 
-  return [llmCompleteProcedure, llmStructuredProcedure];
+  const llmStreamProcedure = createProcedure()
+    .path(["llm", "stream"])
+    .input(zodAdapter<LlmStreamInput>(LlmStreamInputSchema))
+    .output(zodAdapter<LlmStreamOutput>(LlmStreamOutputSchema))
+    .meta({
+      description: "Send a prompt to a language model and stream the events of the answer",
+      tags: ["llm", "anthropic", "stream"],
+      args: ["prompt"],
+      shorts: { model: "m", system: "s" },
+      output: "json",
+      streaming: true,
+      // The stream ends with the answer: maxTokens and timeoutMs limit it (roadmap R15)
+      stream: { unbounded: false },
+      effects: SENDS_TO_MODEL,
+    })
+    .handler(((input: LlmStreamInput, ctx: ProcedureContext) => llmStream(input, ctx, settings)) as ProcedureHandler<LlmStreamInput, LlmStreamOutput>)
+    .build();
+
+  return [llmCompleteProcedure, llmStructuredProcedure, llmStreamProcedure];
 }
 
 /**
@@ -148,12 +266,16 @@ export interface LlmModuleOptions {
   readonly fetch?: FetchFunction | undefined;
   /** The variables: a record, or a function that gives them at each call. The default is `process.env`. */
   readonly env?: EnvSource | (() => EnvSource) | undefined;
+  /** The default number of new tries after a retryable error: 0 to 10. The default is 2. */
+  readonly retries?: number | undefined;
+  /** The backoff before a new try, in milliseconds. The default starts at 500 and stops at 8000. */
+  readonly backoff?: Backoff | undefined;
 }
 
 /**
  * This function gives the module of this package with other settings. Without options, it gives
  * `llmModule`. A host gives it to `createRegistry()` before its bundles, so it replaces the
- * `llmModule` that a bundle requires (the first module of a name counts). A bad option throws here.
+ * `llmModule` of a bundle (the first module of a name counts). A bad option throws here.
  *
  * ```ts
  * createRegistry(createLlmModule({ apiKeyEnv: "WORK_ANTHROPIC_KEY", defaultModel: "claude-haiku-5-5" }));
@@ -165,6 +287,13 @@ export function createLlmModule(options: LlmModuleOptions = {}): ProcedureModule
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(apiKeyEnv)) throw new TypeError(`createLlmModule: apiKeyEnv must be the name of a variable, not ${JSON.stringify(apiKeyEnv)}`);
   const baseUrl = options.baseUrl ?? DEFAULT_LLM_SETTINGS.baseUrl;
   if (!/^https?:\/\//.test(baseUrl)) throw new TypeError("createLlmModule: baseUrl must be an http or https URL");
+  const retries = options.retries ?? DEFAULT_LLM_SETTINGS.retries;
+  if (!Number.isInteger(retries) || retries < 0 || retries > MAX_REQUEST_RETRIES) {
+    throw new TypeError(`createLlmModule: retries must be a whole number from 0 to ${MAX_REQUEST_RETRIES}`);
+  }
+  const backoff = options.backoff ?? DEFAULT_LLM_SETTINGS.backoff;
+  const problems = backoffProblems(backoff);
+  if (problems.length > 0) throw new TypeError(`createLlmModule: the backoff is not valid: ${problems.join("; ")}`);
   const env = options.env;
   const settings: LlmSettings = {
     apiKeyEnv,
@@ -173,6 +302,8 @@ export function createLlmModule(options: LlmModuleOptions = {}): ProcedureModule
     baseUrl,
     defaultModel: options.defaultModel ?? DEFAULT_LLM_SETTINGS.defaultModel,
     fallback: options.fallback ?? DEFAULT_LLM_SETTINGS.fallback,
+    retries,
+    backoff,
   };
   return defineModule("@procedures/llm", llmProcedures(settings));
 }

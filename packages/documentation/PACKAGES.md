@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 55. **Procedures:** 301. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 55. **Procedures:** 302. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -35,7 +35,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/shell` | `packages/client-shell` | Safe command execution for TypeScript: shell.run with argv and no shell, shell.stream line streaming with backpressure, process-tree kill, timeouts and output caps. | `shell.*` (4) | `client` |
 | `@procedures/snapshot` | `packages/client-snapshot` | Snapshot and restore development environments with S3: git state, packages and files, with streamed archives and a safe restore. | `snapshot.*` (5) | `client`, `fs`, `git`, `pnpm`, `s3`, `shell` |
 | `@procedures/splay` | `packages/client-splay` | Render procedure results with splay: a bridge between the client procedures and the splay recursive renderer, with stream helpers. | `splay.*` (2) | `client`, `@mark1russell7/splay` *(general)* |
-| `@procedures/sqlite` | `packages/client-sqlite` | SQLite procedures with sql.js and no native build: queries, tables and schemas, transactions, migrations, backups and structured logs, safe for concurrent writes, and SqliteStorage, a durable collection storage with a change log. | `sqlite.*` (7), `logs.*` (2), `db.*` (7) | `client`, `@mark1russell7/docker-sqlite` *(general)* |
+| `@procedures/sqlite` | `packages/client-sqlite` | SQLite procedures with sql.js and no native build: queries, tables and schemas, transactions, migrations, backups and structured logs, safe for concurrent writes, and SqliteStorage, a durable collection storage with a change log on node:sqlite or sql.js. | `sqlite.*` (7), `logs.*` (2), `db.*` (7) | `client`, `@mark1russell7/docker-sqlite` *(general)* |
 | `@procedures/store` | `packages/client-store` | A program store for procedure-as-data: save the programs that procedure.define makes, load them back after a restart, in memory, a JSON file, IndexedDB or a remote collection storage. | `procedure.*` (5) | `client`, `collections` |
 | `@procedures/vite` | `packages/client-vite` | Vite as procedures: dev server, build, preview and stop, with no shell and managed processes. | `vite.*` (4) | `client`, `shell` |
 | `@procedures/vitest` | `packages/client-vitest` | Vitest as procedures: run the tests with results and coverage, watch, and stop the managed watch processes. | `vitest.*` (5) | `client`, `shell` |
@@ -50,7 +50,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 91 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `mcp-server` |
 | `@procedures/ios-backup` | `packages/ios-backup` | Read an iPhone backup (MobileSync): find the newest backup, find a file in Manifest.db, read the messages of sms.db. No native dependency. | `iosBackup.*` (3) | `client` |
 | `@procedures/json` | `packages/json` | Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back. | `json.*` (5), `yaml.*` (2) | `client`, `compiler` |
-| `@procedures/llm` | `packages/llm` | A language model as procedures: a completion and a structured answer that a JSON Schema accepts, through the Anthropic Messages API, with the key from the environment. | `llm.*` (2) | `client`, `json` |
+| `@procedures/llm` | `packages/llm` | A language model as procedures: a completion with tools, a stream of the answer and a structured answer, through the Anthropic Messages API, with the key from the environment. | `llm.*` (3) | `@mark1russell7/service` *(general)*, `client`, `http`, `json` |
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
 | `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `cli-run`, `client`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
 | `@procedures/mcp` | `packages/mcp` | Map typed procedures to MCP tools: JSON Schema from Zod, tool names, and input and result conversion for Model Context Protocol servers. | — | — |

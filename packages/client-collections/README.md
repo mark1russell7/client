@@ -85,6 +85,9 @@ interface CollectionStorage<T> {
   // Read Operations
   get(id: string): Promise<T | undefined>;
   getAll(): Promise<T[]>;
+  getEntries?(): Promise<Array<[string, T]>>;
+  getIds?(): Promise<string[]>;
+  getChangesSince?(since?: string): Promise<StorageChanges<T>>;
   find(predicate: (item: T) => boolean): Promise<T[]>;
   has(id: string): Promise<boolean>;
   size(): Promise<number>;
@@ -111,6 +114,7 @@ Each storage agrees on these points:
 - A stored `null` reads back as `null`. A missing id reads back as `undefined`.
 - The entries keep the order of the first set of each id, as a `Map` does.
 - A delta of `getChangesSince` follows the order of the last change of each id. A full result follows the order of the entries.
+- `getIds()` gives the ids in the order of the entries, and it does not read or copy the values. A storage that cannot give the ids cheaply does not have it. `HybridStorage` uses it for a full sync.
 - After `close()`, each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
 ### The contract suite: `@procedures/collections/testing`
@@ -131,7 +135,9 @@ describeCollectionStorageContract(
 );
 ```
 
-- The suite tests the reads, the writes and the batches, the order of the entries, the results as new arrays, the copies, the JSON values with `null`, the writes at the same time, `getChangesSince` with its versions and its order, `flush`, `getMetadata`, `close` and the errors.
+- The suite tests the reads, the writes and the batches, the order of the entries, `getIds`, and the results as new arrays.
+- It tests the copies, the JSON values with `null`, and the writes at the same time.
+- It tests `getChangesSince` with its versions and its order, `flush`, `getMetadata`, `close` and the errors.
 - A case for an optional method skips a storage without the method.
 - A random sequence of writes runs against a `Map`. Each saved version must give the right changes, in the order of the last change of each id.
 - The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws `ContractViolation`. The runtime entries do not import this entry.
@@ -140,8 +146,8 @@ describeCollectionStorageContract(
 | Storage | Package | Notes |
 |---|---|---|
 | `InMemoryStorage` | `@procedures/collections` | It copies with `structuredClone`. The run with `copies: false` skips only the case of the copies. |
-| `SqliteStorage` (in memory and in a file) | `@procedures/sqlite` | It keeps JSON text, so it gives copies. |
-| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. |
+| `SqliteStorage` (each engine, in memory and in a file) | `@procedures/sqlite` | It keeps JSON text, so it gives copies. |
+| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. It has no `getIds`. |
 | `HybridStorage` (each mode, and a queue in IndexedDB) | `@procedures/store` | It has no `getChangesSince`. |
 
 ## Storage Backends
@@ -160,6 +166,7 @@ const user = await storage.get("user-1");
 
 - The storage keeps a copy of each written value, and each read gives a new copy (`structuredClone`). A `Date` stays a `Date`. A function in a value makes the write reject.
 - The option `copies: false` turns the copies off: the storage keeps the values themselves, and the reads give them. It is faster. Give it only when no caller changes a value after a write or a read.
+- `getIds()` gives the ids without a copy of the values.
 - `close()` drops the items. After it, each operation rejects, and the methods of the `Map` interface (`keys()`, `values()`, `entries()`, `forEach()`) throw.
 
 ### ApiStorage

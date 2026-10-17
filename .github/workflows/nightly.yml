@@ -68,6 +68,11 @@ jobs:
       # The copies of InMemoryStorage (the contract of CollectionStorage): with copies and with
       # the option copies: false
       - run: pnpm --filter @procedures/collections exec vitest bench --run --dir bench
+      # The two engines of SqliteStorage in a file (node:sqlite and sql.js): 1,000 writes and a
+      # read of 10,000 items
+      - run: pnpm --filter @procedures/sqlite exec vitest bench --run --dir bench
+      # A full pull of HybridStorage with 1,000 items: the local ids with and without getIds()
+      - run: pnpm --filter @procedures/store exec vitest bench --run --dir bench
       # The results of the last successful nightly run are the earlier results. The first run has
       # none: it only shows the times.
       - name: Compare with the last nightly run
@@ -101,6 +106,31 @@ jobs:
         with:
           name: bench-results-collections
           path: packages/client-collections/bench/results
+          retention-days: 30
+      - name: Compare the SQLite and HybridStorage benchmarks with the last nightly run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          for name in sqlite store; do
+            mkdir -p "$RUNNER_TEMP/earlier-$name"
+            if [ -n "$run_id" ]; then
+              gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name "bench-results-$name" --dir "$RUNNER_TEMP/earlier-$name" || true
+            fi
+          done
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-sqlite" packages/client-sqlite/bench/results --factor 2
+          node scripts/bench-compare.mjs "$RUNNER_TEMP/earlier-store" packages/client-store/bench/results --factor 2
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results-sqlite
+          path: packages/client-sqlite/bench/results
+          retention-days: 30
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results-store
+          path: packages/client-store/bench/results
           retention-days: 30
 
   soak:
