@@ -1,5 +1,54 @@
 # @procedures/client
 
+## 0.8.0
+
+### Minor Changes
+
+- 4b09a03: `debounceChannel()` and `throttleChannel()` take a `Duration`, as every other time of the client does since 0.3.0. A plain number of milliseconds throws a `TypeError`. A new option `clock` gives the clock of their timers, for example a fake clock in a test. MINOR: a breaking change of a signature (the API is before 1.0.0).
+  
+  Migration: `debounceChannel(bus, "in", "out", 300)` becomes `debounceChannel(bus, "in", "out", ms(300))`.
+- 698e24d: Three gaps of the remote events (`documentation/EVENTS.md`) are closed. The option `backoff` of a subscription changes, so this release is breaking for a caller that gives it.
+  
+  - **Shared subscriptions.** The subscribers of the same topics with the same options on one transport share one call: one `request` on the wire, with a count of its subscribers. Only the last unsubscribe sends the `cancel`. Before, each `subscribeRemote()`, `remoteEvents()` or `transport.subscribe()` made its own call. Each subscriber keeps its own id, its own `ready` and its own queue of at most 1024 events. A late subscriber gets no replay: its `ready` resolves at once, and its `seq` starts at 1. An error or an end of the shared call goes to each subscriber. `WebSocketServerTransport` shares the subscriptions of one connection.
+  - **The end at `clear()`.** `clear()` and `clearAll()` of the bus of the publisher end each subscription of a cleared topic. The subscriber first gets the events of the queue, then the error `TOPIC_CLEARED` (new protocol code, HTTP 410, not retryable) through `onError`, `ready` or the iterator. Before, the listeners went, and the subscriber saw no end. The new option `onClear` of `EventBus.on(channel, handler, { onClear })` (type `EventListenOptions`) gives the same notice to a local handler.
+  - **The limit of the resubscribe.** The new option `maxAttempts` (default 10) is the number of resubscribe tries without a confirmation. When the tries run out, the subscription ends with a `SubscriptionError` that has the code of the last failure. Before, a subscription over HTTP resubscribed forever. The WebSocket transport uses `reconnect.maxAttempts` (default `Infinity`), so its behavior stays. The new option `clock` is the clock of the backoff, for a fake clock in a test. `SubscriptionHooks` has the new fields `maxAttempts` and `clock`.
+  
+  Migration: the option `backoff` is an object of durations (type `ResubscribeBackoff`), with the names of the `reconnect` options of `WebSocketTransport`: `initialDelay` (default `ms(250)`), `maxDelay` (default `seconds(30)`), `backoffMultiplier` (default 2) and `jitter` (default 1). Before, it was a function of milliseconds. A function or a plain number throws a `TypeError` at the call. For the old behavior over HTTP, give `maxAttempts: Infinity`.
+  
+  ```ts
+  // Before
+  subscribeRemote(transport, "orders.created", handler, { backoff: (attempt) => Math.min(30_000, 500 * 2 ** (attempt - 1)) });
+  // Now
+  subscribeRemote(transport, "orders.created", handler, { backoff: { initialDelay: ms(500), maxDelay: seconds(30), jitter: 0 }, maxAttempts: Infinity });
+  ```
+- d25805a: `ProcedureServer.useStorage` with `close` waits for the calls on the old storage before it closes it. Before, it closed the old storage at once, and a call that started on it could fail as closed.
+  
+  MINOR: the call of `useStorage` with `close` can now take up to 30 seconds to resolve. That is a change of behaviour that a caller can see. Give `grace: ms(0)` for the old behaviour.
+  
+  - The new calls use the new storage at once. The server waits only for the calls that took the old storage. A stream holds its storage until its end.
+  - The new option `grace` of `UseStorageOptions` is the longest wait, a `Duration`. A plain number throws a `TypeError`. The default is 30 seconds, `TIMER_DEFAULTS.server.storageGraceMs`. 0 closes at once.
+  - When the time ends, the server closes the old storage. A call that still uses it then fails with the error of a closed storage.
+  - The new option `clock` of `ProcedureServerOptions` is the clock of this wait. A test gives a fake clock.
+
+### Patch Changes
+
+- 4b09a03: New `callerOf(...modules)` in the root and the browser entry. It gives a function that runs the procedures of the modules and gives one value. It makes the registry of the modules at the first call and does not use the global registry. An app wrote the three steps itself before: `createRegistry`, `invokePath` and `outputValue`. PATCH: a new export (the API is before 1.0.0).
+- aa6e3aa: `ApiStorage` has `getIds()`. A full pull through it does not read each entry for the ids.
+  
+  - The collections have the procedure `collections.<name>.ids`. It gives the ids in the order of the entries, without the values. Its effects read the collection and write nothing. A storage without `getIds()` gives the ids of its entries.
+  - The `CollectionStorage` of the core has the optional method `getIds()`, as the `CollectionStorage` of `@procedures/collections` has.
+  - `ApiStorage.getIds()` uses the procedure `ids`. An older server without it answers `NOT_FOUND`. Then the storage reads the ids from the entries, and it does not ask for `ids` again.
+  - `ApiStorageOptions.operations` takes `ids`, the name of the operation. The default is `ids`.
+- 4b09a03: `bus.once()` rejects with an `AbortError` when `clear()` or `clearAll()` removes its channel. Before, its promise never settled.
+- 600c497: A server on port 0 tells its real port.
+  
+  - New `HttpServerTransport.port()` returns the port that the server listens on. With the option `port` 0, the system gives a free port, and the function returns that port.
+  - `peer.getEndpoints()` gives the real port of each HTTP and WebSocket endpoint. Before, a peer on port 0 gave the address `:0`.
+  - The tests of the body and the stop of the peer listen on port 0. Before, a helper found a free port and closed it before the peer took it, so one CI run failed with `EADDRINUSE`.
+- 7c2e7f7: The `onAfterRetry` hook of `createRetryMiddleware` hears of a failure when the reader stops at the error item. A `Client` with `throwOnError` (the default) stops there. Before, the hook ran after the yield of that item, so it ran only for a success. Now it runs when the call ends: after the last item, or when the reader stops. A thrown error and an abort still do not call it. PATCH: a bug fix.
+- 90ea741: A procedure can declare its rules under a root of the files in `metadata.fsRoot` (the new type `FsRootRules`): the inputs that name a path, or the reason that a root cannot confine it. A handler gets `ctx.caller`, the procedure whose handler made the nested call. The framework sets it from the invocation, so an input cannot change it (roadmap R33).
+- c4cfa34: `ProcedureServer.useStorage` with `close` keeps an old storage open while another collection still uses it. The server closes it when the last collection leaves it. Before, the close broke the calls of the other collection.
+
 ## 0.7.0
 
 ### Minor Changes

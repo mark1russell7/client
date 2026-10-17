@@ -1,5 +1,39 @@
 # @procedures/mark
 
+## 0.8.0
+
+### Minor Changes
+
+- 3f376af: The root of the files confines each procedure, not only `fs.*` (roadmap R33). `mark --fs-root`, `procedure-server --fs-root` and `MCP_FS_ROOT` start `confineToRoot()` of `@procedures/fs`. Each procedure keeps its paths in the root, or the host refuses it with `FORBIDDEN` and the reason `outside-root`.
+  
+  This change is breaking under a root. The hosts refuse procedures that they ran before: `git.*`, `pnpm.*`, `docker.run`, `docker.build`, `docker.compose.*`, a call of `shell.run`, and each procedure that reaches files without `metadata.fsRoot`. `lib.scan` of a workspace outside the root gives `FORBIDDEN`, not a warning. Without a root, nothing changes. The list of the MCP tools does not change.
+
+### Patch Changes
+
+- 808a508: Each argument of a last array positional is one item, also when there is only one. Before, one argument was read as the whole array: `[]` gave no item, and `["a","b"]` gave two. The README rule says "A last array field takes the rest". A property test of the command line found it.
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [3f376af]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+  - @procedures/peer@0.8.0
+  - @procedures/server@0.8.0
+  - @procedures/mcp-dev-tools@0.8.0
+  - @procedures/shell@0.8.0
+  - @procedures/pnpm@0.8.0
+  - @procedures/lib@0.8.0
+  - @procedures/procedure@0.8.0
+  - @procedures/cli-run@0.8.0
+  - @procedures/vitest@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

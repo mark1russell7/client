@@ -1,5 +1,29 @@
 # @procedures/shell
 
+## 0.8.0
+
+### Patch Changes
+
+- 90ea741: The procedures declare their rules under a root of the files in `metadata.fsRoot` (roadmap R33). Without a root, nothing changes. Under the root of a host (`confineToRoot()` of `@procedures/fs`):
+  
+  - `sqlite.*` and `logs.*` are confined: `dbPath` must be in the root, and a call must give it. `:memory:` is not a path.
+  - `lib.scan`, `lib.graph`, `lib.audit`, `lib.rename` and `procedure.new` are confined: their folder must be in the root, and without it the folder is the root.
+  - Most `docker.*` procedures run docker in a working folder of the root. `docker.run`, `docker.exec`, `docker.build` and `docker.compose.*` are refused.
+  - `git.*`, `pnpm.*`, `lib.new`, `shell.exec` and `shell.which` are refused.
+  - `shell.run` and `shell.stream` run only as the nested call of a confined procedure that names them in `metadata.calls`.
+  - The help of the global flag `--fs-root` (`@procedures/lib/cli-flags`) tells the new rule.
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

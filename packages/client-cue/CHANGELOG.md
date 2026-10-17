@@ -1,5 +1,26 @@
 # @procedures/cue
 
+## 0.8.0
+
+### Patch Changes
+
+- 90ea741: The cue procedures read the files of the installed `@mark1russell7/cue` package (`features.json` and its CUE files) with `node:fs`, not through `fs.*`. Before, under a root of the files, `cue.init`, `cue.add`, `cue.generate` and `cue.validate` failed, because the root refused the files of the package. `cue vet` of `cue.validate` starts in the folder of the schema, not in the working folder of the host. Under a root, the folder of the project (`cwd`) must be in the root, and without `cwd` it is the root (roadmap R33).
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [90ea741]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+  - @procedures/fs@0.8.0
+  - @procedures/shell@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

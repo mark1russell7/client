@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/cue",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "cue-config as procedures: generate package.json, tsconfig.json and .gitignore from CUE feature presets, add and remove features, and validate projects.",
   "keywords": [
     "cue",
