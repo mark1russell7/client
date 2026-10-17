@@ -143,13 +143,16 @@ export function isUnboundedStream(response: { metadata?: Record<string, unknown>
 }
 
 /**
- * True when the presented token is the expected one. The comparison takes the same time for each
- * presented token of the same length, so the time does not tell the token.
+ * True when the presented token is the expected one. The comparison reads each character of the
+ * expected token for each presented token, so its time depends only on the expected token. The
+ * time tells neither the token nor its length. The function runs in a browser too, so it uses
+ * no `node:crypto`.
  */
 export function tokenMatches(expected: string, presented: string | undefined): boolean {
-  if (presented === undefined || presented.length !== expected.length) return false;
-  let difference = 0;
-  for (let index = 0; index < expected.length; index++) difference |= expected.charCodeAt(index) ^ presented.charCodeAt(index);
+  if (presented === undefined) return false;
+  // A difference of the lengths makes the result false, after the same loop as an equal length
+  let difference = expected.length ^ presented.length;
+  for (let index = 0; index < expected.length; index++) difference |= expected.charCodeAt(index) ^ (presented.charCodeAt(index) | 0);
   return difference === 0;
 }
 
