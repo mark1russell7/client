@@ -2,11 +2,12 @@
  * archive.list procedure
  *
  * The entries of a tar.gz, tar or zip archive: the path, the kind, the size, the mode, the time
- * and the target of a link. The list reads the archive and writes nothing.
+ * and the target of a link. The list reads the archive and writes nothing. With the root of the
+ * module, the archive must be in the root.
  */
 
-import { resolve } from "node:path";
 import { DEFAULT_ARCHIVE_SETTINGS, formatOfFile, type ArchiveSettings } from "../../format.js";
+import { placesOf } from "../../root.js";
 import { readTarEntries } from "../../tar.js";
 import { readZipDirectory, readZipLink } from "../../zip.js";
 import type { ArchiveEntry, ArchiveFormat, ArchiveListInput, ArchiveListOutput } from "../../types.js";
@@ -43,7 +44,7 @@ export async function readEntries(path: string, format: ArchiveFormat, settings:
  * The entries of a tar.gz or zip archive
  */
 export async function archiveList(input: ArchiveListInput, settings: ArchiveSettings = DEFAULT_ARCHIVE_SETTINGS): Promise<ArchiveListOutput> {
-  const path = resolve(input.archive);
+  const path = await (await placesOf(settings.root, ["archive", "list"])).place(input.archive);
   const format = await formatOfFile(path, input.format);
   const entries = await readEntries(path, format, { ...settings, maxBytes: Number.MAX_SAFE_INTEGER });
   return { format, entries, bytes: entries.reduce((sum, entry) => sum + (entry.kind === "file" ? entry.size : 0), 0) };

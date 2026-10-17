@@ -44,18 +44,36 @@ The extract reads all the entries first. It refuses the archive, and writes noth
 - With `overwrite: true`, the extract removes an old file or link before it writes the new file. A write thus does not go through a link or into a hard link.
 - The tar extract also keeps the protections of node-tar: it does not write through a symbolic link, and each warning is an error.
 
+## The root
+
+Without a root, the procedures read and write each path that the process can reach. `createArchiveModule({ root })` confines each path of the inputs to one folder (roadmap R33). The rules are the rules of `createFsModule({ root })` of `@procedures/fs`:
+
+```ts
+import { createRegistry } from "@procedures/client";
+import { createArchiveModule } from "@procedures/archive/module";
+
+const registry = createRegistry(createArchiveModule({ root: "/srv/files" }));
+```
+
+- A relative path of an input starts at the root, not at the working folder. Without `cwd`, the files of `archive.create` start at the root.
+- The archive of each procedure, the `source`, the `cwd` and the `target` must be in the root. The folder of each file of `files` must be in the root too.
+- A path outside the root gives `FORBIDDEN` with the reason `outside-root`. This includes `..` out of the root, an absolute path outside it, another drive, and a symbolic link or a junction that leads out.
+- The check uses the real path. For a path that does not exist yet, it uses the real path of the nearest existing folder. A link whose target does not exist yet thus cannot lead a write out of the root.
+- A link in the input goes into the archive as a link. The walk does not read its target.
+- The extract keeps its check of the entries in the target folder, and the target folder is in the root. An extract thus stays in the root.
+- A relative root starts at the working folder of the process. The root must exist when a call starts.
+- `isOutsideRoot(error)` tells the refusal of the root. On Windows, the comparison ignores the case of the letters.
+
 ## Limits
 
 | Option | Meaning |
 |---|---|
 | `maxBytes` | The most bytes of the files of one archive. The default is 1 GiB. |
 | `maxEntries` | The most entries of one archive. The default is 100000. |
+| `root` | The folder that confines each path (refer to [The root](#the-root)). The default is no root. |
 
 ```ts
-import { createRegistry } from "@procedures/client";
-import { createArchiveModule } from "@procedures/archive/module";
-
-const registry = createRegistry(createArchiveModule({ maxBytes: 100 * 1024 * 1024 }));
+const registry = createRegistry(createArchiveModule({ maxBytes: 100 * 1024 * 1024, root: "/srv/files" }));
 ```
 
 - The extract adds the declared sizes before it writes a file. An archive over a limit gives `TOO_LARGE` and changes nothing.
@@ -84,13 +102,18 @@ const registry = createRegistry(createArchiveModule({ maxBytes: 100 * 1024 * 102
 | `UNSAFE_LINK` | A link goes out of the target, or a hard link names no earlier file. |
 | `UNSUPPORTED_ENTRY` | The archive or the source has a special file. |
 | `TOO_LARGE` | The archive has more entries or more bytes than the limits. |
+| `FORBIDDEN` | A path is outside the root of the module (the reason `outside-root`). |
 
-Each error is an `ArchiveError`. Its `entry` names the entry of the archive, when an entry is the cause.
+The errors of the archives are an `ArchiveError`. Its `entry` names the entry of the archive, when an entry is the cause. The refusal of the root is an `InvocationError`, as in `@procedures/fs`.
 
 ## MCP
 
-`archive.list` changes nothing, and it is a good tool. `archive.create` and `archive.extract` write files in each folder that the host can reach. A host gives them to Claude only with a root for its files.
+`archive.list` changes nothing, and it is a good tool. Without a root, `archive.create` and `archive.extract` write files in each folder that the host can reach. A host gives them to Claude only with `createArchiveModule({ root })`.
 
 ## Tests
 
-`pnpm --filter @procedures/archive test` examines the procedures in temporary folders. The tests make hostile archives: entries with `..` and absolute paths, and links out of the target. Other hostile archives have links that escape together, a zip bomb and a wrong CRC-32. The tests of links in the target folder need the permission to make a symbolic link. Windows without the developer mode thus skips them.
+`pnpm --filter @procedures/archive test` examines the procedures in temporary folders. The tests make hostile archives: entries with `..` and absolute paths, and links out of the target. Other hostile archives have links that escape together, a zip bomb and a wrong CRC-32.
+
+- The tests of the root refuse each kind of path for the archive and for the target. These are `..`, an absolute path, another drive, and a link out of the root.
+- The tests of a link to a folder use a junction on Windows, so they need no permission.
+- The tests of a link to a file and of the links in the target folder need the permission to make a symbolic link. Windows without the developer mode thus skips them. The Windows job of the nightly workflow runs them.

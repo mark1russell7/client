@@ -6,4 +6,6 @@ export { archiveCreate, archiveExtract, archiveList } from "./procedures/archive
 export { ArchiveError, type ArchiveErrorCode } from "./errors.js";
 export { DEFAULT_ARCHIVE_SETTINGS, DEFAULT_MAX_BYTES, DEFAULT_MAX_ENTRIES, formatOfFile, formatOfName, sniffFormat, type ArchiveSettings } from "./format.js";
 export { entryParts, isAbsoluteName, planExtract, type PlanOptions, type PlannedEntry, type RawEntry } from "./paths.js";
+// The root that confines each path (roadmap R33)
+export { OUTSIDE_ROOT, isInside, isOutsideRoot } from "./root.js";
 export { crc32, readZipDirectory, writeZip, type ZipEntry, type ZipWriteEntry } from "./zip.js";

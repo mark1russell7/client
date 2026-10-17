@@ -4,9 +4,11 @@
  * Scaffold a procedure with: mark procedure new <name> --path packages/archive
  *
  * `archiveModule` has the default limits: 1 GiB of files and 100000 entries in one archive.
- * `createArchiveModule()` gives the same procedures with other limits (roadmap R46).
+ * `createArchiveModule()` gives the same procedures with other limits (roadmap R46), or with a
+ * root that confines each path of the inputs (roadmap R33, `root.ts`).
  */
 
+import { resolve } from "node:path";
 import { z } from "zod";
 import {
   defineModule,
@@ -43,7 +45,7 @@ const ArchiveCreateInputSchema = z.object({
   output: path("The archive to make"),
   source: path("A folder: the archive gets its content").optional(),
   files: z.array(z.string().min(1).max(4096)).min(1).max(10_000).optional().describe("Files and folders, relative to cwd. A folder goes in with its content"),
-  cwd: path("The base folder of files (default: the working folder)").optional(),
+  cwd: path("The base folder of files (default: the working folder, or the root of the module)").optional(),
   format: format.optional().describe("The format (default: from the name of output: .tar.gz, .tgz, .tar or .zip)"),
   overwrite: z.boolean().optional().describe("True: replace an existing archive (default false)"),
 });
@@ -164,28 +166,39 @@ export interface ArchiveModuleOptions {
   readonly maxBytes?: number | undefined;
   /** The most entries of one archive. The default is 100000. */
   readonly maxEntries?: number | undefined;
+  /**
+   * The folder that confines each path of the procedures (roadmap R33), as `createFsModule({ root })`
+   * does. A relative path of an input starts at the root. A path outside the root gives `FORBIDDEN`
+   * with the reason `outside-root`. A relative root starts at the working folder of the process.
+   */
+  readonly root?: string | undefined;
 }
 
 /**
- * This function gives the module of this package with other limits. Without options, it gives
- * `archiveModule`. A host gives it to `createRegistry()` before its bundles, so it replaces the
- * `archiveModule` that a bundle requires (the first module of a name counts).
+ * This function gives the module of this package with other limits, or with a root. Without
+ * options, it gives `archiveModule`. A host gives it to `createRegistry()` before its bundles, so it
+ * replaces the `archiveModule` that a bundle requires (the first module of a name counts).
  */
 export function createArchiveModule(options: ArchiveModuleOptions = {}): ProcedureModule {
   if (Object.values(options).every((value) => value === undefined)) return archiveModule;
-  const settings: ArchiveSettings = {
+  const limits = {
     maxBytes: options.maxBytes ?? DEFAULT_ARCHIVE_SETTINGS.maxBytes,
     maxEntries: options.maxEntries ?? DEFAULT_ARCHIVE_SETTINGS.maxEntries,
   };
-  for (const [name, value] of Object.entries(settings)) {
+  for (const [name, value] of Object.entries(limits)) {
     if (!Number.isSafeInteger(value) || value < 0) throw new TypeError(`createArchiveModule: ${name} must be a whole number of 0 or more`);
   }
+  if (options.root !== undefined && (typeof options.root !== "string" || options.root === "")) {
+    throw new TypeError("createArchiveModule: root must be the path of a folder");
+  }
+  // The root resolves against the working folder of the process now, as the root of @procedures/fs
+  const settings: ArchiveSettings = { ...limits, ...(options.root !== undefined ? { root: resolve(options.root) } : {}) };
   return defineModule("@procedures/archive", archiveProcedures(settings));
 }
 
 /**
  * This function registers the procedures of @procedures/archive in a registry. The default is the
- * global registry. The options are the options of `createArchiveModule()`.
+ * global registry. The options are the options of `createArchiveModule()`, with the root too.
  */
 export function registerArchiveProcedures(registry: ProcedureRegistry = PROCEDURE_REGISTRY, options: ArchiveModuleOptions = {}): void {
   registerModules(registry, [createArchiveModule(options)]);
