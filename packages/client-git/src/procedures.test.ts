@@ -271,6 +271,21 @@ describe("git.init", () => {
   it("fails for a folder that does not exist", async () => {
     await expect(call(["git", "init"], { cwd: join(base, "missing") })).rejects.toThrow();
   });
+
+  it("gives created: false for an existing bare repository, and does not make it again", async () => {
+    const bare = join(base, "bare.git");
+    mkdirSync(bare);
+    expect(await call<GitInitOutput>(["git", "init"], { cwd: bare, bare: true })).toEqual({ path: bare, created: true });
+    expect(git(bare, "rev-parse", "--is-bare-repository").trim()).toBe("true");
+    expect(await call<GitInitOutput>(["git", "init"], { cwd: bare, bare: true })).toEqual({ path: bare, created: false });
+    expect(await call<GitInitOutput>(["git", "init"], { cwd: bare })).toEqual({ path: bare, created: false });
+  });
+
+  it("makes a repository in a subfolder of another repository", async () => {
+    const inner = join(repo, "inner");
+    mkdirSync(inner);
+    expect(await call<GitInitOutput>(["git", "init"], { cwd: inner })).toEqual({ path: inner, created: true });
+  });
 });
 
 describe("git.remote and git.remote.set", () => {
@@ -374,6 +389,12 @@ describe("the predicates", () => {
     for (const name of ["hasChanges", "hasStagedChanges", "hasUnstagedChanges", "hasUntrackedFiles", "hasLocalCommits"]) {
       expect(await value(name, empty)).toBe(false);
     }
+  });
+
+  it("fails isClean outside a repository: a folder there is not clean or dirty", async () => {
+    const empty = join(base, "not-a-repository");
+    mkdirSync(empty);
+    await expect(value("isClean", empty)).rejects.toThrow(/not a git repository/i);
   });
 });
 

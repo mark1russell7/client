@@ -85,6 +85,8 @@ export async function gitHasLocalCommits(input: GitPredicateInput, ctx: GitConte
  * Check if the working directory is clean (no changes at all)
  */
 export async function gitIsClean(input: GitPredicateInput, ctx: GitContext = {}): Promise<GitPredicateOutput> {
-  const result = await gitHasChanges(input, ctx);
-  return { value: !result.value };
+  // Outside a repository, "clean" has no meaning: the error of git goes to the caller (roadmap R33).
+  // Before, the failed status counted as "no changes", and the folder was clean.
+  const status = (await git(["status", "--porcelain"], { cwd: input.cwd, signal: ctx.signal })).trim();
+  return { value: status.length === 0 };
 }

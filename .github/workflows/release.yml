@@ -72,7 +72,8 @@ jobs:
       - run: pnpm lint:ste
       # The tarballs as npm gives them. No git dependencies: npm 12 does not install them.
       - run: node scripts/check-packages.mjs
-      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+      - id: changesets
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         # Version 2 of the action: the inputs have the suffix -script, and the token is the default github-token.
         # The publish: pnpm packs each package, and the npm CLI publishes it with OIDC and provenance.
         # The publish of pnpm 12 got HTTP 404 on 2026-10-16 (scripts/publish-ci.mjs tells more).
@@ -81,3 +82,14 @@ jobs:
           publish-script: node scripts/publish-ci.mjs
           pr-title: Version the packages
           commit-message: Version the packages
+      # The action makes the GitHub releases at the same time, so any of them can become the latest
+      # one (vite on 2026-10-16). The release of @procedures/client is the latest one.
+      - name: The release of the client is the latest one
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./packages/client/package.json').version")
+          if gh release view "@procedures/client@$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit "@procedures/client@$version" --repo "$GITHUB_REPOSITORY" --latest
+          fi

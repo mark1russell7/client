@@ -83,7 +83,7 @@ The wire protocol is the format of the bytes between a client and a server. It i
 | R33 | 7 | Tests of the thin packages, and path confinement in `client-fs` | M | fixed | `bc70357`, `95b660d` |
 | R34 | 8 | `@procedures/systems` and the timer law | M | fixed | `4a3bfa1` |
 | R35 | 8 | State machines as data and an injectable monotonic clock | M | fixed | `ae7f05f` |
-| R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | fixed: 10 cells hold in CI, systems PR #16 is a draft until PR #14 merges | systems `07fdbf1`, `ff8300e`, `dcfdb9b`, `c2d7994` |
+| R36 | 8 | A harness cell for a procedures WebSocket pair | M–L | fixed: 12 cells hold on client 0.3.0 | systems PR #16 (`065d6a2`) |
 | R37 | 8 | The service abstraction of `systems` in the client | M–L | fixed: the clock, the heartbeat, the backoff and `replay` | systems PR #15 (`ba06091`), client `061fa22` |
 | R38 | 9 | `@procedures/http` | S–M | fixed, not an MCP tool | `a6b01a9` |
 | R39 | 9 | JSON and YAML transforms | S | fixed, the pure ones are MCP tools | `a6b01a9`, `1779d96` |
@@ -570,46 +570,45 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 
 The review found code that is a candidate for removal or a move. These items need a decision of the owner. Nobody deletes them without one.
 
-- The `client-registry` bin and `_discovery.announce` have no consumers (CORE-17).
-- `core.catch` does the same as `client.tryCatch`.
-- `dag.traverse` is in `client-lib`, and `client-dag` has no procedures.
-- `init` is a third scaffolder.
-- `packages/cli` has `package add`, which this repository forbids, and `repo rename`, which overlaps `lib.rename`.
-- `server.start`, `server.stop` and `server.status` are in the peer package, and they belong to the host.
-- The sqlite package uses the general namespace `db.*`.
-- `packages/client-snapshot/.github/workflows/ci.yml` is old, and GitHub does not start it.
-- The `event` frame of the WebSocket client: the server does not send it, and nothing subscribes. R24 made the calls bidirectional. Events in the two directions need a design of topics and subscriptions, or the frame goes away.
-- `client.not`, `client.all`, `client.any` and `client.none` (R29): their schemas say "values or calls". A host does not run a call in their operands, and an object counts as true, so `client.all` of a false call gives true. One fix makes them control flow, as `and` and `or`. This changes the expose rule and the compiler. The other fix changes the schemas to "values". The catalog keeps the five examples as `it.fails`.
-- `client.import` gives `success: true` for JSON that is not a procedure reference, for example `42`.
-- `client.stringifyJson` and `client.export` fail with `OUTPUT_VALIDATION_ERROR` for a missing value.
-- Small inconsistencies of the core: `client.mod` gives `NaN` for zero and `client.divide` refuses zero. `client.unique` compares objects by reference. `client.isObject` gives true for a `Date`. The `match` description of `client.filter` lists 7 of its 11 modes.
-- Each new package needs one first npm publish from the computer of the owner. CI publishes the later releases. The new packages are `compiler`, `systems`, `bundle-assistant`, the eight packages of R48 and R49, and the new packages of R38 to R46.
-- The tools of the assistant are in the opt-in bundle `@procedures/bundle-assistant`, not in `bundle-mcp`. `ics.fetch`, `mail.headers` and `notify.send` are not tools, because they can carry data out or read private mail.
-- The code of a handler error (R30): `WIRE-PROTOCOL.md` says that the server keeps it. `errorResponse` and `LocalTransport` change it to `HANDLER_ERROR` for a value, and keep it for a stream. The HTTP status follows the code.
-- `ERROR_REGISTRY` of `client/errors` does not agree with `ERROR_CODES` of R25 (`INTERNAL_ERROR` and `TIMEOUT`). One list goes away, or it comes from the other.
+### Decided on 2026-10-16
+
+The owner decided these items. The changes are on `main`, and they go out in 0.4.0.
+
+- Removed: the `client-registry` command with `discover`, `announce` and the scaffolder `init`. `_discovery.announce` stays, because a server connection calls it.
+- Removed: `core.catch`, `package add` and `repo rename` of `packages/cli`, and the old workflow file of `client-snapshot`.
+- Removed: the lines that the mutation tests found unreachable, `QueuedRequest.reject` and two checks of `timedOut()`. The defensive guards stay.
+- Moved: `dag.traverse` to `@procedures/dag`, and `server.start`, `server.stop` and `server.status` to `@procedures/server`.
+- Renamed: `db.*` is `sqlite.*`. The `db.*` names stay for one release as deprecated aliases. The MCP tools have the new names.
+- Fixed: `client.import`, `client.stringifyJson`, `client.export`, `client.mod`, `client.unique`, `client.isObject` and the `match` text of `client.filter`.
+- Fixed: the schemas of `client.not`, `client.all`, `client.any` and `client.none` say "values".
+- Fixed: one list of error codes, the code of a handler error, the `dbPath` text, `fs.copy` and the version of `splay.bridge.info`. `fs.copy` refuses an existing destination without `overwrite`.
+- Fixed: `git.isClean` fails outside a repository, and `git.init` finds an existing bare repository.
+- Changed: `TIMEOUT` follows the list of the wire protocol. Its HTTP status is 504, and the retry middleware does not retry it.
+- Built: `@procedures/client/node` with the `ws` class, the contract suite of `CollectionStorage`, POST streams of `http.ndjson` and `http.sse`, and the follow stream of `node.logs`.
+- Fixed: `procedure new` puts a procedure into the list that `defineModule` gets. When it cannot find the list, it fails before it writes.
+- The `event` frame of the WebSocket client: the owner decided to complete it. The design is `EVENTS.md`, and the work is in progress.
+- Reported upstream by others: the `yaml` bug is issue #692 of `yaml`. The bug of the vitest runner of Stryker is issue #6210 of `stryker-js`. The `yaml` project accepts no issue text from an LLM.
+- Published: each new package is on npm. The git tags and the GitHub releases of 0.3.0 come from `scripts/release-tags.mjs`.
+
+### Open
+
+- `packages/cli` has no commands after the removals. Its runner and `src/paths.ts` have no use. The decision: delete the package, or keep it for later commands.
+- `dag.traverse` has a block that cannot run: "ensure all nodes have results". Each visit records its own result.
+- The contract suite found four differences between the storages, and nothing fixes them yet:
+  - `ApiStorage` reads a stored `null` as a missing value.
+  - `InMemoryStorage` and `HybridStorage` keep references to the values, and `SqliteStorage` keeps copies.
+  - A delta follows the first write of each id in `InMemoryStorage`, and the last write in `SqliteStorage`.
+  - After `close()`, `InMemoryStorage` is empty and works, and `SqliteStorage` throws.
+- The README of `bundle-dev` gives 62 procedures. The bundle has 93.
 - A duplicate stream frame gives a duplicate item, because the frames have no sequence numbers.
-- The description of the sqlite `dbPath` field shows the home folder of the computer to Claude.
-- R33: `fs.copy` keeps an existing destination and reports success. `git.isClean` gives true outside a repository. `git.init` with `bare` makes the repository again. `splay.bridge.info` gives the version `1.0.0`.
 - `mark procedure new` makes a procedure without `metadata.effects`. A default of "pure" can be false, so the author writes them. A host with a capability refuses a procedure without effects.
 - The fs root (R33) is not in `mark` or the MCP host.
-- Tier 9 found these points:
-  - zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
-  - The `yaml` package 2.9.1 writes a block scalar wrong when its first line has only spaces. `yaml.stringify` quotes such a text. The bug goes to the authors of `yaml`.
-  - `http.ndjson` and `http.sse` take only GET, so the event stream of a POST, as an LLM API sends it, is not possible yet.
-  - `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.
-  - `node.logs` has no follow stream, because the process registry of `client-shell` keeps its listeners private.
-  - `SqliteStorage` writes the whole database file after each write, because sql.js has no partial writes.
-  - A shared contract test suite for `CollectionStorage` does not exist. The storages copy the cases of `InMemoryStorage`.
-  - The MCP host has 91 tools. Some procedures can carry data out, change data in bulk, or run without an end. They are not tools: `http.*`, `docker.push`, `docker.prune`, `docker.volume.remove`, `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup`.
-  - R46 adds no MCP tools. `llm.*` costs money and sends data out. `env.*` can show secrets. `fs` is not an MCP namespace, and `archive.list` reads files. It is not a tool for that reason. `schedule.next` has little use without `schedule.add`.
-  - `llm` has no event stream, no tool use and no automatic retry. An error has a `retryable` flag. `schedule` has no IANA time zones, and `FileScheduleStore` has no lock for more than one process. `archive` has no file root.
-  - The root `.gitignore` ignores `secrets.*`. An agent made `packages/env/src/secrets.ts`, and git did not take it. A negation line keeps that file in git. A merge of an agent branch checks the ignored files of the worktree.
-  - Stryker 10.0.0 rewrites `tsconfig.json` in its sandbox with the JavaScript API of TypeScript. TypeScript 7 does not have that API, so the mutation job runs Stryker in place.
-  - The mutation tests found code that no call reaches. Nobody deletes it without a decision:
-    - `rate-limit.ts`: `QueuedRequest.reject` has no caller.
-    - `timeout.ts`: the guards of `composeAbortSignals` for an empty list and for one signal that is aborted. The fallback without `AbortSignal.any` runs only in an old browser, because the package needs Node 22.
-    - `timeout.ts`: the checks of `timedOut()` on lines 172 and 181. Since R30, an abort always comes first.
-    - `circuit-breaker.ts`: the stop of the reset timer at the close, and the check of a waiting reset timer in `scheduleReset`.
-  - The WebSocket client in Node uses the global `WebSocket` by default, and a drop then waits for the kernel. A default of the `ws` class in Node needs a separate entry, because the browser entry cannot import `ws`.
-  - The next release of `@procedures/client` brings the heartbeat of the server (R3) to the harness cells of R36.
-  - The fs root decides by the real path. A link from outside the root that leads into the root is accepted, because it reaches only files in the root. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
+- zod drops an own `__proto__` key of the input of `z.record()` and `z.json()` without an error. `@procedures/json` uses its own check for that reason.
+- `json.validate` examines a subset of JSON Schema. Its output names each keyword that it does not examine.
+- `SqliteStorage` writes the whole database file after each write, because sql.js has no partial writes.
+- The MCP host has 91 tools. Some procedures can carry data out, change data in bulk, or run without an end. They are not tools: `http.*`, `docker.push`, `docker.prune`, `docker.volume.remove`, `mongo.watch`, `mongo.documents.bulk`, `db.transaction`, `db.migrate` and `db.backup`.
+- R46 adds no MCP tools. `llm.*` costs money and sends data out. `env.*` can show secrets. `fs` is not an MCP namespace, and `archive.list` reads files. It is not a tool for that reason. `schedule.next` has little use without `schedule.add`.
+- `llm` has no event stream, no tool use and no automatic retry. An error has a `retryable` flag. `schedule` has no IANA time zones, and `FileScheduleStore` has no lock for more than one process. `archive` has no file root.
+- The root `.gitignore` ignores `secrets.*`. An agent made `packages/env/src/secrets.ts`, and git did not take it. A negation line keeps that file in git. A merge of an agent branch checks the ignored files of the worktree.
+- Stryker 10.0.0 rewrites `tsconfig.json` in its sandbox with the JavaScript API of TypeScript. TypeScript 7 does not have that API, so the mutation job runs Stryker in place.
+- The fs root decides by the real path. A link from outside the root that leads into the root is accepted, because it reaches only files in the root. The MCP host has no `fs.*` tools, and a root confines the nested calls of `lib.*` and `cue.*` too.
