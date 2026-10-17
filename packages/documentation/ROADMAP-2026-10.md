@@ -586,17 +586,17 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O10 | Storage | A full pull of `HybridStorage` reads only what can conflict | S–M | done | O9 | Client session | [276b93c](https://github.com/mark1russell7/client/commit/276b93c), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
 | O11 | Storage | `replaceStorage` waits for the running calls | S | done | — | Client session | [d25805a](https://github.com/mark1russell7/client/commit/d25805a), [b495601](https://github.com/mark1russell7/client/commit/b495601) |
 | O12 | LLM | `llm.stream` runs procedures as tools | M | done | — | Client session | [ed71c8b](https://github.com/mark1russell7/client/commit/ed71c8b), [4084b7b](https://github.com/mark1russell7/client/commit/4084b7b) |
-| O13 | Testing | Raise the weakest mutation scores, then the floor | M | in progress | — | Client session | `integration-mutation-scores` |
-| O14 | Systems | The WebSocket cells on client 0.7.0 | M | in progress | R36 | Client session (PR to systems) | `ws-server-heartbeat` |
-| O15 | Systems | Two new WebSocket cells | M | in progress | O14 | Client session (PR to systems) | `ws-server-heartbeat` |
-| O16 | Systems | The machine documents cite client 0.7.0 | S | blocked | O14, O20 | Client session (PR to systems) | — |
+| O13 | Testing | Raise the weakest mutation scores, then the floor | M | done | — | Client session | [7c2e7f7](https://github.com/mark1russell7/client/commit/7c2e7f7), [5c0c699](https://github.com/mark1russell7/client/commit/5c0c699), [nightly run 39077254737](https://github.com/mark1russell7/client/actions/runs/39077254737) |
+| O14 | Systems | The WebSocket cells on client 0.7.0 | M | done | R36 | Client session (PR to systems) | [systems PR #44](https://github.com/mark1russell7/systems/pull/44), [systems c78662b](https://github.com/mark1russell7/systems/commit/c78662b), [cells run 39073727730](https://github.com/mark1russell7/systems/actions/runs/39073727730) |
+| O15 | Systems | Two new WebSocket cells | M | done | O14 | Client session (PR to systems) | [systems PR #44](https://github.com/mark1russell7/systems/pull/44), [systems c78662b](https://github.com/mark1russell7/systems/commit/c78662b), [cells run 39073727730](https://github.com/mark1russell7/systems/actions/runs/39073727730) |
+| O16 | Systems | The machine documents cite client 0.7.0 | S | blocked | O14, O20 | Systems session | [systems PR #44](https://github.com/mark1russell7/systems/pull/44) |
 | O17 | Systems | A machine document for HAProxy | M | later | — | Systems session | [systems tracker](https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V) |
 | O18 | Systems | A delayed-ACK term in the T03 bands | S | done | — | Systems session | [systems PR #31](https://github.com/mark1russell7/systems/pull/31), [systems PR #32](https://github.com/mark1russell7/systems/pull/32) |
 | O19 | Systems | The void runs of the silent-drop cell | S–M | later | — | Systems session | [systems tracker](https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V) |
-| O20 | Releases | `@mark1russell7/machines` 0.3.0 on npm | S | blocked | — | markt-54 | [npm tracker](https://claude.ai/artifact/W5oqQFc9Ty1miMP63z1XwS) |
+| O20 | Releases | `@mark1russell7/machines` 0.3.0 on npm | S | waits for the owner | — | markt-54 and Mark | [npm tracker](https://claude.ai/artifact/W5oqQFc9Ty1miMP63z1XwS) |
 | O21 | Systems | jarvis on a newer harness | S | later | — | Systems session | — |
 | O22 | Decisions | The raw `event` frame of old peers | S | waits for the owner | — | Mark | — |
-| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | later | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33, O34 | markt-54 and Mark | — |
+| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | waits for the owner | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33, O34, O37, O38 | markt-54 and Mark | — |
 | O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | Host-ownership session | [the brief](https://github.com/mark1russell7/client/blob/main/packages/documentation/HOST-OWNERSHIP-BRIEF.md) |
 | O25 | Apps | jarvis on client 0.7.0 | M | in progress | — | jarvis session | — |
 | O26 | New packages | `shiftMonth` in `@procedures/ics` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
@@ -610,6 +610,8 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O34 | LLM | The tool loop and a `fallback` block of an answer | S | done | O12 | Client session | [a9f5420](https://github.com/mark1russell7/client/commit/a9f5420), [ac7af4c](https://github.com/mark1russell7/client/commit/ac7af4c), [API docs: Refusals and fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) |
 | O35 | fs root | Confine git under a root | M | later | O5 | Client session | — |
 | O36 | fs root | Root rules for the other procedures that reach files | M | later | O5 | Client session | — |
+| O37 | New packages | `weatherCodeGroup(code)` in `@procedures/weather` | S | done | — | jarvis-side client session | [client PR #5](https://github.com/mark1russell7/client/pull/5), [78f02c1](https://github.com/mark1russell7/client/commit/78f02c1) |
+| O38 | New packages | A node-only entry `@procedures/geo/tiles` | S | done | — | jarvis-side client session | [client PR #5](https://github.com/mark1russell7/client/pull/5), [78f02c1](https://github.com/mark1russell7/client/commit/78f02c1) |
 
 ## Items for a decision
 
