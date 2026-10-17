@@ -19,6 +19,8 @@
  * - Each write takes a copy of the value (`structuredClone`), for the local copy, the queue and the
  *   remote. The reads give the copies of the local copy, or of the remote in `remote-only` mode.
  * - A full sync reads the local ids with `getIds()`, so it does not copy each local item.
+ * - A pull reads a local item only when the result depends on it. With `versionOf`, the storage
+ *   knows the version of each local item that it wrote or read.
  * - After `close()`, each operation rejects, and a second `close()` does nothing.
  */
 
@@ -103,6 +105,9 @@ export interface HybridStorageOptions {
    * The version of an item, for example its ETag or a revision field (roadmap R28). The sync
    * compares the versions, not the JSON of the values. A remote change of an id with a queued
    * local write is a conflict.
+   *
+   * The storage keeps the version of each local item that it wrote or read. A pull then reads a
+   * local item only for a conflict, or when it does not know the version of the item.
    */
   versionOf?: (item: any) => string | undefined;
 
@@ -163,7 +168,8 @@ export interface HybridStorageOptions {
    * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
    * of `@procedures/sqlite`, keeps the local copy after a restart. Then a new storage in
    * `local-only` mode reads the items of the last run. Give it with a durable `queueStore`.
-   * `close()` closes it.
+   * `close()` closes it. Only the storage writes to the local copy: with `versionOf`, a pull does
+   * not see a write from outside.
    * @default a new `InMemoryStorage`
    */
   local?: LocalCopyStorage<any>;
@@ -356,6 +362,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private changesUnsupported = false;
   /** With `versionOf`: the last known remote version of each id. `null`: the remote has no item. */
   private readonly bases = new Map<string, string | null>();
+  /**
+   * With `versionOf`: the version of each local item that the storage wrote. A pull does not read
+   * an item whose version it knows. The version of an id that is not here is unknown.
+   */
+  private readonly localVersions = new Map<string, string>();
+  /** The number of the last local write of each id that runs: only that write records a version */
+  private readonly localWrites = new Map<string, number>();
+  private localWriteCount = 0;
+  /** The number of clears of the local copy: a clear cancels the records of the writes that run */
+  private localClears = 0;
   private stats = {
     cacheHits: 0,
     cacheMisses: 0,
@@ -455,7 +471,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async dropLocal(): Promise<void> {
     this.clearVersion++;
     this.cursor = undefined;
-    await this.local.clear();
+    await this.localClear();
   }
 
   /** This method makes the local copy from the queue only, before a full sync. */
@@ -531,7 +547,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         const remote = await this.remote.get(id);
         this.isOnline = true;
         if (this.writeKey(id) === version && !this.hasPendingOp(id)) {
-          if (remote !== undefined) await this.local.set(id, remote);
+          if (remote !== undefined) await this.localSet(id, remote);
           this.noteBase(id, remote);
         }
         return remote;
@@ -605,21 +621,21 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     const value = structuredClone(written);
     await this.write("set", { id, value }, [id], async () => {
       this.bump(id);
-      await this.local.set(id, value);
+      await this.localSet(id, value);
     }, () => this.remote.set(id, value));
   }
 
   async delete(id: string): Promise<boolean> {
     return this.write("delete", { id }, [id], async () => {
       this.bump(id);
-      return this.local.delete(id);
+      return this.localDelete(id);
     }, () => this.remote.delete(id));
   }
 
   async clear(): Promise<void> {
     await this.write("clear", {}, "*", async () => {
       this.clearVersion++;
-      await this.local.clear();
+      await this.localClear();
     }, () => this.remote.clear());
   }
 
@@ -632,14 +648,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     const items = written.map(([id, value]): [string, T] => [id, structuredClone(value)]);
     await this.write("setBatch", { items }, items.map(([id]) => id), async () => {
       for (const [id] of items) this.bump(id);
-      await this.local.setBatch(items);
+      await this.localSetBatch(items);
     }, () => this.remote.setBatch(items));
   }
 
   async deleteBatch(ids: string[]): Promise<number> {
     return this.write("deleteBatch", { ids }, ids, async () => {
       for (const id of ids) this.bump(id);
-      return this.local.deleteBatch(ids);
+      return this.localDeleteBatch(ids);
     }, () => this.remote.deleteBatch(ids));
   }
 
@@ -754,8 +770,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       for (const id of touched) {
         if ((this.writeVersions.get(id) ?? 0) !== versions.get(id)) continue;
         const value = before.get(id);
-        if (value === undefined) await this.local.delete(id);
-        else await this.local.set(id, value);
+        if (value === undefined) await this.localDelete(id);
+        else await this.localSet(id, value);
       }
     };
   }
@@ -1006,21 +1022,112 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     const data = op.data as { id: string; value: T; ids: string[]; items: Array<[string, T]> };
     switch (op.type) {
       case "set":
-        await this.local.set(data.id, data.value);
+        await this.localSet(data.id, data.value);
         break;
       case "delete":
-        await this.local.delete(data.id);
+        await this.localDelete(data.id);
         break;
       case "setBatch":
-        await this.local.setBatch(data.items);
+        await this.localSetBatch(data.items);
         break;
       case "deleteBatch":
-        await this.local.deleteBatch(data.ids);
+        await this.localDeleteBatch(data.ids);
         break;
       case "clear":
-        await this.local.clear();
+        await this.localClear();
         break;
     }
+  }
+
+  //
+  // ═══ The writes of the local copy ═══
+  //
+
+  /**
+   * This method writes to the local copy. With `versionOf`, it records the version of each item
+   * that the write gives, so a pull does not read the item to know its version.
+   *
+   * - During the write, the versions of its ids are unknown. A failed write keeps them unknown.
+   * - Only the last write of an id that started records its version, and a clear that started
+   *   after the write cancels the record.
+   */
+  private writeLocal<R>(versionsOf: () => Array<[string, string | undefined]>, write: () => Promise<R>): Promise<R> {
+    return this.options.versionOf ? this.recordedWrite(versionsOf(), write) : write();
+  }
+
+  /** The write of `writeLocal` with `versionOf`. */
+  private async recordedWrite<R>(versions: Array<[string, string | undefined]>, write: () => Promise<R>): Promise<R> {
+    const clears = this.localClears;
+    const numbers = versions.map(([id]) => {
+      this.localVersions.delete(id);
+      const number = ++this.localWriteCount;
+      this.localWrites.set(id, number);
+      return number;
+    });
+    let written = false;
+    try {
+      const result = await write();
+      written = true;
+      return result;
+    } finally {
+      versions.forEach(([id, version], index) => {
+        if (this.localWrites.get(id) !== numbers[index]) return;
+        this.localWrites.delete(id);
+        if (written && version !== undefined && clears === this.localClears) this.localVersions.set(id, version);
+      });
+    }
+  }
+
+  /**
+   * This method reads a local item for a pull. With `versionOf`, it records the version of the item
+   * when no local write started or ran during the read.
+   */
+  private async readLocal(id: string): Promise<T | undefined> {
+    const writes = this.localWriteCount;
+    const clears = this.localClears;
+    const item = await this.local.get(id);
+    if (
+      item !== undefined &&
+      this.options.versionOf &&
+      writes === this.localWriteCount &&
+      clears === this.localClears &&
+      !this.localWrites.has(id)
+    ) {
+      const version = this.recordedVersion(item);
+      if (version !== undefined) this.localVersions.set(id, version);
+    }
+    return item;
+  }
+
+  /** The version of an item for the record of the local copy, or undefined when `versionOf` fails. */
+  private recordedVersion(item: T): string | undefined {
+    try {
+      return this.versionOfItem(item);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private localSet(id: string, value: T): Promise<void> {
+    return this.writeLocal(() => [[id, this.recordedVersion(value)]], () => this.local.set(id, value));
+  }
+
+  private localDelete(id: string): Promise<boolean> {
+    return this.writeLocal(() => [[id, undefined]], () => this.local.delete(id));
+  }
+
+  private localSetBatch(items: Array<[string, T]>): Promise<void> {
+    return this.writeLocal(() => items.map(([id, value]) => [id, this.recordedVersion(value)]), () => this.local.setBatch(items));
+  }
+
+  private localDeleteBatch(ids: string[]): Promise<number> {
+    return this.writeLocal(() => ids.map((id): [string, undefined] => [id, undefined]), () => this.local.deleteBatch(ids));
+  }
+
+  private localClear(): Promise<void> {
+    this.localClears++;
+    this.localVersions.clear();
+    return this.local.clear();
   }
 
   /**
@@ -1088,7 +1195,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     return { full: true, changed: await this.remoteEntries(), deleted: [] };
   }
 
-  /** This method applies one remote item. It gives true when the queue changed. */
+  /**
+   * This method applies one remote item. It gives true when the queue changed.
+   *
+   * The pull reads the local item only when the result depends on it (roadmap R28):
+   * - An id with a queued write: only when the remote version changed after the last known remote
+   *   version. Without versions, the queued write wins, and the pull reads nothing.
+   * - An id without a queued write: not when the storage knows the version of the local item.
+   *   Without versions, the pull compares the JSON of the two items, so it reads the local item.
+   * Before, the pull read each local item.
+   */
   private async pullItem(
     id: string,
     item: T,
@@ -1096,9 +1212,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     conflicts: string[],
   ): Promise<boolean> {
     if (changedLocally(id)) return false;
-    const localItem = await this.local.get(id);
-    if (changedLocally(id)) return false;
     const remoteVersion = this.versionOfItem(item);
+    const knownVersion = remoteVersion === undefined ? undefined : this.localVersions.get(id);
 
     if (this.hasPendingOp(id)) {
       // Without versions, the queued write wins, as before
@@ -1107,6 +1222,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       // of the id: the queued write wins
       const base = this.bases.get(id);
       if (base === undefined || base === remoteVersion) return false;
+      if (knownVersion === remoteVersion) {
+        this.bases.set(id, remoteVersion);
+        return false;
+      }
+      const localItem = await this.readLocal(id);
+      if (changedLocally(id)) return false;
       if (localItem !== undefined && this.versionOfItem(localItem) === remoteVersion) {
         this.bases.set(id, remoteVersion);
         return false;
@@ -1114,12 +1235,21 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       return this.resolvePending(id, localItem, item, remoteVersion, conflicts);
     }
 
+    if (knownVersion !== undefined) {
+      // Only the remote changed: it is not a conflict. The version of the local item is known.
+      if (knownVersion !== remoteVersion) await this.localSet(id, item);
+      this.bases.set(id, remoteVersion!);
+      return false;
+    }
+
+    const localItem = await this.readLocal(id);
+    if (changedLocally(id)) return false;
     const localVersion = localItem === undefined ? undefined : this.versionOfItem(localItem);
     if (localItem === undefined) {
-      await this.local.set(id, item);
+      await this.localSet(id, item);
     } else if (remoteVersion !== undefined && localVersion !== undefined) {
       // Only the remote changed: it is not a conflict
-      if (localVersion !== remoteVersion) await this.local.set(id, item);
+      if (localVersion !== remoteVersion) await this.localSet(id, item);
     } else if (JSON.stringify(localItem) !== JSON.stringify(item)) {
       // Conflict - resolve according to strategy
       if (this.options.conflictResolution === "error") {
@@ -1128,7 +1258,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         return false;
       }
       const resolved = this.resolveConflict(localItem, item);
-      await this.local.set(id, resolved);
+      await this.localSet(id, resolved);
       this.stats.conflicts++;
     }
     if (remoteVersion !== undefined) this.bases.set(id, remoteVersion);
@@ -1139,7 +1269,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private async pullDelete(id: string, changedLocally: (id: string) => boolean, conflicts: string[]): Promise<boolean> {
     if (changedLocally(id)) return false;
     if (!this.hasPendingOp(id)) {
-      await this.local.delete(id);
+      await this.localDelete(id);
       if (this.options.versionOf) this.bases.set(id, null);
       return false;
     }
@@ -1147,7 +1277,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     // item only if the last sync saw a version of it.
     const base = this.bases.get(id);
     if (!this.options.versionOf || base === undefined || base === null) return false;
-    const localItem = await this.local.get(id);
+    const localItem = await this.readLocal(id);
     if (changedLocally(id)) return false;
     if (localItem === undefined) {
       // Both sides deleted the item
@@ -1158,7 +1288,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     switch (this.options.conflictResolution) {
       case "remote":
         if (!this.dropQueued(id)) break;
-        await this.local.delete(id);
+        await this.localDelete(id);
         this.bases.set(id, null);
         return true;
       case "error":
@@ -1188,14 +1318,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       case "remote":
         // The remote value replaces the queued write. A queued clear cannot lose one id.
         if (!this.dropQueued(id)) break;
-        await this.local.set(id, remoteItem);
+        await this.localSet(id, remoteItem);
         this.bases.set(id, remoteVersion);
         return true;
       case "merge": {
         if (localItem === undefined) break;
         const merged = this.resolveConflict(localItem, remoteItem);
         if (!this.dropQueued(id)) break;
-        await this.local.set(id, merged);
+        await this.localSet(id, merged);
         this.bases.set(id, remoteVersion);
         this.offlineOps.push({ type: "set", data: { id, value: merged }, timestamp: Date.now(), base: [[id, remoteVersion]] });
         return true;
