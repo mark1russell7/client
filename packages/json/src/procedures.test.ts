@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { PURE_EFFECTS, createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { jsonModule, registerJsonProcedures } from "./module.js";
-import type { JsonDiffOutput, JsonMergeOutput, JsonPatchOutput, JsonQueryOutput, JsonValidateOutput, YamlParseOutput, YamlStringifyOutput } from "./types.js";
+import type { CsvParseOutput, CsvStringifyOutput, JsonDiffOutput, JsonMergeOutput, JsonPatchOutput, JsonQueryOutput, JsonValidateOutput, YamlParseOutput, YamlStringifyOutput } from "./types.js";
 
 const registry: ProcedureRegistry = createRegistry(jsonModule);
 
@@ -29,9 +29,9 @@ async function failure(promise: Promise<unknown>): Promise<Error> {
 }
 
 describe("the module", () => {
-  it("has seven pure procedures", () => {
+  it("has nine pure procedures", () => {
     const keys = jsonModule.procedures.map((procedure) => procedure.path.join("."));
-    expect(keys).toEqual(["json.query", "json.patch", "json.diff", "json.merge", "json.validate", "yaml.parse", "yaml.stringify"]);
+    expect(keys).toEqual(["json.query", "json.patch", "json.diff", "json.merge", "json.validate", "yaml.parse", "yaml.stringify", "csv.parse", "csv.stringify"]);
     for (const procedure of jsonModule.procedures) {
       expect((procedure.metadata as { effects?: unknown }).effects, procedure.path.join(".")).toBe(PURE_EFFECTS);
     }
@@ -133,6 +133,30 @@ describe("yaml.parse and yaml.stringify", () => {
 
   it("refuses bad YAML with INVALID_YAML", async () => {
     expect(await failure(call("yaml.parse", { text: "a: [1" }))).toMatchObject({ code: "INVALID_YAML" });
+  });
+});
+
+describe("csv.parse and csv.stringify", () => {
+  it("parses CSV and writes it again", async () => {
+    const text = 'date,description,amount\r\n2026-10-01,"Shop ""A"", Main St",-4.50\r\n';
+    const { rows } = await call<CsvParseOutput>("csv.parse", { text, header: true });
+    expect(rows).toEqual([{ date: "2026-10-01", description: 'Shop "A", Main St', amount: "-4.50" }]);
+    expect((await call<CsvStringifyOutput>("csv.stringify", { rows })).text).toBe(text);
+    expect((await call<CsvParseOutput>("csv.parse", { text: "a; b\n", delimiter: ";", trim: true })).rows).toEqual([["a", "b"]]);
+    expect((await call<CsvStringifyOutput>("csv.stringify", { rows: [[1, null]], columns: ["x", "y"], lineBreak: "\n" })).text).toBe("x,y\n1,\n");
+  });
+
+  it("keeps a column __proto__ of the text as data", async () => {
+    const { rows } = await call<CsvParseOutput>("csv.parse", { text: "__proto__\nx\n", header: true });
+    expect(Object.getOwnPropertyNames(rows[0])).toEqual(["__proto__"]);
+    expect(Object.getPrototypeOf(rows[0])).toBe(Object.prototype);
+    const { text } = await call<CsvStringifyOutput>("csv.stringify", { rows: wire('[{"__proto__":"x"}]') });
+    expect(text).toBe("__proto__\r\nx\r\n");
+  });
+
+  it("refuses bad CSV and bad rows with INVALID_CSV", async () => {
+    expect(await failure(call("csv.parse", { text: '"a' }))).toMatchObject({ code: "INVALID_CSV" });
+    expect(await failure(call("csv.stringify", { rows: [["a"], { a: 1 }] }))).toMatchObject({ code: "INVALID_CSV" });
   });
 });
 

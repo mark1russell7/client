@@ -6,7 +6,7 @@
 npm install @procedures/json
 ```
 
-Transforms of JSON values as procedures: a query, a patch, a diff, a merge, a schema check, and YAML to JSON and back. Each procedure is pure. Its output comes only from its input, and it changes nothing.
+Transforms of JSON values as procedures: a query, a patch, a diff, a merge and a schema check. Other procedures change YAML and CSV to JSON and back. Each procedure is pure. Its output comes only from its input, and it changes nothing.
 
 ## The procedures
 
@@ -19,8 +19,10 @@ Transforms of JSON values as procedures: a query, a patch, a diff, a merge, a sc
 | `json.validate` | It examines a value against a JSON Schema. |
 | `yaml.parse` | It parses YAML text into a JSON value. |
 | `yaml.stringify` | It writes a JSON value as YAML text. |
+| `csv.parse` | It parses CSV text into rows: arrays of fields, or objects with a header. |
+| `csv.stringify` | It writes rows as CSV text. |
 
-Each procedure declares `PURE_EFFECTS`, so a read-only host can start it.
+Each procedure declares `PURE_EFFECTS`, so a read-only host can start it. The MCP server of `@procedures/bundle-mcp` does not show the `csv` procedures as tools.
 
 ```ts
 import "@procedures/json/register";
@@ -84,6 +86,42 @@ The check ignores `format` and the other annotations, as the standard tells. The
 - `yaml.parse` of the text of `yaml.stringify` gives the value again. A property test with random JSON values examines this rule.
 - A strict YAML 1.1 reader reads a number with an exponent and without a fraction as a string, for example `1e+21`.
 
+## CSV
+
+The functions `parseCsv(text, options)` and `stringifyCsv(rows, options)` read and write CSV text (RFC 4180). The procedures `csv.parse` and `csv.stringify` use them.
+
+```ts
+import { parseCsv, stringifyCsv } from "@procedures/json";
+
+parseCsv('date,note\n2026-10-01,"Shop ""A"", Main St"\n', { header: true });
+// [{ date: "2026-10-01", note: 'Shop "A", Main St' }]
+
+stringifyCsv([{ date: "2026-10-01", amount: -4.5 }]);
+// "date,amount\r\n2026-10-01,-4.5\r\n"
+```
+
+The parse:
+
+- A field in double quotes can have the delimiter, a line break and a quote. Two quotes (`""`) in the field give one quote.
+- A line break is CRLF, LF or CR. A line break at the end of the text does not start a row.
+- The parse removes a byte order mark at the start of the text.
+- A quote in a field without quotes is a normal character.
+- The parse skips each empty line. With `skipEmptyLines: false`, an empty line gives a row with one empty field.
+- `delimiter` sets the character between two fields, for example `;` or a tab. The default is a comma.
+- With `trim: true`, the parse removes the white space at the start and at the end of each field, also in quotes.
+- With `header: true`, the first row gives the names of the columns, and each other row is an object.
+- A row with fewer fields than the header gets empty text for the missing columns. A row with more fields is an error.
+- A column `__proto__` stays data in the object.
+
+The text of `stringifyCsv`:
+
+- The rows are all arrays or all objects. A field is a string, a finite number, a boolean or null. Null gives an empty field.
+- A field gets quotes only when it has the delimiter, a quote or a line break.
+- For objects, the first row has the names of the columns. The default columns are the keys, in the order that the rows first give them.
+- `columns` selects the keys and gives their order. For arrays, `columns` is the first row. `header: false` removes the row of names.
+- Each row ends with CRLF, as RFC 4180 tells. `lineBreak: "\n"` writes LF.
+- `parseCsv` of the text gives the rows again, with the same `delimiter`. A property test with random rows examines this rule.
+
 ## Errors
 
 Each error is a `JsonError`. A server sends it with its code and its message, and HTTP gives it the status 500. The field `code` tells the kind:
@@ -97,6 +135,7 @@ Each error is a `JsonError`. A server sends it with its code and its message, an
 | `TEST_FAILED` | A `test` operation found another value. |
 | `INVALID_YAML` | The YAML text is not correct, or it has a value that JSON does not have. |
 | `INVALID_SCHEMA` | The schema is not an object or a boolean. |
+| `INVALID_CSV` | The CSV text is not correct, for example a quote without its closing quote. A row, a field or a delimiter of the writer is not correct. The message tells the line or the row. |
 
 ## Related packages
 

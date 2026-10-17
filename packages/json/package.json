@@ -2,11 +2,12 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/json",
   "version": "0.5.0",
-  "description": "Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back.",
+  "description": "Pure JSON, YAML and CSV procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, YAML to JSON and back, and CSV (RFC 4180) to rows and back.",
   "keywords": [
     "procedures",
     "json",
     "yaml",
+    "csv",
     "json-pointer",
     "json-patch",
     "merge-patch",

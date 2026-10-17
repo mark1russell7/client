@@ -27,7 +27,9 @@ export type JsonErrorCode =
   /** The YAML text is not valid, or it has a value that JSON does not have. */
   | "INVALID_YAML"
   /** The JSON Schema is not a schema. */
-  | "INVALID_SCHEMA";
+  | "INVALID_SCHEMA"
+  /** The CSV text is not valid, or a row or an option of the CSV writer is not valid. */
+  | "INVALID_CSV";
 
 /** An error of a procedure of this package. A server sends it with its own code, for example `NOT_JSON`. */
 export class JsonError extends Error {
