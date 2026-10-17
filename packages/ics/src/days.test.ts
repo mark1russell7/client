@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { daysBetween, shiftDay } from "./days.js";
+import { daysBetween, shiftDay, shiftMonth } from "./days.js";
 import { localDate, zonedOffset } from "./zone.js";
 
 const NY = "America/New_York";
@@ -130,6 +130,54 @@ describe("shiftDay", () => {
     expect(() => shiftDay("2026-10-17T00:00:00Z", 1)).toThrow(RangeError);
     expect(() => shiftDay("2026-10-17", 0.5)).toThrow(RangeError);
     expect(() => shiftDay("9999-12-31", 1)).toThrow(RangeError);
+  });
+});
+
+describe("shiftMonth", () => {
+  it("adds and removes months across a year", () => {
+    expect(shiftMonth("2026-10-17", 1)).toBe("2026-11-17");
+    expect(shiftMonth("2026-10-17", 3)).toBe("2027-01-17");
+    expect(shiftMonth("2026-01-15", -1)).toBe("2025-12-15");
+    expect(shiftMonth("2026-10-17", -22)).toBe("2024-12-17");
+    expect(shiftMonth("2026-10-17", 0)).toBe("2026-10-17");
+    expect(shiftMonth("2026-10-17", 120)).toBe("2036-10-17");
+  });
+
+  it("gives the last day of the month when the day is not in it", () => {
+    expect(shiftMonth("2026-01-31", 1)).toBe("2026-02-28");
+    expect(shiftMonth("2024-01-31", 1)).toBe("2024-02-29");
+    expect(shiftMonth("2024-02-29", 12)).toBe("2025-02-28");
+    expect(shiftMonth("2026-03-31", -1)).toBe("2026-02-28");
+    expect(shiftMonth("2026-05-31", 1)).toBe("2026-06-30");
+    expect(shiftMonth("2000-01-30", 1)).toBe("2000-02-29");
+    expect(shiftMonth("1900-01-30", 1)).toBe("1900-02-28");
+  });
+
+  it("gives the arithmetic of Date.UTC with shiftDay from the 1st", () => {
+    for (const [year, month, day, months] of [
+      [2026, 1, 31, 1],
+      [2026, 8, 31, 3],
+      [2024, 2, 29, 12],
+      [2026, 12, 31, -10],
+    ] as const) {
+      const first = `${String(year)}-${String(month).padStart(2, "0")}-01`;
+      expect(shiftDay(shiftMonth(first, months), day - 1)).toBe(new Date(Date.UTC(year, month - 1 + months, day)).toISOString().slice(0, 10));
+    }
+  });
+
+  it("keeps the years 0000 to 9999", () => {
+    expect(shiftMonth("0000-02-29", 0)).toBe("0000-02-29");
+    expect(shiftMonth("0001-01-31", -12)).toBe("0000-01-31");
+    expect(shiftMonth("9999-11-30", 1)).toBe("9999-12-30");
+    expect(() => shiftMonth("9999-12-31", 1)).toThrow(RangeError);
+    expect(() => shiftMonth("0000-01-01", -1)).toThrow(RangeError);
+  });
+
+  it("throws a RangeError for a date that is not valid and a number of months that is not an integer", () => {
+    expect(() => shiftMonth("2026-02-30", 1)).toThrow(RangeError);
+    expect(() => shiftMonth("2026-10", 1)).toThrow(RangeError);
+    expect(() => shiftMonth("2026-10-17", 1.5)).toThrow(RangeError);
+    expect(() => shiftMonth("2026-10-17", Number.NaN)).toThrow(RangeError);
   });
 });
 
