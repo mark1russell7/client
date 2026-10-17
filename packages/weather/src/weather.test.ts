@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProcedureRegistry, invokePath, outputValue } from "@procedures/client";
-import { forecastUrl, readForecast } from "./weather.js";
+import { forecastUrl, readForecast, weatherCodeGroup } from "./weather.js";
 import { weatherProcedures } from "./procedures.js";
 
 /** A made-up Open-Meteo answer for two days and two hours. */
@@ -49,6 +49,27 @@ describe("weather", () => {
 
   it("refuses an answer without a daily forecast", () => {
     expect(() => readForecast({ error: true }, false)).toThrow(/no daily forecast/);
+  });
+});
+
+describe("weatherCodeGroup", () => {
+  it("gives the group of each code that Open-Meteo uses", () => {
+    expect(weatherCodeGroup(0)).toBe("clear");
+    expect(weatherCodeGroup(1)).toBe("mainly-clear");
+    expect(weatherCodeGroup(2)).toBe("partly-cloudy");
+    expect(weatherCodeGroup(3)).toBe("overcast");
+    expect([45, 48].map(weatherCodeGroup)).toEqual(["fog", "fog"]);
+    expect([51, 53, 55, 56, 57].map(weatherCodeGroup)).toEqual(["drizzle", "drizzle", "drizzle", "freezing-drizzle", "freezing-drizzle"]);
+    expect([61, 63, 65, 66, 67].map(weatherCodeGroup)).toEqual(["rain", "rain", "rain", "freezing-rain", "freezing-rain"]);
+    expect([71, 73, 75, 77].map(weatherCodeGroup)).toEqual(["snow", "snow", "snow", "snow-grains"]);
+    expect([80, 81, 82, 85, 86].map(weatherCodeGroup)).toEqual(["rain-showers", "rain-showers", "rain-showers", "snow-showers", "snow-showers"]);
+    expect([95, 96, 99].map(weatherCodeGroup)).toEqual(["thunderstorm", "thunderstorm-hail", "thunderstorm-hail"]);
+  });
+
+  it("gives undefined for a code that Open-Meteo does not use, and for null", () => {
+    expect([4, 44, 50, 100, -1, 2.5].map(weatherCodeGroup)).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+    expect(weatherCodeGroup(null)).toBeUndefined();
+    expect(weatherCodeGroup(undefined)).toBeUndefined();
   });
 });
 

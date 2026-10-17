@@ -94,3 +94,63 @@ export function readForecast(body: unknown, hourly: boolean): Forecast {
     ...(hours !== undefined ? { hourly: hours } : {}),
   };
 }
+
+/**
+ * The groups of the WMO weather codes that Open-Meteo gives (WMO 4677, the codes of its
+ * documentation). A code outside them has no group.
+ */
+export type WeatherCodeGroup =
+  | "clear"
+  | "mainly-clear"
+  | "partly-cloudy"
+  | "overcast"
+  | "fog"
+  | "drizzle"
+  | "freezing-drizzle"
+  | "rain"
+  | "freezing-rain"
+  | "snow"
+  | "snow-grains"
+  | "rain-showers"
+  | "snow-showers"
+  | "thunderstorm"
+  | "thunderstorm-hail";
+
+const CODE_GROUPS: ReadonlyMap<number, WeatherCodeGroup> = new Map<number, WeatherCodeGroup>([
+  [0, "clear"],
+  [1, "mainly-clear"],
+  [2, "partly-cloudy"],
+  [3, "overcast"],
+  [45, "fog"],
+  [48, "fog"],
+  [51, "drizzle"],
+  [53, "drizzle"],
+  [55, "drizzle"],
+  [56, "freezing-drizzle"],
+  [57, "freezing-drizzle"],
+  [61, "rain"],
+  [63, "rain"],
+  [65, "rain"],
+  [66, "freezing-rain"],
+  [67, "freezing-rain"],
+  [71, "snow"],
+  [73, "snow"],
+  [75, "snow"],
+  [77, "snow-grains"],
+  [80, "rain-showers"],
+  [81, "rain-showers"],
+  [82, "rain-showers"],
+  [85, "snow-showers"],
+  [86, "snow-showers"],
+  [95, "thunderstorm"],
+  [96, "thunderstorm-hail"],
+  [99, "thunderstorm-hail"],
+]);
+
+/**
+ * This function gives the group of a WMO weather code, as the field `weatherCode` of a forecast
+ * gives it. It gives `undefined` for a code that Open-Meteo does not use, and for `null`.
+ */
+export function weatherCodeGroup(code: number | null | undefined): WeatherCodeGroup | undefined {
+  return code === null || code === undefined ? undefined : CODE_GROUPS.get(code);
+}

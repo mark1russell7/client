@@ -24,6 +24,17 @@ A host registers the procedures with `createRegistry(weatherModule)`, or with `i
 const forecast = await client.exec(["weather", "forecast"], { lat: 52.52, lon: 13.4, days: 3, units: "metric" });
 ```
 
+## Weather codes
+
+The field `weatherCode` of a day or an hour is a WMO weather code. The function `weatherCodeGroup(code)` gives its group, for example `clear`, `fog`, `rain-showers` or `thunderstorm`. It gives `undefined` for a code that Open-Meteo does not use.
+
+```ts
+import { weatherCodeGroup } from "@procedures/weather";
+
+weatherCodeGroup(61); // "rain"
+weatherCodeGroup(96); // "thunderstorm-hail"
+```
+
 ## Units
 
 `units: "metric"` (the default) gives °C and km/h. `units: "imperial"` gives °F and mph. The `units` field of the result names them.
