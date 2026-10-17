@@ -1,5 +1,5 @@
 ---
-"@procedures/client": minor
+"@procedures/client": patch
 ---
 
 `ProcedureServer.useStorage` with `close` waits for the calls on the old storage before it closes it. Before, it closed the old storage at once, and a call that started on it could fail as closed.

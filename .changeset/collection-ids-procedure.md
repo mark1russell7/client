@@ -1,6 +1,6 @@
 ---
-"@procedures/client": minor
-"@procedures/store": minor
+"@procedures/client": patch
+"@procedures/store": patch
 "@procedures/collections": patch
 ---
 
