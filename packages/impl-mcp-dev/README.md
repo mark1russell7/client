@@ -59,7 +59,7 @@ With `MCP_FS_ROOT` (or `mark mcp --fs-root <folder>`), the host confines each to
 - The list of the tools and `tools.snapshot.txt` do not change. The host refuses some tools under a root.
 - A tool keeps its paths in the root. The host examines the path inputs of its rules (`metadata.fsRoot`) before it starts. The nested `fs.*` calls are confined too.
 - A path outside the root gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the root. A working folder without a value is the root.
-- The host refuses each tool that the root cannot confine, with the same error. At the start, it writes the refused tools to stderr.
+- The host refuses each tool that the root cannot confine, with the same error. At the start, it writes the refused procedures to stderr.
 - The host does not start when the folder does not exist.
 
 The tools of `bundle-mcp` under a root:

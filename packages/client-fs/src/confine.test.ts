@@ -56,6 +56,10 @@ function procedures(): AnyProcedure[] {
     recorder("t.program", { effects: { reads: [], writes: ["process"] } }),
     recorder("t.unknown", { effects: { reads: ["fs"] } }),
     recorder("t.network", { effects: { reads: ["network"], writes: ["network"] } }),
+    // It reaches files only through its nested calls
+    recorder("t.nested", { fsRoot: {} }),
+    // A stub without a handler
+    defineProcedure({ path: ["t", "stub"], input: outputSchema<unknown>(), output: outputSchema<unknown>(), metadata: { fsRoot: { cwd: "cwd" } } }),
     defineProcedure({
       path: ["t", "stream"],
       input: outputSchema<Record<string, unknown>>(),
@@ -120,6 +124,8 @@ describe("rootDecisionOf", () => {
       "t.program": "refused",
       "t.unknown": "refused",
       "t.network": "unchanged",
+      "t.nested": "confined",
+      "t.stub": "confined",
       "t.stream": "confined",
     });
     expect(rootDecisionOf(registry.get(["fs", "read"])!).kind).toBe("fs");
@@ -151,10 +157,11 @@ describe("confineToRoot", () => {
     expect(registry.getAll().map((p) => p.path.join(".")).sort()).toEqual(before);
     expect(result.root).toBe(root);
     expect(result.fs).toContain("fs.read");
-    expect(result.confined.sort()).toEqual(["t.db", "t.other", "t.read", "t.stream", "t.tool"]);
+    expect(result.confined.sort()).toEqual(["t.db", "t.nested", "t.other", "t.read", "t.stream", "t.tool"]);
     expect(result.programs).toEqual(["t.run"]);
     expect(result.refused.sort()).toEqual(["t.files", "t.program", "t.refused", "t.unknown"]);
-    expect(result.unchanged).toEqual(expect.arrayContaining(["t.free", "t.network", "client.chain"]));
+    // A procedure without a handler cannot run, so the root leaves it as it is
+    expect(result.unchanged).toEqual(expect.arrayContaining(["t.free", "t.network", "t.stub", "client.chain"]));
     // A registry without the root runs each procedure as before
     const plain = createRegistry(defineModule("test", procedures()));
     expect(await call("t.read", { cwd: outside, file: "secret.txt" }, plain)).toEqual({ cwd: outside, file: "secret.txt" });
@@ -191,7 +198,12 @@ describe("confineToRoot", () => {
     await refused("t.read", { entries: ["../outside/secret.txt"] });
     await refused("t.read", { cwd: "sub", entries: ["../../outside/secret.txt"] });
     await refused("t.read", { file: 5 });
+    await refused("t.read", { files: ["a.txt", 5] });
+    expect(await refused("t.read", { cwd: 5 })).toContain("is not a folder");
+    expect(await refused("t.read", ["a.txt"])).toContain("is not an object");
     expect(seen["t.read"]).toBeUndefined();
+    // A procedure with empty rules gets its input as it is: its nested calls get their own rules
+    expect(await call("t.nested", { path: join(outside, "secret.txt") })).toEqual({ path: join(outside, "secret.txt") });
   });
 
   it("refuses a path through a linked folder that leads out of the root", async () => {

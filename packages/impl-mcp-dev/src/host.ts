@@ -131,7 +131,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     ...(programCheck.length > 0 ? { interceptors: programCheck } : {}),
   });
   const server = new ProcedureServer(procedureServerOptions(policy, registry));
-  return { registry, surface, policy, server, ...(fsRoot !== undefined ? { fsRoot, refusedUnderRoot: refusedUnderRoot ?? [] } : {}) };
+  return { registry, surface, policy, server, ...(fsRoot !== undefined ? { fsRoot, refusedUnderRoot } : {}) };
 }
 
 /**
@@ -176,10 +176,7 @@ export async function startDevToolsServer(config: McpServerConfig = loadConfig()
   if (config.debug) {
     console.error(`[mcp-server] Started with ${transport.getState().toolCount} tools`);
   }
-  if (host.fsRoot !== undefined) {
-    const refused = (host.refusedUnderRoot ?? []).filter((key) => expose === undefined || expose(key.split(".")));
-    console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. ${refused.length} tools are refused under the root: ${refused.join(", ") || "none"}`);
-  }
+  if (host.fsRoot !== undefined) console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. Refused under the root: ${String(host.refusedUnderRoot)}`);
   const url = transport.getState().url;
   if (url) console.error(`[mcp-server] Streamable HTTP at ${url}${config.http?.token ? " (send Authorization: Bearer <token>)" : ""}`);
   return host;

@@ -5,12 +5,13 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
 import { cueModule } from "./module.js";
+import { installedFileExists, loadFeatures, packageRoot } from "./shared.js";
 import type { CueGenerateOutput, CueInitOutput, CueValidateOutput } from "./types.js";
 
 let base: string;
@@ -61,6 +62,20 @@ describe("the cue procedures under the root of a host", () => {
     }
     await expect(call("cue.init", { cwd: "../outside" })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
     expect(readdirSync(outside)).toEqual([]);
+  });
+
+  it("read the files of the installed cue package directly, not through fs.*", async () => {
+    expect(await installedFileExists(join(packageRoot, "features.json"))).toBe(true);
+    expect(await installedFileExists(join(packageRoot, "no-such-file.json"))).toBe(false);
+    expect((await loadFeatures())?.features).toBeDefined();
+    // A folder without features.json gives null, text that is not JSON throws, and a folder in
+    // the place of the file throws its own error
+    expect(await loadFeatures(undefined, outside)).toBeNull();
+    writeFileSync(join(outside, "features.json"), "{ not json");
+    await expect(loadFeatures(undefined, outside)).rejects.toThrow("is not valid JSON");
+    rmSync(join(outside, "features.json"));
+    mkdirSync(join(outside, "features.json"));
+    await expect(loadFeatures(undefined, outside)).rejects.toMatchObject({ code: "EISDIR" });
   });
 
   it("work on a project outside the folder without a root", async () => {

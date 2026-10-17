@@ -138,9 +138,12 @@ export async function installedFileExists(path: string): Promise<boolean> {
   }
 }
 
-/** The feature manifest of the installed cue package, or null when it is missing. Text that is not JSON throws. */
-export async function loadFeatures(_ctx?: ProcedureContext): Promise<FeaturesManifest | null> {
-  const featuresPath = resolve(packageRoot, "features.json");
+/**
+ * The feature manifest of the installed cue package, or null when it is missing. Text that is not
+ * JSON throws. `root` is the folder of the package: a test gives another folder.
+ */
+export async function loadFeatures(_ctx?: ProcedureContext, root: string = packageRoot): Promise<FeaturesManifest | null> {
+  const featuresPath = resolve(root, "features.json");
   let content: string;
   try {
     content = await readInstalledFile(featuresPath, "utf8");
