@@ -4,7 +4,7 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 55. **Procedures:** 302. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 55. **Procedures:** 304. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
@@ -49,7 +49,7 @@ Dependencies marked *(general)* are separate repositories, published on npm unde
 | `@procedures/ics` | `packages/ics` | An iCalendar (RFC 5545) reader and writer without dependencies: the events of a calendar, their occurrences in a time window with the recurrences, and a calendar from events. | `ics.*` (4) | `client` |
 | `@procedures/mcp-dev-tools` | `packages/impl-mcp-dev` | A ready-to-use MCP server for Claude Code and Claude Desktop: 91 developer tools (docker, mongo, sqlite, cue, vitest, workspace) with a strict call policy. | — | `bundle-mcp`, `client`, `compiler`, `fs`, `mcp-server` |
 | `@procedures/ios-backup` | `packages/ios-backup` | Read an iPhone backup (MobileSync): find the newest backup, find a file in Manifest.db, read the messages of sms.db. No native dependency. | `iosBackup.*` (3) | `client` |
-| `@procedures/json` | `packages/json` | Pure JSON and YAML procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, and YAML to JSON and back. | `json.*` (5), `yaml.*` (2) | `client`, `compiler` |
+| `@procedures/json` | `packages/json` | Pure JSON, YAML and CSV procedures: a query with JSON Pointer or a path, JSON Patch, a diff, a merge patch, a JSON Schema check, YAML to JSON and back, and CSV (RFC 4180) to rows and back. | `json.*` (5), `yaml.*` (2), `csv.*` (2) | `client`, `compiler` |
 | `@procedures/llm` | `packages/llm` | A language model as procedures: a completion with tools, a stream of the answer and a structured answer, through the Anthropic Messages API, with the key from the environment. | `llm.*` (3) | `@mark1russell7/service` *(general)*, `client`, `http`, `json` |
 | `@procedures/mail` | `packages/mail` | Email procedures: the headers, addresses and text of a raw MIME message, and the headers of recent IMAP messages, read only. | `mail.*` (2) | `client` |
 | `@procedures/mark` | `packages/mark` | mark: one CLI for every procedure package. It finds the procedures, parses flags by their Zod types, runs local or through a fast warm server, and asks for missing arguments. | — | `cli-run`, `client`, `lib`, `mcp-dev-tools`, `peer`, `pnpm`, `procedure`, `server`, `shell`, `vitest` |
