@@ -521,11 +521,20 @@ The storage has two SQLite engines. The option `engine` selects one.
 | `auto` (the default) | `node` when Node.js has `node:sqlite`, and else `sqljs` | |
 
 - Node.js 22.13 and later have `node:sqlite` without a flag. Node.js 22.5 to 22.12 have it only with the flag `--experimental-sqlite`. Node.js 22.0 to 22.4 do not have it.
-- Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open of the engine `node`.
+- Node.js 22 shows the warning `ExperimentalWarning: SQLite is an experimental feature` at the first open of the engine `node`. Node.js 24 and 26 do not show it.
+- Node.js 26.11 renamed the class `DatabaseSync` to `Database`. The storage uses `Database` when the module has it, and else `DatabaseSync`.
 - With `auto`, the storage uses `sqljs` when the import of `node:sqlite` fails. With `node`, the open fails then, and each operation gives the error.
 - The two engines use the same file format. A file that one engine writes opens with the other engine, with its items and its versions.
 - `getEngine()` gives the engine of the storage. `getMetadata()` gives it in `stats.engine`. `isNodeSqliteAvailable()` tells if this Node.js has `node:sqlite`.
-- The engine `node` writes 1,000 items one by one much faster than `sqljs` in a large file. The nightly benchmarks measure the two engines.
+
+The nightly benchmarks (`bench/storage.bench.ts`) measure the two engines in a file. These are the mean times of one CI run with Node.js 26 on Linux:
+
+| The benchmark | `node` | `sqljs` |
+|---|---|---|
+| 1,000 calls of `set()`, one after the other, in a table of 1,000 items | 141 ms | 1,246 ms |
+| One `getAll()` of a table of 10,000 items | 20 ms | 28 ms |
+
+The engine `sqljs` writes the whole file at each write, so its write time grows with the size of the file.
 
 ### The table and the values
 

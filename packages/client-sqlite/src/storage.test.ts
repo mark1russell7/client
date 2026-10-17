@@ -354,6 +354,21 @@ describe.runIf(nodeAvailable)("SqliteStorage (node): the file", () => {
     await reader.set("a", { n: 1 });
     expect(await reader.getIds()).toEqual(["x", "a"]);
   });
+
+  it("refuses a file that another process made with a table of other columns, and keeps the file", async () => {
+    const path = tempDb();
+    const reader = storageOf<{ n: number }>({ path, table: "items", engine: "node" });
+    expect(await reader.size()).toBe(0);
+    const { createConnection } = await import("@mark1russell7/docker-sqlite");
+    const other = await createConnection({ dbPath: path });
+    other.db.run(`CREATE TABLE "items" (name TEXT)`);
+    await other.save();
+    other.db.close();
+    await expect(reader.get("x")).rejects.toThrow(/does not have the columns id and value/);
+    await expect(reader.set("a", { n: 1 })).rejects.toThrow(/does not have the columns id and value/);
+    await reader.close();
+    expect(existsSync(path)).toBe(true);
+  });
 });
 
 describe("SqliteStorage: the options", () => {

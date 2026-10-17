@@ -153,8 +153,10 @@ function openNodeFile(Database: NodeDatabaseClass, path: string, busyTimeoutMs: 
     try {
       handle.prepare("PRAGMA journal_mode = WAL").get();
     } catch (error) {
-      // A read-only file keeps its journal mode: the reads work, and a write gives the error
-      if ((error as { errcode?: unknown }).errcode !== SQLITE_READONLY) throw error;
+      // A read-only file keeps its journal mode: the reads work, and a write gives the error. An
+      // error of an older Node.js can have no `errcode`: then its message tells it.
+      const { errcode, message } = error as { errcode?: unknown; message?: unknown };
+      if (errcode !== SQLITE_READONLY && !/readonly database/i.test(String(message))) throw error;
     }
     // In WAL mode, NORMAL keeps the file consistent after a crash, with fewer disk syncs
     handle.exec("PRAGMA synchronous = NORMAL");
