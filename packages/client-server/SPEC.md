@@ -222,7 +222,7 @@ client-server/
 │       └── index.ts
 ```
 
-**Status**: 🔄 Phase 1-2 complete, Phase 3 (bidirectional RPC) pending
+**Status**: Phase 1-3 complete. Bidirectional RPC came with roadmap R24 (`b2a3e3a`), and remote events with `EVENTS.md`.
 
 ---
 
@@ -399,11 +399,11 @@ Data → dispatch() → ComponentOutput → hydrate() → ReactNode → DOM
 
 ## Remaining Work
 
-### Phase 3: Bidirectional RPC (client-server)
+### Phase 3: Bidirectional RPC (client-server): done
 
-1. **Server → Client calls**: Server needs to maintain client connections and route calls back
-2. **Streaming procedure updates**: Notify when procedures are added/removed
-3. **Connection management**: Handle reconnection, timeouts
+1. **Server → Client calls**: done in roadmap R24 (`b2a3e3a`). The calls go in both directions over one WebSocket.
+2. **Streaming procedure updates**: remote events (`packages/documentation/EVENTS.md`) give a subscription to the topics of the other side.
+3. **Connection management**: the reconnect, the heartbeat and the handshake limit came with roadmap R3, and the cancellation scopes with R14.
 
 ### Create client-splay-react Package
 

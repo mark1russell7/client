@@ -210,7 +210,7 @@ A review of the `@procedures` stack after 0.2.2 found these items.
 | REV-3 | medium | fixed | | After P9 a host can have its own registry, but `mcp.list-tools`, `mcp.serve`, `_discovery.announce`, `manifest.generate`, `server.create`, `procedure.export` and `lib.audit` read the global registry. They read the registry of the call now. `getProcedureInfos` and `watchProcedures` take a registry. |
 | REV-4 | low | fixed | `540f8d9` | `evaluateOperand` did not examine `$when`: a `$never` operand of `client.conditional`, `client.tryCatch`, `client.parallel` or `client.map` started. A `$never` operand is data now (ROADMAP-2026-10 R4). |
 | REV-5 | low | fixed | `cfb9d69` | The retry middleware did not read `effects.idempotent`. It sends a try with an indeterminate outcome again only for an idempotent call, and `ProcedureServer` runs a keyed call one time (ROADMAP-2026-10 R1). |
-| REV-6 | low | open | | The timeouts of the client middleware do not send the remaining time (`procedure-timeout`). A `Client` with a capability deadline sends it. |
+| REV-6 | low | fixed | `5b9264e` | The timeouts of the client middleware did not send the remaining time (`procedure-timeout`). Since roadmap R10, the overall timeout writes the remaining time into `procedure-timeout`, and `X-Timeout` is gone. |
 
 ## Architecture roadmap
 
