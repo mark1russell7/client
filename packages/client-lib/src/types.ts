@@ -500,14 +500,16 @@ export const LibImportCyclesInputSchema: z.ZodType<LibImportCyclesInput> = z.obj
 });
 
 export const LibImportCyclesOutputSchema: z.ZodType<LibImportCyclesOutput> = z.looseObject({
-  path: z.string(),
-  mode: z.enum(["runtime", "declared", "raw"]),
-  files: z.number(),
-  edges: z.number(),
-  acyclic: z.boolean(),
-  components: z.array(z.array(z.string())),
-  filesInCycles: z.number(),
-  skipped: z.array(z.object({ path: z.string(), bytes: z.number() })),
+  path: z.string().describe("The folder of the sources"),
+  mode: z.enum(["runtime", "declared", "raw"]).describe("The edges that the call counted"),
+  files: z.number().describe("The number of files"),
+  edges: z.number().describe("The number of import edges between the files"),
+  acyclic: z.boolean().describe("True when the graph has no cycle"),
+  components: z.array(z.array(z.string())).describe("Each cycle: the files of a strongly connected component, in name order. The largest cycle comes first."),
+  filesInCycles: z.number().describe("The number of files in a cycle"),
+  skipped: z
+    .array(z.object({ path: z.string().describe("The file, relative to the folder"), bytes: z.number().describe("The size of the file") }))
+    .describe("The files larger than limits.maxFileBytes: the call did not read them"),
 });
 
 export const LibGraphInputSchema: z.ZodType<LibGraphInput> = z.object({
