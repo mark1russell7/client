@@ -14,6 +14,11 @@ This document specifies the bytes between a client and a server of `@procedures/
 
 A call names a procedure with a method: `{ "service": "docker.compose", "operation": "up" }`. The last segment of the path is the operation. The other segments, joined with dots, are the service.
 
+- A path has one segment or more (CLI-28). Each face calls a path of each length.
+- A path of one segment has the empty service: `["morning"]` is `{ "service": "", "operation": "morning" }`.
+- A segment with a dot does not round-trip, because the dot joins the segments of the service.
+- A method with an empty segment names no procedure and gets `NOT_FOUND`. Examples are a `..` segment and a stray dot (`notes.`). Thus `/api/notes/..` does not reach the procedure `notes`.
+
 The metadata of a call is a JSON object. These keys have a meaning in the protocol:
 
 | Key | Direction | Meaning |
@@ -92,6 +97,9 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 ### The request
 
 - The method is `POST`. The URL is `{base}/{service}/{operation}`, for example `/api/docker.compose/up`. This is the default addressing (refer to "The addressing of a request").
+- A path of one segment has the URL `{base}/{operation}`, for example `/api/morning`.
+- Each URL segment is URI-encoded. Thus a path segment does not make a URL separator, and a path gives one or two URL segments.
+- The deprecated `Method.version` has the old form `{base}/{version}/{service}/{operation}`: only the version makes three URL segments, so the forms do not collide. A path of one segment has no version in the URL, because `{base}/{version}/{operation}` reads as a service and an operation. The server ignores the version.
 - The body is the input of the procedure as JSON. Each JSON value is valid: an object, an array, a number, a string, `true`, `false` or `null`.
 - `Content-Type: application/json`.
 - `Accept: application/x-ndjson, application/json`. A client without NDJSON gets the last item of a stream as JSON.
@@ -122,7 +130,6 @@ The server finds the method and the payload of a request with its addressing (CL
 - `urlAddressing()` is the default. The URL gives the method, and the body is the payload. This is the format of `HttpTransport`.
 - `bodyPathAddressing()` reads the path and the input from the body of a single endpoint: `POST {base}` with `{"path": ["notes", "list"], "input": {}}`.
 - The path in the body is a list of segments, or a text with dots, for example `"notes.list"`. Without `input`, the payload is `{}`.
-- A path of one segment, for example `["morning"]`, gets `INVALID_REQUEST` until the paths of each length are done (CLI-28).
 - With `bodyPathAddressing()`, the handler also takes the base path itself. The options `pathField` and `inputField` change the names of the fields.
 - The addressing reads only the own fields of the body. A `__proto__` key gives no path.
 - The option `addressing` of `procedureHandler` and of `HttpServerTransport` sets the hook. An application can give its own hook, for example the URL first and then the body.
@@ -314,3 +321,6 @@ A deadline that passed before the procedure started gives the code `TIMEOUT`, no
 ## MCP
 
 The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code` and `reason`.
+
+- The name of a tool is the path with dots, for example `notes.list`, or the name of the option `toolName`. A path of one segment has its segment as its name, for example `morning`.
+- Each tool name names one procedure. Two procedures can have one name after the join, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then the face leaves out the two tools and writes the reason to stderr. Thus a call does not reach the wrong procedure.

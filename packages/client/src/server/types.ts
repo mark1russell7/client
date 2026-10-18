@@ -9,6 +9,7 @@ import type { Elicit } from "../procedures/elicit.js";
 import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
 import type { CapabilityRequest } from "../procedures/types.js";
+import { methodName } from "./method.js";
 
 // Re-export Method from client types
 export type { Method };
@@ -255,7 +256,7 @@ export interface ServerTransport {
 export class HandlerNotFoundError extends Error {
   constructor(method: Method) {
     super(
-      `No handler found for ${method.service}.${method.operation}${
+      `No handler found for ${methodName(method)}${
         method.version ? ` (v${method.version})` : ""
       }`
     );
