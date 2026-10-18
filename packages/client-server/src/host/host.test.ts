@@ -214,7 +214,7 @@ describe("createProcedureHost (CLI-7)", () => {
     const svc = serviceOf("requires")
       .dependency("store", { system: null, knobs: {}, operations: { read: { idempotent: true } } }, { connect: () => undefined, close: () => undefined })
       .check(
-        { name: "store.ping", dependency: "store", step: "ping", ownConnection: true, gates: "readiness", poll: { interval: seconds(5), jitter: 0.2, timeout: seconds(4) } },
+        { name: "store.ping", dependency: "store", step: "round-trip", ownConnection: true, gates: "readiness", poll: { interval: seconds(5), jitter: 0.2, timeout: seconds(4) } },
         store.run
       );
     const listen = [{ port: 0, knobs: LOCAL_LISTENER_KNOBS }];
