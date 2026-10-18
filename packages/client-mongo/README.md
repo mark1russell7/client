@@ -721,15 +721,15 @@ const view = await db.collection("_aggregations").findOne({ _id: "totals" });
 const totals = await db.collection("orderTotals").find(viewFilter(view)).toArray();
 ```
 
-- A change of a source starts a pass of its partition after the burst (`debounceMs`). A pass computes only the views whose sources changed, in the order of their dependencies. A view whose result changed makes its target dirty, so the views that read it are in the same pass.
+- A change of a source starts a pass of its partition after the burst (`debounce`). A pass computes only the views whose sources changed, in the order of their dependencies. A view whose result changed makes its target dirty, so the views that read it are in the same pass.
 - A run reads the result in groups of 1000. Each stored row keeps the hash of its content (`_viewHash`), so a row that did not change writes nothing.
 - The rows of a view are a generation (`_viewGen`), and the status of the view names the current one. A reader of a target filters with `viewFilter(view)`, so it reads one whole generation. A plain query can see two generations.
 - A run writes in one transaction: the changed rows of the current generation, and the removal of the rows that the result does not have. A reader does not see a part of a run.
-- A view with more rows than `maxTransactionRows` (default 10000), or whose transaction fails, writes a whole new generation in groups. Then its status names the new generation. The previous one stays for `generationGraceMs` (default 60 s), so a reader of it can finish. A later pass removes it.
+- A view with more rows than `maxTransactionRows` (default 10000), or whose transaction fails, writes a whole new generation in groups. Then its status names the new generation. The previous one stays for `generationGrace` (default 60 s, on the time of the server), so a reader of it can finish. Then it goes.
 - A view in a cycle of views stays idle. Its status is `cycle` until the cycle ends.
 - The status of each view (`ok`, `errored` with `lastError`, `cycle`) goes into the field `_materializerStatus` of its document.
 - Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition, in its sources, and only the current generation of the target of another view. It cannot have `$merge` or `$out`. The option `scope` gives another guard, with the same filter.
-- A stream that ends opens again after `rewatchMs`, and a pass catches up.
+- A stream that ends opens again after `rewatch`, and a pass catches up. The times of the options are durations (`ms(100)`, `seconds(60)`) of `@procedures/client`.
 - The stop has the parts of a transport of a service: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. `stop()` does the four. A host composes them with no adapter.
 - The option `clock` gives the clock of the timers, for example a fake clock in a test. The timers do not keep a process alive.
 - The target is a plain collection that only the materializer writes. The stored `_id` of a row carries its partition and its generation: by default `{ partition, generation, id }` (`partitionTargetId`), where `id` is the `_id` of the row. Thus two partitions with the same keys share a target.

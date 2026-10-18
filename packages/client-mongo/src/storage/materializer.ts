@@ -40,7 +40,7 @@
 
 import { createHash } from "node:crypto";
 import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
-import { realClock, type Cancel, type Clock } from "@procedures/client";
+import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -68,8 +68,8 @@ export interface MaterializedViewStatus {
   at: number;
   /** The current generation of the rows of the view. */
   generation?: ObjectId;
-  /** The generation before the last change of generation, and the time of that change (milliseconds since the epoch). */
-  previous?: { generation: ObjectId | null; flippedAt: number };
+  /** The generation before the last change of generation, and the time of that change on the server (`$$NOW`). */
+  previous?: { generation: ObjectId | null; flippedAt: Date };
 }
 
 /**
@@ -94,11 +94,11 @@ export interface ViewMaterializerOptions {
    */
   scope?: ViewPipelineScope | undefined;
   /** The time after the last change before a pass (default 100 ms). */
-  debounceMs?: number | undefined;
-  /** The time before a change stream that ended opens again (default 1000 ms). */
-  rewatchMs?: number | undefined;
-  /** The longest time of a pipeline (default 30000 ms). */
-  maxTimeMS?: number | undefined;
+  debounce?: Duration | undefined;
+  /** The time before a change stream that ended opens again (default 1 s). */
+  rewatch?: Duration | undefined;
+  /** The longest time of a pipeline (default 30 s). */
+  maxTime?: Duration | undefined;
   /** The most rows of the result of a view (default 100000). A larger result is an error of the view. */
   maxRows?: number | undefined;
   /** The log (default `console`, with the prefix `[materializer]`). */
@@ -115,8 +115,11 @@ export interface ViewMaterializerOptions {
   targetId?: ViewTargetId | undefined;
   /** A view with more rows than this writes a new generation in groups, not in one transaction (default 10000). */
   maxTransactionRows?: number | undefined;
-  /** The time that the previous generation stays after a change of generation, in milliseconds (default 60000). */
-  generationGraceMs?: number | undefined;
+  /**
+   * The time that the previous generation stays after a change of generation (default 60 s). The
+   * time of the server (`$$NOW`) measures it, so the processes and the restarts agree.
+   */
+  generationGrace?: Duration | undefined;
 }
 
 /** The function that gives the stored `_id` of a row of a view. */
@@ -213,7 +216,7 @@ export class ViewMaterializer {
   /** The collections that changed since the last pass, for each partition. */
   private readonly dirty = new Map<string, Set<string>>();
   private readonly timers = new Map<string, Cancel>();
-  /** The timers of the streams that open again. */
+  /** The timers of the streams that open again, and of the ends of the grace times. */
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
   private readonly targetId: ViewTargetId;
@@ -231,14 +234,14 @@ export class ViewMaterializer {
     this.viewsName = options.views ?? "_aggregations";
     this.partitionField = options.partitionField ?? "_part";
     this.statusField = options.statusField ?? "_materializerStatus";
-    this.debounceMs = options.debounceMs ?? 100;
-    this.rewatchMs = options.rewatchMs ?? 1000;
-    this.maxTimeMS = options.maxTimeMS ?? 30_000;
+    this.debounceMs = optionalMs(options.debounce, "debounce") ?? 100;
+    this.rewatchMs = optionalMs(options.rewatch, "rewatch") ?? 1000;
+    this.maxTimeMS = optionalMs(options.maxTime, "maxTime") ?? 30_000;
     this.maxRows = options.maxRows ?? 100_000;
     this.clock = options.clock ?? realClock;
     this.targetId = options.targetId ?? partitionTargetId;
     this.maxTransactionRows = options.maxTransactionRows ?? 10_000;
-    this.graceMs = options.generationGraceMs ?? 60_000;
+    this.graceMs = optionalMs(options.generationGrace, "generationGrace") ?? 60_000;
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -639,8 +642,8 @@ export class ViewMaterializer {
    */
   private async run(view: MaterializedView, partition: string): Promise<boolean> {
     const target = this.db!.collection(view.targetCollection);
-    const status = await this.statusOf(view, partition);
-    await this.dropOldGenerations(target, partition, status);
+    const { status, now } = await this.statusOf(view, partition);
+    await this.dropOldGenerations(target, partition, status, now);
     const current = status?.generation;
     const generations = await this.currentGenerations(partition);
     const size = current ? await target.countDocuments({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: current }) : 0;
@@ -656,10 +659,18 @@ export class ViewMaterializer {
     return true;
   }
 
-  /** The status of a view in the database: the current generation, and the previous one. */
-  private async statusOf(view: MaterializedView, partition: string): Promise<Partial<MaterializedViewStatus> | undefined> {
-    const doc = await this.db!.collection(this.viewsName).findOne({ _id: view._id, [this.partitionField]: partition } as Document, { projection: { [this.statusField]: 1 } });
-    return doc?.[this.statusField] as Partial<MaterializedViewStatus> | undefined;
+  /**
+   * The status of a view in the database (the current generation, and the previous one), and the
+   * time of the server: the times of the generations are times of the server.
+   */
+  private async statusOf(view: MaterializedView, partition: string): Promise<{ status: Partial<MaterializedViewStatus> | undefined; now: Date }> {
+    const [doc] = await this.db!
+      .collection(this.viewsName)
+      .aggregate([{ $match: { _id: view._id, [this.partitionField]: partition } }, { $project: { status: `$${this.statusField}`, now: "$$NOW" } }])
+      .toArray();
+    if (doc) return { status: doc["status"] as Partial<MaterializedViewStatus> | undefined, now: doc["now"] as Date };
+    // The view document went away: no generation to keep or to remove
+    return { status: undefined, now: new Date() };
   }
 
   /** The current generations of the views of a partition: the rows of a target that a pipeline can read. */
@@ -673,13 +684,14 @@ export class ViewMaterializer {
    * previous one during its grace time, and not a generation younger than the grace time (a pass in
    * groups of another process can write it).
    */
-  private async dropOldGenerations(target: Collection, partition: string, status: Partial<MaterializedViewStatus> | undefined): Promise<void> {
+  private async dropOldGenerations(target: Collection, partition: string, status: Partial<MaterializedViewStatus> | undefined, now: Date): Promise<void> {
     const current = status?.generation;
     if (!current) return;
     const previous = status.previous;
-    const inGrace = previous !== undefined && Date.now() < previous.flippedAt + this.graceMs;
+    const inGrace = previous?.flippedAt instanceof Date && now.getTime() < previous.flippedAt.getTime() + this.graceMs;
     const keep = [current, ...(inGrace ? [previous.generation] : [])].filter((generation): generation is ObjectId => generation instanceof ObjectId);
-    const before = ObjectId.createFromTime(Math.floor((Date.now() - this.graceMs) / 1000));
+    // The time of a generation is the time of its ObjectId, made by its process: the clocks of the processes must agree within the grace time
+    const before = ObjectId.createFromTime(Math.floor((now.getTime() - this.graceMs) / 1000));
     try {
       await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $nin: keep, $lt: before } });
     } catch (error) {
@@ -803,15 +815,35 @@ export class ViewMaterializer {
         throw new Error(`the write of a group of rows: ${String((error as Error)?.message ?? error)}`);
       }
     }
-    await this.setGeneration(view, partition, generation, { generation: current ?? null, flippedAt: Date.now() });
+    await this.setGeneration(view, partition, generation, { generation: current ?? null });
     await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $exists: false } });
+    // At the end of the grace time, the previous generation goes. The time of the server decides it, so a timer that ends early removes nothing
+    const key = this.keyOf(partition, view._id);
+    const cancel = this.clock.after(this.graceMs, () => {
+      this.retries.delete(cancel);
+      if (this.stopped || !this.isCurrentView(key, view)) return;
+      void this.serial(partition, async () => {
+        const { status, now } = await this.statusOf(view, partition);
+        await this.dropOldGenerations(target, partition, status, now);
+      }).catch((error: unknown) => this.log("error", `${view._id}: ${String((error as Error)?.message ?? error)}`));
+    });
+    cancel.unref?.();
+    this.retries.add(cancel);
   }
 
-  /** This method names the current generation of a view in its status, and the previous one when it changes. */
-  private async setGeneration(view: MaterializedView, partition: string, generation: ObjectId, previous: MaterializedViewStatus["previous"], session?: ClientSession): Promise<void> {
-    const set: Document = { [`${this.statusField}.generation`]: generation };
-    if (previous) set[`${this.statusField}.previous`] = previous;
-    await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, { $set: set }, session ? { session } : {});
+  /** True while the view is the one that the materializer runs for this key. */
+  private isCurrentView(key: string, view: MaterializedView): boolean {
+    return this.running.get(key)?.view === view;
+  }
+
+  /**
+   * This method names the current generation of a view in its status, and the previous one when it
+   * changes, with the time of the change on the server (`$$NOW`).
+   */
+  private async setGeneration(view: MaterializedView, partition: string, generation: ObjectId, previous: { generation: ObjectId | null } | undefined, session?: ClientSession): Promise<void> {
+    const set: Document = { [`${this.statusField}.generation`]: { $literal: generation } };
+    if (previous) set[`${this.statusField}.previous`] = { generation: { $literal: previous.generation }, flippedAt: "$$NOW" };
+    await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, [{ $set: set }], session ? { session } : {});
   }
 
   /** This method writes the state of a view. It keeps the generations of the status. */
