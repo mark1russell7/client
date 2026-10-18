@@ -75,6 +75,9 @@ export * from "./storage/index.js";
 // The overlay: a logical document through a stack of layers, and the stacks from rules
 export * from "./overlay/index.js";
 
+// The order of a list as data: a rank between two neighbors, and the index of a drop
+export * from "./order/index.js";
+
 // Export queue interfaces with disambiguation for PriorityQueue
 export type {
   ReadonlyQueue,
