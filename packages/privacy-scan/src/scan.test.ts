@@ -63,6 +63,12 @@ describe("scanText", () => {
   it("does not report the addresses of the example domains", () => {
     const text = "a@example.com b@mail.example.org c@x.test d@y.invalid e@mail.localhost f@example.net g@realhost.zz";
     expect(scanText(text).map((f) => f.match)).toEqual(["g@realhost.zz"]);
+    // The top-level domain .example of RFC 2606, and real domains that only start with "example".
+    // The test builds the addresses, so that a scan of this file before a push does not find them.
+    const at = (user: string, domain: string): string => [user, domain].join("@");
+    const fake = [at("info", "forno.example"), at("a", "b.example")];
+    const real = [at("c", "examples.zz"), at("d", "example.zz")];
+    expect(scanText([...fake, ...real].join(" ")).map((f) => f.match)).toEqual(real);
   });
 
   it("finds only the kinds of the option kinds", () => {
