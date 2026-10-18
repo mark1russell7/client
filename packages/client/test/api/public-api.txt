@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 488 names
+## . (dist/index.d.ts): 501 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -247,9 +247,22 @@ type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
+type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
+type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+type StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+type StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+type StorageSetChange: dist/procedures/collection/storage.d.ts#StorageSetChange
+type StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
@@ -495,7 +508,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 470 names
+## ./browser (dist/browser.d.ts): 483 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -732,9 +745,22 @@ type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
+type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
+type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+type StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+type StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+type StorageSetChange: dist/procedures/collection/storage.d.ts#StorageSetChange
+type StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
@@ -1176,7 +1202,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 242 names
+## ./procedures (dist/procedures/index.d.ts): 255 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1286,8 +1312,21 @@ type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
+type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
+type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
+type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
+type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+type StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+type StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+type StorageSetChange: dist/procedures/collection/storage.d.ts#StorageSetChange
+type StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type ToolHintOverride: dist/procedures/hints.d.ts#ToolHintOverride
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
 UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
@@ -3273,6 +3312,49 @@ export declare function toolHints(procedure: AnyProcedure): ToolHints;
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
 export declare function createCollectionProcedures(collectionName: string): AnyProcedure[];
 
+### dist/procedures/collection/query.d.ts#StorageFieldOperators
+export interface StorageFieldOperators {
+    readonly $eq?: unknown;
+    readonly $ne?: unknown;
+    readonly $gt?: number | string | boolean | null | undefined;
+    readonly $gte?: number | string | boolean | null | undefined;
+    readonly $lt?: number | string | boolean | null | undefined;
+    readonly $lte?: number | string | boolean | null | undefined;
+    readonly $in?: readonly unknown[] | undefined;
+    readonly $nin?: readonly unknown[] | undefined;
+    readonly $exists?: boolean | undefined;
+    readonly $not?: StorageFieldOperators | undefined;
+    readonly $regex?: string | undefined;
+    readonly $options?: string | undefined;
+    readonly $size?: number | undefined;
+    readonly $all?: readonly unknown[] | undefined;
+    readonly $elemMatch?: StorageSelector | StorageFieldOperators | undefined;
+}
+
+### dist/procedures/collection/query.d.ts#StoragePatch
+export type StoragePatch = Readonly<Record<string, unknown>>;
+
+### dist/procedures/collection/query.d.ts#StorageQueryOptions
+export interface StorageQueryOptions {
+    readonly sort?: StorageSort | undefined;
+    readonly skip?: number | undefined;
+    readonly limit?: number | undefined;
+}
+
+### dist/procedures/collection/query.d.ts#StorageSelector
+export interface StorageSelector {
+    readonly $and?: readonly StorageSelector[] | undefined;
+    readonly $or?: readonly StorageSelector[] | undefined;
+    readonly $nor?: readonly StorageSelector[] | undefined;
+    readonly [path: string]: unknown;
+}
+
+### dist/procedures/collection/query.d.ts#StorageSort
+export type StorageSort = Readonly<Record<string, StorageSortDirection>>;
+
+### dist/procedures/collection/query.d.ts#StorageSortDirection
+export type StorageSortDirection = 1 | -1;
+
 ### dist/procedures/collection/storage.d.ts#CollectionStorage
 export interface CollectionStorage<T> {
     get(id: string): Promise<T | undefined>;
@@ -3281,18 +3363,27 @@ export interface CollectionStorage<T> {
     getIds?(): Promise<string[]>;
     getChangesSince?(since?: string): Promise<StorageChanges<T>>;
     find(predicate: (item: T) => boolean): Promise<T[]>;
+    query?(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>>;
+    observe?(observer: StorageObserver<T>): () => void;
     has(id: string): Promise<boolean>;
     size(): Promise<number>;
-    set(id: string, value: T): Promise<void>;
-    delete(id: string): Promise<boolean>;
-    clear(): Promise<void>;
-    setBatch(items: Array<[string, T]>): Promise<void>;
-    deleteBatch(ids: string[]): Promise<number>;
+    set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
     getBatch(ids: string[]): Promise<Map<string, T>>;
     flush?(): Promise<void>;
     close(): Promise<void>;
     getMetadata?(): Promise<StorageMetadata>;
 }
+
+### dist/procedures/collection/storage.d.ts#StorageChangeBatch
+export type StorageChangeBatch<T> = readonly StorageChangeEvent<T>[];
+
+### dist/procedures/collection/storage.d.ts#StorageChangeEvent
+export type StorageChangeEvent<T> = StorageSetChange<T> | StorageDeleteChange | StorageClearChange;
 
 ### dist/procedures/collection/storage.d.ts#StorageChanges
 export interface StorageChanges<T> {
@@ -3300,6 +3391,19 @@ export interface StorageChanges<T> {
     full: boolean;
     changed: Array<[string, T]>;
     deleted: string[];
+}
+
+### dist/procedures/collection/storage.d.ts#StorageClearChange
+export interface StorageClearChange {
+    readonly type: "clear";
+    readonly origin?: string | undefined;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageDeleteChange
+export interface StorageDeleteChange {
+    readonly type: "delete";
+    readonly id: string;
+    readonly origin?: string | undefined;
 }
 
 ### dist/procedures/collection/storage.d.ts#StorageMetadata
@@ -3313,6 +3417,22 @@ export interface StorageMetadata {
         memoryUsage?: number;
         [key: string]: unknown;
     };
+}
+
+### dist/procedures/collection/storage.d.ts#StorageObserver
+export type StorageObserver<T> = (changes: StorageChangeBatch<T>) => void;
+
+### dist/procedures/collection/storage.d.ts#StorageSetChange
+export interface StorageSetChange<T> {
+    readonly type: "set";
+    readonly id: string;
+    readonly value: T;
+    readonly origin?: string | undefined;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageWriteOptions
+export interface StorageWriteOptions {
+    readonly origin?: string | undefined;
 }
 
 ### dist/procedures/core/index.d.ts#allCoreModules

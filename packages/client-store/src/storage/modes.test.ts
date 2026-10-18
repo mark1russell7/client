@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { fakeClock } from "@mark1russell7/service/testing";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemoryStorage, type CollectionStorage, type StorageChanges } from "@procedures/collections";
@@ -604,29 +605,31 @@ describe("versions and conflicts (R28)", () => {
 });
 
 describe("the periodic pull (R28)", () => {
-  it("keeps the local copy fresh, does not keep the process alive, and stops at close()", async () => {
+  it("keeps the local copy fresh on the clock, and stops at close()", async () => {
+    const clock = fakeClock();
     const remote = new Remote();
-    const hybrid = hybridOf(remote, { pullInterval: ms(10) });
-    const timer = (hybrid as unknown as { pullTimer: { hasRef?: () => boolean } }).pullTimer;
-    expect(timer.hasRef?.()).toBe(false);
+    const hybrid = hybridOf(remote, { pullInterval: ms(10), clock });
     await remote.data.set("b", { n: 2 });
+    expect(await hybrid.has("b")).toBe(false);
+    await clock.advance(10);
     await vi.waitFor(async () => expect(await hybrid.has("b")).toBe(true), { timeout: 1000, interval: 5 });
 
     await hybrid.close();
+    expect(clock.pending).toBe(0);
     const pulls = remote.calls.length;
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await clock.advance(100);
     expect(remote.calls.length).toBe(pulls);
   });
 
   it("starts and stops with the modes that have a local copy and a remote", async () => {
+    const clock = fakeClock();
     const remote = new Remote();
-    const hybrid = hybridOf(remote, { mode: "remote-only", pullInterval: ms(5) });
-    const timerOf = (): unknown => (hybrid as unknown as { pullTimer: unknown }).pullTimer;
-    expect(timerOf()).toBeNull();
+    const hybrid = hybridOf(remote, { mode: "remote-only", pullInterval: ms(5), clock });
+    expect(clock.pending).toBe(0);
     await hybrid.setMode("write-back");
-    expect(timerOf()).not.toBeNull();
+    expect(clock.pending).toBe(1);
     await hybrid.setMode("local-only");
-    expect(timerOf()).toBeNull();
+    expect(clock.pending).toBe(0);
     await hybrid.close();
   });
 });

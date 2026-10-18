@@ -13,6 +13,8 @@
  * remote storage.
  */
 
+import type { StoragePatch, StorageQueryOptions, StorageSelector } from "./query.js";
+
 /**
  * Storage backend interface for collections.
  *
@@ -28,6 +30,11 @@
  * - A delta of `getChangesSince` follows the order of the last change of each id.
  * - After `close()`, each operation rejects with an error whose message says "closed". A second
  *   `close()` does nothing.
+ * - `query()` gives the result of `queryEntries()` for the entries of the storage.
+ * - `observe()` gives one batch for each write that changes the storage, before the write resolves.
+ * - `patch()` merges the fields into the item in one step: two patches at the same time keep each field.
+ *
+ * The optional methods are features: a caller tests for each one before it uses it.
  */
 export interface CollectionStorage<T> {
   //
@@ -85,6 +92,35 @@ export interface CollectionStorage<T> {
   find(predicate: (item: T) => boolean): Promise<T[]>;
 
   /**
+   * The entries whose items match a selector, with an order, a skip and a limit. The selector is
+   * JSON, so a remote storage sends it to its server, and a database can run it itself. The result
+   * is the result of `queryEntries()` for the entries of the storage. A storage without this method
+   * does not run selectors: a caller uses `queryEntries()` on the entries.
+   *
+   * @param selector - The selector. `{}` matches each item.
+   * @param options - The order, the skip and the limit
+   * @returns Promise resolving to the [id, item] pairs, with copies of the items. A selector or
+   *   options with a problem reject with a `TypeError`.
+   */
+  query?(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>>;
+
+  /**
+   * This method starts to send the changes of the storage to an observer. Each write that changes
+   * the storage gives one batch, before the write resolves. A write that changes nothing gives no
+   * batch. A storage without this method does not tell its changes.
+   *
+   * - A set gives a `set` change with a copy of the value. A patch gives a `set` change with the new item.
+   * - A delete gives a `delete` change for each id that existed.
+   * - A clear of a storage with items gives one `clear` change.
+   * - Each change has the `origin` of the write options, or no origin.
+   *
+   * @param observer - The function that gets each batch. Its error does not change the write.
+   * @returns The function that stops the batches. A second use of it does nothing.
+   * @throws Error after `close()`
+   */
+  observe?(observer: StorageObserver<T>): () => void;
+
+  /**
    * Check if item exists.
    *
    * @param id - Item identifier
@@ -108,24 +144,41 @@ export interface CollectionStorage<T> {
    *
    * @param id - Item identifier
    * @param value - Item to store
+   * @param options - The origin of the write, for the observers
    * @returns Promise resolving when operation completes
    */
-  set(id: string, value: T): Promise<void>;
+  set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
 
   /**
    * Delete item by ID.
    *
    * @param id - Item identifier
+   * @param options - The origin of the write, for the observers
    * @returns Promise resolving to true if item was deleted, false if not found
    */
-  delete(id: string): Promise<boolean>;
+  delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
 
   /**
    * Clear all items from collection.
    *
+   * @param options - The origin of the write, for the observers
    * @returns Promise resolving when operation completes
    */
-  clear(): Promise<void>;
+  clear(options?: StorageWriteOptions): Promise<void>;
+
+  /**
+   * This method merges fields into one item in one step: a JSON Merge Patch (RFC 7386). Each field
+   * replaces the field of the item, an object field merges into an object field, and `null`
+   * removes the field. Two patches of one item at the same time keep the fields of each. A storage
+   * without this method cannot merge in one step.
+   *
+   * @param id - Item identifier
+   * @param fields - The fields: an object. Another value rejects with a `TypeError`.
+   * @param options - The origin of the write, for the observers
+   * @returns Promise resolving to a copy of the new item, or undefined when the id has no item. A
+   *   missing id stays missing.
+   */
+  patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
 
   //
   // ═══ Bulk Operations ═══
@@ -135,17 +188,19 @@ export interface CollectionStorage<T> {
    * Set multiple items at once (more efficient than individual sets).
    *
    * @param items - Array of [id, value] tuples
+   * @param options - The origin of the write, for the observers
    * @returns Promise resolving when operation completes
    */
-  setBatch(items: Array<[string, T]>): Promise<void>;
+  setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
 
   /**
    * Delete multiple items at once.
    *
    * @param ids - Array of item identifiers
+   * @param options - The origin of the write, for the observers
    * @returns Promise resolving to number of items actually deleted
    */
-  deleteBatch(ids: string[]): Promise<number>;
+  deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
 
   /**
    * Get multiple items by ID at once.
@@ -184,6 +239,49 @@ export interface CollectionStorage<T> {
    */
   getMetadata?(): Promise<StorageMetadata>;
 }
+
+/** The options of a write. */
+export interface StorageWriteOptions {
+  /**
+   * The tag of the writer. Each change that the write gives has it, so an observer knows its own
+   * writes: a sync does not send back the changes that it wrote itself.
+   */
+  readonly origin?: string | undefined;
+}
+
+/** A change of `observe()`: an id got a value. */
+export interface StorageSetChange<T> {
+  readonly type: "set";
+  readonly id: string;
+  /** A copy of the new item. */
+  readonly value: T;
+  /** The origin of the write, or undefined when the write had none. */
+  readonly origin?: string | undefined;
+}
+
+/** A change of `observe()`: an id lost its item. */
+export interface StorageDeleteChange {
+  readonly type: "delete";
+  readonly id: string;
+  /** The origin of the write, or undefined when the write had none. */
+  readonly origin?: string | undefined;
+}
+
+/** A change of `observe()`: the storage lost each item. */
+export interface StorageClearChange {
+  readonly type: "clear";
+  /** The origin of the write, or undefined when the write had none. */
+  readonly origin?: string | undefined;
+}
+
+/** One change of `observe()`. */
+export type StorageChangeEvent<T> = StorageSetChange<T> | StorageDeleteChange | StorageClearChange;
+
+/** The changes of one write, in the order of the write. The observers share it: do not change it. */
+export type StorageChangeBatch<T> = readonly StorageChangeEvent<T>[];
+
+/** The function that gets each batch of `observe()`. */
+export type StorageObserver<T> = (changes: StorageChangeBatch<T>) => void;
 
 /**
  * The changes of a storage after a version (roadmap R28).

@@ -34,6 +34,12 @@ import {
   setBatchOutputSchema,
   deleteBatchInputSchema,
   deleteBatchOutputSchema,
+  findInputSchema,
+  findOutputSchema,
+  patchInputSchema,
+  patchOutputSchema,
+  type FindInput,
+  type PatchInput,
   type GetInput,
   type GetFoundOutput,
   type SetInput,
@@ -50,6 +56,8 @@ import {
   type SetBatchInput,
   type DeleteBatchInput,
 } from "./schemas.js";
+import { mergePatch, queryEntries, type StoragePatch, type StorageQueryOptions } from "./query.js";
+import type { CollectionStorage } from "./storage.js";
 
 // =============================================================================
 // Handler Factory
@@ -75,6 +83,49 @@ function getStorage<T>(ctx: ProcedureContext): ReturnType<NonNullable<ProcedureC
   }
   const collection = getCollectionFromPath(ctx.path);
   return ctx.repository.getStorage<T>(collection);
+}
+
+/** The options of a query from the input of `find`. */
+function queryOptionsOf(input: FindInput): StorageQueryOptions {
+  return {
+    ...(input.sort !== undefined && { sort: input.sort }),
+    ...(input.skip !== undefined && { skip: input.skip }),
+    ...(input.limit !== undefined && { limit: input.limit }),
+  };
+}
+
+/**
+ * The patches of a storage without `patch()` that run, for each id. A patch of an id waits for the
+ * patch before it, so two patches of one process keep each field. A write of another writer
+ * between the read and the write of a patch is lost: give the storage a `patch()` for one step.
+ */
+const PATCHES = new WeakMap<object, Map<string, Promise<unknown>>>();
+
+/** This function patches an item of a storage without `patch()`: a read, a merge and a write. */
+function patchInParts(storage: CollectionStorage<unknown>, id: string, fields: StoragePatch): Promise<unknown> {
+  let running = PATCHES.get(storage);
+  if (!running) {
+    running = new Map();
+    PATCHES.set(storage, running);
+  }
+  const queue = running;
+  const before = queue.get(id) ?? Promise.resolve();
+  const patch = before.then(async () => {
+    const current = await storage.get(id);
+    if (current === undefined) return undefined;
+    const next = mergePatch(current, fields);
+    await storage.set(id, next);
+    return next;
+  });
+  const settled = patch.then(
+    () => undefined,
+    () => undefined,
+  );
+  queue.set(id, settled);
+  void settled.then(() => {
+    if (queue.get(id) === settled) queue.delete(id);
+  });
+  return patch;
 }
 
 // =============================================================================
@@ -249,6 +300,47 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
           return { version: "", full: true, changed: entries.map(([id, value]) => ({ id, value })), deleted: [] };
         }
         throw new Error(`The storage of ${collectionName} cannot give its changes or the ids of its items`);
+      },
+    }),
+
+    // Find: the items that match a JSON selector, with an order, a skip and a limit (roadmap CLI-14)
+    defineProcedure({
+      path: [...basePath, "find"],
+      input: findInputSchema,
+      output: findOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [] },
+        description: `Find the items of ${collectionName} that match a selector, with their ids, an order, a skip and a limit`,
+        tags: ["collections", collectionName, "read", "query"],
+      },
+      handler: async (input: FindInput, ctx: ProcedureContext) => {
+        const storage = getStorage(ctx);
+        const selector = input.selector ?? {};
+        const options = queryOptionsOf(input);
+        // The storage runs the selector itself when it can: a database does not read each item
+        if (storage.query) return (await storage.query(selector, options)).map(([id, value]) => ({ id, value }));
+        if (!storage.getEntries) {
+          throw new Error(`The storage of ${collectionName} cannot run a selector or give the ids of its items`);
+        }
+        return queryEntries(await storage.getEntries(), selector, options).map(([id, value]) => ({ id, value }));
+      },
+    }),
+
+    // Patch: merge fields into one item, a JSON Merge Patch (roadmap CLI-14)
+    defineProcedure({
+      path: [...basePath, "patch"],
+      input: patchInputSchema,
+      output: patchOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
+        description: `Merge fields into one item of ${collectionName}: null removes a field`,
+        tags: ["collections", collectionName, "write"],
+      },
+      handler: async (input: PatchInput, ctx: ProcedureContext) => {
+        const storage = getStorage(ctx);
+        const value = storage.patch ? await storage.patch(input.id, input.fields) : await patchInParts(storage, input.id, input.fields);
+        const output: GetFoundOutput = value === undefined ? { found: false } : { found: true, value };
+        return output;
       },
     }),
 

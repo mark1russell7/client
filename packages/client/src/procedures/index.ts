@@ -124,7 +124,24 @@ export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 
 // Collection procedures
 export { createCollectionProcedures } from "./collection/index.js";
-export type { CollectionStorage, StorageChanges, StorageMetadata } from "./collection/index.js";
+export type {
+  CollectionStorage,
+  StorageChanges,
+  StorageMetadata,
+  StorageWriteOptions,
+  StorageSetChange,
+  StorageDeleteChange,
+  StorageClearChange,
+  StorageChangeEvent,
+  StorageChangeBatch,
+  StorageObserver,
+  StorageFieldOperators,
+  StoragePatch,
+  StorageQueryOptions,
+  StorageSelector,
+  StorageSort,
+  StorageSortDirection,
+} from "./collection/index.js";
 
 // Manual registration helpers
 export {

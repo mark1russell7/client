@@ -21,6 +21,10 @@ export {
   getAllOutputSchema,
   entriesInputSchema,
   entriesOutputSchema,
+  findInputSchema,
+  findOutputSchema,
+  patchInputSchema,
+  patchOutputSchema,
   idsInputSchema,
   idsOutputSchema,
   changesInputSchema,
@@ -46,6 +50,8 @@ export type {
   GetAllInput,
   EntriesInput,
   CollectionEntry,
+  FindInput,
+  PatchInput,
   IdsInput,
   ChangesInput,
   ChangesOutput,
@@ -60,4 +66,25 @@ export type {
 export { createCollectionProcedures } from "./procedures.js";
 
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
-export type { CollectionStorage, StorageChanges, StorageMetadata } from "./storage.js";
+export type {
+  CollectionStorage,
+  StorageChanges,
+  StorageMetadata,
+  StorageWriteOptions,
+  StorageSetChange,
+  StorageDeleteChange,
+  StorageClearChange,
+  StorageChangeEvent,
+  StorageChangeBatch,
+  StorageObserver,
+} from "./storage.js";
+
+// The query language of the storages: the same JSON on the wire and in query()
+export type {
+  StorageFieldOperators,
+  StoragePatch,
+  StorageQueryOptions,
+  StorageSelector,
+  StorageSort,
+  StorageSortDirection,
+} from "./query.js";

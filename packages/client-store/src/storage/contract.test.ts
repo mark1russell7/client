@@ -4,6 +4,11 @@
  * `HybridStorage` in each mode with an in-memory remote, also with a queue in IndexedDB
  * (`fake-indexeddb`). No IndexedDB class of this package is a `CollectionStorage`: the IndexedDB
  * stores keep programs and queues.
+ *
+ * `ApiStorage` also runs against a server storage without `query()` and `patch()`. Then the core
+ * procedures `find` and `patch` run the selector and the merge themselves, with the copy of the
+ * query language in `@procedures/client`. The cases of `query()` compare each result with
+ * `queryEntries()` of `@procedures/collections`, so the two copies of the language agree.
  */
 
 import { describe, it } from "vitest";
@@ -15,8 +20,8 @@ import { ApiStorage } from "./api.js";
 import { HybridStorage, type HybridMode } from "./hybrid.js";
 import { IndexedDbQueueStore } from "../indexeddb/queue-store.js";
 
-/** An ApiStorage whose server has the core collection procedures over a storage in memory. */
-function apiStorage(storage: InMemoryStorage<ContractItem>): ApiStorage<ContractItem> {
+/** An ApiStorage whose server has the core collection procedures over a storage. */
+function apiStorage(storage: CollectionStorage<ContractItem>): ApiStorage<ContractItem> {
   const repository = {
     getStorage: <U>() => storage as unknown as CollectionStorage<U>,
     hasCollection: () => true,
@@ -35,6 +40,37 @@ describeCollectionStorageContract(
   {
     create: () => apiStorage(new InMemoryStorage<ContractItem>()),
     createWithMaxTombstones: (max) => apiStorage(new InMemoryStorage<ContractItem>({ maxTombstones: max })),
+  },
+  { describe, it },
+);
+
+/** A storage in memory without `query()`, `patch()` and `observe()`, as a storage of another package. */
+function withoutQuery(storage: InMemoryStorage<ContractItem>): CollectionStorage<ContractItem> {
+  return {
+    get: (id) => storage.get(id),
+    getAll: () => storage.getAll(),
+    getEntries: () => storage.getEntries(),
+    getIds: () => storage.getIds(),
+    getChangesSince: (since) => storage.getChangesSince(since),
+    find: (predicate) => storage.find(predicate),
+    has: (id) => storage.has(id),
+    size: () => storage.size(),
+    set: (id, value) => storage.set(id, value),
+    delete: (id) => storage.delete(id),
+    clear: () => storage.clear(),
+    setBatch: (items) => storage.setBatch(items),
+    deleteBatch: (ids) => storage.deleteBatch(ids),
+    getBatch: (ids) => storage.getBatch(ids),
+    close: () => storage.close(),
+  };
+}
+
+// The procedures find and patch of the core run the selector and the merge themselves
+describeCollectionStorageContract(
+  "ApiStorage (a server storage without query() and patch())",
+  {
+    create: () => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>())),
+    createWithMaxTombstones: (max) => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>({ maxTombstones: max }))),
   },
   { describe, it },
 );

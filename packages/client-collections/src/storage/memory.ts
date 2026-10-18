@@ -5,10 +5,25 @@
  * All operations return Promises for interface consistency.
  */
 
-import type { CollectionStorage, StorageChanges, StorageMetadata } from "./interface.js";
+import type {
+  CollectionStorage,
+  StorageChangeBatch,
+  StorageChangeEvent,
+  StorageChanges,
+  StorageMetadata,
+  StorageObserver,
+  StorageWriteOptions,
+} from "./interface.js";
+import { StorageListeners, type ListenerErrorHandler } from "./listeners.js";
+import { mergePatch, patchProblems, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageSelector } from "./query.js";
 
 /** Options of an in-memory storage. */
 export interface InMemoryStorageOptions {
+  /**
+   * The function that gets the error of an observer of `observe()`. The default throws the error
+   * again in a microtask (`reportListenerError`). The write and the other observers do not fail.
+   */
+  onObserverError?: ListenerErrorHandler | undefined;
   /**
    * The number of deletes that the change log keeps (roadmap R28). After more deletes, the log
    * drops the oldest ones, and `getChangesSince` of an older version gives all items.
@@ -37,6 +52,11 @@ type Copy = <V>(value: V) => V;
 const same: Copy = (value) => value;
 const clone: Copy = (value) => structuredClone(value);
 
+/** A change with the origin of the write, when the write has one. */
+function withOrigin<T>(change: StorageChangeEvent<T>, options: StorageWriteOptions | undefined): StorageChangeEvent<T> {
+  return options?.origin === undefined ? change : { ...change, origin: options.origin };
+}
+
 /**
  * In-memory storage backed by JavaScript Map.
  *
@@ -50,6 +70,8 @@ const clone: Copy = (value) => structuredClone(value);
  * - Copies: a change of a written or a read value does not change the stored item (the option
  *   `copies: false` turns this off)
  * - `getIds()` gives the ids without a copy of the values
+ * - `query()` runs a selector, `observe()` tells each change with the origin of its write, and
+ *   `patch()` merges fields into an item in one step
  * - After `close()`, each operation rejects, and a second `close()` does nothing
  *
  * @example
@@ -75,10 +97,13 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   private readonly maxTombstones: number;
   private readonly copy: Copy;
   private closed = false;
+  /** The observers of `observe()` */
+  private readonly observers: StorageListeners<StorageChangeBatch<T>>;
 
   constructor(options: InMemoryStorageOptions = {}) {
     this.maxTombstones = Math.max(0, options.maxTombstones ?? 10_000);
     this.copy = options.copies === false ? same : clone;
+    this.observers = new StorageListeners<StorageChangeBatch<T>>(options.onObserverError);
   }
 
   //
@@ -142,6 +167,25 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
     return results;
   }
 
+  /**
+   * The entries whose items match the selector, with the order, the skip and the limit of
+   * `queryEntries()`. The result has copies of the items.
+   */
+  async query(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>> {
+    this.checkOpen();
+    return queryEntries(this.data, selector, options).map(([id, value]): [string, T] => [id, this.copy(value)]);
+  }
+
+  /**
+   * This method starts to send the changes of each write to the observer, before the write resolves.
+   * The values of the changes are copies, unless the option `copies` is false. The observers share
+   * each batch.
+   */
+  observe(observer: StorageObserver<T>): () => void {
+    this.checkOpen();
+    return this.observers.add(observer);
+  }
+
   async has(id: string): Promise<boolean> {
     this.checkOpen();
     return this.data.has(id);
@@ -156,23 +200,46 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   // ═══ Write Operations ═══
   //
 
-  async set(id: string, value: T): Promise<void> {
+  async set(id: string, value: T, options?: StorageWriteOptions): Promise<void> {
     this.checkOpen();
-    this.data.set(id, this.copy(value));
+    const stored = this.copy(value);
+    this.data.set(id, stored);
     this.noteSet(id);
+    if (this.observers.size > 0) this.observers.emit([this.setChange(id, stored, options)]);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
     this.checkOpen();
     const existed = this.data.delete(id);
-    if (existed) this.noteDelete(id);
+    if (existed) {
+      this.noteDelete(id);
+      if (this.observers.size > 0) this.observers.emit([withOrigin<T>({ type: "delete", id }, options)]);
+    }
     return existed;
   }
 
-  async clear(): Promise<void> {
+  async clear(options?: StorageWriteOptions): Promise<void> {
     this.checkOpen();
+    const had = this.data.size > 0;
     for (const id of this.data.keys()) this.noteDelete(id);
     this.data.clear();
+    if (had && this.observers.size > 0) this.observers.emit([withOrigin<T>({ type: "clear" }, options)]);
+  }
+
+  /**
+   * This method merges the fields into the item of the id in one step (a JSON Merge Patch), and
+   * gives a copy of the new item. A missing id stays missing, and the result is undefined.
+   */
+  async patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined> {
+    this.checkOpen();
+    const [problem] = patchProblems(fields);
+    if (problem !== undefined) throw new TypeError(`The patch of ${id} is not correct: ${problem}`);
+    if (!this.data.has(id)) return undefined;
+    const stored = this.copy(mergePatch(this.data.get(id), fields) as unknown as T);
+    this.data.set(id, stored);
+    this.noteSet(id);
+    if (this.observers.size > 0) this.observers.emit([this.setChange(id, stored, options)]);
+    return this.copy(stored);
   }
 
   //
@@ -180,25 +247,31 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   //
 
   /** This method sets several items. When one value has no copy, nothing changes. */
-  async setBatch(items: Array<[string, T]>): Promise<void> {
+  async setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
     this.checkOpen();
     const copies = items.map(([id, value]): [string, T] => [id, this.copy(value)]);
     for (const [id, value] of copies) {
       this.data.set(id, value);
       this.noteSet(id);
     }
+    if (copies.length > 0 && this.observers.size > 0) {
+      this.observers.emit(copies.map(([id, value]) => this.setChange(id, value, options)));
+    }
   }
 
-  async deleteBatch(ids: string[]): Promise<number> {
+  async deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number> {
     this.checkOpen();
-    let deleted = 0;
+    const deleted: string[] = [];
     for (const id of ids) {
       if (this.data.delete(id)) {
         this.noteDelete(id);
-        deleted++;
+        deleted.push(id);
       }
     }
-    return deleted;
+    if (deleted.length > 0 && this.observers.size > 0) {
+      this.observers.emit(deleted.map((id) => withOrigin<T>({ type: "delete", id }, options)));
+    }
+    return deleted.length;
   }
 
   async getBatch(ids: string[]): Promise<Map<string, T>> {
@@ -227,6 +300,7 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
     this.data.clear();
     this.changedAt.clear();
     this.deletedAt.clear();
+    this.observers.clear();
   }
 
   async getMetadata(): Promise<StorageMetadata> {
@@ -309,6 +383,11 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   /** The entries with copies of the values. */
   private copiedEntries(): Array<[string, T]> {
     return Array.from(this.data, ([id, value]): [string, T] => [id, this.copy(value)]);
+  }
+
+  /** The `set` change of a stored value: a copy of it for the observers. */
+  private setChange(id: string, stored: T, options: StorageWriteOptions | undefined): StorageChangeEvent<T> {
+    return withOrigin<T>({ type: "set", id, value: this.copy(stored) }, options);
   }
 
   //

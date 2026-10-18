@@ -10,8 +10,43 @@
  * `SqliteStorage` is in `@procedures/sqlite`.
  */
 
-export type { CollectionStorage, StorageChanges, StorageMetadata } from "./interface.js";
+export type {
+  CollectionStorage,
+  StorageChanges,
+  StorageMetadata,
+  StorageWriteOptions,
+  StorageSetChange,
+  StorageDeleteChange,
+  StorageClearChange,
+  StorageChangeEvent,
+  StorageChangeBatch,
+  StorageObserver,
+} from "./interface.js";
 export { normalizeStorageResult } from "./interface.js";
+
+// The query language: the selectors, the options and the merge patch (roadmap CLI-14, CLI-20)
+export {
+  compareStorageValues,
+  compileSelector,
+  matchesSelector,
+  mergePatch,
+  patchProblems,
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+} from "./query.js";
+export type {
+  StorageFieldOperators,
+  StoragePatch,
+  StorageQueryOptions,
+  StorageSelector,
+  StorageSort,
+  StorageSortDirection,
+} from "./query.js";
+
+// The listeners of the events of a storage
+export { StorageListeners, reportListenerError } from "./listeners.js";
+export type { ListenerErrorHandler } from "./listeners.js";
 
 export { InMemoryStorage } from "./memory.js";
 export type { InMemoryStorageOptions } from "./memory.js";

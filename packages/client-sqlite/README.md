@@ -545,6 +545,8 @@ The engine `sqljs` writes the whole file at each write, so its write time grows 
 - A read gives a new copy of the item.
 - `getIds()` gives the ids in the order of the items, and it does not read the values. A full sync of `HybridStorage` uses it.
 - The order of the items is the order of the first write of each id, as in a `Map`.
+- `query(selector, { sort, skip, limit })` runs a JSON selector of `@procedures/collections` on the rows of one read. The procedure `collections.<name>.find` uses it.
+- `patch(id, fields)` merges the fields into the item in one transaction (a JSON Merge Patch). Two processes that patch one item at the same time keep the fields of each.
 
 ### The change log and the versions
 

@@ -16,6 +16,7 @@ export type {
   SyncConflict,
   SyncResult,
   SyncStatus,
+  SyncError,
   SyncedRegistryOptions,
   ProcedureStorageConfig,
 } from "./types.js";
