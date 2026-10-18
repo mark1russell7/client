@@ -35,6 +35,9 @@
  * The queries: `query()` sends the conditions that MongoDB tests in the same way (the equality of
  * a string, a number or a boolean, and `$in` of them) as a filter. `queryEntries()` of the core
  * then gives the exact result, so a query always gives the result of the reference.
+ *
+ * The aggregations: `aggregate()` runs a read-only pipeline on the items of the partition, with
+ * the guard of `scopePipeline()` and the limits of time and size.
  */
 
 import { randomUUID } from "node:crypto";
@@ -52,6 +55,7 @@ import {
   type StorageWriteOptions,
 } from "@procedures/collections";
 import { ensureConnection } from "../connection.js";
+import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 
 /** The fields of the storage in a stored document. */
 const KEY = "_key";
@@ -598,6 +602,25 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     // The order of the ids of the call
     for (const id of ids) if (byId.has(id)) result.set(id, byId.get(id)!);
     return result;
+  }
+
+  /**
+   * This method runs a read-only aggregation pipeline on the items of the partition. The filter of
+   * the partition goes on each read of the pipeline, also in its sub-pipelines (`scopePipeline`),
+   * and the tombstones stay out. `$out`, `$merge`, the stages of the server and the JavaScript
+   * operators are refused. The pipeline reads the stored documents: an item stored flat has the
+   * fields of the storage beside its fields, and an item stored as JSON has only `_json`.
+   */
+  async aggregate(pipeline: readonly Document[], limits: PipelineLimits = {}): Promise<{ docs: Document[]; truncated: boolean }> {
+    const maxResults = limits.maxResults ?? DEFAULT_PIPELINE_LIMITS.maxResults;
+    const maxTimeMS = limits.maxTimeMS ?? DEFAULT_PIPELINE_LIMITS.maxTimeMS;
+    if (!Number.isSafeInteger(maxResults) || maxResults < 1) throw new Error("maxResults must be a whole number of 1 or more");
+    if (!Number.isSafeInteger(maxTimeMS) || maxTimeMS < 1) throw new Error("maxTimeMS must be a whole number of 1 or more");
+    const scopedPipeline = scopePipeline(pipeline, { match: { ...this.partitionFilter(), [TOMB]: { $ne: true } } });
+    const bounded = boundPipeline(scopedPipeline, maxResults);
+    const { items } = await this.collection();
+    const results = await items.aggregate(bounded.pipeline, { maxTimeMS }).toArray();
+    return cutResults(results, maxResults, bounded.limited);
   }
 
   /** The version of an item: the sequence number of its last write, or undefined for a missing id. */

@@ -140,6 +140,18 @@ export type {
 
 export { MongoStorage, MongoDocumentStorage, selectorPrefilter } from "./storage/index.js";
 export type { MongoStorageOptions, MongoDocumentStorageOptions } from "./storage/index.js";
+// The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
+export {
+  BLOCKED_PIPELINE_OPERATORS,
+  BLOCKED_PIPELINE_STAGES,
+  DEFAULT_PIPELINE_LIMITS,
+  assertNoBlockedOperators,
+  boundPipeline,
+  cutResults,
+  isTimeLimitError,
+  scopePipeline,
+} from "./storage/index.js";
+export type { PipelineLimits, PipelineScope } from "./storage/index.js";
 
 // =============================================================================
 // Procedure Registration

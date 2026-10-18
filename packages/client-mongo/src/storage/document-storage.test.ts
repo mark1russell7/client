@@ -371,6 +371,28 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect((await storage.getChangesSince()).changed.map(([id]) => id).sort()).toEqual(["a", "b", "c"]);
   });
 
+  it("aggregates the items of its partition only: no tombstones, a $lookup in the partition, and the limits", async () => {
+    const name = `c${++next}`;
+    const root = fresh<{ kind: string; n: number }>({ collection: name });
+    const ann = root.forPartition("t1");
+    const bob = root.forPartition("t2");
+    await ann.setBatch([["a", { kind: "x", n: 1 }], ["b", { kind: "x", n: 2 }], ["c", { kind: "y", n: 3 }]]);
+    await bob.setBatch([["a", { kind: "x", n: 100 }]]);
+    await ann.delete("c");
+    const sums = await ann.aggregate([{ $group: { _id: "$kind", total: { $sum: "$n" } } }, { $sort: { _id: 1 } }]);
+    expect(sums).toEqual({ docs: [{ _id: "x", total: 3 }], truncated: false });
+    // A $lookup into the collection itself sees only the partition
+    const joined = await ann.aggregate([{ $match: { _key: "a" } }, { $lookup: { from: name, localField: "kind", foreignField: "kind", as: "same" } }, { $project: { n: { $size: "$same" } } }]);
+    expect(joined.docs.map((doc) => doc["n"])).toEqual([2]);
+    expect(await ann.aggregate([{ $sort: { n: 1 } }], { maxResults: 1 })).toMatchObject({ truncated: true, docs: [{ n: 1 }] });
+    await expect(ann.aggregate([{ $merge: "other" }])).rejects.toThrow(/read-only/);
+    await expect(ann.aggregate([{ $out: "other" }])).rejects.toThrow(/\$out/);
+    await expect(ann.aggregate([{ $match: { $where: "true" } }])).rejects.toThrow(/\$where/);
+    await expect(ann.aggregate([], { maxResults: 0 })).rejects.toThrow(/maxResults/);
+    await expect(ann.aggregate([], { maxTimeMS: 0 })).rejects.toThrow(/maxTimeMS/);
+    expect((await root.aggregate([{ $count: "n" }])).docs).toEqual([]); // the storage without a partition has no items
+  });
+
   it("refuses a partition with the separator, and a maxTombstones that is not a whole number", () => {
     expect(() => fresh({ partition: "a\u001fb" })).toThrow(/U\+001F/);
     expect(() => fresh({ partition: "" })).toThrow(/U\+001F/);

@@ -1319,6 +1319,25 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 - **The partitions.** An id cannot have the character U+001F, and each write filter has the partition. A write cannot change a document of another partition.
 - **The tests.** The storage passes the `CollectionStorage` contract on MongoDB 7 in CI. Set `MONGO_TEST_URL` to start them locally.
 
+### The guard of a pipeline: `scopePipeline`
+
+`scopePipeline(pipeline, scope)` gives a pipeline that reads only the documents of a filter, on each collection that it reads. `MongoDocumentStorage.aggregate()` uses it with the filter of its partition. An app can use it for its own aggregations over shared collections:
+
+```ts
+import { boundPipeline, scopePipeline } from "@procedures/mongo";
+
+const scoped = scopePipeline(pipeline, { match: { tenant: "t1" } });
+const { pipeline: bounded, limited } = boundPipeline(scoped, 5000);
+```
+
+- The filter goes before the first stage, into the stages that must be first (`$geoNear`, `$search`, `$vectorSearch`), into a `$match` with `$text`, and into each sub-pipeline (`$lookup`, `$graphLookup`, `$unionWith`, `$facet`).
+- A `$lookup` with `localField` and `foreignField` becomes the form with a pipeline, so the filter applies to the other collection too.
+- `$out` is refused. `$merge` is refused unless the scope has a `stamp`. Then each written document gets the stamp, and the match key of `$merge` gets its fields.
+- The stages of the server (for example `$currentOp`) and the JavaScript operators of the server (`$function`, `$accumulator`, `$where`) are refused at each depth.
+- A stage must have exactly one key, and a `$unset` of a field of the scope is refused.
+- The function does not change the pipeline of the caller.
+- `MongoDocumentStorage.aggregate(pipeline, { maxTimeMS, maxResults })` is read-only, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are 10000 ms and 5000 documents.
+
 ## Integration with Ecosystem
 
 ### Bundle Packages
