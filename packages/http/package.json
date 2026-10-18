@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/http",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "HTTP as procedures: request, JSON, NDJSON and server-sent events, with a host allowlist that refuses private addresses, size limits and the deadline of the call.",
   "keywords": [
     "procedures",
