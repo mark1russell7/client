@@ -7,7 +7,7 @@
  * - The views of a partition run in the order of their dependencies: a view whose target is the
  *   source of another view runs first, in the same pass. A view in a cycle does not run, and its
  *   status is `cycle`.
- * - A pass runs after the last change of a burst (`debounceMs`), and only the views whose sources
+ * - A pass runs after the last change of a burst (`debounce`), and only the views whose sources
  *   changed. A run streams the result in groups, and compares each row with the hash that its
  *   stored row keeps. A result that did not change writes nothing.
  * - The rows of a view are a generation (the field `_viewGen`), and the status of the view names
@@ -17,7 +17,7 @@
  *   removal of the rows that the result does not have. A view with more rows than
  *   `maxTransactionRows`, or whose transaction fails (for example over the limits of MongoDB),
  *   writes a whole new generation in groups instead. Then the status names it, and the previous
- *   generation stays for `generationGraceMs`, so a reader of it can finish. A later pass removes it.
+ *   generation stays for `generationGrace` (on the time of the server), so a reader of it can finish.
  * - The stored `_id` of a row carries the partition and the generation (`targetId`): partitions
  *   with the same keys share a target. The rows of an older materializer (no generation) go in the
  *   first pass.
@@ -26,7 +26,7 @@
  *   of another view. The materializer writes the rows.
  * - A pass keeps in memory the key of each row of the result (at most `maxRows`) and one group of
  *   1000 rows. It keeps nothing between passes.
- * - A change stream that ends (for example after `dropDatabase`) opens again after `rewatchMs`,
+ * - A change stream that ends (for example after `dropDatabase`) opens again after `rewatch`,
  *   and a pass catches up on the changes that the stream missed.
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
  *   document. The materializer ignores an update of only that field.
@@ -528,7 +528,7 @@ export class ViewMaterializer {
     stream.on("close", () => rewatch("closed"));
   }
 
-  /** This method runs a function after `rewatchMs`, unless the materializer stops. The timer does not keep the process alive. */
+  /** This method runs a function after `rewatch`, unless the materializer stops. The timer does not keep the process alive. */
   private later(work: () => void): void {
     const cancel = this.clock.after(this.rewatchMs, () => {
       this.retries.delete(cancel);
