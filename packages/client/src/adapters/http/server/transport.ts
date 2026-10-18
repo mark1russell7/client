@@ -1,44 +1,22 @@
 /**
- * HTTP Server Transport Implementation
+ * The HTTP server transport of Express: a shim over `procedureHandler` (CLI-3).
  *
- * Adapts Express HTTP server to unified RPC format.
- * Converts HTTP requests to ServerRequest and ServerResponse back to HTTP.
+ * The transport mounts the procedure handler of `handler.ts` on an Express app, with the CORS of
+ * the app, and it owns its own `node:http` server unless the caller gives one. The handler does
+ * the work: the request, the body, the metadata, the credentials, the response and the NDJSON
+ * streams. The transport keeps its former error codes (`SERVER_STOPPED` and the codes of the
+ * browser checks), so its behavior stays the same.
  */
 
 import type { Request, Response, Express } from "express";
 import { createServer } from "http";
 import type { Server as HttpServer } from "http";
-import type { ServerTransport, ServerRequest, ServerResponse } from "../../../server/types.js";
-import type { Metadata } from "../../../client/types.js";
+import type { ServerTransport } from "../../../server/types.js";
 import type { RequestHandler } from "../../../server/types.js";
-import { HTTPMethod, HTTPHeaders, decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
-import { ERROR_REGISTRY } from "../../../client/errors/index.js";
 import type { HttpServerTransportOptions } from "./types.js";
 import { createPatternServerUrlStrategy } from "./strategies.js";
-import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
-import { bearerOf, withoutSecretHeaders } from "../../../server/request-auth.js";
-import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
-import { realClock, type Clock } from "../../../clock.js";
-import { ms, type Duration } from "../../../duration.js";
-import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
-
-/** True when a stream response can run without an end (`STREAM_METADATA_KEY` of procedure-server.ts). */
-function isUnboundedStream(response: { metadata?: Record<string, unknown> | undefined }): boolean {
-  return response.metadata?.["stream"] === "unbounded";
-}
-
-/** The metadata keys that the transport sets: a query parameter or a header cannot replace them. */
-const RESERVED_METADATA = new Set(["headers", "query", "params"]);
-
-/** The error of a request body that the transport cannot read. */
-class BodyError extends Error {
-  constructor(
-    message: string,
-    readonly httpStatus: number
-  ) {
-    super(message);
-  }
-}
+import { applyCors, corsOrigins, corsPolicy, type CorsPolicy } from "./cors.js";
+import { createProcedureHandler, type NodeProcedureHandler } from "./handler.js";
 
 /**
  * HTTP server transport adapter for Express.
@@ -59,68 +37,58 @@ class BodyError extends Error {
  * await httpTransport.start();
  * ```
  */
-/**
- * The origins that the CORS options allow: a page that CORS lets read the response can also
- * call. With CORS off, no other origin can call.
- */
-function corsOrigins(options: HttpServerTransportOptions): BrowserGuardOptions["allowedOrigins"] {
-  if (!options.cors) return [];
-  const origin = options.corsOptions?.origin ?? "*";
-  if (origin === "*") return "*";
-  return Array.isArray(origin) ? origin : [origin];
-}
-
 export class HttpServerTransport implements ServerTransport {
   readonly name = "http";
 
   private app: Express;
   private httpServer: HttpServer | null = null;
-  private options: Required<
-    Omit<
-      HttpServerTransportOptions,
-      "app" | "corsOptions" | "httpServer" | "bodyLimit" | "allowedOrigins" | "allowedHosts" | "allowGet" | "keepAlive" | "clock"
-    >
-  > & {
-    corsOptions: HttpServerTransportOptions["corsOptions"] | undefined;
-    httpServer: HttpServer | undefined;
-  };
-  private server: RequestHandler;
-  /** The controllers of the requests in progress: stop() aborts them (deep dive TRN-15) */
-  private openRequests = new Set<AbortController>();
+  private options: { port: number; host: string; basePath: string; cors: boolean; httpServer: HttpServer | undefined };
+  /** The procedure handler that does the work of each request (CLI-3) */
+  private readonly handler: NodeProcedureHandler;
+  /** The CORS of the app, or undefined when it is off */
+  private readonly cors: CorsPolicy | undefined;
   private stopped = false;
-  private readonly bodyLimit: number;
-  /** The browser checks of each procedure call (see `server/browser-guard.ts`) */
-  private readonly guard: BrowserGuardOptions;
-  /** The quiet time of an NDJSON stream before a keep-alive line, or false for none */
-  private readonly keepAlive: Duration | false;
-  /** The clock of the keep-alive timers (roadmap R35) */
-  private readonly clock: Clock;
 
   constructor(server: RequestHandler, options: HttpServerTransportOptions = {}) {
-    this.server = server;
     const basePath = options.basePath ?? "/api";
     this.options = {
       port: options.port ?? 3000,
-      // Loopback by default (see BUGS-2026-07 H19), and route by URL path so the raw server matches
-      // the HTTP client's default URL format instead of inferring the operation from the verb
-      // (which lost the payload for get/list/find/watch). See BUGS-2026-07 (C3, bug 16).
+      // Loopback by default (see BUGS-2026-07 H19)
       host: options.host ?? "127.0.0.1",
-      urlStrategy: options.urlStrategy ?? createPatternServerUrlStrategy(basePath),
       basePath,
       cors: options.cors ?? false,
-      corsOptions: options.corsOptions,
       httpServer: options.httpServer,
     };
-    this.bodyLimit = options.bodyLimit ?? 1024 * 1024;
-    // A value that is not a duration fails here, not at the first stream
-    const keepAliveMs = keepAliveMsOf(options.keepAlive);
-    this.keepAlive = keepAliveMs > 0 ? ms(keepAliveMs) : false;
-    this.clock = options.clock ?? realClock;
-    this.guard = {
-      allowedOrigins: options.allowedOrigins ?? corsOrigins(options),
-      allowedHosts: options.allowedHosts,
-      allowGet: options.allowGet,
-    };
+    // Route by URL path so the raw server matches the HTTP client's default URL format instead of
+    // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
+    const urlStrategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
+    const corsOptions = this.options.cors ? (options.corsOptions ?? {}) : undefined;
+    // The given options go over the defaults, and the transport sends the credentials by default
+    this.cors = corsOptions ? corsPolicy(corsOptions, true) : undefined;
+    this.handler = createProcedureHandler(
+      server,
+      {
+        basePath,
+        bodyLimit: options.bodyLimit,
+        keepAlive: options.keepAlive,
+        clock: options.clock,
+        allowedOrigins: options.allowedOrigins ?? corsOrigins(corsOptions),
+        allowedHosts: options.allowedHosts,
+        allowGet: options.allowGet,
+        secretHeaders: options.secretHeaders,
+        secretQuery: options.secretQuery,
+      },
+      {
+        legacy: true,
+        matchAll: true,
+        face: { name: "HttpServerTransport", originOption: "corsOptions.origin" },
+        corsOutside: true,
+        methodOf: (req) => urlStrategy(req as Request),
+        sendJson: (res, status, body) => {
+          (res as Response).status(status).json(body);
+        },
+      }
+    );
 
     // Use provided app or create new one
     if (options.app) {
@@ -136,76 +104,15 @@ export class HttpServerTransport implements ServerTransport {
   }
 
   /**
-   * Setup Express routes.
+   * Setup Express routes: the CORS of the app, then the procedure handler under the base path.
    */
   private setupRoutes(): void {
-    // CORS
-    if (this.options.cors) {
-      // The given options go over the defaults. Before, options with only `origin` replaced
-      // them all, and the server sent "Access-Control-Allow-Headers: undefined".
-      const corsOptions = {
-        origin: "*" as string | string[],
-        methods: [
-          HTTPMethod.GET,
-          HTTPMethod.POST,
-          HTTPMethod.PUT,
-          HTTPMethod.DELETE,
-          HTTPMethod.PATCH,
-          HTTPMethod.OPTIONS,
-        ],
-        // The headers that HttpTransport sends from the metadata. Without X-Metadata, a page of
-        // another origin failed its preflight for every call with custom metadata (pagination).
-        allowedHeaders: [
-          "Content-Type",
-          "Accept",
-          HTTPHeaders.AUTHORIZATION,
-          HTTPHeaders.API_KEY,
-          HTTPHeaders.REQUEST_ID,
-          HTTPHeaders.TRACE_ID,
-          HTTPHeaders.SPAN_ID,
-          HTTPHeaders.PARENT_SPAN_ID,
-          "traceparent",
-          PROTOCOL_HEADER,
-          HTTPHeaders.METADATA,
-          "collection",
-          "collectionName",
-          "database",
-        ],
-        credentials: true,
-        ...this.options.corsOptions,
-      };
-
-      // One allowed origin goes back: the request's origin when it is in the list (a header
-      // with several origins is invalid), with Vary: Origin so that caches keep them apart
-      const origins = corsOptions.origin ?? "*";
-      const allowOrigin = (requestOrigin: string | undefined): string | undefined => {
-        if (origins === "*") return "*";
-        const list = Array.isArray(origins) ? origins : [origins];
-        return requestOrigin !== undefined && list.includes(requestOrigin) ? requestOrigin : undefined;
-      };
-
+    const cors = this.cors;
+    if (cors) {
+      // One allowed origin goes back: the request's origin when it is in the list, with
+      // Vary: Origin so that caches keep them apart. A preflight ends here with 204.
       this.app.use((req, res, next) => {
-        const allowed = allowOrigin(req.headers.origin);
-        if (origins !== "*") res.vary("Origin");
-        if (allowed !== undefined) res.header("Access-Control-Allow-Origin", allowed);
-        res.header(
-          "Access-Control-Allow-Methods",
-          corsOptions.methods?.join(", ")
-        );
-        res.header(
-          "Access-Control-Allow-Headers",
-          corsOptions.allowedHeaders?.join(", ")
-        );
-        if (corsOptions.credentials) {
-          res.header("Access-Control-Allow-Credentials", "true");
-        }
-
-        if (req.method === "OPTIONS") {
-          res.sendStatus(204);
-          return;
-        }
-
-        next();
+        if (!applyCors(req, res, cors)) next();
       });
     }
 
@@ -213,344 +120,14 @@ export class HttpServerTransport implements ServerTransport {
     this.app.all(
       new RegExp(`^${this.options.basePath.replace(/\//g, "\\/")}\\/.*`),
       async (req, res) => {
-        await this.handleHttpRequest(req, res);
+        await this.handler.handle(req, res);
       }
     );
   }
 
-  /**
-   * Handle HTTP request.
-   * Converts to unified RPC format, processes, and sends response.
-   */
-  private async handleHttpRequest(req: Request, res: Response): Promise<void> {
-    // The protocol version of this server, on each response (roadmap R25)
-    res.setHeader(PROTOCOL_HEADER, String(PROTOCOL_VERSION));
-    const version = protocolVersionOf(req.headers[PROTOCOL_HEADER.toLowerCase()]);
-    if (version !== undefined && version > PROTOCOL_VERSION) {
-      res.status(400).json({
-        error: `This server speaks the protocol ${PROTOCOL_VERSION}, and the request uses ${version}`,
-        code: "PROTOCOL_VERSION",
-        retryable: false,
-        protocol: PROTOCOL_VERSION,
-      });
-      return;
-    }
-    if (this.stopped) {
-      res.status(503).json({ error: "Server stopped", code: "SERVER_STOPPED", retryable: true });
-      return;
-    }
-    // A web page must not reach the procedures: host, origin, method and body type
-    const guard = checkBrowserRequest(req, this.guard, true);
-    if (!guard.ok) {
-      res.status(guard.status).json({ error: guard.message, code: guard.code, retryable: false });
-      return;
-    }
-    // A closed connection or stop() aborts the request: a stream stops, and its handler gets return()
-    const controller = new AbortController();
-    this.openRequests.add(controller);
-    res.on("close", () => {
-      this.openRequests.delete(controller);
-      if (!res.writableFinished) controller.abort();
-    });
-    try {
-      // Convert HTTP request to ServerRequest
-      let serverRequest: ServerRequest | null;
-      try {
-        serverRequest = this.httpToServerRequest(req, await this.readBody(req));
-      } catch (error) {
-        const status = error instanceof BodyError ? error.httpStatus : 400;
-        res.status(status).json({ error: (error as Error).message, code: "INVALID_REQUEST", retryable: false });
-        return;
-      }
-
-      if (!serverRequest) {
-        res.status(400).json({
-          error: "Invalid request: could not parse RPC method from URL",
-        });
-        return;
-      }
-
-      serverRequest.signal = controller.signal;
-
-      // Process request through universal server
-      const serverResponse = await this.server.handle(serverRequest);
-
-      if (serverResponse.stream) {
-        await this.streamToHttp(serverResponse, serverResponse.stream, req, res, controller.signal);
-        return;
-      }
-
-      // Convert ServerResponse to HTTP response
-      this.serverResponseToHttp(serverResponse, res);
-    } catch (error) {
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: (error as Error).message || "Internal server error",
-        });
-      }
-    } finally {
-      this.openRequests.delete(controller);
-    }
-  }
-
-  /**
-   * The request body. A body parser of the app (`express.json({ strict: false })`) gives
-   * `req.body`. Without one, the transport reads the JSON body itself: before, every payload
-   * was {} when the app had no parser, and a parser with `strict: true` rejected a number or
-   * a string (deep dive TRN-10).
-   */
-  private async readBody(req: Request): Promise<unknown> {
-    if (req.body !== undefined) return req.body;
-    if (req.method === "GET" || req.method === "HEAD" || req.readableEnded) return undefined;
-    const chunks: Buffer[] = [];
-    let size = 0;
-    for await (const chunk of req as AsyncIterable<Buffer | string>) {
-      const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
-      size += buffer.length;
-      if (size > this.bodyLimit) throw new BodyError(`The request body is larger than ${this.bodyLimit} bytes`, 413);
-      chunks.push(buffer);
-    }
-    const text = Buffer.concat(chunks).toString("utf8");
-    if (text.trim() === "") return undefined;
-    try {
-      return JSON.parse(text) as unknown;
-    } catch {
-      throw new BodyError("The request body is not valid JSON", 400);
-    }
-  }
-
-  /**
-   * Send a stream response.
-   *
-   * A client that accepts `application/x-ndjson` gets one JSON line for each item
-   * (`{"type":"item","seq":1,"payload":...}`), then `{"type":"done","seq":...}`, or
-   * `{"type":"error","error":...}`. The `seq` of the lines counts from 1, as in the `stream`
-   * frames of WebSocket. A quiet stream gets a keep-alive line, a blank line, after each quiet
-   * time of `keepAlive`. `writeNdjsonStream` writes these lines.
-   * Another client (curl, a browser fetch without the header) gets the last item as plain JSON,
-   * the "sponge" mode, so a streaming procedure does not change its response format.
-   */
-  private async streamToHttp(
-    response: ServerResponse,
-    stream: AsyncIterable<unknown>,
-    req: Request,
-    res: Response,
-    signal: AbortSignal
-  ): Promise<void> {
-    const ndjson = String(req.headers.accept ?? "").includes(NDJSON);
-
-    if (!ndjson && isUnboundedStream(response)) {
-      // The last item of a stream without an end never comes: refuse the call, and end the stream
-      // (roadmap R15: before, the request waited until a timeout)
-      void Promise.resolve(stream[Symbol.asyncIterator]().return?.()).catch(() => undefined);
-      this.serverResponseToHttp(
-        {
-          id: response.id,
-          status: {
-            type: "error",
-            code: "NOT_ACCEPTABLE",
-            message: `This procedure gives a stream that can run without an end. Send "Accept: ${NDJSON}" to read its items.`,
-            retryable: false,
-          },
-          metadata: {},
-        },
-        res
-      );
-      return;
-    }
-
-    if (!ndjson) {
-      let last: { value: unknown } | undefined;
-      try {
-        for await (const item of stream) last = { value: item };
-      } catch (error) {
-        this.serverResponseToHttp({ id: response.id, status: { type: "error", ...errorOf(error) }, metadata: {} }, res);
-        return;
-      }
-      if (!last) {
-        this.serverResponseToHttp(
-          {
-            id: response.id,
-            status: { type: "error", code: "NO_OUTPUT", message: "The procedure gave no output", retryable: false },
-            metadata: {},
-          },
-          res
-        );
-        return;
-      }
-      this.serverResponseToHttp({ id: response.id, status: response.status, metadata: response.metadata, payload: last.value }, res);
-      return;
-    }
-
-    // The lines, the backpressure, the keep-alive and the abort of stop() (WIRE-PROTOCOL.md)
-    await writeNdjsonStream(res, stream, { signal, keepAlive: this.keepAlive, errorOf, clock: this.clock });
-  }
-
-  /**
-   * This method converts an HTTP request to a `ServerRequest`.
-   */
-  private httpToServerRequest(req: Request, body: unknown): ServerRequest | null {
-    // Parse method from URL using strategy
-    const method = this.options.urlStrategy(req);
-    if (!method) {
-      return null;
-    }
-
-    // Generate request ID
-    const id =
-      (req.headers["x-request-id"] as string) ??
-      `req-${Date.now()}-${Math.random()}`;
-    const bearer = bearerOf(req.headers["authorization"]);
-
-    // Build metadata from headers and query params. The flattened query parameters cannot
-    // replace headers, query or params (before, "?headers=x" replaced metadata.headers).
-    // The headers without the secrets: the credentials go in request.credentials, not in the
-    // metadata, so a handler and a nested call do not see them (roadmap R18)
-    const metadata: Metadata = {
-      headers: withoutSecretHeaders(req.headers as Record<string, string>),
-      query: req.query,
-      params: req.params,
-    };
-    for (const [key, value] of Object.entries(req.query)) {
-      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) metadata[key] = value;
-    }
-
-    // Extract custom headers to root-level metadata
-    // This mirrors the client's metadataToHeaders() behavior
-    const standardHeaders = new Set([
-      "host",
-      "connection",
-      "content-length",
-      "content-type",
-      "user-agent",
-      "accept",
-      "accept-encoding",
-      "accept-language",
-      "cache-control",
-      "origin",
-      "referer",
-      "x-request-id",
-      "x-trace-id",
-      "x-span-id",
-      "x-parent-span-id",
-      "x-timeout",
-      "x-api-key",
-      "authorization",
-      "x-metadata",
-    ]);
-
-    // Known custom header mappings (lowercase → camelCase)
-    const headerMappings: Record<string, string> = {
-      'collectionname': 'collectionName',
-    };
-
-    for (const [key, value] of Object.entries(req.headers)) {
-      if (!standardHeaders.has(key.toLowerCase()) && typeof value === "string") {
-        // Use mapped name if available, otherwise use original key
-        const normalizedKey = headerMappings[key.toLowerCase()] || key;
-        if (!RESERVED_METADATA.has(normalizedKey) && !normalizedKey.startsWith("__")) {
-          metadata[normalizedKey] = value;
-        }
-      }
-    }
-
-    // The custom metadata of the HTTP client: any JSON value, any key (deep dive TRN-11)
-    const encoded = req.headers["x-metadata"];
-    if (typeof encoded === "string") {
-      if (encoded.length > METADATA_HEADER_LIMIT) {
-        throw new BodyError(`The X-Metadata header is longer than ${METADATA_HEADER_LIMIT} characters`, 431);
-      }
-      const custom = decodeMetadataHeader(encoded);
-      if (!custom) throw new BodyError("The X-Metadata header is not URI-encoded JSON of an object", 400);
-      for (const [key, value] of Object.entries(custom)) {
-        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) metadata[key] = value;
-      }
-    }
-
-    // Payload from body (for POST/PUT) or params (for GET)
-    let payload: unknown = body;
-    if (req.method === "GET" && req.params["id"]) {
-      payload = { id: req.params["id"] };
-    }
-
-    // Default to empty object only if there is no payload (common for GET requests): 0, false,
-    // "" and null stay (deep dive TRN-10)
-    if (payload === undefined) {
-      payload = {};
-    }
-
-    return {
-      id,
-      method,
-      payload,
-      metadata,
-      // A network request: ProcedureServer examines the token (roadmap R18)
-      credentials: bearer === undefined ? {} : { bearer },
-    };
-  }
-
-  /**
-   * Convert ServerResponse to HTTP response.
-   */
-  private serverResponseToHttp(
-    serverResponse: ServerResponse,
-    res: Response
-  ): void {
-    const { status, payload, metadata } = serverResponse;
-
-    // Set status code (convert string to number if needed)
-    let httpStatusCode: number;
-    if (typeof status.code === "string") {
-      // status.code is a symbolic error code (e.g. "VALIDATION_ERROR", "NOT_FOUND"). Map it to an
-      // HTTP status via the error registry rather than parseInt (which yields NaN -> 500, so every
-      // error became a 500). See documentation/BUGS-2026-07.md (M7).
-      const mapped =
-        httpStatusOf(status.code) ??
-        (ERROR_REGISTRY as Record<string, { httpStatus?: number }>)[status.code]?.httpStatus;
-      httpStatusCode = mapped ?? (status.type === "success" ? 200 : 500);
-    } else if (typeof status.code === "number") {
-      httpStatusCode = status.code;
-    } else {
-      // Default to 200 for success, 500 for error if code is null/undefined
-      httpStatusCode = status.type === "success" ? 200 : 500;
-    }
-    res.status(httpStatusCode);
-
-    // Set headers from metadata
-    if (metadata["headers"]) {
-      for (const [key, value] of Object.entries(metadata["headers"])) {
-        res.setHeader(key, value as string);
-      }
-    }
-
-    // Send response. A procedure that gave no result answers 204 with no body: before, the
-    // body was empty with a JSON content type, and the client got "" (deep dive TRN-10).
-    if (status.type === "success") {
-      if (payload === undefined) {
-        res.status(204).end();
-        return;
-      }
-      res.json(payload);
-    } else {
-      // The wait that the error asks for: a Retry-After header in seconds, and the exact
-      // milliseconds in the body (R12)
-      const retryAfterMs = metadata["retry-after"];
-      const hasRetryAfter = typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0;
-      if (hasRetryAfter) res.setHeader("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
-      // The reason of a FORBIDDEN error travels on each face (roadmap R25)
-      const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
-      res.json({
-        error: status.message,
-        code: status.code,
-        retryable: status.retryable,
-        ...(hasRetryAfter ? { retryAfterMs } : {}),
-        ...(reason !== undefined ? { reason } : {}),
-      });
-    }
-  }
-
   async start(): Promise<void> {
     this.stopped = false;
+    this.handler.start();
     // If an HTTP server was provided, use it (don't create or listen)
     if (this.options.httpServer) {
       this.httpServer = this.options.httpServer;
@@ -586,8 +163,8 @@ export class HttpServerTransport implements ServerTransport {
    */
   async stop(): Promise<void> {
     this.stopped = true;
-    for (const controller of this.openRequests) controller.abort();
-    this.openRequests.clear();
+    this.handler.stopIntake();
+    this.handler.close();
 
     if (this.options.httpServer || !this.httpServer) {
       return;

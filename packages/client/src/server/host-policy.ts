@@ -12,6 +12,8 @@
  *   procedures (a host for an outside caller sets it).
  * - `timeout`: the time limit of each call from a caller (not of its nested calls).
  * - `token`, `browser`: the checks of the network transports (`client-server` applies them).
+ * - `principalOf`: the request hook. It reads the credentials of a network request (a cookie, a
+ *   header, the query) and gives a bearer token, a principal and a narrowing.
  * - `capability`, `readOnly`, `clearanceOrder`, `resources`, `admitItem`: the capability of each
  *   call and what the host gives for it (CAPABILITIES-2026-10).
  * - `events`: the remote events of the host (`documentation/EVENTS.md`). The server pins
@@ -21,7 +23,7 @@
 import type { Capability, ClearanceOrder, ProcedurePath, ResourcesOf } from "../procedures/types.js";
 import type { AdmitItem, Interceptor, Invocation } from "../procedures/invoke.js";
 import { narrowCapability } from "../procedures/capability.js";
-import type { ServerRequest } from "./types.js";
+import type { PrincipalOf, ServerRequest } from "./types.js";
 import { timeoutInterceptor } from "../procedures/interceptors.js";
 import type { BrowserGuardOptions } from "./browser-guard.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
@@ -73,6 +75,11 @@ export interface HostPolicyOptions {
   interceptors?: readonly Interceptor[] | undefined;
   /** The token that each network request must send (HTTP and WebSocket transports). */
   token?: string | undefined;
+  /**
+   * The request hook: it reads the credentials of each network request (a cookie, a header, the
+   * query) and gives a bearer token, a principal and a narrowing (`ProcedureServerOptions`).
+   */
+  principalOf?: PrincipalOf | undefined;
   /** The browser checks of the network transports (`allowedOrigins`, `allowedHosts`, `allowGet`). */
   browser?: BrowserGuardOptions | undefined;
   /**
@@ -103,6 +110,8 @@ export interface HostPolicy {
   readonly strictCalls: boolean;
   readonly interceptors: readonly Interceptor[];
   readonly token: string | undefined;
+  /** The request hook of the network requests, or undefined for none. */
+  readonly principalOf?: PrincipalOf | undefined;
   readonly browser: BrowserGuardOptions;
   /** The capability of a call from a caller, or undefined for no limits. */
   readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
@@ -151,6 +160,7 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
     strictCalls: options.strictCalls ?? false,
     interceptors,
     token: options.token,
+    ...(options.principalOf ? { principalOf: options.principalOf } : {}),
     browser: options.browser ?? {},
     capabilityOf: capabilityOfOptions(options),
     clearanceOrder: options.clearanceOrder,
@@ -169,6 +179,8 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     strictCalls: policy.strictCalls,
     // The token of the policy: ProcedureServer examines it for each network request (R18)
     ...(policy.token !== undefined ? { token: policy.token } : {}),
+    // The request hook of the policy: the credentials of a cookie, a header or the query (CLI-2a)
+    ...(policy.principalOf ? { principalOf: policy.principalOf } : {}),
     ...(policy.interceptors.length > 0 ? { interceptors: policy.interceptors } : {}),
     ...(policy.capabilityOf ? { capability: policy.capabilityOf } : {}),
     ...(policy.clearanceOrder ? { clearanceOrder: policy.clearanceOrder } : {}),

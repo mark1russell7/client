@@ -4,9 +4,19 @@
  * Functions for mapping HTTP requests to RPC methods.
  */
 
-import type { Request } from "express";
 import type { Method } from "../../../client/types.js";
 import { defaultUrlPattern } from "../shared/strategies.js";
+
+/**
+ * The parts of a request that the URL strategies read: the HTTP method and the path. A `Request`
+ * of Express has them, and so does the `UrlRequest` of `procedureHandler`.
+ */
+export interface RoutedRequest {
+  /** The HTTP method. */
+  readonly method: string;
+  /** The path of the URL, without the query. */
+  readonly path: string;
+}
 
 /**
  * Default URL strategy: RESTful routes.
@@ -18,7 +28,7 @@ import { defaultUrlPattern } from "../shared/strategies.js";
  * - PUT /api/users/:id → { service: "users", operation: "update" }
  * - DELETE /api/users/:id → { service: "users", operation: "delete" }
  */
-export function defaultServerUrlStrategy(req: Request): Method | null {
+export function defaultServerUrlStrategy(req: RoutedRequest): Method | null {
   const path = req.path;
   const method = req.method.toUpperCase();
 
@@ -62,7 +72,7 @@ export function defaultServerUrlStrategy(req: Request): Method | null {
  * - POST /rpc/users/get → { service: "users", operation: "get" }
  * - POST /rpc/users/list → { service: "users", operation: "list" }
  */
-export function rpcServerUrlStrategy(req: Request): Method | null {
+export function rpcServerUrlStrategy(req: RoutedRequest): Method | null {
   const path = req.path;
 
   // Match pattern: /rpc/:service/:operation
@@ -90,8 +100,8 @@ export function rpcServerUrlStrategy(req: Request): Method | null {
  *
  * @param basePath - Base path prefix to strip before parsing (default "/api").
  */
-export function createPatternServerUrlStrategy(basePath = "/api"): (req: Request) => Method | null {
-  return (req: Request): Method | null => {
+export function createPatternServerUrlStrategy(basePath = "/api"): (req: RoutedRequest) => Method | null {
+  return (req: RoutedRequest): Method | null => {
     let path = req.path;
     if (basePath && path.startsWith(basePath)) {
       path = path.slice(basePath.length);
@@ -102,4 +112,4 @@ export function createPatternServerUrlStrategy(basePath = "/api"): (req: Request
 }
 
 /** Pattern strategy with the standard "/api" base path (the server transport default). */
-export const patternServerUrlStrategy: (req: Request) => Method | null = createPatternServerUrlStrategy();
+export const patternServerUrlStrategy: (req: RoutedRequest) => Method | null = createPatternServerUrlStrategy();

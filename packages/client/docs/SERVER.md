@@ -308,6 +308,49 @@ const transport = new WebSocketServerTransport({
 server.addTransport(transport);
 ```
 
+### The handlers of `@procedures/client/node`
+
+An application with its own `node:http` server mounts the procedures with two functions. They make no server and do not listen.
+
+```typescript
+import { procedureHandler, upgradeHandler } from "@procedures/client/node";
+
+const procedures = procedureHandler(server, { basePath: "/api/proc" });
+const sockets = upgradeHandler(server, { path: "/ws" });
+http.on("request", (req, res) => procedures(req, res) || appRoutes(req, res));
+http.on("upgrade", (req, socket, head) => sockets(req, socket, head) || socket.destroy());
+```
+
+Each handler gives `false` for a request of another path, and does not touch it.
+
+### The request hook
+
+The option `principalOf` of `ProcedureServer` (and of `hostPolicy`) reads the credentials of each network request. The credentials have the bearer token, the cookies, each header and the query.
+
+```typescript
+const server = new ProcedureServer({
+  principalOf: async ({ cookies = {} }) => {
+    const user = await sessions.userOf(cookies["session"]);
+    return user ? { principal: { id: `user:${user.id}`, via: "session" } } : {};
+  },
+});
+```
+
+- The hook gives a `bearer` token for the token check, a `principal`, and a `narrowing` of the capability.
+- The procedure reads the principal as `ctx.principal`. The nested calls get the same principal.
+- Undefined, or an error, refuses the request with `UNAUTHORIZED`.
+
+### Cookies and CSRF
+
+A browser sends the cookies of a server by itself, also for a request that a page of another site starts. Thus a server that reads cookies trusts a request only from a named origin.
+
+- With `principalOf`, the server reads the cookies of each request. A face then accepts a browser request only from its own origin or from a named origin.
+- A request with a `Cookie` header gets the same check on `procedureHandler` and `upgradeHandler`. `"*"` does not permit another origin for it. A list or a function of origins does.
+- `principalOf` with the origin `"*"` and no named `allowedOrigins` is refused at construction. The error names the fix.
+- A request without an `Origin` header and without `Sec-Fetch-Site` comes from a program, not from a page. It passes.
+- `HttpServerTransport` and `WebSocketServerTransport` keep their former checks for a server that reads no cookies. With `authenticate`, a request with a cookie needs a named origin. The server option `ambientCredentials: false` turns this off for an `authenticate` function that reads only the bearer token.
+- Give a session cookie `SameSite=Lax` or `SameSite=Strict`, and `HttpOnly`. A cookie with `SameSite=None` goes with each request of another site, so only the origin check stops such a request.
+
 ---
 
 ## Complete Example

@@ -61,7 +61,7 @@ async function startHost(feed: Feed, options: Partial<HttpServerTransportOptions
     await new Promise<void>((resolve) => http.close(() => resolve()));
   });
   const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`;
-  const openRequests = (): number => (transport as unknown as { openRequests: Set<unknown> }).openRequests.size;
+  const openRequests = (): number => (transport as unknown as { handler: { inFlight(): number } }).handler.inFlight();
   return { base, url: `${base}/ka/feed`, transport, openRequests };
 }
 
