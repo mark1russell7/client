@@ -111,7 +111,7 @@ jobs:
       - name: Start MongoDB 7
         run: |
           if [ "${{ matrix.topology }}" = "replica-set" ]; then
-            docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+            docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
           else
             docker run -d --name mongo -p 27017:27017 mongo:7
           fi
@@ -138,21 +138,34 @@ jobs:
         env:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_TEST_TOPOLOGY: ${{ matrix.topology }}
+          # The failpoint tests (for example a transaction over its lifetime limit) need the test commands of the replica set
+          MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
 
   coverage:
     name: Coverage (the floors only go up)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The storage tests of @procedures/mongo run against this MongoDB, so their coverage counts
-    services:
-      mongo:
-        image: mongo:7
-        ports:
-          - 27017:27017
+    # The storage and view tests of @procedures/mongo run against this MongoDB, so their coverage
+    # counts. A single-node replica set: the materialized views need change streams.
     env:
-      MONGO_TEST_URL: mongodb://localhost:27017
+      MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+      MONGO_TEST_TOPOLOGY: replica-set
+      MONGO_TEST_FAILPOINTS: "1"
     steps:
+      - name: Start MongoDB 7 (a single-node replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
+          for i in $(seq 1 60); do
+            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+          for i in $(seq 1 60); do
+            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+            sleep 1
+          done
+          [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
       - uses: actions/checkout@v7
         with:
           persist-credentials: false

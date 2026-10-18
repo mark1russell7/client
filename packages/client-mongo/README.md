@@ -699,6 +699,45 @@ const { pipeline: bounded, limited } = boundPipeline(scoped, 5000);
 - The function does not change the pipeline of the caller.
 - `MongoDocumentStorage.aggregate(pipeline, { maxTime, maxResults })` is read-only, reads only its own collection, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are `seconds(10)` and 5000 documents. `maxTime` is a duration of `@procedures/client`.
 
+### Materialized views: `ViewMaterializer`
+
+A view is a document of a views collection: a pipeline over source collections, whose result goes into a target collection, for one partition. `ViewMaterializer` keeps each target equal to the result of its pipeline, with change streams. Change streams need a replica set.
+
+```ts
+import { ViewMaterializer, viewFilter } from "@procedures/mongo";
+
+await db.collection("_aggregations").insertOne({
+  _id: "totals",
+  _part: "tenant-1",
+  collections: ["orders"],
+  pipeline: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+  targetCollection: "orderTotals",
+});
+const views = new ViewMaterializer({ db: () => db });
+await views.start();
+
+// A reader of the target reads the current generation of the view
+const view = await db.collection("_aggregations").findOne({ _id: "totals" });
+const totals = await db.collection("orderTotals").find(viewFilter(view)).toArray();
+```
+
+- A change of a source starts a pass of its partition after the burst (`debounce`). A pass computes only the views whose sources changed, in the order of their dependencies. A view whose result changed makes its target dirty, so the views that read it are in the same pass.
+- A run reads the result in groups of 1000. Each stored row keeps the hash of its content (`_viewHash`), so a row that did not change writes nothing.
+- The rows of a view are a generation (`_viewGen`), and the status of the view names the current one. A reader of a target filters with `viewFilter(view)`, so it reads one whole generation. A plain query can see two generations.
+- A run writes in one transaction: the changed rows of the current generation, and the removal of the rows that the result does not have. A reader does not see a part of a run.
+- A view with more rows than `maxTransactionRows` (default 10000), or whose transaction fails, writes a whole new generation in groups. Then its status names the new generation. The previous one stays for `generationGrace` (default 60 s, on the time of the server), so a reader of it can finish. Then it goes.
+- A pass in groups holds a lease on its view (`passLease`, default 60 s, on the time of the server), and renews it after each group. Another process leaves the view and the rows of the lease alone. The change of generation needs the lease and the generation of the start of the pass. A pass that loses either one gives way, and the view runs again later.
+- A view in a cycle of views stays idle. Its status is `cycle` until the cycle ends.
+- The status of each view (`ok`, `errored` with `lastError`, `cycle`) goes into the field `_materializerStatus` of its document.
+- Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition, in its sources, and only the current generation of the target of another view. It cannot have `$merge` or `$out`. The option `scope` gives another guard, with the same filter.
+- A stream that ends opens again after `rewatch`, and a pass catches up. The times of the options are durations (`ms(100)`, `seconds(60)`) of `@procedures/client`.
+- The stop has the parts of a transport of a service: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. `stop()` does the four. A host composes them with no adapter.
+- The option `clock` gives the clock of the timers, for example a fake clock in a test. The timers do not keep a process alive.
+- The target is a plain collection that only the materializer writes. Two views of one partition do not share a target. The stored `_id` of a row carries its partition and its generation: by default `{ partition, generation, id }` (`partitionTargetId`), where `id` is the `_id` of the row. Thus two partitions with the same keys share a target.
+- The option `targetId` gives another form of the stored `_id`. Two partitions, or two generations, must not give the same `_id`. The write of a row checks the partition, so the view of the second partition fails, and the row of the first one stays. A form without the generation works only in one transaction.
+- A pass keeps in memory the key of each row of the result (at most `maxRows`) and one group of rows. It keeps nothing between passes.
+- An app with targets from an older materializer (the plain key as `_id`, no generation) needs no migration step. The first pass of each view writes its rows in a generation, and removes the rows of its partition with no generation. A row without the partition field stays.
+
 ## Integration with Ecosystem
 
 ### Bundle Packages
