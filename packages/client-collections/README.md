@@ -211,19 +211,23 @@ mergeCopies([{ _id: "card", left: UNSET }, { _id: "card", top: 10, left: 20 }]);
 
 ### The order of a list as data
 
-Each item of an ordered list keeps a numeric rank, and the list sorts by it. An item that moves between two others gets a rank between theirs. Thus a move writes one item and no other.
+Each item of an ordered list keeps a string key, and the list sorts by it. An item that moves between two others gets a key between theirs. Thus a move writes one item and no other. The keys use fractional indexing with 62 digits, so they do not run out, and the list needs no rebalance.
 
 ```ts
-import { dropIndex, rankBetween } from "@procedures/collections";
+import { compareKeys, dropIndex, keyBetween, keysBetween } from "@procedures/collections";
 
-rankBetween(1, 2); // 1.5
-rankBetween(undefined, 4); // 3: the start of the list
-const index = dropIndex(pointer, items.map(centerOf));
-const rank = rankBetween(ranks[index - 1], ranks[index]);
+keyBetween(undefined, undefined); // "a0": the first key of a list
+keyBetween("a0", undefined); // "a1": after a0
+keyBetween("a0", "a1"); // "a0V"
+keysBetween(undefined, undefined, 3); // ["a0", "a1", "a2"]: keys for a list without keys
+const index = dropIndex(pointer, others.map(centerOf));
+const key = keyBetween(keys[index - 1], keys[index]);
 ```
 
-- `rankBetween(prev, next)` gives a rank between two neighbors. Without `prev`, the rank comes before `next`. Without `next`, it comes after `prev`. A list without items gives 0.
-- `dropIndex(point, centers, rowTolerance)` gives the index of a point among the items on the screen, in reading order. The rows go from top to bottom, and each row from left to right.
+- `keyBetween(prev, next)` gives a key between two neighbors. Without `prev`, the key comes before `next`. Without `next`, it comes after `prev`. A key that is not valid, or a `prev` that is not before `next`, gives a `RangeError`.
+- Sort the keys by the code units of the strings: `compareKeys`, or `a < b`. Do not use `localeCompare`.
+- Two writers that move items into one gap at the same time can get the same key. Sort by the key, then by the id of the item, so each reader sees one order.
+- `dropIndex(point, centers, rowTolerance)` gives the index of a point among the items on the screen, from 0 to the number of items. Give the centers in reading order (the rows from top to bottom, and each row from left to right). They are in the order of the keys, without the item that moves.
 
 ### The contract suite: `@procedures/collections/testing`
 

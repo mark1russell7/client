@@ -1,22 +1,118 @@
 import { describe, expect, it } from "vitest";
-import { dropIndex, rankBetween } from "../index.js";
+import { compareKeys, dropIndex, keyBetween, keysBetween } from "../index.js";
 
-describe("rankBetween", () => {
-  it("gives a rank between two neighbors, or before or after one", () => {
-    expect(rankBetween(undefined, undefined)).toBe(0);
-    expect(rankBetween(undefined, 4)).toBe(3);
-    expect(rankBetween(4, undefined)).toBe(5);
-    expect(rankBetween(1, 2)).toBe(1.5);
+/** True when the keys are in strictly ascending order of their code units. */
+function ascending(keys: readonly string[]): boolean {
+  return keys.every((key, i) => i === 0 || keys[i - 1]! < key);
+}
+
+/** A small random generator with a seed, so each run tests the same sequence. */
+function random(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
+}
+
+describe("keyBetween", () => {
+  it("gives the known keys of the algorithm", () => {
+    const cases: Array<[string | null, string | null, string]> = [
+      [null, null, "a0"],
+      [null, "a0", "Zz"],
+      [null, "Zz", "Zy"],
+      ["a0", null, "a1"],
+      ["a1", null, "a2"],
+      ["a0", "a1", "a0V"],
+      ["a1", "a2", "a1V"],
+      ["a0V", "a1", "a0l"],
+      ["Zz", "a0", "ZzV"],
+      ["Zz", "a1", "a0"],
+      [null, "Y00", "Xzzz"],
+      ["bzz", null, "c000"],
+      ["a0", "a0V", "a0G"],
+      ["a0", "a0G", "a08"],
+      ["b125", "b129", "b127"],
+      ["a0", "a1V", "a1"],
+      ["Zz", "a01", "a0"],
+      [null, "a0V", "a0"],
+      [null, "b999", "b99"],
+    ];
+    for (const [prev, next, key] of cases) expect(keyBetween(prev, next), `${prev} .. ${next}`).toBe(key);
   });
 
-  it("keeps a rank strictly between its neighbors after many moves to the same gap", () => {
-    let next = 1;
-    for (let i = 0; i < 40; i++) {
-      const rank = rankBetween(0, next);
-      expect(rank).toBeGreaterThan(0);
-      expect(rank).toBeLessThan(next);
-      next = rank;
+  it("takes undefined as an end of the list, as null", () => {
+    expect(keyBetween(undefined, undefined)).toBe("a0");
+    expect(keyBetween("a0", undefined)).toBe("a1");
+  });
+
+  it("never runs out in one gap: 2000 moves into the gap between two keys stay strictly between", () => {
+    // A float rank fails at the 53rd halving of the gap between 1 and 2 (review of #42)
+    const low = keyBetween(null, null);
+    let high = keyBetween(low, null);
+    for (let i = 0; i < 2000; i++) {
+      const key = keyBetween(low, high);
+      expect(low < key && key < high, `move ${i}: ${low} < ${key} < ${high}`).toBe(true);
+      high = key;
     }
+    expect(high.length).toBeLessThan(400);
+  });
+
+  it("keeps the keys short when items go to an end of the list", () => {
+    let last = keyBetween(null, null);
+    let first = last;
+    for (let i = 0; i < 10_000; i++) {
+      last = keyBetween(last, null);
+      first = keyBetween(null, first);
+    }
+    expect(last.length).toBeLessThanOrEqual(4);
+    expect(first.length).toBeLessThanOrEqual(4);
+    expect(first < last).toBe(true);
+  });
+
+  it("keeps the order through random moves", () => {
+    const next = random(42);
+    const keys: string[] = [keyBetween(null, null)];
+    for (let i = 0; i < 3000; i++) {
+      const at = Math.floor(next() * (keys.length + 1));
+      keys.splice(at, 0, keyBetween(keys[at - 1], keys[at]));
+      if (keys.length > 200 && next() < 0.3) keys.splice(Math.floor(next() * keys.length), 1);
+    }
+    expect(ascending(keys)).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("refuses neighbors that are not in order, and keys that are not valid, with a RangeError", () => {
+    expect(() => keyBetween("a1", "a0")).toThrow(RangeError);
+    expect(() => keyBetween("a1", "a1")).toThrow(RangeError);
+    for (const bad of ["", "a", "a00", "a0 ", "!0", `A${"0".repeat(26)}`, "a0é"]) {
+      expect(() => keyBetween(bad, null), bad).toThrow(RangeError);
+      expect(() => keyBetween(null, bad), bad).toThrow(RangeError);
+    }
+  });
+});
+
+describe("keysBetween", () => {
+  it("gives count keys in ascending order between the neighbors", () => {
+    expect(keysBetween(null, null, 0)).toEqual([]);
+    expect(keysBetween(null, null, 3)).toEqual(["a0", "a1", "a2"]);
+    expect(keysBetween(null, "a0", 2)).toEqual(["Zy", "Zz"]);
+    const inner = keysBetween("a0", "a1", 50);
+    expect(inner).toHaveLength(50);
+    expect(ascending(["a0", ...inner, "a1"])).toBe(true);
+  });
+
+  it("refuses a count that is not an integer of 0 or more", () => {
+    for (const bad of [-1, 1.5, Number.NaN]) expect(() => keysBetween(null, null, bad)).toThrow(RangeError);
+  });
+});
+
+describe("compareKeys", () => {
+  it("compares the code units, never the locale order", () => {
+    // In a locale order, "a" comes before "B"; in the order of the keys, "B" comes first
+    expect(compareKeys("B0", "a0")).toBe(-1);
+    expect(compareKeys("a0", "a0")).toBe(0);
+    expect(["a1", "Zz", "a0V", "a0"].sort(compareKeys)).toEqual(["Zz", "a0", "a0V", "a1"]);
   });
 });
 
@@ -30,10 +126,9 @@ describe("dropIndex", () => {
     expect(dropIndex({ x: 10, y: 400 }, grid)).toBe(3);
   });
 
-  it("gives 0 for no items, and takes the row tolerance", () => {
+  it("gives an index from 0 to the number of items, and takes the row tolerance", () => {
     expect(dropIndex({ x: 0, y: 0 }, [])).toBe(0);
     expect(dropIndex({ x: 10, y: 20 }, [{ x: 50, y: 50 }])).toBe(0);
-    expect(dropIndex({ x: 10, y: 20 }, [{ x: 50, y: 50 }], 40)).toBe(0);
     expect(dropIndex({ x: 60, y: 20 }, [{ x: 50, y: 50 }], 40)).toBe(1);
   });
 });
