@@ -53,8 +53,9 @@ type ToolResult = { structuredContent?: Record<string, unknown>; isError?: boole
 describe("paths of each length on the MCP face (CLI-28)", () => {
   it("gives a tool to a path of 1, 2 and 4 segments, and calls each one", async () => {
     const { client } = await start();
-    const names = (await client.listTools()).tools.map((tool) => tool.name).sort();
-    expect(names).toEqual(["a.b.c.d", "a.b_c", "a_b.c", "morning", "notes.list"]);
+    // The registry of the host also has the core procedures (client.*)
+    const names = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(names).toEqual(expect.arrayContaining(["a.b.c.d", "a.b_c", "a_b.c", "morning", "notes.list"]));
     for (const [name, path] of [["morning", ["morning"]], ["notes.list", ["notes", "list"]], ["a.b.c.d", ["a", "b", "c", "d"]]] as const) {
       const result = (await client.callTool({ name, arguments: {} })) as ToolResult;
       expect(result.structuredContent).toEqual({ path });
@@ -65,9 +66,12 @@ describe("paths of each length on the MCP face (CLI-28)", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     cleanups.push(() => errors.mockRestore());
     const { client, host } = await start({ toolName: (path) => path.join("_") });
-    const names = (await client.listTools()).tools.map((tool) => tool.name).sort();
-    expect(names).toEqual(["a_b_c_d", "morning", "notes_list"]);
-    expect(host.tools().map((tool) => tool.name).sort()).toEqual(["a_b_c_d", "morning", "notes_list"]);
+    const names = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(names).toEqual(expect.arrayContaining(["a_b_c_d", "morning", "notes_list"]));
+    expect(names).not.toContain("a_b_c");
+    const hostNames = host.tools().map((tool) => tool.name);
+    expect(hostNames).toEqual(expect.arrayContaining(["a_b_c_d", "morning", "notes_list"]));
+    expect(hostNames).not.toContain("a_b_c");
     expect(errors.mock.calls.some(([message]) => String(message).includes('"a_b_c"') && String(message).includes("a_b.c") && String(message).includes("a.b_c"))).toBe(true);
     const missing = (await client.callTool({ name: "a_b_c", arguments: {} })) as ToolResult;
     expect(missing.isError).toBe(true);
