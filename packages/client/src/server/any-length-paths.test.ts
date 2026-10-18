@@ -313,7 +313,8 @@ describe("segments that look like URL separators (CLI-28)", () => {
       const response = await value.handle({ id: "1", method, payload: {}, metadata: {} });
       expect(response.status, JSON.stringify(method)).toMatchObject({ type: "error", code: "NOT_FOUND" });
     }
-    expect(methodToPath({ service: "..", operation: "list" })).toEqual(["", "", "list"]);
+    // ".".split gives the empty segments around each dot
+    expect(methodToPath({ service: "..", operation: "list" })).toEqual(["", "", "", "list"]);
     expect(methodToPath({ service: "", operation: "list" })).toEqual(["list"]);
   });
 });
