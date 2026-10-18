@@ -1,7 +1,0 @@
----
-"@procedures/access": patch
----
-
-New package `@procedures/access`: the rights of a principal on a scope. An access list has an owner and entries for `user:`, `email:`, `group:`, `signed-in` and `anyone`. The rights imply other rights, and a `when` condition over the document of a check needs an evaluator of the app.
-
-The rules of the app are a policy: the implicit rights, the parent of a scope, the fallback, more principal names and the superuser. `subjectOf` reads `ctx.principal`, and `accessAdmitItem` gives the output filter of a host. The code comes from the server of Graph (its split plan, part P1).
