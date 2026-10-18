@@ -116,6 +116,15 @@ describe("the title and the untrusted fields of a tool (CLI-10)", () => {
   });
 });
 
+describe("the override of the hints of a tool (CLI-10)", () => {
+  it("gives the cautious values of the override in the annotations", () => {
+    const tool = procedureToMcpTool(procedure(["store", "read"], { effects: { reads: ["store"], writes: [] }, toolHints: { openWorldHint: true } }));
+    expect(tool.annotations).toEqual({ readOnlyHint: true, openWorldHint: true });
+    const plain = procedureToMcpTool(procedure(["any", "thing"], { toolHints: { destructiveHint: true } }));
+    expect(toToolDefinition(plain).annotations).toEqual({ destructiveHint: true });
+  });
+});
+
 describe("the names and the lookup of tools", () => {
   it("validates and sanitizes the segments of a path", () => {
     expect(isValidPath(["git", "status"])).toBe(true);

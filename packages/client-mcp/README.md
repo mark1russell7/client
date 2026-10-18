@@ -59,7 +59,7 @@ The options:
 | `surface` | each procedure | The tools: a surface (`{ namespaces, exclude }`), keys and patterns (`["git.status", "fs.*"]`), or a function of the path. A list of keys gives a subset of tools. |
 | `exclude` | none | Keys that are not tools, also when the surface matches them. |
 | `readOnly` | `false` | With `true`, the tools are only the procedures that change nothing. Each call has that capability. |
-| `policy` | strict calls | More of the host policy (`hostPolicy()` of `@procedures/client`): `strictCalls`, `timeout`, `interceptors`, `capability`, `resources`, `token`, `browser`. |
+| `policy` | strict calls | More of the host policy (`hostPolicy()` of `@procedures/client`): `strictCalls`, `timeout`, `interceptors`, `capability`, `resources`, `token`, `browser`. Refer to [Strict calls](#strict-calls). |
 | `interceptors` | none | Interceptors after `policy.interceptors`. A function gets the registry and the expose rule of the host. |
 | `serverOptions` | none | The options of `ProcedureServer` that the policy does not give: `autoRegister`, `collections`, `idempotency`. |
 | `name`, `version` | `procedure-server`, `1.0.0` | The server info in the MCP handshake. |
@@ -68,6 +68,7 @@ The options:
 | `elicitation` | ask the person | The rules of the questions to the person. Refer to [Questions to the person](#questions-to-the-person). |
 | `untrusted` | tag `untrusted-content` | The envelopes of text from outside the host. |
 | `content` | none | A hook that gives other text blocks for a result. |
+| `json` | `pretty` | The JSON of the default text blocks: `pretty` (an indent of 2 spaces) or `compact` (one line, fewer tokens). |
 | `toolFilter` | none | More filters of the tools: tags and internal procedures. |
 | `toolName` | `git.status` | The name of the tool of a procedure, a function of the path. `(path) => path.join("_")` gives `git_status`. A server that moves to the host keeps its tool names. |
 | `streamLimits` | 100 items, 30 seconds | The limits of a stream that can continue without an end. |
@@ -85,6 +86,12 @@ The host has these parts:
 | `tools()`, `state()` | The tools of the host at this time, and the state of each face. |
 
 The host does not build the options of `ProcedureServer` by hand. `hostPolicy()` and `procedureServerOptions()` of `@procedures/client` give them. The dev-tools server (`mark mcp`) and `mcp.serve` use `createMcpHost()` too.
+
+### Strict calls
+
+Strict calls are the safe default of an MCP host. A procedure of code without `metadata.calls` can use only the tools of the host in its nested calls. Thus a tool cannot reach a procedure that the host does not expose. A procedure with `metadata.calls` can also use the procedures that it declares.
+
+To turn strict calls off, give `policy: { strictCalls: false }`. Turn them off only for a host whose tools you trust with each procedure of the registry.
 
 ## The faces
 
@@ -128,7 +135,7 @@ Each answer has an `action`:
 |---|---|
 | `accept` | The person, or the consent of the operator, gave the answer. `by` tells who: `person` or `operator`. |
 | `decline` | The person said no. |
-| `cancel` | The person closed the question without a choice. |
+| `cancel` | The person closed the question without a choice, or the call aborted. |
 | `unavailable` | No one can answer. `reason` tells why. The helpers do not throw for this case. |
 
 The operator can give a consent when the server starts. Thus a server refuses input from the user without a consent of the operator. The host option `elicitation` has the rules:
@@ -150,8 +157,9 @@ const host = createMcpHost({
 The order of the answers:
 
 1. When the client can ask (it declares elicitation), the face asks the person. A decline of the person stays a decline.
-2. When the client cannot ask, or the question fails, the consent of the operator answers. The operator answers only a form question with a consent key that the operator gave.
-3. Else the answer is `unavailable`, with a reason.
+2. When the question of the face fails (a timeout, a lost connection), the answer is `unavailable`. The operator does not answer: the person can see the question, and silence is not a consent.
+3. When the client cannot ask, the consent of the operator answers. The operator answers only a form question with a consent key that the operator gave.
+4. Else the answer is `unavailable`, with a reason.
 
 Over Streamable HTTP, each question goes on the stream of its tool call.
 
@@ -203,9 +211,30 @@ createProcedure()
 
 - A tool whose output schema is an object has an `outputSchema`. Each result then has `structuredContent`, and a text block for clients that do not read it.
 - The hints of a tool (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) come from the declared `effects` of its procedure.
+- `metadata.toolHints` of a procedure can make its tool look more dangerous than its effects. Refer to [Hint overrides](#hint-overrides).
 - `metadata.title` of a procedure gives the `title` of its tool.
 - A failed call gives `isError` with the code and the reason in `_meta`.
 - The host option `content` can give other text blocks for a result that is a value. It gets the tool, the value and the default content, and it gives undefined for the default.
+- The host option `json: "compact"` gives the JSON of the default blocks on one line. Use it in place of a content hook for that change only.
+
+### Hint overrides
+
+The declared effects stay the truth: the host enforces the effects, not the hints. An override can only make a tool look more dangerous:
+
+| Hint | The only value of an override | Meaning |
+|---|---|---|
+| `readOnlyHint` | `false` | The tool can change something. |
+| `idempotentHint` | `false` | A second call can change more. |
+| `destructiveHint` | `true` | The tool can delete or overwrite data. |
+| `openWorldHint` | `true` | The tool can reach systems outside the host. |
+
+```typescript
+createProcedure()
+  .path(["notes", "read"])
+  .meta({ description: "Read a shared note", effects: { reads: ["store"], writes: [] }, toolHints: { openWorldHint: true } });
+```
+
+The registry refuses each other value when the procedure registers, also when the effects give the same value. The type `ToolHintOverride` refuses it before the registry does. `toolHintsOf()` of `@procedures/client` gives the hints of a tool with its override.
 
 ## The transport
 

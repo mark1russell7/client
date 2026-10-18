@@ -9,7 +9,9 @@
  *
  * The operator can answer some questions before the calls (`ElicitationPolicy.operatorConsent`):
  * a consent that the operator gives when the server starts. The person comes first: the operator
- * answers only when the face cannot ask the person.
+ * answers only when the face cannot ask the person. When the face can ask, and the question
+ * fails (a timeout, a lost connection), the answer is `unavailable`: the silence of a person is
+ * not a consent.
  */
 
 import type { Duration } from "../duration.js";
@@ -171,8 +173,8 @@ export interface ElicitationPolicy {
   /**
    * The consents that the operator gives when the server starts: `true` for each question with a
    * consent key, or a list of consent keys. The operator answers only when the face cannot ask
-   * the person. The default is no consent. Example: `["user-provided"]` for the flag
-   * `--allow-user-provided` of polite-crawler.
+   * the person, not when a question of the face fails. The default is no consent. Example:
+   * `["user-provided"]` for the flag `--allow-user-provided` of polite-crawler.
    */
   readonly operatorConsent?: boolean | readonly string[] | undefined;
   /** The time that the face waits for an answer, when the question gives no time. */
@@ -181,6 +183,20 @@ export interface ElicitationPolicy {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** True when an error is the abort of a signal, or the signal aborted. */
+function isAbort(error: unknown, signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true || (error instanceof Error && error.name === "AbortError");
+}
+
+/**
+ * The answer when a question of the face fails: `cancel` for an abort, else `unavailable`. The
+ * operator does not answer here: the person can see the question.
+ */
+function failedAnswer(error: unknown, signal: AbortSignal | undefined): ElicitResult {
+  const reason = `The face could not get the answer of the person: ${messageOf(error)}`;
+  return { action: isAbort(error, signal) ? "cancel" : "unavailable", reason };
 }
 
 /**
@@ -205,9 +221,9 @@ export function operatorAnswer(
 
 /**
  * This function applies the policy of a host to the `Elicit` function of a face. The result
- * asks the person when the face can. When the face cannot ask, or the question fails, the
- * consent of the operator answers, or the answer is `unavailable`. It gives undefined when no
- * one can answer a question: no face and no consent.
+ * asks the person when the face can. A failed question gives `unavailable` (`cancel` for an
+ * abort). When the face cannot ask, the consent of the operator answers, or the answer is
+ * `unavailable`. The function gives undefined when no one can answer: no face and no consent.
  */
 export function elicitWithPolicy(face: Elicit | undefined, policy: ElicitationPolicy = {}): Elicit | undefined {
   const asker = policy.ask === false ? undefined : face;
@@ -220,11 +236,11 @@ export function elicitWithPolicy(face: Elicit | undefined, policy: ElicitationPo
     const mode: ElicitMode = request.mode ?? "form";
     let reason: string;
     if (asker && asker.modes.includes(mode)) {
+      // The person can see the question: a timeout or a lost connection is not a consent
       try {
         return await asker(request, timed);
       } catch (error) {
-        if (options.signal?.aborted) throw error;
-        reason = `The face could not ask the person: ${messageOf(error)}`;
+        return failedAnswer(error, options.signal);
       }
     } else if (asker) {
       reason = `The face cannot ask a question of the mode "${mode}"`;
@@ -244,9 +260,9 @@ export const NO_ELICITATION_REASON =
   "The face of the call cannot ask the person, and the operator gave no consent for this question";
 
 /**
- * This function asks the person at the caller through `ctx.elicit`. It always gives an answer:
- * `unavailable` with a reason when the face cannot ask, or when the question fails. When the
- * call aborts, it throws the error of the abort.
+ * This function asks the person at the caller through `ctx.elicit`. It always gives an answer,
+ * and it does not throw. The answer is `unavailable` with a reason when the face cannot ask, or
+ * when the question fails. An abort of the call gives `cancel`.
  */
 export async function elicitInput(
   ctx: Pick<ProcedureContext, "elicit" | "signal">,
@@ -258,8 +274,7 @@ export async function elicitInput(
   try {
     return await ctx.elicit(request, signal ? { ...options, signal } : options);
   } catch (error) {
-    if (signal?.aborted) throw error;
-    return { action: "unavailable", reason: messageOf(error) };
+    return failedAnswer(error, signal);
   }
 }
 

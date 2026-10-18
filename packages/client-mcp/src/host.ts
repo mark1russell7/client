@@ -111,8 +111,9 @@ export interface McpHostOptions {
    */
   readOnly?: boolean | undefined;
   /**
-   * More of the host policy: `strictCalls` (the default is true for an MCP host), `timeout`,
-   * `interceptors`, `capability`, `resources`, `token`, `browser`.
+   * More of the host policy: `strictCalls`, `timeout`, `interceptors`, `capability`, `resources`,
+   * `token`, `browser`. Strict calls are the safe default of an MCP host: a procedure of code
+   * without `metadata.calls` calls only tools. To turn them off, give `strictCalls: false`.
    */
   policy?: Omit<HostPolicyOptions, "expose" | "exclude" | "readOnly"> | undefined;
   /**
@@ -136,6 +137,8 @@ export interface McpHostOptions {
   untrusted?: UntrustedContentOptions | undefined;
   /** The content hook: other text blocks for a successful result that is a value. */
   content?: McpToolContentHook | undefined;
+  /** The JSON of the default text blocks: `"pretty"` (the default) or `"compact"` on one line. */
+  json?: "pretty" | "compact" | undefined;
   /** More filters of the tools: tags, internal procedures. The surface gives the main rule. */
   toolFilter?: Omit<McpToolFilter, "include"> | undefined;
   /** The name of the tool of a procedure, for example `(path) => path.join("_")`. The default is `git.status`. */
@@ -278,6 +281,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     ...(options.elicitation ? { elicitation: options.elicitation } : {}),
     ...(options.untrusted ? { untrusted: options.untrusted } : {}),
     ...(options.content ? { content: options.content } : {}),
+    ...(options.json ? { json: options.json } : {}),
     ...(options.streamLimits ? { streamLimits: options.streamLimits } : {}),
     ...(options.debug !== undefined ? { debug: options.debug } : {}),
   };

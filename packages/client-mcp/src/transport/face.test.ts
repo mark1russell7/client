@@ -17,7 +17,9 @@ import {
   defineModule,
   elicitConfirmation,
   elicitInput,
+  ms,
   untrustedText,
+  type ConfirmationResult,
   type AnyProcedure,
   type ElicitationPolicy,
   type ProcedureContext,
@@ -26,8 +28,14 @@ import { createMcpHost, type McpHostOptions } from "../host.js";
 
 const NONE = { reads: [], writes: [] };
 
+/** What the procedures of the tests saw: an abort, and the last answer of a release. */
+interface Seen {
+  aborted: boolean;
+  release?: ConfirmationResult;
+}
+
 /** The procedures of the tests: questions, progress, a long call, and untrusted text. */
-function testModule(seen: { aborted: boolean }) {
+function testModule(seen: Seen) {
   const procedure = <O>(path: string[], output: z.ZodType<O>, handler: (input: Record<string, unknown>, ctx: ProcedureContext) => Promise<O>, meta: Record<string, unknown> = {}) =>
     createProcedure()
       .path(path)
@@ -39,6 +47,7 @@ function testModule(seen: { aborted: boolean }) {
   return defineModule("face-test", [
     procedure(["ask", "release"], z.object({ released: z.boolean(), by: z.string().nullable(), note: z.string().nullable() }), async (_input, ctx) => {
       const answer = await elicitConfirmation(ctx, "Did you give this URL yourself?", { consent: "user-provided", field: "gave_url" });
+      seen.release = answer;
       return { released: answer.confirmed, by: answer.by ?? null, note: answer.reason ?? null };
     }),
     procedure(["ask", "name"], z.object({ action: z.string(), name: z.string().nullable() }), async (_input, ctx) => {
@@ -86,7 +95,7 @@ type Answer = (request: { params: { message: string; requestedSchema?: unknown }
 
 /** A host on the in-memory transport, and a client. With `answer`, the client can elicit. */
 async function start(options: { answer?: Answer; elicitation?: ElicitationPolicy; host?: Partial<McpHostOptions> } = {}) {
-  const seen = { aborted: false };
+  const seen: Seen = { aborted: false };
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   const host = createMcpHost({
     modules: [testModule(seen)],
@@ -154,6 +163,34 @@ describe("elicitation (CLI-12)", () => {
     expect((await call(client, "ask.release")).structuredContent).toEqual({ released: true, by: "operator", note: null });
     // A question without a consent key needs the person
     expect((await call(client, "ask.name")).structuredContent).toEqual({ action: "unavailable", name: null });
+  });
+
+  it("does not take the consent of the operator when the person stays silent until the timeout", async () => {
+    const { client } = await start({
+      answer: () => new Promise<never>(() => undefined),
+      elicitation: { operatorConsent: ["user-provided"], timeout: ms(100) },
+    });
+    const result = await call(client, "ask.release");
+    expect(result.structuredContent).toMatchObject({ released: false, by: null });
+    expect(result.structuredContent?.["note"]).toContain("could not get the answer of the person");
+  });
+
+  it("does not take the consent of the operator when the connection is lost during the question", async () => {
+    let closing: Promise<void> | undefined;
+    const { client, seen } = await start({
+      answer: () => {
+        closing = client.close();
+        return new Promise<never>(() => undefined);
+      },
+      elicitation: { operatorConsent: ["user-provided"] },
+    });
+    await expect(call(client, "ask.release")).rejects.toThrow();
+    await closing;
+    const until = Date.now() + 2000;
+    while (!seen.release && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(seen.release).toMatchObject({ confirmed: false });
+    expect(seen.release?.by).toBeUndefined();
+    expect(["unavailable", "cancel"]).toContain(seen.release?.action);
   });
 
   it("does not ask when the host turns asking off", async () => {
@@ -247,6 +284,13 @@ describe("untrusted text and the title of a tool", () => {
     const web = (await call(client, "web.read")).content[1]!.text;
     expect(web.startsWith("Web text follows, until </untrusted-web-content id=")).toBe(true);
     expect(web).toContain('<untrusted-web-content id="');
+  });
+
+  it("gives compact JSON with the option json", async () => {
+    const { client } = await start({ host: { json: "compact" } });
+    const result = await call(client, "web.read");
+    expect(result.content[0]!.text).toBe('{"doc":"d1"}');
+    expect((await call(client, "work.fetch")).content[0]!.text).toBe('{"done":3,"reported":false}');
   });
 
   it("lets the content hook of the host give other blocks", async () => {

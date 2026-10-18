@@ -119,6 +119,12 @@ export interface McpServerTransportOptions {
   /** The content hook: it can give other text blocks for a successful result that is a value. */
   content?: McpToolContentHook | undefined;
 
+  /**
+   * The JSON of the default text blocks: `"pretty"` (the default) with an indent of 2 spaces, or
+   * `"compact"` on one line. A compact block uses fewer tokens of the model.
+   */
+  json?: "pretty" | "compact" | undefined;
+
   /** Tool filtering options */
   toolFilter?: McpToolFilter;
 
