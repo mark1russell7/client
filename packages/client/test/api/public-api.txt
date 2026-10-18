@@ -4825,6 +4825,7 @@ export interface ProcedureContext {
     capability: Capability;
     resources: ResourcesOf;
     caller?: AnyProcedure | undefined;
+    fsRoot?: string | undefined;
     principal?: Principal | undefined;
     admit?: ((item: unknown) => Promise<boolean>) | undefined;
 }
