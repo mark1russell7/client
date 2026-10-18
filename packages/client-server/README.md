@@ -146,7 +146,9 @@ await svc.run();
 
 ### Creating a Server Peer
 
-A peer is a procedures host outside a service: `createPeer()` builds it with `createProcedureHost()`, starts its parts, and `stop()` stops them in the sequence of the stages. A peer has one token, and it starts one time.
+`createPeer()` is for a process that has no service of its own: a test, or a host that a procedure starts (`server.create`). The peer builds a host with `createProcedureHost()`, declares its parts in a service of its own, and starts `run()` of `@mark1russell7/service` on a process port that installs no signal handler and never ends the process. `stop()` asks that lifecycle for its shutdown. A process that has a service of its own uses `createProcedureHost()` and `host.declare(svc)` in place of a peer.
+
+A peer has one token, and it starts one time. The WebSocket face refuses an upgrade that the server does not admit: 401 without the token or for a refusal of the request hook, and 403 for a failed browser check.
 
 ```typescript
 import { createPeer } from "@procedures/peer";

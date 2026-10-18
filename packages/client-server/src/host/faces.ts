@@ -18,7 +18,7 @@
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import type { TransportImpl } from "@mark1russell7/service";
-import { Client, type BrowserGuardOptions, type Clock, type HostPolicy, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
+import { Client, requestCredentials, type BrowserGuardOptions, type Clock, type HostPolicy, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
 import { procedureHandler, upgradeHandler, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
 import type { FaceHandler } from "./tracking.js";
 
@@ -91,13 +91,20 @@ export function httpFace(options: ProcedureHandlerOptions = {}): HostFaceFactory
 
 /**
  * This function gives the WebSocket face: `upgradeHandler` of `@procedures/client/node`, at
- * `options.path` (default `/ws`). Its stop parts refuse new calls at the stop of the intake. In
- * the drain, each connection closes when its calls end, so the drain of the listener does not
- * wait for an idle connection.
+ * `options.path` (default `/ws`).
+ *
+ * - The upgrade: a failed browser check gets 403. A connection that the server does not admit
+ *   gets 401: the token check and the request hook of each call run on the credentials of the
+ *   upgrade (`ProcedureServer.admits`). Thus no idle connection without credentials stays open.
+ * - The stop parts refuse new calls at the stop of the intake. In the drain, each connection
+ *   closes when its calls end, so the drain of the listener does not wait for an idle connection.
  */
 export function wsFace(options: UpgradeHandlerOptions = {}): HostFaceFactory {
   return (context) => {
-    const upgrade = upgradeHandler(context.handler, { ...browserOptions(context.policy.browser, false), ...options });
+    const { server } = context;
+    const admits = (req: IncomingMessage): Promise<boolean> =>
+      server.admits(requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }, { tokenQuery: "token" }));
+    const upgrade = upgradeHandler(context.handler, { ...browserOptions(context.policy.browser, false), authenticate: admits, ...options });
     const transport = upgrade.transport;
     return {
       upgrade: { match: upgrade.path, handler: upgrade },

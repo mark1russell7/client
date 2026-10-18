@@ -1,18 +1,24 @@
 /**
  * Peer Module
  *
- * A peer is a procedures host that runs outside a service (CLI-7). `createPeer()` builds it with
- * `createProcedureHost()`: each HTTP or WebSocket transport of the options is a face on a listener
- * of the host, and the listener is an `httpTransport` of `@mark1russell7/service/http`. The peer
- * starts the parts, and `stop()` calls them in the sequence of the stages.
+ * A peer is a procedures host with a service of its own (CLI-7), for a process that has no service
+ * of its own: a test, or a host that a procedure starts (`server.create`). `createPeer()` builds it
+ * with `createProcedureHost()`: each HTTP or WebSocket transport of the options is a face on a
+ * listener of the host, and the listener is an `httpTransport` of `@mark1russell7/service/http`.
  *
- * A process under `run()` declares the parts of `createProcedureHost()` in place of a peer
- * (decision D2). The peer has no listener, URL strategy, `/health` route or token check of its own.
+ * - `start()` declares the parts in a service and starts `run()` of `@mark1russell7/service`, on
+ *   a process port that installs no signal handler and never ends the process.
+ * - `stop()` asks the lifecycle for its shutdown, and waits for the end of its stages.
+ *
+ * A process that has a service of its own declares the parts of `createProcedureHost()` with
+ * `host.declare(svc)`, in place of a peer (decision D2). The peer has no listener, URL strategy,
+ * `/health` route or token check of its own.
  */
 
+import { daemon, service, type Lifecycle, type ProcessPort, type Profile } from "@mark1russell7/service";
 import {
   hostPolicy,
-  realClock,
+  seconds,
   type BrowserGuardOptions,
   type Client,
   type HostPolicy,
@@ -23,8 +29,7 @@ import {
 } from "@procedures/client";
 import { defaultServerUrlStrategy, rpcServerUrlStrategy, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
 import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
-import { createProcedureHost, httpFace, LOCAL_LISTENER_KNOBS, wsFace, type HostFaceFactory, type HostListener, type ProcedureHost } from "../host/index.js";
-import { runOutsideService, type OutsideRun } from "../host/outside.js";
+import { createProcedureHost, httpFace, LOCAL_LISTENER_KNOBS, wsFace, type HostFaceFactory, type HostListener, type ProcedureHost, type ProcedureHostOptions } from "../host/index.js";
 import { originAllowed } from "./security.js";
 
 // =============================================================================
@@ -54,6 +59,8 @@ export interface PeerOptions {
    * token of the policy.
    */
   policy?: HostPolicy | undefined;
+  /** The profile of the service of the peer. The default is `PEER_PROFILE`. */
+  profile?: Profile | undefined;
 }
 
 export interface PeerEndpoint {
@@ -66,7 +73,12 @@ export interface Peer {
   id: string;
   /** This method starts the parts of the host. A peer starts one time. */
   start(): Promise<void>;
-  /** Stop the peer. With `grace`, the calls in flight have that time to end (roadmap R14). */
+  /**
+   * This method asks the lifecycle of the peer for its shutdown, and waits for the end of its stages.
+   *
+   * @param options - Deprecated: the grace has no effect. The drain of the profile of the peer gives
+   *   the calls in flight their time (CLI-7).
+   */
   stop(options?: StopOptions): Promise<void>;
   /** Get active endpoints */
   getEndpoints(): PeerEndpoint[];
@@ -152,55 +164,101 @@ function facesOf(transports: readonly TransportConfig[], browser: BrowserGuardOp
   return { faces, listen: listeners.map((listener) => ({ ...listener, knobs: LOCAL_LISTENER_KNOBS })) };
 }
 
+/**
+ * This function gives the options of a procedures host for the options of a peer: each HTTP or
+ * WebSocket transport is a face on a listener with `LOCAL_LISTENER_KNOBS`, and the peer has one
+ * token. `createPeer()` uses it, and so does `runProcedureHost()` of `@procedures/server` (CLI-8).
+ */
+export function peerHostOptions(options: PeerOptions, name: string = "peer"): ProcedureHostOptions {
+  const policy = peerPolicy(options);
+  const { faces, listen } = facesOf(options.transports, policy.browser);
+  const local = options.transports.some((transport) => transport.type === "local");
+  return {
+    name,
+    id: options.id,
+    policy,
+    faces,
+    listen,
+    autoRegister: options.autoRegister ?? true,
+    ...(options.registry ? { registry: options.registry } : {}),
+    ...(options.expose ? { expose: options.expose } : {}),
+    ...(options.metrics !== undefined ? { metrics: options.metrics } : {}),
+    ...(local ? { endpoints: [{ type: "local", address: "local://in-process" }] } : {}),
+  };
+}
+
+/** The cap of the stage `drain` of the profile `daemon`. */
+const DAEMON_DRAIN = daemon.phases?.find((phase) => phase.name === "drain")?.cap ?? seconds(4);
+
+/**
+ * The profile of the service of a peer, as data: the caps of `daemon`, and the cooperative abort at
+ * the start of the drain. Thus `stop()` aborts the calls in flight at once, as `stop()` without a
+ * grace did before (CLI-7). A repeat signal has no effect, and the port of a peer has no signal.
+ */
+export const PEER_PROFILE: Profile = Object.freeze({ ...daemon, cooperativeWindow: DAEMON_DRAIN, cooperativeFloor: "none" as const });
+
+/**
+ * The process port of the service of a peer: it installs no signal handler, its exit only records
+ * the code, and it never holds or ends the process. The process of a peer has its own lifecycle.
+ *
+ * TODO(SYS-27): return `embeddedProcess()` of `@mark1russell7/service` 0.5.2 when it is on npm.
+ */
+function embeddedPort(): ProcessPort & { readonly exitCode: number | null } {
+  let exitCode: number | null = null;
+  return {
+    on: () => () => undefined,
+    exit: (code: number) => {
+      exitCode = code;
+    },
+    get exitCode() {
+      return exitCode;
+    },
+  };
+}
+
 class PeerImpl implements Peer {
   readonly id: string;
   private readonly host: ProcedureHost;
-  private readonly run: OutsideRun;
-  /** True when the options have a local transport: `local://in-process` is an endpoint */
-  private readonly local: boolean;
+  private readonly profile: Profile;
+  private life: Lifecycle | undefined;
   private state: "new" | "started" | "stopped" = "new";
 
   constructor(options: PeerOptions) {
     this.id = options.id;
-    const policy = peerPolicy(options);
-    const { faces, listen } = facesOf(options.transports, policy.browser);
-    this.local = options.transports.some((transport) => transport.type === "local");
-    this.host = createProcedureHost({
-      name: "peer",
-      id: options.id,
-      policy,
-      faces,
-      listen,
-      autoRegister: options.autoRegister ?? true,
-      ...(options.registry ? { registry: options.registry } : {}),
-      ...(options.expose ? { expose: options.expose } : {}),
-      ...(options.metrics !== undefined ? { metrics: options.metrics } : {}),
-      ...(this.local ? { endpoints: [{ type: "local", address: "local://in-process" }] } : {}),
-    });
-    this.run = runOutsideService(this.host, realClock);
+    this.host = createProcedureHost(peerHostOptions(options));
+    this.profile = options.profile ?? PEER_PROFILE;
   }
 
   async start(): Promise<void> {
     if (this.state === "started") return;
     if (this.state === "stopped") throw new Error("This peer stopped. A peer starts one time: create a new peer.");
-    try {
-      await this.run.start();
-    } catch (error) {
-      // The parts that started are closed again, so a failed start leaves no port open
-      this.state = "stopped";
-      throw error;
-    }
     this.state = "started";
+    const svc = this.host.declare(service(this.id).profile(this.profile));
+    // No check gates the policies of a peer: it is ready from the end of its startup
+    if (!this.profile.readiness) svc.readiness({ type: "debounce", interval: seconds(5), failAfter: 3, recoverAfter: 1 });
+    if (!this.profile.liveness) svc.liveness({ type: "window", failAfter: seconds(45) });
+    if (!this.profile.startup) svc.startup(seconds(30));
+    if (!this.profile.onRepeatSignal) svc.onRepeatSignal("ignore");
+    const life = await svc.run({ process: embeddedPort() });
+    if (life.state !== "running") {
+      // The startup failed: the lifecycle stops the parts that started, so no port stays open
+      this.state = "stopped";
+      await life.done;
+      throw new Error(life.errors.join("; ") || "The peer did not start");
+    }
+    this.life = life;
   }
 
-  async stop(options: StopOptions = {}): Promise<void> {
-    if (this.state !== "started") return;
+  async stop(_options: StopOptions = {}): Promise<void> {
+    const life = this.life;
+    if (this.state !== "started" || life === undefined) return;
     this.state = "stopped";
-    await this.run.stop(options.grace !== undefined ? { grace: options.grace } : {});
+    await life.shutdown("the peer stops");
+    await life.done;
   }
 
   getEndpoints(): PeerEndpoint[] {
-    if (this.state !== "started") return [];
+    if (this.state !== "started" || this.life === undefined) return [];
     return this.host.info.endpoints().map((endpoint) => ({ type: endpoint.type as TransportType, address: endpoint.address }));
   }
 
@@ -226,7 +284,8 @@ class PeerImpl implements Peer {
 // =============================================================================
 
 /**
- * Create a new peer instance: a procedures host that runs outside a service.
+ * Create a new peer instance: a procedures host with a service of its own, for a process that has
+ * no service of its own. A process with a service uses `createProcedureHost()` and `host.declare(svc)`.
  */
 export async function createPeer(options: PeerOptions): Promise<Peer> {
   return new PeerImpl(options);

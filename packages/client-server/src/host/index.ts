@@ -208,14 +208,6 @@ export interface ProcedureHost {
   clientFor(connectionId: string): Client;
 }
 
-/**
- * The lifecycle that a host gets when it runs outside a service (`createPeer`). The host then
- * tracks no request: each call goes to the server directly.
- *
- * @internal
- */
-export const OUTSIDE_SERVICE: unique symbol = Symbol("procedures host outside a service");
-
 /** The face factory of a name and its value in the options. */
 function factoryOf(name: string, value: ProcedureHostFaces[string]): HostFaceFactory | undefined {
   if (value === undefined || value === false) return undefined;
@@ -241,7 +233,7 @@ const STORAGE_OPERATIONS: Readonly<Record<string, Operation>> = Object.freeze({ 
 
 /**
  * This function builds a procedures host. It starts nothing: the service of the process starts
- * its parts (`host.declare(svc)` and `run()`), or `createPeer()` starts them for a host outside a service.
+ * its parts (`host.declare(svc)` and `run()`). `createPeer()` declares them in a service of its own.
  *
  * @example
  * ```typescript
@@ -283,7 +275,7 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     if (procedures !== false) server.registerCollectionProcedures(collection, procedures === true || procedures === undefined ? undefined : procedures);
   }
 
-  // The lifecycle of the service, from the start of the part of the server. Without it, no tracking.
+  // The lifecycle of the service, from the start of the part of the server. Before it, no tracking.
   let life: Lifecycle | null = null;
   const idempotency = options.serverOptions?.idempotency;
   const keyedWindowMs = idempotency === false ? undefined : (optionalMs(idempotency?.ttl, "idempotency.ttl") ?? TIMER_DEFAULTS.idempotency.ttlMs);
@@ -370,7 +362,7 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     knobs: {},
     impl: {
       start: (_signal, lifecycle) => {
-        life = (lifecycle as unknown as Record<symbol, unknown>)[OUTSIDE_SERVICE] === true ? null : lifecycle;
+        life = lifecycle;
         return server.start();
       },
       stopIntake: () => server.stopIntake(),
