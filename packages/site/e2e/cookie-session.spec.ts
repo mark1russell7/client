@@ -124,8 +124,9 @@ async function callFromPage(page: import("@playwright/test").Page, credentials?:
 }
 
 test("HttpTransport with credentials \"include\" sends the cookie of another origin, and the server reads it", async ({ page, context }) => {
-  // The cookie of the procedure server. A cookie names no port, so localhost has one jar.
-  await context.addCookies([{ name: "session", value: "s-1", domain: "localhost", path: "/", sameSite: "Lax" }]);
+  // The cookie of the procedure server: a cookie of the host localhost. A cookie names no port, so
+  // the page origin and the server origin share it, and only the mode of fetch decides.
+  await context.addCookies([{ name: "session", value: "s-1", url: apiOrigin, sameSite: "Lax" }]);
   await page.goto(pageOrigin);
   await expect(page.locator("body")).toHaveText("cookie session");
 
