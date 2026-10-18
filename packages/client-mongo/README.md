@@ -666,7 +666,7 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 | `maxTombstones` | The most deletes that the change log keeps in each partition (default 10000) |
 | `queryPolicy` | The query policy of `query()` without a policy of the call |
 | `counters` | The collection of the sequence counters (default `__storage_counters`) |
-| `writeLeaseMs` | The time after which a pending number of a write that stopped no longer holds the readers (default 60000) |
+| `writeLease` | The time after which a pending number of a write that stopped no longer holds the readers (default `seconds(60)`). A plain number is a `TypeError`. |
 | `client` | The client of the database, for the transactions. The default is the client of the default connection when `db` is absent. |
 | `transactions` | `auto` (the default): a transaction for each write on a replica set or a sharded cluster. `never`: the watermark only. |
 
@@ -697,7 +697,7 @@ const { pipeline: bounded, limited } = boundPipeline(scoped, 5000);
 - Only the stages of `ALLOWED_PIPELINE_STAGES` pass, so a stage of the server is refused, also a stage that a later MongoDB adds. `$documents` is refused. The JavaScript operators of the server (`$function`, `$accumulator`, `$where`) are refused at each depth.
 - A stage must have exactly one key, and a `$unset` of a field of the scope is refused.
 - The function does not change the pipeline of the caller.
-- `MongoDocumentStorage.aggregate(pipeline, { maxTimeMS, maxResults })` is read-only, reads only its own collection, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are 10000 ms and 5000 documents.
+- `MongoDocumentStorage.aggregate(pipeline, { maxTime, maxResults })` is read-only, reads only its own collection, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are `seconds(10)` and 5000 documents. `maxTime` is a duration of `@procedures/client`.
 
 ## Integration with Ecosystem
 

@@ -27,7 +27,7 @@
  *   write takes its numbers and writes in one transaction, so the numbers become visible in their
  *   order. On a single server, a watermark does it: each write keeps its numbers pending in the
  *   counter document until it ends, and a version stops below the lowest pending number. A
- *   pending number of a writer that stopped expires after `writeLeaseMs`. A write that ends after
+ *   pending number of a writer that stopped expires after `writeLease`. A write that ends after
  *   its lease moves its documents to new numbers, so a reader that passed the old numbers gets
  *   it. One case stays on a single server: a process that stops between such a late write and the
  *   move of its documents. Then a reader that passed the old numbers does not get that change.
@@ -54,6 +54,7 @@ import {
   type StorageSelector,
   type StorageWriteOptions,
 } from "@procedures/collections";
+import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
 import { boundPipeline, cutResults, DEFAULT_PIPELINE_LIMITS, scopePipeline, type PipelineLimits } from "./pipeline-scope.js";
 
@@ -86,10 +87,10 @@ export interface MongoDocumentStorageOptions {
   /** The collection of the sequence counters (default `__storage_counters`). */
   counters?: string | undefined;
   /**
-   * The time in milliseconds after which a pending number of a write no longer holds the watermark
-   * (default 60000): a writer that stopped does not stop the change reads.
+   * The time after which a pending number of a write no longer holds the watermark (default 60 s):
+   * a writer that stopped does not stop the change reads. A plain number is a `TypeError`.
    */
-  writeLeaseMs?: number | undefined;
+  writeLease?: Duration | undefined;
   /**
    * The client of the database, for the transactions. The default is the client of the default
    * connection when `db` is absent. Without a client, the writes use the watermark.
@@ -277,8 +278,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     this.maxTombstones = options.maxTombstones ?? 10_000;
     if (!Number.isSafeInteger(this.maxTombstones) || this.maxTombstones < 0) throw new Error("maxTombstones must be a whole number of 0 or more");
     this.countersName = options.counters ?? "__storage_counters";
-    this.writeLeaseMs = options.writeLeaseMs ?? 60_000;
-    if (!Number.isSafeInteger(this.writeLeaseMs) || this.writeLeaseMs < 1) throw new Error("writeLeaseMs must be a whole number of 1 or more");
+    this.writeLeaseMs = Math.round(optionalMs(options.writeLease, "writeLease") ?? 60_000);
+    if (!Number.isSafeInteger(this.writeLeaseMs) || this.writeLeaseMs < 1) throw new Error("writeLease must be 1 ms or more");
     this.partitions = partitions ?? new Map();
   }
 
@@ -613,9 +614,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
    */
   async aggregate(pipeline: readonly Document[], limits: PipelineLimits = {}): Promise<{ docs: Document[]; truncated: boolean }> {
     const maxResults = limits.maxResults ?? DEFAULT_PIPELINE_LIMITS.maxResults;
-    const maxTimeMS = limits.maxTimeMS ?? DEFAULT_PIPELINE_LIMITS.maxTimeMS;
+    const maxTimeMS = Math.round(toMs(limits.maxTime ?? DEFAULT_PIPELINE_LIMITS.maxTime, "maxTime"));
     if (!Number.isSafeInteger(maxResults) || maxResults < 1) throw new Error("maxResults must be a whole number of 1 or more");
-    if (!Number.isSafeInteger(maxTimeMS) || maxTimeMS < 1) throw new Error("maxTimeMS must be a whole number of 1 or more");
+    if (!Number.isSafeInteger(maxTimeMS) || maxTimeMS < 1) throw new Error("maxTime must be 1 ms or more");
     // The pipeline reads only this collection: another collection needs its own right
     const scopedPipeline = scopePipeline(pipeline, { match: { ...this.partitionFilter(), [TOMB]: { $ne: true } }, collections: [this.collectionName] });
     const bounded = boundPipeline(scopedPipeline, maxResults);
