@@ -192,6 +192,9 @@ export class UndoLog {
    * It reads and checks each item before the first write. A refused undo writes nothing, and its
    * entries stay in the log.
    *
+   * A change by another writer between that read and the write of the undo is still overwritten. A
+   * storage with versions can close that window later with a conditional write.
+   *
    * @throws UndoConflictError when an item changed after its recorded change
    * @throws Error when the log has no storage for a collection
    */
