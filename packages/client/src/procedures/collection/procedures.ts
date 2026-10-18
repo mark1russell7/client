@@ -393,7 +393,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       output: patchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
-        description: `Merge fields into one item of ${collectionName}: a JSON Merge Patch, or the operations $set and $unset`,
+        description: `Merge fields into one item of ${collectionName}: a JSON Merge Patch, or the operations $set, $unset, $remove and $insert`,
         tags: ["collections", collectionName, "write"],
       },
       handler: async (input: PatchInput & PartitionInput, ctx: ProcedureContext) => {

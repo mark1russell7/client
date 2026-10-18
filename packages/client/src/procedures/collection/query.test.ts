@@ -385,8 +385,8 @@ describe("applyPatch(): the two forms of a patch", () => {
     expect(patchProblems({ a: 1, $b: undefined })).toEqual([]);
     expect(patchProblems({ $set: { "a.b": 1, c: null }, $unset: ["d"] })).toEqual([]);
     for (const fields of [null, [], "x", 1, undefined]) expect(patchProblems(fields)).toEqual(["the fields of a patch must be an object"]);
-    expect(patchProblems({ $set: { a: 1 }, b: 2 })).toEqual(["the patch mixes operations and fields: give { $set, $unset }, or only fields (a JSON Merge Patch)"]);
-    expect(patchProblems({ $inc: { a: 1 } })).toEqual(["the patch operation $inc is not known: use $set and $unset"]);
+    expect(patchProblems({ $set: { a: 1 }, b: 2 })).toEqual(["the patch mixes operations and fields: give operations ($set, $unset, $remove, $insert), or only fields (a JSON Merge Patch)"]);
+    expect(patchProblems({ $inc: { a: 1 } })).toEqual(["the patch operation $inc is not known: use $set, $unset, $remove and $insert"]);
     expect(patchProblems({ $set: [1] })).toEqual(["$set takes an object of field paths and values"]);
     expect(patchProblems({ $unset: "a" })).toEqual(["$unset takes a list of field paths"]);
     expect(patchProblems({ $unset: ["a", 1] })).toEqual(["$unset takes a list of field paths"]);
@@ -396,5 +396,63 @@ describe("applyPatch(): the two forms of a patch", () => {
     expect(patchProblems({ $set: { "a.b": 1 }, $unset: ["a.b"] })).toEqual(["the field paths a.b and a.b of the patch overlap"]);
     expect(patchProblems({ $set: { ab: 1 }, $unset: ["a"] })).toEqual([]);
     expect(() => applyPatch({}, { $set: { a: 1 }, b: 2 })).toThrow(TypeError);
+  });
+});
+
+describe("applyPatch(): $remove and $insert move the elements of an array (JSON Patch, RFC 6902)", () => {
+  it("$remove takes elements out of an array, and removes the fields of an object as $unset", () => {
+    const value = { list: ["a", "b", "c", "d"], meta: { kind: "k", score: 1 }, rows: [{ n: 1 }, { n: 2 }] };
+    expect(applyPatch(value, { $remove: ["list.1"] })).toEqual({ ...value, list: ["a", "c", "d"] });
+    expect(applyPatch(value, { $remove: ["meta.score", "rows.0.n"] })).toEqual({ ...value, meta: { kind: "k" }, rows: [{}, { n: 2 }] });
+    expect(applyPatch(value, { $remove: ["list.9", "missing.0", "meta.none"] })).toEqual(value);
+    expect(value.list).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("each index of one patch refers to the item before the patch", () => {
+    const value = { list: ["a", "b", "c", "d", "e"] };
+    expect(applyPatch(value, { $remove: ["list.1", "list.3"] })).toEqual({ list: ["a", "c", "e"] });
+    expect(applyPatch(value, { $remove: ["list.3", "list.1"] })).toEqual({ list: ["a", "c", "e"] });
+    expect(applyPatch(value, { $insert: { "list.1": "x", "list.3": "y" } })).toEqual({ list: ["a", "x", "b", "c", "y", "d", "e"] });
+    expect(applyPatch(value, { $set: { "list.3": "D" }, $remove: ["list.0"] })).toEqual({ list: ["b", "c", "D", "e"] });
+    expect(applyPatch(value, { $unset: ["list.4"], $insert: { "list.0": "z" } })).toEqual({ list: ["z", "a", "b", "c", "d", null] });
+  });
+
+  it("a deeper path refers to the item before the patch too", () => {
+    const value = { rows: [{ tags: ["a", "b"] }, { tags: ["c", "d"] }] };
+    expect(applyPatch(value, { $remove: ["rows.0", "rows.1.tags.0"] })).toEqual({ rows: [{ tags: ["d"] }] });
+    expect(applyPatch(value, { $insert: { "rows.0": { tags: [] }, "rows.1.tags.2": "e" } })).toEqual({
+      rows: [{ tags: [] }, { tags: ["a", "b"] }, { tags: ["c", "d", "e"] }],
+    });
+  });
+
+  it("$insert adds an element at an index, also at the end, and refuses other places", () => {
+    const value = { list: [1, 2], meta: { kind: "k" } };
+    expect(applyPatch(value, { $insert: { "list.0": 0 } })).toEqual({ ...value, list: [0, 1, 2] });
+    expect(applyPatch(value, { $insert: { "list.2": 3 } })).toEqual({ ...value, list: [1, 2, 3] });
+    expect(applyPatch(value, { $insert: { "list.1": { a: [null] } } })).toEqual({ ...value, list: [1, { a: [null] }, 2] });
+    expect(() => applyPatch(value, { $insert: { "list.3": 3 } })).toThrow("The patch cannot insert at list.3: list has 2 elements");
+    expect(() => applyPatch(value, { $insert: { "meta.0": 1 } })).toThrow("The patch cannot insert at meta.0: meta is not an array");
+    expect(() => applyPatch(value, { $insert: { "missing.0": 1 } })).toThrow("The patch cannot insert at missing.0: the item has no field missing");
+    expect(() => applyPatch(value, { $insert: { "none.list.0": 1 } })).toThrow("The patch cannot insert at none.list.0: the item has no field none");
+    expect(() => applyPatch(value, { $insert: { "list.5.x.0": 1 } })).toThrow("The patch cannot insert at list.5.x.0: list has no element 5");
+    expect(value.list).toEqual([1, 2]);
+  });
+
+  it("an $insert is the inverse of a $remove", () => {
+    const value = { list: ["a", "b", "c"] };
+    const removed = applyPatch(value, { $remove: ["list.1"] });
+    expect(applyPatch(removed, { $insert: { "list.1": "b" } })).toEqual(value);
+  });
+
+  it("patchProblems() refuses the patches that $remove and $insert cannot apply", () => {
+    expect(patchProblems({ $remove: ["a.0"], $insert: { "b.1": 1 } })).toEqual([]);
+    expect(patchProblems({ $remove: "a" })).toEqual(["$remove takes a list of field paths"]);
+    expect(patchProblems({ $insert: ["a.0"] })).toEqual(["$insert takes an object of field paths and values"]);
+    expect(patchProblems({ $insert: { "a.b": 1 } })).toEqual(['$insert: the field path "a.b" does not end with an index']);
+    expect(patchProblems({ $remove: ["list.0"], $insert: { "list.2": 1 } })).toEqual(["the patch removes and inserts elements of the same array list"]);
+    expect(patchProblems({ $remove: ["rows.1"], $set: { "rows.1.n": 2 } })).toEqual(["the field paths rows.1.n and rows.1 of the patch overlap"]);
+    expect(patchProblems({ $insert: { "list.1": 1 }, $unset: ["list.1"] })).toEqual(["the field paths list.1 and list.1 of the patch overlap"]);
+    expect(patchProblems({ $remove: ["list.1", "list.10"] })).toEqual([]);
+    expect(() => applyPatch({ list: [1] }, { $remove: ["list.0"], $insert: { "list.0": 2 } })).toThrow(TypeError);
   });
 });

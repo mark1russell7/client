@@ -940,6 +940,35 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
+  add("patch() with $remove and $insert moves the elements of an array, and each index refers to the item before the patch", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "patch", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.set("a", { id: "a", tags: ["a", "b", "c", "d"], rows: [{ n: 1, keys: ["x"] }, { n: 2, keys: ["y"] }], meta: { kind: "k1" } });
+      same(
+        await storage.patch!("a", { $remove: ["tags.1", "tags.3", "meta.kind"], $insert: { "rows.1.keys.0": "w" } }),
+        { id: "a", tags: ["a", "c"], rows: [{ n: 1, keys: ["x"] }, { n: 2, keys: ["w", "y"] }], meta: {} },
+        "patch() with $remove and $insert",
+      );
+      same(
+        await storage.patch!("a", { $insert: { "tags.0": "z", "tags.2": "e" }, $remove: ["rows.0", "missing.0"], $set: { "rows.1.n": 3 } }),
+        { id: "a", tags: ["z", "a", "c", "e"], rows: [{ n: 3, keys: ["w", "y"] }], meta: {} },
+        "patch() that inserts at the start and at the end, and removes a missing path",
+      );
+      const after = { id: "a", tags: ["z", "a", "c", "e"], rows: [{ n: 3, keys: ["w", "y"] }], meta: {} };
+      const wrong: Array<[string, unknown]> = [
+        ["a $remove that is not a list of paths", { $remove: "tags" }],
+        ["an $insert path that does not end with an index", { $insert: { "meta.kind": 1 } }],
+        ["a $remove and an $insert in the same array", { $remove: ["tags.0"], $insert: { "tags.1": "q" } }],
+        ["a path under a removed element", { $remove: ["rows.0"], $set: { "rows.0.n": 4 } }],
+        ["an $insert past the end of an array", { $insert: { "tags.9": "q" } }],
+        ["an $insert into a value that is not an array", { $insert: { "meta.0": "q" } }],
+      ];
+      for (const [what, fields] of wrong) await rejects(() => storage.patch!("a", fields as never), `patch() with ${what}`);
+      same(await storage.get("a"), after, "get() after the patches that were not correct");
+    }),
+  );
+
   add("patch() runs in one step: patches of one item at the same time keep each field", (context) =>
     withStorage(create, async (typed) => {
       if (lacks(typed, "patch", context)) return;

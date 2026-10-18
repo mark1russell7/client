@@ -172,8 +172,9 @@ export interface CollectionStorage<T> {
   /**
    * This method changes one item in one step. The fields are a JSON Merge Patch (RFC 7386): each
    * field replaces the field of the item, an object field merges into an object field, and `null`
-   * removes the field. Or they are the operations `{ $set, $unset }`: `$set` can set `null` and
-   * nested field paths. Two patches of one item at the same time keep the fields of each. A storage
+   * removes the field. Or they are the operations `{ $set, $unset, $remove, $insert }`: `$set` can
+   * set `null` and nested field paths, and `$remove` and `$insert` move the elements of arrays.
+   * Two patches of one item at the same time keep the fields of each. A storage
    * without this method cannot change an item in one step.
    *
    * @param id - Item identifier
