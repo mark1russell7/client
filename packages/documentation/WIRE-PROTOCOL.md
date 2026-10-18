@@ -82,7 +82,7 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 
 ### The request
 
-- The method is `POST`. The URL is `{base}/{service}/{operation}`, for example `/api/docker.compose/up`.
+- The method is `POST`. The URL is `{base}/{service}/{operation}`, for example `/api/docker.compose/up`. This is the default addressing (refer to "The addressing of a request").
 - The body is the input of the procedure as JSON. Each JSON value is valid: an object, an array, a number, a string, `true`, `false` or `null`.
 - `Content-Type: application/json`.
 - `Accept: application/x-ndjson, application/json`. A client without NDJSON gets the last item of a stream as JSON.
@@ -91,6 +91,20 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 - `Authorization: Bearer <token>`, when the server has a token.
 - `traceparent`, when the call has a trace.
 - `Procedure-Narrowing`, when the call asks for a narrower capability (refer to "The narrowing key").
+- An `OPTIONS` request gets the status 204 with no body, and no procedure starts for it. With CORS, the response also has the CORS headers. The Express shim `HttpServerTransport` without CORS gives an `OPTIONS` request to the procedures, as before.
+
+### The credentials of a request
+
+The server reads the credentials of each network request. They go to the request hook `principalOf` and to the token check, not into the metadata.
+
+- The bearer token of the header `Authorization: Bearer <token>`.
+- The cookies of the header `Cookie`, by name. The server decodes each URI-encoded value. When two cookies have the same name, the first one applies.
+- Each header, by its lower-case name, the secret headers too.
+- The first value of each query parameter.
+- The secret headers stay out of the metadata: `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key` and the names of the option `secretHeaders`.
+- The secret query parameters stay out of the metadata too. For `procedureHandler`, the default of the option `secretQuery` is `["token"]`. For `HttpServerTransport`, the default is no parameter.
+- The request hook can give the bearer token from a cookie, a header or the query, for example `?token=<token>`. A WebSocket connection gives the credentials of its upgrade to each call, and its `?token=` query is a bearer token.
+- A request from this process has no credentials, so the request hook and the token check do not apply to it.
 
 ### The addressing of a request
 

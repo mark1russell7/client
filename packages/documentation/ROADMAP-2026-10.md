@@ -658,8 +658,8 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-26 | Runner | The cold mode of `mark` starts the same host in the process under `run()` | M | blocked | CLI-8, SYS-16, SYS-7 | Client session | — |
 | CLI-27 | Runner | An optional auto-warm: the background host starts after a cold command | S | later | CLI-26 | Client session | — |
 | CLI-28 | HTTP host | Procedure paths of each length on each face | M | open | — | Client session | — |
-| CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | in progress | CLI-2a | Client session | `server-stack/narrowing` |
-| CLI-31 | HTTP host | An addressing hook: from the request and the body to the method and the payload | S | in progress | CLI-3 | Client session | `server-stack/narrowing` |
+| CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | in progress | CLI-2a | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
+| CLI-31 | HTTP host | An addressing hook: from the request and the body to the method and the payload | S | in progress | CLI-3 | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
 | CLI-32 | Streams | A batch: one request with several calls, and one stream of tagged results | M | later | — | Client session | — |
 | CLI-33 | CI | The client owns its procedures test subject for the harness of `systems` | M | blocked | SYS-17 | Client session | — |
 | CI-2 | CI | Client CI: an end-to-end test of the host lifecycle, and checks of the entry purity | M | open | — | Client session | — |
@@ -667,7 +667,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | DOC-2 | Docs | Correct the stale storage docs, and record the server-stack items in this roadmap | S | in progress | — | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
 | DOC-3 | Docs | Link the cross-repo tracker and the layer contract from `CLAUDE.md` and this roadmap | S | in progress | DOC-1 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
 | DOC-4 | Docs | A migration note in each MINOR, and a deprecation one release before the break | S | in progress | D13 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
-| DOC-6 | Docs | `WIRE-PROTOCOL.md`: the narrowing key, the addressing hook, `procedureHandler` and the reasons of the browser checks | S | in progress | CLI-30, CLI-31 | Client session | `server-stack/narrowing` |
+| DOC-6 | Docs | `WIRE-PROTOCOL.md`: the narrowing key, the addressing hook, `procedureHandler`, `OPTIONS`, the credentials of a request and the reasons of the browser checks | S | in progress | CLI-30, CLI-31 | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
 | REL-2 | Releases | Release the additive pieces of the server stack as a PATCH of the client group | S | blocked | CLI-2a, CLI-3, CLI-10, D13 | markt-54 and Mark | — |
 
 - These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11 and CLI-16. Each one is its own MINOR of the client group (D13).
