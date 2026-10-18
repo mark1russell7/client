@@ -3,7 +3,7 @@
 "@procedures/peer": minor
 ---
 
-The expose rule of a server applies to each procedure that it serves, also to each procedure that it pins (server stack CLI-47). Only an explicit `alwaysOn` pin is outside the rule. This change is a break of the server stack, thus it is its own MINOR (decision D13).
+The expose rule of a server applies to each procedure that it serves, also to each procedure that it pins (server stack CLI-47). Only an explicit `alwaysOn` pin is outside the rule. This change is a break of the server stack, thus it is its own MINOR (decision D13). No 0.12 release marks the old behavior as deprecated, because no host relies on it. A deprecation release keeps the bypass open for one more release.
 
 Before, `ProcedureServer` examined the expose rule only for a procedure of its registry. A procedure that `registerProcedure()` or `registerProcedures()` pinned was outside the rule. The collection procedures of `registerCollectionProcedures()` and of the option `collections` of `createProcedureHost()` are pins, so the rule did not hide them. For example, `hostPolicy({ exclude: ["collections.examples.clear"] })` had no effect on a call of `collections.examples.clear`.
 
