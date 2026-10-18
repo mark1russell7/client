@@ -112,6 +112,7 @@ node packages/mark/dist/cli.js lib importCycles packages/web/src
 - For Angular, give `diDecorators` the value of `ANGULAR_DI_DECORATORS`. The class of such a decorator keeps the types of its constructor parameters at runtime.
 - The default `exclude` leaves out `node_modules`, the declarations and the tests.
 - `limits` keeps a call small: `maxFiles` (default 20000) refuses a folder with more files before a read, and `maxFileBytes` (default 1 MiB) skips a larger file. The result lists each skipped file in `skipped`.
+- The defaults are the ceiling. A caller can give lower limits, and the input refuses a higher value.
 - An abort of the call stops the reads and the analysis.
 - `importCycles(sources, options)` and `importGraph(sources, options)` take the sources as text, for a caller that reads its own files.
 - `findCycles` keeps its own stack, so a long chain of imports does not overflow the call stack.

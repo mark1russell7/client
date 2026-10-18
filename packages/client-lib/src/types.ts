@@ -492,11 +492,11 @@ export const LibImportCyclesInputSchema: z.ZodType<LibImportCyclesInput> = z.obj
   exclude: z.array(z.string()).optional().describe("The glob patterns of the files to leave out (default: node_modules, declarations and tests)"),
   limits: z
     .object({
-      maxFiles: z.number().int().positive().optional().describe("The most files of the call (default 20000). A call with more files is refused before it reads a file."),
-      maxFileBytes: z.number().int().positive().optional().describe("The largest file that the call reads, in bytes (default 1 MiB). The result lists each larger file."),
+      maxFiles: z.number().int().positive().max(20_000).optional().describe("The most files of the call: 20000 at most, and the default. A call with more files is refused before it reads a file."),
+      maxFileBytes: z.number().int().positive().max(1024 * 1024).optional().describe("The largest file that the call reads, in bytes: 1 MiB at most, and the default. The result lists each larger file."),
     })
     .optional()
-    .describe("Lower limits than the defaults"),
+    .describe("Lower limits than the defaults. A higher value is refused."),
 });
 
 export const LibImportCyclesOutputSchema: z.ZodType<LibImportCyclesOutput> = z.looseObject({

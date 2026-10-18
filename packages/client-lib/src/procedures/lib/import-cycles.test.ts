@@ -103,6 +103,19 @@ describe("lib.importCycles", () => {
     }
   });
 
+  it("refuses a limit above the ceiling: a caller can only narrow the limits", async () => {
+    const f = folder({ "a.ts": "export const a = 1;" });
+    try {
+      await expect(f.call({ limits: { maxFiles: 10_000_000 } })).rejects.toThrow();
+      await expect(f.call({ limits: { maxFileBytes: 2 * 1024 * 1024 } })).rejects.toThrow();
+      // The ceiling itself is permitted, and a lower limit narrows
+      expect((await f.call({ limits: { maxFiles: 20_000, maxFileBytes: 1024 * 1024 } })).files).toBe(1);
+      expect((await f.call({ limits: { maxFileBytes: 5 } })).skipped).toHaveLength(1);
+    } finally {
+      f.done();
+    }
+  });
+
   it("skips a file larger than limits.maxFileBytes, and lists it in the result", async () => {
     const f = folder({ "small.ts": "export const s = 1;", "large.ts": `export const l = "${"x".repeat(200)}";` });
     try {

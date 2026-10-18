@@ -28,7 +28,7 @@ export const ANGULAR_DI_DECORATORS: readonly string[] = Object.freeze(["Injectab
 /** The files that the procedure leaves out by default: the tests, the declarations and node_modules. */
 export const DEFAULT_IMPORT_EXCLUDE: readonly string[] = Object.freeze(["**/node_modules/**", "**/*.d.ts", "**/*.{spec,test,unit}.{ts,tsx}"]);
 
-/** The limits of `lib.importCycles`. A host can give lower ones. */
+/** The limits of `lib.importCycles`. The defaults are the ceiling: a caller can only ask for lower limits. */
 export interface ImportCycleLimits {
   /** The most files that one call reads. A call with more files is refused before it reads a file. The default is 20000. */
   readonly maxFiles: number;
@@ -202,7 +202,7 @@ interface FsGlobOutput {
 }
 
 function tooManyFiles(count: number, maxFiles: number): Error {
-  return Object.assign(new Error(`The folder has ${count} source files, more than the limit of ${maxFiles}. Give a narrower path, exclude patterns, or a higher limits.maxFiles.`), {
+  return Object.assign(new Error(`The folder has ${count} source files, more than the limit of ${maxFiles}. Give a narrower path or exclude patterns.`), {
     code: "PAYLOAD_TOO_LARGE",
     retryable: false,
   });
@@ -213,9 +213,11 @@ function tooManyFiles(count: number, maxFiles: number): Error {
  */
 export async function libImportCycles(input: LibImportCyclesInput, ctx: ProcedureContext): Promise<LibImportCyclesOutput> {
   const exclude = input.exclude ?? [...DEFAULT_IMPORT_EXCLUDE];
+  // The meet of the caller's limits and the ceiling, for each field: a caller only narrows them (the schema
+  // also refuses a higher value)
   const limits: ImportCycleLimits = {
-    maxFiles: input.limits?.maxFiles ?? DEFAULT_IMPORT_CYCLE_LIMITS.maxFiles,
-    maxFileBytes: input.limits?.maxFileBytes ?? DEFAULT_IMPORT_CYCLE_LIMITS.maxFileBytes,
+    maxFiles: Math.min(input.limits?.maxFiles ?? Infinity, DEFAULT_IMPORT_CYCLE_LIMITS.maxFiles),
+    maxFileBytes: Math.min(input.limits?.maxFileBytes ?? Infinity, DEFAULT_IMPORT_CYCLE_LIMITS.maxFileBytes),
   };
   const { matches } = await ctx.client.call<{ pattern: string; cwd: string; ignore: string[] }, FsGlobOutput>(["fs", "glob"], {
     pattern: "**/*.{ts,tsx}",
