@@ -92,10 +92,66 @@ jobs:
             }
           ' "$RUNNER_TEMP/audit.json"
 
+  mongo:
+    # MongoDocumentStorage against a real MongoDB (roadmap CLI-24): the CollectionStorage contract,
+    # the partitions, the documents and the change log, on both topologies. On a replica set, each
+    # write is a transaction; on a single server, the watermark and the release fence keep the log
+    # exact. The other jobs run only its pure tests.
+    name: MongoDB (the storage contract, ${{ matrix.topology }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        topology: [single-server, replica-set]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start MongoDB 7
+        run: |
+          if [ "${{ matrix.topology }}" = "replica-set" ]; then
+            docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          else
+            docker run -d --name mongo -p 27017:27017 mongo:7
+          fi
+          for i in $(seq 1 60); do
+            docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          if [ "${{ matrix.topology }}" = "replica-set" ]; then
+            docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] })"
+            for i in $(seq 1 60); do
+              [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break
+              sleep 1
+            done
+            [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]
+          fi
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@procedures/mongo..." build
+      - name: The storage tests on MongoDB 7 (${{ matrix.topology }})
+        env:
+          MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+          MONGO_TEST_TOPOLOGY: ${{ matrix.topology }}
+        run: pnpm --filter @procedures/mongo exec vitest run src/storage
+
   coverage:
     name: Coverage (the floors only go up)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The storage tests of @procedures/mongo run against this MongoDB, so their coverage counts
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      MONGO_TEST_URL: mongodb://localhost:27017
     steps:
       - uses: actions/checkout@v7
         with:
