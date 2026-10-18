@@ -62,7 +62,7 @@ export const PHONE_PATTERN: RegExp = /\+\d{10,15}\b|\(?\b\d{3}\)?[ .-]\d{3}[ .-]
 export const COORDINATE_PATTERN: RegExp = /-?\b\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}/g;
 
 /** An address of a domain for examples and tests (RFC 2606) is not private. */
-const EXAMPLE_EMAIL = /@(?:[a-z0-9-]+\.)*(?:example\.(?:com|org|net)|test|invalid|localhost)$/i;
+const EXAMPLE_EMAIL = /@(?:[a-z0-9-]+\.)*(?:example(?:\.(?:com|org|net))?|test|invalid|localhost)$/i;
 
 /** The folders that the scan of a folder does not enter. */
 const SKIPPED_FOLDERS = new Set(["node_modules", ".git", "dist", "coverage", ".turbo"]);
