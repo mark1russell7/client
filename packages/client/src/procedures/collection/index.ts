@@ -72,7 +72,7 @@ export type { CollectionChangeEvent } from "./changes.js";
 
 // The partitions of a collection (roadmap CLI-17)
 export { PARTITION_PATTERN, collectionTopicPartition, partitionOfCall, storageOfCall, withPartition } from "./partition.js";
-export type { PartitionInput, PartitionResolver } from "./partition.js";
+export type { CollectionPartitions, PartitionInput, PartitionResolver } from "./partition.js";
 
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
 export type {

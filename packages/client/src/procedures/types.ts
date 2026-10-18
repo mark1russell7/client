@@ -266,6 +266,15 @@ export interface RepositoryProvider {
    */
   getPartitionStorage?<T>(collection: string, partition: string): CollectionStorage<T>;
 
+  /** True when the collection has partitions (roadmap CLI-17). Then a call resolves its partition with `resolvePartition`. */
+  hasPartitions?(collection: string): boolean;
+
+  /**
+   * The partition of a call to a partitioned collection (roadmap CLI-17): from the context (the
+   * tenant of `ctx.principal`) and the partition that the call asks for. `null` refuses the call.
+   */
+  resolvePartition?(collection: string, ctx: ProcedureContext, requested: string | undefined): string | undefined | null | Promise<string | undefined | null>;
+
   /**
    * Check if a collection exists.
    *

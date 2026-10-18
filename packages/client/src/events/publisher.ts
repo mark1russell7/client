@@ -28,7 +28,8 @@ import { z } from "zod";
 import { createProcedure } from "../procedures/define.js";
 import { InvocationError } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
-import { collectionTopicReads } from "../procedures/collection/changes.js";
+import { collectionChangeTopic, collectionTopicReads } from "../procedures/collection/changes.js";
+import { collectionTopicPartition, partitionOfCall } from "../procedures/collection/partition.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
 import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
@@ -54,11 +55,7 @@ export interface TopicCall {
   readonly capability: Capability;
   /** The metadata of the call: the connection id and the headers of a network request. */
   readonly metadata: Readonly<Record<string, unknown>>;
-  /**
-   * The principal of the call, from the authentication of the host. With partitions (roadmap
-   * CLI-17), `allow` keeps each subscriber in the topics of its partitions
-   * (`collectionTopicPartition()` gives the partition of a topic).
-   */
+  /** The principal of the call, from the authentication of the host. */
   readonly principal?: Principal | undefined;
 }
 
@@ -168,17 +165,18 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
 
   constructor(
     bus: EventBus,
-    topics: readonly string[],
+    /** The topics of the subscriber, each with the topic of the bus that it listens to */
+    routes: ReadonlyArray<readonly [topic: string, busTopic: string]>,
     private readonly buffer: number,
     private readonly signal: AbortSignal | undefined,
     private readonly onClose: (subscription: TopicSubscription) => void,
     /** The output filter of the host for this subscriber: each row of a value passes it */
     private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
   ) {
-    this.confirmation = { type: "subscribed", topics };
+    this.confirmation = { type: "subscribed", topics: routes.map(([topic]) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
-    this.unsubscribes = topics.map((topic) =>
-      bus.on(topic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
+    this.unsubscribes = routes.map(([topic, busTopic]) =>
+      bus.on(busTopic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
     );
     signal?.addEventListener("abort", this.onAbort, { once: true });
   }
@@ -352,10 +350,23 @@ export class EventPublisher {
   }
 
   /**
-   * The stream of one subscription. The publisher examines each topic before it adds a listener:
-   * the topic rule first, then `allow`. A call with one bad topic makes no subscription.
+   * The topic of the bus for a topic of a subscriber (roadmap CLI-17). A topic of a partitioned
+   * collection names the partition that the subscriber asks for, as the input of a procedure does:
+   * the resolver of the repository gives the partition, so a subscriber cannot name the topic of
+   * another tenant. A collection without partitions refuses a topic with a partition.
    */
-  private subscribe(topics: readonly string[], ctx: ProcedureContext): TopicSubscription {
+  private async busTopic(topic: string, ctx: ProcedureContext): Promise<string> {
+    const parts = collectionTopicPartition(topic);
+    if (!parts) return topic;
+    const partition = await partitionOfCall(ctx, parts.collection, parts.partition);
+    return collectionChangeTopic(parts.collection, partition);
+  }
+
+  /**
+   * The stream of one subscription. The publisher examines each topic before it adds a listener:
+   * the topic rule, the reads, `allow`, and the partition. A call with one bad topic makes no subscription.
+   */
+  private async subscribe(topics: readonly string[], ctx: ProcedureContext): Promise<TopicSubscription> {
     const unique = [...new Set(topics)];
     for (const topic of unique) {
       if (!this.known(topic)) throw new TopicNotFoundError(`The host has no topic "${topic}"`);
@@ -375,7 +386,9 @@ export class EventPublisher {
         }
       }
     }
-    const subscription = new TopicSubscription(this.bus, unique, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
+    const routes: Array<readonly [string, string]> = [];
+    for (const topic of unique) routes.push([topic, await this.busTopic(topic, ctx)]);
+    const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
     this.open.add(subscription);
     return subscription.closeIfAborted();
   }

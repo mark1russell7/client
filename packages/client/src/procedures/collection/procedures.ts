@@ -59,7 +59,7 @@ import {
 import { DEFAULT_FIND_LIMIT, applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy } from "./query.js";
 import type { CollectionStorage, StorageWriteOptions } from "./storage.js";
 import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from "./changes.js";
-import { partitionOfCall, storageOfCall, withPartition, type PartitionInput, type PartitionResolver } from "./partition.js";
+import { partitionOfCall, storageOfCall, withPartition, type PartitionInput } from "./partition.js";
 
 // =============================================================================
 // Handler Factory
@@ -122,14 +122,6 @@ export interface CollectionProceduresOptions {
    * @default true, with the topic `collections.<name>` and no values
    */
   changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
-  /**
-   * The partitions of the collection (roadmap CLI-17): the resolver of the partition of each call.
-   * It reads the tenant from `ctx.principal`, and the partition that the input asks for. The
-   * procedures then use the storage of that partition (`getPartitionStorage` of the repository), and
-   * the change events go to `collections.<name>.<partition>`. Without it, an input with a partition
-   * is a `VALIDATION_ERROR`.
-   */
-  partition?: PartitionResolver | undefined;
 }
 
 /** The write options of an input with an origin. */
@@ -203,20 +195,21 @@ export function createCollectionProcedures(collectionName: string, options: Coll
   /** A write, and then its change event on the bus of the context. */
   const changing = <R>(ctx: ProcedureContext, partition: string | undefined, storage: CollectionStorage<unknown>, ids: readonly string[] | "*", origin: string | undefined, write: () => Promise<R>): Promise<R> =>
     writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx, partition) : undefined, ids, origin, write, withValues);
-  // The partitions of the collection (roadmap CLI-17)
-  const resolvePartition = options.partition;
-  const partitioned = resolvePartition !== undefined;
-  /** The partition and the storage of a call. */
+  /**
+   * The partition and the storage of a call (roadmap CLI-17). The repository of the call has the
+   * partitions of the collection and their resolver: the tenant comes from the principal.
+   */
   const storageOf = async (input: PartitionInput, ctx: ProcedureContext): Promise<{ storage: CollectionStorage<unknown>; partition: string | undefined }> => {
-    const partition = await partitionOfCall(resolvePartition, ctx, input.partition);
-    return { storage: storageOfCall<unknown>(ctx, getCollectionFromPath(ctx.path), partition), partition };
+    const collection = getCollectionFromPath(ctx.path);
+    const partition = await partitionOfCall(ctx, collection, input.partition);
+    return { storage: storageOfCall<unknown>(ctx, collection, partition), partition };
   };
 
   return [
     // Get
     defineProcedure({
       path: [...basePath, "get"],
-      input: withPartition(getInputSchema, partitioned),
+      input: withPartition(getInputSchema),
       output: getOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -236,7 +229,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Set
     defineProcedure({
       path: [...basePath, "set"],
-      input: withPartition(setInputSchema, partitioned),
+      input: withPartition(setInputSchema),
       output: setOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
@@ -252,7 +245,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Delete
     defineProcedure({
       path: [...basePath, "delete"],
-      input: withPartition(deleteInputSchema, partitioned),
+      input: withPartition(deleteInputSchema),
       output: deleteOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
@@ -268,7 +261,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Has
     defineProcedure({
       path: [...basePath, "has"],
-      input: withPartition(hasInputSchema, partitioned),
+      input: withPartition(hasInputSchema),
       output: hasOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -284,7 +277,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // GetAll
     defineProcedure({
       path: [...basePath, "getAll"],
-      input: withPartition(getAllInputSchema, partitioned),
+      input: withPartition(getAllInputSchema),
       output: getAllOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -300,7 +293,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Entries: each item with its id, for a sync (roadmap R2)
     defineProcedure({
       path: [...basePath, "entries"],
-      input: withPartition(entriesInputSchema, partitioned),
+      input: withPartition(entriesInputSchema),
       output: entriesOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -319,7 +312,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Ids: the ids of the items without the values, for a full sync
     defineProcedure({
       path: [...basePath, "ids"],
-      input: withPartition(idsInputSchema, partitioned),
+      input: withPartition(idsInputSchema),
       output: idsOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -338,7 +331,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Changes: the items that changed after a version, for a delta sync (roadmap R28)
     defineProcedure({
       path: [...basePath, "changes"],
-      input: withPartition(changesInputSchema, partitioned),
+      input: withPartition(changesInputSchema),
       output: changesOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -372,7 +365,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Find: the items that match a JSON selector, with an order, a skip and a limit (roadmap CLI-14)
     defineProcedure({
       path: [...basePath, "find"],
-      input: withPartition(findInputSchemaOf(queryPolicy), partitioned),
+      input: withPartition(findInputSchemaOf(queryPolicy)),
       output: findOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -396,7 +389,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Patch: merge fields into one item, a JSON Merge Patch (roadmap CLI-14)
     defineProcedure({
       path: [...basePath, "patch"],
-      input: withPartition(patchInputSchema, partitioned),
+      input: withPartition(patchInputSchema),
       output: patchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
@@ -417,7 +410,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Size
     defineProcedure({
       path: [...basePath, "size"],
-      input: withPartition(sizeInputSchema, partitioned),
+      input: withPartition(sizeInputSchema),
       output: sizeOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -433,7 +426,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Clear
     defineProcedure({
       path: [...basePath, "clear"],
-      input: withPartition(clearInputSchema, partitioned),
+      input: withPartition(clearInputSchema),
       output: clearOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
@@ -449,7 +442,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // GetBatch
     defineProcedure({
       path: [...basePath, "getBatch"],
-      input: withPartition(getBatchInputSchema, partitioned),
+      input: withPartition(getBatchInputSchema),
       output: getBatchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
@@ -467,7 +460,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // SetBatch
     defineProcedure({
       path: [...basePath, "setBatch"],
-      input: withPartition(setBatchInputSchema, partitioned),
+      input: withPartition(setBatchInputSchema),
       output: setBatchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
@@ -487,7 +480,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // DeleteBatch
     defineProcedure({
       path: [...basePath, "deleteBatch"],
-      input: withPartition(deleteBatchInputSchema, partitioned),
+      input: withPartition(deleteBatchInputSchema),
       output: deleteBatchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },

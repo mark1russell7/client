@@ -337,27 +337,32 @@ A value of a collection reaches a caller only through a read with its checks. Th
 
 #### The partitions of a collection
 
-One `collections.<name>.*` surface can serve several partitions, for example one for each tenant (roadmap CLI-17):
+One `collections.<name>.*` surface can serve several partitions, for example one for each tenant (roadmap CLI-17). The host registers the partitions with its server:
 
 ```ts
-const procedures = createCollectionProcedures("notes", {
-  // The tenant comes from the principal, and the input can ask for a scope under it
-  partition: (ctx, requested) => {
+server.usePartitions("notes", {
+  storageOf: (partition) => storageOfPartition(partition),
+  // The tenant comes from the principal, and the call can ask for a scope under it
+  resolve: (ctx, requested) => {
     const tenant = ctx.principal?.claims?.["tenant"];
     if (typeof tenant !== "string") return null; // FORBIDDEN, partition-not-allowed
     return requested === undefined ? tenant : `${tenant}/${requested}`;
   },
 });
-server.usePartitions("notes", (partition) => storageOfPartition(partition));
 ```
 
-- The input of each procedure can ask for a partition (`partition`). The resolver gives the partition of the call. It can refuse the call with `null`.
+- The input of each collection procedure can ask for a partition (`partition`). The resolver gives the partition of the call, and `null` refuses the call.
 - The tenant comes from `ctx.principal`. The input alone does not give it.
-- Without a resolver, an input with a partition is a `VALIDATION_ERROR`.
+- A collection without partitions refuses a call that asks for a partition.
 - The repository gives the storage of a partition with `getPartitionStorage`. A repository without it refuses a call with a partition. It does not give the storage of all partitions.
-- `ProcedureServer.usePartitions(name, storageOf)` gives the storage of each partition. Give the same storage for the same partition each time, so that the chain of its events stays.
-- The events of a partition go to the topic `collections.<name>.<partition>`, and the option `topic` gets the partition.
-- The `allow` function of an `EventPublisher` gets the principal of the call. It keeps each subscriber in the topics of its partitions, with `collectionTopicPartition(topic)`.
+- Give the same storage for the same partition each time, so that the chain of its events stays.
+- The events of a partition go to the topic `collections.<name>.<partition>` of the bus, and the option `topic` gets the partition.
+
+A subscriber names a partition as an input does:
+
+- `collections.<name>` asks for no partition, and `collections.<name>.<requested>` asks for one. The publisher resolves the partition with the same resolver, and listens to the topic of the resolved partition.
+- A subscriber thus cannot name the topic of another tenant. The events keep the topic that the subscriber named.
+- A topic with a partition of a collection without partitions is refused (`FORBIDDEN`, reason `partition-not-allowed`). A call without a repository is refused in the same way.
 
 ### The publisher
 

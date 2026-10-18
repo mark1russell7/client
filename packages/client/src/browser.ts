@@ -278,6 +278,7 @@ export type {
   StorageQueryPolicy,
   CollectionProceduresOptions,
   CollectionChangeEventsOptions,
+  CollectionPartitions,
   PartitionInput,
   PartitionResolver,
   CollectionChangeEvent,

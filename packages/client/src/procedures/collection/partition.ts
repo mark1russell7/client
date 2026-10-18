@@ -3,12 +3,15 @@
  * items of several partitions, for example one per tenant, or one per tenant and scope. Each call
  * reads and writes one partition.
  *
- * - The input can ask for a partition (`partition`, for example a scope).
- * - The resolver of the procedures gives the partition of the call from its context: the tenant
- *   comes from the principal, never from the input alone. It can refuse the call.
- * - The repository gives the storage of the partition (`getPartitionStorage`). A repository without
- *   partitions refuses a call with a partition: it never gives the storage of all partitions.
- * - The change events of a partition go to the topic `collections.<name>.<partition>`.
+ * - The host registers the partitions of a collection with its repository: the storage of each
+ *   partition and the resolver (`ProcedureServer.usePartitions(name, { storageOf, resolve })`).
+ * - The input of a call can ask for a partition (`partition`, for example a scope). The resolver
+ *   gives the partition of the call from its context: the tenant comes from the principal, never
+ *   from the input alone. It can refuse the call.
+ * - A subscriber names the partition that it asks for in the topic, as an input does:
+ *   `collections.<name>.<requested>`. The publisher resolves it in the same way and listens to the
+ *   topic of the resolved partition, so a subscriber cannot name the topic of another tenant.
+ * - A collection without partitions refuses a call or a topic with a partition.
  */
 import type { ZodLike } from "../../client/validation/types.js";
 import { InvocationError } from "../invoke.js";
@@ -32,16 +35,15 @@ export interface PartitionInput {
 export type PartitionResolver = (ctx: ProcedureContext, requested: string | undefined) => string | undefined | null | Promise<string | undefined | null>;
 
 /**
- * This function adds the field `partition` to the input schema of a collection procedure. Without a
- * resolver (`allowed` false), an input with a partition is a validation error.
+ * This function adds the field `partition` to the input schema of a collection procedure. The
+ * repository of the call decides at the call if the collection has partitions.
  */
-export function withPartition<T>(schema: ZodLike<T>, allowed: boolean): ZodLike<T & PartitionInput> {
+export function withPartition<T>(schema: ZodLike<T>): ZodLike<T & PartitionInput> {
   const validate = (data: unknown): { success: true; data: T & PartitionInput } | { success: false; error: { message: string; errors: { path: (string | number)[]; message: string }[] } } => {
     const fail = (message: string) => ({ success: false as const, error: { message, errors: [{ path: ["partition"], message }] } });
     const requested = typeof data === "object" && data !== null && !Array.isArray(data) ? (data as Record<string, unknown>)["partition"] : undefined;
-    if (requested !== undefined) {
-      if (!allowed) return fail("This collection has no partitions");
-      if (typeof requested !== "string" || !PARTITION_PATTERN.test(requested)) return fail("partition must have 1 to 256 letters, digits or the characters _ . : @ ~ + | / -");
+    if (requested !== undefined && (typeof requested !== "string" || !PARTITION_PATTERN.test(requested))) {
+      return fail("partition must have 1 to 256 letters, digits or the characters _ . : @ ~ + | / -");
     }
     const inner = schema.safeParse(data);
     if (!inner.success) return inner as { success: false; error: { message: string; errors: { path: (string | number)[]; message: string }[] } };
@@ -58,12 +60,37 @@ export function withPartition<T>(schema: ZodLike<T>, allowed: boolean): ZodLike<
   } as ZodLike<T & PartitionInput>;
 }
 
-/** This function gives the partition of a call, or throws `FORBIDDEN` when the resolver refuses it. */
-export async function partitionOfCall(resolver: PartitionResolver | undefined, ctx: ProcedureContext, requested: string | undefined): Promise<string | undefined> {
-  if (!resolver) return undefined;
-  const partition = await resolver(ctx, requested);
+/** The partitions of a collection: the storage of each partition, and the resolver of a call. */
+export interface CollectionPartitions<T = unknown> {
+  /**
+   * The storage of a partition. Give the same storage for the same partition each time: the change
+   * events of a storage keep their order with it.
+   */
+  storageOf(partition: string): CollectionStorage<T>;
+  /** The resolver of the partition of a call. */
+  resolve: PartitionResolver;
+}
+
+/** The refusal of a partition. */
+function partitionRefused(ctx: ProcedureContext, message: string): InvocationError {
+  return new InvocationError("FORBIDDEN", message, ctx.path, "partition-not-allowed");
+}
+
+/**
+ * This function gives the partition of a call to a collection: the resolver of the repository
+ * gives it from the context and the requested partition. It throws `FORBIDDEN` (reason
+ * `partition-not-allowed`) when the resolver refuses, or when the collection has no partitions and
+ * the call asks for one.
+ */
+export async function partitionOfCall(ctx: ProcedureContext, collection: string, requested: string | undefined): Promise<string | undefined> {
+  const repository = ctx.repository;
+  if (!repository?.hasPartitions?.(collection) || !repository.resolvePartition) {
+    if (requested !== undefined) throw partitionRefused(ctx, `The collection ${collection} has no partitions`);
+    return undefined;
+  }
+  const partition = await repository.resolvePartition(collection, ctx, requested);
   if (partition === null) {
-    throw new InvocationError("FORBIDDEN", `The call cannot use the partition${requested === undefined ? "" : ` "${requested}"`}`, ctx.path, "partition-not-allowed");
+    throw partitionRefused(ctx, `The call cannot use the partition${requested === undefined ? "" : ` "${requested}"`} of ${collection}`);
   }
   if (partition !== undefined && !PARTITION_PATTERN.test(partition)) {
     throw new Error(`The partition resolver gave a partition that is not valid: ${JSON.stringify(partition).slice(0, 80)}`);
@@ -86,9 +113,8 @@ export function storageOfCall<T>(ctx: ProcedureContext, collection: string, part
 }
 
 /**
- * This function gives the partition of a topic `collections.<name>.<partition>`, or undefined for
- * another topic. A host can use it in the `allow` of its `EventPublisher` to keep each subscriber
- * in its partitions.
+ * This function gives the collection and the partition part of a topic `collections.<name>` or
+ * `collections.<name>.<partition>`, or undefined for another topic.
  */
 export function collectionTopicPartition(topic: string): { collection: string; partition: string | undefined } | undefined {
   const match = /^collections\.([^.]+)(?:\.(.+))?$/.exec(topic);

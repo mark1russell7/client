@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 527 names
+## . (dist/index.d.ts): 528 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -44,6 +44,7 @@ type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
+type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -534,7 +535,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 509 names
+## ./browser (dist/browser.d.ts): 510 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -573,6 +574,7 @@ type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
+type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -1254,7 +1256,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 281 names
+## ./procedures (dist/procedures/index.d.ts): 282 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1270,6 +1272,7 @@ type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
 type CliDescription: dist/procedures/manifest.d.ts#CliDescription
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
+type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -3437,6 +3440,12 @@ export declare function collectionChangeTopic(collection: string, partition?: st
 ### dist/procedures/collection/changes.d.ts#collectionTopicReads
 export declare function collectionTopicReads(topic: string): readonly string[];
 
+### dist/procedures/collection/partition.d.ts#CollectionPartitions
+export interface CollectionPartitions<T = unknown> {
+    storageOf(partition: string): CollectionStorage<T>;
+    resolve: PartitionResolver;
+}
+
 ### dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
 export declare const PARTITION_PATTERN: RegExp;
 
@@ -3464,7 +3473,6 @@ export interface CollectionChangeEventsOptions {
 export interface CollectionProceduresOptions {
     queryPolicy?: StorageQueryPolicy | undefined;
     changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
-    partition?: PartitionResolver | undefined;
 }
 
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
@@ -4893,6 +4901,8 @@ export interface RegistryListener {
 export interface RepositoryProvider {
     getStorage<T>(collection: string): CollectionStorage<T>;
     getPartitionStorage?<T>(collection: string, partition: string): CollectionStorage<T>;
+    hasPartitions?(collection: string): boolean;
+    resolvePartition?(collection: string, ctx: ProcedureContext, requested: string | undefined): string | undefined | null | Promise<string | undefined | null>;
     hasCollection(collection: string): boolean;
 }
 
@@ -5077,7 +5087,9 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     getStorage<T>(collection: string): CollectionStorage<T>;
     hasCollection(collection: string): boolean;
     getPartitionStorage<T>(collection: string, partition: string): CollectionStorage<T>;
-    usePartitions<T>(name: string, storageOf: (partition: string) => CollectionStorage<T>): this;
+    hasPartitions(collection: string): boolean;
+    resolvePartition(collection: string, ctx: ProcedureContext, requested: string | undefined): string | undefined | null | Promise<string | undefined | null>;
+    usePartitions<T>(name: string, partitions: CollectionPartitions<T>): this;
     useStorage<T>(name: string, storage: CollectionStorage<T>): this;
     useStorage<T>(name: string, storage: CollectionStorage<T>, options: UseStorageOptions): Promise<this>;
     useStorages(storages: Record<string, CollectionStorage<unknown>>): this;

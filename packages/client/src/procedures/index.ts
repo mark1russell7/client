@@ -148,6 +148,7 @@ export type {
   CollectionProceduresOptions,
   CollectionChangeEventsOptions,
   CollectionChangeEvent,
+  CollectionPartitions,
   PartitionInput,
   PartitionResolver,
   StoragePatchOperations,
