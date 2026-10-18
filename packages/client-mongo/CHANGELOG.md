@@ -1,5 +1,28 @@
 # @procedures/mongo
 
+## 0.9.1
+
+### Patch Changes
+
+- d7ad24e: New `MongoDocumentStorage` (roadmap CLI-24): a `CollectionStorage` over MongoDB. It has flat documents, a change log with tombstones for an exact `getChangesSince()`, versions (`versionOf()`), queries in the database (`query()`), `patch()` and partitions (`forPartition()`).
+  
+  On a replica set, each write is a transaction with its numbers. On a single server, a watermark of the pending numbers keeps the log exact, and a late write moves its documents to new numbers. An id cannot have the character U+001F, and each write filter has the partition. It passes the `CollectionStorage` contract on MongoDB 7. `MongoStorage` keeps its `{ _id, data }` documents. CI has a MongoDB job, and the coverage job starts the storage tests on MongoDB.
+- 28d82c9: The time options of the new storage APIs take a `Duration` of `@procedures/client`, as the other time options of the client do (roadmap R11). A plain number is a `TypeError`.
+  
+  - `MongoDocumentStorage`: the option `writeLease` (default `seconds(60)`) replaces `writeLeaseMs`.
+  - `MongoDocumentStorage.aggregate()` and `PipelineLimits`: `maxTime` (default `seconds(10)`) replaces `maxTimeMS`. `DEFAULT_PIPELINE_LIMITS` has `maxTime`.
+  
+  These APIs are new in this release, so no released code changes. The procedure `mongo.documents.aggregate` keeps its input `maxTimeMS` in milliseconds: the wire keeps milliseconds.
+- 3b2ddcd: New `scopePipeline()`: the guard of an aggregation pipeline over shared collections. The filter of the scope goes on each read of the pipeline and of its sub-pipelines. The pipeline reads and writes only the collections of the scope. Only the document stages of `ALLOWED_PIPELINE_STAGES` pass. `$out` and the JavaScript operators of the server are refused, and `$merge` needs a stamp. New `boundPipeline()`, `cutResults()` and `isTimeLimitError()` give the limits of time and size.
+  
+  New `MongoDocumentStorage.aggregate()`: a read-only pipeline on the items of the partition, with these limits. The code comes from the server of Graph (its split plan, part P3).
+- Updated dependencies [61d60c6]
+- Updated dependencies [79f750a]
+- Updated dependencies [d0c9856]
+- Updated dependencies [b5db4d8]
+  - @procedures/client@0.9.1
+  - @procedures/collections@0.9.1
+
 ## 0.9.0
 
 ### Patch Changes
