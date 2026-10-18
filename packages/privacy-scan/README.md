@@ -36,7 +36,7 @@ Each finding has `kind`, `line`, `column` and `match`. A finding of `privacyScan
 | Kind | Rule |
 | --- | --- |
 | `term` | A term of the list. The match ignores case. A term that starts or ends with a letter or a digit matches only as a whole word: `Ann` does not match `Annex`. |
-| `email` | An email address. An address of a domain for examples (`example.com`, `example.org`, `example.net`, `.test`, `.invalid` and `.localhost`) is not private. |
+| `email` | An email address. An address of a domain for examples (`example.com`, `example.org`, `example.net`, `.example`, `.test`, `.invalid` and `.localhost`) is not private. |
 | `phone` | A `+` and 10 to 15 digits, or the North American form `(555) 555-0100`. |
 | `coordinate` | A pair of decimal numbers with 4 decimals or more, as `12.3456, -65.4321`. |
 
