@@ -619,7 +619,7 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O43 | Releases | Release 0.9.0: O22, #18, #15 and #19 | S | done | O22, O42 | markt-02, markt-54 and Mark | [db6adca](https://github.com/mark1russell7/client/commit/db6adca), [client PR #24](https://github.com/mark1russell7/client/pull/24), [publish run 39105749789](https://github.com/mark1russell7/client/actions/runs/39105749789) |
 | O44 | New packages | A failed calendar request of `ics` names the system error code | S | done | — | jarvis-side client session | [client PR #13](https://github.com/mark1russell7/client/pull/13), [a03be76](https://github.com/mark1russell7/client/commit/a03be76) |
 | O45 | Testing | `ios-backup` joins a file id from Manifest.db into a path unchecked | S | done | — | Client session | [6cc9da1](https://github.com/mark1russell7/client/commit/6cc9da1), [16ce161](https://github.com/mark1russell7/client/commit/16ce161) |
-| O46 | fs root | `snapshot.create` and `snapshot.diff` run git themselves | M | in progress | O35 | Client session | — |
+| O46 | fs root | `snapshot.create` and `snapshot.diff` run git themselves | M | done | O35 | Client session | [d86363e](https://github.com/mark1russell7/client/commit/d86363e), [CI 39127987697](https://github.com/mark1russell7/client/actions/runs/39127987697) |
 
 ### The server stack (R37)
 
