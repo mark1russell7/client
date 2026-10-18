@@ -36,8 +36,12 @@
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
  *   document. The materializer ignores an update of only that field.
  *
- * Change streams and transactions need a replica set. The target of a view is a plain collection
- * that only the materializer writes.
+ * A delete reaches only the views of its partition when its partition is known: from the pre-image
+ * (a collection with `changeStreamPreAndPostImages`), or from the id of a `MongoDocumentStorage`
+ * document. Else it reaches the views of each partition of its source.
+ *
+ * Change streams and transactions need a replica set (MongoDB 6 or later). The target of a view is
+ * a plain collection that only the materializer writes.
  *
  * The stop has the parts of a transport of a service: `stopIntake()`, `drain()`, `inFlight()` and
  * `close()`. A host composes them with no adapter. The timers come from the injected clock.
@@ -46,6 +50,7 @@
 import { createHash } from "node:crypto";
 import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
+import { SEPARATOR } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -196,6 +201,11 @@ interface RunningView {
   /** `active`: its streams are open, and it runs in the passes. `cyclic`: it is in a cycle, and it waits. */
   state: "active" | "cyclic";
   streams: ChangeStream[];
+}
+
+/** A text as a regular expression that matches only that text. */
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** The key of a row id for the signatures: type-aware, so an ObjectId and its text are different keys. */
@@ -492,10 +502,23 @@ export class ViewMaterializer {
     this.running.delete(key);
   }
 
-  /** The filter of the change stream of a source for a partition. */
+  /**
+   * The filter of the change stream of a source for a partition. A delete has no `fullDocument`.
+   * Its partition comes from its pre-image, when the collection keeps them
+   * (`changeStreamPreAndPostImages`), or else from the id of a `MongoDocumentStorage` document
+   * (`<partition>` U+001F `<id>`). A delete whose partition is unknown passes: the pass of the
+   * partition reads its own documents only.
+   */
   private sourceMatch(partition: string, fields: string[] | undefined): Document {
-    // A delete has no fullDocument: it passes, and the pass of the partition reads its own documents only
-    const inPartition = { $or: [{ [`fullDocument.${this.partitionField}`]: partition }, { operationType: "delete" }] };
+    const noPreImage = { operationType: "delete", fullDocumentBeforeChange: null };
+    const inPartition = {
+      $or: [
+        { [`fullDocument.${this.partitionField}`]: partition },
+        { operationType: "delete", [`fullDocumentBeforeChange.${this.partitionField}`]: partition },
+        { ...noPreImage, "documentKey._id": { $regex: `^${escapeRegex(partition)}${SEPARATOR}` } },
+        { ...noPreImage, "documentKey._id": { $not: new RegExp(SEPARATOR) } },
+      ],
+    };
     if (!fields || fields.length === 0) return { $match: inPartition };
     return {
       $match: {
@@ -520,7 +543,9 @@ export class ViewMaterializer {
     if (this.stopped || !this.db) return;
     let stream: ChangeStream;
     try {
-      stream = this.db.collection(source).watch([this.sourceMatch(running.partition, running.view.sourceFields?.[source])], { fullDocument: "updateLookup" });
+      stream = this.db
+        .collection(source)
+        .watch([this.sourceMatch(running.partition, running.view.sourceFields?.[source])], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
     } catch (error) {
       this.log("error", `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
       this.later(() => {

@@ -434,4 +434,45 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await views.close();
     expect(views.openStreamCount()).toBe(0);
   });
+
+  it("gives a delete only to the views of its partition, when its pre-image or its id tells the partition (CLI-37)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    // Each change event of a source arms the debounce once: the count of those timers is the count of the events
+    let events = 0;
+    const clock: Clock = { now: () => realClock.now(), after: (ms, run) => (ms === 20 && events++, realClock.after(ms, run)) };
+    const views = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, clock, log: () => undefined });
+    await db.createCollection("images", { changeStreamPreAndPostImages: { enabled: true } });
+    await db.collection("images").insertMany([
+      { _id: "a" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "b" as never, _part: "t2", kind: "b", n: 2 },
+    ]);
+    // Without pre-images: the ids of MongoDocumentStorage tell the partition, and a plain id does not
+    await db.collection("plain").insertMany([
+      { _id: "t1\u001fa" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "t2\u001fb" as never, _part: "t2", kind: "b", n: 2 },
+      { _id: "x" as never, _part: "t2", kind: "x", n: 3 },
+    ]);
+    await db.collection("_aggregations").insertMany([
+      sumsView({ _id: "from-images", collections: ["images"], targetCollection: "images_sums" }) as never,
+      sumsView({ _id: "from-plain", collections: ["plain"], targetCollection: "plain_sums" }) as never,
+    ]);
+    await views.start();
+    expect(events).toBe(0);
+
+    // On each collection, the events come in order: a delete of t2 that passed comes before the next event
+    await db.collection("images").deleteOne({ _id: "b" as never }); // t2, from the pre-image: dropped
+    await db.collection("images").deleteOne({ _id: "a" as never }); // t1: passes
+    await eventually(async () => expect(events).toBe(1));
+    await db.collection("plain").deleteOne({ _id: "t2\u001fb" as never }); // t2, from the id: dropped
+    await db.collection("plain").deleteOne({ _id: "x" as never }); // unknown: passes
+    await db.collection("plain").deleteOne({ _id: "t1\u001fa" as never }); // t1: passes
+    await eventually(async () => expect(events).toBe(3));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(events).toBe(3);
+    await eventually(async () => expect(await db.collection("images_sums").countDocuments()).toBe(0));
+    await eventually(async () => expect(await db.collection("plain_sums").countDocuments()).toBe(0));
+    await views.stop();
+  });
 });
