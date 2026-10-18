@@ -40,6 +40,8 @@ import { nestedCallRefusal } from "./policy.js";
 import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
 import { timeoutAfterMs } from "./interceptors.js";
+import type { Elicit } from "./elicit.js";
+import type { ReportProgress } from "./progress.js";
 import type { EventBus } from "../events/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
@@ -120,6 +122,16 @@ export interface InvokeOptions {
   repository?: RepositoryProvider | undefined;
   /** The bus of `ctx.bus`. The default is the global bus of `getGlobalEventBus()`. */
   bus?: EventBus | undefined;
+  /**
+   * The function that asks the person at the caller (`ctx.elicit`, CLI-12). A face of the host
+   * gives it. The nested calls get the same function.
+   */
+  elicit?: Elicit | undefined;
+  /**
+   * The function that tells the caller the progress of the call (`ctx.progress`). Only the call
+   * of the host gets it in its context, not its nested calls.
+   */
+  progress?: ReportProgress | undefined;
   /** The input is valid already (for example, the route resolver validated it). */
   inputValidated?: boolean | undefined;
   /**
@@ -493,6 +505,10 @@ export function createProcedureContext(
   // no host set ctx.bus: deep dive CORE-15.)
   const bus = options.bus ?? getGlobalEventBus();
   context.bus = options.signal ? withEventBusSignal(bus, options.signal) : bus;
+  // What the face of the call offers (CLI-12): the nested calls ask the same person, and only
+  // the call of the host reports its progress, so the values of one call stay in order
+  if (options.elicit) context.elicit = options.elicit;
+  if (options.progress && !invocation?.parent && !options.parent) context.progress = options.progress;
   return context;
 }
 

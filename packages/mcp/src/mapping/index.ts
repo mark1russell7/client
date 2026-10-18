@@ -19,4 +19,6 @@ export {
   toToolDefinition,
   createToolMap,
   findToolByPath,
+  withUntrustedFields,
+  UNTRUSTED_FIELD_DESCRIPTION,
 } from "./procedure-to-tool.js";

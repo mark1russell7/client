@@ -32,7 +32,8 @@
     "packages/pdf/src/**/*.ts",
     "packages/claude-cli/README.md",
     "packages/claude-cli/src/**/*.ts",
-    "packages/impl-mcp-dev/README.md"
+    "packages/impl-mcp-dev/README.md",
+    "packages/client-mcp/README.md"
   ],
   "ignore": [
     "**/node_modules/**",

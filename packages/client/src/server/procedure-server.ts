@@ -747,6 +747,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         registry: this.procedureRegistry,
         metadata: request.metadata,
         signal,
+        // What the face of the call offers: it asks the person, and it shows the progress (CLI-12)
+        ...(request.elicit ? { elicit: request.elicit } : {}),
+        ...(request.progress ? { progress: request.progress } : {}),
         repository,
         expose: this.expose,
         strictCalls: this.strictCalls,
