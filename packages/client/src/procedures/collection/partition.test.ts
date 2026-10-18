@@ -181,9 +181,9 @@ describe("the partitions of the collection procedures (CLI-17)", () => {
     const { run } = host(() => "bad partition");
     expect((await errorOf(run("get", { id: "n1" }, ann))).message).toMatch(/not valid/);
     const plain = host();
-    const withoutStorages: RepositoryProvider = { ...plain.repository, getPartitionStorage: undefined };
+    const { getPartitionStorage: _omitted, ...withoutStorages } = plain.repository;
     expect((await errorOf(plain.run("get", { id: "n1" }, ann, withoutStorages))).message).toMatch(/no partitions/);
-    const withoutPartitions: RepositoryProvider = { getStorage: () => new MapStorage(), hasCollection: () => true };
+    const withoutPartitions: RepositoryProvider = { getStorage: <T>() => new MapStorage() as unknown as CollectionStorage<T>, hasCollection: () => true };
     expect((await errorOf(plain.run("get", { id: "n1", partition: "x" }, ann, withoutPartitions))).reason).toBe("partition-not-allowed");
     const server = new ProcedureServer({ autoRegister: false });
     expect(() => server.getPartitionStorage("notes", "t1")).toThrow(/no partitions/);
