@@ -144,10 +144,10 @@ describe("a body-path server and a URL server over one registry (CLI-31)", () =>
       expect(res.status, body).toBe(400);
       expect(JSON.parse(res.body), body).toMatchObject({ code: "INVALID_REQUEST" });
     }
-    // A path of one segment cannot be a method yet (CLI-28): the error of the addressing is the message
+    // A path of one segment is a valid method (CLI-28): no procedure has this one
     const one = await send(port, "/rpc", '{"path": ["morning"]}');
-    expect(one.status).toBe(400);
-    expect(JSON.parse(one.body)).toMatchObject({ code: "INVALID_REQUEST", error: expect.stringContaining("two segments") });
+    expect(one.status).toBe(404);
+    expect(JSON.parse(one.body)).toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("reads only the own fields of the body: a __proto__ key gives no path and changes no prototype", async () => {

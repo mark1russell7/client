@@ -657,7 +657,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-25 | Sync | `TabCoordinator`: one leader tab does the sync, and the other tabs copy its changes | M | blocked | CLI-21 | Client session | — |
 | CLI-26 | Runner | The cold mode of `mark` starts the same host in the process under `run()` | M | blocked | CLI-8, SYS-16, SYS-7 | Client session | — |
 | CLI-27 | Runner | An optional auto-warm: the background host starts after a cold command | S | later | CLI-26 | Client session | — |
-| CLI-28 | HTTP host | Procedure paths of each length on each face | M | open | — | Client session | — |
+| CLI-28 | HTTP host | Procedure paths of each length on each face | M | in progress | — | Client session | `server-stack/any-length-paths` |
 | CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | in progress | CLI-2a | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
 | CLI-31 | HTTP host | An addressing hook: from the request and the body to the method and the payload | S | in progress | CLI-3 | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
 | CLI-32 | Streams | A batch: one request with several calls, and one stream of tagged results | M | later | — | Client session | — |
@@ -671,7 +671,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | REL-2 | Releases | Release the additive pieces of the server stack as a PATCH of the client group | S | blocked | CLI-2a, CLI-3, CLI-10, D13 | markt-54 and Mark | — |
 
 - These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11 and CLI-16. Each one is its own MINOR of the client group (D13).
-- CLI-26 breaks the API only if the exit codes of the CLI change. CLI-28 breaks it only if the version leaves the URL.
+- CLI-26 breaks the API only if the exit codes of the CLI change. CLI-28 breaks it only if the version leaves the URL. The version stays in the URL, so CLI-28 is a PATCH.
 - The other items are additive. Each one ships as a PATCH of the client group.
 - Refer to the section "Releases of the server stack" of [SERVER-LAYERS.md](./SERVER-LAYERS.md) for the deprecation and the migration notes.
 

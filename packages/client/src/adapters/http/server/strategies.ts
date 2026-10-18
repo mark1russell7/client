@@ -71,9 +71,16 @@ export function defaultServerUrlStrategy(req: RoutedRequest): Method | null {
  * Maps:
  * - POST /rpc/users/get → { service: "users", operation: "get" }
  * - POST /rpc/users/list → { service: "users", operation: "list" }
+ * - POST /rpc/morning → { service: "", operation: "morning" } (a path of one segment, CLI-28)
  */
 export function rpcServerUrlStrategy(req: RoutedRequest): Method | null {
   const path = req.path;
+
+  // A path of one segment: /rpc/:operation, with the empty service (CLI-28)
+  const single = path.match(/^\/rpc\/([^/]+)\/?$/);
+  if (single?.[1]) {
+    return { service: "", operation: single[1] };
+  }
 
   // Match pattern: /rpc/:service/:operation
   const match = path.match(/^\/rpc\/([^/]+)\/([^/]+)/);

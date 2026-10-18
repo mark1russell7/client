@@ -641,7 +641,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     if (!procedure.handler) {
       throw new Error(`Procedure at ${pathToKey(procedure.path)} has no handler`);
     }
-    // The path must make a method: this throws for a path of one segment
+    // The path must make a method: this throws for an empty path. One segment or more is valid (CLI-28)
     pathToMethod(procedure.path);
     this.pinnedProcedures.set(pathToKey(procedure.path), procedure);
   }

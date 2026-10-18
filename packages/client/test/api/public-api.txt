@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 538 names
+## . (dist/index.d.ts): 539 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -459,6 +459,7 @@ matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
+methodName: dist/server/method.d.ts#methodName
 methodToPath: dist/server/method.d.ts#methodToPath
 metricsInterceptor: dist/procedures/interceptors.d.ts#metricsInterceptor
 minutes: dist/duration.d.ts#minutes
@@ -545,7 +546,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 520 names
+## ./browser (dist/browser.d.ts): 521 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -983,6 +984,7 @@ matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
+methodName: dist/server/method.d.ts#methodName
 methodToPath: dist/server/method.d.ts#methodToPath
 metricsInterceptor: dist/procedures/interceptors.d.ts#metricsInterceptor
 minutes: dist/duration.d.ts#minutes
@@ -1592,7 +1594,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 38 names
+## ./server (dist/server/index.d.ts): 39 names
 
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
@@ -1629,6 +1631,7 @@ type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
+methodName: dist/server/method.d.ts#methodName
 methodToPath: dist/server/method.d.ts#methodToPath
 pathToMethod: dist/server/method.d.ts#pathToMethod
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
@@ -5185,6 +5188,9 @@ export interface HostSource {
 
 ### dist/server/host-procedures.d.ts#hostProcedures
 export declare function hostProcedures(source: HostSource): AnyProcedure[];
+
+### dist/server/method.d.ts#methodName
+export declare function methodName(method: Pick<Method, "service" | "operation">): string;
 
 ### dist/server/method.d.ts#methodToPath
 export declare function methodToPath(method: Pick<Method, "service" | "operation">): ProcedurePath;

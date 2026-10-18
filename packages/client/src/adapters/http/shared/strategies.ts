@@ -60,6 +60,13 @@ export interface UrlPattern {
  * Examples:
  * - { service: "users", operation: "get" } → "/users/get"
  * - { service: "users", operation: "get", version: "v2" } → "/v2/users/get"
+ * - { service: "", operation: "morning" } → "/morning" (a path of one segment, CLI-28)
+ *
+ * A path gives one URL segment (a path of one segment) or two (the service with dots, and the
+ * operation). Each URL segment is URI-encoded, so a path segment does not make a URL separator.
+ * Thus only the version makes three URL segments, and the forms do not collide. A path of one
+ * segment has no version in the URL: `/{version}/{operation}` reads as `/{service}/{operation}`.
+ * The server ignores the version (wire protocol v1).
  */
 export const defaultUrlPattern: UrlPattern = {
   template: "/{version?}/{service}/{operation}",
@@ -67,11 +74,13 @@ export const defaultUrlPattern: UrlPattern = {
   format(method: Method, baseUrl: string): string {
     const parts = [baseUrl.replace(/\/$/, "")];
 
-    if (method.version) {
-      parts.push(method.version);
+    // The version needs a service: without one, it reads as the service (CLI-28)
+    if (method.version && method.service !== "") {
+      parts.push(encodeURIComponent(method.version));
     }
 
-    parts.push(method.service, method.operation);
+    if (method.service !== "") parts.push(encodeURIComponent(method.service));
+    parts.push(encodeURIComponent(method.operation));
 
     return parts.join("/");
   },
@@ -79,11 +88,11 @@ export const defaultUrlPattern: UrlPattern = {
   parse(url: string, _httpMethod: HTTPMethod): Method | null {
     // Remove base URL and query params
     const path = url.split("?")[0];
-    const segments = path?.split("/").filter(Boolean) ?? [];
+    const segments = (path?.split("/").filter(Boolean) ?? []).map(decodeSegment);
 
-    // Minimum: /service/operation (2 segments)
-    if (segments.length < 2) {
-      return null;
+    // A path of one segment: /operation, with the empty service (CLI-28)
+    if (segments.length === 1) {
+      return { service: "", operation: segments[0]! };
     }
 
     // Pattern: [version?]/service/operation
@@ -105,6 +114,15 @@ export const defaultUrlPattern: UrlPattern = {
     return null;
   },
 };
+
+/** A URL segment without its URI encoding. A segment that is not valid URI encoding stays as it is. */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
 
 /**
  * RESTful URL Pattern: /{version?}/{service}/{id?}

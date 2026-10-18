@@ -46,6 +46,26 @@ export function namedTools(tools: readonly McpTool[], toolName?: ((path: readonl
   return toolName ? tools.map((tool) => ({ ...tool, name: toolName(tool.procedurePath) })) : [...tools];
 }
 
+/**
+ * The tools whose name no other tool has (CLI-28). A join of the segments can give two
+ * procedures one name, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then
+ * the function leaves out the two tools, so a call does not reach the wrong procedure.
+ * `onCollision` gets each such name and the paths of its procedures.
+ */
+export function distinctTools(
+  tools: readonly McpTool[],
+  onCollision?: ((name: string, paths: readonly (readonly string[])[]) => void) | undefined
+): McpTool[] {
+  const byName = new Map<string, McpTool[]>();
+  for (const tool of tools) byName.set(tool.name, [...(byName.get(tool.name) ?? []), tool]);
+  const result: McpTool[] = [];
+  for (const [name, named] of byName) {
+    if (named.length === 1) result.push(named[0]!);
+    else onCollision?.(name, named.map((tool) => tool.procedurePath));
+  }
+  return result;
+}
+
 /** The time that the face waits for the answer of the person, when the question gives no time. */
 export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
 
@@ -508,11 +528,12 @@ export class McpServerTransport implements ServerTransport {
     const before = this.toolSignature();
 
     this.tools.clear();
-    for (const tool of namedTools(mcpTools, this.options.toolName)) {
-      if (this.tools.has(tool.name)) {
-        // MUST be stderr: stdout carries the protocol of stdio
-        console.error(`[mcp] Two procedures have the tool name "${tool.name}": the transport keeps ${tool.procedurePath.join(".")}`);
-      }
+    // A tool name names one procedure: the transport leaves out each name of two procedures (CLI-28)
+    const reportCollision = (name: string, paths: readonly (readonly string[])[]): void => {
+      // MUST be stderr: stdout carries the protocol of stdio
+      console.error(`[mcp] The procedures ${paths.map((path) => path.join(".")).join(", ")} have the tool name "${name}": the transport leaves them out`);
+    };
+    for (const tool of distinctTools(namedTools(mcpTools, this.options.toolName), reportCollision)) {
       this.tools.set(tool.name, tool);
     }
 

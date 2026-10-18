@@ -14,14 +14,23 @@ import type { Method } from "../client/types.js";
 import type { ProcedurePath } from "../procedures/types.js";
 
 /**
- * This function gives the transport method of a procedure path. A path needs at least two
- * segments, because a method has a service and an operation.
+ * This function gives the transport method of a procedure path. The last segment is the
+ * operation, and the other segments, joined with dots, are the service. A path of one segment,
+ * for example `["morning"]`, has the empty service (CLI-28). An empty path throws.
  */
 export function pathToMethod(path: readonly string[]): Method {
-  if (path.length < 2) {
-    throw new Error(`Invalid procedure path (it needs two segments or more): ${path.join(".")}`);
+  if (path.length === 0) {
+    throw new Error("Invalid procedure path: it needs one segment or more");
   }
   return { service: path.slice(0, -1).join("."), operation: path[path.length - 1]! };
+}
+
+/**
+ * The name of a method with dots: `docker.compose.up`, or only the operation for the empty
+ * service of a path of one segment (`morning`).
+ */
+export function methodName(method: Pick<Method, "service" | "operation">): string {
+  return method.service === "" ? method.operation : `${method.service}.${method.operation}`;
 }
 
 /**
