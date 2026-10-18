@@ -1,5 +1,12 @@
 # @procedures/pdf
 
+## 0.12.2
+
+### Patch Changes
+
+- @procedures/client@0.12.2
+  - @procedures/shell@0.12.2
+
 ## 0.12.1
 
 ### Patch Changes

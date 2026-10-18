@@ -1,5 +1,12 @@
 # @procedures/collections
 
+## 0.12.2
+
+### Patch Changes
+
+- b6782c0: New: the order of a list as data (Graph's split, wave 2, W1). `keyBetween(prev, next)` gives a string key between two neighbors, so a move writes one item and no other. The keys use fractional indexing with 62 digits: they do not run out, and the list needs no rebalance. `keysForDrop` gives all the writes of a move, also when two writers gave two items the same key. `keysBetween` gives several keys, `compareKeys` sorts them, `isValidKey` examines a key that a client writes, and `dropIndex(point, centers)` gives the index of a point among the items on the screen, in reading order.
+- @procedures/client@0.12.2
+
 ## 0.12.1
 
 ### Patch Changes
