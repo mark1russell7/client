@@ -18,6 +18,11 @@
  *   `maxTransactionRows`, or whose transaction fails (for example over the limits of MongoDB),
  *   writes a whole new generation in groups instead. Then the status names it, and the previous
  *   generation stays for `generationGrace` (on the time of the server), so a reader of it can finish.
+ * - A pass in groups holds a lease on its view (`passLease`, on the time of the server), and renews
+ *   it after each group. Another process leaves the view and the rows of that generation alone while
+ *   the lease holds. The change to the new generation is a compare-and-set: it needs the lease, and
+ *   the generation that the pass started from. A pass that loses either one gives way: its rows go
+ *   in a later pass, and a new pass of the view follows.
  * - The stored `_id` of a row carries the partition and the generation (`targetId`): partitions
  *   with the same keys share a target. The rows of an older materializer (no generation) go in the
  *   first pass.
@@ -70,6 +75,8 @@ export interface MaterializedViewStatus {
   generation?: ObjectId;
   /** The generation before the last change of generation, and the time of that change on the server (`$$NOW`). */
   previous?: { generation: ObjectId | null; flippedAt: Date };
+  /** The lease of a pass in groups: its owner, the generation that it writes, and its end on the server. */
+  lease?: { owner: string; generation: ObjectId; until: Date };
 }
 
 /**
@@ -120,6 +127,11 @@ export interface ViewMaterializerOptions {
    * time of the server (`$$NOW`) measures it, so the processes and the restarts agree.
    */
   generationGrace?: Duration | undefined;
+  /**
+   * The lease of a pass in groups on its view (default 60 s), on the time of the server. The pass
+   * renews it after each group, so a group must take less time.
+   */
+  passLease?: Duration | undefined;
 }
 
 /** The function that gives the stored `_id` of a row of a view. */
@@ -146,6 +158,15 @@ export function viewFilter(view: MaterializedView, options: { partitionField?: s
 
 /** An error of the result of a view (the pipeline, the size, a row): a pass in groups gives it too. */
 class ViewRunError extends Error {}
+
+/** A pass that another process supersedes (its lease, or a newer generation): it gives way, with no error of the view. */
+class PassSuperseded extends Error {}
+
+/** True for an error that MongoDB labels transient in a transaction, for example a write conflict with another process. */
+function isTransient(error: unknown): boolean {
+  const labelled = error as { hasErrorLabel?: (label: string) => boolean } | null;
+  return labelled?.hasErrorLabel?.("TransientTransactionError") === true;
+}
 
 /** A row of the result, ready to store. */
 interface StoredRow {
@@ -222,6 +243,7 @@ export class ViewMaterializer {
   private readonly targetId: ViewTargetId;
   private readonly maxTransactionRows: number;
   private readonly graceMs: number;
+  private readonly leaseMs: number;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
@@ -242,6 +264,7 @@ export class ViewMaterializer {
     this.targetId = options.targetId ?? partitionTargetId;
     this.maxTransactionRows = options.maxTransactionRows ?? 10_000;
     this.graceMs = optionalMs(options.generationGrace, "generationGrace") ?? 60_000;
+    this.leaseMs = Math.round(optionalMs(options.passLease, "passLease") ?? 60_000);
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -629,6 +652,12 @@ export class ViewMaterializer {
       await this.writeStatus(view, partition, { state: "ok", at: Date.now() });
       return { changed };
     } catch (error) {
+      if (error instanceof PassSuperseded) {
+        // Not an error of the view: another process builds it now. A pass comes back after `rewatch`
+        this.log("info", `${view._id}: ${error.message}: the view runs again later`);
+        this.later(() => this.schedule(partition, view.collections[0]!));
+        return { changed: false };
+      }
       const message = String((error as Error)?.message ?? error);
       this.log("error", `${view._id}: ${message}`);
       await this.writeStatus(view, partition, { state: "errored", lastError: message, at: Date.now() });
@@ -643,6 +672,7 @@ export class ViewMaterializer {
   private async run(view: MaterializedView, partition: string): Promise<boolean> {
     const target = this.db!.collection(view.targetCollection);
     const { status, now } = await this.statusOf(view, partition);
+    if (status?.lease && status.lease.until instanceof Date && now < status.lease.until) throw new PassSuperseded("a pass of another process holds the view");
     await this.dropOldGenerations(target, partition, status, now);
     const current = status?.generation;
     const generations = await this.currentGenerations(partition);
@@ -651,7 +681,8 @@ export class ViewMaterializer {
       try {
         return await this.runInTransaction(view, partition, target, current, generations);
       } catch (error) {
-        if (error instanceof ViewRunError) throw error;
+        if (error instanceof ViewRunError || error instanceof PassSuperseded) throw error;
+        if (isTransient(error)) throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
         this.log("warn", `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes a new generation in groups`);
       }
     }
@@ -681,19 +712,19 @@ export class ViewMaterializer {
 
   /**
    * This method removes the rows of the old generations of a view: not the current one, not the
-   * previous one during its grace time, and not a generation younger than the grace time (a pass in
-   * groups of another process can write it).
+   * previous one during its grace time, and not the generation of a live lease (a pass in groups,
+   * maybe of another process, writes it). The rows of a pass that stopped go when its lease ends.
    */
   private async dropOldGenerations(target: Collection, partition: string, status: Partial<MaterializedViewStatus> | undefined, now: Date): Promise<void> {
     const current = status?.generation;
     if (!current) return;
     const previous = status.previous;
     const inGrace = previous?.flippedAt instanceof Date && now.getTime() < previous.flippedAt.getTime() + this.graceMs;
-    const keep = [current, ...(inGrace ? [previous.generation] : [])].filter((generation): generation is ObjectId => generation instanceof ObjectId);
-    // The time of a generation is the time of its ObjectId, made by its process: the clocks of the processes must agree within the grace time
-    const before = ObjectId.createFromTime(Math.floor((now.getTime() - this.graceMs) / 1000));
+    const lease = status.lease;
+    const leased = lease?.until instanceof Date && now < lease.until ? [lease.generation] : [];
+    const keep = [current, ...(inGrace ? [previous.generation] : []), ...leased].filter((generation): generation is ObjectId => generation instanceof ObjectId);
     try {
-      await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $nin: keep, $lt: before } });
+      await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $exists: true, $nin: keep } });
     } catch (error) {
       throw new Error(`the removal of the old generations: ${String((error as Error)?.message ?? error)}`);
     }
@@ -759,6 +790,10 @@ export class ViewMaterializer {
     let changed = current === undefined;
     try {
       session.startTransaction();
+      // In the transaction: a change of generation by another process since the start supersedes this pass
+      const fresh = await this.db!.collection(this.viewsName).findOne({ _id: view._id, [this.partitionField]: partition } as Document, { projection: { [this.statusField]: 1 }, session });
+      const now = (fresh?.[this.statusField] as Partial<MaterializedViewStatus> | undefined)?.generation;
+      if (!(now === undefined ? current === undefined : current !== undefined && now.equals(current))) throw new PassSuperseded("another process changed the generation of the view");
       const seen = new Set<string>();
       for await (const group of this.resultGroups(view, partition, generations, generation)) {
         const stored = await target
@@ -782,7 +817,9 @@ export class ViewMaterializer {
       }
       for (const group of groups(stale)) await target.deleteMany({ [this.partitionField]: partition, _id: { $in: group } } as Document, { session });
       if (stale.length > 0) changed = true;
-      if (!current) await this.setGeneration(view, partition, generation, undefined, session);
+      if (!current && !(await this.setGeneration(view, partition, generation, { expected: undefined, session }))) {
+        throw new PassSuperseded("another process named the first generation of the view");
+      }
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction().catch(() => undefined);
@@ -800,22 +837,34 @@ export class ViewMaterializer {
    */
   private async runInGroups(view: MaterializedView, partition: string, target: Collection, current: ObjectId | undefined, generations: readonly ObjectId[]): Promise<void> {
     const generation = new ObjectId();
-    let checked = false;
-    for await (const group of this.resultGroups(view, partition, generations, generation)) {
-      if (!checked) {
-        checked = true;
-        const first = group[0]!;
-        if (idKey(this.targetId(first.id, partition, new ObjectId())) === first.key) {
-          throw new ViewRunError("targetId gives the same _id in each generation: the view is too large for one transaction");
+    const owner = generation.toHexString();
+    if (!(await this.takeLease(view, partition, owner, generation))) throw new PassSuperseded("a pass of another process holds the view");
+    try {
+      let checked = false;
+      for await (const group of this.resultGroups(view, partition, generations, generation)) {
+        if (!checked) {
+          checked = true;
+          const first = group[0]!;
+          if (idKey(this.targetId(first.id, partition, new ObjectId())) === first.key) {
+            throw new ViewRunError("targetId gives the same _id in each generation: the view is too large for one transaction");
+          }
         }
+        try {
+          await target.bulkWrite(group.map((row) => this.replaceOf(row, partition)) as never, { ordered: false });
+        } catch (error) {
+          throw new Error(`the write of a group of rows: ${String((error as Error)?.message ?? error)}`);
+        }
+        if (!(await this.renewLease(view, partition, owner))) throw new PassSuperseded("the pass lost its lease");
       }
-      try {
-        await target.bulkWrite(group.map((row) => this.replaceOf(row, partition)) as never, { ordered: false });
-      } catch (error) {
-        throw new Error(`the write of a group of rows: ${String((error as Error)?.message ?? error)}`);
+      // The flip: still the owner of a live lease, and from the generation of the start
+      if (!(await this.setGeneration(view, partition, generation, { expected: current, owner, previous: { generation: current ?? null } }))) {
+        throw new PassSuperseded("the pass lost its lease, or a newer generation took the view");
       }
+    } catch (error) {
+      // Its rows stay for a later pass: the end of the lease lets the cleanup remove them
+      await this.releaseLease(view, partition, owner).catch(() => undefined);
+      throw error;
     }
-    await this.setGeneration(view, partition, generation, { generation: current ?? null });
     await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $exists: false } });
     // At the end of the grace time, the previous generation goes. The time of the server decides it, so a timer that ends early removes nothing
     const key = this.keyOf(partition, view._id);
@@ -837,13 +886,55 @@ export class ViewMaterializer {
   }
 
   /**
-   * This method names the current generation of a view in its status, and the previous one when it
-   * changes, with the time of the change on the server (`$$NOW`).
+   * This method names the current generation of a view in its status, as a compare-and-set: only
+   * from the generation `expected`, and with `owner`, only while that pass holds a live lease. Then
+   * it ends the lease, and names the previous generation with the time of the change on the server
+   * (`$$NOW`). It gives false when another process changed the view.
    */
-  private async setGeneration(view: MaterializedView, partition: string, generation: ObjectId, previous: { generation: ObjectId | null } | undefined, session?: ClientSession): Promise<void> {
-    const set: Document = { [`${this.statusField}.generation`]: { $literal: generation } };
-    if (previous) set[`${this.statusField}.previous`] = { generation: { $literal: previous.generation }, flippedAt: "$$NOW" };
-    await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, [{ $set: set }], session ? { session } : {});
+  private async setGeneration(
+    view: MaterializedView,
+    partition: string,
+    generation: ObjectId,
+    options: { expected: ObjectId | undefined; owner?: string; previous?: { generation: ObjectId | null }; session?: ClientSession }
+  ): Promise<boolean> {
+    const field = this.statusField;
+    const filter: Document = { _id: view._id, [this.partitionField]: partition, [`${field}.generation`]: options.expected ?? { $exists: false } };
+    if (options.owner !== undefined) {
+      filter[`${field}.lease.owner`] = options.owner;
+      filter["$expr"] = { $gt: [`$${field}.lease.until`, "$$NOW"] };
+    }
+    const set: Document = { [`${field}.generation`]: { $literal: generation } };
+    if (options.previous) set[`${field}.previous`] = { generation: { $literal: options.previous.generation }, flippedAt: "$$NOW" };
+    const update: Document[] = [{ $set: set }];
+    if (options.owner !== undefined) update.push({ $unset: `${field}.lease` });
+    const result = await this.db!.collection(this.viewsName).updateOne(filter, update, options.session ? { session: options.session } : {});
+    return result.matchedCount === 1;
+  }
+
+  /** This method takes the lease of a view for a pass in groups, when no live lease holds it. It gives false when one does. */
+  private async takeLease(view: MaterializedView, partition: string, owner: string, generation: ObjectId): Promise<boolean> {
+    const field = this.statusField;
+    const result = await this.db!.collection(this.viewsName).updateOne(
+      { _id: view._id, [this.partitionField]: partition, $expr: { $not: [{ $gt: [`$${field}.lease.until`, "$$NOW"] }] } } as Document,
+      [{ $set: { [`${field}.lease`]: { owner: { $literal: owner }, generation: { $literal: generation }, until: { $add: ["$$NOW", this.leaseMs] } } } }]
+    );
+    return result.matchedCount === 1;
+  }
+
+  /** This method renews the lease of a pass, while it is live and still its own. It gives false when the pass lost it. */
+  private async renewLease(view: MaterializedView, partition: string, owner: string): Promise<boolean> {
+    const field = this.statusField;
+    const renewed = await this.db!.collection(this.viewsName).findOneAndUpdate(
+      { _id: view._id, [this.partitionField]: partition, [`${field}.lease.owner`]: owner, $expr: { $gt: [`$${field}.lease.until`, "$$NOW"] } } as Document,
+      [{ $set: { [`${field}.lease.until`]: { $add: ["$$NOW", this.leaseMs] } } }],
+      { projection: { _id: 1 } }
+    );
+    return renewed !== null;
+  }
+
+  /** This method ends the lease of a pass, when it is still its own. */
+  private async releaseLease(view: MaterializedView, partition: string, owner: string): Promise<void> {
+    await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition, [`${this.statusField}.lease.owner`]: owner } as Document, { $unset: { [`${this.statusField}.lease`]: "" } });
   }
 
   /** This method writes the state of a view. It keeps the generations of the status. */

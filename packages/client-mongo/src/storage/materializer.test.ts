@@ -322,6 +322,94 @@ withMongo("ViewMaterializer on MongoDB", () => {
     }
   }, 30_000);
 
+  it("gives way to the live lease of another process, keeps the rows of its generation, and removes them when the lease ends", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    const logs: string[] = [];
+    const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), log: (level, message) => void logs.push(`${level}: ${message}`) });
+    await db.collection("items").insertMany(["a", "b"].map((kind, index) => ({ _id: String(index) as never, _part: "t1", kind, n: 1 })));
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    const viewOf = async () => (await db.collection("_aggregations").findOne({ _id: "sums" as never })) as unknown as MaterializedView;
+    const status = async () => (await viewOf())["_materializerStatus"] as Document;
+    const first = (await status())["generation"] as ObjectId;
+
+    // Another process writes a new generation in groups, under its live lease
+    const other = new ObjectId();
+    await db.collection("sums").insertOne({ _id: { partition: "t1", generation: other, id: "zz" } as never, _part: "t1", _viewGen: other, total: 9 });
+    await db.collection("_aggregations").updateOne({ _id: "sums" as never }, [
+      { $set: { "_materializerStatus.lease": { owner: "other", generation: other, until: { $add: ["$$NOW", 60_000] } } } },
+    ]);
+    await db.collection("items").insertOne({ _id: "2" as never, _part: "t1", kind: "c", n: 1 });
+    await eventually(async () => expect(logs.some((line) => line.includes("a pass of another process holds the view"))).toBe(true));
+    // This process leaves the view, the generation and the rows of the lease alone
+    expect(((await status())["generation"] as ObjectId).equals(first)).toBe(true);
+    expect(await db.collection("sums").countDocuments({ _viewGen: other })).toBe(1);
+    expect((await status())["state"]).toBe("ok");
+
+    // The lease ends (the other process stopped): the view runs again, and the rows of that pass go
+    await db.collection("_aggregations").updateOne({ _id: "sums" as never }, [{ $set: { "_materializerStatus.lease.until": { $subtract: ["$$NOW", 1] } } }]);
+    await eventually(async () => expect(sorted(await db.collection("sums").find(viewFilter(await viewOf())).toArray())).toHaveLength(3));
+    await eventually(async () => expect(await db.collection("sums").countDocuments({ _viewGen: other })).toBe(0));
+    await views.stop();
+  });
+
+  it("keeps one view under two processes: a slow pass in groups keeps its rows, and a pass whose generation changed does not flip", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const admin = client!.db("admin");
+    const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
+      () => true,
+      () => false
+    );
+    if (!failpoints) {
+      if (process.env["MONGO_TEST_FAILPOINTS"] === "1") throw new Error("MONGO_TEST_FAILPOINTS is 1, but the server has no test commands (enableTestCommands)");
+      return context.skip?.("the failpoints need a server with enableTestCommands");
+    }
+    const name = `client_mongo_views_${process.pid}_${Date.now()}_${++next}`;
+    const clientA = new MongoClient(url!, { appName: "views-a" });
+    const clientB = new MongoClient(url!, { appName: "views-b" });
+    await Promise.all([clientA.connect(), clientB.connect()]);
+    dbs.push(client!.db(name));
+    const logs: string[] = [];
+    const options = { debounce: ms(20), rewatch: ms(100), maxTransactionRows: 1, log: (level: string, message: string) => void logs.push(`${level}: ${message}`) };
+    const a = new ViewMaterializer({ db: () => clientA.db(name), ...options });
+    const b = new ViewMaterializer({ db: () => clientB.db(name), ...options });
+    const db = client!.db(name);
+    try {
+      await db.collection("items").insertMany(["a", "b", "c"].map((kind, index) => ({ _id: String(index) as never, _part: "t1", kind, n: 1 })));
+      await db.collection("_aggregations").insertOne(sumsView() as never);
+      await a.start();
+      const viewOf = async () => (await db.collection("_aggregations").findOne({ _id: "sums" as never })) as unknown as MaterializedView;
+      const status = async () => (await viewOf())["_materializerStatus"] as Document;
+      // The renewal of the lease of A (a findAndModify) waits 4 s: A is slow, after its rows are written
+      await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["findAndModify"], appName: "views-a", blockConnection: true, blockTimeMS: 4000 } });
+      await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "d", n: 1 });
+      await eventually(async () => expect((await status())["lease"]).toBeDefined());
+      const leased = ((await status())["lease"] as Document)["generation"] as ObjectId;
+      await eventually(async () => expect(await db.collection("sums").countDocuments({ _viewGen: leased })).toBe(4));
+
+      // B starts in the meantime: it gives way to the lease, and the rows of A stay
+      await b.start();
+      expect(await db.collection("sums").countDocuments({ _viewGen: leased })).toBe(4);
+      // A newer generation takes the view while A waits: the flip of A is a compare-and-set, so it gives way
+      const newer = new ObjectId();
+      await db.collection("_aggregations").updateOne({ _id: "sums" as never }, { $set: { "_materializerStatus.generation": newer } });
+      await eventually(async () => expect(logs.some((line) => line.includes("a newer generation took the view"))).toBe(true));
+      expect(((await status())["generation"] as ObjectId).equals(newer)).toBe(true);
+
+      // The view comes back to one whole generation, and the rows of the superseded pass go
+      await eventually(async () => expect(sorted(await db.collection("sums").find(viewFilter(await viewOf())).toArray())).toHaveLength(4));
+      await eventually(async () => expect(await db.collection("sums").countDocuments({ _viewGen: leased })).toBe(0));
+      expect((await status())["state"]).not.toBe("errored");
+    } finally {
+      await admin.command({ configureFailPoint: "failCommand", mode: "off" });
+      await a.stop();
+      await b.stop();
+      await Promise.all([clientA.close(), clientB.close()]);
+    }
+  }, 30_000);
+
   it("has the stop parts of a transport, and takes its timers from the injected clock", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
