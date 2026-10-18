@@ -64,7 +64,11 @@ export type {
 
 // Procedures
 export { createCollectionProcedures } from "./procedures.js";
-export type { CollectionProceduresOptions } from "./procedures.js";
+export type { CollectionProceduresOptions, CollectionChangeEventsOptions } from "./procedures.js";
+
+// The change events of the writes (roadmap CLI-15)
+export { collectionChangeTopic, collectionTopicReads } from "./changes.js";
+export type { CollectionChangeEvent } from "./changes.js";
 
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
 export type {

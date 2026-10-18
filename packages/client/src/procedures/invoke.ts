@@ -510,6 +510,9 @@ export function createProcedureContext(
   if (options.principal !== undefined) context.principal = options.principal;
   // The procedure of the parent invocation made this call (roadmap R33: the root of the files)
   if (invocation?.parent) context.caller = invocation.parent.procedure;
+  // The output filter of the host, for the data that a handler sends later (roadmap CLI-15)
+  const admitItem = options.admitItem;
+  if (invocation && invocation.depth === 0 && admitItem) context.admit = async (item) => admitItem(item, invocation);
   // Every context has a bus. With a signal, the waits of the handler on the bus end when the
   // invocation aborts, so a stream handler that waits on ctx.bus.stream() can finish. (Before,
   // no host set ctx.bus: deep dive CORE-15.)

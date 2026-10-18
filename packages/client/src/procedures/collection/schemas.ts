@@ -63,6 +63,26 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** The longest origin of a write, in characters. */
+const MAX_ORIGIN_LENGTH = 256;
+
+/**
+ * The error of the field `origin` of a write input (roadmap CLI-15), or undefined. An origin is a
+ * string of 1 to 256 characters. The procedure gives it to the storage and to the change event.
+ */
+function originError(data: Record<string, unknown>): ZodErrorLike | undefined {
+  const origin = data["origin"];
+  if (origin === undefined || (isString(origin) && origin.length > 0 && origin.length <= MAX_ORIGIN_LENGTH)) return undefined;
+  const message = `origin must be a string of 1 to ${MAX_ORIGIN_LENGTH} characters`;
+  return { message, errors: [{ path: ["origin"], message }] };
+}
+
+/** The input with the origin of the data, when the data has one. */
+function withOriginOf<I extends object>(data: Record<string, unknown>, input: I): I & { origin?: string } {
+  const origin = data["origin"];
+  return (isString(origin) ? { ...input, origin } : input) as I & { origin?: string };
+}
+
 // =============================================================================
 // Common Schemas
 // =============================================================================
@@ -195,6 +215,8 @@ export const getOutputSchema : ZodLike<unknown> = createSchema<unknown>((data) =
 export interface SetInput {
   id: string;
   value: unknown;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) => {
@@ -225,7 +247,9 @@ export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) 
       },
     };
   }
-  return { success: true, data: { id: data["id"], value: data["value"] } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { id: data["id"], value: data["value"] }) };
 });
 
 /**
@@ -244,6 +268,8 @@ export const setOutputSchema : ZodLike<void> = createSchema<void>((_data) => {
  */
 export interface DeleteInput {
   id: string;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput>((data) => {
@@ -265,7 +291,9 @@ export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput
       },
     };
   }
-  return { success: true, data: { id: data["id"] } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { id: data["id"] }) };
 });
 
 /**
@@ -499,6 +527,8 @@ export const findOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Collec
 export interface PatchInput {
   id: string;
   fields: StoragePatch;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const patchInputSchema : ZodLike<PatchInput> = createSchema<PatchInput>((data) => {
@@ -530,7 +560,9 @@ export const patchInputSchema : ZodLike<PatchInput> = createSchema<PatchInput>((
       },
     };
   }
-  return { success: true, data: { id: data["id"], fields: data["fields"] as StoragePatch } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { id: data["id"], fields: data["fields"] as StoragePatch }) };
 });
 
 /**
@@ -697,7 +729,10 @@ export const sizeOutputSchema : ZodLike<number> = createSchema<number>((data) =>
 /**
  * Input for clear operation - empty object.
  */
-export interface ClearInput {}
+export interface ClearInput {
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
+}
 
 export const clearInputSchema : ZodLike<ClearInput> = createSchema<ClearInput>((data) => {
   if (!isObject(data)) {
@@ -709,7 +744,9 @@ export const clearInputSchema : ZodLike<ClearInput> = createSchema<ClearInput>((
       },
     };
   }
-  return { success: true, data: {} };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, {}) };
 });
 
 /**
@@ -773,6 +810,8 @@ export const getBatchOutputSchema : ZodLike<Record<string, unknown>> = createSch
  */
 export interface SetBatchInput {
   items: Array<{ id: string; value: unknown }>;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const setBatchInputSchema : ZodLike<SetBatchInput> = createSchema<SetBatchInput>((data) => {
@@ -806,11 +845,13 @@ export const setBatchInputSchema : ZodLike<SetBatchInput> = createSchema<SetBatc
       };
     }
   }
+  const error = originError(data);
+  if (error) return { success: false, error };
   return {
     success: true,
-    data: {
+    data: withOriginOf(data, {
       items: data["items"].map((item: any) => ({ id: item["id"], value: item["value"] })),
-    },
+    }),
   };
 });
 
@@ -826,6 +867,8 @@ export const setBatchOutputSchema : ZodLike<void> = createSchema<void>((_data) =
  */
 export interface DeleteBatchInput {
   ids: string[];
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const deleteBatchInputSchema : ZodLike<DeleteBatchInput> = createSchema<DeleteBatchInput>((data) => {
@@ -847,7 +890,9 @@ export const deleteBatchInputSchema : ZodLike<DeleteBatchInput> = createSchema<D
       },
     };
   }
-  return { success: true, data: { ids: data["ids"] as string[] } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { ids: data["ids"] as string[] }) };
 });
 
 /**

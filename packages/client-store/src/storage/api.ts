@@ -7,7 +7,7 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
+import type { CollectionStorage, StorageChanges, StorageMetadata, StorageWriteOptions } from "@procedures/collections";
 import {
   QUERY_OPERATORS,
   patchProblems,
@@ -281,6 +281,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     closeClient: boolean;
     /** True when the storage calls the `get` of the core collection procedures */
     askFound: boolean;
+    /** True when the writes send their origin: the core collection procedures take it (roadmap CLI-15) */
+    sendOrigin: boolean;
   };
   private closed = false;
   /** True when the server does not know the procedure `ids`: `getIds()` reads the entries */
@@ -335,6 +337,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       closeClient: options.closeClient ?? false,
       // A custom service can refuse an unknown input field: it gets the input { id }
       askFound: options.service === undefined && (options.operations?.get ?? "get") === "get",
+      // A custom service can refuse an unknown input field: it gets no origin
+      sendOrigin: options.service === undefined,
     };
   }
 
@@ -467,16 +471,20 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Write Operations ═══
   //
 
-  async set(id: string, value: T): Promise<void> {
-    await this.call("set", { id, value });
+  /**
+   * This method sets an item on the server. The origin of the options goes to the procedure `set`,
+   * so the storage of the server and the change event of the write have it (roadmap CLI-15).
+   */
+  async set(id: string, value: T, options?: StorageWriteOptions): Promise<void> {
+    await this.call("set", { id, value, ...this.originOf(options) });
   }
 
-  async delete(id: string): Promise<boolean> {
-    return (await this.call<boolean>("delete", { id })) === true;
+  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
+    return (await this.call<boolean>("delete", { id, ...this.originOf(options) })) === true;
   }
 
-  async clear(): Promise<void> {
-    await this.call("clear", {});
+  async clear(options?: StorageWriteOptions): Promise<void> {
+    await this.call("clear", { ...this.originOf(options) });
   }
 
   /**
@@ -484,10 +492,10 @@ export class ApiStorage<T> implements CollectionStorage<T> {
    * (roadmap CLI-14). The fields are a JSON Merge Patch, or the operations `$set` and `$unset`.
    * It gives the new item, or undefined for a missing id.
    */
-  async patch(id: string, fields: StoragePatch): Promise<T | undefined> {
+  async patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined> {
     const [problem] = patchProblems(fields);
     if (problem !== undefined) throw new TypeError(`The patch of ${id} is not correct: ${problem}`);
-    const result = await this.call<unknown>("patch", { id, fields });
+    const result = await this.call<unknown>("patch", { id, fields, ...this.originOf(options) });
     if (!isFoundOutput(result)) throw new Error(`${this.options.service}.patch did not return { found, value }`);
     return result.found ? (result.value as T) : undefined;
   }
@@ -496,13 +504,13 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Bulk Operations ═══
   //
 
-  async setBatch(items: Array<[string, T]>): Promise<void> {
+  async setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
     // The collection procedure takes objects, not tuples
-    await this.call("setBatch", { items: items.map(([id, value]) => ({ id, value })) });
+    await this.call("setBatch", { items: items.map(([id, value]) => ({ id, value })), ...this.originOf(options) });
   }
 
-  async deleteBatch(ids: string[]): Promise<number> {
-    return Number(await this.call<number>("deleteBatch", { ids }));
+  async deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number> {
+    return Number(await this.call<number>("deleteBatch", { ids, ...this.originOf(options) }));
   }
 
   async getBatch(ids: string[]): Promise<Map<string, T>> {
@@ -550,6 +558,11 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   //
   // ═══ Internal Helpers ═══
   //
+
+  /** The field `origin` of a write input, or no field: a custom service gets no origin. */
+  private originOf(options: StorageWriteOptions | undefined): { origin?: string } {
+    return this.options.sendOrigin && options?.origin !== undefined ? { origin: options.origin } : {};
+  }
 
   /**
    * Make an RPC call via the universal client, with the timeout, the signal and the retries. The

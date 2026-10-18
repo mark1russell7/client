@@ -8,10 +8,16 @@
  *
  * - The topic rule (`topics`) is the expose rule of the topics. A topic outside it gives
  *   `TOPIC_NOT_FOUND`.
+ * - `reads` gives the resources that a subscriber of a topic reads. The capability of the call
+ *   must permit them, as for a procedure that reads them (roadmap CLI-15). By default, a topic
+ *   `collections.<name>` reads `collection:<name>`.
  * - `allow` examines each topic with the capability of the call. A refusal gives `FORBIDDEN` with
  *   the reason `topic-not-allowed`.
  * - The procedure declares that it reads the resource `events`, so the capability of the host
  *   applies to it as to each procedure.
+ *
+ * - A value with rows (`withRows()`) reaches each subscriber through the output filter of its host
+ *   (`ctx.admit`): each row passes the filter, and the subscriber gets only the admitted rows.
  *
  * The delivery is at most once. The queue of a subscription holds at most `buffer` events. When
  * it is full, the publisher drops the oldest event, and the next event tells the number of lost
@@ -21,10 +27,13 @@
 import { z } from "zod";
 import { createProcedure } from "../procedures/define.js";
 import { InvocationError } from "../procedures/invoke.js";
+import { capabilityRefusal } from "../procedures/capability.js";
+import { collectionTopicReads } from "../procedures/collection/changes.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
 import { getGlobalEventBus } from "./bus.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
+import { admittedValue, rowsOf } from "./rows.js";
 
 /** The number of topics that one subscription can name. */
 export const MAX_SUBSCRIPTION_TOPICS = 64;
@@ -64,6 +73,18 @@ export interface EventPublisherOptions {
    * @default 1024
    */
   buffer?: number | undefined;
+  /**
+   * The resources that a subscriber of a topic reads (roadmap CLI-15). The publisher refuses a
+   * topic whose reads the capability of the call does not permit, as for a procedure that reads
+   * them: `FORBIDDEN` with the reason `effects-exceeded`.
+   * @default `collectionTopicReads`: a topic `collections.<name>` reads `collection:<name>`
+   */
+  reads?: ((topic: string) => readonly string[]) | undefined;
+}
+
+/** A procedure that reads resources, for the admission of a topic under a capability. */
+function topicReader(reads: readonly string[]): AnyProcedure {
+  return { path: [...EVENTS_SUBSCRIBE_PATH], metadata: { effects: { reads: [...reads], writes: [] } } } as unknown as AnyProcedure;
 }
 
 /** This function gives the test of a topic rule. */
@@ -131,7 +152,9 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   private readonly queue: Array<Extract<EventItem, { type: "event" }>> = [];
   private seq = 0;
   private dropped = 0;
-  private waiter: { resolve: (result: IteratorResult<EventItem>) => void; reject: (error: unknown) => void } | undefined;
+  private waiter:
+    | { resolve: (result: IteratorResult<EventItem> | PromiseLike<IteratorResult<EventItem>>) => void; reject: (error: unknown) => void }
+    | undefined;
   private closed = false;
   private failure: unknown;
   private readonly unsubscribes: Unsubscribe[];
@@ -142,6 +165,8 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     private readonly buffer: number,
     private readonly signal: AbortSignal | undefined,
     private readonly onClose: (subscription: TopicSubscription) => void,
+    /** The output filter of the host for this subscriber: each row of a value passes it */
+    private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
   ) {
     this.confirmation = { type: "subscribed", topics };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
@@ -166,7 +191,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     const waiter = this.waiter;
     if (waiter && this.queue.length === 0) {
       this.waiter = undefined;
-      waiter.resolve({ value: this.withDropped(event), done: false });
+      waiter.resolve(this.deliver(event));
       return;
     }
     if (this.queue.length >= this.buffer) {
@@ -175,6 +200,16 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
       this.dropped++;
     }
     this.queue.push(event);
+  }
+
+  /**
+   * The item of an event for the subscriber. The rows of its data pass the output filter of the
+   * host for this subscriber, and the subscriber gets only the admitted rows.
+   */
+  private deliver(event: Extract<EventItem, { type: "event" }>): Promise<IteratorResult<EventItem>> {
+    const item = this.withDropped(event) as Extract<EventItem, { type: "event" }>;
+    if (!this.admit || !rowsOf(item.data)) return Promise.resolve({ value: item, done: false });
+    return admittedValue(item.data, this.admit).then((data): IteratorResult<EventItem> => ({ value: { ...item, data }, done: false }));
   }
 
   /** The event with the number of events that the publisher dropped before it. */
@@ -192,7 +227,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
       return Promise.resolve({ value: confirmation, done: false });
     }
     const event = this.queue.shift();
-    if (event) return Promise.resolve({ value: this.withDropped(event), done: false });
+    if (event) return this.deliver(event);
     if (this.failure !== undefined) {
       const failure = this.failure;
       this.failure = undefined;
@@ -268,6 +303,7 @@ export class EventPublisher {
   readonly procedure: AnyProcedure;
   private readonly known: (topic: string) => boolean;
   private readonly allow: EventPublisherOptions["allow"];
+  private readonly reads: (topic: string) => readonly string[];
   private readonly buffer: number;
   private readonly open = new Set<TopicSubscription>();
 
@@ -275,6 +311,7 @@ export class EventPublisher {
     this.bus = options.bus ?? getGlobalEventBus();
     this.known = topicMatcher(options.topics);
     this.allow = options.allow;
+    this.reads = options.reads ?? collectionTopicReads;
     this.buffer = Math.max(1, Math.floor(options.buffer ?? 1024));
     this.procedure = createProcedure()
       .path([...EVENTS_SUBSCRIBE_PATH])
@@ -316,6 +353,13 @@ export class EventPublisher {
     for (const topic of unique) {
       if (!this.known(topic)) throw new TopicNotFoundError(`The host has no topic "${topic}"`);
     }
+    // A subscriber of a topic reads its resources: the capability of the call must permit them
+    for (const topic of unique) {
+      const reads = this.reads(topic);
+      if (reads.length === 0) continue;
+      const refusal = capabilityRefusal(topicReader(reads), ctx.capability);
+      if (refusal) throw new InvocationError("FORBIDDEN", `The topic "${topic}": ${refusal.message}`, ctx.path, refusal.reason);
+    }
     if (this.allow) {
       const call: TopicCall = { capability: ctx.capability, metadata: ctx.metadata };
       for (const topic of unique) {
@@ -324,7 +368,7 @@ export class EventPublisher {
         }
       }
     }
-    const subscription = new TopicSubscription(this.bus, unique, this.buffer, ctx.signal, (closed) => this.open.delete(closed));
+    const subscription = new TopicSubscription(this.bus, unique, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
     this.open.add(subscription);
     return subscription.closeIfAborted();
   }

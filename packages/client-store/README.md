@@ -213,7 +213,7 @@ The timers and the retries run on a clock: `Clock` of `@mark1russell7/service/cl
 | `syncing` | True while a push or a pull runs |
 | `lastSync` | The time of the last pull that succeeded |
 | `mode` | The mode of the storage |
-| `error` | The newest failure of a load, a push, a pull or the queue store, with its `operation` and its `error`. A later success of the same work clears it. |
+| `error` | The newest failure of a load, a push, a pull, the queue store or the sync state store, with its `operation` and its `error`. A later success of the same work clears it. |
 
 ```ts
 const stop = users.onStatus((status) => {
@@ -223,6 +223,53 @@ const stop = users.onStatus((status) => {
 ```
 
 `SyncedProcedureRegistry` takes the option `clock` for its auto-sync. Its `getStatus()` and `onStatus()` give the failures of the auto-sync and of the write-through writes.
+
+### The changes, the capture, the sync state and the push feed
+
+`HybridStorage` is a sync engine for each local copy: `InMemoryStorage`, `SqliteStorage`, IndexedDB or a SignalDB collection (server stack D9, CLI-21, CLI-15).
+
+- `observe(observer)` gives one batch of `set`, `delete` and `clear` changes for each change of the storage.
+- A write of the storage gives its batch with the `origin` of its options. A pull and a delta of the feed give their changes with the origin `syncOrigin`, `"sync"` by default.
+- The option `origin` is the tag of the storage. Each write of the storage to the local copy and to the remote has it.
+- With `capture: "observe"`, the storage observes the local copy. It puts each change with another origin in the queue. Thus the application can write to the local copy directly.
+- A captured change always goes in the queue, because the application made it already. In `write-through` mode, the storage sends it at once.
+- The option `syncState` keeps the cursor and the base versions. A new storage with the same store asks only for the changes since the cursor.
+- `MemorySyncStateStore` keeps the state in memory. `IndexedDbSyncStateStore` of `@procedures/store/indexeddb` keeps it in a browser.
+- The storage uses a loaded cursor only with the option `local` and a local copy that has items. Give the state store with a durable local copy.
+- The option `feed` takes a push feed of the remote changes, for example `EventsChangeFeed`. The storage subscribes in the modes `write-through` and `write-back`.
+- A delta whose `since` is the cursor of the storage applies without a read of the remote.
+- A gap, a lost event, a new subscription or another delta makes the storage pull the changes since its cursor.
+- A delta that comes during a pull applies after the pull. Thus a pull does not erase a change that came during it.
+- In `write-through` mode, a pull or a delta does not write over an own write that waits for the remote. After the write, the storage reads the id again, and the rules of a pull decide.
+- With `versionOf`, the storage keeps the versions of its own writes until their echoes come. The echo of an older own write does not write over a newer local write.
+- The option `echoWindow` gives the time that the storage waits for an echo. The default is 30 seconds.
+
+`EventsChangeFeed` subscribes to the change events of the core collection procedures. Each write of `collections.<name>.*` publishes `{ since, version, changed, deleted, origin }` on the topic `collections.<name>`.
+
+- An event has the ids and the versions, and no value. The storage reads the values with `changes`, so the checks of a read apply. A hint with only deletes applies without a read.
+- A subscriber must have a capability that reads `collection:<name>`, as for a read.
+- With `changeEvents: { values: true }` on the server, the events also have the values. Each row passes the output filter of the host for each subscriber, and a refused id goes in `withheld`.
+- An event with a value for each changed id applies without a read. An event with a withheld id makes the storage pull.
+- The syncs of one storage run one at a time: the deltas, the hints, the pulls, the pushes and the mode switches. Thus a remote delta and a full sync do not run at the same time.
+
+```ts
+import { ApiStorage, EventsChangeFeed, HybridStorage } from "@procedures/store";
+import { IndexedDbQueueStore, IndexedDbSyncStateStore } from "@procedures/store/indexeddb";
+
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  local: signalDbStorage,
+  capture: "observe",
+  versionOf: (user) => user.rev,
+  queueStore: new IndexedDbQueueStore("users-queue"),
+  syncState: new IndexedDbSyncStateStore("users-sync"),
+  feed: new EventsChangeFeed(client, { collection: "users" }),
+});
+```
+
+- The source of an `EventsChangeFeed` is a `Client`, a `WebSocketTransport`, or another transport of `@procedures/client`. `Client.subscribe()` sends the subscription through the middleware of the client.
+- The delivery of the events is at most once. Thus the feed gives each loss to the storage, and the storage pulls.
+- The server serves the events with the option `events` of `ProcedureServer`, for example `{ topics: ["collections.*"] }`. Without a subscriber, the procedures publish nothing.
+- `ApiStorage` sends the `origin` of a write to the procedure. Thus the storage of the server and the event have it.
 
 ### The change of a storage in a server
 

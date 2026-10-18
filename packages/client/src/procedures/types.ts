@@ -389,6 +389,13 @@ export interface ProcedureContext {
    * principal. An input or the metadata cannot change it. A call from this process has none.
    */
   principal?: Principal | undefined;
+
+  /**
+   * The output filter of the host for this call: its `admitItem`, with this invocation (roadmap
+   * CLI-15). A handler that sends the data of other writers later, for example a subscription,
+   * examines each row with it. Absent for a nested call, or when the host has no filter.
+   */
+  admit?: ((item: unknown) => Promise<boolean>) | undefined;
 }
 
 /**

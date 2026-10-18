@@ -121,6 +121,9 @@ export {
   pathToKey,
   keyToPath,
   createCollectionProcedures,
+  // The change events of the collection writes (roadmap CLI-15)
+  collectionChangeTopic,
+  collectionTopicReads,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
@@ -271,6 +274,8 @@ export type {
   StorageQueryOperator,
   StorageQueryPolicy,
   CollectionProceduresOptions,
+  CollectionChangeEventsOptions,
+  CollectionChangeEvent,
   ProcedureModule,
   ModuleInput,
   Caller,

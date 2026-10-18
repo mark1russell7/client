@@ -125,6 +125,8 @@ export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 // Collection procedures
 export {
   createCollectionProcedures,
+  collectionChangeTopic,
+  collectionTopicReads,
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
   DEFAULT_QUERY_POLICY,
@@ -142,6 +144,8 @@ export {
 } from "./collection/index.js";
 export type {
   CollectionProceduresOptions,
+  CollectionChangeEventsOptions,
+  CollectionChangeEvent,
   StoragePatchOperations,
   StorageQueryOperator,
   StorageQueryPolicy,
