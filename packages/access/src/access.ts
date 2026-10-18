@@ -106,7 +106,9 @@ export class Access {
     const add = (right: Right): void => {
       if (out.has(right) || !this.#model.all.includes(right)) return;
       out.add(right);
-      for (const next of this.#model.implies[right] ?? []) add(next);
+      // An own field only: a right named `__proto__` or `constructor` reads nothing of the prototype
+      const next = Object.hasOwn(this.#model.implies, right) ? this.#model.implies[right] : undefined;
+      if (Array.isArray(next)) for (const implied of next) add(implied);
     };
     for (const right of rights) add(right);
     return out;

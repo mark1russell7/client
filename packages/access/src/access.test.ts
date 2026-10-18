@@ -154,6 +154,17 @@ describe("the rights of a subject on a scope", () => {
     expect(sorted(model.rightsOn("x", ana, lists(["x", { owner: "user:u_ana" }])))).toEqual(["edit", "view"]);
   });
 
+  it("stops at a cycle of implications, and reads only own implications", () => {
+    const cycle = new Access({ rights: { all: ["a", "b"], implies: { a: ["b"], b: ["a"] } } });
+    expect(sorted(cycle.implied(["a"]))).toEqual(["a", "b"]);
+    const odd = new Access({ rights: { all: ["__proto__", "constructor", "toString"], implies: {} } });
+    expect(sorted(odd.implied(["__proto__", "constructor", "toString"]))).toEqual(["__proto__", "constructor", "toString"]);
+    const hostile = JSON.parse('{"__proto__":{"isAdmin":true},"owner":"user:u_ana","access":[{"principal":"anyone","rights":["read"],"__proto__":{"when":1}}]}');
+    const list = asAccessList(hostile)!;
+    expect(Object.getPrototypeOf(list)).toBe(Object.prototype);
+    expect(list.access?.[0]).toEqual({ principal: "anyone", rights: ["read"] });
+  });
+
   it("reads a stored access list with care", () => {
     expect(asAccessList({ _id: "board:b", owner: "user:u", access: [{ principal: "link", rights: ["read", 7] }, { bad: 1 }, null], extra: true })).toEqual({
       owner: "user:u",
