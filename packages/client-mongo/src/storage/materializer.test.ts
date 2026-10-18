@@ -543,4 +543,51 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await eventually(async () => expect(await db.collection("sums").countDocuments()).toBe(0));
     await views.stop();
   });
+
+  it("with sourceFields, reads the dotted keys of an update: a $push, a dotted $set, a removal, a parent and a truncated array", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1, tags: ["x"], a: { b: 1, c: 1 }, note: "x" });
+    await db.collection("_aggregations").insertOne(sumsView({ sourceFields: { items: ["tags", "a.b"] } }) as never);
+    await views.start();
+    const items = db.collection("items");
+    const one = { _id: "1" as never };
+    // On one collection the events come in order: a dropped update before each update that passes
+    await items.updateOne(one, { $set: { note: "y" } }); // no field of the view: dropped
+    await items.updateOne(one, { $push: { tags: "y" } } as never); // the key tags.1, under tags: passes
+    await eventually(async () => expect(counter.events).toBe(1));
+    await items.updateOne(one, { $set: { "a.c": 2 } }); // a.c is not a.b: dropped
+    await items.updateOne(one, { $set: { "a.b": 2 } }); // the key a.b: passes
+    await eventually(async () => expect(counter.events).toBe(2));
+    await items.updateOne(one, { $unset: { "a.b": "" } }); // a removal of a.b: passes
+    await eventually(async () => expect(counter.events).toBe(3));
+    await items.updateOne(one, { $set: { a: { b: 5 } } }); // the key a, above a.b: passes
+    await eventually(async () => expect(counter.events).toBe(4));
+    await items.updateOne(one, { $push: { tags: { $each: ["z", "w"] } } } as never);
+    await eventually(async () => expect(counter.events).toBe(5));
+    // A shorter array (a pipeline update): a truncated array, or the whole field
+    await items.updateOne(one, [{ $set: { tags: { $slice: ["$tags", 1] } } }]);
+    await settles(counter, 6);
+    await views.stop();
+  });
+
+  it("gives an update of the partition field without a pre-image to the views of each partition", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    // No pre-images: the event has only the document after the change, in t2
+    await db.collection("items").insertMany([
+      { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "2" as never, _part: "t2", kind: "b", n: 1 },
+    ]);
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    await db.collection("items").updateOne({ _id: "2" as never }, { $set: { n: 5 } }); // t2, not the partition field: dropped
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { _part: "t2" } }); // leaves t1: passes
+    await settles(counter, 1);
+    // The view of t1 lost the document
+    await eventually(async () => expect(await db.collection("sums").countDocuments({ _part: "t1", _viewGen: { $exists: true } })).toBe(0));
+    await views.stop();
+  });
 });

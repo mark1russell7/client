@@ -65,9 +65,10 @@ export interface MaterializedView {
   /** The collection that gets the result. */
   targetCollection: string;
   /**
-   * The top-level fields that the pipeline reads, for each source. An update of a source that sets
-   * or removes none of them, and does not change the partition field, does not start a pass.
-   * Without it, each update of the source starts a pass.
+   * The fields that the pipeline reads, for each source (paths with dots). An update of a source
+   * that changes none of them (a set, a removal, a truncated array, at the field, under it or above
+   * it), and does not change the partition field, does not start a pass. Without it, each update of
+   * the source starts a pass.
    */
   sourceFields?: Record<string, string[]>;
   [field: string]: unknown;
@@ -524,46 +525,51 @@ export class ViewMaterializer {
    * - An insert, a replace or an update has the document after the change (`fullDocument`).
    * - With a pre-image (a collection with `changeStreamPreAndPostImages`), each change also has the
    *   document before it: a delete, and an update that moves a document out of the partition.
-   * - A delete without a pre-image passes. In a source of `storageSources`, `isOtherPartition`
-   *   then reads the partition from its id.
-   * - With `fields`, an update passes when it sets or removes one of them, or the partition field.
+   * - Without a pre-image, a delete, a replace and an update of the partition field (a top-level
+   *   field) can leave any partition: they pass. In a source of `storageSources`, the handler then
+   *   reads the partition from the id (`isOtherPartition`).
+   * - The handler checks the fields of an update against `sourceFields` (`touchesFields`).
    */
-  private sourceMatch(partition: string, fields: string[] | undefined): Document {
+  private sourceMatch(partition: string): Document {
     const field = this.partitionField;
-    const inPartition = {
-      $or: [{ [`fullDocument.${field}`]: partition }, { [`fullDocumentBeforeChange.${field}`]: partition }, { operationType: "delete", fullDocumentBeforeChange: null }],
-    };
-    if (!fields || fields.length === 0) return { $match: inPartition };
-    const watched = [...new Set([...fields, field])];
+    const noPreImage = { fullDocumentBeforeChange: null };
     return {
       $match: {
-        $and: [
-          inPartition,
-          {
-            $or: [
-              { operationType: { $in: ["insert", "delete", "replace"] } },
-              {
-                operationType: "update",
-                $or: [
-                  ...watched.map((name) => ({ [`updateDescription.updatedFields.${name}`]: { $exists: true } })),
-                  { "updateDescription.removedFields": { $in: watched } },
-                ],
-              },
-            ],
-          },
+        $or: [
+          { [`fullDocument.${field}`]: partition },
+          { [`fullDocumentBeforeChange.${field}`]: partition },
+          { operationType: { $in: ["delete", "replace"] }, ...noPreImage },
+          { operationType: "update", ...noPreImage, $or: [{ [`updateDescription.updatedFields.${field}`]: { $exists: true } }, { "updateDescription.removedFields": field }] },
         ],
       },
     };
   }
 
   /**
-   * True for a delete without a pre-image, in a source of `storageSources`, whose id names a
-   * storage partition that maps to another partition of the views. An id without the separator, a
-   * mapping that gives `undefined` and a mapping that fails do not tell the partition: false.
+   * True for an update that changes no field of `fields` and not the partition field. The keys of
+   * an update are paths with dots (`tags.3` after a `$push`, `a.b` after a `$set` of `a.b`), so a key
+   * counts when it is a field, a field under it, or a field above it. The removed fields and the
+   * truncated arrays count too.
+   */
+  private touchesNoField(change: Document, fields: readonly string[] | undefined): boolean {
+    if (change["operationType"] !== "update" || !fields || fields.length === 0) return false;
+    const description = (change["updateDescription"] ?? {}) as { updatedFields?: Document; removedFields?: string[]; truncatedArrays?: Array<{ field: string }> };
+    const keys = [...Object.keys(description.updatedFields ?? {}), ...(description.removedFields ?? []), ...(description.truncatedArrays ?? []).map((truncated) => truncated.field)];
+    const watched = [...fields, this.partitionField];
+    return !keys.some((key) => watched.some((name) => key === name || key.startsWith(`${name}.`) || name.startsWith(`${key}.`)));
+  }
+
+  /**
+   * True for a change without a pre-image (a delete, a replace, an update), in a source of
+   * `storageSources`, whose id names a storage partition that maps to another partition of the
+   * views. A document that is in the partition after the change, an id without the separator, a
+   * mapping that gives `undefined` and a mapping that fails do not tell another partition: false.
    */
   private isOtherPartition(change: Document, source: string, partition: string): boolean {
     const viewPartitionOf = this.storageSources.get(source);
-    if (!viewPartitionOf || change["operationType"] !== "delete" || change["fullDocumentBeforeChange"]) return false;
+    if (!viewPartitionOf || change["fullDocumentBeforeChange"]) return false;
+    if (!["delete", "replace", "update"].includes(change["operationType"] as string)) return false;
+    if ((change["fullDocument"] as Document | null | undefined)?.[this.partitionField] === partition) return false;
     const id = (change["documentKey"] as Document | undefined)?.["_id"];
     const at = typeof id === "string" ? id.indexOf(SEPARATOR) : -1;
     if (at <= 0) return false;
@@ -586,7 +592,7 @@ export class ViewMaterializer {
     try {
       stream = this.db
         .collection(source)
-        .watch([this.sourceMatch(running.partition, running.view.sourceFields?.[source])], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
+        .watch([this.sourceMatch(running.partition)], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
     } catch (error) {
       this.log("error", `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
       this.later(() => {
@@ -615,6 +621,7 @@ export class ViewMaterializer {
     stream.on("change", (change: Document) => {
       if (change["operationType"] === "invalidate") return rewatch("ended (invalidate)");
       if (this.isOtherPartition(change, source, running.partition)) return;
+      if (this.touchesNoField(change, running.view.sourceFields?.[source])) return;
       this.schedule(running.partition, source);
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
