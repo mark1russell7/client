@@ -5,6 +5,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ms } from "@procedures/client";
 import { MongoClient, type Db } from "mongodb";
 import { queryEntries, type StorageSelector } from "@procedures/collections";
 import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
@@ -287,7 +288,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
 
   it("does not wait for a pending number whose lease has ended", async () => {
     const name = `c${++next}`;
-    const storage = fresh<{ n: number }>({ collection: name, writeLeaseMs: 1000 });
+    const storage = fresh<{ n: number }>({ collection: name, writeLease: ms(1000) });
     await storage.set("a", { n: 1 });
     const first = await storage.getChangesSince();
     const counters = db.collection<{ _id: string; seq: number }>("__storage_counters");
@@ -323,8 +324,8 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
-    const slow = new MongoDocumentStorage<{ n: number }>({ collection: name, db: () => slowDb, transactions: "never", writeLeaseMs: lease });
-    const fast = fresh<{ n: number }>({ collection: name, transactions: "never", writeLeaseMs: lease });
+    const slow = new MongoDocumentStorage<{ n: number }>({ collection: name, db: () => slowDb, transactions: "never", writeLease: ms(lease) });
+    const fast = fresh<{ n: number }>({ collection: name, transactions: "never", writeLease: ms(lease) });
     await fast.set("a", { n: 1 });
     const start = await fast.getChangesSince();
     const late = slow.set("late", { n: 2 });
@@ -389,7 +390,9 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     await expect(ann.aggregate([{ $out: "other" }])).rejects.toThrow(/\$out/);
     await expect(ann.aggregate([{ $match: { $where: "true" } }])).rejects.toThrow(/\$where/);
     await expect(ann.aggregate([], { maxResults: 0 })).rejects.toThrow(/maxResults/);
-    await expect(ann.aggregate([], { maxTimeMS: 0 })).rejects.toThrow(/maxTimeMS/);
+    await expect(ann.aggregate([], { maxTime: ms(0) })).rejects.toThrow(/maxTime/);
+    // A time is a Duration: a plain number of milliseconds is a TypeError (roadmap R11)
+    await expect(ann.aggregate([], { maxTime: 5 as never })).rejects.toThrow(TypeError);
     expect((await root.aggregate([{ $count: "n" }])).docs).toEqual([]); // the storage without a partition has no items
     // Another collection needs its own right: the storage reads only its own collection
     await expect(ann.aggregate([{ $unionWith: "__storage_counters" }])).rejects.toThrow(/collections of the scope/);
@@ -400,6 +403,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect(() => fresh({ partition: "a\u001fb" })).toThrow(/U\+001F/);
     expect(() => fresh({ partition: "" })).toThrow(/U\+001F/);
     expect(() => fresh({ maxTombstones: -1 })).toThrow(/maxTombstones/);
-    expect(() => fresh({ writeLeaseMs: 0 })).toThrow(/writeLeaseMs/);
+    expect(() => fresh({ writeLease: ms(0) })).toThrow(/writeLease/);
+    expect(() => fresh({ writeLease: 1000 as never })).toThrow(TypeError);
   });
 });

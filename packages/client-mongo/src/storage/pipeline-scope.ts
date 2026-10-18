@@ -17,6 +17,7 @@
  */
 
 import type { Document } from "mongodb";
+import { seconds, type Duration } from "@procedures/client";
 
 /**
  * The stages that a scoped pipeline can have: the stages that read and change the documents of
@@ -247,14 +248,14 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
 
 /** The limits of an aggregation of a caller. */
 export interface PipelineLimits {
-  /** The longest time of the aggregation in milliseconds (default 10000). */
-  readonly maxTimeMS?: number | undefined;
+  /** The longest time of the aggregation (default 10 s). A plain number is a `TypeError`. */
+  readonly maxTime?: Duration | undefined;
   /** The most documents of the result (default 5000). */
   readonly maxResults?: number | undefined;
 }
 
 /** The default limits of an aggregation. */
-export const DEFAULT_PIPELINE_LIMITS: Readonly<{ maxTimeMS: number; maxResults: number }> = Object.freeze({ maxTimeMS: 10_000, maxResults: 5_000 });
+export const DEFAULT_PIPELINE_LIMITS: Readonly<{ maxTime: Duration; maxResults: number }> = Object.freeze({ maxTime: seconds(10), maxResults: 5_000 });
 
 /**
  * This function adds a `$limit` of one more than the result limit, so a cut result is known. A
