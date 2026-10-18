@@ -129,6 +129,7 @@ export {
   collectionTopicReads,
   PARTITION_PATTERN,
   collectionTopicPartition,
+  collectionTopicTarget,
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
   DEFAULT_QUERY_POLICY,

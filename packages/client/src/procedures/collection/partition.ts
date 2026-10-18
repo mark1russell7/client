@@ -15,7 +15,7 @@
  */
 import type { ZodLike } from "../../client/validation/types.js";
 import { InvocationError } from "../invoke.js";
-import type { ProcedureContext } from "../types.js";
+import type { ProcedureContext, RepositoryProvider } from "../types.js";
 import type { CollectionStorage } from "./storage.js";
 
 /** The characters of a partition: letters, digits and `_ . : @ ~ + | / -`, 256 at most. */
@@ -118,8 +118,25 @@ export function storageOfCall<T>(ctx: ProcedureContext, collection: string, part
 }
 
 /**
+ * This function gives the collection and the partition part of a topic of a call, with the
+ * repository of the call: one rule for the read check and for the listener of the publisher.
+ *
+ * - A collection of the repository without partitions whose name is the whole rest of the topic
+ *   wins: its name can have a dot.
+ * - Else the first part after `collections.` names the collection, and the rest is the partition
+ *   that the call asks for. A collection with partitions has no dot in its name.
+ */
+export function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): { collection: string; partition: string | undefined } | undefined {
+  if (!topic.startsWith("collections.")) return undefined;
+  const whole = topic.slice("collections.".length);
+  if (whole !== "" && repository?.hasCollection(whole) && !repository.hasPartitions?.(whole)) return { collection: whole, partition: undefined };
+  return collectionTopicPartition(topic);
+}
+
+/**
  * This function gives the collection and the partition part of a topic `collections.<name>` or
- * `collections.<name>.<partition>`, or undefined for another topic.
+ * `collections.<name>.<partition>`, or undefined for another topic. It reads the topic alone:
+ * `collectionTopicTarget` also knows the collections of a repository.
  */
 export function collectionTopicPartition(topic: string): { collection: string; partition: string | undefined } | undefined {
   const match = /^collections\.([^.]+)(?:\.(.+))?$/.exec(topic);

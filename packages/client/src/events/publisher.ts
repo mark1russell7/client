@@ -29,7 +29,7 @@ import { createProcedure } from "../procedures/define.js";
 import { InvocationError } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
 import { collectionChangeTopic, collectionTopicReads } from "../procedures/collection/changes.js";
-import { collectionTopicPartition, partitionOfCall } from "../procedures/collection/partition.js";
+import { collectionTopicTarget, partitionOfCall } from "../procedures/collection/partition.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
 import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
@@ -309,6 +309,8 @@ export class EventPublisher {
   private readonly known: (topic: string) => boolean;
   private readonly allow: EventPublisherOptions["allow"];
   private readonly reads: (topic: string) => readonly string[];
+  /** True when the reads come from the topic rule of the collections (no option `reads`) */
+  private readonly defaultReads: boolean;
   private readonly buffer: number;
   private readonly open = new Set<TopicSubscription>();
 
@@ -317,6 +319,7 @@ export class EventPublisher {
     this.known = topicMatcher(options.topics);
     this.allow = options.allow;
     this.reads = options.reads ?? collectionTopicReads;
+    this.defaultReads = options.reads === undefined;
     this.buffer = Math.max(1, Math.floor(options.buffer ?? 1024));
     this.procedure = createProcedure()
       .path([...EVENTS_SUBSCRIBE_PATH])
@@ -356,13 +359,21 @@ export class EventPublisher {
    * another tenant. A collection without partitions refuses a topic with a partition.
    */
   private async busTopic(topic: string, ctx: ProcedureContext): Promise<string> {
-    const parts = collectionTopicPartition(topic);
-    if (!parts) return topic;
-    // A collection without partitions can have a dot in its name: its whole name follows "collections."
-    const whole = topic.slice("collections.".length);
-    if (parts.partition !== undefined && ctx.repository?.hasCollection(whole) && !ctx.repository.hasPartitions?.(whole)) return topic;
-    const partition = await partitionOfCall(ctx, parts.collection, parts.partition);
-    return collectionChangeTopic(parts.collection, partition);
+    const target = collectionTopicTarget(topic, ctx.repository);
+    if (!target) return topic;
+    const partition = await partitionOfCall(ctx, target.collection, target.partition);
+    return collectionChangeTopic(target.collection, partition);
+  }
+
+  /**
+   * The resources that a subscriber of a topic reads. The default reads the collection of the
+   * topic with the rule of the listener (`collectionTopicTarget`), so the read check and the
+   * listener name the same collection.
+   */
+  private readsOf(topic: string, ctx: ProcedureContext): readonly string[] {
+    if (!this.defaultReads) return this.reads(topic);
+    const target = collectionTopicTarget(topic, ctx.repository);
+    return target ? [`collection:${target.collection}`] : [];
   }
 
   /**
@@ -376,7 +387,7 @@ export class EventPublisher {
     }
     // A subscriber of a topic reads its resources: the capability of the call must permit them
     for (const topic of unique) {
-      const reads = this.reads(topic);
+      const reads = this.readsOf(topic, ctx);
       if (reads.length === 0) continue;
       const refusal = capabilityRefusal(topicReader(reads), ctx.capability);
       if (refusal) throw new InvocationError("FORBIDDEN", `The topic "${topic}": ${refusal.message}`, ctx.path, refusal.reason);

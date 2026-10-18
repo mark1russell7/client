@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
 import { collectionChangeTopic, type CollectionChangeEvent } from "./changes.js";
-import { collectionTopicPartition, PARTITION_PATTERN, type PartitionResolver } from "./partition.js";
+import { collectionTopicPartition, collectionTopicTarget, PARTITION_PATTERN, type PartitionResolver } from "./partition.js";
 import type { CollectionStorage } from "./storage.js";
 import { invokeProcedure, InvocationError, outputValue } from "../invoke.js";
 import type { RepositoryProvider } from "../types.js";
@@ -308,6 +308,29 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
     await settle();
     expect(sub.received.map((item) => item.topic)).toEqual(["collections.a.b"]);
     sub.stop();
+  });
+
+  it("checks the read of the collection that the publisher listens to: a reader of a cannot hear a.b", async () => {
+    const h = host(null);
+    h.server.useStorage("a", new MapStorage());
+    h.server.useStorage("a.b", new MapStorage());
+    const publisher = new EventPublisher({ bus: h.bus, topics: ["collections.*"] });
+    const subscribeWith = async (reads: string[]) => {
+      const output = await invokeProcedure(publisher.procedure, { topics: ["collections.a.b"] }, {
+        bus: h.bus,
+        repository: h.repository,
+        principal: ann,
+        capability: { effects: { reads: ["events", ...reads], writes: [] } },
+      });
+      if (output.kind !== "stream") throw new Error("events.subscribe gives a stream");
+      return ((await (output.items as AsyncGenerator<EventItem, void, undefined>).next()).value as EventItem);
+    };
+    const refused = await errorOf(subscribeWith(["collection:a"]));
+    expect(refused.code).toBe("FORBIDDEN");
+    expect(await subscribeWith(["collection:a.b"])).toEqual({ type: "subscribed", topics: ["collections.a.b"] });
+    expect(collectionTopicTarget("collections.a.b", h.repository)).toEqual({ collection: "a.b", partition: undefined });
+    expect(collectionTopicTarget("collections.a.x", h.repository)).toEqual({ collection: "a", partition: "x" });
+    expect(collectionTopicTarget("orders.x", h.repository)).toBeUndefined();
   });
 
   it("refuses partitions for a collection whose name has a dot", () => {
