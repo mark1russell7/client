@@ -120,6 +120,23 @@ export interface Principal {
   readonly claims?: Readonly<Record<string, unknown>> | undefined;
 }
 
+/** A report of the server for debug (the option `debug` of `ProcedureServer`). */
+export interface ServerDebugReport {
+  /**
+   * The subject of the report. `"narrowing"`: a part of the narrowing key of a call has no effect
+   * (CLI-30). A later version can add subjects.
+   */
+  readonly topic: string;
+  /** The id of the request. */
+  readonly requestId: string;
+  /** The method of the request. */
+  readonly method: Method;
+  /** What occurred, as a sentence. */
+  readonly message: string;
+  /** The facts of the report. For `"narrowing"`: the `field` and the `kind` of its note (`NarrowingNote`). */
+  readonly detail?: Readonly<Record<string, unknown>> | undefined;
+}
+
 /**
  * The contract of a server transport (roadmap R18): a transport turns each protocol request
  * into a `ServerRequest` (with its signal and its credentials), gives it to `handle()`, and turns

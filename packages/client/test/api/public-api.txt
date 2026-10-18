@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 529 names
+## . (dist/index.d.ts): 537 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -156,7 +156,11 @@ type MockResponse: dist/adapters/mock/client/types.d.ts#MockResponse
 MockTransport: dist/adapters/mock/client/transport.d.ts#MockTransport
 type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOptions
 type ModuleInput: dist/procedures/module.d.ts#ModuleInput
+NARROWING_HEADER: dist/procedures/narrowing.d.ts#NARROWING_HEADER
+NARROWING_METADATA_KEY: dist/procedures/narrowing.d.ts#NARROWING_METADATA_KEY
 NO_ELICITATION_REASON: dist/procedures/elicit.d.ts#NO_ELICITATION_REASON
+type NarrowedCapability: dist/procedures/narrowing.d.ts#NarrowedCapability
+type NarrowingNote: dist/procedures/narrowing.d.ts#NarrowingNote
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
 PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
@@ -244,6 +248,7 @@ type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
+type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
@@ -316,6 +321,7 @@ type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#
 WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
 WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
@@ -460,6 +466,8 @@ moduleClosure: dist/procedures/module.d.ts#moduleClosure
 ms: dist/duration.d.ts#ms
 namespace: dist/procedures/define.d.ts#namespace
 narrowCapability: dist/procedures/capability.d.ts#narrowCapability
+narrowWithin: dist/procedures/narrowing.d.ts#narrowWithin
+narrowingOf: dist/procedures/narrowing.d.ts#narrowingOf
 nestedCallRefusal: dist/procedures/policy.d.ts#nestedCallRefusal
 newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
 newSpanId: dist/tracing/traceparent.d.ts#newSpanId
@@ -536,7 +544,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 511 names
+## ./browser (dist/browser.d.ts): 519 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -682,7 +690,11 @@ type MockResponse: dist/adapters/mock/client/types.d.ts#MockResponse
 MockTransport: dist/adapters/mock/client/transport.d.ts#MockTransport
 type MockTransportOptions: dist/adapters/mock/client/types.d.ts#MockTransportOptions
 type ModuleInput: dist/procedures/module.d.ts#ModuleInput
+NARROWING_HEADER: dist/procedures/narrowing.d.ts#NARROWING_HEADER
+NARROWING_METADATA_KEY: dist/procedures/narrowing.d.ts#NARROWING_METADATA_KEY
 NO_ELICITATION_REASON: dist/procedures/elicit.d.ts#NO_ELICITATION_REASON
+type NarrowedCapability: dist/procedures/narrowing.d.ts#NarrowedCapability
+type NarrowingNote: dist/procedures/narrowing.d.ts#NarrowingNote
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
 PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
@@ -770,6 +782,7 @@ type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 Semaphore: dist/client/batch-executor.d.ts#Semaphore
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
+type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
@@ -837,6 +850,7 @@ WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
 WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
 WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
+type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
@@ -975,6 +989,8 @@ moduleClosure: dist/procedures/module.d.ts#moduleClosure
 ms: dist/duration.d.ts#ms
 namespace: dist/procedures/define.d.ts#namespace
 narrowCapability: dist/procedures/capability.d.ts#narrowCapability
+narrowWithin: dist/procedures/narrowing.d.ts#narrowWithin
+narrowingOf: dist/procedures/narrowing.d.ts#narrowingOf
 nestedCallRefusal: dist/procedures/policy.d.ts#nestedCallRefusal
 newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
 newSpanId: dist/tracing/traceparent.d.ts#newSpanId
@@ -1050,8 +1066,11 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 25 names
+## ./node (dist/node.d.ts): 31 names
 
+type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
+type BodyPathAddressingOptions: dist/adapters/http/server/addressing.d.ts#BodyPathAddressingOptions
+type CallAddress: dist/adapters/http/server/addressing.d.ts#CallAddress
 type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
 type CorsOptions: dist/adapters/http/server/cors.d.ts#CorsOptions
 type NdjsonError: dist/adapters/http/server/ndjson.d.ts#NdjsonError
@@ -1062,6 +1081,7 @@ type ProcedureHandlerOptions: dist/adapters/http/server/handler.d.ts#ProcedureHa
 type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
 type TrackedConnection: dist/adapters/websocket/server/types.d.ts#TrackedConnection
 type UpgradeHandlerOptions: dist/adapters/websocket/server/upgrade.d.ts#UpgradeHandlerOptions
+type UrlAddressingOptions: dist/adapters/http/server/addressing.d.ts#UrlAddressingOptions
 type UrlRequest: dist/adapters/http/server/handler.d.ts#UrlRequest
 type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
 type WebSocketClass: dist/adapters/websocket/client/types.d.ts#WebSocketClass
@@ -1072,10 +1092,12 @@ type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#
 WebSocketTransport: dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WriteNdjsonStreamOptions: dist/adapters/http/server/ndjson.d.ts#WriteNdjsonStreamOptions
+bodyPathAddressing: dist/adapters/http/server/addressing.d.ts#bodyPathAddressing
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 procedureHandler: dist/adapters/http/server/handler.d.ts#procedureHandler
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
 upgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#upgradeHandler
+urlAddressing: dist/adapters/http/server/addressing.d.ts#urlAddressing
 writeNdjsonStream: dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 
 ## ./register (dist/register.d.ts): 0 names
@@ -1258,7 +1280,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 283 names
+## ./procedures (dist/procedures/index.d.ts): 290 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1326,7 +1348,11 @@ MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
 type ModuleInput: dist/procedures/module.d.ts#ModuleInput
+NARROWING_HEADER: dist/procedures/narrowing.d.ts#NARROWING_HEADER
+NARROWING_METADATA_KEY: dist/procedures/narrowing.d.ts#NARROWING_METADATA_KEY
 NO_ELICITATION_REASON: dist/procedures/elicit.d.ts#NO_ELICITATION_REASON
+type NarrowedCapability: dist/procedures/narrowing.d.ts#NarrowedCapability
+type NarrowingNote: dist/procedures/narrowing.d.ts#NarrowingNote
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
 PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
@@ -1406,6 +1432,7 @@ type UntrustedValue: dist/procedures/untrusted.d.ts#UntrustedValue
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
+type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
@@ -1497,6 +1524,8 @@ metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
 moduleClosure: dist/procedures/module.d.ts#moduleClosure
 namespace: dist/procedures/define.d.ts#namespace
 narrowCapability: dist/procedures/capability.d.ts#narrowCapability
+narrowWithin: dist/procedures/narrowing.d.ts#narrowWithin
+narrowingOf: dist/procedures/narrowing.d.ts#narrowingOf
 newIdempotencyKey: dist/procedures/idempotency.d.ts#newIdempotencyKey
 noneProcedure: dist/procedures/core/index.d.ts#noneProcedure
 normalizeRef: dist/procedures/ref.d.ts#normalizeRef
@@ -1560,7 +1589,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 37 names
+## ./server (dist/server/index.d.ts): 38 names
 
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
@@ -1577,6 +1606,7 @@ type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
+type ServerDebugReport: dist/server/types.d.ts#ServerDebugReport
 ServerError: dist/server/types.d.ts#ServerError
 type ServerHandler: dist/server/types.d.ts#ServerHandler
 type ServerMiddleware: dist/server/types.d.ts#ServerMiddleware
@@ -1649,6 +1679,36 @@ export interface HttpTransportOptions {
     fetch?: typeof fetch;
 }
 
+### dist/adapters/http/server/addressing.d.ts#Addressing
+export interface Addressing {
+    (request: UrlRequest, body: unknown, req: IncomingMessage): CallAddress | null;
+    readonly takesBasePath?: boolean | undefined;
+}
+
+### dist/adapters/http/server/addressing.d.ts#BodyPathAddressingOptions
+export interface BodyPathAddressingOptions {
+    readonly pathField?: string | undefined;
+    readonly inputField?: string | undefined;
+}
+
+### dist/adapters/http/server/addressing.d.ts#CallAddress
+export interface CallAddress {
+    readonly method: Method;
+    readonly payload?: unknown;
+}
+
+### dist/adapters/http/server/addressing.d.ts#UrlAddressingOptions
+export interface UrlAddressingOptions {
+    readonly basePath?: string | undefined;
+    readonly urlStrategy?: NodeUrlStrategy | undefined;
+}
+
+### dist/adapters/http/server/addressing.d.ts#bodyPathAddressing
+export declare function bodyPathAddressing(options?: BodyPathAddressingOptions): Addressing;
+
+### dist/adapters/http/server/addressing.d.ts#urlAddressing
+export declare function urlAddressing(options?: UrlAddressingOptions): Addressing;
+
 ### dist/adapters/http/server/cors.d.ts#CorsOptions
 export interface CorsOptions {
     readonly origin?: string | readonly string[] | ((origin: string) => boolean) | undefined;
@@ -1680,6 +1740,7 @@ export type NodeUrlStrategy = (request: UrlRequest, req: IncomingMessage) => Met
 export interface ProcedureHandlerOptions extends BrowserGuardOptions {
     readonly basePath?: string | undefined;
     readonly urlStrategy?: NodeUrlStrategy | undefined;
+    readonly addressing?: Addressing | undefined;
     readonly cors?: boolean | CorsOptions | undefined;
     readonly bodyLimit?: number | undefined;
     readonly keepAlive?: Duration | false | undefined;
@@ -1747,6 +1808,7 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
     port?: number;
     host?: string;
     urlStrategy?: HttpUrlStrategy;
+    addressing?: Addressing;
     basePath?: string;
     cors?: boolean;
     bodyLimit?: number;
@@ -4220,6 +4282,7 @@ export interface InvokeOptions {
     interceptors?: readonly Interceptor[] | undefined;
     parent?: Invocation | undefined;
     capability?: Capability | undefined;
+    narrow?: CapabilityRequest | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
@@ -4337,6 +4400,37 @@ export declare function registerClientProcedures(registry?: ProcedureRegistry): 
 
 ### dist/procedures/module.d.ts#registerModules
 export declare function registerModules(registry: ProcedureRegistry, modules: readonly ModuleInput[], options?: RegistrationOptions): ProcedureRegistry;
+
+### dist/procedures/narrowing.d.ts#NARROWING_HEADER
+export declare const NARROWING_HEADER = "Procedure-Narrowing";
+
+### dist/procedures/narrowing.d.ts#NARROWING_METADATA_KEY
+export declare const NARROWING_METADATA_KEY = "procedure-narrowing";
+
+### dist/procedures/narrowing.d.ts#NarrowedCapability
+export interface NarrowedCapability<C = ClearanceOf> {
+    readonly capability: Capability<C>;
+    readonly notes: readonly NarrowingNote[];
+}
+
+### dist/procedures/narrowing.d.ts#NarrowingNote
+export interface NarrowingNote {
+    readonly field: "narrowing" | "clearance" | "effects" | "timeoutMs";
+    readonly kind: "widens" | "invalid";
+    readonly message: string;
+}
+
+### dist/procedures/narrowing.d.ts#WireNarrowing
+export interface WireNarrowing {
+    readonly narrowing: CapabilityRequest<unknown> | undefined;
+    readonly notes: readonly NarrowingNote[];
+}
+
+### dist/procedures/narrowing.d.ts#narrowWithin
+export declare function narrowWithin<C>(held: Capability<C> | undefined, asked: CapabilityRequest<unknown> | undefined, order?: ClearanceOrder<C>, now?: number): NarrowedCapability<C>;
+
+### dist/procedures/narrowing.d.ts#narrowingOf
+export declare function narrowingOf(value: unknown): WireNarrowing;
 
 ### dist/procedures/policy.d.ts#CallPolicy
 export interface CallPolicy {
@@ -5139,6 +5233,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     principalOf?: PrincipalOf | undefined;
     ambientCredentials?: AmbientCredentials | false | undefined;
     events?: EventPublisherOptions | EventPublisher | undefined;
+    debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
 }
 
 ### dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
@@ -5263,6 +5358,15 @@ export interface RequestIdentity {
 export interface ServerContext<TReq = unknown> {
     request: ServerRequest<TReq>;
     state: Record<string, unknown>;
+}
+
+### dist/server/types.d.ts#ServerDebugReport
+export interface ServerDebugReport {
+    readonly topic: string;
+    readonly requestId: string;
+    readonly method: Method;
+    readonly message: string;
+    readonly detail?: Readonly<Record<string, unknown>> | undefined;
 }
 
 ### dist/server/types.d.ts#ServerError

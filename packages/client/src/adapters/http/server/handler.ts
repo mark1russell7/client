@@ -27,8 +27,8 @@ import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } fr
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { ms, type Duration } from "../../../duration.js";
 import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
-import { createPatternServerUrlStrategy } from "./strategies.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
+import { urlAddressing, type Addressing } from "./addressing.js";
 
 /** The parts of a request that a URL strategy of `procedureHandler` reads. */
 export interface UrlRequest {
@@ -58,9 +58,16 @@ export interface ProcedureHandlerOptions extends BrowserGuardOptions {
   readonly basePath?: string | undefined;
   /**
    * The method of a request. The default reads the URL format of `HttpTransport`:
-   * `{basePath}/{service}/{operation}`.
+   * `{basePath}/{service}/{operation}`. The option `addressing` replaces it.
    */
   readonly urlStrategy?: NodeUrlStrategy | undefined;
+  /**
+   * The addressing of a request (CLI-31): a hook of the request and its body that gives the
+   * method and the payload of the call. `bodyPathAddressing()` reads the path from the body of a
+   * single endpoint.
+   * @default urlAddressing({ basePath, urlStrategy })
+   */
+  readonly addressing?: Addressing | undefined;
   /**
    * The CORS headers of the requests on the path. `true` uses the defaults: each origin, without
    * credentials. The permitted origins of the browser checks follow the CORS origins.
@@ -286,14 +293,14 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   assertNamedOrigins(compat.face?.name ?? "procedureHandler", ambientMode, guard.allowedOrigins, compat.face?.originOption ?? "cors.origin");
   const secretHeaders = headerNames(options.secretHeaders);
   const secretQuery = new Set(options.secretQuery ?? (legacy ? [] : ["token"]));
-  const strategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
-  const methodOf =
-    compat.methodOf ??
-    ((req: IncomingMessage): Method | null => {
-      const { path, query } = urlParts(req.url);
-      const view: UrlRequest = { method: (req.method ?? "GET").toUpperCase(), path, url: req.url ?? "/", headers: req.headers, query: queryRecord(query) };
-      return strategy(view, req);
-    });
+  // The addressing of a request (CLI-31): the option, or the URL strategy of the shim, or the URL
+  // format of HttpTransport
+  const compatMethodOf = compat.methodOf;
+  const addressing: Addressing =
+    options.addressing ??
+    urlAddressing(compatMethodOf ? { urlStrategy: (_view, req) => compatMethodOf(req) } : { basePath, urlStrategy: options.urlStrategy });
+  // A single endpoint (the path in the body) is the base path itself
+  const bareBase = prefix.slice(0, -1);
   const sendJson = compat.sendJson ?? writeJson;
 
   /** The controllers of the requests in progress: close() aborts them (deep dive TRN-15) */
@@ -309,7 +316,11 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     for (const waiter of waiters) waiter();
   };
 
-  const matches = (req: IncomingMessage): boolean => compat.matchAll === true || pathOf(req).startsWith(prefix);
+  const matches = (req: IncomingMessage): boolean => {
+    if (compat.matchAll === true) return true;
+    const path = pathOf(req);
+    return path.startsWith(prefix) || (addressing.takesBasePath === true && path === bareBase);
+  };
 
   /** The error body of wire v1: the message, the code, the retryable flag and the more fields. */
   const sendError = (res: NodeResponse, status: number, message: string, code: string, retryable = false, more: Record<string, unknown> = {}): void => {
@@ -349,10 +360,16 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
   };
 
-  /** This function converts an HTTP request to a `ServerRequest`, or null when the URL names no method. */
+  /**
+   * This function converts an HTTP request to a `ServerRequest`, or gives null when the addressing
+   * finds no call in the request.
+   */
   const toServerRequest = (req: IncomingMessage, body: unknown): ServerRequest | null => {
-    const method = methodOf(req);
-    if (!method) return null;
+    const { path, query: urlQuery } = urlParts(req.url);
+    const view: UrlRequest = { method: (req.method ?? "GET").toUpperCase(), path, url: req.url ?? "/", headers: req.headers, query: queryRecord(urlQuery) };
+    const address = addressing(view, body, req);
+    if (!address) return null;
+    const method = address.method;
 
     const id = (req.headers["x-request-id"] as string | undefined) ?? `req-${Date.now()}-${Math.random()}`;
 
@@ -395,11 +412,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       }
     }
 
-    // The payload: the body, or the id of a RESTful GET. Only an absent payload becomes {}: 0,
-    // false, "" and null stay (deep dive TRN-10)
-    let payload: unknown = body;
-    if (req.method === "GET" && params["id"]) payload = { id: params["id"] };
-    if (payload === undefined) payload = {};
+    // The payload of the addressing (the body, or the id of a RESTful GET). Only an absent payload
+    // becomes {}: 0, false, "" and null stay (deep dive TRN-10)
+    const payload: unknown = address.payload === undefined ? {} : address.payload;
 
     return {
       id,

@@ -19,13 +19,64 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 | Key | Direction | Meaning |
 |---|---|---|
 | `procedure-timeout` | request | The remaining time of the caller, in milliseconds. The server uses it only to make its deadline earlier. |
+| `procedure-narrowing` | request | A narrower capability that the call asks for, as a JSON object. The server uses it only to make the capability narrower. Refer to "The narrowing key". |
 | `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. |
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
-| `reason` | response | The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`, `deadline`, `outside-root` (a path outside the root of `@procedures/fs`), `host-not-allowed` (a URL host that `@procedures/http` refuses) or `topic-not-allowed` (a topic that the publisher of the events refuses). |
+| `reason` | response | The reason of a `FORBIDDEN` error. Refer to "The reasons of FORBIDDEN". |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
 | `stream` | response | The value `unbounded`: the stream can run without an end. The HTTP client also sets this key on each item of an NDJSON stream, with the value `true`. |
 
 A key that starts with `__` stays in the process of the caller. A transport does not send it.
+
+## The narrowing key
+
+A call can ask for a narrower capability than its principal holds (CLI-30). A narrower capability is always safe, for the same reason as the deadline. Thus each face carries the narrowing key `procedure-narrowing`.
+
+### The value
+
+The value is a `CapabilityRequest` as a JSON object. Each field is optional.
+
+| Field | Value | Meaning |
+|---|---|---|
+| `clearance` | A value of the clearance order of the server | The highest clearance of the call. |
+| `effects` | An object with `reads`, `writes` and `destructive` | The permitted effects. `reads` and `writes` are `"any"` or a list of resource names. `destructive: false` refuses a destructive procedure. |
+| `timeoutMs` | A count of milliseconds, zero or more | The longest time of the call, from the start of the call. |
+
+For example, `{"clearance":"shared","effects":{"writes":[]}}` asks for the clearance `shared` and for no changes.
+
+### The field on each face
+
+| Face | Field |
+|---|---|
+| HTTP | The header `Procedure-Narrowing`, with the JSON of the value, raw or URI-encoded. The key `procedure-narrowing` of `X-Metadata` is the same field. When a request has the two, the key of `X-Metadata` applies. |
+| WebSocket | The key `procedure-narrowing` of the `metadata` of a `request` frame. |
+| MCP | The key `procedure-narrowing` of the `_meta` of a `tools/call` request. Over Streamable HTTP, the header `Procedure-Narrowing` is the same field. |
+| The process | The key `procedure-narrowing` of the metadata of `ProcedureServer.handle()` or of `LocalTransport`, or the option `narrow` of `invokeProcedure()`. |
+
+The default CORS headers of `procedureHandler` and `HttpServerTransport` include `Procedure-Narrowing`, so a browser on a permitted origin can send it.
+
+### The rules of the server
+
+1. The server calculates the capability of the call from its own authentication. Then it applies the narrowing of its request hook (`principalOf`). Then it applies the narrowing key.
+2. The clearance is the meet of the clearance order. The effects are the intersection. The deadline is the earlier deadline. Thus the key can only make the capability narrower.
+3. A part that asks for more than the call holds has no effect. On a ladder, the call keeps its clearance.
+4. A part that the server cannot read or compare has no effect. Examples are a value that is not JSON, an unknown field, or a clearance outside the order.
+5. The server reports each part without effect in debug. The option `debug` of `ProcedureServer` gets a report with the topic `narrowing`, and the call continues without that part.
+6. The key does not give a capability. It only removes a part of the capability that the server gives.
+
+### The audience of jarvis
+
+The audience of jarvis is a value of its ladder `SCOPES`. A request can make the audience narrower, but not wider. The narrowing key replaces the audience header, and the request hook reads the audience cookie.
+
+| jarvis | The procedures server |
+|---|---|
+| The ladder `SCOPES` | The option `clearanceOrder: ladder(SCOPES)`. |
+| The audience of the server | The option `capability`, for example `{ clearance: "intimate" }`, or a function of the principal. |
+| The header `x-jarvis-audience: shared` | The header `Procedure-Narrowing: {"clearance":"shared"}`, or the key in the metadata of `HttpTransport`. |
+| The cookie `jarvis_audience=shared` of the guest switch | `principalOf` reads the cookie and gives `narrowing: { clearance: "shared" }`. |
+| The narrower of the two carriers wins | The server applies the key after the narrowing of the hook. |
+| An unknown value has no effect | The ladder does not have the value, so the server ignores it and reports it in debug. |
+| Below `intimate`, only the declared reads start | This rule stays the policy of jarvis. An interceptor of jarvis narrows the effects below `intimate`. |
 
 ## HTTP
 
@@ -39,6 +90,19 @@ A key that starts with `__` stays in the process of the caller. A transport does
 - `X-Metadata`: the metadata of the call as URI-encoded JSON. The limit is 8 KiB.
 - `Authorization: Bearer <token>`, when the server has a token.
 - `traceparent`, when the call has a trace.
+- `Procedure-Narrowing`, when the call asks for a narrower capability (refer to "The narrowing key").
+
+### The addressing of a request
+
+The server finds the method and the payload of a request with its addressing (CLI-31). The addressing is a hook of the request and its body. It gives `{ method, payload }`, or null when the request names no call. Null and an error of the hook give `INVALID_REQUEST`.
+
+- `urlAddressing()` is the default. The URL gives the method, and the body is the payload. This is the format of `HttpTransport`.
+- `bodyPathAddressing()` reads the path and the input from the body of a single endpoint: `POST {base}` with `{"path": ["notes", "list"], "input": {}}`.
+- The path in the body is a list of segments, or a text with dots, for example `"notes.list"`. Without `input`, the payload is `{}`.
+- With `bodyPathAddressing()`, the handler also takes the base path itself. The options `pathField` and `inputField` change the names of the fields.
+- The addressing reads only the own fields of the body. A `__proto__` key gives no path.
+- The option `addressing` of `procedureHandler` and of `HttpServerTransport` sets the hook. An application can give its own hook, for example the URL first and then the body.
+- The other parts of a request do not change with the addressing: the headers, the metadata, the credentials and the narrowing key.
 
 ### The response
 
@@ -61,7 +125,9 @@ Each line ends with LF. A frame line is one JSON object.
 
 - The `seq` of the `item` and `done` lines follows the rules of the stream frames (refer to "The sequence numbers of a stream").
 - The `done` line or the `error` line is the last line. A stream that ends without one of them is a broken stream.
-- `writeNdjsonStream` of `@procedures/client/node` writes these lines for a `ServerResponse` of `node:http`. `HttpServerTransport` uses it, so the two write the same bytes.
+- `writeNdjsonStream` of `@procedures/client/node` writes these lines for a `ServerResponse` of `node:http`.
+- `procedureHandler` of `@procedures/client/node` serves the HTTP wire of this document on a `node:http` server, without a framework. It writes its streams with `writeNdjsonStream`.
+- `HttpServerTransport` is an Express shim over `procedureHandler`, so the two faces write the same bytes.
 
 ### The keep-alive of an NDJSON stream
 
@@ -200,6 +266,25 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `CONNECTION_NOT_FOUND` | 404 | no | The server has no connection with this id. |
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
+
+### The reasons of FORBIDDEN
+
+A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body has the field `reason` too.
+
+| Reason | From | Meaning |
+|---|---|---|
+| `effects-undeclared` | The capability of the call | The procedure does not declare its effects, and the capability limits them. |
+| `effects-exceeded` | The capability of the call | The procedure has an effect that the capability does not permit. |
+| `clearance` | The output filter of the host | The clearance of the call does not permit the output. |
+| `outside-root` | `@procedures/fs` | The path is outside the root of the files. |
+| `host-not-allowed` | `@procedures/http` | The procedure refuses the host of the URL. |
+| `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
+| `origin-not-allowed` | The browser checks of `procedureHandler` | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
+| `host-header-not-allowed` | The browser checks of `procedureHandler` | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
+| `method-not-allowed` | The browser checks of `procedureHandler` | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
+| `media-type-not-allowed` | The browser checks of `procedureHandler` | The request body is not JSON. |
+
+A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`. `HttpServerTransport` keeps its former codes for the four browser checks: `FORBIDDEN_ORIGIN`, `FORBIDDEN_HOST`, `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`, with the status 403, 405 or 415.
 
 ## MCP
 

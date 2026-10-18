@@ -30,6 +30,8 @@ import { errorCodeOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
+import { NARROWING_METADATA_KEY, narrowWithin, narrowingOf } from "../procedures/narrowing.js";
+import type { ServerDebugReport } from "./types.js";
 
 // =============================================================================
 // Types
@@ -166,6 +168,15 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `stop()` ends each subscription first, with `UNAVAILABLE`.
    */
   events?: EventPublisherOptions | EventPublisher | undefined;
+
+  /**
+   * The debug reports of the server. `true` writes each report with `console.debug`, and a
+   * function gets each report. The server reports each part of the narrowing key of a call that
+   * has no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid.
+   * The call goes on without that part.
+   * @default false
+   */
+  debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
 }
 
 /**
@@ -361,6 +372,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * read it: they trust such a request only from a named origin (CSRF).
    */
   readonly ambientCredentials: AmbientCredentials | undefined;
+  /** The receiver of the debug reports, or undefined when the option `debug` is off. */
+  private readonly debugReport: ((report: ServerDebugReport) => void) | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -382,6 +395,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.authenticate = options.authenticate;
     const ambient = options.ambientCredentials ?? (this.principalOf ? "always" : this.authenticate ? "cookies" : undefined);
     this.ambientCredentials = ambient === false ? undefined : ambient;
+    this.debugReport =
+      typeof options.debug === "function"
+        ? options.debug
+        : options.debug === true
+          ? (report) => console.debug(`[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`)
+          : undefined;
     // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure);
@@ -842,11 +861,24 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * The capability of a request. It comes from the server, never from the request. The remaining
    * time of the caller and the narrowing of the request can only make it narrower
    * (CAPABILITIES-2026-10, decision 9). Two different clearances without an order throw.
+   *
+   * The narrowing key of the call (`procedure-narrowing`, CLI-30) applies last, after the
+   * narrowing of the request hook. It cannot throw: a part that has no effect goes to the debug
+   * reports.
    */
   private capabilityOf(request: ServerRequest<unknown>): Capability | undefined {
     const { capability, clearanceOrder } = this.capabilityOptions;
     const base = withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder);
-    return request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
+    const held = request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
+    if (!Object.hasOwn(request.metadata, NARROWING_METADATA_KEY)) return held;
+    const wire = narrowingOf(request.metadata[NARROWING_METADATA_KEY]);
+    const narrowed = narrowWithin(held, wire.narrowing, clearanceOrder);
+    if (this.debugReport) {
+      for (const note of [...wire.notes, ...narrowed.notes]) {
+        this.debugReport({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind } });
+      }
+    }
+    return narrowed.capability;
   }
 
   /** Run a procedure for a request with a signal. */

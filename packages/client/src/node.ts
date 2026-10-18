@@ -14,6 +14,10 @@
  * gives a request handler `(req, res) => boolean`, and `upgradeHandler(server, options)` gives an
  * upgrade handler `(req, socket, head) => boolean`. Each one takes the requests of its path and
  * gives `false` for the others, so the routes of the application share the listener.
+ *
+ * The option `addressing` of `procedureHandler` gives the method and the payload of a request
+ * (CLI-31). `urlAddressing()` is the default, and `bodyPathAddressing()` reads the path from the
+ * body of a single endpoint.
  */
 
 export { WebSocketTransport } from "./adapters/websocket/client/node.js";
@@ -25,6 +29,9 @@ export type { ProcedureHandlerOptions, NodeProcedureHandler, NodeUrlStrategy, Ur
 export type { CorsOptions } from "./adapters/http/server/cors.js";
 export type { RoutedRequest } from "./adapters/http/server/strategies.js";
 export { defaultServerUrlStrategy, rpcServerUrlStrategy } from "./adapters/http/server/strategies.js";
+// The addressing of a request: the URL (the default), or the path in the body of a single endpoint (CLI-31)
+export { urlAddressing, bodyPathAddressing } from "./adapters/http/server/addressing.js";
+export type { Addressing, CallAddress, UrlAddressingOptions, BodyPathAddressingOptions } from "./adapters/http/server/addressing.js";
 export { upgradeHandler } from "./adapters/websocket/server/upgrade.js";
 export type { UpgradeHandlerOptions, NodeUpgradeHandler } from "./adapters/websocket/server/upgrade.js";
 export { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";

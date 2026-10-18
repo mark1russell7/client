@@ -25,7 +25,7 @@ import type {
   ElicitOptions,
   ReportProgress,
 } from "@procedures/client";
-import { PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
+import { NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -53,7 +53,7 @@ export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
 interface CallExtra {
   signal: AbortSignal;
   requestId: string | number;
-  _meta?: { progressToken?: string | number | undefined } | undefined;
+  _meta?: { progressToken?: string | number | undefined; readonly [key: string]: unknown } | undefined;
   sendNotification: (notification: ServerNotification) => Promise<void>;
   /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
   requestInfo?: { headers: Record<string, string | string[] | undefined>; url?: URL | undefined } | undefined;
@@ -68,6 +68,19 @@ function callCredentials(extra: CallExtra): Credentials | undefined {
   const info = extra.requestInfo;
   if (!info) return undefined;
   return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
+}
+
+/**
+ * The narrowing key of a tool call (CLI-30): the key `procedure-narrowing` of the `_meta` of the
+ * request. Over Streamable HTTP, the `Procedure-Narrowing` header is the same key. The server
+ * applies it, so it can only make the capability of the call narrower.
+ */
+function callNarrowing(extra: CallExtra): unknown {
+  const meta = extra._meta;
+  const fromMeta = meta !== undefined && Object.hasOwn(meta, NARROWING_METADATA_KEY) ? meta[NARROWING_METADATA_KEY] : undefined;
+  const header = extra.requestInfo?.headers[NARROWING_METADATA_KEY];
+  const value = fromMeta ?? (Array.isArray(header) ? header[0] : header);
+  return value;
 }
 
 /**
@@ -227,6 +240,7 @@ export class McpServerTransport implements ServerTransport {
 
       // Build ServerRequest
       const credentials = callCredentials(extra as CallExtra);
+      const narrowing = callNarrowing(extra as CallExtra);
       const serverRequest = {
         id: generateRequestId(),
         method: pathToMethod(path),
@@ -234,6 +248,8 @@ export class McpServerTransport implements ServerTransport {
         metadata: {
           transport: "mcp" as const,
           mcpRequestId: generateRequestId(),
+          // The narrowing key of the call: the server applies it (CLI-30)
+          ...(narrowing !== undefined ? { [NARROWING_METADATA_KEY]: narrowing } : {}),
         },
         // A cancelled tool call (notifications/cancelled) aborts the procedure
         signal: extra.signal,

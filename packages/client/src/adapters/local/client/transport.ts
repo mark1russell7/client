@@ -12,7 +12,8 @@ import type { AnyProcedure } from "../../../procedures/types.js";
 import { InvocationError, invokeProcedure, isAsyncIterable, type Interceptor } from "../../../procedures/invoke.js";
 import { TIMEOUT_METADATA_KEY } from "../../../client/deadline.js";
 import { narrowCapability } from "../../../procedures/capability.js";
-import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
+import { NARROWING_METADATA_KEY, narrowingOf } from "../../../procedures/narrowing.js";
+import type { Capability, CapabilityRequest, ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { errorCodeOf } from "../../../protocol.js";
 import type { EventPublisher } from "../../../events/publisher.js";
@@ -186,12 +187,15 @@ export class LocalTransport implements Transport {
           typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs >= 0
             ? narrowCapability(this.capability, { timeoutMs }, this.clearanceOrder)
             : this.capability;
+        // The narrowing key of the call can only make the capability narrower (CLI-30)
+        const narrow = narrowingOf(message.metadata[NARROWING_METADATA_KEY]).narrowing as CapabilityRequest | undefined;
         const output = await untilAborted(invokeProcedure(procedure, message.payload, {
           registry: this.registry,
           metadata: message.metadata,
           signal: message.signal,
           ...(this.interceptors ? { interceptors: this.interceptors } : {}),
           ...(capability ? { capability } : {}),
+          ...(narrow ? { narrow } : {}),
           ...(this.clearanceOrder ? { clearanceOrder: this.clearanceOrder } : {}),
           ...(this.events ? { bus: this.events.bus } : {}),
         }), message.signal);

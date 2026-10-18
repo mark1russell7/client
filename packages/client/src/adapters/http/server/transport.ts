@@ -42,7 +42,7 @@ export class HttpServerTransport implements ServerTransport {
 
   private app: Express;
   private httpServer: HttpServer | null = null;
-  private options: { port: number; host: string; basePath: string; cors: boolean; httpServer: HttpServer | undefined };
+  private options: { port: number; host: string; basePath: string; cors: boolean; httpServer: HttpServer | undefined; takesBasePath: boolean };
   /** The procedure handler that does the work of each request (CLI-3) */
   private readonly handler: NodeProcedureHandler;
   /** The CORS of the app, or undefined when it is off */
@@ -58,6 +58,8 @@ export class HttpServerTransport implements ServerTransport {
       basePath,
       cors: options.cors ?? false,
       httpServer: options.httpServer,
+      // A single endpoint with the path in the body is the base path itself (CLI-31)
+      takesBasePath: options.addressing?.takesBasePath === true,
     };
     // Route by URL path so the raw server matches the HTTP client's default URL format instead of
     // inferring the operation from the verb (BUGS-2026-07 C3, bug 16)
@@ -77,6 +79,7 @@ export class HttpServerTransport implements ServerTransport {
         allowGet: options.allowGet,
         secretHeaders: options.secretHeaders,
         secretQuery: options.secretQuery,
+        addressing: options.addressing,
       },
       {
         legacy: true,
@@ -116,9 +119,11 @@ export class HttpServerTransport implements ServerTransport {
       });
     }
 
-    // Catch-all route for RPC - use regex to match any path under basePath
+    // Catch-all route for RPC - use regex to match any path under basePath, and the base path
+    // itself for an addressing that takes it
+    const base = this.options.basePath.replace(/\//g, "\\/");
     this.app.all(
-      new RegExp(`^${this.options.basePath.replace(/\//g, "\\/")}\\/.*`),
+      new RegExp(this.options.takesBasePath ? `^${base.replace(/\\\/$/, "")}(?:\\/.*)?$` : `^${base}\\/.*`),
       async (req, res) => {
         await this.handler.handle(req, res);
       }

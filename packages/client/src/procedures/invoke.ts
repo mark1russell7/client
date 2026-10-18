@@ -39,6 +39,7 @@ import { PROCEDURE_REGISTRY } from "./registry.js";
 import { nestedCallRefusal } from "./policy.js";
 import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
+import { narrowWithin } from "./narrowing.js";
 import { timeoutAfterMs } from "./interceptors.js";
 import type { Elicit } from "./elicit.js";
 import type { ReportProgress } from "./progress.js";
@@ -160,6 +161,13 @@ export interface InvokeOptions {
    * from its authentication. The nested calls get it, or a narrower one. Absent: no limits.
    */
   capability?: Capability | undefined;
+  /**
+   * A narrower capability that the caller asks for (CLI-30). The invocation narrows `capability`
+   * with it, as a server narrows with the narrowing key of a call. A part that asks for more has no
+   * effect. A clearance that the order cannot compare has no effect too. The nested calls get the
+   * narrowed capability.
+   */
+  narrow?: CapabilityRequest | undefined;
   /** The order of the clearance values. Narrowing two different clearances needs it. */
   clearanceOrder?: ClearanceOrder | undefined;
   /** The resources of an invocation for its capability (`ctx.resources`). */
@@ -320,6 +328,11 @@ export async function invokeProcedure<TOutput = unknown>(
   options: InvokeOptions = {},
 ): Promise<ProcedureOutput<TOutput>> {
   const { path } = procedure;
+  // The narrowing of the caller applies one time, here: the nested calls get the result (CLI-30)
+  if (options.narrow) {
+    const { narrow, ...rest } = options;
+    options = { ...rest, capability: narrowWithin(options.capability, narrow, options.clearanceOrder).capability };
+  }
   if (!procedure.handler) {
     throw new InvocationError("NO_HANDLER", `Procedure has no handler: ${pathToKey(path)}`, path);
   }
