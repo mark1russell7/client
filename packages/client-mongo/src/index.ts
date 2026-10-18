@@ -180,5 +180,5 @@ export type {
   AggregateOptions,
 } from "mongodb";
 // Materialized views driven by change streams (Graph's split plan, P4)
-export { ViewMaterializer, partitionTargetId } from "./storage/index.js";
+export { ViewMaterializer, partitionTargetId, viewFilter, VIEW_GENERATION_FIELD, VIEW_HASH_FIELD } from "./storage/index.js";
 export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPipelineScope, ViewTargetId } from "./storage/index.js";

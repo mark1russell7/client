@@ -5,9 +5,9 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { MongoClient, type Db, type Document } from "mongodb";
+import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { realClock, type Clock } from "@procedures/client";
-import { ViewMaterializer, type MaterializedView } from "./materializer.js";
+import { ViewMaterializer, viewFilter, type MaterializedView } from "./materializer.js";
 
 const url = process.env["MONGO_TEST_URL"];
 let client: MongoClient | undefined;
@@ -61,10 +61,16 @@ const sumsView = (overrides: Partial<MaterializedView> = {}): MaterializedView =
   ...overrides,
 });
 
-/** The stored _id of a row of a view: `{ partition, id }`. */
-const at = (id: unknown, partition = "t1") => ({ partition, id });
+/** A row of a view as a reader sees it: its key, its partition and its content, without the fields of the materializer. */
+const plain = ({ _id, _viewGen, _viewHash, ...rest }: Document): Document => ({
+  _id: typeof _id === "object" && _id !== null && "id" in (_id as Document) ? (_id as Document)["id"] : _id,
+  ...rest,
+});
 
-const sorted = (docs: Document[]) => docs.sort((a, b) => JSON.stringify(a["_id"]).localeCompare(JSON.stringify(b["_id"])));
+const sorted = (docs: Document[]) => docs.map(plain).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+/** The row of a key in a target. */
+const rowOf = (db: Db, collection: string, id: string, partition = "t1") => db.collection(collection).findOne({ "_id.id": id, _part: partition });
 
 const withMongo = url ? describe : describe.skip;
 
@@ -80,17 +86,17 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await db.collection("_aggregations").insertOne(sumsView() as never);
     await views.start();
     const target = () => db.collection("sums").find({}).toArray();
-    expect(sorted(await target())).toEqual([{ _id: at("a"), _part: "t1", total: 3 }]);
+    expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 3 }]);
     expect(views.openStreamCount()).toBe(2);
 
     await db.collection("items").insertOne({ _id: "4" as never, _part: "t1", kind: "b", n: 5 });
-    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: at("a"), _part: "t1", total: 3 }, { _id: at("b"), _part: "t1", total: 5 }]));
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 3 }, { _id: "b", _part: "t1", total: 5 }]));
     await db.collection("items").updateOne({ _id: "1" as never }, { $set: { n: 10 } });
-    await eventually(async () => expect((await db.collection("sums").findOne({ _id: at("a") as never }))?.["total"]).toBe(12));
+    await eventually(async () => expect((await rowOf(db, "sums", "a"))?.["total"]).toBe(12));
     // A change of another partition does not reach the view
     await db.collection("items").insertOne({ _id: "5" as never, _part: "t2", kind: "c", n: 1 });
     await db.collection("items").deleteOne({ _id: "4" as never });
-    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: at("a"), _part: "t1", total: 12 }]));
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 12 }]));
     const doc = await db.collection("_aggregations").findOne({ _id: "sums" as never });
     expect(doc?.["_materializerStatus"]).toMatchObject({ state: "ok" });
 
@@ -111,7 +117,7 @@ withMongo("ViewMaterializer on MongoDB", () => {
       { _id: "count", _part: "t1", collections: ["kinds"], pipeline: [{ $group: { _id: "all", kinds: { $sum: 1 } } }], targetCollection: "count" } as never,
     ]);
     await views.start();
-    const count = async () => (await db.collection("count").findOne({ _id: at("all") as never }))?.["kinds"];
+    const count = async () => (await rowOf(db, "count", "all"))?.["kinds"];
     expect(await count()).toBe(2);
     await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "c", n: 3 });
     await eventually(async () => expect(await count()).toBe(3));
@@ -141,7 +147,7 @@ withMongo("ViewMaterializer on MongoDB", () => {
 
     await db.collection("_aggregations").updateOne({ _id: "sums" as never }, { $set: { pipeline: [{ $group: { _id: "$kind", total: { $sum: "$n" } } }] } });
     await eventually(async () => expect(await status()).toMatchObject({ state: "ok" }));
-    expect(await db.collection("sums").find({}).toArray()).toEqual([{ _id: at("a"), _part: "t1", total: 1 }]);
+    expect(sorted(await db.collection("sums").find({}).toArray())).toEqual([{ _id: "a", _part: "t1", total: 1 }]);
     await views.stop();
   });
 
@@ -177,12 +183,12 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await db.collection("_aggregations").insertMany([sumsView() as never, sumsView({ _id: "sums-t2", _part: "t2" }) as never]);
     await views.start();
     const rows = async () => sorted(await db.collection("sums").find({}).toArray());
-    expect(await rows()).toEqual([{ _id: "kept", total: 0 }, { _id: at("a"), _part: "t1", total: 1 }, { _id: at("a", "t2"), _part: "t2", total: 10 }]);
+    expect(await rows()).toEqual([{ _id: "a", _part: "t1", total: 1 }, { _id: "a", _part: "t2", total: 10 }, { _id: "kept", total: 0 }]);
 
     // A change of t2 rewrites only t2, and its sweep removes only rows of t2
     await db.collection("items").updateOne({ _id: "2" as never }, { $set: { kind: "b" } });
     await eventually(async () =>
-      expect(await rows()).toEqual([{ _id: "kept", total: 0 }, { _id: at("a"), _part: "t1", total: 1 }, { _id: at("b", "t2"), _part: "t2", total: 10 }])
+      expect(await rows()).toEqual([{ _id: "a", _part: "t1", total: 1 }, { _id: "b", _part: "t2", total: 10 }, { _id: "kept", total: 0 }])
     );
     const statuses = (await db.collection("_aggregations").find({}).toArray()).map((doc) => (doc["_materializerStatus"] as Document | undefined)?.["state"]);
     expect(statuses).toEqual(["ok", "ok"]);
@@ -219,6 +225,100 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await bare.stop();
   });
 
+  it("writes a large view as a new generation in groups, keeps the previous one for its grace time, and reads only current generations downstream", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    const logs: string[] = [];
+    const views = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, maxTransactionRows: 1, generationGraceMs: 400, log: (level, message) => void logs.push(`${level}: ${message}`) });
+    await db.collection("items").insertMany(["a", "b", "c"].map((kind, index) => ({ _id: String(index) as never, _part: "t1", kind, n: 1 })));
+    await db.collection("_aggregations").insertMany([
+      sumsView() as never,
+      { _id: "count", _part: "t1", collections: ["sums"], pipeline: [{ $group: { _id: "all", kinds: { $sum: 1 } } }], targetCollection: "count" } as never,
+    ]);
+    await views.start();
+    const viewOf = async (id: string) => (await db.collection("_aggregations").findOne({ _id: id as never })) as unknown as MaterializedView;
+    /** The rows that a reader sees: the current generation only. */
+    const current = async (id: string, target: string) => sorted(await db.collection(target).find(viewFilter(await viewOf(id))).toArray());
+    const generationOf = async (id: string) => ((await viewOf(id))["_materializerStatus"] as Document)["generation"] as ObjectId;
+    expect(await current("sums", "sums")).toHaveLength(3);
+    expect(await current("count", "count")).toEqual([{ _id: "all", _part: "t1", kinds: 3 }]);
+    const first = await generationOf("sums");
+
+    // 3 rows is more than 1: the next pass writes a new generation in groups, and the readers move to it at once
+    await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "d", n: 1 });
+    await eventually(async () => expect(await current("sums", "sums")).toHaveLength(4));
+    const second = await generationOf("sums");
+    expect(second.equals(first)).toBe(false);
+    // The previous generation stays for its grace time, and the view that reads the target counts the current one only
+    expect(await db.collection("sums").countDocuments({ _viewGen: first })).toBe(3);
+    await eventually(async () => expect(await current("count", "count")).toEqual([{ _id: "all", _part: "t1", kinds: 4 }]));
+    expect(logs.filter((line) => line.startsWith("warn"))).toEqual([]);
+
+    // After the grace time (and the second of an ObjectId), a later pass removes it
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await db.collection("items").insertOne({ _id: "4" as never, _part: "t1", kind: "e", n: 1 });
+    await eventually(async () => expect(await current("sums", "sums")).toHaveLength(5));
+    await eventually(async () => expect(await db.collection("sums").countDocuments({ _viewGen: first })).toBe(0));
+    expect(await db.collection("sums").countDocuments({ _viewGen: second })).toBe(4);
+    await eventually(async () => expect(await current("count", "count")).toEqual([{ _id: "all", _part: "t1", kinds: 5 }]));
+    await views.stop();
+  }, 30_000);
+
+  it("fails a pass in groups when targetId gives the same _id in each generation", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    const views = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, maxTransactionRows: 1, targetId: (id, partition) => `${partition}:${String(id)}`, log: () => undefined });
+    await db.collection("items").insertMany(["a", "b"].map((kind, index) => ({ _id: String(index) as never, _part: "t1", kind, n: 1 })));
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    const status = async () => (await db.collection("_aggregations").findOne({ _id: "sums" as never }))?.["_materializerStatus"] as Document;
+    expect(await status()).toMatchObject({ state: "ok" });
+    await db.collection("items").insertOne({ _id: "2" as never, _part: "t1", kind: "c", n: 1 });
+    await eventually(async () => expect(await status()).toMatchObject({ state: "errored", lastError: expect.stringMatching(/same _id in each generation/) }));
+    // The rows of the current generation stay as they were
+    expect(sorted(await db.collection("sums").find({}).toArray()).map((row) => row["_id"])).toEqual(["t1:a", "t1:b"]);
+    await views.stop();
+  });
+
+  it("writes in groups when its transaction goes over the lifetime limit of the server", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const admin = client!.db("admin");
+    const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
+      () => true,
+      () => false
+    );
+    if (!failpoints) {
+      if (process.env["MONGO_TEST_FAILPOINTS"] === "1") throw new Error("MONGO_TEST_FAILPOINTS is 1, but the server has no test commands (enableTestCommands)");
+      return context.skip?.("the failpoints need a server with enableTestCommands");
+    }
+    // Its own client, so the failpoint blocks only the commands of the materializer
+    const own = new MongoClient(url!, { appName: "views-lifetime" });
+    await own.connect();
+    const db = own.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(client!.db(db.databaseName));
+    const logs: string[] = [];
+    const views = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, log: (level, message) => void logs.push(`${level}: ${message}`) });
+    await db.collection("items").insertMany(["a", "b", "c"].map((kind, index) => ({ _id: String(index) as never, _part: "t1", kind, n: 1 })));
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await admin.command({ setParameter: 1, transactionLifetimeLimitSeconds: 1 });
+    try {
+      // The first write of the run waits 3 s in its transaction: the server aborts the transaction
+      await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["update"], appName: "views-lifetime", blockConnection: true, blockTimeMS: 3000 } });
+      await views.start();
+      const viewOf = async () => (await db.collection("_aggregations").findOne({ _id: "sums" as never })) as unknown as MaterializedView;
+      expect(sorted(await db.collection("sums").find(viewFilter(await viewOf())).toArray())).toHaveLength(3);
+      expect((await viewOf())["_materializerStatus"]).toMatchObject({ state: "ok" });
+      expect(logs.some((line) => line.startsWith("warn") && line.includes("the transaction failed"))).toBe(true);
+    } finally {
+      await admin.command({ configureFailPoint: "failCommand", mode: "off" });
+      await admin.command({ setParameter: 1, transactionLifetimeLimitSeconds: 60 });
+      await views.stop();
+      await own.close();
+    }
+  }, 30_000);
+
   it("has the stop parts of a transport, and takes its timers from the injected clock", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
@@ -229,7 +329,7 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1 });
     await db.collection("_aggregations").insertOne(sumsView() as never);
     await views.start();
-    const total = async () => (await db.collection("sums").findOne({ _id: at("a") as never }))?.["total"];
+    const total = async () => (await rowOf(db, "sums", "a"))?.["total"];
     await db.collection("items").insertOne({ _id: "2" as never, _part: "t1", kind: "a", n: 2 });
     await eventually(async () => expect(await total()).toBe(3));
     expect(delays).toContain(20); // the debounce of the pass is a timer of the clock

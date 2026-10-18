@@ -111,7 +111,7 @@ jobs:
       - name: Start MongoDB 7
         run: |
           if [ "${{ matrix.topology }}" = "replica-set" ]; then
-            docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+            docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
           else
             docker run -d --name mongo -p 27017:27017 mongo:7
           fi
@@ -138,6 +138,8 @@ jobs:
         env:
           MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
           MONGO_TEST_TOPOLOGY: ${{ matrix.topology }}
+          # The failpoint tests (for example a transaction over its lifetime limit) need the test commands of the replica set
+          MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
 
   coverage:
@@ -149,10 +151,11 @@ jobs:
     env:
       MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
       MONGO_TEST_TOPOLOGY: replica-set
+      MONGO_TEST_FAILPOINTS: "1"
     steps:
       - name: Start MongoDB 7 (a single-node replica set)
         run: |
-          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all --setParameter enableTestCommands=1
           for i in $(seq 1 60); do
             docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break
             sleep 1

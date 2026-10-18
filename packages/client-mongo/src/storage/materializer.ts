@@ -8,28 +8,38 @@
  *   source of another view runs first, in the same pass. A view in a cycle does not run, and its
  *   status is `cycle`.
  * - A pass runs after the last change of a burst (`debounceMs`), and only the views whose sources
- *   changed. A run computes the result first. When the result is the same as at the last run, it
- *   writes nothing. Else, in one transaction, it writes the rows that changed and removes the rows
- *   of the partition that the result does not have.
- * - The stored `_id` of a row carries the partition (`targetId`, by default `{ partition, id }`):
- *   partitions with the same keys share a target. A row of the partition with another `_id` (for
- *   example of an older form) goes in the first run.
+ *   changed. A run streams the result in groups, and compares each row with the hash that its
+ *   stored row keeps. A result that did not change writes nothing.
+ * - The rows of a view are a generation (the field `_viewGen`), and the status of the view names
+ *   the current one. A reader filters with `viewFilter(view)`, and thus always reads one whole
+ *   generation.
+ * - A run writes in one transaction: the rows that changed, in the current generation, and the
+ *   removal of the rows that the result does not have. A view with more rows than
+ *   `maxTransactionRows`, or whose transaction fails (for example over the limits of MongoDB),
+ *   writes a whole new generation in groups instead. Then the status names it, and the previous
+ *   generation stays for `generationGraceMs`, so a reader of it can finish. A later pass removes it.
+ * - The stored `_id` of a row carries the partition and the generation (`targetId`): partitions
+ *   with the same keys share a target. The rows of an older materializer (no generation) go in the
+ *   first pass.
  * - Each pipeline goes through the guard of the scope (`scopePipeline` by default): it reads only
- *   the documents of its partition, in its sources, and writes only into its target.
+ *   the documents of its partition, in its sources, and only the current generation of a target
+ *   of another view. The materializer writes the rows.
+ * - A pass keeps in memory the key of each row of the result (at most `maxRows`) and one group of
+ *   1000 rows. It keeps nothing between passes.
  * - A change stream that ends (for example after `dropDatabase`) opens again after `rewatchMs`,
  *   and a pass catches up on the changes that the stream missed.
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
  *   document. The materializer ignores an update of only that field.
  *
- * Change streams need a replica set. The target of a view is a plain collection that only the
- * materializer writes.
+ * Change streams and transactions need a replica set. The target of a view is a plain collection
+ * that only the materializer writes.
  *
  * The stop has the parts of a transport of a service: `stopIntake()`, `drain()`, `inFlight()` and
  * `close()`. A host composes them with no adapter. The timers come from the injected clock.
  */
 
 import { createHash } from "node:crypto";
-import { BSON, type ChangeStream, type Db, type Document } from "mongodb";
+import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { realClock, type Cancel, type Clock } from "@procedures/client";
 import { scopePipeline } from "./pipeline-scope.js";
 
@@ -56,10 +66,17 @@ export interface MaterializedViewStatus {
   lastError?: string;
   /** The time of the status, in milliseconds since the epoch. */
   at: number;
+  /** The current generation of the rows of the view. */
+  generation?: ObjectId;
+  /** The generation before the last change of generation, and the time of that change (milliseconds since the epoch). */
+  previous?: { generation: ObjectId | null; flippedAt: number };
 }
 
-/** The function that guards the pipeline of a view for its partition. */
-export type ViewPipelineScope = (pipeline: Document[], partition: string, view: MaterializedView) => Document[];
+/**
+ * The function that guards the pipeline of a view for its partition. `match` is the filter of the
+ * documents that the pipeline can read: the partition, and the current generations of the targets.
+ */
+export type ViewPipelineScope = (pipeline: Document[], partition: string, view: MaterializedView, match: Document) => Document[];
 
 /** The options of a `ViewMaterializer`. */
 export interface ViewMaterializerOptions {
@@ -72,8 +89,8 @@ export interface ViewMaterializerOptions {
   /** The field of a view document that gets its status (default `_materializerStatus`). */
   statusField?: string | undefined;
   /**
-   * The guard of a pipeline. The default is `scopePipeline` with the partition as the filter and
-   * the stamp, and the sources and the target as the collections.
+   * The guard of a pipeline. The default is `scopePipeline` with `match` as the filter and the
+   * sources as the collections. Another guard applies `match` to each collection too.
    */
   scope?: ViewPipelineScope | undefined;
   /** The time after the last change before a pass (default 100 ms). */
@@ -89,18 +106,52 @@ export interface ViewMaterializerOptions {
   /** The clock of the timers (default the clock of the platform). A test gives a fake clock. The timers do not keep a process alive. */
   clock?: Clock | undefined;
   /**
-   * The stored `_id` of a row of a view, from the `_id` of the row and the partition (default
-   * `partitionTargetId`: `{ partition, id }`). Two partitions must not give the same stored `_id`:
-   * the write of a row checks the partition, and fails on the row of another partition.
+   * The stored `_id` of a row of a view, from the `_id` of the row, the partition and the
+   * generation (default `partitionTargetId`: `{ partition, generation, id }`). Two partitions, or two
+   * generations, must not give the same stored `_id`. The write of a row checks the partition, and
+   * fails on the row of another partition. A pass in groups fails when the generation does not
+   * change the `_id`.
    */
   targetId?: ViewTargetId | undefined;
+  /** A view with more rows than this writes a new generation in groups, not in one transaction (default 10000). */
+  maxTransactionRows?: number | undefined;
+  /** The time that the previous generation stays after a change of generation, in milliseconds (default 60000). */
+  generationGraceMs?: number | undefined;
 }
 
 /** The function that gives the stored `_id` of a row of a view. */
-export type ViewTargetId = (id: unknown, partition: string) => unknown;
+export type ViewTargetId = (id: unknown, partition: string, generation: ObjectId) => unknown;
 
-/** The stored `_id` of a row: `{ partition, id }`. A reader of the partition reads `_id.id`. */
-export const partitionTargetId: ViewTargetId = (id, partition) => ({ partition, id });
+/** The stored `_id` of a row: `{ partition, generation, id }`. A reader reads the key of the row in `_id.id`. */
+export const partitionTargetId: ViewTargetId = (id, partition, generation) => ({ partition, generation, id });
+
+/** The field of a row of a view that names its generation. */
+export const VIEW_GENERATION_FIELD = "_viewGen";
+/** The field of a row of a view that keeps the hash of its content. */
+export const VIEW_HASH_FIELD = "_viewHash";
+
+/**
+ * The filter of the rows of a view for a reader: its partition and its current generation. A
+ * reader of a target applies it, so it reads one whole generation. Before the first run, it
+ * matches no row.
+ */
+export function viewFilter(view: MaterializedView, options: { partitionField?: string | undefined; statusField?: string | undefined } = {}): Document {
+  const partitionField = options.partitionField ?? "_part";
+  const status = view[options.statusField ?? "_materializerStatus"] as Partial<MaterializedViewStatus> | undefined;
+  return { [partitionField]: view[partitionField], [VIEW_GENERATION_FIELD]: status?.generation ?? { $in: [] } };
+}
+
+/** An error of the result of a view (the pipeline, the size, a row): a pass in groups gives it too. */
+class ViewRunError extends Error {}
+
+/** A row of the result, ready to store. */
+interface StoredRow {
+  /** The `_id` of the row in the result. */
+  id: unknown;
+  key: string;
+  hash: string;
+  doc: Document;
+}
 
 /** The writes of a run go to the server in groups of this size. */
 const WRITE_GROUP = 1000;
@@ -159,8 +210,6 @@ export class ViewMaterializer {
   private db: Db | undefined;
   private viewsStream: ChangeStream | undefined;
   private readonly running = new Map<string, RunningView>();
-  /** The last result of each view: the key of the stored `_id` to the hash of the row. */
-  private readonly lastResult = new Map<string, Map<string, string>>();
   /** The collections that changed since the last pass, for each partition. */
   private readonly dirty = new Map<string, Set<string>>();
   private readonly timers = new Map<string, Cancel>();
@@ -168,6 +217,8 @@ export class ViewMaterializer {
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
   private readonly targetId: ViewTargetId;
+  private readonly maxTransactionRows: number;
+  private readonly graceMs: number;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
@@ -186,6 +237,8 @@ export class ViewMaterializer {
     this.maxRows = options.maxRows ?? 100_000;
     this.clock = options.clock ?? realClock;
     this.targetId = options.targetId ?? partitionTargetId;
+    this.maxTransactionRows = options.maxTransactionRows ?? 10_000;
+    this.graceMs = options.generationGraceMs ?? 60_000;
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -193,11 +246,18 @@ export class ViewMaterializer {
     else console[level === "info" ? "log" : level](`[materializer] ${message}`);
   }
 
-  /** The guard of a pipeline of a view. */
-  private scoped(pipeline: Document[], partition: string, view: MaterializedView): Document[] {
-    if (this.options.scope) return this.options.scope(pipeline, partition, view);
+  /**
+   * The guard of a pipeline of a view. A target of another view counts only in its current
+   * generation. A source document has no generation.
+   */
+  private scoped(pipeline: Document[], partition: string, view: MaterializedView, generations: readonly ObjectId[]): Document[] {
+    const match = {
+      [this.partitionField]: partition,
+      $or: [{ [VIEW_GENERATION_FIELD]: { $exists: false } }, { [VIEW_GENERATION_FIELD]: { $in: [...generations] } }],
+    };
+    if (this.options.scope) return this.options.scope(pipeline, partition, view, match);
     // No stamp: the materializer writes the rows, so the guard refuses a $merge of the pipeline
-    return scopePipeline(pipeline, { match: { [this.partitionField]: partition }, collections: view.collections });
+    return scopePipeline(pipeline, { match, collections: view.collections });
   }
 
   /** The change streams that are open: the views stream and the source streams of the active views. */
@@ -388,10 +448,10 @@ export class ViewMaterializer {
       return;
     }
     this.running.set(this.keyOf(partition, view._id), { view, partition, state: "active", streams: [] });
-    // The sweep of a run reads the rows of the partition
+    // The readers, the counts and the sweeps read the rows of a partition in a generation
     await this.db!
       .collection(view.targetCollection)
-      .createIndex({ [this.partitionField]: 1 })
+      .createIndex({ [this.partitionField]: 1, [VIEW_GENERATION_FIELD]: 1 })
       .catch((error: unknown) => this.log("error", `the index of ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
     await this.rebalance(partition);
   }
@@ -401,7 +461,6 @@ export class ViewMaterializer {
     if (!view) return;
     for (const stream of view.streams) stream.close().catch(() => undefined);
     this.running.delete(key);
-    this.lastResult.delete(key);
   }
 
   /** The filter of the change stream of a source for a partition. */
@@ -575,59 +634,195 @@ export class ViewMaterializer {
   }
 
   /**
-   * One run of a view: the result first; nothing more when it is the same as the last result. Else,
-   * in one transaction, the rows that changed since the last run (each row after a start) and the
-   * removal of the rows of the partition that the result does not have. It gives true when it wrote.
+   * One run of a view. It gives true when the rows of the view changed: then the views that read
+   * its target run after it, in the same pass.
    */
   private async run(view: MaterializedView, partition: string): Promise<boolean> {
-    const db = this.db!;
-    const key = this.keyOf(partition, view._id);
-    let rows: Document[];
-    try {
-      rows = await db
-        .collection(view.collections[0]!)
-        .aggregate([...this.scoped(view.pipeline, partition, view), { $limit: this.maxRows + 1 }], { maxTimeMS: this.maxTimeMS })
-        .toArray();
-    } catch (error) {
-      throw new Error(`the pipeline: ${String((error as Error)?.message ?? error)}`);
+    const target = this.db!.collection(view.targetCollection);
+    const status = await this.statusOf(view, partition);
+    await this.dropOldGenerations(target, partition, status);
+    const current = status?.generation;
+    const generations = await this.currentGenerations(partition);
+    const size = current ? await target.countDocuments({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: current }) : 0;
+    if (size <= this.maxTransactionRows) {
+      try {
+        return await this.runInTransaction(view, partition, target, current, generations);
+      } catch (error) {
+        if (error instanceof ViewRunError) throw error;
+        this.log("warn", `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes a new generation in groups`);
+      }
     }
-    if (rows.length > this.maxRows) throw new Error(`the result has more than ${this.maxRows} rows`);
-    // The stored rows, by the key of the stored _id: the type-aware key keeps an ObjectId apart from its text
-    const result = new Map<string, { doc: Document; hash: string }>();
-    for (const row of rows) {
-      const { _id, [this.partitionField]: _partition, ...content } = row;
-      if (_id === undefined || _id === null) throw new Error("each row of the result needs an _id");
-      const stored = this.targetId(_id, partition);
-      result.set(idKey(stored), { doc: { _id: stored, ...content, [this.partitionField]: partition }, hash: createHash("sha1").update(canonical(content)).digest("hex") });
-    }
-    const last = this.lastResult.get(key);
-    if (last && last.size === result.size && [...result].every(([id, row]) => last.get(id) === row.hash)) return false;
-
-    const target = db.collection(view.targetCollection);
-    const writes = [...result]
-      .filter(([id, row]) => last?.get(id) !== row.hash)
-      .map(([, row]) => ({ replaceOne: { filter: { _id: row.doc["_id"], [this.partitionField]: partition }, replacement: row.doc, upsert: true } }));
-    try {
-      await db.client.withSession((session) =>
-        session.withTransaction(async () => {
-          for (const group of groups(writes)) await target.bulkWrite(group, { ordered: false, session });
-          // The rows of the partition that the result does not have: the old rows, and the rows of another form of _id
-          const stored = await target.find({ [this.partitionField]: partition }, { projection: { _id: 1 }, session }).toArray();
-          const stale = stored.map((doc) => doc["_id"] as unknown).filter((id) => !result.has(idKey(id)));
-          for (const group of groups(stale)) await target.deleteMany({ [this.partitionField]: partition, _id: { $in: group } } as Document, { session });
-        })
-      );
-    } catch (error) {
-      throw new Error(`the write of the rows: ${String((error as Error)?.message ?? error)}`);
-    }
-    this.lastResult.set(key, new Map([...result].map(([id, row]) => [id, row.hash])));
+    await this.runInGroups(view, partition, target, current, generations);
     return true;
   }
 
-  private async writeStatus(view: MaterializedView, partition: string, status: MaterializedViewStatus): Promise<void> {
-    if (this.stopped) return;
+  /** The status of a view in the database: the current generation, and the previous one. */
+  private async statusOf(view: MaterializedView, partition: string): Promise<Partial<MaterializedViewStatus> | undefined> {
+    const doc = await this.db!.collection(this.viewsName).findOne({ _id: view._id, [this.partitionField]: partition } as Document, { projection: { [this.statusField]: 1 } });
+    return doc?.[this.statusField] as Partial<MaterializedViewStatus> | undefined;
+  }
+
+  /** The current generations of the views of a partition: the rows of a target that a pipeline can read. */
+  private async currentGenerations(partition: string): Promise<ObjectId[]> {
+    const docs = await this.db!.collection(this.viewsName).find({ [this.partitionField]: partition }, { projection: { [`${this.statusField}.generation`]: 1 } }).toArray();
+    return docs.map((doc) => (doc[this.statusField] as Partial<MaterializedViewStatus> | undefined)?.generation).filter((generation): generation is ObjectId => generation instanceof ObjectId);
+  }
+
+  /**
+   * This method removes the rows of the old generations of a view: not the current one, not the
+   * previous one during its grace time, and not a generation younger than the grace time (a pass in
+   * groups of another process can write it).
+   */
+  private async dropOldGenerations(target: Collection, partition: string, status: Partial<MaterializedViewStatus> | undefined): Promise<void> {
+    const current = status?.generation;
+    if (!current) return;
+    const previous = status.previous;
+    const inGrace = previous !== undefined && Date.now() < previous.flippedAt + this.graceMs;
+    const keep = [current, ...(inGrace ? [previous.generation] : [])].filter((generation): generation is ObjectId => generation instanceof ObjectId);
+    const before = ObjectId.createFromTime(Math.floor((Date.now() - this.graceMs) / 1000));
     try {
-      await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, { $set: { [this.statusField]: status } });
+      await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $nin: keep, $lt: before } });
+    } catch (error) {
+      throw new Error(`the removal of the old generations: ${String((error as Error)?.message ?? error)}`);
+    }
+  }
+
+  /** The rows of the result, in groups of 1000. A failure of the pipeline, a row without `_id` and too many rows are a `ViewRunError`. */
+  private async *resultGroups(view: MaterializedView, partition: string, generations: readonly ObjectId[], generation: ObjectId): AsyncGenerator<StoredRow[]> {
+    let pipeline: Document[];
+    try {
+      pipeline = this.scoped(view.pipeline, partition, view, generations);
+    } catch (error) {
+      throw new ViewRunError(`the guard: ${String((error as Error)?.message ?? error)}`);
+    }
+    const cursor = this.db!
+      .collection(view.collections[0]!)
+      .aggregate([...pipeline, { $limit: this.maxRows + 1 }], { maxTimeMS: this.maxTimeMS, batchSize: WRITE_GROUP });
+    let count = 0;
+    let group: StoredRow[] = [];
+    try {
+      for (;;) {
+        let row: Document | null;
+        try {
+          row = await cursor.next();
+        } catch (error) {
+          throw new ViewRunError(`the pipeline: ${String((error as Error)?.message ?? error)}`);
+        }
+        if (row === null) break;
+        if (++count > this.maxRows) throw new ViewRunError(`the result has more than ${this.maxRows} rows`);
+        // The fields of the materializer, for a row that comes from a target: not in the content
+        const { _id, [this.partitionField]: _partition, [VIEW_GENERATION_FIELD]: _generation, [VIEW_HASH_FIELD]: _hash, ...content } = row;
+        if (_id === undefined || _id === null) throw new ViewRunError("each row of the result needs an _id");
+        const stored = this.targetId(_id, partition, generation);
+        const hash = createHash("sha1").update(canonical(content)).digest("hex");
+        group.push({
+          id: _id,
+          key: idKey(stored),
+          hash,
+          doc: { _id: stored, ...content, [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: generation, [VIEW_HASH_FIELD]: hash },
+        });
+        if (group.length === WRITE_GROUP) {
+          yield group;
+          group = [];
+        }
+      }
+      if (group.length > 0) yield group;
+    } finally {
+      await cursor.close().catch(() => undefined);
+    }
+  }
+
+  private replaceOf(row: StoredRow, partition: string): Document {
+    return { replaceOne: { filter: { _id: row.doc["_id"], [this.partitionField]: partition }, replacement: row.doc, upsert: true } };
+  }
+
+  /**
+   * A run in one transaction, in the current generation (a new one at the first run): the rows that
+   * changed, and the removal of the rows that the result does not have. At the first run, the
+   * removal also takes the rows of no generation (an older materializer).
+   */
+  private async runInTransaction(view: MaterializedView, partition: string, target: Collection, current: ObjectId | undefined, generations: readonly ObjectId[]): Promise<boolean> {
+    const generation = current ?? new ObjectId();
+    const session = this.db!.client.startSession();
+    let changed = current === undefined;
+    try {
+      session.startTransaction();
+      const seen = new Set<string>();
+      for await (const group of this.resultGroups(view, partition, generations, generation)) {
+        const stored = await target
+          .find({ _id: { $in: group.map((row) => row.doc["_id"]) }, [this.partitionField]: partition } as Document, { projection: { [VIEW_HASH_FIELD]: 1 }, session })
+          .toArray();
+        const hashes = new Map(stored.map((doc) => [idKey(doc["_id"]), doc[VIEW_HASH_FIELD]]));
+        const writes = group.filter((row) => hashes.get(row.key) !== row.hash).map((row) => this.replaceOf(row, partition));
+        for (const row of group) seen.add(row.key);
+        if (writes.length > 0) {
+          await target.bulkWrite(writes as never, { ordered: false, session });
+          changed = true;
+        }
+      }
+      // The rows of the generation that the result does not have: a group at most, else the pass goes in groups
+      const sweep = { [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: current ? generation : { $in: [generation, null] } };
+      const stale: unknown[] = [];
+      for await (const doc of target.find(sweep, { projection: { _id: 1 }, session })) {
+        if (seen.has(idKey(doc["_id"]))) continue;
+        stale.push(doc["_id"]);
+        if (stale.length > this.maxTransactionRows) throw new Error(`more than ${this.maxTransactionRows} rows to remove`);
+      }
+      for (const group of groups(stale)) await target.deleteMany({ [this.partitionField]: partition, _id: { $in: group } } as Document, { session });
+      if (stale.length > 0) changed = true;
+      if (!current) await this.setGeneration(view, partition, generation, undefined, session);
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction().catch(() => undefined);
+      throw error;
+    } finally {
+      await session.endSession().catch(() => undefined);
+    }
+    return changed;
+  }
+
+  /**
+   * A run in groups, outside a transaction: a whole new generation, then the change of the status to
+   * it. The readers of `viewFilter` move to it at once. The rows of no generation go at once: no
+   * reader of a generation reads them.
+   */
+  private async runInGroups(view: MaterializedView, partition: string, target: Collection, current: ObjectId | undefined, generations: readonly ObjectId[]): Promise<void> {
+    const generation = new ObjectId();
+    let checked = false;
+    for await (const group of this.resultGroups(view, partition, generations, generation)) {
+      if (!checked) {
+        checked = true;
+        const first = group[0]!;
+        if (idKey(this.targetId(first.id, partition, new ObjectId())) === first.key) {
+          throw new ViewRunError("targetId gives the same _id in each generation: the view is too large for one transaction");
+        }
+      }
+      try {
+        await target.bulkWrite(group.map((row) => this.replaceOf(row, partition)) as never, { ordered: false });
+      } catch (error) {
+        throw new Error(`the write of a group of rows: ${String((error as Error)?.message ?? error)}`);
+      }
+    }
+    await this.setGeneration(view, partition, generation, { generation: current ?? null, flippedAt: Date.now() });
+    await target.deleteMany({ [this.partitionField]: partition, [VIEW_GENERATION_FIELD]: { $exists: false } });
+  }
+
+  /** This method names the current generation of a view in its status, and the previous one when it changes. */
+  private async setGeneration(view: MaterializedView, partition: string, generation: ObjectId, previous: MaterializedViewStatus["previous"], session?: ClientSession): Promise<void> {
+    const set: Document = { [`${this.statusField}.generation`]: generation };
+    if (previous) set[`${this.statusField}.previous`] = previous;
+    await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, { $set: set }, session ? { session } : {});
+  }
+
+  /** This method writes the state of a view. It keeps the generations of the status. */
+  private async writeStatus(view: MaterializedView, partition: string, status: Pick<MaterializedViewStatus, "state" | "lastError" | "at">): Promise<void> {
+    if (this.stopped) return;
+    const field = this.statusField;
+    const update: Document = { $set: { [`${field}.state`]: status.state, [`${field}.at`]: status.at } };
+    if (status.lastError !== undefined) update["$set"][`${field}.lastError`] = status.lastError;
+    else update["$unset"] = { [`${field}.lastError`]: "" };
+    try {
+      await this.db!.collection(this.viewsName).updateOne({ _id: view._id, [this.partitionField]: partition } as Document, update);
     } catch (error) {
       this.log("error", `the status of ${view._id} failed: ${String((error as Error)?.message ?? error)}`);
     }
