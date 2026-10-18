@@ -4,7 +4,7 @@
 > from the live `PROCEDURE_REGISTRY` (introspected after importing every built package's
 > `register.js`). Regenerate with `node packages/documentation/scripts/generate-procedures.mjs`.
 
-**Total procedures:** 297 across 50 namespaces. Loaded 47 package register(s).
+**Total procedures:** 298 across 50 namespaces. Loaded 47 package register(s).
 
 ## Namespaces
 
@@ -28,7 +28,7 @@
 - [`ics.*`](#ics) — 4 procedure(s)
 - [`iosBackup.*`](#iosBackup) — 3 procedure(s)
 - [`json.*`](#json) — 5 procedure(s)
-- [`lib.*`](#lib) — 5 procedure(s)
+- [`lib.*`](#lib) — 6 procedure(s)
 - [`llm.*`](#llm) — 3 procedure(s)
 - [`logs.*`](#logs) — 2 procedure(s)
 - [`mail.*`](#mail) — 2 procedure(s)
@@ -326,6 +326,7 @@
 |-----------|-------------|
 | `lib.audit` | Audit ecosystem packages for issues |
 | `lib.graph` | The dependency graph of the workspace packages: nodes, workspace: edges, cycles and build levels |
+| `lib.importCycles` | The import cycles of a tree of TypeScript sources: the cycles at runtime (after the import elision), of the declared imports, or of each import |
 | `lib.new` | Create a new package in the ecosystem |
 | `lib.rename` | Rename a package across the ecosystem |
 | `lib.scan` | Scan for packages in the git directory |
