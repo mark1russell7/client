@@ -1,5 +1,17 @@
 # @procedures/lib
 
+## 0.13.2
+
+### Patch Changes
+
+- Updated dependencies [3a235b9]
+  - @procedures/client@0.13.2
+  - @procedures/dag@0.13.2
+  - @procedures/fs@0.13.2
+  - @procedures/git@0.13.2
+  - @procedures/pnpm@0.13.2
+  - @procedures/shell@0.13.2
+
 ## 0.13.1
 
 ### Patch Changes

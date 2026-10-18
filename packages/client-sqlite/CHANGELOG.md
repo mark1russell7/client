@@ -1,5 +1,12 @@
 # @procedures/sqlite
 
+## 0.13.2
+
+### Patch Changes
+
+- Updated dependencies [3a235b9]
+  - @procedures/client@0.13.2
+
 ## 0.13.1
 
 ### Patch Changes

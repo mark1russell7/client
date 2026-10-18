@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/better-auth",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token.",
   "keywords": [
     "procedures",

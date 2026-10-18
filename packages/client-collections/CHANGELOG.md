@@ -1,5 +1,14 @@
 # @procedures/collections
 
+## 0.13.2
+
+### Patch Changes
+
+- 3a235b9: New: the patch operations `$remove` and `$insert` (Graph's split, wave 2, W5). `$remove` takes an element out of an array, and the next elements move down by one, as the operation `remove` of JSON Patch (RFC 6902). For a field of an object, it is the same as `$unset`. `$insert` adds an element to an array at an index, as the operation `add` of JSON Patch. Each index of one patch refers to the item before the patch. A patch that removes and inserts elements of the same array is refused, and so is an `$insert` past the end of an array. `$unset` keeps the rule of MongoDB: an element of an array becomes `null`. The storage contract has a case for the two operations, so each storage gets them through `applyPatch`.
+- 50d4818: New: `inversePatch` and `UndoLog` (Graph's split, wave 2, W10). `inversePatch(before, patch)` gives the patch that undoes a patch. The inverse of a removal of an element is an insertion, and the inverse of an insertion is a removal, so an undo does not keep the whole array. The function applies the inverse to check it, and gives `undefined` when no patch undoes the change exactly. `UndoLog` keeps the undo of each change in a collection storage, with a cap, and the fingerprint of the item after the change (`fingerprintOf`). `undo()` undoes the newest change and the other changes of its group. It reads each item first, and refuses the whole group with an `UndoConflictError` when another writer changed an item. Then each item gets one write.
+- Updated dependencies [3a235b9]
+  - @procedures/client@0.13.2
+
 ## 0.13.1
 
 ### Patch Changes
