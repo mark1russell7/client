@@ -1,5 +1,24 @@
 # @procedures/mark
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [2d3f235]
+- Updated dependencies [1aa9ef7]
+- Updated dependencies [2523b1b]
+- Updated dependencies [c559b00]
+  - @procedures/client@0.8.1
+  - @procedures/mcp-dev-tools@0.8.1
+  - @procedures/cli-run@0.8.1
+  - @procedures/lib@0.8.1
+  - @procedures/pnpm@0.8.1
+  - @procedures/procedure@0.8.1
+  - @procedures/peer@0.8.1
+  - @procedures/shell@0.8.1
+  - @procedures/vitest@0.8.1
+  - @procedures/server@0.8.1
+
 ## 0.8.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @procedures/env
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [2d3f235]
+- Updated dependencies [1aa9ef7]
+- Updated dependencies [2523b1b]
+- Updated dependencies [c559b00]
+  - @procedures/client@0.8.1
+
 ## 0.8.0
 
 ### Patch Changes

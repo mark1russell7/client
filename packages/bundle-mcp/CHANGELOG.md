@@ -1,5 +1,25 @@
 # @procedures/bundle-mcp
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies [2d3f235]
+- Updated dependencies [1aa9ef7]
+- Updated dependencies [2523b1b]
+- Updated dependencies [c559b00]
+  - @procedures/client@0.8.1
+  - @procedures/sqlite@0.8.1
+  - @procedures/cue@0.8.1
+  - @procedures/dag@0.8.1
+  - @procedures/docker@0.8.1
+  - @procedures/lib@0.8.1
+  - @procedures/mongo@0.8.1
+  - @procedures/procedure@0.8.1
+  - @procedures/vitest@0.8.1
+  - @procedures/compiler@0.8.1
+  - @procedures/json@0.8.1
+
 ## 0.8.0
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @procedures/privacy-scan
 
+## 0.8.1
+
+### Patch Changes
+
+- e7e41dd: The scan does not report an email address of the top-level domain `.example` (RFC 2606). Before, only `example.com`, `example.org`, `example.net`, `.test`, `.invalid` and `.localhost` were example domains. A real domain that only starts with "example", such as `examples.zz`, is still reported.
+- Updated dependencies [2d3f235]
+- Updated dependencies [1aa9ef7]
+- Updated dependencies [2523b1b]
+- Updated dependencies [c559b00]
+  - @procedures/client@0.8.1
+
 ## 0.8.0
 
 ### Patch Changes
