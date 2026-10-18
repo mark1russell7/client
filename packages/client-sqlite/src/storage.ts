@@ -16,8 +16,9 @@
  *   id, and `_storage_versions` has the version of each collection: `<epoch>:<seq>`, as
  *   `InMemoryStorage` has. The epoch stays in the file, so a version stays valid after a restart.
  * - Each write runs in a transaction. A batch that fails changes nothing.
- * - `query()` runs a JSON selector of `@procedures/collections` on the rows of one read. `patch()`
- *   merges fields into an item in one transaction, so two processes keep the fields of each patch.
+ * - `query()` runs a JSON selector of `@procedures/client/query` on the rows of one read, under a
+ *   query policy. `patch()` changes an item in one transaction, so two processes keep the fields
+ *   of each patch.
  * - The storages of one file in one process share one database. Thus the storages of two tables
  *   in one file keep the changes of each other.
  * - A storage that only reads does not make the file.
@@ -33,9 +34,10 @@ import {
   type StorageMetadata,
   type StoragePatch,
   type StorageQueryOptions,
+  type StorageQueryPolicy,
   type StorageSelector,
 } from "@procedures/client";
-import { mergePatch, patchProblems, queryEntries } from "@procedures/collections";
+import { applyPatch, patchProblems, queryEntries } from "@procedures/client/query";
 import {
   MEMORY_PATH,
   checkEngine,
@@ -90,6 +92,12 @@ export interface SqliteStorageOptions {
    * @default 5 seconds
    */
   busyTimeout?: Duration;
+  /**
+   * The query policy of `query()` for a call without a policy. The procedure `find` gives the
+   * policy of its host.
+   * @default DEFAULT_QUERY_POLICY: no `$regex`
+   */
+  queryPolicy?: StorageQueryPolicy | undefined;
 }
 
 /** The pattern of a table name: a letter, then letters, digits and underscores. */
@@ -427,6 +435,8 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   /** The engine choice of the options. `getEngine()` gives the engine that the storage uses. */
   readonly engine: SqliteEngine;
   private readonly maxTombstones: number;
+  /** The query policy of a call without a policy */
+  private readonly queryPolicy: StorageQueryPolicy | undefined;
   /** The quoted table name, for the SQL text. */
   private readonly quoted: string;
   private readonly opening: Promise<SharedDatabase>;
@@ -442,6 +452,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     const busyTimeoutMs = optionalMs(options.busyTimeout, "busyTimeout") ?? 5000;
     this.quoted = `"${this.table}"`;
     this.maxTombstones = Math.max(0, options.maxTombstones ?? 10_000);
+    this.queryPolicy = options.queryPolicy;
     this.opening = this.open(busyTimeoutMs);
     // An operation gives the error of the open. This handler only stops an unhandled rejection.
     this.opening.catch(() => undefined);
@@ -508,11 +519,11 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
 
   /**
    * The entries whose items match the selector, with the order, the skip and the limit of
-   * `queryEntries()` of `@procedures/collections` (roadmap CLI-14). The storage reads the rows in
-   * the order of the entries, and runs the query on them.
+   * `queryEntries()` (roadmap CLI-14), under the policy of the call or of the options. The storage
+   * reads the rows in the order of the entries, and runs the query on them.
    */
-  async query(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>> {
-    return queryEntries(this.entries(await this.database()), selector, options);
+  async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
+    return queryEntries(this.entries(await this.database()), selector, options, policy ?? this.queryPolicy);
   }
 
   async has(id: string): Promise<boolean> {
@@ -536,8 +547,9 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method merges the fields into the item of the id (a JSON Merge Patch) in one transaction,
-   * and gives a copy of the new item. A missing id stays missing, and the result is undefined.
+   * This method changes the item of the id in one transaction (a JSON Merge Patch, or the
+   * operations `$set` and `$unset`), and gives a copy of the new item. A missing id stays missing,
+   * and the result is undefined. A patch that cannot apply to the item changes nothing.
    */
   async patch(id: string, fields: StoragePatch): Promise<T | undefined> {
     checkId(id);
@@ -546,7 +558,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     return this.write((db, next) => {
       const [row] = db.all<{ value: string }>(`SELECT value FROM ${this.quoted} WHERE id = ?`, [id]);
       if (row === undefined) return undefined;
-      const text = toJson(id, mergePatch(JSON.parse(row.value), fields));
+      const text = toJson(id, applyPatch(JSON.parse(row.value), fields));
       this.put(db, id, text, next);
       return JSON.parse(text) as T;
     });

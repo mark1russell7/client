@@ -1,10 +1,15 @@
 /**
- * The query language of the collection storages: a selector, an order, a skip and a limit.
+ * The query language of the collection storages: a selector, an order, a skip, a limit, the query
+ * policy that limits them, and the two forms of a patch.
  *
  * A selector is JSON: a subset of the query selectors of MongoDB. It goes over the wire as it is,
- * so the procedure `collections.<name>.find` of `@procedures/client` and `query()` of each storage
- * take the same selector. A storage that can run a selector itself (for example a database) gives
- * the same result as `queryEntries()` of this module, which is the reference.
+ * so the procedure `collections.<name>.find` and `query()` of each storage take the same selector.
+ * A storage that can run a selector itself (for example a database) gives the same result as
+ * `queryEntries()` of this module, which is the reference.
+ *
+ * This module is the one copy of the language (roadmap CLI-34). The language is a part of the wire
+ * contract of the core. `@procedures/collections` and the storage packages import it from
+ * `@procedures/client/query`, an entry without other imports.
  *
  * The rules:
  * - A key of a selector is a field path, for example `"meta.kind"`. A number in a path is an
@@ -22,12 +27,8 @@
  * - Two objects are equal when they have the same keys with equal values. The order of the keys
  *   does not change the result.
  * - A key whose value is `undefined` is not in the selector, as in JSON.
- *
- * This file is a copy of `src/storage/query.ts` of `@procedures/collections`: the core does not
- * depend on that package (roadmap 3.3). The procedures `find` and `patch` use it for a storage
- * without `query()` or `patch()`. The contract suite of `@procedures/collections/testing` runs
- * against these procedures in `@procedures/store`, with such a storage, so the two copies agree.
- * Change the two files together.
+ * - A query policy limits the operators, the size and the depth of a selector, the lists, the
+ *   regular expressions and the limit. The default policy does not permit `$regex`.
  */
 
 //
@@ -71,7 +72,7 @@ export interface StorageFieldOperators {
   readonly $exists?: boolean | undefined;
   /** The operators of this object do not match. */
   readonly $not?: StorageFieldOperators | undefined;
-  /** The value is a string that matches this regular expression. */
+  /** The value is a string that matches this regular expression. A query policy must permit it. */
   readonly $regex?: string | undefined;
   /** The flags of `$regex`: `i`, `m`, `s` and `u`. */
   readonly $options?: string | undefined;
@@ -102,11 +103,110 @@ export interface StorageQueryOptions {
   readonly limit?: number | undefined;
 }
 
+/** An operator of the query language. `$options` goes with `$regex`. */
+export type StorageQueryOperator = "$eq" | "$ne" | "$gt" | "$gte" | "$lt" | "$lte" | "$in" | "$nin" | "$exists" | "$not" | "$regex" | "$size" | "$all" | "$elemMatch" | "$and" | "$or" | "$nor";
+
 /**
- * The fields of a patch: a JSON Merge Patch (RFC 7386). Each field replaces the field of the item.
- * An object merges into an object field. `null` removes the field.
+ * The limits of the queries of a caller. A host that serves selectors of callers that it does not
+ * trust keeps them small. Each limit that a policy does not give has its default.
+ */
+export interface StorageQueryPolicy {
+  /**
+   * The operators that a selector can use.
+   * @default DEFAULT_QUERY_OPERATORS: each operator except `$regex`
+   */
+  readonly operators?: readonly StorageQueryOperator[] | undefined;
+  /**
+   * The longest pattern of a `$regex`, in characters.
+   * @default 128
+   */
+  readonly maxRegexLength?: number | undefined;
+  /**
+   * The flags that `$options` can have: some of `i`, `m`, `s` and `u`.
+   * @default "imsu"
+   */
+  readonly regexFlags?: string | undefined;
+  /**
+   * The largest number of clauses of a selector: each condition of a field path, each operator and
+   * each `$and`, `$or` and `$nor`.
+   * @default 64
+   */
+  readonly maxClauses?: number | undefined;
+  /**
+   * The deepest nesting of a selector. Each `$and`, `$or`, `$nor`, `$not` and `$elemMatch` adds a
+   * level.
+   * @default 6
+   */
+  readonly maxDepth?: number | undefined;
+  /**
+   * The longest list of `$in`, `$nin` and `$all`.
+   * @default 256
+   */
+  readonly maxListLength?: number | undefined;
+  /**
+   * The largest limit of a query. A query without a limit gets this limit.
+   * @default no limit for a storage, and `DEFAULT_FIND_LIMIT` (1000) for the procedure `find`
+   */
+  readonly maxLimit?: number | undefined;
+}
+
+/** Each operator of the query language. A policy with these operators permits `$regex`. */
+export const QUERY_OPERATORS: readonly StorageQueryOperator[] = Object.freeze([
+  "$eq",
+  "$ne",
+  "$gt",
+  "$gte",
+  "$lt",
+  "$lte",
+  "$in",
+  "$nin",
+  "$exists",
+  "$not",
+  "$regex",
+  "$size",
+  "$all",
+  "$elemMatch",
+  "$and",
+  "$or",
+  "$nor",
+] as const);
+
+/** The operators of the default policy: each operator except `$regex`. */
+export const DEFAULT_QUERY_OPERATORS: readonly StorageQueryOperator[] = Object.freeze(QUERY_OPERATORS.filter((operator) => operator !== "$regex"));
+
+/** The limits of a policy that gives no limit of its own. `$regex` is off. */
+export const DEFAULT_QUERY_POLICY: StorageQueryPolicy = Object.freeze({
+  operators: DEFAULT_QUERY_OPERATORS,
+  maxRegexLength: 128,
+  regexFlags: "imsu",
+  maxClauses: 64,
+  maxDepth: 6,
+  maxListLength: 256,
+});
+
+/** The limit of the procedure `find` for a call without a limit, when its policy gives no `maxLimit`. */
+export const DEFAULT_FIND_LIMIT: number = 1000;
+
+/**
+ * The fields of a patch. A patch has one of two forms:
+ *
+ * - A JSON Merge Patch (RFC 7386): each field replaces the field of the item, an object merges
+ *   into an object field, and `null` removes the field.
+ * - Operations (`StoragePatchOperations`): each key starts with `$`. `$set` can set `null` and
+ *   nested field paths, and `$unset` removes field paths.
  */
 export type StoragePatch = Readonly<Record<string, unknown>>;
+
+/**
+ * The operations form of a patch: each key starts with `$`. It is a type of an object literal, so a
+ * value of it is a `StoragePatch` too.
+ */
+export type StoragePatchOperations = {
+  /** The values of field paths, for example `{ "meta.kind": "k1", note: null }`. */
+  readonly $set?: Readonly<Record<string, unknown>> | undefined;
+  /** The field paths to remove. An element of an array becomes `null`. */
+  readonly $unset?: readonly string[] | undefined;
+};
 
 //
 // ═══ The values ═══
@@ -120,6 +220,11 @@ function isObject(value: unknown): value is Record<string, unknown> {
 /** The keys of an object whose values are not `undefined`, as JSON keeps them. */
 function definedKeys(value: Record<string, unknown>): string[] {
   return Object.keys(value).filter((key) => value[key] !== undefined);
+}
+
+/** The defined entries of an object, as JSON keeps them. */
+function definedEntries(value: Record<string, unknown>): Array<[string, unknown]> {
+  return Object.entries(value).filter(([, entry]) => entry !== undefined);
 }
 
 /** The rank of the type of a value in the order: null, numbers, strings, objects, arrays, booleans. */
@@ -267,6 +372,111 @@ function pathOf(key: string, at: string, problems: string[]): string[] | undefin
 }
 
 //
+// ═══ The query policy ═══
+//
+
+/** A policy with each limit. */
+interface Limits {
+  readonly operators: ReadonlySet<string>;
+  readonly maxRegexLength: number;
+  readonly regexFlags: string;
+  readonly maxClauses: number;
+  readonly maxDepth: number;
+  readonly maxListLength: number;
+  readonly maxLimit: number;
+}
+
+/** The limits of a policy: each limit that the policy does not give has its default. */
+function limitsOf(policy: StorageQueryPolicy | undefined): Limits {
+  return {
+    operators: new Set<string>(policy?.operators ?? DEFAULT_QUERY_OPERATORS),
+    maxRegexLength: policy?.maxRegexLength ?? 128,
+    regexFlags: policy?.regexFlags ?? "imsu",
+    maxClauses: policy?.maxClauses ?? 64,
+    maxDepth: policy?.maxDepth ?? 6,
+    maxListLength: policy?.maxListLength ?? 256,
+    maxLimit: policy?.maxLimit ?? Number.POSITIVE_INFINITY,
+  };
+}
+
+/** The state of the compiler of one selector. */
+interface Compilation {
+  readonly limits: Limits;
+  readonly problems: string[];
+  clauses: number;
+}
+
+const KNOWN = new Set<string>(QUERY_OPERATORS);
+
+/** False, with a problem, when the language does not know the operator, or the policy does not permit it. */
+function permitted(operator: string, at: string, compilation: Compilation): boolean {
+  if (!KNOWN.has(operator)) {
+    compilation.problems.push(`${at}: the operator ${operator} is not known`);
+    return false;
+  }
+  if (!compilation.limits.operators.has(operator)) {
+    const hint = operator === "$regex" ? ". A host turns it on with a queryPolicy whose operators include $regex" : "";
+    compilation.problems.push(`${at}: the query policy does not permit the operator ${operator}${hint}`);
+    return false;
+  }
+  compilation.clauses++;
+  return true;
+}
+
+/** False, with a problem, when the nesting goes deeper than the policy permits. */
+function withinDepth(depth: number, at: string, compilation: Compilation): boolean {
+  if (depth <= compilation.limits.maxDepth) return true;
+  compilation.problems.push(`${at}: the selector is nested deeper than the ${compilation.limits.maxDepth} levels of the query policy`);
+  return false;
+}
+
+/**
+ * True when a pattern repeats a group that repeats without a bound, for example `(a+)+` or
+ * `(a|b*)*`. Such a pattern can take an exponential time on a long text.
+ */
+function repeatsRepetition(pattern: string): boolean {
+  // For each open group: true when it holds a repetition without a bound
+  const groups: boolean[] = [];
+  let lastGroupRepeats = false;
+  let inClass = false;
+  for (let index = 0; index < pattern.length; index++) {
+    const char = pattern[index]!;
+    if (char === "\\") {
+      index++;
+      lastGroupRepeats = false;
+      continue;
+    }
+    if (inClass) {
+      if (char === "]") inClass = false;
+      continue;
+    }
+    if (char === "[") {
+      inClass = true;
+      lastGroupRepeats = false;
+      continue;
+    }
+    if (char === "(") {
+      groups.push(false);
+      lastGroupRepeats = false;
+      continue;
+    }
+    if (char === ")") {
+      lastGroupRepeats = groups.pop() ?? false;
+      // A group that holds a repetition makes each group around it hold one too
+      if (lastGroupRepeats && groups.length > 0) groups[groups.length - 1] = true;
+      continue;
+    }
+    const unbounded = char === "*" || char === "+" || (char === "{" && /^\{\d*,\}/.test(pattern.slice(index)));
+    if (unbounded) {
+      if (lastGroupRepeats) return true;
+      if (groups.length > 0) groups[groups.length - 1] = true;
+    }
+    if (char !== "?") lastGroupRepeats = false;
+  }
+  return false;
+}
+
+//
 // ═══ The compiler of a selector ═══
 //
 
@@ -277,11 +487,6 @@ const LOGICAL = new Set(["$and", "$or", "$nor"]);
 const REGEX_FLAGS = /^(?!.*(.).*\1)[imsu]*$/;
 const NEVER: Test = () => false;
 const ALWAYS: Matcher = () => true;
-
-/** The defined entries of an object, as JSON keeps them. */
-function definedEntries(value: Record<string, unknown>): Array<[string, unknown]> {
-  return Object.entries(value).filter(([, entry]) => entry !== undefined);
-}
 
 /** True for an object of operators: each defined key starts with `$`. */
 function isOperatorObject(value: unknown): value is Record<string, unknown> {
@@ -302,13 +507,13 @@ function comparable(value: unknown, operand: unknown): boolean {
 }
 
 /** The test of a comparison operator. */
-function compareTo(operator: string, operand: unknown, at: string, problems: string[]): Test {
+function compareTo(operator: string, operand: unknown, at: string, compilation: Compilation): Test {
   if (operand === null) {
     // Only null is equal to null: $gte and $lte match null and a missing field
     return operator === "$gte" || operator === "$lte" ? equalTo(null) : NEVER;
   }
   if (typeof operand !== "number" && typeof operand !== "string" && typeof operand !== "boolean") {
-    problems.push(`${at}.${operator} takes a number, a string, a boolean or null`);
+    compilation.problems.push(`${at}.${operator} takes a number, a string, a boolean or null`);
     return NEVER;
   }
   const accept: (result: number) => boolean =
@@ -316,15 +521,19 @@ function compareTo(operator: string, operand: unknown, at: string, problems: str
   return (found) => candidates(found).some((value) => comparable(value, operand) && accept(compareStorageValues(value, operand)));
 }
 
-/** The test of a list operator: `$in`, `$nin` or `$all`. */
-function listOf(operator: string, operand: unknown, at: string, problems: string[]): Test[] | undefined {
+/** The tests of a list operator: `$in`, `$nin` or `$all`. */
+function listOf(operator: string, operand: unknown, at: string, compilation: Compilation): Test[] | undefined {
   if (!Array.isArray(operand)) {
-    problems.push(`${at}.${operator} takes a list`);
+    compilation.problems.push(`${at}.${operator} takes a list`);
+    return undefined;
+  }
+  if (operand.length > compilation.limits.maxListLength) {
+    compilation.problems.push(`${at}.${operator} has ${operand.length} values, more than the ${compilation.limits.maxListLength} of the query policy`);
     return undefined;
   }
   return operand.map((value, index) => {
     if (isOperatorObject(value)) {
-      problems.push(`${at}.${operator}[${index}] is an object of operators: ${operator} takes values`);
+      compilation.problems.push(`${at}.${operator}[${index}] is an object of operators: ${operator} takes values`);
       return NEVER;
     }
     return equalTo(value);
@@ -332,12 +541,14 @@ function listOf(operator: string, operand: unknown, at: string, problems: string
 }
 
 /** The test of an object of operators on one field. */
-function compileOperators(operators: Record<string, unknown>, at: string, problems: string[]): Test {
+function compileOperators(operators: Record<string, unknown>, at: string, compilation: Compilation, depth: number): Test {
   const tests: Test[] = [];
-  const entries = definedEntries(operators);
   const options = operators["$options"];
-  if (options !== undefined && operators["$regex"] === undefined) problems.push(`${at}.$options needs $regex`);
-  for (const [operator, operand] of entries) {
+  if (options !== undefined && operators["$regex"] === undefined) compilation.problems.push(`${at}.$options needs $regex`);
+  for (const [operator, operand] of definedEntries(operators)) {
+    // $options goes with $regex
+    if (operator === "$options") continue;
+    if (!permitted(operator, at, compilation)) continue;
     switch (operator) {
       case "$eq":
         tests.push(equalTo(operand));
@@ -351,17 +562,17 @@ function compileOperators(operators: Record<string, unknown>, at: string, proble
       case "$gte":
       case "$lt":
       case "$lte":
-        tests.push(compareTo(operator, operand, at, problems));
+        tests.push(compareTo(operator, operand, at, compilation));
         break;
       case "$in":
       case "$nin": {
-        const list = listOf(operator, operand, at, problems);
+        const list = listOf(operator, operand, at, compilation);
         if (!list) break;
         tests.push(operator === "$in" ? (found) => list.some((test) => test(found)) : (found) => !list.some((test) => test(found)));
         break;
       }
       case "$all": {
-        const list = listOf(operator, operand, at, problems);
+        const list = listOf(operator, operand, at, compilation);
         if (!list) break;
         // An empty $all matches nothing, as in MongoDB
         tests.push((found) => list.length > 0 && list.every((test) => test(found)));
@@ -369,52 +580,66 @@ function compileOperators(operators: Record<string, unknown>, at: string, proble
       }
       case "$exists":
         if (typeof operand !== "boolean") {
-          problems.push(`${at}.$exists takes true or false`);
+          compilation.problems.push(`${at}.$exists takes true or false`);
           break;
         }
         tests.push((found) => (found.values.length > 0) === operand);
         break;
       case "$size":
         if (typeof operand !== "number" || !Number.isInteger(operand) || operand < 0) {
-          problems.push(`${at}.$size takes a whole number, 0 or more`);
+          compilation.problems.push(`${at}.$size takes a whole number, 0 or more`);
           break;
         }
         tests.push((found) => found.values.some((value) => Array.isArray(value) && value.length === operand));
         break;
       case "$regex": {
-        const regex = regexOf(operand, options, at, problems);
+        const regex = regexOf(operand, options, at, compilation);
         if (regex) tests.push((found) => candidates(found).some((value) => typeof value === "string" && regex.test(value)));
         break;
       }
-      case "$options":
-        break;
       case "$not": {
         if (!isOperatorObject(operand)) {
-          problems.push(`${at}.$not takes an object of operators`);
+          compilation.problems.push(`${at}.$not takes an object of operators`);
           break;
         }
-        const test = compileOperators(operand, `${at}.$not`, problems);
+        if (!withinDepth(depth + 1, `${at}.$not`, compilation)) break;
+        const test = compileOperators(operand, `${at}.$not`, compilation, depth + 1);
         tests.push((found) => !test(found));
         break;
       }
       case "$elemMatch":
-        tests.push(elementMatch(operand, at, problems));
+        tests.push(elementMatch(operand, at, compilation, depth + 1));
         break;
       default:
-        problems.push(`${at}: the operator ${operator} is not known`);
+        // $and, $or and $nor are operators of a selector, not of a field
+        compilation.problems.push(`${at}: the operator ${operator} goes at the top of a selector, not on a field`);
     }
   }
   return tests.length === 1 ? tests[0]! : (found) => tests.every((test) => test(found));
 }
 
 /** The regular expression of `$regex` and `$options`, or undefined after a problem. */
-function regexOf(pattern: unknown, flags: unknown, at: string, problems: string[]): RegExp | undefined {
+function regexOf(pattern: unknown, flags: unknown, at: string, compilation: Compilation): RegExp | undefined {
+  const { limits, problems } = compilation;
   if (typeof pattern !== "string") {
     problems.push(`${at}.$regex takes a string`);
     return undefined;
   }
+  if (pattern.length > limits.maxRegexLength) {
+    problems.push(`${at}.$regex has ${pattern.length} characters, more than the ${limits.maxRegexLength} of the query policy`);
+    return undefined;
+  }
   if (flags !== undefined && (typeof flags !== "string" || !REGEX_FLAGS.test(flags))) {
     problems.push(`${at}.$options takes the flags i, m, s and u, each one time`);
+    return undefined;
+  }
+  const refused = typeof flags === "string" ? [...flags].filter((flag) => !limits.regexFlags.includes(flag)) : [];
+  if (refused.length > 0) {
+    problems.push(`${at}.$options has the flag ${refused.join(", ")}, and the query policy permits only "${limits.regexFlags}"`);
+    return undefined;
+  }
+  if (repeatsRepetition(pattern)) {
+    problems.push(`${at}.$regex repeats a group that repeats without a bound: such a pattern can take an exponential time`);
     return undefined;
   }
   try {
@@ -426,61 +651,65 @@ function regexOf(pattern: unknown, flags: unknown, at: string, problems: string[
 }
 
 /** The test of `$elemMatch`: an element of an array matches the operators, or the selector of objects. */
-function elementMatch(operand: unknown, at: string, problems: string[]): Test {
+function elementMatch(operand: unknown, at: string, compilation: Compilation, depth: number): Test {
   if (!isObject(operand)) {
-    problems.push(`${at}.$elemMatch takes an object`);
+    compilation.problems.push(`${at}.$elemMatch takes an object`);
     return NEVER;
   }
+  if (!withinDepth(depth, `${at}.$elemMatch`, compilation)) return NEVER;
   const keys = definedKeys(operand);
   if (isOperatorObject(operand) && !keys.some((key) => LOGICAL.has(key))) {
-    const test = compileOperators(operand, `${at}.$elemMatch`, problems);
+    const test = compileOperators(operand, `${at}.$elemMatch`, compilation, depth);
     return (found) =>
       found.values.some((value) => Array.isArray(value) && value.some((element) => element !== undefined && test({ values: [element], missing: false })));
   }
-  const matcher = compileInto(operand, `${at}.$elemMatch`, problems);
+  const matcher = compileInto(operand, `${at}.$elemMatch`, compilation, depth);
   return (found) => found.values.some((value) => Array.isArray(value) && value.some((element) => isObject(element) && matcher(element)));
 }
 
 /** The test of the condition of one field path: an object of operators, or a literal. */
-function compileCondition(condition: unknown, at: string, problems: string[]): Test {
+function compileCondition(condition: unknown, at: string, compilation: Compilation, depth: number): Test {
   if (isObject(condition)) {
     const keys = definedKeys(condition);
     const operators = keys.filter((key) => key.startsWith("$"));
     if (operators.length > 0 && operators.length < keys.length) {
-      problems.push(`${at} mixes operators and fields: write the fields as a literal, or use only operators`);
+      compilation.problems.push(`${at} mixes operators and fields: write the fields as a literal, or use only operators`);
       return NEVER;
     }
-    if (operators.length > 0) return compileOperators(condition, at, problems);
+    if (operators.length > 0) return compileOperators(condition, at, compilation, depth);
   }
+  compilation.clauses++;
   return equalTo(condition);
 }
 
-/** The matcher of a selector. Each problem goes to `problems`. */
-function compileInto(selector: unknown, at: string, problems: string[]): Matcher {
+/** The matcher of a selector. Each problem goes to the compilation. */
+function compileInto(selector: unknown, at: string, compilation: Compilation, depth: number): Matcher {
   if (!isObject(selector)) {
-    problems.push(`${at} must be an object`);
+    compilation.problems.push(`${at} must be an object`);
     return () => false;
   }
   const parts: Matcher[] = [];
   for (const [key, condition] of definedEntries(selector)) {
     if (key.startsWith("$")) {
       if (!LOGICAL.has(key)) {
-        problems.push(`${at}: the operator ${key} is not known`);
+        compilation.problems.push(`${at}: the operator ${key} is not known`);
         continue;
       }
+      if (!permitted(key, at, compilation)) continue;
       if (!Array.isArray(condition) || condition.length === 0) {
-        problems.push(`${at}.${key} takes a list of one or more selectors`);
+        compilation.problems.push(`${at}.${key} takes a list of one or more selectors`);
         continue;
       }
-      const matchers = condition.map((part, index) => compileInto(part, `${at}.${key}[${index}]`, problems));
+      if (!withinDepth(depth + 1, `${at}.${key}`, compilation)) continue;
+      const matchers = condition.map((part, index) => compileInto(part, `${at}.${key}[${index}]`, compilation, depth + 1));
       if (key === "$and") parts.push((item) => matchers.every((matcher) => matcher(item)));
       else if (key === "$or") parts.push((item) => matchers.some((matcher) => matcher(item)));
       else parts.push((item) => !matchers.some((matcher) => matcher(item)));
       continue;
     }
-    const path = pathOf(key, at, problems);
+    const path = pathOf(key, at, compilation.problems);
     if (!path) continue;
-    const test = compileCondition(condition, `${at}.${key}`, problems);
+    const test = compileCondition(condition, `${at}.${key}`, compilation, depth);
     parts.push((item) => test(lookup(item, path)));
   }
   if (parts.length === 0) return ALWAYS;
@@ -488,25 +717,35 @@ function compileInto(selector: unknown, at: string, problems: string[]): Matcher
   return (item) => parts.every((part) => part(item));
 }
 
+/** This function compiles a selector, and gives the matcher and each problem. */
+function compile(selector: unknown, policy: StorageQueryPolicy | undefined): { matcher: Matcher; problems: string[] } {
+  const compilation: Compilation = { limits: limitsOf(policy), problems: [], clauses: 0 };
+  const matcher = compileInto(selector, "selector", compilation, 0);
+  if (compilation.clauses > compilation.limits.maxClauses) {
+    compilation.problems.push(`selector: it has ${compilation.clauses} clauses, more than the ${compilation.limits.maxClauses} of the query policy`);
+  }
+  return { matcher, problems: compilation.problems };
+}
+
 /**
- * This function gives the problems of a selector: each part that a query cannot use. An empty list
- * means that the selector is correct.
+ * This function gives the problems of a selector: each part that the language does not know, and
+ * each part that the policy does not permit. An empty list means that the selector is correct.
+ *
+ * @param policy - The query policy. The default policy does not permit `$regex`.
  */
-export function selectorProblems(selector: unknown): string[] {
-  const problems: string[] = [];
-  compileInto(selector, "selector", problems);
-  return problems;
+export function selectorProblems(selector: unknown, policy?: StorageQueryPolicy): string[] {
+  return compile(selector, policy).problems;
 }
 
 /**
  * This function makes a test from a selector. The test gives true for each item that the selector
  * matches. Compile a selector one time for many items.
  *
+ * @param policy - The query policy. The default policy does not permit `$regex`.
  * @throws TypeError when the selector has a problem (refer to `selectorProblems`)
  */
-export function compileSelector(selector: StorageSelector): (item: unknown) => boolean {
-  const problems: string[] = [];
-  const matcher = compileInto(selector, "selector", problems);
+export function compileSelector(selector: StorageSelector, policy?: StorageQueryPolicy): (item: unknown) => boolean {
+  const { matcher, problems } = compile(selector, policy);
   if (problems.length > 0) throw new TypeError(`The selector is not correct: ${problems.join(". ")}`);
   return matcher;
 }
@@ -516,8 +755,8 @@ export function compileSelector(selector: StorageSelector): (item: unknown) => b
  *
  * @throws TypeError when the selector has a problem
  */
-export function matchesSelector(selector: StorageSelector, item: unknown): boolean {
-  return compileSelector(selector)(item);
+export function matchesSelector(selector: StorageSelector, item: unknown, policy?: StorageQueryPolicy): boolean {
+  return compileSelector(selector, policy)(item);
 }
 
 //
@@ -526,8 +765,11 @@ export function matchesSelector(selector: StorageSelector, item: unknown): boole
 
 const OPTION_KEYS = new Set(["sort", "skip", "limit"]);
 
-/** This function gives the problems of the options of a query. An empty list means that the options are correct. */
-export function queryOptionsProblems(options: unknown): string[] {
+/**
+ * This function gives the problems of the options of a query. An empty list means that the
+ * options are correct. A policy with a `maxLimit` refuses a larger limit.
+ */
+export function queryOptionsProblems(options: unknown, policy?: StorageQueryPolicy): string[] {
   if (options === undefined) return [];
   if (!isObject(options)) return ["the options of a query must be an object"];
   const problems: string[] = [];
@@ -552,6 +794,9 @@ export function queryOptionsProblems(options: unknown): string[] {
   }
   if (limit !== undefined && (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit < 1)) {
     problems.push("limit must be a whole number, 1 or more");
+  } else if (typeof limit === "number") {
+    const maxLimit = limitsOf(policy).maxLimit;
+    if (limit > maxLimit) problems.push(`limit must be at most ${maxLimit}, the maxLimit of the query policy`);
   }
   return problems;
 }
@@ -581,16 +826,19 @@ function sortKeyOf(item: unknown, path: readonly string[], direction: StorageSor
  * - Without `sort`, the result has the order of the entries.
  * - A sort key on an array field uses its least element for ascending, and its most element for
  *   descending. A missing field sorts as `null`.
+ * - A query without a limit gets the `maxLimit` of the policy, when it has one.
  *
+ * @param policy - The query policy. The default policy does not permit `$regex`.
  * @throws TypeError when the selector or the options have a problem
  */
 export function queryEntries<T>(
   entries: Iterable<readonly [string, T]>,
   selector: StorageSelector = {},
   options: StorageQueryOptions = {},
+  policy?: StorageQueryPolicy,
 ): Array<[string, T]> {
-  const matches = compileSelector(selector);
-  const problems = queryOptionsProblems(options);
+  const matches = compileSelector(selector, policy);
+  const problems = queryOptionsProblems(options, policy);
   if (problems.length > 0) throw new TypeError(`The options of the query are not correct: ${problems.join(". ")}`);
   let result: Array<[string, T]> = [];
   for (const [id, value] of entries) {
@@ -612,25 +860,71 @@ export function queryEntries<T>(
     result = rows.map((row) => row.entry);
   }
   const skip = options.skip ?? 0;
-  if (skip === 0 && options.limit === undefined) return result;
-  return result.slice(skip, options.limit === undefined ? undefined : skip + options.limit);
+  const maxLimit = limitsOf(policy).maxLimit;
+  const limit = options.limit ?? (Number.isFinite(maxLimit) ? maxLimit : undefined);
+  if (skip === 0 && limit === undefined) return result;
+  return result.slice(skip, limit === undefined ? undefined : skip + limit);
 }
 
 //
 // ═══ The patch ═══
 //
 
+const PATCH_OPERATIONS = new Set(["$set", "$unset"]);
+
+/** True for the operations form of a patch: an object whose defined keys each start with `$`. */
+export function isPatchOperations(fields: unknown): fields is StoragePatchOperations {
+  return isOperatorObject(fields);
+}
+
 /**
- * This function gives the problems of the fields of a patch. An empty list means that the fields
- * are correct: an object that is not an array.
+ * This function gives the problems of the fields of a patch. An empty list means that the patch
+ * is correct: a JSON Merge Patch, or the operations `$set` and `$unset`. A patch that mixes the two
+ * forms is not correct.
  */
 export function patchProblems(fields: unknown): string[] {
-  return isObject(fields) ? [] : ["the fields of a patch must be an object"];
+  if (!isObject(fields)) return ["the fields of a patch must be an object"];
+  const keys = definedKeys(fields);
+  const operations = keys.filter((key) => key.startsWith("$"));
+  if (operations.length === 0) return [];
+  if (operations.length < keys.length) {
+    return ["the patch mixes operations and fields: give { $set, $unset }, or only fields (a JSON Merge Patch)"];
+  }
+  const problems: string[] = [];
+  const paths: string[] = [];
+  for (const operation of operations) {
+    if (!PATCH_OPERATIONS.has(operation)) problems.push(`the patch operation ${operation} is not known: use $set and $unset`);
+  }
+  const set = fields["$set"];
+  if (set !== undefined) {
+    if (!isObject(set)) problems.push("$set takes an object of field paths and values");
+    else for (const key of definedKeys(set)) if (pathOf(key, "$set", problems)) paths.push(key);
+  }
+  const unset = fields["$unset"];
+  if (unset !== undefined) {
+    if (!Array.isArray(unset) || !unset.every((path) => typeof path === "string")) problems.push("$unset takes a list of field paths");
+    else for (const key of unset as string[]) if (pathOf(key, "$unset", problems)) paths.push(key);
+  }
+  for (let first = 0; first < paths.length; first++) {
+    for (let second = first + 1; second < paths.length; second++) {
+      const a = paths[first]!;
+      const b = paths[second]!;
+      if (a === b || b.startsWith(`${a}.`) || a.startsWith(`${b}.`)) problems.push(`the field paths ${a} and ${b} of the patch overlap`);
+    }
+  }
+  return problems;
 }
 
 /** This function sets a key as an own property, also the key `__proto__`. */
 function put(target: Record<string, unknown>, key: string, value: unknown): void {
   Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+/** A shallow copy of an object, with its own keys, also `__proto__`. */
+function copyOf(value: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) put(result, key, value[key]);
+  return result;
 }
 
 /**
@@ -643,10 +937,7 @@ function put(target: Record<string, unknown>, key: string, value: unknown): void
  * - A value that is not an object becomes an empty object first.
  */
 export function mergePatch(value: unknown, fields: StoragePatch): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  if (isObject(value)) {
-    for (const key of Object.keys(value)) put(result, key, value[key]);
-  }
+  const result = isObject(value) ? copyOf(value) : {};
   for (const key of Object.keys(fields)) {
     const field = fields[key];
     if (field === undefined) continue;
@@ -654,4 +945,65 @@ export function mergePatch(value: unknown, fields: StoragePatch): Record<string,
     else put(result, key, isObject(field) ? mergePatch(Object.hasOwn(result, key) ? result[key] : undefined, field) : field);
   }
   return result;
+}
+
+/** The container at a path with a new value at its end: a copy of each object and array on the path. */
+function setIn(container: unknown, path: readonly string[], index: number, value: unknown): unknown {
+  const key = path[index]!;
+  const last = index === path.length - 1;
+  const where = path.slice(0, index).join(".") || "the item";
+  if (Array.isArray(container)) {
+    if (!INDEX.test(key)) throw new TypeError(`The patch cannot set ${path.join(".")}: ${where} is an array`);
+    const position = Number(key);
+    if (position > container.length) {
+      throw new TypeError(`The patch cannot set ${path.join(".")}: ${where} has ${container.length} elements`);
+    }
+    const copy = container.slice();
+    copy[position] = last ? value : setIn(copy[position] ?? {}, path, index + 1, value);
+    return copy;
+  }
+  if (!isObject(container)) throw new TypeError(`The patch cannot set ${path.join(".")}: ${where} is not an object`);
+  const copy = copyOf(container);
+  const child = Object.hasOwn(copy, key) ? copy[key] : undefined;
+  put(copy, key, last ? value : setIn(child ?? {}, path, index + 1, value));
+  return copy;
+}
+
+/** The container without the value at a path: a copy of each object and array on the path. */
+function unsetIn(container: unknown, path: readonly string[], index: number): unknown {
+  const key = path[index]!;
+  const last = index === path.length - 1;
+  if (Array.isArray(container)) {
+    if (!INDEX.test(key) || Number(key) >= container.length) return container;
+    const copy = container.slice();
+    // An element of an array becomes null, as in MongoDB: the other elements keep their places
+    copy[Number(key)] = last ? null : unsetIn(copy[Number(key)], path, index + 1);
+    return copy;
+  }
+  if (!isObject(container) || !Object.hasOwn(container, key)) return container;
+  const copy = copyOf(container);
+  if (last) delete copy[key];
+  else put(copy, key, unsetIn(copy[key], path, index + 1));
+  return copy;
+}
+
+/**
+ * This function applies a patch to a value, and gives the new value: a JSON Merge Patch, or the
+ * operations `$set` and `$unset`. It does not change the value or the patch.
+ *
+ * - `$set` sets each field path, also to `null`. A missing or null part of a path becomes an object.
+ * - `$unset` removes each field path. An element of an array becomes `null`.
+ * - A value that is not an object becomes an empty object first.
+ *
+ * @throws TypeError when the patch has a problem (refer to `patchProblems`), or when a path of
+ *   `$set` goes through a value that is not an object, or past the end of an array
+ */
+export function applyPatch(value: unknown, fields: StoragePatch): Record<string, unknown> {
+  const problems = patchProblems(fields);
+  if (problems.length > 0) throw new TypeError(`The patch is not correct: ${problems.join(". ")}`);
+  if (!isPatchOperations(fields)) return mergePatch(value, fields);
+  let result: unknown = isObject(value) ? value : {};
+  for (const [key, field] of definedEntries(fields.$set ?? {})) result = setIn(result, key.split("."), 0, field);
+  for (const key of fields.$unset ?? []) result = unsetIn(result, key.split("."), 0);
+  return result === value ? copyOf(value as Record<string, unknown>) : (result as Record<string, unknown>);
 }

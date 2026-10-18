@@ -15,7 +15,15 @@ import type {
   StorageWriteOptions,
 } from "./interface.js";
 import { StorageListeners, type ListenerErrorHandler } from "./listeners.js";
-import { mergePatch, patchProblems, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageSelector } from "./query.js";
+import {
+  applyPatch,
+  patchProblems,
+  queryEntries,
+  type StoragePatch,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+} from "@procedures/client/query";
 
 /** Options of an in-memory storage. */
 export interface InMemoryStorageOptions {
@@ -24,6 +32,13 @@ export interface InMemoryStorageOptions {
    * again in a microtask (`reportListenerError`). The write and the other observers do not fail.
    */
   onObserverError?: ListenerErrorHandler | undefined;
+  /**
+   * The query policy of `query()` for a call without a policy: the operators and the limits. The
+   * procedure `find` gives the policy of its host. A storage that gets selectors of callers that it
+   * does not trust keeps the default.
+   * @default DEFAULT_QUERY_POLICY: no `$regex`
+   */
+  queryPolicy?: StorageQueryPolicy | undefined;
   /**
    * The number of deletes that the change log keeps (roadmap R28). After more deletes, the log
    * drops the oldest ones, and `getChangesSince` of an older version gives all items.
@@ -99,11 +114,14 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   private closed = false;
   /** The observers of `observe()` */
   private readonly observers: StorageListeners<StorageChangeBatch<T>>;
+  /** The query policy of a call without a policy */
+  private readonly queryPolicy: StorageQueryPolicy | undefined;
 
   constructor(options: InMemoryStorageOptions = {}) {
     this.maxTombstones = Math.max(0, options.maxTombstones ?? 10_000);
     this.copy = options.copies === false ? same : clone;
     this.observers = new StorageListeners<StorageChangeBatch<T>>(options.onObserverError);
+    this.queryPolicy = options.queryPolicy;
   }
 
   //
@@ -169,11 +187,12 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
 
   /**
    * The entries whose items match the selector, with the order, the skip and the limit of
-   * `queryEntries()`. The result has copies of the items.
+   * `queryEntries()`, under the policy of the call or of the options. The result has copies of the
+   * items.
    */
-  async query(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>> {
+  async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
     this.checkOpen();
-    return queryEntries(this.data, selector, options).map(([id, value]): [string, T] => [id, this.copy(value)]);
+    return queryEntries(this.data, selector, options, policy ?? this.queryPolicy).map(([id, value]): [string, T] => [id, this.copy(value)]);
   }
 
   /**
@@ -227,15 +246,16 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method merges the fields into the item of the id in one step (a JSON Merge Patch), and
-   * gives a copy of the new item. A missing id stays missing, and the result is undefined.
+   * This method changes the item of the id in one step (a JSON Merge Patch, or the operations
+   * `$set` and `$unset`), and gives a copy of the new item. A missing id stays missing, and the
+   * result is undefined. A patch that cannot apply to the item changes nothing.
    */
   async patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined> {
     this.checkOpen();
     const [problem] = patchProblems(fields);
     if (problem !== undefined) throw new TypeError(`The patch of ${id} is not correct: ${problem}`);
     if (!this.data.has(id)) return undefined;
-    const stored = this.copy(mergePatch(this.data.get(id), fields) as unknown as T);
+    const stored = this.copy(applyPatch(this.data.get(id), fields) as unknown as T);
     this.data.set(id, stored);
     this.noteSet(id);
     if (this.observers.size > 0) this.observers.emit([this.setChange(id, stored, options)]);

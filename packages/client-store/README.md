@@ -92,14 +92,17 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
 - **The queries.** `query(selector, { sort, skip, limit })` gives the result of `queryEntries()` of `@procedures/collections`. `ApiStorage.query()` sends the JSON selector to the procedure `collections.<name>.find`, so the server applies it.
-- **The patches.** `ApiStorage.patch(id, fields)` sends a JSON Merge Patch to the procedure `collections.<name>.patch`. The server merges the fields in one step.
+- **The patches.** `ApiStorage.patch(id, fields)` sends a patch to the procedure `collections.<name>.patch`. The server changes the item in one step. A patch is a JSON Merge Patch, or the operations `{ $set, $unset }`.
+- **The query policy.** The server applies the policy of its host to each `find`. The default policy does not permit `$regex`, and a `find` gets at most 1000 items.
 
 Notes:
 
 - A custom `service` or a custom `get` operation gets the input `{ id }`, as before. Its `null` reads back as `undefined`.
 - A server before the procedure `find` answers `NOT_FOUND`. Then `ApiStorage.query()` reads the entries and applies the query in the client, with the same result.
 - `ApiStorage.find(predicate)` reads each item, because a function cannot go over the network. Use `query()` with a selector to filter on the server.
-- `HybridStorage.query()` reads the local copy, or the remote in `remote-only` mode.
+- `HybridStorage.query()` reads the local copy, or the remote in `remote-only` mode. Its option `queryPolicy` goes to the storage under it.
+- `ApiStorage.query()` examines the form of a selector before it sends it. Its option `queryPolicy` adds the limits of the client.
+- A host turns `$regex` on with `server.registerCollectionProcedures(name, { queryPolicy })` or `createCollectionProcedures(name, { queryPolicy })`.
 - A server before `found` ignores it and gives the item. Then a stored `null` reads back as `undefined`, as before.
 - A server before the procedure `ids` answers `NOT_FOUND`. Then `ApiStorage.getIds()` reads the ids from the entries, and it does not ask for `ids` again.
 - `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.

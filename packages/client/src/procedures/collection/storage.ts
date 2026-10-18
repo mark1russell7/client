@@ -22,9 +22,19 @@
  * - `patch()` merges the fields into the item in one step.
  */
 
-import type { StoragePatch, StorageQueryOptions, StorageSelector } from "./query.js";
+import type { StoragePatch, StorageQueryOptions, StorageQueryPolicy, StorageSelector } from "./query.js";
 
-export type { StorageFieldOperators, StoragePatch, StorageQueryOptions, StorageSelector, StorageSort, StorageSortDirection } from "./query.js";
+export type {
+  StorageFieldOperators,
+  StoragePatch,
+  StoragePatchOperations,
+  StorageQueryOperator,
+  StorageQueryOptions,
+  StorageQueryPolicy,
+  StorageSelector,
+  StorageSort,
+  StorageSortDirection,
+} from "./query.js";
 
 export interface CollectionStorage<T> {
   /** The item with this id, or undefined. A stored null is null. */
@@ -52,10 +62,11 @@ export interface CollectionStorage<T> {
   find(predicate: (item: T) => boolean): Promise<T[]>;
   /**
    * The entries whose items match a JSON selector, with an order, a skip and a limit. The
-   * procedure `find` uses it. A storage without it gives its entries, and the procedure runs the
-   * selector itself.
+   * procedure `find` uses it, and gives the query policy of the host. A storage without it gives
+   * its entries, and the procedure runs the selector itself. Without a policy, the storage uses its
+   * own policy: `$regex` is off by default.
    */
-  query?(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>>;
+  query?(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
   /**
    * This method sends a batch of changes to the observer for each write that changes the storage,
    * before the write resolves. It gives the function that stops the batches.
@@ -72,9 +83,9 @@ export interface CollectionStorage<T> {
   /** Delete every item. */
   clear(options?: StorageWriteOptions): Promise<void>;
   /**
-   * This method merges fields into the item of an id in one step (a JSON Merge Patch), and gives the
-   * new item, or undefined for a missing id. The procedure `patch` uses it. A storage without it
-   * gets a read and a write of the item.
+   * This method changes the item of an id in one step, and gives the new item, or undefined for a
+   * missing id. The fields are a JSON Merge Patch, or the operations `{ $set, $unset }`. The
+   * procedure `patch` uses it. A storage without it gets a read and a write of the item.
    */
   patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
   /** Set several items. */

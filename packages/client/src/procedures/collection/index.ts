@@ -64,6 +64,7 @@ export type {
 
 // Procedures
 export { createCollectionProcedures } from "./procedures.js";
+export type { CollectionProceduresOptions } from "./procedures.js";
 
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
 export type {
@@ -79,11 +80,31 @@ export type {
   StorageObserver,
 } from "./storage.js";
 
-// The query language of the storages: the same JSON on the wire and in query()
+// The query language of the storages: the same JSON on the wire and in query() (roadmap CLI-34:
+// the one copy of the language)
+export {
+  DEFAULT_FIND_LIMIT,
+  DEFAULT_QUERY_OPERATORS,
+  DEFAULT_QUERY_POLICY,
+  QUERY_OPERATORS,
+  applyPatch,
+  compareStorageValues,
+  compileSelector,
+  isPatchOperations,
+  matchesSelector,
+  mergePatch,
+  patchProblems,
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+} from "./query.js";
 export type {
   StorageFieldOperators,
   StoragePatch,
+  StoragePatchOperations,
+  StorageQueryOperator,
   StorageQueryOptions,
+  StorageQueryPolicy,
   StorageSelector,
   StorageSort,
   StorageSortDirection,

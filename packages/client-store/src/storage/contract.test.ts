@@ -15,19 +15,22 @@ import { describe, it } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import { InMemoryStorage, type CollectionStorage } from "@procedures/collections";
 import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
-import { Client, LocalTransport, createCollectionProcedures, invokeProcedure, ms, outputValue, type RepositoryProvider } from "@procedures/client";
+import { Client, LocalTransport, createCollectionProcedures, invokeProcedure, ms, outputValue, type RepositoryProvider, type StorageQueryPolicy } from "@procedures/client";
 import { ApiStorage } from "./api.js";
 import { HybridStorage, type HybridMode } from "./hybrid.js";
 import { IndexedDbQueueStore } from "../indexeddb/queue-store.js";
 
-/** An ApiStorage whose server has the core collection procedures over a storage. */
-function apiStorage(storage: CollectionStorage<ContractItem>): ApiStorage<ContractItem> {
+/**
+ * An ApiStorage whose server has the core collection procedures over a storage. The query policy
+ * is the policy of the server: the procedure `find` gives it to the storage.
+ */
+function apiStorage(storage: CollectionStorage<ContractItem>, queryPolicy?: StorageQueryPolicy): ApiStorage<ContractItem> {
   const repository = {
     getStorage: <U>() => storage as unknown as CollectionStorage<U>,
     hasCollection: () => true,
   } as unknown as RepositoryProvider;
   const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {};
-  for (const procedure of createCollectionProcedures("items")) {
+  for (const procedure of createCollectionProcedures("items", { queryPolicy })) {
     handlers[procedure.path.join(".")] = async (payload) => outputValue(await invokeProcedure(procedure, payload, { repository }), procedure.path);
   }
   return new ApiStorage<ContractItem>(new Client(new LocalTransport({ handlers })), { collection: "items", retry: false });
@@ -40,6 +43,7 @@ describeCollectionStorageContract(
   {
     create: () => apiStorage(new InMemoryStorage<ContractItem>()),
     createWithMaxTombstones: (max) => apiStorage(new InMemoryStorage<ContractItem>({ maxTombstones: max })),
+    createWithQueryPolicy: (policy) => apiStorage(new InMemoryStorage<ContractItem>(), policy),
   },
   { describe, it },
 );
@@ -71,6 +75,7 @@ describeCollectionStorageContract(
   {
     create: () => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>())),
     createWithMaxTombstones: (max) => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>({ maxTombstones: max }))),
+    createWithQueryPolicy: (policy) => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>()), policy),
   },
   { describe, it },
 );
@@ -79,7 +84,10 @@ const modes: HybridMode[] = ["write-through", "write-back", "local-only", "remot
 for (const mode of modes) {
   describeCollectionStorageContract(
     `HybridStorage (${mode}, a remote in memory)`,
-    { create: () => new HybridStorage<ContractItem>(new InMemoryStorage<ContractItem>(), { mode, syncInterval: ms(0) }) },
+    {
+      create: () => new HybridStorage<ContractItem>(new InMemoryStorage<ContractItem>(), { mode, syncInterval: ms(0) }),
+      createWithQueryPolicy: (policy) => new HybridStorage<ContractItem>(new InMemoryStorage<ContractItem>(), { mode, syncInterval: ms(0), queryPolicy: policy }),
+    },
     { describe, it },
   );
 }

@@ -5,8 +5,9 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createCollectionProcedures } from "./procedures.js";
-import type { CollectionStorage, StoragePatch, StorageQueryOptions, StorageSelector } from "./storage.js";
+import { createCollectionProcedures, type CollectionProceduresOptions } from "./procedures.js";
+import type { CollectionStorage, StoragePatch, StorageQueryOptions, StorageQueryPolicy, StorageSelector } from "./storage.js";
+import { DEFAULT_FIND_LIMIT, QUERY_OPERATORS } from "./query.js";
 import { invokeProcedure, outputValue } from "../invoke.js";
 import type { RepositoryProvider } from "../types.js";
 
@@ -44,12 +45,12 @@ function mapStorage(entries: Array<[string, unknown]> = []): CollectionStorage<u
   };
 }
 
-function procedureOf(operation: string) {
-  return createCollectionProcedures("things").find((procedure) => procedure.path[2] === operation)!;
+function procedureOf(operation: string, options?: CollectionProceduresOptions) {
+  return createCollectionProcedures("things", options).find((procedure) => procedure.path[2] === operation)!;
 }
 
-async function run(operation: string, storage: CollectionStorage<unknown>, input: unknown): Promise<unknown> {
-  const procedure = procedureOf(operation);
+async function run(operation: string, storage: CollectionStorage<unknown>, input: unknown, options?: CollectionProceduresOptions): Promise<unknown> {
+  const procedure = procedureOf(operation, options);
   const repository = { getStorage: () => storage, hasCollection: () => true } as unknown as RepositoryProvider;
   return outputValue(await invokeProcedure(procedure, input, { repository }), procedure.path);
 }
@@ -84,16 +85,17 @@ describe("collections.<name>.find (roadmap CLI-14)", () => {
 
   it("gives the selector and the options to query() of the storage", async () => {
     const storage = mapStorage(things);
-    const queries: Array<[StorageSelector, StorageQueryOptions | undefined]> = [];
-    storage.query = async (selector, options) => {
-      queries.push([selector, options]);
+    const queries: Array<[StorageSelector, StorageQueryOptions | undefined, StorageQueryPolicy | undefined]> = [];
+    storage.query = async (selector, options, policy) => {
+      queries.push([selector, options, policy]);
       return [["z", { n: 9 }]];
     };
     expect(await run("find", storage, { selector: { n: { $gt: 1 } }, sort: { n: 1 }, limit: 5 })).toEqual([{ id: "z", value: { n: 9 } }]);
+    // A find without a limit gets DEFAULT_FIND_LIMIT, and the storage gets the policy of the host
     expect(await run("find", storage, {})).toEqual([{ id: "z", value: { n: 9 } }]);
     expect(queries).toEqual([
-      [{ n: { $gt: 1 } }, { sort: { n: 1 }, limit: 5 }],
-      [{}, {}],
+      [{ n: { $gt: 1 } }, { sort: { n: 1 }, limit: 5 }, { maxLimit: DEFAULT_FIND_LIMIT }],
+      [{}, { limit: DEFAULT_FIND_LIMIT }, { maxLimit: DEFAULT_FIND_LIMIT }],
     ]);
     expect(storage.calls).toEqual([]);
   });
@@ -109,6 +111,44 @@ describe("collections.<name>.find (roadmap CLI-14)", () => {
     await expect(run("find", storage, { sort: { "a..b": 1 } })).rejects.toThrow("empty part");
     await expect(run("find", storage, { fields: { n: 1 } })).rejects.toThrow("fields is not a field of the input");
     expect(storage.calls).toEqual([]);
+  });
+
+  it("refuses $regex by default with VALIDATION_ERROR and the reason, also a pattern that can take an exponential time", async () => {
+    const storage = mapStorage([["a", { name: "abc" }]]);
+    for (const selector of [{ name: { $regex: "^a" } }, { name: { $regex: "^(a+)+$" } }, { $or: [{ name: { $not: { $regex: "x" } } }] }]) {
+      const error = (await run("find", storage, { selector }).catch((thrown: unknown) => thrown)) as { code?: unknown; message?: unknown };
+      expect(error.code, JSON.stringify(selector)).toBe("VALIDATION_ERROR");
+      expect(String(error.message)).toMatch(/does not permit the operator \$regex\. A host turns it on with a queryPolicy/);
+    }
+    expect(storage.calls).toEqual([]);
+  });
+
+  it("runs $regex when the host turns it on with queryPolicy, and the pattern stays limited", async () => {
+    const storage = mapStorage([["a", { name: "abc" }], ["b", { name: "xyz" }]]);
+    const options: CollectionProceduresOptions = { queryPolicy: { operators: QUERY_OPERATORS, maxRegexLength: 8 } };
+    expect(await run("find", storage, { selector: { name: { $regex: "^a" } } }, options)).toEqual([{ id: "a", value: { name: "abc" } }]);
+    await expect(run("find", storage, { selector: { name: { $regex: "^abcdefgh" } } }, options)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(run("find", storage, { selector: { name: { $regex: "(a+)+" } } }, options)).rejects.toThrow(/repeats a group that repeats/);
+  });
+
+  it("refuses each limit of the policy with VALIDATION_ERROR: the size, the depth, the lists and the limit", async () => {
+    const storage = mapStorage(things);
+    const options: CollectionProceduresOptions = { queryPolicy: { maxClauses: 2, maxDepth: 1, maxListLength: 2, maxLimit: 2 } };
+    const refused: Array<[unknown, RegExp]> = [
+      [{ selector: { n: 1, tags: "x", owner: null } }, /3 clauses, more than the 2/],
+      [{ selector: { $and: [{ $or: [{ n: 1 }] }] } }, /nested deeper than the 1 levels/],
+      [{ selector: { n: { $in: [1, 2, 3] } } }, /3 values, more than the 2/],
+      [{ selector: { tags: { $all: ["x", "y", "z"] } } }, /3 values, more than the 2/],
+      [{ limit: 3 }, /limit must be at most 2/],
+    ];
+    for (const [input, reason] of refused) {
+      const error = (await run("find", storage, input, options).catch((thrown: unknown) => thrown)) as { code?: unknown; message?: unknown };
+      expect(error.code, JSON.stringify(input)).toBe("VALIDATION_ERROR");
+      expect(String(error.message), JSON.stringify(input)).toMatch(reason);
+    }
+    // A find without a limit gets the maxLimit of the policy
+    expect(((await run("find", storage, {}, options)) as unknown[]).length).toBe(2);
+    expect(((await run("find", storage, {}, { queryPolicy: { maxLimit: Number.POSITIVE_INFINITY } })) as unknown[]).length).toBe(4);
   });
 
   it("fails for a storage without query() and without ids", async () => {
@@ -131,6 +171,21 @@ describe("collections.<name>.patch (roadmap CLI-14)", () => {
     });
     expect(storage.data.get("a")).toEqual({ n: 2, meta: { kind: "k", score: 3 } });
     expect(storage.calls).toEqual(["get a", "set a"]);
+  });
+
+  it("takes the operations form: $set sets null and nested paths, and $unset removes paths", async () => {
+    const storage = mapStorage([["a", { n: 1, meta: { kind: "k" } }]]);
+    expect(await run("patch", storage, { id: "a", fields: { $set: { "meta.kind": null, "meta.extra.deep": 1 }, $unset: ["n"] } })).toEqual({
+      found: true,
+      value: { meta: { kind: null, extra: { deep: 1 } } },
+    });
+    expect(storage.data.get("a")).toEqual({ meta: { kind: null, extra: { deep: 1 } } });
+    await expect(run("patch", storage, { id: "a", fields: { $set: { n: 1 }, m: 2 } })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(run("patch", storage, { id: "a", fields: { $set: { n: 1 }, m: 2 } })).rejects.toThrow(/mixes operations and fields/);
+    await expect(run("patch", storage, { id: "a", fields: { $inc: { n: 1 } } })).rejects.toThrow(/\$inc is not known/);
+    // A path through a value that is not an object fails when the patch applies, and writes nothing
+    await expect(run("patch", storage, { id: "a", fields: { $set: { "meta.kind.x": 1, "meta.extra.deep.y": 2 } } })).rejects.toThrow(/is not an object/);
+    expect(storage.data.get("a")).toEqual({ meta: { kind: null, extra: { deep: 1 } } });
   });
 
   it("gives found: false for a missing id, and writes nothing", async () => {

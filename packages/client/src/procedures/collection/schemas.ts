@@ -6,7 +6,16 @@
  */
 
 import type { ZodLike, ZodErrorLike } from "../../client/validation/types.js";
-import { patchProblems, queryOptionsProblems, selectorProblems, type StoragePatch, type StorageSelector, type StorageSort } from "./query.js";
+import {
+  DEFAULT_FIND_LIMIT,
+  patchProblems,
+  queryOptionsProblems,
+  selectorProblems,
+  type StoragePatch,
+  type StorageQueryPolicy,
+  type StorageSelector,
+  type StorageSort,
+} from "./query.js";
 
 // =============================================================================
 // Generic Schema Builder
@@ -413,7 +422,7 @@ export const entriesOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Col
 
 /**
  * Input for find operation: a JSON selector, and the order, the skip and the limit. The selector
- * is the selector of `query()` of `@procedures/collections`.
+ * is the selector of `query()` of a storage.
  */
 export interface FindInput {
   /** The selector. Without it, each item matches. */
@@ -426,8 +435,8 @@ export interface FindInput {
   limit?: number;
 }
 
-/** The problems of a find input, as the errors of a schema. */
-function findErrors(data: Record<string, unknown>): Array<{ path: Array<string | number>; message: string }> {
+/** The problems of a find input under a query policy, as the errors of a schema. */
+function findErrors(data: Record<string, unknown>, policy: StorageQueryPolicy): Array<{ path: Array<string | number>; message: string }> {
   const errors: Array<{ path: Array<string | number>; message: string }> = [];
   for (const key of Object.keys(data)) {
     if (data[key] !== undefined && key !== "selector" && key !== "sort" && key !== "skip" && key !== "limit") {
@@ -435,14 +444,23 @@ function findErrors(data: Record<string, unknown>): Array<{ path: Array<string |
     }
   }
   if (data["selector"] !== undefined) {
-    for (const message of selectorProblems(data["selector"])) errors.push({ path: ["selector"], message });
+    for (const message of selectorProblems(data["selector"], policy)) errors.push({ path: ["selector"], message });
   }
   const options = { sort: data["sort"], skip: data["skip"], limit: data["limit"] };
-  for (const message of queryOptionsProblems(options)) errors.push({ path: [/^(sort|skip|limit)/.exec(message)?.[1] ?? "options"], message });
+  for (const message of queryOptionsProblems(options, policy)) errors.push({ path: [/^(sort|skip|limit)/.exec(message)?.[1] ?? "options"], message });
   return errors;
 }
 
-export const findInputSchema : ZodLike<FindInput> = createSchema<FindInput>((data) => {
+/**
+ * The input schema of find under a query policy: a selector or options that the policy does not
+ * permit are a validation error (`VALIDATION_ERROR`), with the reason.
+ */
+export function findInputSchemaOf(policy: StorageQueryPolicy): ZodLike<FindInput> {
+  return createSchema<FindInput>((data) => findInputOf(data, policy));
+}
+
+/** The find input of the data, or the errors of the schema. */
+function findInputOf(data: unknown, policy: StorageQueryPolicy): { success: true; data: FindInput } | { success: false; error: ZodErrorLike } {
   if (!isObject(data)) {
     return {
       success: false,
@@ -452,7 +470,7 @@ export const findInputSchema : ZodLike<FindInput> = createSchema<FindInput>((dat
       },
     };
   }
-  const errors = findErrors(data);
+  const errors = findErrors(data, policy);
   if (errors.length > 0) {
     return { success: false, error: { message: errors.map((error) => error.message).join(". "), errors } };
   }
@@ -462,7 +480,10 @@ export const findInputSchema : ZodLike<FindInput> = createSchema<FindInput>((dat
   if (data["skip"] !== undefined) input.skip = data["skip"] as number;
   if (data["limit"] !== undefined) input.limit = data["limit"] as number;
   return { success: true, data: input };
-});
+}
+
+/** The input schema of find under the default query policy: no `$regex`, at most `DEFAULT_FIND_LIMIT` items. */
+export const findInputSchema : ZodLike<FindInput> = findInputSchemaOf({ maxLimit: DEFAULT_FIND_LIMIT });
 
 /** Output for find operation: the matching items with their ids, in the order of the query. */
 export const findOutputSchema : ZodLike<CollectionEntry[]> = createSchema<CollectionEntry[]>((data) => entriesOutputSchema.safeParse(data));
@@ -472,8 +493,8 @@ export const findOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Collec
 // =============================================================================
 
 /**
- * Input for patch operation: the id, and the fields of a JSON Merge Patch (RFC 7386). Each field
- * replaces the field of the item, an object merges into an object field, and `null` removes a field.
+ * Input for patch operation: the id, and the fields. The fields are a JSON Merge Patch (RFC 7386),
+ * or the operations `{ $set, $unset }`, which can set `null` and nested field paths.
  */
 export interface PatchInput {
   id: string;

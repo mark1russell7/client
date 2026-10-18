@@ -7,18 +7,18 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
+import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
 import {
+  QUERY_OPERATORS,
   patchProblems,
   queryEntries,
   queryOptionsProblems,
   selectorProblems,
-  type CollectionStorage,
-  type StorageChanges,
-  type StorageMetadata,
   type StoragePatch,
   type StorageQueryOptions,
+  type StorageQueryPolicy,
   type StorageSelector,
-} from "@procedures/collections";
+} from "@procedures/client/query";
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
@@ -124,6 +124,13 @@ export interface ApiStorageOptions {
   random?: () => number;
 
   /**
+   * The query policy that `query()` applies before it sends a query, for a call without a policy.
+   * The server applies its own policy too. Without it, the storage examines only the form of a
+   * selector, and the server decides the rest.
+   */
+  queryPolicy?: StorageQueryPolicy;
+
+  /**
    * AbortSignal for cancelling requests
    */
   signal?: AbortSignal;
@@ -134,6 +141,18 @@ export interface ApiStorageOptions {
    */
   closeClient?: boolean;
 }
+
+/**
+ * The policy of a query that only the server limits: each operator, and no limit of size. The form
+ * of the selector must still be correct.
+ */
+const FORM_ONLY: StorageQueryPolicy = Object.freeze({
+  operators: QUERY_OPERATORS,
+  maxRegexLength: Number.POSITIVE_INFINITY,
+  maxClauses: Number.POSITIVE_INFINITY,
+  maxDepth: Number.POSITIVE_INFINITY,
+  maxListLength: Number.POSITIVE_INFINITY,
+});
 
 /** An error that says whether another attempt can succeed (a ClientError does). */
 function isRetryable(error: unknown): boolean {
@@ -257,6 +276,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     backoff: Backoff;
     clock: Clock;
     random: () => number;
+    queryPolicy: StorageQueryPolicy;
     signal?: AbortSignal;
     closeClient: boolean;
     /** True when the storage calls the `get` of the core collection procedures */
@@ -310,6 +330,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       },
       clock: options.clock ?? realClock,
       random: options.random ?? Math.random,
+      queryPolicy: options.queryPolicy ?? FORM_ONLY,
       ...(options.signal !== undefined && { signal: options.signal }),
       closeClient: options.closeClient ?? false,
       // A custom service can refuse an unknown input field: it gets the input { id }
@@ -405,13 +426,17 @@ export class ApiStorage<T> implements CollectionStorage<T> {
 
   /**
    * The entries whose items match the selector, from the `find` procedure of the collection: the
-   * server runs the selector, the order, the skip and the limit (roadmap CLI-14). An older server
-   * without the procedure answers `NOT_FOUND`. Then this call and each later call read the entries
-   * and run the query here, with the same result.
+   * server runs the selector, the order, the skip and the limit (roadmap CLI-14), under its own
+   * query policy. An older server without the procedure answers `NOT_FOUND`. Then this call and
+   * each later call read the entries and run the query here, with the same result.
+   *
+   * @param policy - The policy that the storage applies before it sends the query. The default is
+   *   the option `queryPolicy`. The server applies its own policy too.
    */
-  async query(selector: StorageSelector, options: StorageQueryOptions = {}): Promise<Array<[string, T]>> {
+  async query(selector: StorageSelector, options: StorageQueryOptions = {}, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
     // A selector with a problem does not go to the server: the server would refuse it
-    const problems = [...selectorProblems(selector), ...queryOptionsProblems(options)];
+    const limits = policy ?? this.options.queryPolicy;
+    const problems = [...selectorProblems(selector, limits), ...queryOptionsProblems(options, limits)];
     if (problems.length > 0) throw new TypeError(`The query is not correct: ${problems.join(". ")}`);
     if (!this.findUnsupported) {
       const input = {
@@ -427,7 +452,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         this.findUnsupported = true;
       }
     }
-    return queryEntries(await this.getEntries(), selector, options);
+    return queryEntries(await this.getEntries(), selector, options, limits);
   }
 
   async has(id: string): Promise<boolean> {
@@ -455,8 +480,9 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   }
 
   /**
-   * This method merges the fields into an item on the server, in one step: the `patch` procedure
-   * of the collection (roadmap CLI-14). It gives the new item, or undefined for a missing id.
+   * This method changes an item on the server in one step: the `patch` procedure of the collection
+   * (roadmap CLI-14). The fields are a JSON Merge Patch, or the operations `$set` and `$unset`.
+   * It gives the new item, or undefined for a missing id.
    */
   async patch(id: string, fields: StoragePatch): Promise<T | undefined> {
     const [problem] = patchProblems(fields);

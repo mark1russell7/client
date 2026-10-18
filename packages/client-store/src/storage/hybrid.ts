@@ -29,8 +29,16 @@
  * - After `close()`, each operation rejects, and a second `close()` does nothing.
  */
 
-import type { CollectionStorage, StorageChanges, StorageMetadata, StorageQueryOptions, StorageSelector } from "@procedures/collections";
-import { InMemoryStorage, StorageListeners, queryEntries, queryOptionsProblems, selectorProblems, type ListenerErrorHandler } from "@procedures/collections";
+import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
+import { InMemoryStorage, StorageListeners, type ListenerErrorHandler } from "@procedures/collections";
+import {
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+} from "@procedures/client/query";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
@@ -214,6 +222,13 @@ export interface HybridStorageOptions {
    * again in a microtask.
    */
   onListenerError?: ListenerErrorHandler;
+
+  /**
+   * The query policy of `query()` for a call without a policy. The storage gives it to the local
+   * copy, or to the remote in `remote-only` mode. The procedure `find` gives the policy of its host.
+   * @default DEFAULT_QUERY_POLICY: no `$regex`
+   */
+  queryPolicy?: StorageQueryPolicy;
 }
 
 /** The kinds of the timers of a `HybridStorage`. */
@@ -489,6 +504,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /** The listeners of `onStatus()`, and the status that they got last */
   private readonly statusListeners: StorageListeners<SyncStatus>;
   private lastStatus: SyncStatus | undefined;
+  /** The query policy of a call without a policy */
+  private readonly queryPolicy: StorageQueryPolicy | undefined;
   /** The load of the queue. The writes wait for it. */
   private readonly loaded: Promise<void>;
   /** The load and the first sync. The reads wait for it, so a read never sees an empty cache by mistake. */
@@ -554,6 +571,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
     };
     this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
+    this.queryPolicy = options.queryPolicy;
 
     // The timers on the clock, with the backoff after a failure (roadmap CLI-13)
     const factor = options.backoff?.factor ?? 2;
@@ -833,18 +851,20 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /**
    * The entries whose items match the selector (roadmap CLI-14): from the local copy, or from the
    * remote in `remote-only` mode. A storage under it with `query()` runs the selector itself, for
-   * example `ApiStorage` on its server. Else this method runs `queryEntries()` on its entries.
+   * example `ApiStorage` on its server. Else this method runs `queryEntries()` on its entries. The
+   * policy of the call, or of the options, goes to the storage under it.
    */
-  async query(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>> {
+  async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
     return this.run(true, async () => {
-      const problems = [...selectorProblems(selector), ...queryOptionsProblems(options)];
+      const limits = policy ?? this.queryPolicy;
+      const problems = [...selectorProblems(selector, limits), ...queryOptionsProblems(options, limits)];
       if (problems.length > 0) throw new TypeError(`The query is not correct: ${problems.join(". ")}`);
       if (this.mode === "remote-only") {
         return this.remoteRead(async () =>
-          this.remote.query ? this.remote.query(selector, options) : queryEntries(await this.remoteEntries(), selector, options),
+          this.remote.query ? this.remote.query(selector, options, limits) : queryEntries(await this.remoteEntries(), selector, options, limits),
         );
       }
-      return this.local.query ? this.local.query(selector, options) : queryEntries(await this.local.getEntries(), selector, options);
+      return this.local.query ? this.local.query(selector, options, limits) : queryEntries(await this.local.getEntries(), selector, options, limits);
     });
   }
 

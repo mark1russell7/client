@@ -20,13 +20,15 @@
  * a stored `null`, gives a delta in the order of the last change of each id, and rejects each
  * operation after `close()`.
  *
- * The optional `query()` gives the result of `queryEntries()` for the entries of the storage: the
- * reference of the query language. `observe()` gives one batch for each write that changes the
- * storage. `patch()` merges fields in one step. A storage without them skips their cases.
+ * The optional `query()` gives the result of `queryEntries()` of `@procedures/client/query` for the
+ * entries of the storage: the reference of the query language. Without a policy, `$regex` is off.
+ * With `createWithQueryPolicy`, the suite also tests the opt-in of `$regex` and each limit of a
+ * policy. `observe()` gives one batch for each write that changes the storage. `patch()` changes
+ * an item in one step, in each of its two forms. A storage without them skips their cases.
  */
 
 import type { CollectionStorage, StorageChangeBatch, StorageChanges } from "../storage/interface.js";
-import { queryEntries, type StorageQueryOptions, type StorageSelector } from "../storage/query.js";
+import { QUERY_OPERATORS, queryEntries, type StorageQueryOptions, type StorageQueryPolicy, type StorageSelector } from "@procedures/client/query";
 import { holds, rejects, same, show } from "./check.js";
 
 /** The item of the suite. Its `id` is its key, so a `HybridStorage` can sync it. */
@@ -51,6 +53,12 @@ export interface CollectionStorageContractOptions {
    * the suite tests the drop of the old deletes. A storage without such a limit does not give it.
    */
   createWithMaxTombstones?: ((max: number) => ContractStorage | Promise<ContractStorage>) | undefined;
+  /**
+   * This function makes a new, empty storage whose queries follow the policy: the policy of the
+   * storage, or of the server of a remote storage. With it, the suite tests the opt-in of `$regex`
+   * and each limit of a policy.
+   */
+  createWithQueryPolicy?: ((policy: StorageQueryPolicy) => ContractStorage | Promise<ContractStorage>) | undefined;
 }
 
 /** The context that a test framework gives to a case. Vitest gives `skip`. */
@@ -146,10 +154,22 @@ const SELECTOR_CASES: ReadonlyArray<[StorageSelector, string[]]> = [
   [{ $and: [{ "meta.kind": "k1" }, { flag: false }] }, ["g"]],
   [{ $nor: [{ n: { $exists: true } }, { flag: true }] }, ["g"]],
   [{ n: { $not: { $gt: 2 } } }, ["a", "b", "e", "f", "g"]],
-  [{ label: { $regex: "^del", $options: "i" } }, ["d"]],
-  [{ id: { $regex: "^[ab]$" } }, ["a", "b"]],
   [{ flag: { $exists: true }, n: null }, ["f", "g"]],
 ];
+
+/** The selectors with `$regex`, for a policy that permits it, with the ids that each one matches. */
+const REGEX_CASES: ReadonlyArray<[StorageSelector, string[]]> = [
+  [{ label: { $regex: "^del", $options: "i" } }, ["d"]],
+  [{ id: { $regex: "^[ab]$" } }, ["a", "b"]],
+  [{ tags: { $regex: "y" } }, ["b", "e"]],
+  [{ id: { $not: { $regex: "^[a-e]" } } }, ["f", "g"]],
+];
+
+/** A policy that permits `$regex`, with the default limits. */
+const REGEX_POLICY: StorageQueryPolicy = { operators: QUERY_OPERATORS };
+
+/** A selector that can take an exponential time: a repetition of a repetition. */
+const REDOS: StorageSelector = { label: { $regex: "^(a+)+$" } };
 
 /** The options of the cases, with the ids of the result for the selector `{}`. */
 const OPTION_CASES: ReadonlyArray<[StorageQueryOptions, string[]]> = [
@@ -765,8 +785,10 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
+  const createWithQueryPolicy = options.createWithQueryPolicy;
+  const randomPolicy: StorageQueryPolicy | undefined = createWithQueryPolicy ? REGEX_POLICY : undefined;
   add("query() agrees with queryEntries() for random selectors, orders, skips and limits", (context) =>
-    withStorage(create, async (typed) => {
+    withStorage(createWithQueryPolicy ? () => createWithQueryPolicy(REGEX_POLICY) : create, async (typed) => {
       if (lacks(typed, "query", context)) return;
       const storage = typed as unknown as JsonStorage;
       const random = randomQueries(seeded(20));
@@ -779,7 +801,7 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         const label = `query(${show(selector)}, ${show(options)})`;
         let expected: Array<[string, unknown]> | undefined;
         try {
-          expected = queryEntries(entries, selector, options);
+          expected = queryEntries(entries, selector, options, randomPolicy);
         } catch {
           expected = undefined;
         }
@@ -788,6 +810,78 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       }
     }),
   );
+
+  add("query() refuses $regex without a policy that permits it, and a pattern that repeats a repetition", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "query", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.setBatch([...DOCUMENTS]);
+      for (const [selector] of REGEX_CASES) await rejects(() => storage.query!(selector), `query(${show(selector)}) without a policy`);
+      await rejects(() => storage.query!(REDOS), `query(${show(REDOS)}) without a policy`);
+    }),
+  );
+
+  if (createWithQueryPolicy) {
+    add("query() runs $regex under a policy that permits it, and still refuses a pattern that repeats a repetition", (context) =>
+      withStorage(() => createWithQueryPolicy(REGEX_POLICY), async (typed) => {
+        if (lacks(typed, "query", context)) return;
+        const storage = typed as unknown as JsonStorage;
+        await storage.setBatch([...DOCUMENTS]);
+        for (const [selector, expected] of REGEX_CASES) {
+          const result = await storage.query!(selector);
+          same(entryIds(result), expected, `the ids of query(${show(selector)})`);
+          same(result, queryEntries(DOCUMENTS, selector, {}, REGEX_POLICY), `the entries of query(${show(selector)})`);
+        }
+        await rejects(() => storage.query!(REDOS), `query(${show(REDOS)}) under a policy with $regex`);
+      }),
+    );
+
+    add("query() refuses each part that the policy does not permit, and a query without a limit gets maxLimit", (context) =>
+      withStorage(
+        () =>
+          createWithQueryPolicy({
+            operators: ["$eq", "$in", "$all", "$and", "$or", "$not", "$regex", "$exists"],
+            maxRegexLength: 4,
+            regexFlags: "i",
+            maxClauses: 4,
+            maxDepth: 2,
+            maxListLength: 3,
+            maxLimit: 3,
+          }),
+        async (typed) => {
+          if (lacks(typed, "query", context)) return;
+          const storage = typed as unknown as JsonStorage;
+          await storage.setBatch([...DOCUMENTS]);
+          const refused: Array<[string, StorageSelector, StorageQueryOptions]> = [
+            ["an operator that the policy does not permit", { n: { $gt: 1 } }, {}],
+            ["a logical operator that the policy does not permit", { $nor: [{ n: 1 }] }, {}],
+            ["a pattern longer than maxRegexLength", { label: { $regex: "^Delt" + "a" } }, {}],
+            ["a flag that the policy does not permit", { label: { $regex: "^D", $options: "m" } }, {}],
+            ["more clauses than maxClauses", { n: 1, id: "a", flag: true, label: "x", meta: null }, {}],
+            ["a selector deeper than maxDepth", { $and: [{ $or: [{ n: { $not: { $eq: 1 } } }] }] }, {}],
+            ["a list longer than maxListLength", { n: { $in: [1, 2, 3, 4] } }, {}],
+            ["a list of $all longer than maxListLength", { tags: { $all: ["x", "y", "z", "w"] } }, {}],
+            ["a limit above maxLimit", {}, { limit: 4 }],
+          ];
+          for (const [what, selector, query] of refused) {
+            await rejects(() => storage.query!(selector, query), `query(${show(selector)}, ${show(query)}): ${what}`);
+          }
+          const permitted: Array<[StorageSelector, StorageQueryOptions, string[]]> = [
+            [{ label: { $regex: "^Del", $options: "i" } }, {}, ["d"]],
+            [{ n: { $in: [1, 2, 3] }, flag: { $exists: false } }, {}, ["a", "b", "c"]],
+            [{ $and: [{ $or: [{ n: 1 }, { n: 2 }] }] }, {}, ["a", "b"]],
+            [{ n: { $not: { $eq: 1 } } }, { limit: 3 }, ["b", "c", "d"]],
+            // A query without a limit gets maxLimit
+            [{}, {}, ["a", "b", "c"]],
+            [{}, { skip: 5 }, ["f", "g"]],
+          ];
+          for (const [selector, query, expected] of permitted) {
+            same(entryIds(await storage.query!(selector, query)), expected, `the ids of query(${show(selector)}, ${show(query)})`);
+          }
+        },
+      ),
+    );
+  }
 
   //
   // ═══ patch() ═══
@@ -811,6 +905,38 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
         await rejects(() => storage.patch!("a", fields as never), `patch() with the fields ${show(fields)}`);
       }
       same(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches that were not correct");
+    }),
+  );
+
+  add("patch() with the operations $set and $unset sets null and nested paths, and a patch of two forms rejects", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "patch", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.set("a", { id: "a", n: 1, tags: ["x", "y"], meta: { kind: "k1", score: 10 } });
+      same(
+        await storage.patch!("a", { $set: { "meta.kind": "k2", note: null, "tags.1": "z", "deep.new.path": 1 }, $unset: ["meta.score"] }),
+        { id: "a", n: 1, tags: ["x", "z"], meta: { kind: "k2" }, note: null, deep: { new: { path: 1 } } },
+        "patch() with $set and $unset",
+      );
+      same(
+        await storage.patch!("a", { $unset: ["tags.0", "missing.path", "deep"], $set: { "tags.2": "w" } }),
+        { id: "a", n: 1, tags: [null, "z", "w"], meta: { kind: "k2" }, note: null },
+        "patch() that removes an element of an array, a missing path and a field, and adds an element",
+      );
+      const after = { id: "a", n: 1, tags: [null, "z", "w"], meta: { kind: "k2" }, note: null };
+      const wrong: Array<[string, unknown]> = [
+        ["a patch of two forms", { $set: { n: 2 }, n: 3 }],
+        ["an operation that is not known", { $inc: { n: 1 } }],
+        ["paths that overlap", { $set: { meta: {}, "meta.kind": "k3" } }],
+        ["a $set that is not an object", { $set: [1] }],
+        ["an $unset that is not a list of paths", { $unset: "n" }],
+        ["a path through a value that is not an object", { $set: { "n.x": 1 } }],
+        ["a path past the end of an array", { $set: { "tags.7": "v" } }],
+      ];
+      for (const [what, fields] of wrong) await rejects(() => storage.patch!("a", fields as never), `patch() with ${what}`);
+      same(await storage.get("a"), after, "get() after the patches that were not correct");
+      same(await storage.patch!("missing", { $set: { n: 1 } }), undefined, "patch() with $set of a missing id");
+      same(await storage.has("missing"), false, "has() of a missing id after patch() with $set");
     }),
   );
 

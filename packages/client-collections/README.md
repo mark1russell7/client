@@ -128,6 +128,8 @@ Each storage agrees on these points:
 
 A selector is JSON: a subset of the query selectors of MongoDB. The same selector goes to `query()` of a storage and to the procedure `collections.<name>.find` of `@procedures/client`.
 
+The language is a part of the wire contract of the core, so its one copy is in `@procedures/client/query`, an entry that imports nothing else. This package depends on `@procedures/client` for it, and it exports the same names again.
+
 ```typescript
 const storage = new InMemoryStorage<Task>();
 const open = await storage.query(
@@ -142,8 +144,47 @@ const open = await storage.query(
 - The operators are `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$exists`, `$not`, `$regex` with `$options`, `$size`, `$all`, `$elemMatch`, `$and`, `$or` and `$nor`.
 - An operator that is not in the list is an error. `selectorProblems()` and `queryOptionsProblems()` give the problems, and `query()` rejects with a `TypeError`.
 - The comparisons compare only values of one type. The order of a sort is `null`, numbers, strings, objects, arrays, then booleans.
-- `queryEntries(entries, selector, options)` is the reference. A storage that runs a selector itself, for example a database, gives the same result.
-- `mergePatch(value, fields)` applies a JSON Merge Patch. `compileSelector(selector)` gives a test for many items.
+- `queryEntries(entries, selector, options, policy)` is the reference. A storage that runs a selector itself, for example a database, gives the same result.
+- `compileSelector(selector, policy)` gives a test for many items.
+
+#### The query policy
+
+A query policy limits the queries of a caller. The default policy does not permit `$regex`: a pattern runs in the process, and some patterns take an exponential time.
+
+| Limit | Default | What a larger query gets |
+|---|---|---|
+| `operators` | `DEFAULT_QUERY_OPERATORS`: each operator except `$regex` | A `TypeError`, or `VALIDATION_ERROR` from `find` |
+| `maxRegexLength` | 128 characters | The same |
+| `regexFlags` | `"imsu"` | The same |
+| `maxClauses` | 64: each condition of a field, each operator, each `$and`, `$or` and `$nor` | The same |
+| `maxDepth` | 6: each `$and`, `$or`, `$nor`, `$not` and `$elemMatch` adds a level | The same |
+| `maxListLength` | 256 values of `$in`, `$nin` and `$all` | The same |
+| `maxLimit` | No limit for a storage. 1000 (`DEFAULT_FIND_LIMIT`) for the procedure `find`. | A larger `limit` is an error. A query without a limit gets `maxLimit`. |
+
+```typescript
+import { QUERY_OPERATORS } from "@procedures/collections";
+
+// A storage of trusted data turns $regex on
+const notes = new InMemoryStorage<Note>({ queryPolicy: { operators: QUERY_OPERATORS, maxRegexLength: 64 } });
+await notes.query({ title: { $regex: "^draft", $options: "i" } });
+```
+
+- The option `queryPolicy` of a storage applies to each call without a policy. The third argument of `query()` gives the policy of one call.
+- The procedure `find` gives the policy of its host to `query()` of the storage, so the host sets the policy in one place.
+- A pattern that repeats a group that repeats without a bound, for example `(a+)+`, is always an error.
+
+#### The two forms of a patch
+
+`patch(id, fields)` takes one of two forms. A patch whose keys each start with `$` is the operations form. A patch that mixes the two forms is an error.
+
+| Form | Example | What it does |
+|---|---|---|
+| JSON Merge Patch (RFC 7386) | `{ title: "New", meta: { score: 2 }, draft: null }` | Each field replaces the field of the item. An object merges into an object field. `null` removes the field. |
+| Operations | `{ $set: { "meta.score": 2, draft: null }, $unset: ["tags.0"] }` | `$set` sets field paths, also to `null`. `$unset` removes field paths. An element of an array becomes `null`. |
+
+- `applyPatch(value, fields)` applies either form, and `mergePatch(value, fields)` applies only a JSON Merge Patch. `patchProblems(fields)` gives the problems of a patch.
+- `$set` makes each missing or `null` part of a path an object. A path through another value, or past the end of an array, is a `TypeError`, and the item does not change.
+- `$set` comes before `$unset`. Two paths that overlap, for example `a` and `a.b`, are an error.
 
 ### The contract suite: `@procedures/collections/testing`
 

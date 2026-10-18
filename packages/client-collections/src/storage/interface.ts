@@ -13,7 +13,8 @@
  * remote storage.
  */
 
-import type { StoragePatch, StorageQueryOptions, StorageSelector } from "./query.js";
+// The query language is a part of the wire contract of the core: its one copy is there (roadmap CLI-34)
+import type { StoragePatch, StorageQueryOptions, StorageQueryPolicy, StorageSelector } from "@procedures/client/query";
 
 /**
  * Storage backend interface for collections.
@@ -32,7 +33,7 @@ import type { StoragePatch, StorageQueryOptions, StorageSelector } from "./query
  *   `close()` does nothing.
  * - `query()` gives the result of `queryEntries()` for the entries of the storage.
  * - `observe()` gives one batch for each write that changes the storage, before the write resolves.
- * - `patch()` merges the fields into the item in one step: two patches at the same time keep each field.
+ * - `patch()` changes the item in one step: two patches at the same time keep each field.
  *
  * The optional methods are features: a caller tests for each one before it uses it.
  */
@@ -99,10 +100,12 @@ export interface CollectionStorage<T> {
    *
    * @param selector - The selector. `{}` matches each item.
    * @param options - The order, the skip and the limit
+   * @param policy - The query policy of the caller: the procedure `find` gives the policy of the
+   *   host. Without it, the storage uses its own policy. The default policy does not permit `$regex`.
    * @returns Promise resolving to the [id, item] pairs, with copies of the items. A selector or
-   *   options with a problem reject with a `TypeError`.
+   *   options with a problem, or that the policy does not permit, reject with a `TypeError`.
    */
-  query?(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>>;
+  query?(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
 
   /**
    * This method starts to send the changes of the storage to an observer. Each write that changes
@@ -167,13 +170,14 @@ export interface CollectionStorage<T> {
   clear(options?: StorageWriteOptions): Promise<void>;
 
   /**
-   * This method merges fields into one item in one step: a JSON Merge Patch (RFC 7386). Each field
-   * replaces the field of the item, an object field merges into an object field, and `null`
-   * removes the field. Two patches of one item at the same time keep the fields of each. A storage
-   * without this method cannot merge in one step.
+   * This method changes one item in one step. The fields are a JSON Merge Patch (RFC 7386): each
+   * field replaces the field of the item, an object field merges into an object field, and `null`
+   * removes the field. Or they are the operations `{ $set, $unset }`: `$set` can set `null` and
+   * nested field paths. Two patches of one item at the same time keep the fields of each. A storage
+   * without this method cannot change an item in one step.
    *
    * @param id - Item identifier
-   * @param fields - The fields: an object. Another value rejects with a `TypeError`.
+   * @param fields - The fields: an object of one form. Another value rejects with a `TypeError`.
    * @param options - The origin of the write, for the observers
    * @returns Promise resolving to a copy of the new item, or undefined when the id has no item. A
    *   missing id stays missing.

@@ -123,8 +123,28 @@ export {
 export type { ProcedureDefinition, ProcedureStub } from "./define.js";
 
 // Collection procedures
-export { createCollectionProcedures } from "./collection/index.js";
+export {
+  createCollectionProcedures,
+  DEFAULT_FIND_LIMIT,
+  DEFAULT_QUERY_OPERATORS,
+  DEFAULT_QUERY_POLICY,
+  QUERY_OPERATORS,
+  applyPatch,
+  compareStorageValues,
+  compileSelector,
+  isPatchOperations,
+  matchesSelector,
+  mergePatch,
+  patchProblems,
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+} from "./collection/index.js";
 export type {
+  CollectionProceduresOptions,
+  StoragePatchOperations,
+  StorageQueryOperator,
+  StorageQueryPolicy,
   CollectionStorage,
   StorageChanges,
   StorageMetadata,
