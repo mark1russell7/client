@@ -41,7 +41,9 @@ export type PartitionResolver = (ctx: ProcedureContext, requested: string | unde
 
 /**
  * This function adds the field `partition` to the input schema of a collection procedure. The
- * repository of the call decides at the call if the collection has partitions.
+ * repository of the call decides at the call if the collection has partitions. The schema of the
+ * operation does not get the field (CLI-46): a schema that checks each field of its input, for
+ * example the schema of `find`, would refuse it. The parsed input gets it back.
  */
 export function withPartition<T>(schema: ZodLike<T>): ZodLike<T & PartitionInput> {
   const validate = (data: unknown): { success: true; data: T & PartitionInput } | { success: false; error: { message: string; errors: { path: (string | number)[]; message: string }[] } } => {
@@ -50,7 +52,7 @@ export function withPartition<T>(schema: ZodLike<T>): ZodLike<T & PartitionInput
     if (requested !== undefined && (typeof requested !== "string" || !PARTITION_PATTERN.test(requested))) {
       return fail("partition must have 1 to 256 letters, digits or the characters _ . : @ ~ + | / -");
     }
-    const inner = schema.safeParse(data);
+    const inner = schema.safeParse(withoutPartition(data));
     if (!inner.success) return inner as { success: false; error: { message: string; errors: { path: (string | number)[]; message: string }[] } };
     const parsed = inner.data as T & PartitionInput;
     return { success: true, data: requested === undefined ? parsed : { ...parsed, partition: requested as string } };
@@ -63,6 +65,13 @@ export function withPartition<T>(schema: ZodLike<T>): ZodLike<T & PartitionInput
     },
     safeParse: validate,
   } as ZodLike<T & PartitionInput>;
+}
+
+/** The input without its field `partition`: a copy of an object that has the field, else the input itself. */
+function withoutPartition(data: unknown): unknown {
+  if (typeof data !== "object" || data === null || Array.isArray(data) || !Object.prototype.hasOwnProperty.call(data, "partition")) return data;
+  const { partition: _partition, ...rest } = data as Record<string, unknown>;
+  return rest;
 }
 
 /** The partitions of a collection: the storage of each partition, and the resolver of a call. */

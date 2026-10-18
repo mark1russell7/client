@@ -10,6 +10,7 @@ import { createCollectionProcedures, type CollectionProceduresOptions } from "./
 import { collectionChangeTopic, type CollectionChangeEvent } from "./changes.js";
 import { collectionTopicPartition, collectionTopicTarget, PARTITION_PATTERN, type PartitionResolver } from "./partition.js";
 import type { CollectionStorage } from "./storage.js";
+import type { ZodLike } from "../../client/validation/types.js";
 import { invokeProcedure, InvocationError, outputValue } from "../invoke.js";
 import type { RepositoryProvider } from "../types.js";
 import type { Principal } from "../../server/types.js";
@@ -153,6 +154,40 @@ describe("the partitions of the collection procedures (CLI-17)", () => {
     expect([...partitions.keys()].sort()).toEqual(["t1/board:b1", "t1/t2", "t2"]);
     expect(await run("get", { id: "x", partition: "board:b1" }, ann)).toBe(1);
     expect(await run("get", { id: "x" }, ann)).toBeUndefined();
+  });
+
+  it("takes a partition in the input of each operation, also of an operation with a strict input schema (CLI-46)", async () => {
+    const { run, partitions } = host();
+    const p = { partition: "board:b1" };
+    await run("set", { id: "a", value: { text: "A", n: 1 }, ...p }, ann);
+    await run("setBatch", { items: [{ id: "b", value: { text: "B", n: 2 } }], ...p }, ann);
+    expect(await run("get", { id: "a", ...p }, ann)).toEqual({ text: "A", n: 1 });
+    expect(await run("has", { id: "b", ...p }, ann)).toBe(true);
+    expect(await run("getAll", p, ann)).toEqual([{ text: "A", n: 1 }, { text: "B", n: 2 }]);
+    expect(await run("entries", p, ann)).toHaveLength(2);
+    expect(await run("ids", p, ann)).toEqual(["a", "b"]);
+    expect(await run("size", p, ann)).toBe(2);
+    expect(await run("getBatch", { ids: ["a", "zz"], ...p }, ann)).toEqual({ a: { text: "A", n: 1 } });
+    // find, patch and changes check each field of their input: before CLI-46 they refused the field partition
+    expect(await run("find", { selector: { text: "B" }, sort: { n: 1 }, limit: 5, ...p }, ann)).toEqual([{ id: "b", value: { text: "B", n: 2 } }]);
+    expect(await run("patch", { id: "a", fields: { n: 3 }, ...p }, ann)).toEqual({ found: true, value: { text: "A", n: 3 } });
+    expect(await run("changes", { ...p }, ann)).toMatchObject({ full: true });
+    expect(await run("delete", { id: "a", ...p }, ann)).toBe(true);
+    expect(await run("deleteBatch", { ids: ["b"], ...p }, ann)).toBe(1);
+    await run("clear", p, ann);
+    // Each call went to the partition that the input named, under the tenant of the principal
+    expect([...partitions.keys()]).toEqual(["t1/board:b1"]);
+  });
+
+  it("does not give the field partition to the schema of the operation, and keeps it in the parsed input (CLI-46)", () => {
+    const procedures = createCollectionProcedures("notes");
+    // withPartition() gives a ZodLike schema
+    const input = procedures.find((candidate) => candidate.path[2] === "find")!.input as ZodLike<unknown>;
+    expect(input.safeParse({ selector: {}, partition: "t1" })).toEqual({ success: true, data: { selector: {}, partition: "t1" } });
+    // Another unknown field is still refused
+    expect(input.safeParse({ selector: {}, other: 1 }).success).toBe(false);
+    // A partition of a bad form is refused before the schema of the operation
+    expect(input.safeParse({ selector: {}, partition: "a b" }).success).toBe(false);
   });
 
   it("refuses a call that the resolver refuses with FORBIDDEN, partition-not-allowed", async () => {
