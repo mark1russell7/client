@@ -73,6 +73,7 @@ describe("mcpFace (CLI-7)", () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.description)).toEqual(["echo"]);
     const result = (await client.callTool({ name: tools[0]!.name, arguments: { text: "hi" } })) as { content: Array<{ text: string }> };
-    expect(JSON.parse(result.content[0]!.text)).toBe("hi");
+    // A string result is its text
+    expect(result.content[0]!.text).toBe("hi");
   });
 });
