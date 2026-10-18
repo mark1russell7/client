@@ -25,7 +25,10 @@ export const SMS_RELATIVE_PATH = "Library/SMS/sms.db";
 const NANOSECOND_THRESHOLD = 1_000_000_000_000;
 
 /** The kinds of `IosBackupError`. */
-export type IosBackupErrorCode = "no-backup" | "encrypted" | "no-file" | "missing-file";
+export type IosBackupErrorCode = "no-backup" | "encrypted" | "no-file" | "missing-file" | "invalid-file-id";
+
+/** The name of a file of a backup: the SHA-1 of its domain and its path, 40 hexadecimal digits. */
+const FILE_ID = /^[0-9a-f]{40}$/i;
 
 /**
  * The error of a backup that the module cannot read. The `code` tells the cause:
@@ -256,6 +259,10 @@ export async function findBackupFile(backup: string, domain: string, relativePat
     }
   });
   if (fileId === undefined) return undefined;
+  // The name comes from Manifest.db. A name that is not a hash could leave the backup folder (`../`).
+  if (!FILE_ID.test(fileId)) {
+    throw new IosBackupError("invalid-file-id", `Manifest.db gives ${domain}:${relativePath} the file name ${JSON.stringify(fileId.slice(0, 60))}, which is not a hash of 40 hexadecimal digits`);
+  }
   for (const path of [join(backup, fileId.slice(0, 2), fileId), join(backup, fileId)]) {
     if (existsSync(path)) return { fileId, path };
   }

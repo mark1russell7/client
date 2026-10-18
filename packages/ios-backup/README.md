@@ -49,7 +49,7 @@ The package root exports the functions of the procedures.
 ## How it reads
 
 - The package copies `Manifest.db` and `sms.db` to a temporary folder, reads the copies and deletes them. It changes nothing in the backup.
-- An error of the package is an `IosBackupError`. Its `code` is `no-backup`, `encrypted`, `no-file` or `missing-file`.
+- An error of the package is an `IosBackupError`. Its `code` is `no-backup`, `encrypted`, `no-file`, `missing-file` or `invalid-file-id`. `invalid-file-id`: `Manifest.db` gives a file name that is not a hash of 40 hexadecimal digits, so the name could leave the backup folder.
 - The package cannot read an encrypted backup. Make a backup without encryption to read the messages.
 - When the `text` column of a message is empty, the package reads the text from its `attributedBody` column. Such a message has `from_attributed_body: true`.
 - The times are ISO 8601 strings in UTC, to the second. The package reads the times in nanoseconds (iOS 11 and later) and in seconds (older databases).

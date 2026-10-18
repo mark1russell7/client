@@ -227,6 +227,14 @@ describe("findBackupFile", () => {
     expect(await findBackupFile(flat, SMS_DOMAIN, SMS_RELATIVE_PATH)).toEqual({ fileId: id, path: join(flat, id) });
   });
 
+  it("refuses a file name of Manifest.db that is not a hash, so it cannot leave the backup folder", async () => {
+    const backup = await makeBackup(await tempDir(), "backup");
+    const manifest = new DatabaseSync(join(backup, "Manifest.db"));
+    manifest.prepare("INSERT INTO Files VALUES (?, ?, ?, 1, NULL)").run("../../outside", "HomeDomain", "Library/Evil.db");
+    manifest.close();
+    await expect(findBackupFile(backup, "HomeDomain", "Library/Evil.db")).rejects.toMatchObject({ code: "invalid-file-id" });
+  });
+
   it("gives undefined for a file that Manifest.db does not list", async () => {
     const backup = await makeBackup(await tempDir(), "backup");
     expect(await findBackupFile(backup, "HomeDomain", "Library/Nothing.db")).toBeUndefined();
