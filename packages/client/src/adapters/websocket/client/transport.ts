@@ -578,18 +578,10 @@ export class WebSocketTransport implements Transport {
       return;
     }
 
-    // The frame type `event` is reserved: no side of protocol v1 sends it. A server outside this
-    // repository can send it, so the frame still goes to onEvent (EVENTS.md).
-    if (message.type === "event") {
-      if (this.options.onEvent && message.topic && message.subscriptionId) {
-        try {
-          this.options.onEvent(message.topic, message.data, message.subscriptionId);
-        } catch (error) {
-          console.error(`[${this.name}] Event handler error:`, error);
-        }
-      }
-      return;
-    }
+    // The frame type `event` is reserved: no side of protocol v1 sends it. The client ignores it,
+    // as a frame of an unknown type. Before 0.9.0, it gave the frame to onEvent, for a server
+    // outside this repository (EVENTS.md). onEvent gets the events of the subscriptions only.
+    if (message.type === "event") return;
 
     // Handle response
     const pending = this.pendingRequests.get(message.id);

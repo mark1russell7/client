@@ -289,11 +289,16 @@ describe("the onEvent wrapper (EVENTS.md)", () => {
     expect(seen).toEqual(expect.arrayContaining([["orders.created", 1, first.id], ["orders.paid", 2, second.id]]));
   });
 
-  it("still gets a raw event frame of a server outside this repository", async () => {
+  it("ignores a raw event frame: onEvent gets only the events of a subscription (since 0.9.0)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    cleanups.push(() => warn.mockRestore());
     const http = createServer();
     const wss = new WebSocketServer({ server: http, path: "/ws" });
     wss.on("connection", (socket) => {
       socket.send(JSON.stringify({ id: "e1", type: "event", topic: "legacy", data: { n: 1 }, subscriptionId: "s1" }));
+      // A response of an unknown call after the raw frame: the client warns about it, and the frames
+      // of one socket arrive in order, so the client has read the raw frame then
+      socket.send(JSON.stringify({ id: "after-raw", type: "response", payload: null }));
     });
     await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
     const seen: unknown[] = [];
@@ -310,8 +315,8 @@ describe("the onEvent wrapper (EVENTS.md)", () => {
       http.closeAllConnections();
       await new Promise<void>((resolve) => http.close(() => resolve()));
     });
-    await waitFor(() => seen.length === 1, "the raw event");
-    expect(seen).toEqual([{ topic: "legacy", data: { n: 1 }, subscriptionId: "s1" }]);
+    await waitFor(() => warn.mock.calls.some((args) => String(args[0]).includes("after-raw")), "the frame after the raw event");
+    expect(seen).toEqual([]);
   });
 });
 

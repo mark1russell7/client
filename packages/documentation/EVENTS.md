@@ -272,7 +272,7 @@ The change is additive in v1. `PROTOCOL_VERSION` stays 1.
 - An older subscriber does not know `TOPIC_CLEARED`. The code is not retryable, so it ends the subscription with `onError`.
 - The shared subscriptions and the limit of the tries change only the subscriber. The wire of one subscriber stays the same.
 - An older peer does not know `events.subscribe`. It answers `NOT_FOUND`, and the subscriber reports this error.
-- The frame type `event` stays reserved. No side of v1 sends it. The WebSocket client still gives such a frame to `onEvent`, for a server outside this repository.
+- The frame type `event` stays reserved. No side of v1 sends it. Since 0.9.0 the WebSocket client ignores such a frame, as a frame of an unknown type. Before, it gave the frame to `onEvent`, for a server outside this repository.
 
 ## The API
 

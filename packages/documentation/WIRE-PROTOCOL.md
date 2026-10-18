@@ -138,7 +138,7 @@ A gap before the end frame gives only the warning, and the stream ends. The remo
 
 ### Reserved frame types
 
-- The type `event` is reserved. No side of v1 sends it. The WebSocket client gives such a frame to its `onEvent` handler, for a server outside this repository.
+- The type `event` is reserved. No side of v1 sends it. Since 0.9.0 the WebSocket client ignores such a frame, as a frame of an unknown type.
 - The server answers a frame of an unknown type with an `error` frame that has the id of that frame. The client ignores such a frame.
 
 ## Remote events
