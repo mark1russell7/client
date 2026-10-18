@@ -634,7 +634,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-2b | Auth | Remove the second token, host and origin checks of the peer | M | blocked | CLI-1, CLI-2a, D13 | Client session | — |
 | CLI-3 | HTTP host | `procedureHandler()` and `upgradeHandler()` with no framework, in `@procedures/client/node` | M | in progress | — | markt-02 | `server-stack/host` |
 | CLI-4 | HTTP host | Fold the stray error codes into wire v1 | S | blocked | CLI-3 | Client session | — |
-| CLI-5 | Runner | `ProcedureServer.stop` becomes stop parts in the shape of the runner | M | blocked | SYS-4 | Client session | — |
+| CLI-5 | Runner | `ProcedureServer.stop` becomes stop parts in the shape of the runner | M | in progress | SYS-4 | Client session | [client PR #20](https://github.com/mark1russell7/client/pull/20) |
 | CLI-6 | HTTP host | The root of `@procedures/client` becomes node-free, and the server faces move to `./node` | S | blocked | CLI-3 | Client session | — |
 | CLI-7 | HTTP host | `createProcedureHost()`: one host factory that gives the parts of a service | L | blocked | CLI-2a, CLI-3, CLI-5, SYS-1, SYS-5, SYS-6, SYS-8, SYS-15, REL-1, D2, D3 | Client session | — |
 | CLI-8 | Runner | `runProcedureHost()`: one runner entry on `run()` for `procedure-server`, `mark serve` and `mark --server` | M | blocked | CLI-7, SYS-9, SYS-10, CI-2, D6, D7, D17 | Client session | — |
