@@ -38,6 +38,32 @@ app.all("/auth/*path", toNodeHandler(auth)); // the routes belong to the app
 | `PASSKEY_RP_ID` | The domain of the passkeys. The default is the host of the first trusted origin. |
 | `AUTH_TEST_ACCOUNTS=1` | Accounts with an email and a password, for the tests. Their email counts as verified. Production refuses it. |
 
+## The browser
+
+`@procedures/better-auth/browser` gives the calls of a page to the auth routes of the server. It has no framework and no global state. Each function gives data, and the app decides what the page does next.
+
+```ts
+import { createBrowserAuth } from "@procedures/better-auth/browser";
+
+const auth = createBrowserAuth({ baseURL: "https://api.example.com" });
+const user = await auth.session(); // undefined when signed out
+const out = await auth.signInSocial("github", location.href);
+if ("url" in out) location.assign(out.url);
+```
+
+| Function | What it does |
+| --- | --- |
+| `session()` | The signed-in user of this browser: `id`, `name` and `email`. A server that does not answer in time gives `undefined`. |
+| `signInSocial(provider, callbackURL)` | The page of the provider. The provider comes back to `callbackURL`. |
+| `signOut()` | This function ends the session. |
+| `addPasskey(name)` | This function makes a passkey of this device for the signed-in user. |
+| `signInWithPasskey()` | This function signs in with a passkey of this device. |
+| `signInWithPassword(input)` | A test server only (`AUTH_TEST_ACCOUNTS`): a sign-in, or a sign-up with `signUp: true`. |
+
+- Each call sends the cookies. The session cookie is `httpOnly`, so a script of the page cannot read it.
+- A refused call gives `{ error }`. The functions do not throw for an answer of the server.
+- The passkeys use `@simplewebauthn/browser`, which loads only when a passkey function operates.
+
 ## The principal of a request
 
 `SessionPrincipals` gives the user of a session cookie: the id, the verified email, the name and the groups. A short memo keeps the boot of a page to one session lookup.

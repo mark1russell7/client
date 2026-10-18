@@ -30,6 +30,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     }
   },
   "files": [
@@ -57,6 +61,7 @@
   "dependencies": {
     "@better-auth/passkey": "^1.7.10",
     "@procedures/client": "workspace:*",
+    "@simplewebauthn/browser": "^13.3.0",
     "better-auth": "^1.7.10",
     "zod": "^4.6.5"
   },
