@@ -4,10 +4,49 @@
  * Configuration options for the MCP server transport.
  */
 
+import type { Readable, Writable } from "node:stream";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { ProcedureRegistry } from "@procedures/client";
-import type { McpServerInfo, McpToolFilter } from "@procedures/mcp";
+import type { ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
+import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration } from "@procedures/client";
+import type { UntrustedContentOptions } from "./untrusted.js";
+
+/** The streams of the stdio transport, and what happens when its input ends. */
+export interface StdioTransportOptions {
+  /** The input of the protocol. The default is `process.stdin`. */
+  stdin?: Readable | undefined;
+  /** The output of the protocol. The default is `process.stdout`. */
+  stdout?: Writable | undefined;
+  /**
+   * This function runs when the input ends: the client closed it. A host stops here
+   * (`createMcpHost` stops its server). Without it, the transport only stops to read.
+   */
+  onEnd?: (() => void) | undefined;
+}
+
+/** A text block of a tool result. */
+export interface McpTextBlock {
+  type: "text";
+  text: string;
+}
+
+/** The content of a tool result: the text blocks and the structured content. */
+export interface McpToolContent {
+  content: McpTextBlock[];
+  structuredContent?: Record<string, unknown> | undefined;
+}
+
+/** What the content hook of a host gets: the tool, the value and the content of the default. */
+export interface McpToolContentInput extends McpToolContent {
+  readonly tool: McpTool;
+  readonly value: unknown;
+}
+
+/**
+ * The content hook of a host: it gives the content of a successful tool result that is a value,
+ * or undefined for the default content.
+ */
+export type McpToolContentHook = (result: McpToolContentInput) => McpToolContent | undefined;
 
 /**
  * SSE transport configuration options.
@@ -58,8 +97,44 @@ export interface McpServerTransportOptions {
   /** Server info for MCP protocol */
   serverInfo?: McpServerInfo;
 
+  /** The instructions of the server: the MCP client gives them to the model (`initialize`). */
+  instructions?: string | undefined;
+
+  /** The streams of the stdio transport, and the function for the end of its input. */
+  stdio?: StdioTransportOptions | undefined;
+
+  /**
+   * The rules of the questions to the person at the caller (MCP elicitation, CLI-12): `ask` and
+   * the consents of the operator. The default asks the person when the client can, and the
+   * operator gives no consent.
+   */
+  elicitation?: ElicitationPolicy | undefined;
+
+  /**
+   * The envelopes of the output fields with text from outside the host (`metadata.untrusted`).
+   * The default tag is `untrusted-content`.
+   */
+  untrusted?: UntrustedContentOptions | undefined;
+
+  /** The content hook: it can give other text blocks for a successful result that is a value. */
+  content?: McpToolContentHook | undefined;
+
+  /**
+   * The JSON of the default text blocks: `"pretty"` (the default) with an indent of 2 spaces, or
+   * `"compact"` on one line. A compact block uses fewer tokens of the model.
+   */
+  json?: "pretty" | "compact" | undefined;
+
   /** Tool filtering options */
   toolFilter?: McpToolFilter;
+
+  /**
+   * The name of the tool of a procedure. The default joins the segments of the path with dots
+   * (`git.status`). A server that moves to this transport keeps its tool names with it, for
+   * example `(path) => path.join("_")`. A tool call finds its procedure by the name, not by the
+   * decoded name.
+   */
+  toolName?: ((path: readonly string[]) => string) | undefined;
 
   /** SSE-specific options (when transport is "sse") */
   sseOptions?: SseTransportOptions;

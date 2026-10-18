@@ -71,6 +71,41 @@ export {
   newIdempotencyKey,
 } from "./idempotency.js";
 export type { IdempotencyOptions } from "./idempotency.js";
+// What the face of a call offers the procedure (CLI-10, CLI-12)
+export {
+  createElicit,
+  elicitWithPolicy,
+  operatorAnswer,
+  elicitInput,
+  elicitConfirmation,
+  NO_ELICITATION_REASON,
+} from "./elicit.js";
+export type {
+  Elicit,
+  ElicitRequest,
+  ElicitFormRequest,
+  ElicitUrlRequest,
+  ElicitMode,
+  ElicitAction,
+  ElicitResult,
+  ElicitOptions,
+  ElicitField,
+  ElicitFieldBase,
+  ElicitTextField,
+  ElicitNumberField,
+  ElicitBooleanField,
+  ElicitChoiceField,
+  ElicitChoicesField,
+  ElicitValue,
+  ElicitationPolicy,
+  ConfirmationOptions,
+  ConfirmationResult,
+} from "./elicit.js";
+export type { ProgressUpdate, ReportProgress } from "./progress.js";
+export { toolHintsOf, toolHintOverrideOf, toolHintOverrideRefusal } from "./hints.js";
+export type { ToolHintOverride } from "./hints.js";
+export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./untrusted.js";
+export type { UntrustedText, UntrustedSource, UntrustedValue } from "./untrusted.js";
 export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./capability.js";
 
 // Registry

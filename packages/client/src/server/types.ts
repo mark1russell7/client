@@ -5,6 +5,8 @@
  * Enables handling HTTP, WebSocket, gRPC, etc. with unified RPC format.
  */
 
+import type { Elicit } from "../procedures/elicit.js";
+import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
 
 // Re-export Method from client types
@@ -26,6 +28,19 @@ export interface ServerRequest<TReq = unknown> {
 
   /** Request metadata (headers, query params, etc.) */
   metadata: Metadata;
+
+  /**
+   * The function that asks the person at the caller, when the face can ask (MCP elicitation,
+   * CLI-12). The procedure gets it as `ctx.elicit`. It is not in the metadata, so a caller cannot
+   * send it.
+   */
+  elicit?: Elicit | undefined;
+
+  /**
+   * The function that tells the caller the progress of the call, when the caller asked for it
+   * (an MCP progress token). The procedure gets it as `ctx.progress`.
+   */
+  progress?: ReportProgress | undefined;
 
   /** Abort signal for cancellation */
   signal?: AbortSignal;
