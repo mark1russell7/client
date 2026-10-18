@@ -48,7 +48,7 @@ afterEach(() => {
 describe("the lib procedures under the root of a host", () => {
   it("are confined, except lib.new", () => {
     const kinds = Object.fromEntries(libModule.procedures.filter((p) => p.path[0] === "lib").map((p) => [p.path.join("."), rootDecisionOf(p).kind]));
-    expect(kinds).toEqual({ "lib.scan": "confined", "lib.rename": "confined", "lib.new": "refused", "lib.audit": "confined", "lib.graph": "confined" });
+    expect(kinds).toEqual({ "lib.scan": "confined", "lib.rename": "confined", "lib.new": "refused", "lib.audit": "confined", "lib.graph": "confined", "lib.importCycles": "confined" });
   });
 
   it("scan the workspace in the root, also without rootPath, with its nested git calls in the root", async () => {
@@ -67,6 +67,7 @@ describe("the lib procedures under the root of a host", () => {
   it("refuse a workspace outside the root, and lib.new", async () => {
     await expect(call("lib.scan", { rootPath: outside })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
     await expect(call("lib.graph", { rootPath: "../outside" })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
+    await expect(call("lib.importCycles", { path: outside })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
     await expect(call("lib.new", { name: "x", rootPath: root, dryRun: true })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
   });
 
