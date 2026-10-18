@@ -6,6 +6,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MongoClient, type Db, type Document } from "mongodb";
+import { realClock, type Clock } from "@procedures/client";
 import { ViewMaterializer, type MaterializedView } from "./materializer.js";
 
 const url = process.env["MONGO_TEST_URL"];
@@ -155,5 +156,30 @@ withMongo("ViewMaterializer on MongoDB", () => {
     const doc = await db.collection("_aggregations").findOne({ _id: "reads-users" as never });
     expect(doc?.["_materializerStatus"]).toMatchObject({ state: "errored", lastError: expect.stringMatching(/collections of the scope/) });
     await views.stop();
+  });
+
+  it("has the stop parts of a transport, and takes its timers from the injected clock", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    const delays: number[] = [];
+    const clock: Clock = { now: () => realClock.now(), after: (ms, run) => (delays.push(ms), realClock.after(ms, run)) };
+    const views = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, clock, log: () => undefined });
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1 });
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    const total = async () => (await db.collection("sums").findOne({ _id: "a" as never }))?.["total"];
+    await db.collection("items").insertOne({ _id: "2" as never, _part: "t1", kind: "a", n: 2 });
+    await eventually(async () => expect(await total()).toBe(3));
+    expect(delays).toContain(20); // the debounce of the pass is a timer of the clock
+
+    views.stopIntake();
+    await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "a", n: 4 });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(await total()).toBe(3); // no pass after stopIntake()
+    await views.drain(clock.now() + 1000);
+    expect(views.inFlight()).toBe(0);
+    await views.close();
+    expect(views.openStreamCount()).toBe(0);
   });
 });

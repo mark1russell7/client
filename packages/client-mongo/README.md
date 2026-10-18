@@ -723,7 +723,8 @@ await views.start();
 - The status of each view (`ok`, `errored` with `lastError`, `cycle`) goes into the field `_materializerStatus` of its document.
 - Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition in its sources, and writes only into its target. The option `scope` gives another guard.
 - A stream that ends opens again after `rewatchMs`, and a pass catches up.
-- `stop()` closes the streams and waits for the work in flight. `inFlight()` counts that work.
+- The stop has the parts of a transport of a service: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. `stop()` does the four. A host composes them with no adapter.
+- The option `clock` gives the clock of the timers, for example a fake clock in a test. The timers do not keep a process alive.
 - The target is a plain collection. A `$merge` into the collection of a `MongoDocumentStorage` does not go through its change log.
 
 ## Integration with Ecosystem

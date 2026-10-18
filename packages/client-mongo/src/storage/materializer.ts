@@ -19,11 +19,15 @@
  *   document. The materializer ignores an update of only that field.
  *
  * Change streams need a replica set. The target of a view is a plain collection: a `$merge` into
- * the collection of a `MongoDocumentStorage` would not go through its change log.
+ * the collection of a `MongoDocumentStorage` does not go through its change log.
+ *
+ * The stop has the parts of a transport of a service: `stopIntake()`, `drain()`, `inFlight()` and
+ * `close()`. A host composes them with no adapter. The timers come from the injected clock.
  */
 
 import { createHash } from "node:crypto";
 import { BSON, type ChangeStream, type Db, type Document } from "mongodb";
+import { realClock, type Cancel, type Clock } from "@procedures/client";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -79,6 +83,8 @@ export interface ViewMaterializerOptions {
   maxRows?: number | undefined;
   /** The log (default `console`, with the prefix `[materializer]`). */
   log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
+  /** The clock of the timers (default the clock of the platform). A test gives a fake clock. The timers do not keep a process alive. */
+  clock?: Clock | undefined;
 }
 
 /** A view that the materializer knows. */
@@ -133,7 +139,12 @@ export class ViewMaterializer {
   private readonly lastResult = new Map<string, Map<string, string>>();
   /** The collections that changed since the last pass, for each partition. */
   private readonly dirty = new Map<string, Set<string>>();
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly timers = new Map<string, Cancel>();
+  /** The timers of the streams that open again. */
+  private readonly retries = new Set<Cancel>();
+  private readonly clock: Clock;
+  /** False after `stopIntake()`: a change starts no pass. */
+  private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
   private readonly chains = new Map<string, Promise<void>>();
   private readonly pending = new Set<Promise<unknown>>();
@@ -148,6 +159,7 @@ export class ViewMaterializer {
     this.rewatchMs = options.rewatchMs ?? 1000;
     this.maxTimeMS = options.maxTimeMS ?? 30_000;
     this.maxRows = options.maxRows ?? 100_000;
+    this.clock = options.clock ?? realClock;
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -185,25 +197,55 @@ export class ViewMaterializer {
   /** This method starts the materializer: it reads each view, runs it, and watches the views and their sources. */
   async start(): Promise<void> {
     this.stopped = false;
+    this.intake = true;
     this.db = await this.options.db();
     const count = await this.resync();
     this.watchViews();
     this.log("info", `started: ${count} view(s)`);
   }
 
-  /**
-   * This method stops the materializer: it closes the streams, cancels the waiting passes, and
-   * waits for the work in flight.
-   */
-  async stop(): Promise<void> {
-    this.stopped = true;
-    for (const timer of this.timers.values()) clearTimeout(timer);
+  /** This method stops the passes of new changes: a change starts no pass, and a waiting pass does not start. */
+  stopIntake(): void {
+    this.intake = false;
+    for (const cancel of this.timers.values()) cancel();
     this.timers.clear();
     this.dirty.clear();
+  }
+
+  /**
+   * This method waits until no work is in flight, until the `deadline` (milliseconds on the clock
+   * of the materializer), or until the signal aborts.
+   */
+  async drain(deadline: number, signal?: AbortSignal): Promise<void> {
+    while (this.pending.size > 0 && !signal?.aborted && this.clock.now() < deadline) {
+      let cancel: Cancel | undefined;
+      const tick = new Promise<void>((resolve) => {
+        cancel = this.clock.after(Math.max(0, Math.min(50, deadline - this.clock.now())), resolve);
+        cancel.unref?.();
+        signal?.addEventListener("abort", () => resolve(), { once: true });
+      });
+      await Promise.race([Promise.allSettled([...this.pending]), tick]);
+      cancel?.();
+    }
+  }
+
+  /** This method closes the streams and cancels each timer. The work in flight ends on its own. */
+  async close(): Promise<void> {
+    this.stopIntake();
+    this.stopped = true;
+    for (const cancel of this.retries) cancel();
+    this.retries.clear();
     for (const key of [...this.running.keys()]) this.tearDown(key);
     const stream = this.viewsStream;
     this.viewsStream = undefined;
     await stream?.close().catch(() => undefined);
+  }
+
+  /** This method stops the materializer: `stopIntake()`, `drain()` with no deadline, and `close()`. */
+  async stop(): Promise<void> {
+    this.stopIntake();
+    await this.drain(Number.POSITIVE_INFINITY);
+    await this.close();
     await Promise.allSettled([...this.pending]);
   }
 
@@ -403,28 +445,30 @@ export class ViewMaterializer {
 
   /** This method runs a function after `rewatchMs`, unless the materializer stops. The timer does not keep the process alive. */
   private later(work: () => void): void {
-    const timer = setTimeout(() => {
+    const cancel = this.clock.after(this.rewatchMs, () => {
+      this.retries.delete(cancel);
       if (!this.stopped) work();
-    }, this.rewatchMs);
-    timer.unref?.();
+    });
+    cancel.unref?.();
+    this.retries.add(cancel);
   }
 
   /** This method marks a collection as changed, and starts the pass of the partition after the burst. */
   private schedule(partition: string, collection: string): void {
-    if (this.stopped) return;
+    if (this.stopped || !this.intake) return;
     let dirty = this.dirty.get(partition);
     if (!dirty) this.dirty.set(partition, (dirty = new Set()));
     dirty.add(collection);
-    const before = this.timers.get(partition);
-    if (before) clearTimeout(before);
-    const timer = setTimeout(() => {
+    this.timers.get(partition)?.();
+    const cancel = this.clock.after(this.debounceMs, () => {
       this.timers.delete(partition);
+      if (!this.intake) return;
       void this.serial(partition, () => this.pass(partition)).catch((error: unknown) =>
         this.log("error", `the pass of ${partition} failed: ${String((error as Error)?.message ?? error)}`)
       );
-    }, this.debounceMs);
-    timer.unref?.();
-    this.timers.set(partition, timer);
+    });
+    cancel.unref?.();
+    this.timers.set(partition, cancel);
   }
 
   /** The views of a partition, in the order of their dependencies, and the views in a cycle. */
