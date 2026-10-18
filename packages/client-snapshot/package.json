@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/snapshot",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "Snapshot and restore development environments with S3: git state, packages and files, with streamed archives and a safe restore.",
   "keywords": [
     "snapshot",

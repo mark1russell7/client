@@ -1,5 +1,14 @@
 # @procedures/server
 
+## 0.12.1
+
+### Patch Changes
+
+- Updated dependencies [9fccd90]
+- Updated dependencies [b89e3fe]
+  - @procedures/peer@0.12.1
+  - @procedures/client@0.12.1
+
 ## 0.12.0
 
 ### Minor Changes
