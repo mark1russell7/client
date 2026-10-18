@@ -48,7 +48,10 @@ export type PartitionResolver = (ctx: ProcedureContext, requested: string | unde
 export function withPartition<T>(schema: ZodLike<T>): ZodLike<T & PartitionInput> {
   const validate = (data: unknown): { success: true; data: T & PartitionInput } | { success: false; error: { message: string; errors: { path: (string | number)[]; message: string }[] } } => {
     const fail = (message: string) => ({ success: false as const, error: { message, errors: [{ path: ["partition"], message }] } });
-    const requested = typeof data === "object" && data !== null && !Array.isArray(data) ? (data as Record<string, unknown>)["partition"] : undefined;
+    // The partition is an own field of the input only, as withoutPartition() reads it
+    const requested = typeof data === "object" && data !== null && !Array.isArray(data) && Object.prototype.hasOwnProperty.call(data, "partition")
+      ? (data as Record<string, unknown>)["partition"]
+      : undefined;
     if (requested !== undefined && (typeof requested !== "string" || !PARTITION_PATTERN.test(requested))) {
       return fail("partition must have 1 to 256 letters, digits or the characters _ . : @ ~ + | / -");
     }

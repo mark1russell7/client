@@ -179,6 +179,20 @@ describe("the partitions of the collection procedures (CLI-17)", () => {
     expect([...partitions.keys()]).toEqual(["t1/board:b1"]);
   });
 
+  it("takes the partition from the top-level field only: a partition in the selector filters the items of that storage (CLI-46)", async () => {
+    const { run, partitions } = host();
+    await run("set", { id: "a", value: { partition: "t2" }, partition: "board:b1" }, ann);
+    await run("set", { id: "b", value: { partition: "other" }, partition: "board:b1" }, ann);
+    await run("set", { id: "c", value: { partition: "t2" } }, bob);
+    expect(await run("find", { selector: { partition: "t2" }, partition: "board:b1" }, ann)).toEqual([{ id: "a", value: { partition: "t2" } }]);
+    expect([...partitions.keys()].sort()).toEqual(["t1/board:b1", "t2"]);
+    // An inherited partition is no field of the input
+    const inherited = Object.create({ partition: "board:x" }) as Record<string, unknown>;
+    inherited["id"] = "a";
+    expect(await run("get", inherited, ann)).toBeUndefined();
+    expect([...partitions.keys()].sort()).toEqual(["t1", "t1/board:b1", "t2"]);
+  });
+
   it("does not give the field partition to the schema of the operation, and keeps it in the parsed input (CLI-46)", () => {
     const procedures = createCollectionProcedures("notes");
     // withPartition() gives a ZodLike schema
