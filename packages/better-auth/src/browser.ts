@@ -30,7 +30,10 @@ export interface WebAuthnCeremonies {
 
 /** The options of `createBrowserAuth`. */
 export interface BrowserAuthOptions {
-  /** The origin of the server, for example `https://api.example.com`. An empty text is the origin of the page. */
+  /**
+   * The origin of the server. An empty text is the origin of the page, the simplest form. A server on another
+   * origin needs CORS with credentials for the origin of the page (refer to the README).
+   */
   readonly baseURL: string;
   /** The path of the auth routes. The default is `/auth`, as `betterAuthConfig` gives it. */
   readonly basePath?: string | undefined;

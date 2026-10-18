@@ -45,7 +45,8 @@ app.all("/auth/*path", toNodeHandler(auth)); // the routes belong to the app
 ```ts
 import { createBrowserAuth } from "@procedures/better-auth/browser";
 
-const auth = createBrowserAuth({ baseURL: "https://api.example.com" });
+// The page and the server have one origin (or a proxy gives the server under the origin of the page)
+const auth = createBrowserAuth({ baseURL: "" });
 const user = await auth.session(); // undefined when signed out
 const out = await auth.signInSocial("github", location.href);
 if ("url" in out) location.assign(out.url);
@@ -61,6 +62,9 @@ if ("url" in out) location.assign(out.url);
 | `signInWithPassword(input)` | A test server only (`AUTH_TEST_ACCOUNTS`): a sign-in, or a sign-up with `signUp: true`. |
 
 - Each call sends the cookies. The session cookie is `httpOnly`, so a script of the page cannot read it.
+- Give the page and the server one origin. A proxy under the origin of the page also works. This is the simplest form.
+- A server on another origin needs CORS that names exactly one trusted origin, with `Access-Control-Allow-Credentials: true`. The server of this package does not send these headers. Without them, `session()` gives `undefined` and the other calls fail.
+- A server on another site also needs the cookie attributes `SameSite=None` and `Secure`.
 - A refused call gives `{ error }`. The functions do not throw for an answer of the server.
 - The passkeys use `@simplewebauthn/browser`, which loads only when a passkey function operates.
 
