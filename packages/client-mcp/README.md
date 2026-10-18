@@ -69,6 +69,7 @@ The options:
 | `untrusted` | tag `untrusted-content` | The envelopes of text from outside the host. |
 | `content` | none | A hook that gives other text blocks for a result. |
 | `toolFilter` | none | More filters of the tools: tags and internal procedures. |
+| `toolName` | `git.status` | The name of the tool of a procedure, a function of the path. `(path) => path.join("_")` gives `git_status`. A server that moves to the host keeps its tool names. |
 | `streamLimits` | 100 items, 30 seconds | The limits of a stream that can continue without an end. |
 | `debug` | `false` | With `true`, the host writes debug lines to stderr. |
 
