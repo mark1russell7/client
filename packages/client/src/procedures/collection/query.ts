@@ -193,7 +193,8 @@ export const DEFAULT_FIND_LIMIT: number = 1000;
  * - A JSON Merge Patch (RFC 7386): each field replaces the field of the item, an object merges
  *   into an object field, and `null` removes the field.
  * - Operations (`StoragePatchOperations`): each key starts with `$`. `$set` can set `null` and
- *   nested field paths, and `$unset` removes field paths.
+ *   nested field paths, and `$unset` removes field paths. `$remove` and `$insert` remove and add
+ *   elements of arrays, as the operations `remove` and `add` of JSON Patch (RFC 6902).
  */
 export type StoragePatch = Readonly<Record<string, unknown>>;
 
@@ -206,6 +207,17 @@ export type StoragePatchOperations = {
   readonly $set?: Readonly<Record<string, unknown>> | undefined;
   /** The field paths to remove. An element of an array becomes `null`. */
   readonly $unset?: readonly string[] | undefined;
+  /**
+   * The field paths to remove. An element of an array leaves the array, and the next elements move
+   * down by one. A field of an object goes, as with `$unset`. A missing path changes nothing.
+   */
+  readonly $remove?: readonly string[] | undefined;
+  /**
+   * The elements to add to arrays. Each path ends with an index, for example `{ "tags.1": "x" }`.
+   * The element at that index and the next elements move up by one. The index that is equal to the
+   * length of the array adds the element at the end.
+   */
+  readonly $insert?: Readonly<Record<string, unknown>> | undefined;
 };
 
 //
@@ -870,7 +882,13 @@ export function queryEntries<T>(
 // ═══ The patch ═══
 //
 
-const PATCH_OPERATIONS = new Set(["$set", "$unset"]);
+const PATCH_OPERATIONS = new Set(["$set", "$unset", "$remove", "$insert"]);
+
+/** The path of the array of an element path: the path without its last part. */
+function arrayPathOf(key: string): string {
+  const dot = key.lastIndexOf(".");
+  return dot === -1 ? "" : key.slice(0, dot);
+}
 
 /** True for the operations form of a patch: an object whose defined keys each start with `$`. */
 export function isPatchOperations(fields: unknown): fields is StoragePatchOperations {
@@ -879,8 +897,13 @@ export function isPatchOperations(fields: unknown): fields is StoragePatchOperat
 
 /**
  * This function gives the problems of the fields of a patch. An empty list means that the patch
- * is correct: a JSON Merge Patch, or the operations `$set` and `$unset`. A patch that mixes the two
- * forms is not correct.
+ * is correct: a JSON Merge Patch, or the operations `$set`, `$unset`, `$remove` and `$insert`.
+ *
+ * - A patch that mixes the two forms is not correct.
+ * - Two paths of a patch must not overlap: a path must not be the same as another path, or start
+ *   with it.
+ * - Each path of `$insert` ends with an index.
+ * - A patch must not remove and insert elements of the same array.
  */
 export function patchProblems(fields: unknown): string[] {
   if (!isObject(fields)) return ["the fields of a patch must be an object"];
@@ -888,12 +911,12 @@ export function patchProblems(fields: unknown): string[] {
   const operations = keys.filter((key) => key.startsWith("$"));
   if (operations.length === 0) return [];
   if (operations.length < keys.length) {
-    return ["the patch mixes operations and fields: give { $set, $unset }, or only fields (a JSON Merge Patch)"];
+    return ["the patch mixes operations and fields: give operations ($set, $unset, $remove, $insert), or only fields (a JSON Merge Patch)"];
   }
   const problems: string[] = [];
   const paths: string[] = [];
   for (const operation of operations) {
-    if (!PATCH_OPERATIONS.has(operation)) problems.push(`the patch operation ${operation} is not known: use $set and $unset`);
+    if (!PATCH_OPERATIONS.has(operation)) problems.push(`the patch operation ${operation} is not known: use $set, $unset, $remove and $insert`);
   }
   const set = fields["$set"];
   if (set !== undefined) {
@@ -904,6 +927,34 @@ export function patchProblems(fields: unknown): string[] {
   if (unset !== undefined) {
     if (!Array.isArray(unset) || !unset.every((path) => typeof path === "string")) problems.push("$unset takes a list of field paths");
     else for (const key of unset as string[]) if (pathOf(key, "$unset", problems)) paths.push(key);
+  }
+  const remove = fields["$remove"];
+  const removedArrays = new Set<string>();
+  if (remove !== undefined) {
+    if (!Array.isArray(remove) || !remove.every((path) => typeof path === "string")) problems.push("$remove takes a list of field paths");
+    else {
+      for (const key of remove as string[]) {
+        if (!pathOf(key, "$remove", problems)) continue;
+        paths.push(key);
+        removedArrays.add(arrayPathOf(key));
+      }
+    }
+  }
+  const insert = fields["$insert"];
+  if (insert !== undefined) {
+    if (!isObject(insert)) problems.push("$insert takes an object of field paths and values");
+    else {
+      for (const key of definedKeys(insert)) {
+        const segments = pathOf(key, "$insert", problems);
+        if (!segments) continue;
+        if (!INDEX.test(segments.at(-1)!)) {
+          problems.push(`$insert: the field path "${key}" does not end with an index`);
+          continue;
+        }
+        paths.push(key);
+        if (removedArrays.has(arrayPathOf(key))) problems.push(`the patch removes and inserts elements of the same array ${arrayPathOf(key)}`);
+      }
+    }
   }
   for (let first = 0; first < paths.length; first++) {
     for (let second = first + 1; second < paths.length; second++) {
@@ -969,34 +1020,92 @@ function setIn(container: unknown, path: readonly string[], index: number, value
   return copy;
 }
 
-/** The container without the value at a path: a copy of each object and array on the path. */
-function unsetIn(container: unknown, path: readonly string[], index: number): unknown {
+/**
+ * The container without the value at a path: a copy of each object and array on the path. With
+ * `splice`, an element of an array leaves the array (`$remove`). Without it, the element becomes
+ * `null`, as in MongoDB (`$unset`).
+ */
+function unsetIn(container: unknown, path: readonly string[], index: number, splice = false): unknown {
   const key = path[index]!;
   const last = index === path.length - 1;
   if (Array.isArray(container)) {
     if (!INDEX.test(key) || Number(key) >= container.length) return container;
     const copy = container.slice();
-    // An element of an array becomes null, as in MongoDB: the other elements keep their places
-    copy[Number(key)] = last ? null : unsetIn(copy[Number(key)], path, index + 1);
+    if (last && splice) copy.splice(Number(key), 1);
+    else copy[Number(key)] = last ? null : unsetIn(copy[Number(key)], path, index + 1, splice);
     return copy;
   }
   if (!isObject(container) || !Object.hasOwn(container, key)) return container;
   const copy = copyOf(container);
   if (last) delete copy[key];
-  else put(copy, key, unsetIn(copy[key], path, index + 1));
+  else put(copy, key, unsetIn(copy[key], path, index + 1, splice));
   return copy;
+}
+
+/** The container with a new element in an array at a path: a copy of each object and array on the path. */
+function insertIn(container: unknown, path: readonly string[], index: number, value: unknown): unknown {
+  const key = path[index]!;
+  const where = path.slice(0, index).join(".") || "the item";
+  if (index === path.length - 1) {
+    if (!Array.isArray(container)) throw new TypeError(`The patch cannot insert at ${path.join(".")}: ${where} is not an array`);
+    const position = Number(key);
+    if (position > container.length) {
+      throw new TypeError(`The patch cannot insert at ${path.join(".")}: ${where} has ${container.length} elements`);
+    }
+    const copy = container.slice();
+    copy.splice(position, 0, value);
+    return copy;
+  }
+  if (Array.isArray(container)) {
+    if (!INDEX.test(key) || Number(key) >= container.length) {
+      throw new TypeError(`The patch cannot insert at ${path.join(".")}: ${where} has no element ${key}`);
+    }
+    const copy = container.slice();
+    copy[Number(key)] = insertIn(copy[Number(key)], path, index + 1, value);
+    return copy;
+  }
+  if (!isObject(container) || !Object.hasOwn(container, key)) {
+    throw new TypeError(`The patch cannot insert at ${path.join(".")}: ${where} has no field ${key}`);
+  }
+  const copy = copyOf(container);
+  put(copy, key, insertIn(copy[key], path, index + 1, value));
+  return copy;
+}
+
+/** An operation that moves elements of an array: a `$remove` or an `$insert`. */
+interface Move {
+  readonly path: readonly string[];
+  readonly insert: boolean;
+  readonly value?: unknown;
+}
+
+/**
+ * The order of the moves. Each index refers to the item before the patch. A move changes the
+ * indices of the next elements of its array, and of the paths through them. Thus the deeper paths
+ * go first, and in one array the higher indices go first.
+ */
+function compareMoves(a: Move, b: Move): number {
+  if (a.path.length !== b.path.length) return b.path.length - a.path.length;
+  return Number(b.path.at(-1)) - Number(a.path.at(-1)) || 0;
 }
 
 /**
  * This function applies a patch to a value, and gives the new value: a JSON Merge Patch, or the
- * operations `$set` and `$unset`. It does not change the value or the patch.
+ * operations `$set`, `$unset`, `$remove` and `$insert`. It does not change the value or the patch.
  *
  * - `$set` sets each field path, also to `null`. A missing or null part of a path becomes an object.
  * - `$unset` removes each field path. An element of an array becomes `null`.
+ * - `$remove` removes each field path. An element of an array leaves the array, as the operation
+ *   `remove` of JSON Patch (RFC 6902). A missing path changes nothing.
+ * - `$insert` adds each element to an array, as the operation `add` of JSON Patch. The index that
+ *   is equal to the length adds the element at the end.
+ * - Each index refers to the value before the patch. `$set` and `$unset` go first. Then the
+ *   function removes and adds the elements from the deepest path, and from the highest index.
  * - A value that is not an object becomes an empty object first.
  *
- * @throws TypeError when the patch has a problem (refer to `patchProblems`), or when a path of
- *   `$set` goes through a value that is not an object, or past the end of an array
+ * @throws TypeError when the patch has a problem (refer to `patchProblems`), when a path of
+ *   `$set` goes through a value that is not an object, or past the end of an array, or when a path
+ *   of `$insert` is not in an array, or goes past the end of the array
  */
 export function applyPatch(value: unknown, fields: StoragePatch): Record<string, unknown> {
   const problems = patchProblems(fields);
@@ -1005,5 +1114,10 @@ export function applyPatch(value: unknown, fields: StoragePatch): Record<string,
   let result: unknown = isObject(value) ? value : {};
   for (const [key, field] of definedEntries(fields.$set ?? {})) result = setIn(result, key.split("."), 0, field);
   for (const key of fields.$unset ?? []) result = unsetIn(result, key.split("."), 0);
+  const moves: Move[] = [
+    ...(fields.$remove ?? []).map((key): Move => ({ path: key.split("."), insert: false })),
+    ...definedEntries(fields.$insert ?? {}).map(([key, field]): Move => ({ path: key.split("."), insert: true, value: field })),
+  ].sort(compareMoves);
+  for (const move of moves) result = move.insert ? insertIn(result, move.path, 0, move.value) : unsetIn(result, move.path, 0, true);
   return result === value ? copyOf(value as Record<string, unknown>) : (result as Record<string, unknown>);
 }

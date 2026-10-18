@@ -92,7 +92,7 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
 - **The queries.** `query(selector, { sort, skip, limit })` gives the result of `queryEntries()` of `@procedures/collections`. `ApiStorage.query()` sends the JSON selector to the procedure `collections.<name>.find`, so the server applies it.
-- **The patches.** `ApiStorage.patch(id, fields)` sends a patch to the procedure `collections.<name>.patch`. The server changes the item in one step. A patch is a JSON Merge Patch, or the operations `{ $set, $unset }`.
+- **The patches.** `ApiStorage.patch(id, fields)` sends a patch to the procedure `collections.<name>.patch`. The server changes the item in one step. A patch is a JSON Merge Patch, or the operations `{ $set, $unset, $remove, $insert }`. An index of `$remove` or `$insert` is a position at the time of the patch. A client that works from an older read uses the version check of the collection, where the collection has one.
 - **The query policy.** The server applies the policy of its host to each `find`. The default policy does not permit `$regex`, and a `find` gets at most 1000 items.
 
 Notes:

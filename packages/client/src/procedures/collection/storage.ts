@@ -84,7 +84,7 @@ export interface CollectionStorage<T> {
   clear(options?: StorageWriteOptions): Promise<void>;
   /**
    * This method changes the item of an id in one step, and gives the new item, or undefined for a
-   * missing id. The fields are a JSON Merge Patch, or the operations `{ $set, $unset }`. The
+   * missing id. The fields are a JSON Merge Patch, or the operations `{ $set, $unset, $remove, $insert }`. The
    * procedure `patch` uses it. A storage without it gets a read and a write of the item.
    */
   patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;

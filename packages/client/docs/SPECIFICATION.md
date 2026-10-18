@@ -227,7 +227,7 @@ interface Method {
 | `storage.getAll()` | `{ service: "users", operation: "getAll" }` |
 | `storage.find(predicate)` | `{ service: "users", operation: "getAll" }`, then the predicate in the client |
 | `storage.query(selector, { sort, skip, limit })` | `{ service: "users", operation: "find" }`: the server runs the JSON selector under its query policy |
-| `storage.patch(id, fields)` | `{ service: "users", operation: "patch" }`: a JSON Merge Patch, or `{ $set, $unset }`, in one step |
+| `storage.patch(id, fields)` | `{ service: "users", operation: "patch" }`: a JSON Merge Patch, or `{ $set, $unset, $remove, $insert }`, in one step |
 | `storage.has(id)` | `{ service: "users", operation: "has" }` |
 | `storage.size()` | `{ service: "users", operation: "size" }` |
 | `storage.clear()` | `{ service: "users", operation: "clear" }` |

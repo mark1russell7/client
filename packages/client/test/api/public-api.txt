@@ -3602,6 +3602,8 @@ export type StoragePatch = Readonly<Record<string, unknown>>;
 export type StoragePatchOperations = {
     readonly $set?: Readonly<Record<string, unknown>> | undefined;
     readonly $unset?: readonly string[] | undefined;
+    readonly $remove?: readonly string[] | undefined;
+    readonly $insert?: Readonly<Record<string, unknown>> | undefined;
 };
 
 ### dist/procedures/collection/query.d.ts#StorageQueryOperator

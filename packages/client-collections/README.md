@@ -181,10 +181,15 @@ await notes.query({ title: { $regex: "^draft", $options: "i" } });
 |---|---|---|
 | JSON Merge Patch (RFC 7386) | `{ title: "New", meta: { score: 2 }, draft: null }` | Each field replaces the field of the item. An object merges into an object field. `null` removes the field. |
 | Operations | `{ $set: { "meta.score": 2, draft: null }, $unset: ["tags.0"] }` | `$set` sets field paths, also to `null`. `$unset` removes field paths. An element of an array becomes `null`. |
+| Operations on arrays | `{ $remove: ["tags.0"], $insert: { "rows.2": { n: 1 } } }` | `$remove` takes an element out of an array, and the next elements move down. `$insert` adds an element at an index. These are the `remove` and the `add` of JSON Patch (RFC 6902). |
 
 - `applyPatch(value, fields)` applies either form, and `mergePatch(value, fields)` applies only a JSON Merge Patch. `patchProblems(fields)` gives the problems of a patch.
 - `$set` makes each missing or `null` part of a path an object. A path through another value, or past the end of an array, is a `TypeError`, and the item does not change.
 - `$set` comes before `$unset`. Two paths that overlap, for example `a` and `a.b`, are an error.
+- Each index of a patch refers to the item before the patch. `$remove` and `$insert` come after `$set` and `$unset`.
+- `$remove` of a field of an object is the same as `$unset`. `$remove` of a missing path changes nothing.
+- `$insert` at the index that is equal to the length adds the element at the end. An index past the end is a `TypeError`.
+- A patch that removes and inserts elements of the same array is an error.
 
 ### The overlay: a document through a stack of layers
 

@@ -522,7 +522,8 @@ export const findOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Collec
 
 /**
  * Input for patch operation: the id, and the fields. The fields are a JSON Merge Patch (RFC 7386),
- * or the operations `{ $set, $unset }`, which can set `null` and nested field paths.
+ * or the operations `{ $set, $unset, $remove, $insert }`. They can set `null` and nested field paths,
+ * and remove and add the elements of arrays.
  */
 export interface PatchInput {
   id: string;
