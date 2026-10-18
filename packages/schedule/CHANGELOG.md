@@ -1,5 +1,19 @@
 # @procedures/schedule
 
+## 0.9.0
+
+### Patch Changes
+
+- dca28c1: The packages accept `@mark1russell7/service` 0.5.1 and later 0.5 versions, and `@procedures/client` accepts `@mark1russell7/algebra` 0.7.1. Before, the range `^0.4.1` stopped below 0.5. An application on service 0.5 then got a second copy of service inside the client.
+  
+  - The client uses only the `/backoff`, `/heartbeat` and `/testing` entries of service. The code of `/backoff`, `/heartbeat` and the clock is the same in 0.4.1 and 0.5.1. `/testing` only gets new exports.
+  - The public API of the client does not change.
+- Updated dependencies [8bb469c]
+- Updated dependencies [dc03903]
+- Updated dependencies [dca28c1]
+  - @procedures/client@0.9.0
+  - @procedures/store@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes
