@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.0",
+    "@procedures/access": "workspace:*",
     "@procedures/archive": "workspace:*",
     "@procedures/bundle-assistant": "workspace:*",
     "@procedures/bundle-dev": "workspace:*",
