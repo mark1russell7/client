@@ -1,5 +1,12 @@
 # @procedures/privacy-scan
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [254ee7b]
+  - @procedures/client@0.10.0
+
 ## 0.9.2
 
 ### Patch Changes
