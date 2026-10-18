@@ -8,13 +8,17 @@
  * a local server apply: the server listens on loopback by default, it refuses a web page of
  * another host or origin (DNS rebinding, cross-site requests), and with a token it refuses a
  * request without the token.
+ *
+ * Each tool call carries the credentials of its HTTP request (CLI-10), so the request hook of the
+ * server (`principalOf`) and its token check apply. A server that reads cookies trusts a request
+ * with a cookie only from a named origin (CSRF).
  */
 
 import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { bearerOf, checkBrowserRequest, tokenMatches } from "@procedures/client";
+import { bearerOf, checkBrowserRequest, hasAmbientCredentials, tokenMatches } from "@procedures/client";
 import type { HttpTransportOptions } from "../types.js";
 
 /** The HTTP endpoint of an MCP server, with a session for each client. */
@@ -71,8 +75,10 @@ export function createHttpTransport(
       if (owned) refuse(res, 404, "NOT_FOUND", `No MCP endpoint at ${url.pathname}`);
       return;
     }
-    // A web page must not reach the tools: the host and the origin of the request
-    const guard = checkBrowserRequest(req, { ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}) });
+    // A web page must not reach the tools: the host and the origin of the request. A server that
+    // reads cookies trusts a request with ambient credentials only from a named origin (CSRF)
+    const ambient = options.ambientCredentials === "always" || hasAmbientCredentials(req.headers);
+    const guard = checkBrowserRequest(req, { ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}) }, false, ambient);
     if (!guard.ok) {
       refuse(res, guard.status, guard.code, guard.message);
       return;

@@ -33,6 +33,8 @@ The package has the bin `mcp-dev-tools`, which starts the same file.
 
 Claude Code starts the server once for each session. After a rebuild, restart the MCP server (or the session) to get the changes.
 
+When the client closes the input of stdio, the server stops: the calls in flight get their grace time, and then the process ends.
+
 ## Configuration
 
 | Environment variable | Default | Function |
@@ -83,6 +85,7 @@ The rules and the table of all the procedures are in [CAPABILITIES-2026-10.md](.
 2. A procedure is a tool when its namespace is in `mcpNamespaces` of a bundle, and its key is not in `mcpExclude`.
 3. A `ProcedureServer` serves the registry with that rule as its `expose` rule. A data-driven procedure (`client.chain`, `client.eval`, a procedure of `procedure.define`) can use only exposed procedures.
 4. `McpServerTransport` gives the exposed procedures as tools over stdio. It tells Claude when the list of tools changes.
+   `createMcpHost()` of `@procedures/mcp-server` builds the host: the same factory as `mcp.serve` and the MCP hosts of the apps.
 5. The host checks the program of each call to a data-driven procedure before the first step (`programCheckInterceptor` of `@procedures/compiler`). When the check finds an error, no step starts. Thus a refusal in step 3 comes before the write of step 1.
 
 > [!WARNING]

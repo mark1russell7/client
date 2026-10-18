@@ -12,19 +12,63 @@ import {
   type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { ServerTransport, Server, ProcedureRegistry } from "@procedures/client";
-import { PROCEDURE_REGISTRY, pathToMethod } from "@procedures/client";
+import type {
+  ServerTransport,
+  Server,
+  ProcedureRegistry,
+  RequestHandler,
+  Credentials,
+  Elicit,
+  ElicitMode,
+  ElicitRequest,
+  ElicitResult,
+  ElicitOptions,
+  ReportProgress,
+} from "@procedures/client";
+import { PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
-  decodePath,
   type McpTool,
 } from "@procedures/mcp";
-import type { McpServerTransportOptions, McpServerTransportState } from "../types.js";
+import type { McpServerTransportOptions, McpServerTransportState, McpTextBlock, McpToolContent } from "../types.js";
 import { createStdioTransport } from "./stdio.js";
 import { createSseTransport } from "./sse.js";
 import { createHttpTransport, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
+import { createUntrustedEnvelopes } from "../untrusted.js";
+
+/**
+ * The tools with the names of a `toolName` function. Without the function, the tools keep the
+ * default names.
+ */
+export function namedTools(tools: readonly McpTool[], toolName?: ((path: readonly string[]) => string) | undefined): McpTool[] {
+  return toolName ? tools.map((tool) => ({ ...tool, name: toolName(tool.procedurePath) })) : [...tools];
+}
+
+/** The time that the face waits for the answer of the person, when the question gives no time. */
+export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
+
+/** The parts of the request handler context of the SDK that a tool call uses. */
+interface CallExtra {
+  signal: AbortSignal;
+  requestId: string | number;
+  _meta?: { progressToken?: string | number | undefined } | undefined;
+  sendNotification: (notification: ServerNotification) => Promise<void>;
+  /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
+  requestInfo?: { headers: Record<string, string | string[] | undefined>; url?: URL | undefined } | undefined;
+}
+
+/**
+ * The credentials of a tool call that came over the network (CLI-10): the bearer token, the
+ * cookies, the headers and the query of its HTTP request. A call over stdio or an in-memory
+ * transport has none: it comes from this process.
+ */
+function callCredentials(extra: CallExtra): Credentials | undefined {
+  const info = extra.requestInfo;
+  if (!info) return undefined;
+  return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
+}
 
 /**
  * Generate a unique request ID.
@@ -32,8 +76,10 @@ import { optionalMs } from "@procedures/client";
 /** The most text blocks of a stream result: the last items of a long stream. */
 const MAX_STREAM_BLOCKS = 100;
 
-function toText(value: unknown): string {
-  return typeof value === "string" ? value : (JSON.stringify(value, null, 2) ?? String(value));
+/** The text of a value: a string as it is, another value as JSON (pretty, or compact on one line). */
+function toText(value: unknown, json: "pretty" | "compact" = "pretty"): string {
+  if (typeof value === "string") return value;
+  return (json === "compact" ? JSON.stringify(value) : JSON.stringify(value, null, 2)) ?? String(value);
 }
 
 /**
@@ -95,6 +141,8 @@ export class McpServerTransport implements ServerTransport {
   private listChangedTimer: ReturnType<typeof setTimeout> | undefined;
   /** The limits of a stream that can run without an end, the time in milliseconds (R15) */
   private readonly streamLimits: { items: number; timeMs: number };
+  /** This function removes the listener of the end of the stdio input */
+  private stdinEnd: (() => void) | undefined;
 
   constructor(server: Server, options: McpServerTransportOptions = {}) {
     this.server = server;
@@ -134,6 +182,8 @@ export class McpServerTransport implements ServerTransport {
       capabilities: {
         tools: { listChanged: true },
       },
+      // The instructions of the server: the client gives them to the model (CLI-10)
+      ...(this.options.instructions !== undefined ? { instructions: this.options.instructions } : {}),
     });
     this.setupHandlers(server);
     return server;
@@ -170,11 +220,13 @@ export class McpServerTransport implements ServerTransport {
         };
       }
 
-      // Decode path from tool name. The method is the core mapping of every host (deep dive
-      // architecture review 3.3)
-      const path = decodePath(name);
+      // The path of the procedure of the tool. The method is the core mapping of every host
+      // (deep dive architecture review 3.3). A tool name of the toolName option does not decode,
+      // and a sanitized segment does not decode to the segment of the procedure.
+      const path = tool.procedurePath;
 
       // Build ServerRequest
+      const credentials = callCredentials(extra as CallExtra);
       const serverRequest = {
         id: generateRequestId(),
         method: pathToMethod(path),
@@ -185,26 +237,41 @@ export class McpServerTransport implements ServerTransport {
         },
         // A cancelled tool call (notifications/cancelled) aborts the procedure
         signal: extra.signal,
+        // The credentials of a call over the network: the request hook (principalOf) and the
+        // token check of the server apply to it (CLI-10)
+        ...(credentials ? { credentials } : {}),
+      };
+      // What this face offers the procedure (CLI-12): the questions to the person, and the
+      // progress for a caller that sent a progress token
+      const elicit = elicitWithPolicy(this.faceElicit(server, extra), this.options.elicitation);
+      const progress = this.callProgress(extra);
+      const callRequest = {
+        ...serverRequest,
+        ...(elicit ? { elicit } : {}),
+        ...(progress ? { progress: progress.report } : {}),
       };
 
       try {
         // Process through universal server
-        const response = await this.server.handle(serverRequest);
+        const response = await this.server.handle(callRequest);
 
         this.log(`Tool ${name} completed: ${response.status.type}`);
 
         // Convert to MCP result
         if (response.status.type === "success" && response.stream) {
           const unbounded = response.metadata?.["stream"] === "unbounded";
-          return await this.streamResult(response.stream, extra, unbounded);
+          // The items are the progress of a stream, unless the procedure reports its own
+          return await this.streamResult(response.stream, extra, unbounded, tool, () => progress?.used() === true);
         }
         if (response.status.type === "success") {
-          const structured = tool.outputSchema ? structuredContentOf(response.payload) : undefined;
+          const rendered = this.render(response.payload, tool);
+          const hooked = this.options.content?.({ ...rendered, tool, value: response.payload });
+          const result = hooked ?? rendered;
           return {
-            content: [{ type: "text" as const, text: toText(response.payload) }],
+            content: result.content,
             // MCP structured output: the result as an object, for a tool with an output schema.
             // The text block stays, for clients that do not read structured content.
-            ...(structured ? { structuredContent: structured } : {}),
+            ...(result.structuredContent ? { structuredContent: result.structuredContent } : {}),
           };
         } else {
           // The code and the reason of the error travel on each face (roadmap R25)
@@ -247,7 +314,9 @@ export class McpServerTransport implements ServerTransport {
       _meta?: { progressToken?: string | number | undefined } | undefined;
       sendNotification: (notification: ServerNotification) => Promise<void>;
     },
-    unbounded = false
+    unbounded = false,
+    tool?: McpTool,
+    ownProgress: () => boolean = () => false
   ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
     const progressToken = extra._meta?.progressToken;
     const blocks: Array<{ type: "text"; text: string }> = [];
@@ -265,14 +334,17 @@ export class McpServerTransport implements ServerTransport {
           count--;
           break;
         }
-        const text = toText(item);
+        // An item with untrusted fields gives its data, then its envelopes (CLI-10)
+        const rendered = tool?.untrusted ? this.render(item, tool).content : undefined;
+        const text = rendered ? rendered.map((block) => block.text).join("\n") : toText(item, this.options.json);
         blocks.push({ type: "text", text });
         if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
-        if (progressToken !== undefined) {
+        if (progressToken !== undefined && !ownProgress()) {
+          const message = rendered ? rendered[0]!.text : text;
           await extra
             .sendNotification({
               method: "notifications/progress",
-              params: { progressToken, progress: count, message: text.slice(0, 1000) },
+              params: { progressToken, progress: count, message: message.slice(0, 1000) },
             })
             .catch(() => undefined);
         }
@@ -289,6 +361,96 @@ export class McpServerTransport implements ServerTransport {
     }
     if (count === 0) blocks.push({ type: "text", text: "(no items)" });
     return { content: blocks };
+  }
+
+  /**
+   * The content of a successful value. A tool with untrusted fields (`metadata.untrusted`) gives
+   * the data as JSON in the first block. The second block has the texts of those fields in
+   * envelopes. In the structured content, each untrusted field is the text of its envelopes.
+   */
+  private render(value: unknown, tool: McpTool): McpToolContent {
+    const fields = tool.untrusted ?? [];
+    if (fields.length === 0 || value === null || typeof value !== "object" || Array.isArray(value)) {
+      const structured = tool.outputSchema ? structuredContentOf(value) : undefined;
+      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(structured ? { structuredContent: structured } : {}) };
+    }
+    const data: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+    const envelopes = createUntrustedEnvelopes(this.options.untrusted ?? {});
+    const wrap = this.options.untrusted?.wrap;
+    const texts: Record<string, string> = {};
+    const blocks: string[] = [];
+    for (const field of fields) {
+      if (!(field in data)) continue;
+      const items = untrustedTextsOf(data[field]);
+      delete data[field];
+      const text = wrap ? wrap(items, { tool: tool.name, field }) : envelopes.text(items);
+      texts[field] = text;
+      if (text !== "") blocks.push(text);
+    }
+    const content: McpTextBlock[] = [{ type: "text", text: toText(data, this.options.json) }];
+    if (blocks.length > 0) content.push({ type: "text", text: blocks.join("\n") });
+    const structured = tool.outputSchema ? structuredContentOf(data) : undefined;
+    return { content, ...(structured ? { structuredContent: { ...structured, ...texts } } : {}) };
+  }
+
+  /**
+   * The function of this face that asks the person, or undefined when the client cannot ask
+   * (it declares no elicitation). Each question goes with the tool call (`relatedRequestId`), so
+   * the Streamable HTTP transport sends it on the stream of the call.
+   */
+  private faceElicit(server: McpServer, extra: CallExtra): Elicit | undefined {
+    const capability = server.getClientCapabilities()?.elicitation as { form?: unknown; url?: unknown } | undefined;
+    if (!capability) return undefined;
+    const modes: ElicitMode[] = [];
+    if (capability.form) modes.push("form");
+    if (capability.url) modes.push("url");
+    if (modes.length === 0) return undefined;
+    return createElicit(modes, async (request: ElicitRequest, options: ElicitOptions): Promise<ElicitResult> => {
+      const timeout = optionalMs(options.timeout, "timeout") ?? DEFAULT_ELICIT_TIMEOUT_MS;
+      const signal = options.signal && options.signal !== extra.signal ? AbortSignal.any([extra.signal, options.signal]) : extra.signal;
+      const params =
+        request.mode === "url"
+          ? { mode: "url" as const, message: request.message, url: request.url, elicitationId: request.id ?? globalThis.crypto.randomUUID() }
+          : {
+              mode: "form" as const,
+              message: request.message,
+              requestedSchema: {
+                type: "object" as const,
+                properties: request.fields,
+                ...(request.required ? { required: [...request.required] } : {}),
+              },
+            };
+      // The SDK types do not agree with exactOptionalPropertyTypes and readonly arrays
+      const reply = await server.elicitInput(params as never, { relatedRequestId: extra.requestId, signal, timeout });
+      return { action: reply.action, ...(reply.content ? { content: reply.content } : {}), by: "person" };
+    });
+  }
+
+  /**
+   * The progress function of a call, when the caller sent a progress token. `used()` tells if
+   * the procedure reported its own progress.
+   */
+  private callProgress(extra: CallExtra): { report: ReportProgress; used: () => boolean } | undefined {
+    const progressToken = extra._meta?.progressToken;
+    if (progressToken === undefined) return undefined;
+    let used = false;
+    return {
+      used: () => used,
+      report: async (update) => {
+        used = true;
+        await extra
+          .sendNotification({
+            method: "notifications/progress",
+            params: {
+              progressToken,
+              progress: update.progress,
+              ...(update.total !== undefined ? { total: update.total } : {}),
+              ...(update.message !== undefined ? { message: update.message.slice(0, 1000) } : {}),
+            },
+          })
+          .catch(() => undefined);
+      },
+    };
   }
 
   private setupRegistryListeners(): void {
@@ -331,7 +493,11 @@ export class McpServerTransport implements ServerTransport {
     const before = this.toolSignature();
 
     this.tools.clear();
-    for (const tool of mcpTools) {
+    for (const tool of namedTools(mcpTools, this.options.toolName)) {
+      if (this.tools.has(tool.name)) {
+        // MUST be stderr: stdout carries the protocol of stdio
+        console.error(`[mcp] Two procedures have the tool name "${tool.name}": the transport keeps ${tool.procedurePath.join(".")}`);
+      }
       this.tools.set(tool.name, tool);
     }
 
@@ -390,11 +556,26 @@ export class McpServerTransport implements ServerTransport {
         transport = this.options.sdkTransport;
         this.log("Using the given transport");
       } else if (this.options.transport === "stdio") {
-        transport = createStdioTransport();
+        const stdio = this.options.stdio;
+        const stdin = stdio?.stdin ?? process.stdin;
+        transport = createStdioTransport(stdin, stdio?.stdout);
+        // The client closed the input: the host stops (CLI-10). The SDK does not watch the end.
+        if (stdio?.onEnd) {
+          const onEnd = stdio.onEnd;
+          const listener = (): void => {
+            this.log("The input of stdio ended");
+            onEnd();
+          };
+          stdin.once("end", listener);
+          this.stdinEnd = () => stdin.off("end", listener);
+        }
         this.log("Using stdio transport");
       } else if (this.options.transport === "http") {
         // Streamable HTTP (roadmap R26): an MCP server of its own for each session
-        this.http = createHttpTransport(this.options.httpOptions ?? {}, async (sessionTransport) => {
+        // The face trusts cookies only as the server reads them (CSRF)
+        const ambientCredentials = (this.server as Partial<RequestHandler>).ambientCredentials;
+        const httpOptions = { ...this.options.httpOptions, ...(ambientCredentials ? { ambientCredentials } : {}) };
+        this.http = createHttpTransport(httpOptions, async (sessionTransport) => {
           const sessionServer = this.createSdkServer();
           this.sessionServers.add(sessionServer);
           sessionServer.onclose = () => this.sessionServers.delete(sessionServer);
@@ -416,6 +597,8 @@ export class McpServerTransport implements ServerTransport {
       }
     } catch (error) {
       this.removeRegistryListeners();
+      this.stdinEnd?.();
+      this.stdinEnd = undefined;
       await this.http?.close().catch(() => undefined);
       this.http = undefined;
       throw error;
@@ -435,6 +618,8 @@ export class McpServerTransport implements ServerTransport {
 
     // Cleanup registry listeners
     this.removeRegistryListeners();
+    this.stdinEnd?.();
+    this.stdinEnd = undefined;
     if (this.listChangedTimer) {
       clearTimeout(this.listChangedTimer);
       this.listChangedTimer = undefined;
