@@ -293,6 +293,7 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `outside-root` | `@procedures/fs` | The path is outside the root of the files. |
 | `host-not-allowed` | `@procedures/http` | The procedure refuses the host of the URL. |
 | `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
+| `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
 | `origin-not-allowed` | The browser checks of `procedureHandler` | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
 | `host-header-not-allowed` | The browser checks of `procedureHandler` | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
 | `method-not-allowed` | The browser checks of `procedureHandler` | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
