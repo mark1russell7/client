@@ -1,5 +1,12 @@
 # @procedures/geo
 
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies [e2fe006]
+  - @procedures/client@0.13.0
+
 ## 0.12.2
 
 ### Patch Changes
