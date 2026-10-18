@@ -1,5 +1,17 @@
 # @procedures/snapshot
 
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies [e2fe006]
+  - @procedures/client@0.13.0
+  - @procedures/fs@0.13.0
+  - @procedures/git@0.13.0
+  - @procedures/pnpm@0.13.0
+  - @procedures/s3@0.13.0
+  - @procedures/shell@0.13.0
+
 ## 0.12.2
 
 ### Patch Changes
