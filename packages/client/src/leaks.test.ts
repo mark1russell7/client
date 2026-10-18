@@ -277,7 +277,7 @@ describe("no leak after 1,000 aborted calls (R30)", { timeout: 30_000 }, () => {
         handlers,
         servers: [server],
         maps: () => ({
-          "HttpServerTransport.openRequests": (transport as unknown as { openRequests: Set<unknown> }).openRequests.size,
+          "HttpServerTransport.openRequests": (transport as unknown as { handler: { inFlight(): number } }).handler.inFlight(),
           "HttpServerTransport.keepAliveTimers": timers.live,
         }),
       },

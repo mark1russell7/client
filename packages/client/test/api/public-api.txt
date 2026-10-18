@@ -4,10 +4,11 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 444 names
+## . (dist/index.d.ts): 451 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
 type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
 type BatchConfig: dist/client/call-types.d.ts#BatchConfig
@@ -144,6 +145,7 @@ type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
 type PortTransportOptions: dist/adapters/port/transport.d.ts#PortTransportOptions
 type Principal: dist/server/types.d.ts#Principal
+type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 type Procedure: dist/procedures/types.d.ts#Procedure
 ProcedureBuilder: dist/procedures/define.d.ts#ProcedureBuilder
 type ProcedureCallResult: dist/client/call-types.d.ts#ProcedureCallResult
@@ -185,7 +187,9 @@ type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
 type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type RequestCredentialsOptions: dist/server/request-auth.d.ts#RequestCredentialsOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
+type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type ResponseItem: dist/client/types.d.ts#ResponseItem
@@ -279,6 +283,7 @@ clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProced
 clientModule: dist/procedures/module.d.ts#clientModule
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
 constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
+cookiesOf: dist/server/request-auth.d.ts#cookiesOf
 coreModule: dist/procedures/core/index.d.ts#coreModule
 coreProcedures: dist/procedures/core/index.d.ts#coreProcedures
 createAndRegister: dist/procedures/discovery.d.ts#createAndRegister
@@ -329,6 +334,7 @@ getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedu
 getRefName: dist/procedures/ref.d.ts#getRefName
 getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+hasAmbientCredentials: dist/server/browser-guard.d.ts#hasAmbientCredentials
 hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
@@ -419,6 +425,7 @@ registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
 remoteEvents: dist/events/remote.d.ts#remoteEvents
 replayTransitions: dist/machines.d.ts#replayTransitions
+requestCredentials: dist/server/request-auth.d.ts#requestCredentials
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
@@ -451,10 +458,11 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 427 names
+## ./browser (dist/browser.d.ts): 433 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
 type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
 type BatchConfig: dist/client/call-types.d.ts#BatchConfig
@@ -585,6 +593,7 @@ type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
 type PortTransportOptions: dist/adapters/port/transport.d.ts#PortTransportOptions
 type Principal: dist/server/types.d.ts#Principal
+type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 type Procedure: dist/procedures/types.d.ts#Procedure
 ProcedureBuilder: dist/procedures/define.d.ts#ProcedureBuilder
 type ProcedureCallResult: dist/client/call-types.d.ts#ProcedureCallResult
@@ -626,7 +635,9 @@ type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
 type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type RepositoryProvider: dist/procedures/types.d.ts#RepositoryProvider
+type RequestCredentialsOptions: dist/server/request-auth.d.ts#RequestCredentialsOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
+type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 type ResolvedRoute: dist/client/route-resolver.d.ts#ResolvedRoute
 type ResourcesOf: dist/procedures/types.d.ts#ResourcesOf
 type ResponseItem: dist/client/types.d.ts#ResponseItem
@@ -714,6 +725,7 @@ clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProced
 clientModule: dist/procedures/module.d.ts#clientModule
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
 constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
+cookiesOf: dist/server/request-auth.d.ts#cookiesOf
 coreModule: dist/procedures/core/index.d.ts#coreModule
 coreProcedures: dist/procedures/core/index.d.ts#coreProcedures
 createAndRegister: dist/procedures/discovery.d.ts#createAndRegister
@@ -850,6 +862,7 @@ registerModules: dist/procedures/module.d.ts#registerModules
 registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
 remoteEvents: dist/events/remote.d.ts#remoteEvents
 replayTransitions: dist/machines.d.ts#replayTransitions
+requestCredentials: dist/server/request-auth.d.ts#requestCredentials
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttpMethodStrategy
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
@@ -881,13 +894,32 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 6 names
+## ./node (dist/node.d.ts): 25 names
 
+type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
+type CorsOptions: dist/adapters/http/server/cors.d.ts#CorsOptions
 type NdjsonError: dist/adapters/http/server/ndjson.d.ts#NdjsonError
+type NodeProcedureHandler: dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
+type NodeUpgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
+type NodeUrlStrategy: dist/adapters/http/server/handler.d.ts#NodeUrlStrategy
+type ProcedureHandlerOptions: dist/adapters/http/server/handler.d.ts#ProcedureHandlerOptions
+type RoutedRequest: dist/adapters/http/server/strategies.d.ts#RoutedRequest
+type TrackedConnection: dist/adapters/websocket/server/types.d.ts#TrackedConnection
+type UpgradeHandlerOptions: dist/adapters/websocket/server/upgrade.d.ts#UpgradeHandlerOptions
+type UrlRequest: dist/adapters/http/server/handler.d.ts#UrlRequest
+type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
 type WebSocketClass: dist/adapters/websocket/client/types.d.ts#WebSocketClass
+type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
+type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
+type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
 WebSocketTransport: dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WriteNdjsonStreamOptions: dist/adapters/http/server/ndjson.d.ts#WriteNdjsonStreamOptions
+defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
+procedureHandler: dist/adapters/http/server/handler.d.ts#procedureHandler
+rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+upgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#upgradeHandler
 writeNdjsonStream: dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 
 ## ./register (dist/register.d.ts): 0 names
@@ -1294,17 +1326,20 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 34 names
+## ./server (dist/server/index.d.ts): 37 names
 
+type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
 type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
 type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
 type Principal: dist/server/types.d.ts#Principal
+type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
+type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
 Server: dist/server/server.d.ts#Server
 type ServerContext: dist/server/types.d.ts#ServerContext
@@ -1349,7 +1384,61 @@ export interface HttpTransportOptions {
     headerConverter?: HeaderConverter;
     defaultHeaders?: Record<string, string>;
     timeout?: Duration;
+    credentials?: "include" | "same-origin" | "omit";
+    requestInit?: Omit<RequestInit, "method" | "headers" | "body" | "signal">;
+    fetch?: typeof fetch;
 }
+
+### dist/adapters/http/server/cors.d.ts#CorsOptions
+export interface CorsOptions {
+    readonly origin?: string | readonly string[] | ((origin: string) => boolean) | undefined;
+    readonly methods?: readonly string[] | undefined;
+    readonly allowedHeaders?: readonly string[] | undefined;
+    readonly exposedHeaders?: readonly string[] | undefined;
+    readonly credentials?: boolean | undefined;
+    readonly maxAge?: Duration | undefined;
+}
+
+### dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
+export interface NodeProcedureHandler {
+    (req: IncomingMessage, res: NodeResponse): boolean;
+    handle(req: IncomingMessage, res: NodeResponse): Promise<boolean>;
+    matches(req: IncomingMessage): boolean;
+    middleware(req: IncomingMessage, res: NodeResponse, next: (error?: unknown) => void): void;
+    readonly basePath: string;
+    start(): void;
+    stopIntake(): void;
+    drain(deadline: number, signal?: AbortSignal): Promise<void>;
+    inFlight(): number;
+    close(): void;
+}
+
+### dist/adapters/http/server/handler.d.ts#NodeUrlStrategy
+export type NodeUrlStrategy = (request: UrlRequest, req: IncomingMessage) => Method | null;
+
+### dist/adapters/http/server/handler.d.ts#ProcedureHandlerOptions
+export interface ProcedureHandlerOptions extends BrowserGuardOptions {
+    readonly basePath?: string | undefined;
+    readonly urlStrategy?: NodeUrlStrategy | undefined;
+    readonly cors?: boolean | CorsOptions | undefined;
+    readonly bodyLimit?: number | undefined;
+    readonly keepAlive?: Duration | false | undefined;
+    readonly clock?: Clock | undefined;
+    readonly secretHeaders?: readonly string[] | undefined;
+    readonly secretQuery?: readonly string[] | undefined;
+}
+
+### dist/adapters/http/server/handler.d.ts#UrlRequest
+export interface UrlRequest {
+    readonly method: string;
+    readonly path: string;
+    readonly url: string;
+    readonly headers: IncomingHttpHeaders;
+    readonly query: Readonly<Record<string, string>>;
+}
+
+### dist/adapters/http/server/handler.d.ts#procedureHandler
+export declare function procedureHandler(server: RequestHandler, options?: ProcedureHandlerOptions): NodeProcedureHandler;
 
 ### dist/adapters/http/server/ndjson.d.ts#NdjsonError
 export interface NdjsonError {
@@ -1369,11 +1458,17 @@ export interface WriteNdjsonStreamOptions {
 ### dist/adapters/http/server/ndjson.d.ts#writeNdjsonStream
 export declare function writeNdjsonStream(res: ServerResponse, items: AsyncIterable<unknown>, options?: WriteNdjsonStreamOptions): Promise<void>;
 
+### dist/adapters/http/server/strategies.d.ts#RoutedRequest
+export interface RoutedRequest {
+    readonly method: string;
+    readonly path: string;
+}
+
 ### dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
-export declare function defaultServerUrlStrategy(req: Request): Method | null;
+export declare function defaultServerUrlStrategy(req: RoutedRequest): Method | null;
 
 ### dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
-export declare function rpcServerUrlStrategy(req: Request): Method | null;
+export declare function rpcServerUrlStrategy(req: RoutedRequest): Method | null;
 
 ### dist/adapters/http/server/transport.d.ts#HttpServerTransport
 export declare class HttpServerTransport implements ServerTransport {
@@ -1397,6 +1492,8 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
     bodyLimit?: number;
     keepAlive?: Duration | false;
     clock?: Clock;
+    secretHeaders?: readonly string[];
+    secretQuery?: readonly string[];
     corsOptions?: {
         origin?: string | string[];
         methods?: string[];
@@ -1596,10 +1693,17 @@ export interface WebSocketTransportOptions {
 ### dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
 export declare class WebSocketServerTransport implements ServerTransport {
     readonly name = "websocket";
-    constructor(server: RequestHandler, options: WebSocketServerTransportOptions);
+    constructor(server: RequestHandler, options?: WebSocketServerTransportOptions);
     start(): Promise<void>;
     stop(): Promise<void>;
     isRunning(): boolean;
+    get path(): string;
+    matches(req: IncomingMessage): boolean;
+    upgrade(req: IncomingMessage, socket: Duplex, head: Buffer): boolean;
+    stopIntake(): void;
+    inFlight(): number;
+    drain(deadline: number, signal?: AbortSignal): Promise<void>;
+    close(): Promise<void>;
     broadcast(message: WebSocketMessage): void;
     getConnectionCount(): number;
     getTrackedConnections(): TrackedConnection[];
@@ -1614,6 +1718,18 @@ export declare class WebSocketServerTransport implements ServerTransport {
     onDisconnect(handler: ConnectionEventHandler): () => void;
     updateConnectionMetadata(connectionId: string, metadata: Record<string, unknown>): void;
     setConnectionProcedures(connectionId: string, procedures: string[]): void;
+}
+
+### dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
+export type ConnectionEventHandler = (connection: TrackedConnection) => void;
+
+### dist/adapters/websocket/server/types.d.ts#TrackedConnection
+export interface TrackedConnection {
+    id: string;
+    socket: WebSocket;
+    connectedAt: Date;
+    metadata: Record<string, unknown>;
+    procedures?: string[];
 }
 
 ### dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
@@ -1660,7 +1776,7 @@ export interface WebSocketMessage<TReq = unknown> {
 
 ### dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
 export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOptions, "allowGet"> {
-    server: HttpServer;
+    server?: HttpServer | undefined;
     path?: string;
     authenticate?: WebSocketAuthHandler;
     onConnection?: WebSocketConnectionHandler;
@@ -1673,7 +1789,27 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
         misses?: number;
     } | false;
     reverseRequestTimeout?: Duration;
+    secretHeaders?: readonly string[] | undefined;
 }
+
+### dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
+export interface NodeUpgradeHandler {
+    (req: IncomingMessage, socket: Duplex, head: Buffer): boolean;
+    readonly path: string;
+    readonly transport: WebSocketServerTransport;
+    matches(req: IncomingMessage): boolean;
+    start(): void;
+    stopIntake(): void;
+    drain(deadline: number, signal?: AbortSignal): Promise<void>;
+    inFlight(): number;
+    close(): Promise<void>;
+}
+
+### dist/adapters/websocket/server/upgrade.d.ts#UpgradeHandlerOptions
+export type UpgradeHandlerOptions = Omit<WebSocketServerTransportOptions, "server">;
+
+### dist/adapters/websocket/server/upgrade.d.ts#upgradeHandler
+export declare function upgradeHandler(server: RequestHandler, options?: UpgradeHandlerOptions): NodeUpgradeHandler;
 
 ### dist/client/batch-executor.d.ts#BatchExecutionResult
 export interface BatchExecutionResult<TRoute extends Route = Route> {
@@ -3415,6 +3551,7 @@ export interface Invocation {
     readonly parent: Invocation | undefined;
     readonly depth: number;
     readonly capability: Capability;
+    readonly principal?: Principal | undefined;
 }
 
 ### dist/procedures/invoke.d.ts#InvocationChanges
@@ -3459,6 +3596,7 @@ export interface InvokeOptions {
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
+    principal?: Principal | undefined;
 }
 
 ### dist/procedures/invoke.d.ts#ProcedureOutput
@@ -4048,6 +4186,7 @@ export interface ProcedureContext {
     capability: Capability;
     resources: ResourcesOf;
     caller?: AnyProcedure | undefined;
+    principal?: Principal | undefined;
 }
 
 ### dist/procedures/types.d.ts#ProcedureError
@@ -4196,7 +4335,10 @@ export interface GuardedRequest {
 }
 
 ### dist/server/browser-guard.d.ts#checkBrowserRequest
-export declare function checkBrowserRequest(req: GuardedRequest, options?: BrowserGuardOptions, http?: boolean): GuardResult;
+export declare function checkBrowserRequest(req: GuardedRequest, options?: BrowserGuardOptions, http?: boolean, ambient?: boolean): GuardResult;
+
+### dist/server/browser-guard.d.ts#hasAmbientCredentials
+export declare function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean;
 
 ### dist/server/browser-guard.d.ts#hostNameOf
 export declare function hostNameOf(header: string | undefined): string;
@@ -4213,6 +4355,7 @@ export interface HostPolicy {
     readonly strictCalls: boolean;
     readonly interceptors: readonly Interceptor[];
     readonly token: string | undefined;
+    readonly principalOf?: PrincipalOf | undefined;
     readonly browser: BrowserGuardOptions;
     readonly capabilityOf: ((request?: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readonly clearanceOrder: ClearanceOrder | undefined;
@@ -4229,6 +4372,7 @@ export interface HostPolicyOptions {
     timeout?: Duration | undefined;
     interceptors?: readonly Interceptor[] | undefined;
     token?: string | undefined;
+    principalOf?: PrincipalOf | undefined;
     browser?: BrowserGuardOptions | undefined;
     capability?: Capability | ((request: ServerRequest<unknown>) => Capability | undefined) | undefined;
     readOnly?: boolean | undefined;
@@ -4280,6 +4424,7 @@ export declare function pathToMethod(path: readonly string[]): Method;
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider {
     readonly publisher: EventPublisher | undefined;
+    readonly ambientCredentials: AmbientCredentials | undefined;
     constructor(options?: ProcedureServerOptions);
     getStorage<T>(collection: string): CollectionStorage<T>;
     hasCollection(collection: string): boolean;
@@ -4319,6 +4464,8 @@ export interface ProcedureServerOptions extends ServerOptions {
     idempotency?: IdempotencyOptions | false | undefined;
     token?: string | undefined;
     authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
+    principalOf?: PrincipalOf | undefined;
+    ambientCredentials?: AmbientCredentials | false | undefined;
     events?: EventPublisherOptions | EventPublisher | undefined;
 }
 
@@ -4354,8 +4501,16 @@ export declare function isUnboundedStream(response: {
 ### dist/server/procedure-server.d.ts#tokenMatches
 export declare function tokenMatches(expected: string, presented: string | undefined): boolean;
 
+### dist/server/request-auth.d.ts#RequestCredentialsOptions
+export interface RequestCredentialsOptions {
+    readonly tokenQuery?: string | false | undefined;
+}
+
 ### dist/server/request-auth.d.ts#bearerOf
 export declare function bearerOf(header: unknown): string | undefined;
+
+### dist/server/request-auth.d.ts#cookiesOf
+export declare function cookiesOf(header: unknown): Record<string, string>;
 
 ### dist/server/request-auth.d.ts#credentialsOf
 export declare function credentialsOf(request: {
@@ -4363,8 +4518,14 @@ export declare function credentialsOf(request: {
     url?: string | undefined;
 }): Credentials;
 
+### dist/server/request-auth.d.ts#requestCredentials
+export declare function requestCredentials(request: {
+    headers: Record<string, unknown>;
+    url?: string | undefined;
+}, options?: RequestCredentialsOptions): Credentials;
+
 ### dist/server/request-auth.d.ts#withoutSecretHeaders
-export declare function withoutSecretHeaders(headers: Record<string, unknown>): Record<string, string>;
+export declare function withoutSecretHeaders(headers: Record<string, unknown>, secret?: Iterable<string>): Record<string, string>;
 
 ### dist/server/server.d.ts#Server
 export declare class Server {
@@ -4387,9 +4548,15 @@ export interface ServerOptions {
     onResponse?: (response: ServerResponse) => void;
 }
 
+### dist/server/types.d.ts#AmbientCredentials
+export type AmbientCredentials = "always" | "cookies";
+
 ### dist/server/types.d.ts#Credentials
 export interface Credentials {
     readonly bearer?: string | undefined;
+    readonly cookies?: Readonly<Record<string, string>> | undefined;
+    readonly headers?: Readonly<Record<string, string>> | undefined;
+    readonly query?: Readonly<Record<string, string>> | undefined;
 }
 
 ### dist/server/types.d.ts#HandlerNotFoundError
@@ -4404,9 +4571,20 @@ export interface Principal {
     readonly claims?: Readonly<Record<string, unknown>> | undefined;
 }
 
+### dist/server/types.d.ts#PrincipalOf
+export type PrincipalOf = (credentials: Credentials, request: ServerRequest<unknown>) => RequestIdentity | undefined | Promise<RequestIdentity | undefined>;
+
 ### dist/server/types.d.ts#RequestHandler
 export interface RequestHandler {
     handle(request: ServerRequest): Promise<ServerResponse>;
+    readonly ambientCredentials?: AmbientCredentials | undefined;
+}
+
+### dist/server/types.d.ts#RequestIdentity
+export interface RequestIdentity {
+    readonly bearer?: string | undefined;
+    readonly principal?: Principal | undefined;
+    readonly narrowing?: CapabilityRequest | undefined;
 }
 
 ### dist/server/types.d.ts#ServerContext
@@ -4437,6 +4615,7 @@ export interface ServerRequest<TReq = unknown> {
     signal?: AbortSignal;
     credentials?: Credentials | undefined;
     principal?: Principal | undefined;
+    narrowing?: CapabilityRequest | undefined;
 }
 
 ### dist/server/types.d.ts#ServerResponse
