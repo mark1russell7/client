@@ -171,6 +171,9 @@ describe("procedureHandler: a mount on a raw node:http server (CLI-3)", () => {
     expect(handler(req, res)).toBe(false);
     expect(handler.matches(req)).toBe(false);
     expect(handler.matches({ ...req, url: "/api/proc/a/b?x=1" } as IncomingMessage)).toBe(true);
+    // The absolute form of a request line, from a proxy
+    expect(handler.matches({ ...req, url: "http://127.0.0.1:3000/api/proc/a/b" } as IncomingMessage)).toBe(true);
+    expect(handler.matches({ ...req, url: "http://127.0.0.1:3000/api/chat" } as IncomingMessage)).toBe(false);
     expect(handler.basePath).toBe("/api/proc");
   });
 

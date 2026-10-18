@@ -98,7 +98,16 @@ export function cookiesOf(header: unknown): Record<string, string> {
  * against a host, so a path that starts with "//" stays a path.
  */
 export function urlParts(url: string | undefined): { path: string; query: URLSearchParams } {
-  const raw = url ?? "/";
+  let raw = url ?? "/";
+  // The absolute form of a request line (a request through a proxy): the path and the query only
+  if (!raw.startsWith("/") && /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
+    try {
+      const absolute = new URL(raw);
+      raw = `${absolute.pathname}${absolute.search}`;
+    } catch {
+      // Not a URL: the text stays a path
+    }
+  }
   const mark = raw.indexOf("?");
   return mark === -1 ? { path: raw, query: new URLSearchParams() } : { path: raw.slice(0, mark), query: new URLSearchParams(raw.slice(mark + 1)) };
 }
