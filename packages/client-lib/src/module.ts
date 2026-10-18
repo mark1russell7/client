@@ -43,6 +43,8 @@ import {
   LibAuditOutputSchema,
 } from "./types.js";
 import { LibGraphInputSchema, LibGraphOutputSchema, type LibGraphInput, type LibGraphOutput } from "./types.js";
+import { LibImportCyclesInputSchema, LibImportCyclesOutputSchema, type LibImportCyclesInput, type LibImportCyclesOutput } from "./types.js";
+import { libImportCycles } from "./procedures/lib/import-cycles.js";
 import type { FsRootRules, ProcedureContext } from "@procedures/client";
 
 // =============================================================================
@@ -56,6 +58,9 @@ import type { FsRootRules, ProcedureContext } from "@procedures/client";
  * finds no repository above the root.
  */
 const WORKSPACE_IN_A_ROOT: FsRootRules = { cwd: "rootPath" };
+
+/** `lib.importCycles`: the folder of the sources stays in the root. */
+const SOURCES_IN_A_ROOT: FsRootRules = { paths: ["path"] };
 
 /** `lib.new`: a root refuses it. */
 const NEW_UNDER_A_ROOT: FsRootRules = { refuse: "it starts the cue program of the workspace, and that program is code of the project" };
@@ -160,6 +165,23 @@ const libGraphProcedure = createProcedure()
   .handler(async (input: LibGraphInput, ctx: ProcedureContext): Promise<LibGraphOutput> => libGraph(input, ctx))
   .build();
 
+// lib.importCycles (Graph's split, wave 2, W7)
+const libImportCyclesProcedure = createProcedure()
+  .path(["lib", "importCycles"])
+  .input(zodAdapter<LibImportCyclesInput>(LibImportCyclesInputSchema))
+  .output(zodAdapter<LibImportCyclesOutput>(LibImportCyclesOutputSchema))
+  .meta({
+    description: "The import cycles of a tree of TypeScript sources: the cycles at runtime (after the import elision), of the declared imports, or of each import",
+    calls: ["fs.glob", "fs.stat", "fs.read"],
+    effects: { reads: ["fs"], writes: [] },
+    fsRoot: SOURCES_IN_A_ROOT,
+    args: ["path"],
+    shorts: {},
+    output: "json",
+  })
+  .handler(async (input: LibImportCyclesInput, ctx: ProcedureContext): Promise<LibImportCyclesOutput> => libImportCycles(input, ctx))
+  .build();
+
 // =============================================================================
 // ecosystem.* Procedures
 // =============================================================================
@@ -199,6 +221,7 @@ export const libModule: ProcedureModule = defineModule("@procedures/lib", [
     libNewProcedure,
     libAuditProcedure,
     libGraphProcedure,
+    libImportCyclesProcedure,
     // ecosystem.* procedures
     ecosystemProceduresProcedure,
   ], [fsModule, gitModule]);

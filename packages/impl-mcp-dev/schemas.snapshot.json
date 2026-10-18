@@ -1166,6 +1166,59 @@
       }
     }
   },
+  "lib.importCycles": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "The folder of the sources, for example packages/web/src"
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "runtime",
+          "declared",
+          "raw"
+        ],
+        "description": "The edges to count: runtime (after the import elision, the default), declared or raw"
+      },
+      "exclude": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "The glob patterns of the files to leave out (default: node_modules, declarations and tests)"
+      },
+      "diDecorators": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "The decorators whose class keeps the types of its constructor parameters at runtime (Angular: Injectable, Component, Directive, Pipe, NgModule)"
+      },
+      "limits": {
+        "type": "object",
+        "properties": {
+          "maxFiles": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "description": "The most files of the call: 20000 at most, and the default. A call with more files is refused before it reads a file."
+          },
+          "maxFileBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 1048576,
+            "description": "The largest file that the call reads, in bytes: 1 MiB at most, and the default. The result lists each larger file."
+          }
+        },
+        "description": "Lower limits than the defaults. A higher value is refused."
+      }
+    },
+    "required": [
+      "path"
+    ]
+  },
   "lib.new": {
     "type": "object",
     "properties": {

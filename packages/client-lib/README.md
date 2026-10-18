@@ -15,6 +15,7 @@ npm install @procedures/lib
 | `lib.audit` | Compare each package with the template |
 | `lib.rename` | Rename a package in each file of the workspace |
 | `lib.graph` | Give the dependency graph of the workspace packages, with its cycles |
+| `lib.importCycles` | Give the import cycles of a tree of TypeScript sources |
 | `ecosystem.procedures` | List the procedures of the packages |
 
 Until October 2026, `client-lib` also had `lib.install`, `lib.pull` and `lib.refresh`, for one repository per package. The monorepo does not need them, and they are gone ([DECISIONS-2026-10.md](../documentation/DECISIONS-2026-10.md)).
@@ -93,6 +94,28 @@ Input: `rootPath`. The procedure reads the `package.json` of each folder in `pac
 ```sh
 node packages/mark/dist/cli.js lib graph
 ```
+
+## `lib.importCycles`
+
+The import cycles of the TypeScript sources under a folder. The default mode counts the cycles that exist at runtime: TypeScript's import elision drops an import of types only, as the build drops it.
+
+| Mode | The edges |
+|---|---|
+| `runtime` (the default) | The imports after the elision, and the injection tokens of the decorators in `diDecorators` |
+| `declared` | Each import that the source does not declare type-only (`import type`) |
+| `raw` | Each import statement |
+
+```sh
+node packages/mark/dist/cli.js lib importCycles packages/web/src
+```
+
+- For Angular, give `diDecorators` the value of `ANGULAR_DI_DECORATORS`. The class of such a decorator keeps the types of its constructor parameters at runtime.
+- The default `exclude` leaves out `node_modules`, the declarations and the tests.
+- `limits` keeps a call small: `maxFiles` (default 20000) refuses a folder with more files before a read, and `maxFileBytes` (default 1 MiB) skips a larger file. The result lists each skipped file in `skipped`.
+- The defaults are the ceiling. A caller can give lower limits, and the input refuses a higher value.
+- An abort of the call stops the reads and the analysis.
+- `importCycles(sources, options)` and `importGraph(sources, options)` take the sources as text, for a caller that reads its own files.
+- `findCycles` keeps its own stack, so a long chain of imports does not overflow the call stack.
 
 ## `ecosystem.procedures`
 
