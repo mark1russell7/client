@@ -72,6 +72,9 @@ export * from "./interfaces/set.js";
 
 export * from "./storage/index.js";
 
+// The overlay: a logical document through a stack of layers, and the stacks from rules
+export * from "./overlay/index.js";
+
 // Export queue interfaces with disambiguation for PriorityQueue
 export type {
   ReadonlyQueue,

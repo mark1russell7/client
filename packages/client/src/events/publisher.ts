@@ -28,8 +28,10 @@ import { z } from "zod";
 import { createProcedure } from "../procedures/define.js";
 import { InvocationError } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
-import { collectionTopicReads } from "../procedures/collection/changes.js";
+import { collectionChangeTopic, collectionTopicReads } from "../procedures/collection/changes.js";
+import { collectionTopicTarget, partitionOfCall } from "../procedures/collection/partition.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
+import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
 import { getGlobalEventBus } from "./bus.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
@@ -53,6 +55,8 @@ export interface TopicCall {
   readonly capability: Capability;
   /** The metadata of the call: the connection id and the headers of a network request. */
   readonly metadata: Readonly<Record<string, unknown>>;
+  /** The principal of the call, from the authentication of the host. */
+  readonly principal?: Principal | undefined;
 }
 
 /** The options of an `EventPublisher`. */
@@ -77,7 +81,12 @@ export interface EventPublisherOptions {
    * The resources that a subscriber of a topic reads (roadmap CLI-15). The publisher refuses a
    * topic whose reads the capability of the call does not permit, as for a procedure that reads
    * them: `FORBIDDEN` with the reason `effects-exceeded`.
-   * @default `collectionTopicReads`: a topic `collections.<name>` reads `collection:<name>`
+   *
+   * A custom function gets only the topic. For a topic of a collection, give the read of the
+   * collection that the publisher listens to: the collection of `collectionTopicTarget(topic,
+   * repository)` with the repository of the host. A function that reads the first part of the
+   * topic alone checks `collection:a` for the dotted collection `a.b`.
+   * @default the read of the collection of `collectionTopicTarget()`, with the repository of the call
    */
   reads?: ((topic: string) => readonly string[]) | undefined;
 }
@@ -161,17 +170,18 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
 
   constructor(
     bus: EventBus,
-    topics: readonly string[],
+    /** The topics of the subscriber, each with the topic of the bus that it listens to */
+    routes: ReadonlyArray<readonly [topic: string, busTopic: string]>,
     private readonly buffer: number,
     private readonly signal: AbortSignal | undefined,
     private readonly onClose: (subscription: TopicSubscription) => void,
     /** The output filter of the host for this subscriber: each row of a value passes it */
     private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
   ) {
-    this.confirmation = { type: "subscribed", topics };
+    this.confirmation = { type: "subscribed", topics: routes.map(([topic]) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
-    this.unsubscribes = topics.map((topic) =>
-      bus.on(topic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
+    this.unsubscribes = routes.map(([topic, busTopic]) =>
+      bus.on(busTopic, (data) => this.push(topic, data), { onClear: () => this.fail(clearedError(topic), { keepQueue: true }) }),
     );
     signal?.addEventListener("abort", this.onAbort, { once: true });
   }
@@ -304,6 +314,8 @@ export class EventPublisher {
   private readonly known: (topic: string) => boolean;
   private readonly allow: EventPublisherOptions["allow"];
   private readonly reads: (topic: string) => readonly string[];
+  /** True when the reads come from the topic rule of the collections (no option `reads`) */
+  private readonly defaultReads: boolean;
   private readonly buffer: number;
   private readonly open = new Set<TopicSubscription>();
 
@@ -312,6 +324,7 @@ export class EventPublisher {
     this.known = topicMatcher(options.topics);
     this.allow = options.allow;
     this.reads = options.reads ?? collectionTopicReads;
+    this.defaultReads = options.reads === undefined;
     this.buffer = Math.max(1, Math.floor(options.buffer ?? 1024));
     this.procedure = createProcedure()
       .path([...EVENTS_SUBSCRIBE_PATH])
@@ -345,30 +358,56 @@ export class EventPublisher {
   }
 
   /**
-   * The stream of one subscription. The publisher examines each topic before it adds a listener:
-   * the topic rule first, then `allow`. A call with one bad topic makes no subscription.
+   * The topic of the bus for a topic of a subscriber (roadmap CLI-17). A topic of a partitioned
+   * collection names the partition that the subscriber asks for, as the input of a procedure does:
+   * the resolver of the repository gives the partition, so a subscriber cannot name the topic of
+   * another tenant. A collection without partitions refuses a topic with a partition.
    */
-  private subscribe(topics: readonly string[], ctx: ProcedureContext): TopicSubscription {
+  private async busTopic(topic: string, ctx: ProcedureContext): Promise<string> {
+    const target = collectionTopicTarget(topic, ctx.repository);
+    if (!target) return topic;
+    const partition = await partitionOfCall(ctx, target.collection, target.partition);
+    return collectionChangeTopic(target.collection, partition);
+  }
+
+  /**
+   * The resources that a subscriber of a topic reads. The default reads the collection of the
+   * topic with the rule of the listener (`collectionTopicTarget`), so the read check and the
+   * listener name the same collection.
+   */
+  private readsOf(topic: string, ctx: ProcedureContext): readonly string[] {
+    if (!this.defaultReads) return this.reads(topic);
+    const target = collectionTopicTarget(topic, ctx.repository);
+    return target ? [`collection:${target.collection}`] : [];
+  }
+
+  /**
+   * The stream of one subscription. The publisher examines each topic before it adds a listener:
+   * the topic rule, the reads, `allow`, and the partition. A call with one bad topic makes no subscription.
+   */
+  private async subscribe(topics: readonly string[], ctx: ProcedureContext): Promise<TopicSubscription> {
     const unique = [...new Set(topics)];
     for (const topic of unique) {
       if (!this.known(topic)) throw new TopicNotFoundError(`The host has no topic "${topic}"`);
     }
     // A subscriber of a topic reads its resources: the capability of the call must permit them
     for (const topic of unique) {
-      const reads = this.reads(topic);
+      const reads = this.readsOf(topic, ctx);
       if (reads.length === 0) continue;
       const refusal = capabilityRefusal(topicReader(reads), ctx.capability);
       if (refusal) throw new InvocationError("FORBIDDEN", `The topic "${topic}": ${refusal.message}`, ctx.path, refusal.reason);
     }
     if (this.allow) {
-      const call: TopicCall = { capability: ctx.capability, metadata: ctx.metadata };
+      const call: TopicCall = { capability: ctx.capability, metadata: ctx.metadata, ...(ctx.principal ? { principal: ctx.principal } : {}) };
       for (const topic of unique) {
         if (!this.allow(topic, call)) {
           throw new InvocationError("FORBIDDEN", `The capability of the call does not permit the topic "${topic}"`, ctx.path, "topic-not-allowed");
         }
       }
     }
-    const subscription = new TopicSubscription(this.bus, unique, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
+    const routes: Array<readonly [string, string]> = [];
+    for (const topic of unique) routes.push([topic, await this.busTopic(topic, ctx)]);
+    const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
     this.open.add(subscription);
     return subscription.closeIfAborted();
   }

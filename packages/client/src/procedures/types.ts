@@ -260,6 +260,22 @@ export interface RepositoryProvider {
   getStorage<T>(collection: string): CollectionStorage<T>;
 
   /**
+   * The storage of one partition of a collection (roadmap CLI-17), for example the items of one
+   * tenant. A repository without this method has no partitions: the collection procedures then
+   * refuse a call with a partition, and never give it the storage of all partitions.
+   */
+  getPartitionStorage?<T>(collection: string, partition: string): CollectionStorage<T>;
+
+  /** True when the collection has partitions (roadmap CLI-17). Then a call resolves its partition with `resolvePartition`. */
+  hasPartitions?(collection: string): boolean;
+
+  /**
+   * The partition of a call to a partitioned collection (roadmap CLI-17): from the context (the
+   * tenant of `ctx.principal`) and the partition that the call asks for. `null` refuses the call.
+   */
+  resolvePartition?(collection: string, ctx: ProcedureContext, requested: string | undefined): string | undefined | null | Promise<string | undefined | null>;
+
+  /**
    * Check if a collection exists.
    *
    * @param collection - Collection name

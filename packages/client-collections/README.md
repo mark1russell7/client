@@ -186,6 +186,29 @@ await notes.query({ title: { $regex: "^draft", $options: "i" } });
 - `$set` makes each missing or `null` part of a path an object. A path through another value, or past the end of an array, is a `TypeError`, and the item does not change.
 - `$set` comes before `$unset`. Two paths that overlap, for example `a` and `a.b`, are an error.
 
+### The overlay: a document through a stack of layers
+
+An app can keep copies of one logical document in layers, for example a space, a board, a group and a user. A read merges the copies of a stack, top layer first:
+
+```ts
+import { mergeCopies, resolveStacks, stackOf, UNSET } from "@procedures/collections";
+
+mergeCopies([{ _id: "card", top: 99 }, undefined, { _id: "card", top: 10, left: 20 }]);
+// { _id: "card", top: 99, left: 20 }
+mergeCopies([{ _id: "card", left: UNSET }, { _id: "card", top: 10, left: 20 }]);
+// { _id: "card", top: 10 }
+```
+
+| Mode | What a read gives |
+|---|---|
+| `field` (the default) | Each top-level field comes from the highest copy that has it. A field set to `UNSET` hides its lower values. |
+| `doc` | The highest copy, whole. |
+
+- A copy with `_deleted: true` hides the whole document. In the mode `field`, it also hides the copies under it.
+- The merge removes `_scope` and `_deleted`. The option `fields` gives other names.
+- A copy is the operations form of a patch over the copies under it: `applyPatch(lower, copyAsPatch(copy))` gives the same result for field names without a dot. It is not a JSON Merge Patch: in a copy, `null` is a value, and an object field replaces the lower object whole.
+- `resolveStacks(rules, resolve)` gives the read stack, the write targets and the mode of each collection. The rules name layers with variables, and `resolve` gives each layer. `stackOf(stacks, collection, id)` gives the stack of one document. A rule for some documents goes before the rule of their collection.
+
 ### The contract suite: `@procedures/collections/testing`
 
 The test-only entry `@procedures/collections/testing` holds one test suite for the contract of `CollectionStorage`. A storage runs it with a factory:
