@@ -190,15 +190,27 @@ describe("the subject of a principal", () => {
     expect(subjectOf({ id: "anonymous", via: "anonymous" })).toEqual({});
   });
 
-  it("does not make an agent that acts for an unknown user a service account", () => {
-    const subject = subjectOf({ id: "anonymous", via: "agent-as", claims: { agent: true, actAs: "ghost" } });
-    expect(subject).toEqual({});
-    expect(owned.can("read", "space", subject, lists())).toBe(false);
+  it("decides by via, never by the id: a user with the id agent, token or anonymous is a user", () => {
+    for (const id of ["agent", "token", "anonymous"]) {
+      const subject = subjectOf({ id, via: "better-auth" });
+      expect(subject).toEqual({ user: id });
+      expect(owned.can("admin", "user:someone-else", subject, lists())).toBe(false);
+    }
   });
 
-  it("takes other ids", () => {
-    expect(subjectOf({ id: "guest", via: "x" }, { anonymousIds: ["guest"] })).toEqual({});
-    expect(subjectOf({ id: "token", via: "token" }, { agentIds: [] })).toEqual({ user: "token" });
+  it("a refused or unknown act-as is never a service account", () => {
+    // A refused act-as gives no principal, and an act-as for an unknown user is anonymous
+    for (const principal of [undefined, { id: "anonymous", via: "anonymous", claims: { agent: true, actAs: "ghost" } }]) {
+      const subject = subjectOf(principal);
+      expect(subject).toEqual({});
+      expect(owned.can("read", "space", subject, lists())).toBe(false);
+      expect(owned.can("read", "user:u_ana", subject, lists())).toBe(false);
+    }
+  });
+
+  it("takes other values of via", () => {
+    expect(subjectOf({ id: "g", via: "guest" }, { anonymousVia: ["guest"] })).toEqual({});
+    expect(subjectOf({ id: "token", via: "token" }, { serviceVia: [] })).toEqual({ user: "token" });
   });
 });
 

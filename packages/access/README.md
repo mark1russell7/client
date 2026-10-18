@@ -70,7 +70,13 @@ access.can("write", "board:b1", subject, lists, { op: "write", doc, prev });
 
 ## The principal of a request
 
-`subjectOf(principal)` reads the principal of the request hook (`ctx.principal`). The claims give `email`, `groups` and `agent`. The ids `anonymous`, `agent` and `token` have a meaning: no user, a service account, and the token of the host.
+`subjectOf(principal)` reads the principal of the request hook (`ctx.principal`). Its `via` decides, and its id does not:
+
+- `anonymous`: no user.
+- `agent-token` and the host token `token`: a service account.
+- Each other `via`: the user of the id. The claims give `email`, `groups` and `agent`.
+
+A refused request has no principal, and its subject is anonymous.
 
 `accessAdmitItem` gives the output filter of a host (`admitItem`). It admits an item when the subject can read the scope of the item:
 

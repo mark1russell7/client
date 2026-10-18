@@ -6,21 +6,23 @@ import type { Access, AccessLists, AccessSubject, Right } from "./access.js";
 
 /** The options of `subjectOf`. */
 export interface SubjectOfOptions {
-  /** The ids of a principal without a user (default `anonymous`). */
-  readonly anonymousIds?: readonly string[] | undefined;
-  /** The ids of a service account: an agent without a user (default `agent` and the host token `token`). */
-  readonly agentIds?: readonly string[] | undefined;
+  /** The `via` of a principal without a user (default `anonymous`). */
+  readonly anonymousVia?: readonly string[] | undefined;
+  /** The `via` of a service account: an agent without a user (default `agent-token` and the host token `token`). */
+  readonly serviceVia?: readonly string[] | undefined;
 }
 
 /**
- * This function gives the subject of a principal of the request hook. The id is the user, except
- * for an anonymous or a service-account id. The claims give `email`, `groups` and `agent`. Without a
- * principal (a call from this process), the subject is anonymous.
+ * This function gives the subject of a principal of the request hook. The `via` of the principal
+ * decides: a service account, anonymous, or a user with the id of the principal. The id never
+ * decides, so a user with the id `agent` stays a user. The claims give `email`, `groups` and
+ * `agent`. Without a principal (a refused request, or a call from this process), the subject is
+ * anonymous.
  */
 export function subjectOf(principal: Principal | undefined, options: SubjectOfOptions = {}): AccessSubject {
   if (!principal) return {};
-  const anonymousIds = options.anonymousIds ?? ["anonymous"];
-  const agentIds = options.agentIds ?? ["agent", "token"];
+  if ((options.serviceVia ?? ["agent-token", "token"]).includes(principal.via)) return { agent: true };
+  if ((options.anonymousVia ?? ["anonymous"]).includes(principal.via)) return {};
   const claims = principal.claims ?? {};
   const email = typeof claims["email"] === "string" && claims["email"] ? claims["email"] : undefined;
   const groups = Array.isArray(claims["groups"])
@@ -28,10 +30,6 @@ export function subjectOf(principal: Principal | undefined, options: SubjectOfOp
         .filter((group): group is { id: unknown; role?: unknown } => typeof group === "object" && group !== null && "id" in group)
         .map((group) => ({ id: String(group.id), role: typeof group.role === "string" ? group.role : "member" }))
     : undefined;
-  if (agentIds.includes(principal.id)) return { agent: true };
-  // An anonymous id is anonymous, also with the claim `agent` (an agent that acts for an unknown
-  // user): an agent without a user is a service account, with each right
-  if (anonymousIds.includes(principal.id)) return {};
   return {
     user: principal.id,
     ...(email ? { email } : {}),
