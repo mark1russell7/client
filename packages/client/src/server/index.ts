@@ -50,6 +50,7 @@ export {
   type Principal,
   type PrincipalOf,
   type RequestIdentity,
+  type AmbientCredentials,
   type ServerHandler,
   type ServerMiddleware,
   type ServerContext,

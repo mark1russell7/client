@@ -6,7 +6,7 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
+import type { AmbientCredentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import type {
   AnyProcedure,
@@ -148,6 +148,14 @@ export interface ProcedureServerOptions extends ServerOptions {
    * without credentials (from this process) does not go through the hook.
    */
   principalOf?: PrincipalOf | undefined;
+
+  /**
+   * How the server can authenticate a request with ambient credentials (cookies), for the CSRF
+   * checks of the network faces. The default is `"always"` with `principalOf`, `"cookies"` with
+   * `authenticate`, and none without them. `false`: the server reads no cookies, for example an
+   * `authenticate` function that reads only the bearer token.
+   */
+  ambientCredentials?: AmbientCredentials | false | undefined;
 
   /**
    * The remote events of the server (`documentation/EVENTS.md`): a bus and its topic rule, or an
@@ -344,6 +352,11 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private idleWaiters: Array<() => void> = [];
   /** The publisher of the remote events, from the option `events`, or undefined. */
   readonly publisher: EventPublisher | undefined;
+  /**
+   * How the server can authenticate a request with ambient credentials (cookies). The network faces
+   * read it: they trust such a request only from a named origin (CSRF).
+   */
+  readonly ambientCredentials: AmbientCredentials | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -363,6 +376,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.token = options.token;
     this.principalOf = options.principalOf;
     this.authenticate = options.authenticate;
+    const ambient = options.ambientCredentials ?? (this.principalOf ? "always" : this.authenticate ? "cookies" : undefined);
+    this.ambientCredentials = ambient === false ? undefined : ambient;
     // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure);

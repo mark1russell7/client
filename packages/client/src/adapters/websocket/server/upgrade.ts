@@ -71,6 +71,8 @@ export interface NodeUpgradeHandler {
 export function upgradeHandler(server: RequestHandler, options: UpgradeHandlerOptions = {}): NodeUpgradeHandler {
   const { server: _ignored, ...rest } = options as WebSocketServerTransportOptions;
   const transport = new WebSocketServerTransport(server, rest);
+  // A new face: a cookie is trusted only from a named origin (CSRF)
+  transport.nameOriginsForCookies();
   transport.open();
   const handler = ((req: IncomingMessage, socket: Duplex, head: Buffer): boolean => transport.upgrade(req, socket, head)) as NodeUpgradeHandler;
   return Object.assign(handler, {

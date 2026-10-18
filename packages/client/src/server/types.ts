@@ -113,7 +113,22 @@ export interface Principal {
  */
 export interface RequestHandler {
   handle(request: ServerRequest): Promise<ServerResponse>;
+  /**
+   * How the handler can authenticate a network request with ambient credentials: the cookies that
+   * a browser sends by itself, also for a request of another site (CSRF). A network face then
+   * trusts such a request only from a named origin. Absent: the handler reads no cookies.
+   */
+  readonly ambientCredentials?: AmbientCredentials | undefined;
 }
+
+/**
+ * How a server can authenticate a request with ambient credentials (cookies):
+ * - `"always"`: each network request. The request hook `principalOf` reads the cookies, so a face
+ *   trusts a request only from a named origin.
+ * - `"cookies"`: a request that carries a cookie. An `authenticate` function can read it, so a face
+ *   trusts a request with a cookie only from a named origin.
+ */
+export type AmbientCredentials = "always" | "cookies";
 
 /**
  * Server response in unified RPC format.

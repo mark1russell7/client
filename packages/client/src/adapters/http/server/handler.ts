@@ -21,7 +21,7 @@ import type { Metadata, Method } from "../../../client/types.js";
 import type { RequestHandler, ServerRequest, ServerResponse } from "../../../server/types.js";
 import { decodeMetadataHeader, METADATA_HEADER_LIMIT } from "../shared/index.js";
 import { ERROR_REGISTRY } from "../../../client/errors/index.js";
-import { checkBrowserRequest, type BrowserGuardOptions, type GuardResult } from "../../../server/browser-guard.js";
+import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions, type GuardResult } from "../../../server/browser-guard.js";
 import { headerNames, isSecretHeader, queryRecord, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } from "../../../protocol.js";
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
@@ -151,6 +151,8 @@ export interface HandlerCompat {
   readonly corsOutside?: boolean | undefined;
   /** True: the framework matched the path already, so the handler takes each request that it gets. */
   readonly matchAll?: boolean | undefined;
+  /** The name of the face and of its CORS origin option, for the error of `assertNamedOrigins`. */
+  readonly face?: { readonly name: string; readonly originOption: string } | undefined;
 }
 
 /** The error of a request body or of a header that the handler cannot read. */
@@ -279,6 +281,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     allowedHosts: options.allowedHosts,
     allowGet: options.allowGet,
   };
+  // CSRF: a server that reads the cookies of each request needs named origins (CLI-2a)
+  const ambientMode = server.ambientCredentials;
+  assertNamedOrigins(compat.face?.name ?? "procedureHandler", ambientMode, guard.allowedOrigins, compat.face?.originOption ?? "cors.origin");
   const secretHeaders = headerNames(options.secretHeaders);
   const secretQuery = new Set(options.secretQuery ?? (legacy ? [] : ["token"]));
   const strategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
@@ -514,7 +519,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       return;
     }
     // A web page must not reach the procedures: host, origin, method and body type
-    const check = checkBrowserRequest(req, guard, true);
+    // Ambient credentials (cookies) are trusted only from a named origin. The shim keeps its former
+    // checks for a server that reads no cookies.
+    const ambient = needsNamedOrigin(ambientMode, req.headers, !legacy);
+    const check = checkBrowserRequest(req, guard, true, ambient);
     if (!check.ok) {
       refuseGuard(res, check);
       return;

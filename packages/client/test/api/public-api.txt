@@ -4,10 +4,11 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 449 names
+## . (dist/index.d.ts): 451 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
 type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
 type BatchConfig: dist/client/call-types.d.ts#BatchConfig
@@ -333,6 +334,7 @@ getProcedureProcedure: dist/procedures/define-procedure.d.ts#getProcedureProcedu
 getRefName: dist/procedures/ref.d.ts#getRefName
 getRefWhen: dist/procedures/ref.d.ts#getRefWhen
 getRuntimeProcedure: dist/procedures/define-procedure.d.ts#getRuntimeProcedure
+hasAmbientCredentials: dist/server/browser-guard.d.ts#hasAmbientCredentials
 hasCallPolicy: dist/procedures/policy.d.ts#hasCallPolicy
 hasRuntimeProcedure: dist/procedures/define-procedure.d.ts#hasRuntimeProcedure
 hashOf: dist/procedures/manifest.d.ts#hashOf
@@ -456,10 +458,11 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 432 names
+## ./browser (dist/browser.d.ts): 433 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
+type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
 type AnyProcedureRef: dist/procedures/ref.d.ts#AnyProcedureRef
 type BatchConfig: dist/client/call-types.d.ts#BatchConfig
@@ -1323,8 +1326,9 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 36 names
+## ./server (dist/server/index.d.ts): 37 names
 
+type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
 HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
@@ -4331,7 +4335,10 @@ export interface GuardedRequest {
 }
 
 ### dist/server/browser-guard.d.ts#checkBrowserRequest
-export declare function checkBrowserRequest(req: GuardedRequest, options?: BrowserGuardOptions, http?: boolean): GuardResult;
+export declare function checkBrowserRequest(req: GuardedRequest, options?: BrowserGuardOptions, http?: boolean, ambient?: boolean): GuardResult;
+
+### dist/server/browser-guard.d.ts#hasAmbientCredentials
+export declare function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean;
 
 ### dist/server/browser-guard.d.ts#hostNameOf
 export declare function hostNameOf(header: string | undefined): string;
@@ -4417,6 +4424,7 @@ export declare function pathToMethod(path: readonly string[]): Method;
 ### dist/server/procedure-server.d.ts#ProcedureServer
 export declare class ProcedureServer extends Server implements RepositoryProvider {
     readonly publisher: EventPublisher | undefined;
+    readonly ambientCredentials: AmbientCredentials | undefined;
     constructor(options?: ProcedureServerOptions);
     getStorage<T>(collection: string): CollectionStorage<T>;
     hasCollection(collection: string): boolean;
@@ -4457,6 +4465,7 @@ export interface ProcedureServerOptions extends ServerOptions {
     token?: string | undefined;
     authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
     principalOf?: PrincipalOf | undefined;
+    ambientCredentials?: AmbientCredentials | false | undefined;
     events?: EventPublisherOptions | EventPublisher | undefined;
 }
 
@@ -4539,6 +4548,9 @@ export interface ServerOptions {
     onResponse?: (response: ServerResponse) => void;
 }
 
+### dist/server/types.d.ts#AmbientCredentials
+export type AmbientCredentials = "always" | "cookies";
+
 ### dist/server/types.d.ts#Credentials
 export interface Credentials {
     readonly bearer?: string | undefined;
@@ -4565,6 +4577,7 @@ export type PrincipalOf = (credentials: Credentials, request: ServerRequest<unkn
 ### dist/server/types.d.ts#RequestHandler
 export interface RequestHandler {
     handle(request: ServerRequest): Promise<ServerResponse>;
+    readonly ambientCredentials?: AmbientCredentials | undefined;
 }
 
 ### dist/server/types.d.ts#RequestIdentity

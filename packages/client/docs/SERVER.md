@@ -340,6 +340,17 @@ const server = new ProcedureServer({
 - The procedure reads the principal as `ctx.principal`. The nested calls get the same principal.
 - Undefined, or an error, refuses the request with `UNAUTHORIZED`.
 
+### Cookies and CSRF
+
+A browser sends the cookies of a server by itself, also for a request that a page of another site starts. Thus a server that reads cookies trusts a request only from a named origin.
+
+- With `principalOf`, the server reads the cookies of each request. A face then accepts a browser request only from its own origin or from a named origin.
+- A request with a `Cookie` header gets the same check on `procedureHandler` and `upgradeHandler`. `"*"` does not permit another origin for it. A list or a function of origins does.
+- `principalOf` with the origin `"*"` and no named `allowedOrigins` is refused at construction. The error names the fix.
+- A request without an `Origin` header and without `Sec-Fetch-Site` comes from a program, not from a page. It passes.
+- `HttpServerTransport` and `WebSocketServerTransport` keep their former checks for a server that reads no cookies. With `authenticate`, a request with a cookie needs a named origin. The server option `ambientCredentials: false` turns this off for an `authenticate` function that reads only the bearer token.
+- Give a session cookie `SameSite=Lax` or `SameSite=Strict`, and `HttpOnly`. A cookie with `SameSite=None` goes with each request of another site, so only the origin check stops such a request.
+
 ---
 
 ## Complete Example

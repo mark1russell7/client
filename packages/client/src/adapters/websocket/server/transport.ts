@@ -26,7 +26,7 @@ import type {
   ConnectionEventHandler,
 } from "./types.js";
 import { withoutInternalKeys } from "../../metadata.js";
-import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
+import { assertNamedOrigins, checkBrowserRequest, needsNamedOrigin, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { optionalMs } from "../../../duration.js";
 import { headerNames, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
 import { attachUpgradeTarget, refuseUpgrade } from "./upgrade-router.js";
@@ -90,6 +90,8 @@ export class WebSocketServerTransport implements ServerTransport {
   private intakeStopped = false;
   /** The functions that `drain()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
+  /** True: a cookie of an upgrade is trusted only from a named origin, with or without an auth path */
+  private cookiesNamed = false;
   private server: RequestHandler;
   private connections: Set<WebSocket> = new Set();
 
@@ -137,6 +139,8 @@ export class WebSocketServerTransport implements ServerTransport {
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
+    // CSRF: a server that reads the cookies of each request needs named origins (CLI-2a)
+    assertNamedOrigins("WebSocketServerTransport", server.ambientCredentials, options.allowedOrigins, "allowedOrigins");
     this.secretHeaders = headerNames(options.secretHeaders);
     this.reverseRequestTimeoutMs = optionalMs(options.reverseRequestTimeout, "reverseRequestTimeout") ?? TIMER_DEFAULTS.webSocketServer.reverseRequestTimeoutMs;
     this.heartbeat =
@@ -197,7 +201,11 @@ export class WebSocketServerTransport implements ServerTransport {
         { req }: { req: IncomingMessage },
         callback: (result: boolean, code?: number, message?: string) => void
       ) => {
-        const guard = checkBrowserRequest(req, this.guard);
+        // The cookies of an upgrade are trusted only from a named origin, when the server or the
+        // authenticate handler can read them (cross-site WebSocket hijacking with cookies)
+        const readsCookies = this.cookiesNamed || this.options.authenticate !== undefined;
+        const ambient = needsNamedOrigin(this.server.ambientCredentials, req.headers, readsCookies);
+        const guard = checkBrowserRequest(req, this.guard, false, ambient);
         if (!guard.ok) {
           callback(false, guard.status, guard.message);
           return;
@@ -270,6 +278,16 @@ export class WebSocketServerTransport implements ServerTransport {
 
   isRunning(): boolean {
     return this.wss !== null;
+  }
+
+  /**
+   * This method makes the transport trust a cookie of an upgrade only from a named origin, also
+   * without an auth path that reads it. `upgradeHandler()` calls it.
+   *
+   * @internal
+   */
+  nameOriginsForCookies(): void {
+    this.cookiesNamed = true;
   }
 
   /** The path of the WebSocket endpoint. */

@@ -96,6 +96,7 @@ export type {
   Principal,
   PrincipalOf,
   RequestIdentity,
+  AmbientCredentials,
   ServerHandler,
   ServerMiddleware,
   ServerContext,

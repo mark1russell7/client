@@ -81,6 +81,7 @@ export class HttpServerTransport implements ServerTransport {
       {
         legacy: true,
         matchAll: true,
+        face: { name: "HttpServerTransport", originOption: "corsOptions.origin" },
         corsOutside: true,
         methodOf: (req) => urlStrategy(req as Request),
         sendJson: (res, status, body) => {

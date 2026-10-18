@@ -27,7 +27,7 @@ export type {
   HttpUrlStrategy,
 } from "./server/index.js";
 export { WebSocketServerTransport } from "./server/index.js";
-export { checkBrowserRequest, isLoopbackHost, isLoopbackAddress, hostNameOf } from "./server/browser-guard.js";
+export { checkBrowserRequest, hasAmbientCredentials, isLoopbackHost, isLoopbackAddress, hostNameOf } from "./server/browser-guard.js";
 export type { BrowserGuardOptions, GuardedRequest, GuardResult } from "./server/browser-guard.js";
 export type {
   WebSocketServerTransportOptions,
