@@ -165,6 +165,9 @@ describe("SessionPrincipals", () => {
 describe("betterAuthPrincipalOf", () => {
   const request = {} as never;
   const TOKEN = "agent-secret-token";
+  const READ_ONLY = { effects: { writes: [] } };
+  /** A policy: the agent acts for a user who owns no group. */
+  const notOwners = (user: { groups: readonly { role: string }[] }) => !user.groups.some((g) => g.role === "owner");
 
   it("gives the principal of the session user", async () => {
     const { principals } = setup();
@@ -174,28 +177,66 @@ describe("betterAuthPrincipalOf", () => {
     });
   });
 
-  it("gives the agent for the agent token, and the user for the act-as header", async () => {
+  it("gives the agent for the agent token", async () => {
     const { principals } = setup();
     const hook = betterAuthPrincipalOf({ principals, agentToken: TOKEN });
     expect(await hook({ bearer: TOKEN }, request)).toEqual({ principal: { id: AGENT_ID, via: VIA.agent, claims: { agent: true } } });
-    const asAlice = await hook({ bearer: TOKEN, headers: { "x-act-as": "u1" } }, request);
-    expect(asAlice?.principal).toMatchObject({ id: "u1", via: VIA.agentAs, claims: { email: "alice@example.com", agent: true } });
-    const asNobody = await hook({ bearer: TOKEN, headers: { "x-act-as": "ghost" } }, request);
-    expect(asNobody?.principal).toEqual({ id: ANONYMOUS_ID, via: VIA.agentAs, claims: { agent: true, actAs: "ghost" } });
   });
 
-  it("does not take another bearer token as the agent, and does not let the act-as header work without the token", async () => {
+  it("refuses each act-as request without the actAs policy (an admin too)", async () => {
     const { principals } = setup();
-    const hook = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAsHeader: "X-Graph-As" });
+    const hook = betterAuthPrincipalOf({ principals, agentToken: TOKEN, anonymous: READ_ONLY });
+    expect(await hook({ bearer: TOKEN, headers: { "x-act-as": "u1" } }, request)).toBeUndefined();
+    expect(await hook({ bearer: TOKEN, headers: { "x-act-as": "u2" } }, request)).toBeUndefined();
+  });
+
+  it("acts for a user only when the policy permits it, and records the act-as in the claims", async () => {
+    const { principals } = setup();
+    const seen: string[] = [];
+    const hook = betterAuthPrincipalOf({
+      principals,
+      agentToken: TOKEN,
+      actAs: (user, credentials) => {
+        seen.push(`${user.id}:${credentials.bearer === TOKEN}`);
+        return notOwners(user);
+      },
+    });
+    expect(await hook({ bearer: TOKEN, headers: { "x-act-as": "u1" } }, request)).toBeUndefined(); // u1 owns g1
+    expect((await hook({ bearer: TOKEN, headers: { "x-act-as": "u2" } }, request))?.principal).toEqual({
+      id: "u2",
+      via: VIA.agentAs,
+      claims: { groups: [], agent: true, actAs: "u2" },
+    });
+    expect(seen).toEqual(["u1:true", "u2:true"]);
+  });
+
+  it("acts for an unknown user as an anonymous request, or refuses it without the anonymous option", async () => {
+    const { principals } = setup();
+    const open = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAs: () => true, anonymous: READ_ONLY });
+    expect(await open({ bearer: TOKEN, headers: { "x-act-as": "ghost" } }, request)).toEqual({
+      principal: { id: ANONYMOUS_ID, via: VIA.agentAs, claims: { agent: true, actAs: "ghost" } },
+      narrowing: READ_ONLY,
+    });
+    const closed = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAs: () => true });
+    expect(await closed({ bearer: TOKEN, headers: { "x-act-as": "ghost" } }, request)).toBeUndefined();
+  });
+
+  it("refuses a request without a user by default, and narrows it with the anonymous option", async () => {
+    const { principals } = setup();
+    expect(await betterAuthPrincipalOf({ principals })({}, request)).toBeUndefined();
+    expect(await betterAuthPrincipalOf({ principals, anonymous: false })({}, request)).toBeUndefined();
+    expect(await betterAuthPrincipalOf({ principals, anonymous: READ_ONLY })({}, request)).toEqual({
+      principal: { id: ANONYMOUS_ID, via: VIA.anonymous },
+      narrowing: READ_ONLY,
+    });
+  });
+
+  it("does not take another bearer token as the agent, and ignores the act-as header without the token", async () => {
+    const { principals } = setup();
+    const hook = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAsHeader: "X-Graph-As", actAs: () => true, anonymous: READ_ONLY });
     expect((await hook({ bearer: "wrong", headers: { "x-graph-as": "u1" } }, request))?.principal).toEqual({ id: ANONYMOUS_ID, via: VIA.anonymous });
     expect((await hook({ bearer: TOKEN, headers: { "x-graph-as": "u1" } }, request))?.principal?.id).toBe("u1");
-  });
-
-  it("gives no principal to a request without a user when anonymous is false", async () => {
-    const { principals } = setup();
-    const hook = betterAuthPrincipalOf({ principals, anonymous: false });
-    expect(await hook({}, request)).toBeUndefined();
-    expect(await hook({ bearer: TOKEN }, request)).toBeUndefined(); // no agent token: no agent
+    expect(await betterAuthPrincipalOf({ principals })({ bearer: TOKEN }, request)).toBeUndefined(); // no agent token: no agent
   });
 });
 

@@ -42,24 +42,36 @@ app.all("/auth/*path", toNodeHandler(auth)); // the routes belong to the app
 
 `SessionPrincipals` gives the user of a session cookie: the id, the verified email, the name and the groups. A short memo keeps the boot of a page to one session lookup.
 
-`betterAuthPrincipalOf` gives the request hook (`principalOf`) of a procedures server:
+`betterAuthPrincipalOf` gives the request hook (`principalOf`) of a procedures server. The app maps each kind of principal to a capability:
 
 ```ts
-import { betterAuthPrincipalOf, SessionPrincipals } from "@procedures/better-auth";
+import { betterAuthPrincipalOf, SessionPrincipals, VIA } from "@procedures/better-auth";
 
+const READ_ONLY = { effects: { writes: [] } };
 const principals = new SessionPrincipals({ auth, db: client.db("example-auth") });
 const server = createProcedureServer({
-  principalOf: betterAuthPrincipalOf({ principals, agentToken: process.env.AGENT_TOKEN }),
+  // No `token`: the hook checks the agent token, and a cookie session has no bearer token
+  principalOf: betterAuthPrincipalOf({
+    principals,
+    agentToken: process.env.AGENT_TOKEN,
+    // The agent acts only for users who own no group
+    actAs: (user) => !user.groups.some((group) => group.role === "owner"),
+    // A visitor without a session can read, and change nothing
+    anonymous: READ_ONLY,
+  }),
+  capability: (request) => (request.principal?.via === VIA.anonymous ? READ_ONLY : {}),
 });
 ```
 
 | The request has | The principal |
 | --- | --- |
 | The agent token as the bearer token | `{ id: "agent", via: "agent-token" }` |
-| The agent token and the header `x-act-as: <user id>` | The user, with `via: "agent-as"` and the claim `agent: true`. An unknown user gives the anonymous principal. |
+| The agent token and the header `x-act-as: <user id>` | The user, with `via: "agent-as"` and the claims `agent: true` and `actAs`. The `actAs` policy must permit the user. Without the policy, the hook refuses the request. |
 | A session cookie | The user, with `via: "better-auth"` and the claims `email`, `name` and `groups` |
-| Nothing of the above | `{ id: "anonymous", via: "anonymous" }`, or no principal with `anonymous: false` |
+| Nothing of the above | With `anonymous`: `{ id: "anonymous", via: "anonymous" }` and that narrowing. Without it (the default): no principal, and the server refuses the request. |
 
+- An act-as request for an unknown user gets the anonymous principal, or a refusal without `anonymous`.
 - A bearer token that is not the agent token goes on to the token check of the server.
+- Do not give the server a `token` with this hook. The token check of the server operates after the hook, and a cookie session has no bearer token.
 - The procedures read the principal as `ctx.principal`. The rights of the app stay in the app.
-- The agent token is compared in constant time with `tokenMatches` of `@procedures/client`.
+- The hook compares the agent token in constant time with `tokenMatches` of `@procedures/client`.

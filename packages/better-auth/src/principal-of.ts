@@ -3,14 +3,17 @@
  * of a network request:
  *
  * - The agent token in the bearer token: the principal `agent`. With the act-as header, the agent
- *   acts for that user, with the rights of the user and no more.
+ *   acts for that user, with the rights of the user and no more. The `actAs` policy tells for whom.
+ *   Without the policy, the hook refuses each act-as request.
  * - Else the session cookie: the principal of the signed-in user.
- * - Else the anonymous principal, or no principal when `anonymous` is false (the server then refuses
- *   the request).
+ * - Else the anonymous principal with the `anonymous` narrowing. Without that option, the hook gives
+ *   no principal, and the server refuses the request.
  *
- * A bearer token that is not the agent token goes on to the token check of the server.
+ * A bearer token that is not the agent token goes on to the token check of the server. A server
+ * with this hook sets no `token`: its token check runs after the hook, and a cookie session has no
+ * bearer token.
  */
-import { tokenMatches, type Credentials, type Principal, type PrincipalOf, type RequestIdentity } from "@procedures/client";
+import { tokenMatches, type CapabilityRequest, type Credentials, type Principal, type PrincipalOf, type RequestIdentity } from "@procedures/client";
 import type { SessionPrincipals, SignedInUser } from "./principals.js";
 
 /** The `via` of each principal that the hook gives. */
@@ -21,9 +24,13 @@ export const VIA = {
   anonymous: "anonymous",
 } as const;
 
-/** The id of the principal of the agent token, and of a request without a user. */
+/** The id of the principal of the agent token. */
 export const AGENT_ID = "agent";
+/** The id of the principal of a request without a user. */
 export const ANONYMOUS_ID = "anonymous";
+
+/** The policy of act-as: true when the agent can act for this user. */
+export type ActAsPolicy = (user: SignedInUser, credentials: Credentials) => boolean | Promise<boolean>;
 
 /** The options of `betterAuthPrincipalOf`. */
 export interface BetterAuthPrincipalOfOptions {
@@ -33,8 +40,13 @@ export interface BetterAuthPrincipalOfOptions {
   readonly agentToken?: string | undefined;
   /** The header that names the user for whom the agent acts (default `x-act-as`). */
   readonly actAsHeader?: string | undefined;
-  /** Give the anonymous principal to a request without a user (default true). */
-  readonly anonymous?: boolean | undefined;
+  /** For whom the agent can act. Without it, the hook refuses each act-as request. */
+  readonly actAs?: ActAsPolicy | undefined;
+  /**
+   * The narrowing of a request without a user (for example `{ effects: { writes: [] } }` for read
+   * only). Without it (the default), the hook gives no principal, and the server refuses the request.
+   */
+  readonly anonymous?: CapabilityRequest | false | undefined;
 }
 
 /** The claims of a user: the verified email, the name and the groups. */
@@ -63,21 +75,28 @@ export function headersOf(credentials: Credentials): Headers {
 
 /** This function gives the request hook of a procedures server over Better Auth. */
 export function betterAuthPrincipalOf(options: BetterAuthPrincipalOfOptions): PrincipalOf {
-  const actAs = (options.actAsHeader ?? "x-act-as").toLowerCase();
-  const anonymous = options.anonymous ?? true;
+  const actAsHeader = (options.actAsHeader ?? "x-act-as").toLowerCase();
+  const anonymous = options.anonymous === false ? undefined : options.anonymous;
+  /** The identity of a request without a user, or undefined when the server refuses it. */
+  const anonymousIdentity = (claims?: Record<string, unknown>): RequestIdentity | undefined =>
+    anonymous === undefined
+      ? undefined
+      : { principal: { id: ANONYMOUS_ID, via: claims ? VIA.agentAs : VIA.anonymous, ...(claims ? { claims } : {}) }, narrowing: anonymous };
   const identity = (principal: Principal): RequestIdentity => ({ principal });
 
   return async (credentials) => {
     if (options.agentToken && tokenMatches(options.agentToken, credentials.bearer)) {
-      const target = credentials.headers?.[actAs];
+      const target = credentials.headers?.[actAsHeader];
       if (!target) return identity({ id: AGENT_ID, via: VIA.agent, claims: { agent: true } });
+      if (!options.actAs) return undefined;
       const user = await options.principals.ofUser(target);
       // An unknown user has no rights: the agent acts as an anonymous request
-      if (!user) return identity({ id: ANONYMOUS_ID, via: VIA.agentAs, claims: { agent: true, actAs: target } });
-      return identity({ id: user.id, via: VIA.agentAs, claims: { ...userClaims(user), agent: true } });
+      if (!user) return anonymousIdentity({ agent: true, actAs: target });
+      if (!(await options.actAs(user, credentials))) return undefined;
+      return identity({ id: user.id, via: VIA.agentAs, claims: { ...userClaims(user), agent: true, actAs: user.id } });
     }
     const user = await options.principals.ofHeaders(headersOf(credentials));
     if (user) return identity({ id: user.id, via: VIA.session, claims: userClaims(user) });
-    return anonymous ? identity({ id: ANONYMOUS_ID, via: VIA.anonymous }) : undefined;
+    return anonymousIdentity();
   };
 }
