@@ -1,5 +1,13 @@
 # @procedures/mongo
 
+## 0.12.2
+
+### Patch Changes
+
+- Updated dependencies [b6782c0]
+  - @procedures/collections@0.12.2
+  - @procedures/client@0.12.2
+
 ## 0.12.1
 
 ### Patch Changes
