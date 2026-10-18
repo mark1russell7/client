@@ -9,6 +9,9 @@
  * (default: `@procedures/bundle-mcp`, resolved from the current folder). Without a list,
  * nothing is exposed. The nested calls follow the call policy (`strictCalls`), and each tool call
  * has a time limit.
+ *
+ * The server comes from `createMcpHost()` (CLI-10), so its options come from `hostPolicy()` of the
+ * core, as for the dev-tools server. Before, `mcp.serve` built them by hand.
  */
 
 import { z } from "zod";
@@ -17,14 +20,13 @@ import {
   ProcedureServer,
   PROCEDURE_REGISTRY,
   ProcedureRegistry,
-  timeoutInterceptor,
   type AnyProcedure,
   type ProcedureContext,
   type ProcedurePath,
+  type ToolSurface,
 } from "@procedures/client";
-import { McpServerTransport } from "../../transport/mcp-transport.js";
-import type { McpServerTransportOptions } from "../../types.js";
 import { exposeRule, importBundles, mergeSurfaces } from "../../surface.js";
+import { createMcpHost, type McpHost, type McpHostFaces } from "../../host.js";
 import { ms } from "@procedures/client";
 
 /** The default bundle of the tool surface. */
@@ -54,6 +56,10 @@ const McpServeInputSchema = z.object({
   strictCalls: z.boolean().default(true).describe("True (the default): a procedure of code without metadata.calls can call only tools."),
   /** The time limit of each tool call, in milliseconds (default: 600000). 0: no limit. */
   toolTimeoutMs: z.number().int().min(0).default(600_000).describe("The time limit of each tool call, in milliseconds (default: 600000). 0: no limit."),
+  /** True: the tools are only the procedures that change nothing, and each call has that capability. */
+  readOnly: z.boolean().default(false).describe("True: the tools are only the procedures that change nothing, and each call has that capability."),
+  /** The instructions of the server: the MCP client gives them to the model. */
+  instructions: z.string().optional().describe("The instructions of the server: the MCP client gives them to the model."),
 });
 
 type McpServeInput = z.infer<typeof McpServeInputSchema>;
@@ -83,12 +89,26 @@ export interface ServeOptions {
   bundles?: readonly string[] | undefined;
   strictCalls?: boolean | undefined;
   toolTimeoutMs?: number | undefined;
+  /** True: the tools are only the procedures that change nothing. */
+  readOnly?: boolean | undefined;
+  /** The name of the server for the MCP client. */
+  name?: string | undefined;
+  /** The version of the server for the MCP client. */
+  version?: string | undefined;
+  /** The instructions of the server. */
+  instructions?: string | undefined;
+  /** True: debug lines go to stderr. */
+  debug?: boolean | undefined;
+  /** The faces of the host. The default is stdio. */
+  faces?: McpHostFaces | undefined;
 }
 
 /** The server of `mcp.serve`, before its transport starts. */
 export interface ServeSetup {
   server: ProcedureServer;
   expose: (path: ProcedurePath) => boolean;
+  /** The MCP host of the server: `host.start()` starts its faces. */
+  host: McpHost;
   /** Why the server has no tools, when it has none. */
   warning?: string;
 }
@@ -105,16 +125,17 @@ export async function prepareServe(
   from: string = process.cwd(),
   registry: ProcedureRegistry = PROCEDURE_REGISTRY
 ): Promise<ServeSetup> {
-  let expose: (path: ProcedurePath) => boolean = () => false;
+  // Without a surface, nothing is a tool
+  let surface: ToolSurface | ((path: ProcedurePath) => boolean) = () => false;
   let warning: string | undefined;
   if (input.namespaces) {
-    expose = exposeRule({ namespaces: input.namespaces, exclude: input.exclude });
+    surface = { namespaces: input.namespaces, exclude: input.exclude };
   } else {
     const bundles = input.bundles ?? [DEFAULT_SERVE_BUNDLE];
     try {
-      const surface = mergeSurfaces(await importBundles(bundles, from));
-      if (surface) {
-        expose = exposeRule({ namespaces: surface.namespaces, exclude: [...(surface.exclude ?? []), ...(input.exclude ?? [])] });
+      const merged = mergeSurfaces(await importBundles(bundles, from));
+      if (merged) {
+        surface = { namespaces: merged.namespaces, exclude: [...(merged.exclude ?? []), ...(input.exclude ?? [])] };
       } else {
         warning = `The bundles ${bundles.join(", ")} give no mcpNamespaces, so no procedure is a tool. Give namespaces.`;
       }
@@ -125,14 +146,23 @@ export async function prepareServe(
     }
   }
 
-  const server = new ProcedureServer({
-    autoRegister: input.autoRegister ?? true,
+  const host = createMcpHost({
     registry,
-    expose,
-    strictCalls: input.strictCalls ?? true,
-    interceptors: [timeoutInterceptor({ limit: ms(input.toolTimeoutMs ?? 600_000) })],
+    surface,
+    readOnly: input.readOnly === true,
+    policy: { strictCalls: input.strictCalls ?? true, timeout: ms(input.toolTimeoutMs ?? 600_000) },
+    serverOptions: { autoRegister: input.autoRegister ?? true },
+    ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.version !== undefined ? { version: input.version } : {}),
+    ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+    ...(input.debug !== undefined ? { debug: input.debug } : {}),
+    faces: input.faces ?? { stdio: true },
   });
-  return warning === undefined ? { server, expose } : { server, expose, warning };
+  // A surface always gives a rule, so the host has one
+  const expose = host.expose ?? (typeof surface === "function" ? surface : exposeRule(surface));
+  const setup: ServeSetup = { server: host.server, expose, host };
+  if (warning !== undefined) setup.warning = warning;
+  return setup;
 }
 
 export const mcpServeProcedure: AnyProcedure = defineProcedure({
@@ -150,33 +180,21 @@ export const mcpServeProcedure: AnyProcedure = defineProcedure({
     const serverVersion = input.version ?? "1.0.0";
     // The registry of the caller: a host with its own registry serves its own procedures
     const registry = ctx?.registry instanceof ProcedureRegistry ? ctx.registry : PROCEDURE_REGISTRY;
-    const { server, expose, warning } = await prepareServe(input, process.cwd(), registry);
+    const { host, warning } = await prepareServe(
+      { ...input, name: serverName, version: serverVersion, faces: { stdio: true } },
+      process.cwd(),
+      registry,
+    );
+    // The face of stdio: it stops the host when the client closes the input
+    await host.start();
 
-    // Build transport options
-    const options: McpServerTransportOptions = {
-      transport: input.transport,
-      serverInfo: {
-        name: serverName,
-        version: serverVersion,
-      },
-      debug: input.debug,
-      toolFilter: { include: expose },
-    };
-
-    // Create MCP transport
-    const mcpTransport = new McpServerTransport(server, options);
-
-    // Add transport and start
-    server.addTransport(mcpTransport);
-    await server.start();
-
-    const state = mcpTransport.getState();
+    const toolCount = host.state().faces[0]?.toolCount ?? host.tools().length;
     if (warning) console.error(`[mcp.serve] ${warning}`);
 
     return {
       success: true,
       transport: input.transport,
-      toolCount: state.toolCount,
+      toolCount,
       serverName,
       ...(warning ? { warning } : {}),
     };
