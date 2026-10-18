@@ -54,6 +54,30 @@ export function writeLockfile(data: LockfileData): void {
   fs.writeFileSync(lockfilePath(data.port), JSON.stringify(data, null, 2), { mode: 0o600 });
 }
 
+/** A lockfile as a dependency of a service: the shape of `DependencyHandle` of `@mark1russell7/service`. */
+export interface LockfileHandle {
+  /** This method writes the lockfile. */
+  connect(): void;
+  /** This method removes the lockfile, when it is still the lockfile of this host. */
+  close(): void;
+}
+
+/**
+ * This function gives the lockfile of a host as a dependency of its service (CLI-8). The lifecycle
+ * connects the dependencies before the listeners start, and it closes them after the listeners
+ * close. Thus the stages of `run()` own the lockfile, and the entry has no signal handler for it.
+ * The close leaves a lockfile of another peer on the same port.
+ */
+export function lockfileHandle(data: LockfileData): LockfileHandle {
+  return {
+    connect: () => writeLockfile(data),
+    close: () => {
+      const current = readLockfileForPort(data.port);
+      if (current === null || current.peerId === data.peerId) removeLockfileForPort(data.port);
+    },
+  };
+}
+
 export function readLockfileForPort(port: number): LockfileData | null {
   try {
     return JSON.parse(fs.readFileSync(lockfilePath(port), "utf-8")) as LockfileData;

@@ -26,12 +26,13 @@ import {
   type ProcedureModule,
   type ProcedureRegistry,
 } from "@procedures/client";
-import { createPeer, type Peer, type PeerEndpoint } from "@procedures/peer";
+import type { RunOptions } from "@mark1russell7/service";
+import { createPeer, peerHostOptions, type Peer, type PeerEndpoint } from "@procedures/peer";
 import peerModule from "@procedures/peer/module";
 import { parseConfig } from "./config.js";
+import { runProcedureHost } from "./host.js";
 import { serverModule } from "./module.js";
 import type { ServerConfig } from "./types.js";
-import { seconds } from "@procedures/client";
 
 /** A package name and the subpath after it: "@a/b/register" gives ["@a/b", "./register"]. */
 function splitSpec(spec: string): { name: string; subpath: string } {
@@ -152,27 +153,42 @@ export interface RunningServer {
   refusedUnderRoot?: string[] | undefined;
 }
 
-/** The token of a configuration: `--token`, else `SERVER_TOKEN`, else a random one. `--no-token`: none. */
+/**
+ * The token of a configuration: `--token`, else `SERVER_TOKEN`, else a random one of 32 bytes, the
+ * size of the token of `mark --server` (CLI-8). `--no-token`: none.
+ */
 function tokenOf(config: ServerConfig): { token: string | undefined; generated: boolean } {
   const envToken = process.env["SERVER_TOKEN"] || undefined;
   if (config.token === null) return { token: undefined, generated: false };
   if (config.token !== undefined) return { token: config.token, generated: false };
   if (envToken !== undefined) return { token: envToken, generated: false };
-  return { token: randomBytes(24).toString("hex"), generated: true };
+  return { token: randomBytes(32).toString("hex"), generated: true };
 }
 
 /** The options of `startServer()` and `runServer()`. */
 export interface ServerRunOptions {
   /** The folders that a `--procedures` package resolves from, first to last (default: the current folder). */
   resolveFrom?: readonly string[] | undefined;
+  /** The options of `run()` of `runServer()`: a process port and a clock, for a test (CLI-8). */
+  run?: RunOptions | undefined;
 }
 
-/** This function starts the server of a configuration. It returns when the transports listen. */
-export async function startServer(
-  config: ServerConfig,
-  log: (line: string) => void = console.log,
-  options: ServerRunOptions = {}
-): Promise<RunningServer> {
+/** What the server of a configuration serves: its registry, its policy, its token and its root. */
+interface PreparedServer {
+  registry: ProcedureRegistry;
+  policy: HostPolicy;
+  token: string | undefined;
+  generated: boolean;
+  confined: Confined | undefined;
+}
+
+/** A new peer id. */
+function newPeerId(): string {
+  return `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** This function builds the registry and the host policy of a configuration. */
+async function prepareServer(config: ServerConfig, log: (line: string) => void, options: ServerRunOptions): Promise<PreparedServer> {
   // The server.* procedures: those of the peer package (server.create, server.call and the
   // others), and server.start, server.stop and server.status of this package
   const modules: ProcedureModule[] = [peerModule, serverModule];
@@ -205,12 +221,20 @@ export async function startServer(
     // bus, which is also the ctx.bus of the procedures.
     events: { topics: config.events ?? [] },
   });
-  const peer = await createPeer({
-    id: `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    transports: config.transports,
-    registry,
-    policy,
-  });
+  return { registry, policy, token, generated, confined };
+}
+
+/**
+ * This function starts the server of a configuration outside a service, as a peer. It returns when
+ * the transports listen. `peer.stop()` stops it. The `server` CLI uses `runServer()` instead.
+ */
+export async function startServer(
+  config: ServerConfig,
+  log: (line: string) => void = console.log,
+  options: ServerRunOptions = {}
+): Promise<RunningServer> {
+  const { registry, policy, token, generated, confined } = await prepareServer(config, log, options);
+  const peer = await createPeer({ id: newPeerId(), transports: config.transports, registry, policy });
   await peer.start();
   return {
     peer,
@@ -224,8 +248,10 @@ export async function startServer(
 }
 
 /**
- * The `server` CLI: parse the options, start the server, print where it listens, and keep the
- * process alive until a signal. `mark serve` calls it with its own arguments.
+ * The `server` CLI: parse the options, start the server under `run()` of `@mark1russell7/service`,
+ * and print where it listens. `mark serve` calls it with its own arguments. The runner owns the
+ * signals, the stop in stages and the exit: this function installs no signal handler and no
+ * hard-exit timer (CLI-8). Its promise ends when the lifecycle ends.
  */
 export async function runServer(argv: string[], options: ServerRunOptions = {}): Promise<void> {
   const config = parseConfig(argv);
@@ -235,19 +261,33 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
     console.log("  Transports:", config.transports.map((t) => t.type).join(", "));
   }
 
-  const running = await startServer(config, console.log, options);
+  const { registry, policy, token, generated, confined } = await prepareServer(config, console.log, options);
+  const { host, life } = await runProcedureHost({
+    name: "procedure-server",
+    mode: "foreground",
+    host: peerHostOptions({ id: newPeerId(), transports: config.transports, registry, policy }, "procedures"),
+    log: console.log,
+    ...(options.run ? { run: options.run } : {}),
+  });
+  if (life.state !== "running") {
+    // The startup failed: the lifecycle stops the parts that started, and the process exits with 1
+    console.error("Server failed to start:");
+    for (const error of life.errors) console.error(`  ${error}`);
+    await life.done;
+    return;
+  }
 
   console.log("\nServer started!");
-  console.log(`  Server ID: ${running.peer.id}`);
-  console.log(`  Procedures: ${running.peer.getServer().procedureCount}`);
+  console.log(`  Server ID: ${host.id}`);
+  console.log(`  Procedures: ${host.server.procedureCount}`);
   console.log("\nEndpoints:");
-  for (const endpoint of running.endpoints) {
+  for (const endpoint of host.info.endpoints()) {
     console.log(`  [${endpoint.type}] ${endpoint.address}`);
   }
-  if (running.token === undefined) {
+  if (token === undefined) {
     console.log("\nNo token: any program on this computer can call the server.");
   } else {
-    console.log(`\nToken${running.generatedToken ? " (random, for this run)" : ""}: ${running.token}`);
+    console.log(`\nToken${generated ? " (random, for this run)" : ""}: ${token}`);
     console.log("  Send it as 'Authorization: Bearer <token>', or as ?token=<token> for WebSocket.");
   }
   if (config.expose.length > 0) {
@@ -255,34 +295,12 @@ export async function runServer(argv: string[], options: ServerRunOptions = {}):
   }
   const events = config.events ?? [];
   console.log(events.length > 0 ? `Event topics (events.subscribe): ${events.join(", ")}` : "Event topics: none (--events adds them)");
-  if (running.fsRoot !== undefined) {
-    console.log(`File root: ${running.fsRoot} (each procedure refuses a path outside it)`);
-    console.log(`  Refused under the root: ${running.refusedUnderRoot?.length ?? 0} procedures that the root cannot confine`);
+  if (confined !== undefined) {
+    console.log(`File root: ${confined.root} (each procedure refuses a path outside it)`);
+    console.log(`  Refused under the root: ${confined.refused.length} procedures that the root cannot confine`);
   }
   console.log("\nPress Ctrl+C to stop the server.");
-
-  // The peer stops before the process exits, with a limit of 10 seconds. A failed stop exits
-  // with 1, and a second signal exits at once (roadmap R5).
-  let stopping = false;
-  const stop = (): void => {
-    if (stopping) process.exit(1);
-    stopping = true;
-    console.log("\nShutting down...");
-    setTimeout(() => process.exit(1), 10_000).unref();
-    // The calls in flight have 5 seconds to end (roadmap R14)
-    running.peer.stop({ grace: seconds(5) }).then(
-      () => process.exit(0),
-      (error: unknown) => {
-        console.error(`The server did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`);
-        process.exit(1);
-      },
-    );
-  };
-  process.on("SIGINT", stop);
-  process.on("SIGTERM", stop);
-
-  // Keep the process alive
-  await new Promise(() => {
-    // Never resolves - keeps process running
-  });
+  // A signal starts the stop in stages: the stop of the intake, the drain, the close of the
+  // listeners and of the storages. A second Ctrl-C exits at once (the profile localDev, D6).
+  await life.done;
 }

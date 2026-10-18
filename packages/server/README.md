@@ -297,17 +297,26 @@ npx @mark1russell7/server-mongo
 npx procedure-server --procedures @procedures/mongo/register
 ```
 
-### With client-server
+### The runner entry
 
-The server CLI uses `server.create` procedure internally:
+The server CLI, `mark serve` and `mark --server` start through `runProcedureHost()` (CLI-8). It declares the parts of `createProcedureHost()` of `@procedures/peer` in one service of `@mark1russell7/service`, and starts `run()`.
 
 ```typescript
-// What the CLI does internally:
-await client.exec(["server", "create"], {
-  transports: [{ type: "http", port: 3000, cors: true }],
-  autoRegister: true,
+import { runProcedureHost } from "@procedures/server";
+import { peerHostOptions } from "@procedures/peer";
+
+const { host, life } = await runProcedureHost({
+  name: "procedure-server",
+  mode: "foreground",
+  host: peerHostOptions({ id, transports: [{ type: "http", port: 3000 }], registry, policy }),
 });
+await life.done; // the runner ends the process after the stop in stages
 ```
+
+- **The signals.** The runner owns `SIGINT`, `SIGTERM` and `SIGQUIT`. The entry installs no signal handler and no hard-exit timer.
+- **The profiles.** The mode `foreground` has the profile `localDev`: a second Ctrl-C exits at once. The mode `background` (`mark --server`) has the profile `daemon`: a repeat signal has no effect. The caps of the stages sum to 10 s.
+- **The lockfile.** `lockfile` makes the lockfile a dependency of the service. The startup writes it before the listeners start, and the shutdown removes it after the listeners close.
+- **Outside a service.** `startServer()` starts the same server as a peer, for a test or an app that has its own lifecycle.
 
 ### Package Hierarchy
 
