@@ -225,9 +225,73 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     expect(changes.changed.map(([, value]) => value.n)).toEqual(Array.from({ length: 10 }, (_, i) => 20 + i));
   });
 
+  it("refuses an id with the separator, in each operation", async () => {
+    const storage = fresh<{ n: number }>();
+    const bad = "t1x";
+    await expect(storage.set(bad, { n: 1 })).rejects.toThrow(/U\+001F/);
+    await expect(storage.setBatch([["ok", { n: 1 }], [bad, { n: 2 }]])).rejects.toThrow(/U\+001F/);
+    await expect(storage.get(bad)).rejects.toThrow(/U\+001F/);
+    await expect(storage.delete(bad)).rejects.toThrow(/U\+001F/);
+    await expect(storage.patch(bad, { n: 3 })).rejects.toThrow(/U\+001F/);
+    expect(await storage.size()).toBe(0); // the batch with a bad id wrote nothing
+  });
+
+  it("cannot take over a stored document of another partition", async () => {
+    const name = `c${++next}`;
+    // A document of the partition t9 whose stored _id has no prefix, as an older format could have
+    await db.collection(name).insertOne({ _id: "y" as never, _key: "y", _part: "t9", _seq: 1, _ord: 1, n: 1 });
+    const root = fresh<{ n: number }>({ collection: name });
+    expect(await root.get("y")).toBeUndefined();
+    await expect(root.set("y", { n: 2 })).rejects.toThrow();
+    await expect(root.delete("y")).resolves.toBe(false);
+    expect(await db.collection(name).findOne({ _id: "y" as never })).toMatchObject({ _part: "t9", n: 1 });
+  });
+
+  it("keeps the log exact across processes: a version stops below a number that another process has not written", async () => {
+    const name = `c${++next}`;
+    const storage = fresh<{ n: number }>({ collection: name });
+    await storage.set("a", { n: 1 });
+    const first = await storage.getChangesSince();
+    // Another process takes the next number, and its write is not visible yet
+    const counters = db.collection<{ _id: string; seq: number }>("__storage_counters");
+    const taken = await counters.findOneAndUpdate(
+      { _id: name },
+      [
+        { $set: { seq: { $add: ["$seq", 1] } } },
+        { $set: { pending: { $concatArrays: [{ $ifNull: ["$pending", []] }, [{ from: "$seq", to: "$seq", at: "$$NOW" }]] } } },
+      ],
+      { returnDocument: "after" },
+    );
+    const theirs = taken!.seq;
+    await storage.set("b", { n: 2 }); // the number after theirs
+    const held = await storage.getChangesSince(first.version);
+    expect(held).toMatchObject({ full: false, changed: [], deleted: [] });
+    expect(held.version).toBe(first.version);
+    // The other process writes, and ends its number
+    await db.collection(name).insertOne({ _id: "c" as never, _key: "c", _seq: theirs, _ord: theirs, n: 3 });
+    await counters.updateOne({ _id: name }, { $pull: { pending: { from: theirs } } } as never);
+    const after = await storage.getChangesSince(held.version);
+    expect(after.changed.map(([id]) => id)).toEqual(["c", "b"]);
+  });
+
+  it("does not wait for a pending number whose lease has ended", async () => {
+    const name = `c${++next}`;
+    const storage = fresh<{ n: number }>({ collection: name, writeLeaseMs: 1000 });
+    await storage.set("a", { n: 1 });
+    const first = await storage.getChangesSince();
+    const counters = db.collection<{ _id: string; seq: number }>("__storage_counters");
+    await counters.updateOne({ _id: name }, [
+      { $set: { seq: { $add: ["$seq", 1] } } },
+      { $set: { pending: { $concatArrays: [{ $ifNull: ["$pending", []] }, [{ from: "$seq", to: "$seq", at: new Date(0) }]] } } },
+    ]);
+    await storage.set("b", { n: 2 });
+    expect((await storage.getChangesSince(first.version)).changed.map(([id]) => id)).toEqual(["b"]);
+  });
+
   it("refuses a partition with the separator, and a maxTombstones that is not a whole number", () => {
     expect(() => fresh({ partition: "a\u001fb" })).toThrow(/U\+001F/);
     expect(() => fresh({ partition: "" })).toThrow(/U\+001F/);
     expect(() => fresh({ maxTombstones: -1 })).toThrow(/maxTombstones/);
+    expect(() => fresh({ writeLeaseMs: 0 })).toThrow(/writeLeaseMs/);
   });
 });

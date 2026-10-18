@@ -12,8 +12,9 @@
  * - The fields of the storage: `_key` (the id), `_part` (the partition), `_seq` (the sequence
  *   number of the last write), `_ord` (the number of the first write: the order of the entries, as
  *   a `Map` keeps it) and `_tomb` (a deleted item).
- * - With a partition, the stored `_id` is `<partition>` + U+001F + `<id>`. Each partition reads and
- *   writes only its documents.
+ * - With a partition, the stored `_id` is `<partition>` + U+001F + `<id>`. An id cannot have the
+ *   character U+001F. Each partition reads and writes only its documents: each write filter has the
+ *   partition too, so a write of a stored `_id` of another partition fails and changes nothing.
  *
  * The change log:
  * - Each write gets the next number of the sequence of the collection. `_seq` is also the version
@@ -22,9 +23,10 @@
  *   most `maxTombstones` tombstones in each partition. A version before the oldest dropped
  *   tombstone gives a full result.
  * - A version names the epoch of the sequence. A version of another epoch gives a full result.
- * - The writes and the change reads of one collection go one at a time in this process, so the
- *   order of the numbers is the order of the commits. The log is exact when one process writes
- *   the collection.
+ * - A watermark keeps the log exact across processes. Each write records its numbers as pending
+ *   in the counter document until it ends. A version stops below the lowest pending number, so a
+ *   reader does not skip a write that commits later. A pending number of a writer that stopped
+ *   expires after `writeLeaseMs`.
  *
  * The queries: `query()` sends the conditions that MongoDB tests in the same way (the equality of
  * a string, a number or a boolean, and `$in` of them) as a filter. `queryEntries()` of the core
@@ -75,10 +77,23 @@ export interface MongoDocumentStorageOptions {
   queryPolicy?: StorageQueryPolicy | undefined;
   /** The collection of the sequence counters (default `__storage_counters`). */
   counters?: string | undefined;
+  /**
+   * The time in milliseconds after which a pending number of a write no longer holds the watermark
+   * (default 60000): a writer that stopped does not stop the change reads.
+   */
+  writeLeaseMs?: number | undefined;
 }
 
 /** A stored document. */
 type Stored = Document & { _id: string };
+
+/** A range of numbers that a write took and has not written yet. */
+interface PendingRange {
+  from: number;
+  to: number;
+  /** The time of the server when the write took the numbers. */
+  at: Date;
+}
 
 /** A document of the counters: the sequence of a collection, or the floor of the log of a partition. */
 interface CounterDoc {
@@ -86,6 +101,7 @@ interface CounterDoc {
   seq?: number;
   epoch?: string;
   floor?: number;
+  pending?: PendingRange[];
 }
 
 /** The writes and the change reads of each collection of each database, one at a time. */
@@ -208,6 +224,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private readonly partition: string | undefined;
   private readonly maxTombstones: number;
   private readonly countersName: string;
+  private readonly writeLeaseMs: number;
   /** The storages of the partitions, for `forPartition`: the same storage for the same partition. */
   private readonly partitions: Map<string, MongoDocumentStorage<T>>;
   private indexes: Promise<void> | undefined;
@@ -223,6 +240,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     this.maxTombstones = options.maxTombstones ?? 10_000;
     if (!Number.isSafeInteger(this.maxTombstones) || this.maxTombstones < 0) throw new Error("maxTombstones must be a whole number of 0 or more");
     this.countersName = options.counters ?? "__storage_counters";
+    this.writeLeaseMs = options.writeLeaseMs ?? 60_000;
+    if (!Number.isSafeInteger(this.writeLeaseMs) || this.writeLeaseMs < 1) throw new Error("writeLeaseMs must be a whole number of 1 or more");
     this.partitions = partitions ?? new Map();
   }
 
@@ -269,8 +288,15 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return { ...this.partitionFilter(), [TOMB]: { $ne: true }, ...extra } as Filter<Stored>;
   }
 
+  /** The stored `_id` of an id. An id with the separator could name an item of a partition: it is refused. */
   private storedId(id: string): string {
+    if (typeof id !== "string" || id.includes(SEPARATOR)) throw new Error("An id must be a text without the character U+001F");
     return this.partition === undefined ? id : `${this.partition}${SEPARATOR}${id}`;
+  }
+
+  /** The filter of a write of one stored document: its `_id` and the partition. */
+  private writeFilter(id: string): Filter<Stored> {
+    return { _id: this.storedId(id), ...this.partitionFilter() } as Filter<Stored>;
   }
 
   /** The stored document of an item, with the number of this write and the number of its place. */
@@ -297,26 +323,86 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return [id, value as T];
   }
 
-  /** The next `count` numbers of the sequence of the collection, and its epoch. */
+  /**
+   * The next `count` numbers of the sequence of the collection. They stay pending in the counter
+   * document until `release()`, so the watermark of the readers stays below them.
+   */
   private async allocate(db: Db, count: number): Promise<{ first: number; epoch: string }> {
     const counter = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
       { _id: this.collectionName },
-      { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },
+      [
+        { $set: { seq: { $add: [{ $ifNull: ["$seq", 0] }, count] }, epoch: { $ifNull: ["$epoch", randomUUID()] } } },
+        {
+          $set: {
+            pending: {
+              $concatArrays: [{ $ifNull: ["$pending", []] }, [{ from: { $subtract: ["$seq", count - 1] }, to: "$seq", at: "$$NOW" }]],
+            },
+          },
+        },
+      ],
       { upsert: true, returnDocument: "after" }
     )) as unknown as Counter | null;
     if (!counter) throw new Error(`The sequence of ${this.collectionName} is not available`);
     return { first: counter.seq - count + 1, epoch: counter.epoch };
   }
 
-  /** The counter of the collection: its last number and its epoch. */
-  private async counter(db: Db): Promise<Counter> {
-    const counter = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
-      { _id: this.collectionName },
-      { $setOnInsert: { seq: 0, epoch: randomUUID() } },
-      { upsert: true, returnDocument: "after" }
-    )) as unknown as Counter | null;
-    if (!counter) throw new Error(`The sequence of ${this.collectionName} is not available`);
-    return counter;
+  /** This method ends the pending numbers of a write, and drops the pending numbers whose lease ended. */
+  private async release(db: Db, first: number): Promise<void> {
+    await db.collection<CounterDoc>(this.countersName).updateOne({ _id: this.collectionName }, [
+      {
+        $set: {
+          pending: {
+            $filter: {
+              input: { $ifNull: ["$pending", []] },
+              cond: { $and: [{ $ne: ["$$this.from", first] }, { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] }] },
+            },
+          },
+        },
+      },
+    ]);
+  }
+
+  /** This method takes numbers, writes with them, and ends them: also when the write fails. */
+  private async withNumbers<R>(db: Db, count: number, write: (first: number) => Promise<R>): Promise<R> {
+    const { first } = await this.allocate(db, count);
+    try {
+      return await write(first);
+    } finally {
+      await this.release(db, first);
+    }
+  }
+
+  /**
+   * The watermark of the collection: the highest number below each pending number of a write whose
+   * lease has not ended, and the epoch. Each number up to it is written or abandoned.
+   */
+  private async watermark(db: Db): Promise<Counter> {
+    const counters = db.collection<CounterDoc>(this.countersName);
+    await counters.updateOne({ _id: this.collectionName }, { $setOnInsert: { seq: 0, epoch: randomUUID() } }, { upsert: true });
+    const [mark] = await counters
+      .aggregate<{ seq: number; epoch: string; low: number | null }>([
+        { $match: { _id: this.collectionName } },
+        {
+          $project: {
+            seq: 1,
+            epoch: 1,
+            low: {
+              $min: {
+                $map: {
+                  input: {
+                    $filter: { input: { $ifNull: ["$pending", []] }, cond: { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] } },
+                  },
+                  in: "$$this.from",
+                },
+              },
+            },
+          },
+        },
+      ])
+      .toArray();
+    if (!mark) throw new Error(`The sequence of ${this.collectionName} is not available`);
+    const seq = typeof mark.low === "number" ? Math.min(mark.seq, mark.low - 1) : mark.seq;
+    return { seq, epoch: mark.epoch };
   }
 
   /** The id of the document of the oldest kept change of the partition. */
@@ -425,7 +511,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   async getChangesSince(since?: string): Promise<StorageChanges<T>> {
     const { db, items } = await this.collection();
     return enqueue(db, this.collectionName, async () => {
-      const counter = await this.counter(db);
+      const counter = await this.watermark(db);
       const version = `${counter.epoch}.${counter.seq}`;
       const full = async (): Promise<StorageChanges<T>> => ({
         version,
@@ -439,8 +525,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const floorDoc = await db.collection<CounterDoc>(this.countersName).findOne({ _id: this.floorId() });
       const floor = typeof floorDoc?.["floor"] === "number" ? floorDoc["floor"] : 0;
       if (from < floor || from > counter.seq) return full();
+      // A number above the watermark can belong to a write that is not visible yet: the next read gives it
       const docs = await items
-        .find({ ...this.partitionFilter(), [SEQ]: { $gt: from } } as Filter<Stored>)
+        .find({ ...this.partitionFilter(), [SEQ]: { $gt: from, $lte: counter.seq } } as Filter<Stored>)
         .sort({ [SEQ]: 1 })
         .toArray();
       const changed: Array<[string, T]> = [];
@@ -471,18 +558,22 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       this.checkOpen();
       return;
     }
-    // The encoding is checked before a number of the sequence goes
-    for (const [, value] of items) JSON.stringify(value);
+    // The ids and the encoding are checked before a number of the sequence goes
+    for (const [id, value] of items) {
+      this.storedId(id);
+      JSON.stringify(value);
+    }
     await this.write(async (db, collection) => {
       const places = await this.placesOf(collection, items.map(([id]) => id));
-      const { first } = await this.allocate(db, items.length);
-      const operations: AnyBulkWriteOperation<Stored>[] = items.map(([id, value], index) => {
-        const seq = first + index;
-        // A new id takes its place at its first write; a later write of the batch keeps it
-        if (!places.has(id)) places.set(id, seq);
-        return { replaceOne: { filter: { _id: this.storedId(id) } as Filter<Stored>, replacement: this.encode(id, value, seq, places.get(id)!), upsert: true } };
+      await this.withNumbers(db, items.length, async (first) => {
+        const operations: AnyBulkWriteOperation<Stored>[] = items.map(([id, value], index) => {
+          const seq = first + index;
+          // A new id takes its place at its first write; a later write of the batch keeps it
+          if (!places.has(id)) places.set(id, seq);
+          return { replaceOne: { filter: this.writeFilter(id), replacement: this.encode(id, value, seq, places.get(id)!), upsert: true } };
+        });
+        await collection.bulkWrite(operations, { ordered: true });
       });
-      await collection.bulkWrite(operations, { ordered: true });
     });
   }
 
@@ -491,8 +582,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const doc = await collection.findOne(this.liveFilter({ _id: this.storedId(id) }));
       if (!doc) return undefined;
       const next = applyPatch(this.decode(doc)[1], fields) as T;
-      const { first } = await this.allocate(db, 1);
-      await collection.replaceOne({ _id: this.storedId(id) } as Filter<Stored>, this.encode(id, next, first, Number(doc[ORD])), { upsert: true });
+      await this.withNumbers(db, 1, (first) => collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, Number(doc[ORD])), { upsert: true }));
       return next;
     });
   }
@@ -533,13 +623,14 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /** This method replaces the items of the ids with tombstones, with new numbers, in the queue of the collection. */
   private async tombstone(db: Db, collection: Collection<Stored>, ids: string[]): Promise<void> {
-    const { first } = await this.allocate(db, ids.length);
-    const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => {
-      const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: first + index, [TOMB]: true };
-      if (this.partition !== undefined) tomb[PART] = this.partition;
-      return { replaceOne: { filter: { _id: this.storedId(id) } as Filter<Stored>, replacement: tomb } };
+    await this.withNumbers(db, ids.length, async (first) => {
+      const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => {
+        const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: first + index, [TOMB]: true };
+        if (this.partition !== undefined) tomb[PART] = this.partition;
+        return { replaceOne: { filter: this.writeFilter(id), replacement: tomb } };
+      });
+      await collection.bulkWrite(operations, { ordered: true });
     });
-    await collection.bulkWrite(operations, { ordered: true });
     await this.pruneTombstones(db, collection);
   }
 
