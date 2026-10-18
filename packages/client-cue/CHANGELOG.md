@@ -1,5 +1,16 @@
 # @procedures/cue
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies [8bb469c]
+- Updated dependencies [dc03903]
+- Updated dependencies [dca28c1]
+  - @procedures/client@0.9.0
+  - @procedures/fs@0.9.0
+  - @procedures/shell@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes

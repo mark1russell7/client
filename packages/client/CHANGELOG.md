@@ -1,5 +1,25 @@
 # @procedures/client
 
+## 0.9.0
+
+### Minor Changes
+
+- dc03903: The WebSocket client ignores a raw frame of the type `event`, as a frame of an unknown type. Before, it gave such a frame to `onEvent`, for a server outside this repository. No side of wire protocol v1 sends that frame (the type is reserved). `onEvent` now gets only the events of the subscriptions of the transport (`events.subscribe`). MINOR: a breaking change of behavior (the API is before 1.0.0).
+  
+  Migration: a server that sends raw `event` frames sends its events through `events.subscribe` instead (EVENTS.md). The client then gets them in `onEvent`, with the id of the subscription.
+
+### Patch Changes
+
+- 8bb469c: The partitions of a collection (roadmap CLI-17). One `collections.<name>.*` surface serves several partitions, for example one for each tenant. `ProcedureServer.usePartitions(name, { storageOf, resolve })` registers the storage of each partition and the resolver. The resolver gives the partition of each call from its context, so the tenant comes from `ctx.principal`. The input can ask for a partition, and the resolver can refuse the call (`FORBIDDEN`, reason `partition-not-allowed`).
+  
+  `RepositoryProvider` has the new optional methods `getPartitionStorage`, `hasPartitions` and `resolvePartition`. A repository without them refuses a partition. The events of a partition go to `collections.<name>.<partition>`.
+  
+  A subscriber of `EventPublisher` names the partition that it asks for, and the publisher resolves it with the same resolver. So a subscriber cannot name the topic of another tenant. A change of behavior for safety: a topic `collections.<name>.<partition>` of a collection without partitions is refused. Before, each subscriber with the read of the collection got it. New exports: `PARTITION_PATTERN`, `collectionTopicPartition`, `CollectionPartitions`, `PartitionInput` and `PartitionResolver`.
+- dca28c1: The packages accept `@mark1russell7/service` 0.5.1 and later 0.5 versions, and `@procedures/client` accepts `@mark1russell7/algebra` 0.7.1. Before, the range `^0.4.1` stopped below 0.5. An application on service 0.5 then got a second copy of service inside the client.
+  
+  - The client uses only the `/backoff`, `/heartbeat` and `/testing` entries of service. The code of `/backoff`, `/heartbeat` and the clock is the same in 0.4.1 and 0.5.1. `/testing` only gets new exports.
+  - The public API of the client does not change.
+
 ## 0.8.1
 
 ### Patch Changes
