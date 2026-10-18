@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MongoClient, ObjectId, type Db, type Document } from "mongodb";
 import { ms, realClock, type Clock } from "@procedures/client";
-import { ViewMaterializer, viewFilter, type MaterializedView } from "./materializer.js";
+import { ViewMaterializer, identityPartition, viewFilter, type MaterializedView, type ViewPartitionOf } from "./materializer.js";
 
 const url = process.env["MONGO_TEST_URL"];
 let client: MongoClient | undefined;
@@ -433,5 +433,180 @@ withMongo("ViewMaterializer on MongoDB", () => {
     expect(views.inFlight()).toBe(0);
     await views.close();
     expect(views.openStreamCount()).toBe(0);
+  });
+
+  /** A materializer whose clock counts the change events of the sources: each event arms the debounce once. */
+  function counting(db: Db, options: { storageSources?: Record<string, ViewPartitionOf> } = {}) {
+    const counter = { events: 0 };
+    const clock: Clock = { now: () => realClock.now(), after: (ms, run) => (ms === 20 && counter.events++, realClock.after(ms, run)) };
+    const views = new ViewMaterializer({ db: () => db, debounce: ms(20), rewatch: ms(100), clock, log: () => undefined, ...options });
+    return { views, counter };
+  }
+
+  function newDb(): Db {
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    return db;
+  }
+
+  /** This function waits until the count is right, and checks that no later event comes. */
+  async function settles(counter: { events: number }, count: number): Promise<void> {
+    await eventually(async () => expect(counter.events).toBe(count));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(counter.events).toBe(count);
+  }
+
+  it("gives a change only to the views of its partition when its pre-image tells the partition (CLI-37)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    await db.createCollection("images", { changeStreamPreAndPostImages: { enabled: true } });
+    await db.collection("images").insertMany([
+      { _id: "a" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "b" as never, _part: "t2", kind: "b", n: 2 },
+      { _id: "m" as never, _part: "t1", kind: "m", n: 3 },
+    ]);
+    // Without pre-images and without a mapping, a delete passes: even an id that looks like the id of another partition
+    await db.collection("plain").insertMany([
+      { _id: "t2\u001fc" as never, _part: "t1", kind: "c", n: 1 },
+      { _id: "d" as never, _part: "t2", kind: "d", n: 1 },
+    ]);
+    await db.collection("_aggregations").insertMany(
+      ["images", "plain"].map((source) => sumsView({ _id: `from-${source}`, collections: [source], targetCollection: `${source}_sums` })) as never[]
+    );
+    await views.start();
+    expect(counter.events).toBe(0);
+    expect(await db.collection("images_sums").countDocuments()).toBe(2);
+
+    // On each collection, the events come in order: a change of t2 that passed comes before the next event
+    await db.collection("images").deleteOne({ _id: "b" as never }); // t2, from the pre-image: dropped
+    await db.collection("images").deleteOne({ _id: "a" as never }); // t1: passes
+    await eventually(async () => expect(counter.events).toBe(1));
+    await db.collection("images").updateOne({ _id: "m" as never }, { $set: { _part: "t2" } }); // moves out of t1: passes
+    await eventually(async () => expect(counter.events).toBe(2));
+    await db.collection("plain").deleteOne({ _id: "d" as never }); // t2, but unknown: passes
+    await db.collection("plain").deleteOne({ _id: "t2\u001fc" as never }); // t1: passes
+    await settles(counter, 4);
+    // The view of t1 lost the moved document too
+    for (const target of ["images_sums", "plain_sums"]) {
+      await eventually(async () => expect(await db.collection(target).countDocuments(), target).toBe(0));
+    }
+    await views.stop();
+  });
+
+  it("reads the partition of a delete from a storage id through the mapping of its source, and passes it without one (CLI-37)", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    /** The storage partitions are boards of a tenant (acme:board1), and the views are per tenant (acme). */
+    const scenario = async (storageSources: Record<string, ViewPartitionOf> | undefined, expected: number, storagePartitionOf = (tenant: string) => `${tenant}:board1`) => {
+      const db = newDb();
+      const { views, counter } = counting(db, storageSources ? { storageSources } : {});
+      const acme = `${storagePartitionOf("acme")}\u001fx`;
+      const beta = `${storagePartitionOf("beta")}\u001fy`;
+      await db.collection("stored").insertMany([
+        { _id: acme as never, _part: "acme", kind: "x", n: 1 },
+        { _id: beta as never, _part: "beta", kind: "y", n: 1 },
+        { _id: "z" as never, _part: "beta", kind: "z", n: 1 },
+      ]);
+      await db.collection("_aggregations").insertOne(sumsView({ _part: "acme", collections: ["stored"] }) as never);
+      await views.start();
+      await db.collection("stored").deleteOne({ _id: beta as never }); // beta: dropped with the mapping
+      await db.collection("stored").deleteOne({ _id: "z" as never }); // no storage partition: passes
+      await db.collection("stored").deleteOne({ _id: acme as never }); // acme: passes
+      await settles(counter, expected);
+      await eventually(async () => expect(await db.collection("sums").countDocuments()).toBe(0));
+      await views.stop();
+    };
+    await scenario({ stored: (storagePartition) => storagePartition.split(":")[0] }, 2);
+    await scenario(undefined, 3);
+    // A mapping that does not know the partition, or fails, drops nothing
+    await scenario({ stored: () => undefined }, 3);
+    await scenario({ stored: () => { throw new Error("no"); } }, 3);
+    // identityPartition is for a storage partition that is the partition of the views (acme, not acme:board1)
+    await scenario({ stored: identityPartition }, 2, (tenant) => tenant);
+  }, 60_000);
+
+  it("with sourceFields, starts a pass for an update that sets or removes a field of the view or changes the partition", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    // The move out of the partition needs the pre-image
+    await db.createCollection("items", { changeStreamPreAndPostImages: { enabled: true } });
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1, note: "x" });
+    await db.collection("_aggregations").insertOne(sumsView({ sourceFields: { items: ["kind", "n"] } }) as never);
+    await views.start();
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { note: "y" } }); // no field of the view: dropped
+    await db.collection("items").updateOne({ _id: "1" as never }, { $unset: { n: "" } }); // removes n: passes
+    await eventually(async () => expect(counter.events).toBe(1));
+    await eventually(async () => expect((await rowOf(db, "sums", "a"))?.["total"]).toBe(0));
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { _part: "t2" } }); // leaves t1: passes
+    await settles(counter, 2);
+    await eventually(async () => expect(await db.collection("sums").countDocuments()).toBe(0));
+    await views.stop();
+  });
+
+  it("with sourceFields, reads the dotted keys of an update: a $push, a dotted $set, a removal, a parent and a truncated array", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1, tags: ["x"], a: { b: 1, c: 1 }, note: "x" });
+    await db.collection("_aggregations").insertOne(sumsView({ sourceFields: { items: ["tags", "a.b"] } }) as never);
+    await views.start();
+    const items = db.collection("items");
+    const one = { _id: "1" as never };
+    // On one collection the events come in order: a dropped update before each update that passes
+    await items.updateOne(one, { $set: { note: "y" } }); // no field of the view: dropped
+    await items.updateOne(one, { $push: { tags: "y" } } as never); // the key tags.1, under tags: passes
+    await eventually(async () => expect(counter.events).toBe(1));
+    await items.updateOne(one, { $set: { "a.c": 2 } }); // a.c is not a.b: dropped
+    await items.updateOne(one, { $set: { "a.b": 2 } }); // the key a.b: passes
+    await eventually(async () => expect(counter.events).toBe(2));
+    await items.updateOne(one, { $unset: { "a.b": "" } }); // a removal of a.b: passes
+    await eventually(async () => expect(counter.events).toBe(3));
+    await items.updateOne(one, { $set: { a: { b: 5 } } }); // the key a, above a.b: passes
+    await eventually(async () => expect(counter.events).toBe(4));
+    await items.updateOne(one, { $push: { tags: { $each: ["z", "w"] } } } as never);
+    await eventually(async () => expect(counter.events).toBe(5));
+    // A shorter array (a pipeline update): a truncated array, or the whole field
+    await items.updateOne(one, [{ $set: { tags: { $slice: ["$tags", 1] } } }]);
+    await settles(counter, 6);
+    await views.stop();
+  });
+
+  it("with sourceFields, matches a path into an array of subdocuments at each position", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1, lines: [{ price: 1, note: "a" }] });
+    await db.collection("_aggregations").insertOne(sumsView({ sourceFields: { items: ["lines.price"] } }) as never);
+    await views.start();
+    const items = db.collection("items");
+    const one = { _id: "1" as never };
+    await items.updateOne(one, { $set: { "lines.0.note": "b" } }); // lines.0.note is lines.note: dropped
+    await items.updateOne(one, { $set: { "lines.0.price": 2 } }); // lines.0.price is lines.price: passes
+    await eventually(async () => expect(counter.events).toBe(1));
+    await items.updateOne(one, { $push: { lines: { price: 3 } } } as never); // lines.1 is lines, above lines.price: passes
+    await eventually(async () => expect(counter.events).toBe(2));
+    await items.updateOne(one, { $set: { "lines.0": { price: 4 } } }); // lines.0 is lines: passes
+    await settles(counter, 3);
+    await views.stop();
+  });
+
+  it("gives an update of the partition field without a pre-image to the views of each partition", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    // No pre-images: the event has only the document after the change, in t2
+    await db.collection("items").insertMany([
+      { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "2" as never, _part: "t2", kind: "b", n: 1 },
+    ]);
+    await db.collection("_aggregations").insertOne(sumsView() as never);
+    await views.start();
+    await db.collection("items").updateOne({ _id: "2" as never }, { $set: { n: 5 } }); // t2, not the partition field: dropped
+    await db.collection("items").updateOne({ _id: "1" as never }, { $set: { _part: "t2" } }); // leaves t1: passes
+    await settles(counter, 1);
+    // The view of t1 lost the document
+    await eventually(async () => expect(await db.collection("sums").countDocuments({ _part: "t1", _viewGen: { $exists: true } })).toBe(0));
+    await views.stop();
   });
 });

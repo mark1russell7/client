@@ -70,7 +70,7 @@ const JSON_FIELD = "_json";
 const KEEP_ID = "_kid";
 const STORAGE_FIELDS: ReadonlySet<string> = new Set(["_id", KEY, PART, SEQ, ORD, TOMB, JSON_FIELD, KEEP_ID]);
 /** The separator of the partition and the id in a stored `_id`. */
-const SEPARATOR = "\u001f";
+export const SEPARATOR = "\u001f";
 
 /** The options of a `MongoDocumentStorage`. */
 export interface MongoDocumentStorageOptions {

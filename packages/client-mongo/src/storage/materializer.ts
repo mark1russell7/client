@@ -36,8 +36,14 @@
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
  *   document. The materializer ignores an update of only that field.
  *
- * Change streams and transactions need a replica set. The target of a view is a plain collection
- * that only the materializer writes.
+ * A change reaches only the views of its partition when its partition is known. A delete has no
+ * document: its partition comes from the pre-image (a collection with
+ * `changeStreamPreAndPostImages`), or from the id in a source of `storageSources`, through its
+ * mapping. Else it reaches the views of each partition of its source. With pre-images, an update
+ * that moves a document to another partition also reaches the views of its old partition.
+ *
+ * Change streams and transactions need a replica set (MongoDB 6 or later). The target of a view is
+ * a plain collection that only the materializer writes.
  *
  * The stop has the parts of a transport of a service: `stopIntake()`, `drain()`, `inFlight()` and
  * `close()`. A host composes them with no adapter. The timers come from the injected clock.
@@ -46,6 +52,7 @@
 import { createHash } from "node:crypto";
 import { BSON, ObjectId, type ChangeStream, type ClientSession, type Collection, type Db, type Document } from "mongodb";
 import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
+import { SEPARATOR } from "./document-storage.js";
 import { scopePipeline } from "./pipeline-scope.js";
 
 /** The definition of a view, as a document of the views collection. */
@@ -58,8 +65,10 @@ export interface MaterializedView {
   /** The collection that gets the result. */
   targetCollection: string;
   /**
-   * The fields that the pipeline reads, for each source. An update of a source that changes none
-   * of them does not start a pass. Without it, each update of the source starts a pass.
+   * The fields that the pipeline reads, for each source (paths with dots). An update of a source
+   * that changes none of them (a set, a removal, a truncated array, at the field, under it or above
+   * it), and does not change the partition field, does not start a pass. Without it, each update of
+   * the source starts a pass.
    */
   sourceFields?: Record<string, string[]>;
   [field: string]: unknown;
@@ -132,6 +141,14 @@ export interface ViewMaterializerOptions {
    * renews it after each group, so a group must take less time.
    */
   passLease?: Duration | undefined;
+  /**
+   * The sources that are collections of a `MongoDocumentStorage`, each with the function that
+   * gives the partition of the views from the partition of the storage. The stored id of a document
+   * starts with its storage partition and U+001F. A delete without a pre-image then reaches only the
+   * views of its partition. Give `identityPartition` when the two partitions are the same. Without a
+   * function, or when it gives `undefined`, the delete reaches the views of each partition.
+   */
+  storageSources?: Readonly<Record<string, ViewPartitionOf>> | undefined;
 }
 
 /** The function that gives the stored `_id` of a row of a view. */
@@ -189,6 +206,12 @@ function groups<T>(items: readonly T[]): T[][] {
   return result;
 }
 
+/** The function that gives the partition of the views from the partition of a storage, or `undefined` when it does not know. */
+export type ViewPartitionOf = (storagePartition: string) => string | undefined;
+
+/** The partition of the views is the partition of the storage. */
+export const identityPartition: ViewPartitionOf = (storagePartition) => storagePartition;
+
 /** A view that the materializer knows. */
 interface RunningView {
   view: MaterializedView;
@@ -196,6 +219,14 @@ interface RunningView {
   /** `active`: its streams are open, and it runs in the passes. `cyclic`: it is in a cycle, and it waits. */
   state: "active" | "cyclic";
   streams: ChangeStream[];
+}
+
+/** A path without its positions in arrays (the segments of digits only): `lines.0.price` gives `lines.price`. */
+function withoutPositions(path: string): string {
+  return path
+    .split(".")
+    .filter((segment) => !/^\d+$/.test(segment))
+    .join(".");
 }
 
 /** The key of a row id for the signatures: type-aware, so an ObjectId and its text are different keys. */
@@ -247,6 +278,7 @@ export class ViewMaterializer {
   private readonly maxTransactionRows: number;
   private readonly graceMs: number;
   private readonly leaseMs: number;
+  private readonly storageSources: ReadonlyMap<string, ViewPartitionOf>;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
@@ -268,6 +300,7 @@ export class ViewMaterializer {
     this.maxTransactionRows = options.maxTransactionRows ?? 10_000;
     this.graceMs = optionalMs(options.generationGrace, "generationGrace") ?? 60_000;
     this.leaseMs = Math.round(optionalMs(options.passLease, "passLease") ?? 60_000);
+    this.storageSources = new Map(Object.entries(options.storageSources ?? {}));
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -492,24 +525,70 @@ export class ViewMaterializer {
     this.running.delete(key);
   }
 
-  /** The filter of the change stream of a source for a partition. */
-  private sourceMatch(partition: string, fields: string[] | undefined): Document {
-    // A delete has no fullDocument: it passes, and the pass of the partition reads its own documents only
-    const inPartition = { $or: [{ [`fullDocument.${this.partitionField}`]: partition }, { operationType: "delete" }] };
-    if (!fields || fields.length === 0) return { $match: inPartition };
+  /**
+   * The filter of the change stream of a source for a partition. It only removes the events that
+   * cannot change a view of the partition: an event whose partition is unknown passes, and the
+   * pass of the partition reads its own documents only.
+   *
+   * - An insert, a replace or an update has the document after the change (`fullDocument`).
+   * - With a pre-image (a collection with `changeStreamPreAndPostImages`), each change also has the
+   *   document before it: a delete, and an update that moves a document out of the partition.
+   * - Without a pre-image, a delete, a replace and an update of the partition field (a top-level
+   *   field) can leave any partition: they pass. In a source of `storageSources`, the handler then
+   *   reads the partition from the id (`isOtherPartition`).
+   * - The handler checks the fields of an update against `sourceFields` (`touchesFields`).
+   */
+  private sourceMatch(partition: string): Document {
+    const field = this.partitionField;
+    const noPreImage = { fullDocumentBeforeChange: null };
     return {
       $match: {
-        $and: [
-          inPartition,
-          {
-            $or: [
-              { operationType: { $in: ["insert", "delete", "replace"] } },
-              { operationType: "update", $or: fields.map((field) => ({ [`updateDescription.updatedFields.${field}`]: { $exists: true } })) },
-            ],
-          },
+        $or: [
+          { [`fullDocument.${field}`]: partition },
+          { [`fullDocumentBeforeChange.${field}`]: partition },
+          { operationType: { $in: ["delete", "replace"] }, ...noPreImage },
+          { operationType: "update", ...noPreImage, $or: [{ [`updateDescription.updatedFields.${field}`]: { $exists: true } }, { "updateDescription.removedFields": field }] },
         ],
       },
     };
+  }
+
+  /**
+   * True for an update that changes no field of `fields` and not the partition field. The keys of
+   * an update are paths with dots (`tags.3` after a `$push`, `a.b` after a `$set` of `a.b`), so a key
+   * counts when it is a field, a field under it, or a field above it. The removed fields and the
+   * truncated arrays count too. The positions in an array do not count (`lines.0.price` is
+   * `lines.price`, and `lines.3` is `lines`): that only widens the match.
+   */
+  private touchesNoField(change: Document, fields: readonly string[] | undefined): boolean {
+    if (change["operationType"] !== "update" || !fields || fields.length === 0) return false;
+    const description = (change["updateDescription"] ?? {}) as { updatedFields?: Document; removedFields?: string[]; truncatedArrays?: Array<{ field: string }> };
+    const keys = [...Object.keys(description.updatedFields ?? {}), ...(description.removedFields ?? []), ...(description.truncatedArrays ?? []).map((truncated) => truncated.field)];
+    const watched = [...fields, this.partitionField].map(withoutPositions);
+    return !keys.map(withoutPositions).some((key) => watched.some((name) => key === name || key.startsWith(`${name}.`) || name.startsWith(`${key}.`)));
+  }
+
+  /**
+   * True for a change without a pre-image (a delete, a replace, an update), in a source of
+   * `storageSources`, whose id names a storage partition that maps to another partition of the
+   * views. A document that is in the partition after the change, an id without the separator, a
+   * mapping that gives `undefined` and a mapping that fails do not tell another partition: false.
+   */
+  private isOtherPartition(change: Document, source: string, partition: string): boolean {
+    const viewPartitionOf = this.storageSources.get(source);
+    if (!viewPartitionOf || change["fullDocumentBeforeChange"]) return false;
+    if (!["delete", "replace", "update"].includes(change["operationType"] as string)) return false;
+    if ((change["fullDocument"] as Document | null | undefined)?.[this.partitionField] === partition) return false;
+    const id = (change["documentKey"] as Document | undefined)?.["_id"];
+    const at = typeof id === "string" ? id.indexOf(SEPARATOR) : -1;
+    if (at <= 0) return false;
+    let viewPartition: string | undefined;
+    try {
+      viewPartition = viewPartitionOf((id as string).slice(0, at));
+    } catch {
+      return false;
+    }
+    return typeof viewPartition === "string" && viewPartition !== partition;
   }
 
   private isCurrent(running: RunningView): boolean {
@@ -520,7 +599,9 @@ export class ViewMaterializer {
     if (this.stopped || !this.db) return;
     let stream: ChangeStream;
     try {
-      stream = this.db.collection(source).watch([this.sourceMatch(running.partition, running.view.sourceFields?.[source])], { fullDocument: "updateLookup" });
+      stream = this.db
+        .collection(source)
+        .watch([this.sourceMatch(running.partition)], { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" });
     } catch (error) {
       this.log("error", `cannot watch ${source} for the view ${running.view._id}: ${String((error as Error)?.message ?? error)}`);
       this.later(() => {
@@ -548,6 +629,8 @@ export class ViewMaterializer {
     };
     stream.on("change", (change: Document) => {
       if (change["operationType"] === "invalidate") return rewatch("ended (invalidate)");
+      if (this.isOtherPartition(change, source, running.partition)) return;
+      if (this.touchesNoField(change, running.view.sourceFields?.[source])) return;
       this.schedule(running.partition, source);
     });
     stream.on("error", (error: Error) => rewatch(`failed: ${error.message}`));
