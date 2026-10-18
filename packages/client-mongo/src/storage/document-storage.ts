@@ -616,7 +616,8 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     const maxTimeMS = limits.maxTimeMS ?? DEFAULT_PIPELINE_LIMITS.maxTimeMS;
     if (!Number.isSafeInteger(maxResults) || maxResults < 1) throw new Error("maxResults must be a whole number of 1 or more");
     if (!Number.isSafeInteger(maxTimeMS) || maxTimeMS < 1) throw new Error("maxTimeMS must be a whole number of 1 or more");
-    const scopedPipeline = scopePipeline(pipeline, { match: { ...this.partitionFilter(), [TOMB]: { $ne: true } } });
+    // The pipeline reads only this collection: another collection needs its own right
+    const scopedPipeline = scopePipeline(pipeline, { match: { ...this.partitionFilter(), [TOMB]: { $ne: true } }, collections: [this.collectionName] });
     const bounded = boundPipeline(scopedPipeline, maxResults);
     const { items } = await this.collection();
     const results = await items.aggregate(bounded.pipeline, { maxTimeMS }).toArray();

@@ -1326,17 +1326,18 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 ```ts
 import { boundPipeline, scopePipeline } from "@procedures/mongo";
 
-const scoped = scopePipeline(pipeline, { match: { tenant: "t1" } });
+const scoped = scopePipeline(pipeline, { match: { tenant: "t1" }, collections: ["orders", "customers"] });
 const { pipeline: bounded, limited } = boundPipeline(scoped, 5000);
 ```
 
 - The filter goes before the first stage, into the stages that must be first (`$geoNear`, `$search`, `$vectorSearch`), into a `$match` with `$text`, and into each sub-pipeline (`$lookup`, `$graphLookup`, `$unionWith`, `$facet`).
 - A `$lookup` with `localField` and `foreignField` becomes the form with a pipeline, so the filter applies to the other collection too.
+- The pipeline reads and writes only the collections of the scope (`from`, `coll`, `into`). Give only the collections that the caller can read: a pipeline needs the same right as a direct read.
 - `$out` is refused. `$merge` is refused unless the scope has a `stamp`. Then each written document gets the stamp, and the match key of `$merge` gets its fields.
-- The stages of the server (for example `$currentOp`) and the JavaScript operators of the server (`$function`, `$accumulator`, `$where`) are refused at each depth.
+- Only the stages of `ALLOWED_PIPELINE_STAGES` pass, so a stage of the server is refused, also a stage that a later MongoDB adds. `$documents` is refused. The JavaScript operators of the server (`$function`, `$accumulator`, `$where`) are refused at each depth.
 - A stage must have exactly one key, and a `$unset` of a field of the scope is refused.
 - The function does not change the pipeline of the caller.
-- `MongoDocumentStorage.aggregate(pipeline, { maxTimeMS, maxResults })` is read-only, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are 10000 ms and 5000 documents.
+- `MongoDocumentStorage.aggregate(pipeline, { maxTimeMS, maxResults })` is read-only, reads only its own collection, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are 10000 ms and 5000 documents.
 
 ## Integration with Ecosystem
 

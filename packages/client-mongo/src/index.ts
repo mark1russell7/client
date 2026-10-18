@@ -143,7 +143,7 @@ export type { MongoStorageOptions, MongoDocumentStorageOptions } from "./storage
 // The guard of an aggregation pipeline over shared collections, and its limits (Graph's split plan, P3)
 export {
   BLOCKED_PIPELINE_OPERATORS,
-  BLOCKED_PIPELINE_STAGES,
+  ALLOWED_PIPELINE_STAGES,
   DEFAULT_PIPELINE_LIMITS,
   assertNoBlockedOperators,
   boundPipeline,

@@ -6,30 +6,55 @@
  * - The filter goes before the first stage, into a stage that must be first (`$geoNear`,
  *   `$search`, `$vectorSearch`), into a `$match` with `$text`, and into each sub-pipeline
  *   (`$lookup`, `$graphLookup`, `$unionWith`, `$facet`).
+ * - A pipeline reads and writes only the collections of the scope (`from`, `coll`, `into`).
  * - `$out` replaces a whole collection, so it is refused. `$merge` is refused unless the scope
  *   permits writes: then it gets the stamp, and its match key includes the stamp fields.
- * - The stages of the server (for example `$currentOp`) and the JavaScript operators of the
- *   server (`$function`, `$accumulator`, `$where`) are refused at each depth.
+ * - Only the stages of `ALLOWED_PIPELINE_STAGES` pass: the stages of the server are refused. The
+ *   JavaScript operators of the server (`$function`, `$accumulator`, `$where`) are refused at each
+ *   depth.
  * - A stage has exactly one key, so a second key cannot hide a refused stage.
  * - The function changes no part of the pipeline of the caller.
  */
 
 import type { Document } from "mongodb";
 
-/** The stages that read the server, not the documents of a filter. */
-export const BLOCKED_PIPELINE_STAGES: ReadonlySet<string> = new Set([
-  "$currentOp",
-  "$listSessions",
-  "$listLocalSessions",
-  "$listSampledQueries",
-  "$collStats",
-  "$indexStats",
-  "$planCacheStats",
-  "$shardedDataDistribution",
-  "$queryStats",
-  "$listSearchIndexes",
-  "$changeStream",
-  "$changeStreamSplitLargeEvent",
+/**
+ * The stages that a scoped pipeline can have: the stages that read and change the documents of
+ * the stream. Another stage is refused, so a stage of the server that a later MongoDB adds (for
+ * example `$listClusterCatalog`) is refused too. `$documents` (documents from the pipeline) and
+ * `$out` (it replaces a whole collection) are not in it.
+ */
+export const ALLOWED_PIPELINE_STAGES: ReadonlySet<string> = new Set([
+  "$addFields",
+  "$bucket",
+  "$bucketAuto",
+  "$count",
+  "$densify",
+  "$facet",
+  "$fill",
+  "$geoNear",
+  "$graphLookup",
+  "$group",
+  "$limit",
+  "$lookup",
+  "$match",
+  "$merge",
+  "$project",
+  "$redact",
+  "$replaceRoot",
+  "$replaceWith",
+  "$sample",
+  "$search",
+  "$searchMeta",
+  "$set",
+  "$setWindowFields",
+  "$skip",
+  "$sort",
+  "$sortByCount",
+  "$unionWith",
+  "$unset",
+  "$unwind",
+  "$vectorSearch",
 ]);
 
 /** The operators that start JavaScript on the server. */
@@ -39,6 +64,12 @@ export const BLOCKED_PIPELINE_OPERATORS: ReadonlySet<string> = new Set(["$functi
 export interface PipelineScope {
   /** The filter of the documents that the pipeline can read, on each collection that it reads. */
   readonly match: Document;
+  /**
+   * The collections that the pipeline can read (`$lookup`, `$graphLookup`, `$unionWith`) and
+   * write (`$merge`). Each of them gets the filter. Give only the collections that the caller can
+   * read: a pipeline needs the same right as a direct read.
+   */
+  readonly collections: readonly string[];
   /** The fields that each written document gets. With them, the pipeline can end in `$merge`. */
   readonly stamp?: Document | undefined;
 }
@@ -71,6 +102,18 @@ function searchFilter(match: Document): Document[] {
   });
 }
 
+/** This function refuses a collection outside the scope. */
+function checkCollection(name: unknown, stage: string, scope: PipelineScope): void {
+  if (typeof name !== "string" || !scope.collections.includes(name)) {
+    throw new Error(`${stage} can read and write only the collections of the scope, not ${JSON.stringify(name)}`);
+  }
+}
+
+/** This function sets an own field (a key `__proto__` does not change the prototype). */
+function put(target: Document, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 /** The fields that a pipeline cannot remove: the fields of the filter and of the stamp. */
 function guardedFields(scope: PipelineScope): Set<string> {
   return new Set([...Object.keys(scope.match), ...Object.keys(scope.stamp ?? {})].filter((key) => !key.startsWith("$")));
@@ -90,8 +133,9 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
     }
     const name = Object.keys(stage)[0]!;
     const body = stage[name] as unknown;
-    if (BLOCKED_PIPELINE_STAGES.has(name)) throw new Error(`The stage ${name} is not allowed in a scoped pipeline`);
     if (name === "$out") throw new Error("$out is not allowed in a scoped pipeline: it replaces the whole collection");
+    if (!ALLOWED_PIPELINE_STAGES.has(name)) throw new Error(`The stage ${name} is not allowed in a scoped pipeline`);
+    const sub: PipelineScope = { match: scope.match, collections: scope.collections };
 
     // The stages that must be first take the filter themselves
     if (name === "$geoNear") {
@@ -130,6 +174,7 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
 
     if (name === "$lookup") {
       const lookup = { ...(body as Document) };
+      checkCollection(lookup["from"], "$lookup", scope);
       if (lookup["pipeline"] === undefined) {
         // The form with localField and foreignField becomes the form with a pipeline and the filter
         const local = lookup["localField"];
@@ -140,26 +185,28 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
         lookup["let"] = { ...(lookup["let"] as Document | undefined), scopeLocalValue: `$${local}` };
         lookup["pipeline"] = [{ $match: { ...scope.match } }, { $match: { $expr: { $eq: [`$${foreign}`, "$$scopeLocalValue"] } } }];
       } else {
-        lookup["pipeline"] = scopePipeline(lookup["pipeline"] as Document[], { match: scope.match });
+        lookup["pipeline"] = scopePipeline(lookup["pipeline"] as Document[], sub);
       }
       result.push({ $lookup: lookup });
       continue;
     }
     if (name === "$graphLookup") {
       const graph = body as Document;
+      checkCollection(graph["from"], "$graphLookup", scope);
       result.push({ $graphLookup: { ...graph, restrictSearchWithMatch: scoped(graph["restrictSearchWithMatch"], scope.match) } });
       continue;
     }
     if (name === "$unionWith") {
       const union: Document = typeof body === "string" ? { coll: body, pipeline: [] } : { ...(body as Document) };
-      union["pipeline"] = scopePipeline((union["pipeline"] as Document[] | undefined) ?? [], { match: scope.match });
+      checkCollection(union["coll"], "$unionWith", scope);
+      union["pipeline"] = scopePipeline((union["pipeline"] as Document[] | undefined) ?? [], sub);
       result.push({ $unionWith: union });
       continue;
     }
     if (name === "$facet") {
       const facet: Document = {};
       for (const [branch, branchPipeline] of Object.entries(body as Document)) {
-        facet[branch] = scopePipeline(branchPipeline as Document[], { match: scope.match });
+        put(facet, branch, scopePipeline(branchPipeline as Document[], sub));
       }
       result.push({ $facet: facet });
       continue;
@@ -171,6 +218,7 @@ export function scopePipeline(pipeline: readonly Document[], scope: PipelineScop
       if (typeof into === "object" && into !== null && (into as Document)["db"] !== undefined) {
         throw new Error("A $merge into another database is not allowed in a scoped pipeline");
       }
+      checkCollection(typeof into === "object" && into !== null ? (into as Document)["coll"] : into, "$merge", scope);
       const on = merge["on"] ?? "_id";
       const keys = typeof on === "string" ? [on] : [...(on as string[])];
       for (const field of Object.keys(scope.stamp)) if (!keys.includes(field)) keys.push(field);

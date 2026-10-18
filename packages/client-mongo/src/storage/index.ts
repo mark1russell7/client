@@ -8,7 +8,7 @@ export { MongoDocumentStorage, selectorPrefilter } from "./document-storage.js";
 export type { MongoDocumentStorageOptions } from "./document-storage.js";
 export {
   BLOCKED_PIPELINE_OPERATORS,
-  BLOCKED_PIPELINE_STAGES,
+  ALLOWED_PIPELINE_STAGES,
   DEFAULT_PIPELINE_LIMITS,
   assertNoBlockedOperators,
   boundPipeline,

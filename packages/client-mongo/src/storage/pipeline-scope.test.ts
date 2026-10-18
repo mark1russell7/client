@@ -16,8 +16,9 @@ import {
   type PipelineScope,
 } from "./pipeline-scope.js";
 
-const READ: PipelineScope = { match: { _part: "t1" } };
-const WRITE: PipelineScope = { match: { _part: "t1" }, stamp: { _part: "t1" } };
+const COLLECTIONS = ["notes", "other", "o", "o2", "g", "t", "target"];
+const READ: PipelineScope = { match: { _part: "t1" }, collections: COLLECTIONS };
+const WRITE: PipelineScope = { match: { _part: "t1" }, stamp: { _part: "t1" }, collections: COLLECTIONS };
 const filter = { $match: { _part: "t1" } };
 
 describe("scopePipeline: the filter of the scope", () => {
@@ -54,7 +55,7 @@ describe("scopePipeline: the filter of the scope", () => {
   });
 
   it("refuses $search with a filter that is not an equality", () => {
-    expect(() => scopePipeline([{ $search: { text: { query: "q", path: "p" } } }], { match: { _part: { $exists: false } } })).toThrow(/equality/);
+    expect(() => scopePipeline([{ $search: { text: { query: "q", path: "p" } } }], { match: { _part: { $exists: false } }, collections: [] })).toThrow(/equality/);
   });
 });
 
@@ -113,10 +114,12 @@ describe("scopePipeline: the writes", () => {
 });
 
 describe("scopePipeline: the refused surface", () => {
-  it("refuses $out, the stages of the server and the JavaScript of the server at each depth", () => {
+  it("refuses $out, each stage outside the allow-list, and the JavaScript of the server at each depth", () => {
     expect(() => scopePipeline([{ $out: "c" }], WRITE)).toThrow(/\$out/);
-    expect(() => scopePipeline([{ $currentOp: {} }], READ)).toThrow(/not allowed/);
-    expect(() => scopePipeline([{ $collStats: {} }], READ)).toThrow(/not allowed/);
+    for (const stage of ["$currentOp", "$collStats", "$indexStats", "$listClusterCatalog", "$querySettings", "$documents", "$changeStream", "__proto__", "match"]) {
+      expect(() => scopePipeline([JSON.parse(`{"${stage}":{}}`)], READ), stage).toThrow(/not allowed/);
+    }
+    expect(() => scopePipeline([{ $facet: { a: [{ $documents: [{ x: 1 }] }] } }], READ)).toThrow(/not allowed/);
     expect(() => scopePipeline([{ $match: { $where: "true" } }], READ)).toThrow(/\$where/);
     expect(() => scopePipeline([{ $project: { x: { $function: { body: "", args: [], lang: "js" } } } }], READ)).toThrow(/\$function/);
     expect(() => scopePipeline([{ $lookup: { from: "o", as: "x", pipeline: [{ $group: { _id: null, v: { $accumulator: {} } } }] } }], READ)).toThrow(/\$accumulator/);
@@ -134,6 +137,38 @@ describe("scopePipeline: the refused surface", () => {
     for (const stage of [{ $match: {}, $currentOp: {} }, {}, null, [{ $match: {} }]]) {
       expect(() => scopePipeline([stage as never], READ)).toThrow(/exactly one operator/);
     }
+  });
+});
+
+describe("scopePipeline: the collections of the scope", () => {
+  const ONLY_NOTES: PipelineScope = { match: { _part: "t1" }, collections: ["notes"] };
+  const WRITE_NOTES: PipelineScope = { ...ONLY_NOTES, stamp: { _part: "t1" } };
+
+  it("reads only the collections of the scope, in each cross-collection stage and at each depth", () => {
+    expect(() => scopePipeline([{ $lookup: { from: "users", localField: "a", foreignField: "b", as: "x" } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $lookup: { from: "users", as: "x", pipeline: [] } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $lookup: { as: "x", pipeline: [] } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $graphLookup: { from: "__storage_counters", startWith: "$a", connectFromField: "a", connectToField: "b", as: "x" } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $unionWith: "users" }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $unionWith: { coll: "users", pipeline: [] } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $facet: { a: [{ $unionWith: "users" }] } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $lookup: { from: "notes", as: "x", pipeline: [{ $unionWith: "users" }] } }], ONLY_NOTES)).toThrow(/collections of the scope/);
+    expect(scopePipeline([{ $lookup: { from: "notes", localField: "a", foreignField: "b", as: "x" } }], ONLY_NOTES)).toHaveLength(2);
+    expect(scopePipeline([{ $unionWith: "notes" }], ONLY_NOTES)).toHaveLength(2);
+  });
+
+  it("writes only into a collection of the scope", () => {
+    expect(() => scopePipeline([{ $merge: "users" }], WRITE_NOTES)).toThrow(/collections of the scope/);
+    expect(() => scopePipeline([{ $merge: { into: { coll: "users" } } }], WRITE_NOTES)).toThrow(/collections of the scope/);
+    expect(scopePipeline([{ $merge: { into: { coll: "notes" } } }], WRITE_NOTES).at(-1)).toEqual({ $merge: { into: { coll: "notes" }, on: ["_id", "_part"] } });
+  });
+
+  it("keeps a $facet branch named __proto__ as an own branch", () => {
+    const stage = JSON.parse('{"$facet":{"__proto__":[{"$limit":1}],"b":[]}}');
+    const facet = scopePipeline([stage], ONLY_NOTES)[1]!["$facet"] as Document;
+    expect(Object.getPrototypeOf(facet)).toBe(Object.prototype);
+    expect(Object.keys(facet)).toEqual(["__proto__", "b"]);
+    expect(facet["__proto__"]).toEqual([{ $match: { _part: "t1" } }, { $limit: 1 }]);
   });
 });
 

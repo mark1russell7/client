@@ -391,6 +391,9 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     await expect(ann.aggregate([], { maxResults: 0 })).rejects.toThrow(/maxResults/);
     await expect(ann.aggregate([], { maxTimeMS: 0 })).rejects.toThrow(/maxTimeMS/);
     expect((await root.aggregate([{ $count: "n" }])).docs).toEqual([]); // the storage without a partition has no items
+    // Another collection needs its own right: the storage reads only its own collection
+    await expect(ann.aggregate([{ $unionWith: "__storage_counters" }])).rejects.toThrow(/collections of the scope/);
+    await expect(ann.aggregate([{ $lookup: { from: "users", localField: "a", foreignField: "b", as: "x" } }])).rejects.toThrow(/collections of the scope/);
   });
 
   it("refuses a partition with the separator, and a maxTombstones that is not a whole number", () => {
