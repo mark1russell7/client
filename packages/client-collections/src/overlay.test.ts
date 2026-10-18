@@ -89,6 +89,26 @@ describe("the overlay and applyPatch", () => {
   });
 });
 
+describe("a copy with the key __proto__", () => {
+  const hostile = (): Record<string, unknown> => JSON.parse('{"_id":"c","__proto__":{"isAdmin":true},"a":1}') as Record<string, unknown>;
+
+  it("mergeCopies keeps it an own field, and the prototype does not change", () => {
+    for (const mode of ["field", "doc"] as const) {
+      const merged = mergeCopies([hostile(), { _id: "c", b: 2 }], mode)!;
+      expect(Object.getPrototypeOf(merged)).toBe(Object.prototype);
+      expect((merged as { isAdmin?: unknown }).isAdmin).toBeUndefined();
+      expect(Object.keys(merged)).toContain("__proto__");
+    }
+  });
+
+  it("copyAsPatch keeps it an own field of $set", () => {
+    const patch = copyAsPatch(hostile());
+    expect(Object.getPrototypeOf(patch.$set)).toBe(Object.prototype);
+    expect((patch.$set as { isAdmin?: unknown }).isAdmin).toBeUndefined();
+    expect(Object.keys(patch.$set!)).toEqual(["_id", "__proto__", "a"]);
+  });
+});
+
 describe("the stacks from rules", () => {
   /** A resolver: `$me` is the user, `$board` the board, `$space` the space, a name stays, other variables give nothing. */
   const resolverFor = (user?: string) => (variable: string): string | undefined => {

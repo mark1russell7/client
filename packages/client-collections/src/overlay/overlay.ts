@@ -53,6 +53,14 @@ export function isUnset(value: unknown): boolean {
   );
 }
 
+/**
+ * This function sets an own field. An assignment with the key `__proto__` changes the prototype,
+ * and a copy from `JSON.parse` or a database can have that key (the same rule as `applyPatch`).
+ */
+function put(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 /** The fields of a copy without the fields of the overlay. */
 function withoutOverlayFields(copy: LayerCopy, fields: OverlayFields): Record<string, unknown> {
   const { [fields.deleted ?? DELETED_FIELD]: _deleted, [fields.layer ?? LAYER_FIELD]: _layer, ...rest } = copy;
@@ -88,7 +96,7 @@ export function mergeCopies(
     }
     for (const [key, value] of Object.entries(withoutOverlayFields(copy, fields))) {
       if (isUnset(value)) delete merged[key];
-      else merged[key] = value;
+      else put(merged, key, value);
     }
   }
   return merged;
@@ -105,7 +113,7 @@ export function copyAsPatch(copy: LayerCopy, fields: OverlayFields = {}): Storag
   const unset: string[] = [];
   for (const [key, value] of Object.entries(withoutOverlayFields(copy, fields))) {
     if (isUnset(value)) unset.push(key);
-    else set[key] = value;
+    else put(set, key, value);
   }
   return { $set: set, $unset: unset };
 }
