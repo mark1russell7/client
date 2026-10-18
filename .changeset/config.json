@@ -60,7 +60,8 @@
       "@procedures/vitest",
       "@procedures/mcp",
       "@procedures/mcp-dev-tools",
-      "@procedures/server"
+      "@procedures/server",
+      "@procedures/better-auth"
     ]
   ],
   "linked": [],

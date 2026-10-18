@@ -33,7 +33,8 @@
     "packages/claude-cli/README.md",
     "packages/claude-cli/src/**/*.ts",
     "packages/impl-mcp-dev/README.md",
-    "packages/client-mcp/README.md"
+    "packages/client-mcp/README.md",
+    "packages/better-auth/README.md"
   ],
   "ignore": [
     "**/node_modules/**",
