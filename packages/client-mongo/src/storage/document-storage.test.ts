@@ -115,10 +115,21 @@ afterAll(async () => {
   await client.close();
 });
 
-/** A new storage on a new collection of the test database. */
+/**
+ * A new storage on a new collection of the test database. With the client, a write is a
+ * transaction on a replica set; on a single server, it uses the watermark.
+ */
 function fresh<T = ContractItem>(options: Partial<MongoDocumentStorageOptions> = {}): MongoDocumentStorage<T> {
-  return new MongoDocumentStorage<T>({ collection: `c${++next}`, db: () => db, ...options });
+  return new MongoDocumentStorage<T>({ collection: `c${++next}`, db: () => db, client: () => client!, ...options });
 }
+
+/** True when the test database is on a replica set: it has transactions. */
+async function onReplicaSet(): Promise<boolean> {
+  const hello = await db.admin().command({ hello: 1 });
+  return typeof hello["setName"] === "string";
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describeCollectionStorageContract(
   "MongoDocumentStorage",
@@ -286,6 +297,74 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     ]);
     await storage.set("b", { n: 2 });
     expect((await storage.getChangesSince(first.version)).changed.map(([id]) => id)).toEqual(["b"]);
+  });
+
+  it("on a single server, a write that ends after its lease moves its documents to new numbers, so a reader that passed them gets it", async () => {
+    const name = `c${++next}`;
+    const lease = 50;
+    // The writes of this storage stall past the lease, as a slow process does (another database
+    // object: another queue of writes, as in another process)
+    const slowDb = new Proxy(db, {
+      get(target, prop) {
+        if (prop === "collection") {
+          return (collectionName: string) => {
+            const real = target.collection(collectionName);
+            if (collectionName !== name) return real;
+            return new Proxy(real, {
+              get(collection, key) {
+                const value = Reflect.get(collection, key, collection) as unknown;
+                if (key === "bulkWrite") return async (...args: unknown[]) => (await sleep(200), (value as (...a: unknown[]) => unknown).apply(collection, args));
+                return typeof value === "function" ? value.bind(collection) : value;
+              },
+            });
+          };
+        }
+        const value = Reflect.get(target, prop, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const slow = new MongoDocumentStorage<{ n: number }>({ collection: name, db: () => slowDb, transactions: "never", writeLeaseMs: lease });
+    const fast = fresh<{ n: number }>({ collection: name, transactions: "never", writeLeaseMs: lease });
+    await fast.set("a", { n: 1 });
+    const start = await fast.getChangesSince();
+    const late = slow.set("late", { n: 2 });
+    await sleep(lease * 2);
+    await fast.set("b", { n: 3 });
+    // The lease of the slow write ended: the watermark passed its number
+    const passed = await fast.getChangesSince(start.version);
+    expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
+    await late;
+    const after = await fast.getChangesSince(passed.version);
+    expect(after.changed.map(([id]) => id)).toEqual(["late"]);
+    expect(Number(await fast.versionOf("late"))).toBeGreaterThan(Number(await fast.versionOf("b")));
+  });
+
+  it("does not move a write that ends in its lease", async () => {
+    const storage = fresh<{ n: number }>({ transactions: "never" });
+    await storage.set("a", { n: 1 });
+    const first = await storage.versionOf("a");
+    await storage.set("b", { n: 2 });
+    expect(Number(await storage.versionOf("b"))).toBe(Number(first) + 1);
+  });
+
+  it("on a replica set, a write is one transaction with its numbers, and leaves no pending numbers", async (context) => {
+    if (!(await onReplicaSet())) return context.skip?.("the test database is a single server");
+    let sessions = 0;
+    const counted = new Proxy(client!, {
+      get(target, prop) {
+        if (prop === "startSession") return (...args: unknown[]) => (sessions++, (target.startSession as (...a: unknown[]) => unknown).apply(target, args));
+        const value = Reflect.get(target, prop, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const name = `c${++next}`;
+    const storage = fresh<{ n: number }>({ collection: name, client: () => counted });
+    await Promise.all([storage.set("a", { n: 1 }), storage.setBatch([["b", { n: 2 }], ["c", { n: 3 }]]), storage.delete("x")]);
+    await storage.patch("a", { n: 9 });
+    expect(sessions).toBe(3);
+    const counter = await db.collection<{ _id: string; pending?: unknown[] }>("__storage_counters").findOne({ _id: name });
+    expect(counter?.pending ?? []).toEqual([]);
+    expect((await storage.getChangesSince()).changed.map(([id]) => id).sort()).toEqual(["a", "b", "c"]);
   });
 
   it("refuses a partition with the separator, and a maxTombstones that is not a whole number", () => {

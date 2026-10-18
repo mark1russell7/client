@@ -1307,12 +1307,15 @@ server.usePartitions("notes", { storageOf: (partition) => notes.forPartition(par
 | `queryPolicy` | The query policy of `query()` without a policy of the call |
 | `counters` | The collection of the sequence counters (default `__storage_counters`) |
 | `writeLeaseMs` | The time after which a pending number of a write that stopped no longer holds the readers (default 60000) |
+| `client` | The client of the database, for the transactions. The default is the client of the default connection when `db` is absent. |
+| `transactions` | `auto` (the default): a transaction for each write on a replica set or a sharded cluster. `never`: the watermark only. |
 
 - **The documents.** A plain object with safe keys is stored flat: its fields beside the fields of the storage (`_key`, `_part`, `_seq`, `_ord`, `_tomb`). Another item is stored as JSON text in `_json`. Both ways give the item back as it was. An item whose `_id` is its id keeps it.
 - **The change log.** Each write gets the next number of the sequence of the collection, and a delete leaves a tombstone. `getChangesSince()` thus gives the exact changes and deletes. A version of another epoch, or a version before the oldest dropped tombstone, gives a full result.
 - **The versions.** `versionOf(id)` gives the number of the last write of an item.
 - **The queries.** `query()` sends the equality of a string, a number or a boolean, and `$in` of them, to MongoDB as a filter. `queryEntries()` of the core then gives the exact result, so a query gives the result of the reference.
-- **The watermark.** Each write keeps its numbers pending in the counter document until it ends. A version stops below the lowest pending number, so the log is exact also when several processes write the collection.
+- **Several writers.** On a replica set, a write takes its numbers and writes in one transaction. On a single server, a watermark keeps the log exact. Each write keeps its numbers pending until it ends, and a version stops below the lowest pending number. A write that ends after its lease moves its documents to new numbers.
+- **The case that stays on a single server.** A process that stops between a late write and the move of its documents leaves that change below the watermark. A reader that passed those numbers does not get the change. On a replica set, this case does not occur.
 - **The partitions.** An id cannot have the character U+001F, and each write filter has the partition. A write cannot change a document of another partition.
 - **The tests.** The storage passes the `CollectionStorage` contract on MongoDB 7 in CI. Set `MONGO_TEST_URL` to start them locally.
 

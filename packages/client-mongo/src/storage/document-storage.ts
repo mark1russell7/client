@@ -23,10 +23,14 @@
  *   most `maxTombstones` tombstones in each partition. A version before the oldest dropped
  *   tombstone gives a full result.
  * - A version names the epoch of the sequence. A version of another epoch gives a full result.
- * - A watermark keeps the log exact across processes. Each write records its numbers as pending
- *   in the counter document until it ends. A version stops below the lowest pending number, so a
- *   reader does not skip a write that commits later. A pending number of a writer that stopped
- *   expires after `writeLeaseMs`.
+ * - The log stays exact when several processes write. On a replica set (or a sharded cluster), a
+ *   write takes its numbers and writes in one transaction, so the numbers become visible in their
+ *   order. On a single server, a watermark does it: each write keeps its numbers pending in the
+ *   counter document until it ends, and a version stops below the lowest pending number. A
+ *   pending number of a writer that stopped expires after `writeLeaseMs`. A write that ends after
+ *   its lease moves its documents to new numbers, so a reader that passed the old numbers gets
+ *   it. One case stays on a single server: a process that stops between such a late write and the
+ *   move of its documents. Then a reader that passed the old numbers does not get that change.
  *
  * The queries: `query()` sends the conditions that MongoDB tests in the same way (the equality of
  * a string, a number or a boolean, and `$in` of them) as a filter. `queryEntries()` of the core
@@ -34,7 +38,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { AnyBulkWriteOperation, Collection, Db, Document, Filter } from "mongodb";
+import type { AnyBulkWriteOperation, ClientSession, Collection, Db, Document, Filter, MongoClient } from "mongodb";
 import {
   applyPatch,
   queryEntries,
@@ -82,6 +86,16 @@ export interface MongoDocumentStorageOptions {
    * (default 60000): a writer that stopped does not stop the change reads.
    */
   writeLeaseMs?: number | undefined;
+  /**
+   * The client of the database, for the transactions. The default is the client of the default
+   * connection when `db` is absent. Without a client, the writes use the watermark.
+   */
+  client?: (() => MongoClient | Promise<MongoClient>) | undefined;
+  /**
+   * `auto` (the default): a write is a transaction on a replica set or a sharded cluster, and uses
+   * the watermark on a single server. `never`: each write uses the watermark.
+   */
+  transactions?: "auto" | "never" | undefined;
 }
 
 /** A stored document. */
@@ -103,6 +117,25 @@ interface CounterDoc {
   floor?: number;
   pending?: PendingRange[];
 }
+
+/** True when a database is on a replica set or a sharded cluster: it has transactions. */
+const TRANSACTIONAL = new WeakMap<Db, Promise<boolean>>();
+
+function hasTransactions(db: Db): Promise<boolean> {
+  let known = TRANSACTIONAL.get(db);
+  if (!known) {
+    known = db
+      .admin()
+      .command({ hello: 1 })
+      .then((hello) => typeof hello["setName"] === "string" || hello["msg"] === "isdbgrid")
+      .catch(() => false);
+    TRANSACTIONAL.set(db, known);
+  }
+  return known;
+}
+
+/** The most moves of a late write to new numbers. */
+const MAX_MOVES = 10;
 
 /** The writes and the change reads of each collection of each database, one at a time. */
 const QUEUES = new WeakMap<Db, Map<string, Promise<unknown>>>();
@@ -346,30 +379,96 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return { first: counter.seq - count + 1, epoch: counter.epoch };
   }
 
-  /** This method ends the pending numbers of a write, and drops the pending numbers whose lease ended. */
-  private async release(db: Db, first: number): Promise<void> {
-    await db.collection<CounterDoc>(this.countersName).updateOne({ _id: this.collectionName }, [
+  /**
+   * This method ends the pending numbers of a write, and drops the pending numbers whose lease
+   * ended. In the same atomic step, the server tells if the numbers were still in their lease: the
+   * time since `at` only grows, so a range in its lease at the end was in its lease for the whole
+   * write, and no reader passed its numbers.
+   */
+  private async release(db: Db, first: number): Promise<boolean> {
+    const live = { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] };
+    const after = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
+      { _id: this.collectionName },
+      [
+        {
+          $set: {
+            lastRelease: {
+              from: first,
+              inLease: {
+                $anyElementTrue: [
+                  { $map: { input: { $filter: { input: { $ifNull: ["$pending", []] }, cond: { $eq: ["$$this.from", first] } } }, in: live } },
+                ],
+              },
+            },
+            pending: { $filter: { input: { $ifNull: ["$pending", []] }, cond: { $and: [{ $ne: ["$$this.from", first] }, live] } } },
+          },
+        },
+      ],
+      { returnDocument: "after", projection: { lastRelease: 1 } }
+    )) as { lastRelease?: { from?: number; inLease?: boolean } } | null;
+    return after?.lastRelease?.from === first && after.lastRelease.inLease === true;
+  }
+
+  /** This method moves the documents of a late write from its numbers to new numbers. */
+  private async move(collection: Collection<Stored>, first: number, count: number, next: number): Promise<void> {
+    const shift = next - first;
+    await collection.updateMany({ ...this.partitionFilter(), [SEQ]: { $gte: first, $lte: first + count - 1 } } as Filter<Stored>, [
       {
         $set: {
-          pending: {
-            $filter: {
-              input: { $ifNull: ["$pending", []] },
-              cond: { $and: [{ $ne: ["$$this.from", first] }, { $gt: ["$$this.at", { $subtract: ["$$NOW", this.writeLeaseMs] }] }] },
-            },
-          },
+          // A new item keeps its place at its first number: the place moves with it
+          [ORD]: { $cond: [{ $eq: [`$${ORD}`, `$${SEQ}`] }, { $add: [`$${SEQ}`, shift] }, `$${ORD}`] },
+          [SEQ]: { $add: [`$${SEQ}`, shift] },
         },
       },
     ]);
   }
 
-  /** This method takes numbers, writes with them, and ends them: also when the write fails. */
-  private async withNumbers<R>(db: Db, count: number, write: (first: number) => Promise<R>): Promise<R> {
-    const { first } = await this.allocate(db, count);
-    try {
-      return await write(first);
-    } finally {
-      await this.release(db, first);
+  /** The client for the transactions of the writes, or undefined for the watermark. */
+  private async transactionClient(db: Db): Promise<MongoClient | undefined> {
+    if (this.options.transactions === "never") return undefined;
+    const client = this.options.client ? await this.options.client() : this.options.db ? undefined : (await ensureConnection()).getClient();
+    return client && (await hasTransactions(db)) ? client : undefined;
+  }
+
+  /**
+   * This method takes numbers and writes with them. On a replica set, the two are one
+   * transaction. Else the numbers stay pending until the write ends, and a late write moves its
+   * documents to new numbers.
+   */
+  private async withNumbers<R>(db: Db, collection: Collection<Stored>, count: number, write: (first: number, session?: ClientSession) => Promise<R>): Promise<R> {
+    const client = await this.transactionClient(db);
+    if (client) {
+      const session = client.startSession();
+      try {
+        return await session.withTransaction(async () => {
+          const counter = (await db.collection<CounterDoc>(this.countersName).findOneAndUpdate(
+            { _id: this.collectionName },
+            { $inc: { seq: count }, $setOnInsert: { epoch: randomUUID() } },
+            { upsert: true, returnDocument: "after", session }
+          )) as unknown as Counter | null;
+          if (!counter) throw new Error(`The sequence of ${this.collectionName} is not available`);
+          return write(counter.seq - count + 1, session);
+        });
+      } finally {
+        await session.endSession();
+      }
     }
+    let { first } = await this.allocate(db, count);
+    let result: R;
+    try {
+      result = await write(first);
+    } catch (error) {
+      await this.release(db, first).catch(() => undefined);
+      throw error;
+    }
+    for (let moves = 0; !(await this.release(db, first)); moves++) {
+      if (moves >= MAX_MOVES) throw new Error(`A write of ${this.collectionName} stayed late after ${MAX_MOVES} moves to new numbers`);
+      // Late: a reader can have passed these numbers. The write takes new ones.
+      const next = (await this.allocate(db, count)).first;
+      await this.move(collection, first, count, next);
+      first = next;
+    }
+    return result;
   }
 
   /**
@@ -565,14 +664,15 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     }
     await this.write(async (db, collection) => {
       const places = await this.placesOf(collection, items.map(([id]) => id));
-      await this.withNumbers(db, items.length, async (first) => {
+      await this.withNumbers(db, collection, items.length, async (first, session) => {
+        const placed = new Map(places);
         const operations: AnyBulkWriteOperation<Stored>[] = items.map(([id, value], index) => {
           const seq = first + index;
           // A new id takes its place at its first write; a later write of the batch keeps it
-          if (!places.has(id)) places.set(id, seq);
-          return { replaceOne: { filter: this.writeFilter(id), replacement: this.encode(id, value, seq, places.get(id)!), upsert: true } };
+          if (!placed.has(id)) placed.set(id, seq);
+          return { replaceOne: { filter: this.writeFilter(id), replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
         });
-        await collection.bulkWrite(operations, { ordered: true });
+        await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
       });
     });
   }
@@ -582,7 +682,9 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
       const doc = await collection.findOne(this.liveFilter({ _id: this.storedId(id) }));
       if (!doc) return undefined;
       const next = applyPatch(this.decode(doc)[1], fields) as T;
-      await this.withNumbers(db, 1, (first) => collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, Number(doc[ORD])), { upsert: true }));
+      await this.withNumbers(db, collection, 1, (first, session) =>
+        collection.replaceOne(this.writeFilter(id), this.encode(id, next, first, Number(doc[ORD])), { upsert: true, ...(session ? { session } : {}) })
+      );
       return next;
     });
   }
@@ -623,13 +725,13 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
 
   /** This method replaces the items of the ids with tombstones, with new numbers, in the queue of the collection. */
   private async tombstone(db: Db, collection: Collection<Stored>, ids: string[]): Promise<void> {
-    await this.withNumbers(db, ids.length, async (first) => {
+    await this.withNumbers(db, collection, ids.length, async (first, session) => {
       const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => {
         const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: first + index, [TOMB]: true };
         if (this.partition !== undefined) tomb[PART] = this.partition;
         return { replaceOne: { filter: this.writeFilter(id), replacement: tomb } };
       });
-      await collection.bulkWrite(operations, { ordered: true });
+      await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
     });
     await this.pruneTombstones(db, collection);
   }
