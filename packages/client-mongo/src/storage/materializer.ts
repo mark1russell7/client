@@ -9,8 +9,11 @@
  *   status is `cycle`.
  * - A pass runs after the last change of a burst (`debounceMs`), and only the views whose sources
  *   changed. A run computes the result first. When the result is the same as at the last run, it
- *   writes nothing. Else it merges the result into the target and removes the rows that the result
- *   does not have.
+ *   writes nothing. Else, in one transaction, it writes the rows that changed and removes the rows
+ *   of the partition that the result does not have.
+ * - The stored `_id` of a row carries the partition (`targetId`, by default `{ partition, id }`):
+ *   partitions with the same keys share a target. A row of the partition with another `_id` (for
+ *   example of an older form) goes in the first run.
  * - Each pipeline goes through the guard of the scope (`scopePipeline` by default): it reads only
  *   the documents of its partition, in its sources, and writes only into its target.
  * - A change stream that ends (for example after `dropDatabase`) opens again after `rewatchMs`,
@@ -18,8 +21,8 @@
  * - The status of each view (`ok`, `errored`, `cycle`) goes into the field `statusField` of its
  *   document. The materializer ignores an update of only that field.
  *
- * Change streams need a replica set. The target of a view is a plain collection: a `$merge` into
- * the collection of a `MongoDocumentStorage` does not go through its change log.
+ * Change streams need a replica set. The target of a view is a plain collection that only the
+ * materializer writes.
  *
  * The stop has the parts of a transport of a service: `stopIntake()`, `drain()`, `inFlight()` and
  * `close()`. A host composes them with no adapter. The timers come from the injected clock.
@@ -85,6 +88,27 @@ export interface ViewMaterializerOptions {
   log?: ((level: "info" | "warn" | "error", message: string) => void) | undefined;
   /** The clock of the timers (default the clock of the platform). A test gives a fake clock. The timers do not keep a process alive. */
   clock?: Clock | undefined;
+  /**
+   * The stored `_id` of a row of a view, from the `_id` of the row and the partition (default
+   * `partitionTargetId`: `{ partition, id }`). Two partitions must not give the same stored `_id`:
+   * the write of a row checks the partition, and fails on the row of another partition.
+   */
+  targetId?: ViewTargetId | undefined;
+}
+
+/** The function that gives the stored `_id` of a row of a view. */
+export type ViewTargetId = (id: unknown, partition: string) => unknown;
+
+/** The stored `_id` of a row: `{ partition, id }`. A reader of the partition reads `_id.id`. */
+export const partitionTargetId: ViewTargetId = (id, partition) => ({ partition, id });
+
+/** The writes of a run go to the server in groups of this size. */
+const WRITE_GROUP = 1000;
+
+function groups<T>(items: readonly T[]): T[][] {
+  const result: T[][] = [];
+  for (let start = 0; start < items.length; start += WRITE_GROUP) result.push(items.slice(start, start + WRITE_GROUP));
+  return result;
 }
 
 /** A view that the materializer knows. */
@@ -135,7 +159,7 @@ export class ViewMaterializer {
   private db: Db | undefined;
   private viewsStream: ChangeStream | undefined;
   private readonly running = new Map<string, RunningView>();
-  /** The last result of each view: row key to the hash of the row. */
+  /** The last result of each view: the key of the stored `_id` to the hash of the row. */
   private readonly lastResult = new Map<string, Map<string, string>>();
   /** The collections that changed since the last pass, for each partition. */
   private readonly dirty = new Map<string, Set<string>>();
@@ -143,6 +167,7 @@ export class ViewMaterializer {
   /** The timers of the streams that open again. */
   private readonly retries = new Set<Cancel>();
   private readonly clock: Clock;
+  private readonly targetId: ViewTargetId;
   /** False after `stopIntake()`: a change starts no pass. */
   private intake = false;
   /** The work of each partition, one at a time: the passes and the rebalances. */
@@ -160,6 +185,7 @@ export class ViewMaterializer {
     this.maxTimeMS = options.maxTimeMS ?? 30_000;
     this.maxRows = options.maxRows ?? 100_000;
     this.clock = options.clock ?? realClock;
+    this.targetId = options.targetId ?? partitionTargetId;
   }
 
   private log(level: "info" | "warn" | "error", message: string): void {
@@ -170,11 +196,8 @@ export class ViewMaterializer {
   /** The guard of a pipeline of a view. */
   private scoped(pipeline: Document[], partition: string, view: MaterializedView): Document[] {
     if (this.options.scope) return this.options.scope(pipeline, partition, view);
-    return scopePipeline(pipeline, {
-      match: { [this.partitionField]: partition },
-      stamp: { [this.partitionField]: partition },
-      collections: [...new Set([...view.collections, view.targetCollection])],
-    });
+    // No stamp: the materializer writes the rows, so the guard refuses a $merge of the pipeline
+    return scopePipeline(pipeline, { match: { [this.partitionField]: partition }, collections: view.collections });
   }
 
   /** The change streams that are open: the views stream and the source streams of the active views. */
@@ -365,10 +388,10 @@ export class ViewMaterializer {
       return;
     }
     this.running.set(this.keyOf(partition, view._id), { view, partition, state: "active", streams: [] });
-    // The key of $merge: the id and the partition
+    // The sweep of a run reads the rows of the partition
     await this.db!
       .collection(view.targetCollection)
-      .createIndex({ _id: 1, [this.partitionField]: 1 }, { unique: true, name: `_id_${this.partitionField}_unique` })
+      .createIndex({ [this.partitionField]: 1 })
       .catch((error: unknown) => this.log("error", `the index of ${view.targetCollection} failed: ${String((error as Error)?.message ?? error)}`));
     await this.rebalance(partition);
   }
@@ -552,45 +575,52 @@ export class ViewMaterializer {
   }
 
   /**
-   * One run of a view: the result first; nothing more when it is the same as the last result; else
-   * a `$merge` of the result into the target and a removal of the rows that the result does not
-   * have. It gives true when it wrote.
+   * One run of a view: the result first; nothing more when it is the same as the last result. Else,
+   * in one transaction, the rows that changed since the last run (each row after a start) and the
+   * removal of the rows of the partition that the result does not have. It gives true when it wrote.
    */
   private async run(view: MaterializedView, partition: string): Promise<boolean> {
     const db = this.db!;
     const key = this.keyOf(partition, view._id);
-    const source = view.collections[0]!;
     let rows: Document[];
     try {
       rows = await db
-        .collection(source)
+        .collection(view.collections[0]!)
         .aggregate([...this.scoped(view.pipeline, partition, view), { $limit: this.maxRows + 1 }], { maxTimeMS: this.maxTimeMS })
         .toArray();
     } catch (error) {
       throw new Error(`the pipeline: ${String((error as Error)?.message ?? error)}`);
     }
     if (rows.length > this.maxRows) throw new Error(`the result has more than ${this.maxRows} rows`);
-    const result = new Map<string, string>();
+    // The stored rows, by the key of the stored _id: the type-aware key keeps an ObjectId apart from its text
+    const result = new Map<string, { doc: Document; hash: string }>();
     for (const row of rows) {
       const { _id, [this.partitionField]: _partition, ...content } = row;
-      result.set(idKey(_id), createHash("sha1").update(canonical(content)).digest("hex"));
+      if (_id === undefined || _id === null) throw new Error("each row of the result needs an _id");
+      const stored = this.targetId(_id, partition);
+      result.set(idKey(stored), { doc: { _id: stored, ...content, [this.partitionField]: partition }, hash: createHash("sha1").update(canonical(content)).digest("hex") });
     }
     const last = this.lastResult.get(key);
-    if (last && last.size === result.size && [...result].every(([id, hash]) => last.get(id) === hash)) return false;
+    if (last && last.size === result.size && [...result].every(([id, row]) => last.get(id) === row.hash)) return false;
 
-    const merge = [...view.pipeline, { $merge: { into: view.targetCollection, whenMatched: "replace", whenNotMatched: "insert" } }];
+    const target = db.collection(view.targetCollection);
+    const writes = [...result]
+      .filter(([id, row]) => last?.get(id) !== row.hash)
+      .map(([, row]) => ({ replaceOne: { filter: { _id: row.doc["_id"], [this.partitionField]: partition }, replacement: row.doc, upsert: true } }));
     try {
-      await db.collection(source).aggregate(this.scoped(merge, partition, view), { maxTimeMS: this.maxTimeMS }).toArray();
+      await db.client.withSession((session) =>
+        session.withTransaction(async () => {
+          for (const group of groups(writes)) await target.bulkWrite(group, { ordered: false, session });
+          // The rows of the partition that the result does not have: the old rows, and the rows of another form of _id
+          const stored = await target.find({ [this.partitionField]: partition }, { projection: { _id: 1 }, session }).toArray();
+          const stale = stored.map((doc) => doc["_id"] as unknown).filter((id) => !result.has(idKey(id)));
+          for (const group of groups(stale)) await target.deleteMany({ [this.partitionField]: partition, _id: { $in: group } } as Document, { session });
+        })
+      );
     } catch (error) {
-      throw new Error(`the merge: ${String((error as Error)?.message ?? error)}`);
+      throw new Error(`the write of the rows: ${String((error as Error)?.message ?? error)}`);
     }
-    try {
-      // The raw ids of the result: the equality of BSON keeps an ObjectId apart from its text
-      await db.collection(view.targetCollection).deleteMany({ [this.partitionField]: partition, _id: { $nin: rows.map((row) => row["_id"]) } });
-    } catch (error) {
-      throw new Error(`the removal of the old rows: ${String((error as Error)?.message ?? error)}`);
-    }
-    this.lastResult.set(key, result);
+    this.lastResult.set(key, new Map([...result].map(([id, row]) => [id, row.hash])));
     return true;
   }
 

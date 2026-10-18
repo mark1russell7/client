@@ -718,14 +718,16 @@ await views.start();
 ```
 
 - A change of a source starts a pass of its partition after the burst (`debounceMs`). A pass computes only the views whose sources changed, in the order of their dependencies. A view whose result changed makes its target dirty, so the views that read it are in the same pass.
-- A run computes the result first. A result that did not change writes nothing. Else a `$merge` writes the result, and the rows that the result does not have are removed.
+- A run computes the result first. A result that did not change writes nothing. Else one transaction writes the rows that changed, and removes the rows of the partition that the result does not have. A reader does not see a part of a pass.
 - A view in a cycle of views stays idle. Its status is `cycle` until the cycle ends.
 - The status of each view (`ok`, `errored` with `lastError`, `cycle`) goes into the field `_materializerStatus` of its document.
-- Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition in its sources, and writes only into its target. The option `scope` gives another guard.
+- Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition, in its sources. It cannot have `$merge` or `$out`, because the materializer writes the rows. The option `scope` gives another guard.
 - A stream that ends opens again after `rewatchMs`, and a pass catches up.
 - The stop has the parts of a transport of a service: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. `stop()` does the four. A host composes them with no adapter.
 - The option `clock` gives the clock of the timers, for example a fake clock in a test. The timers do not keep a process alive.
-- The target is a plain collection. A `$merge` into the collection of a `MongoDocumentStorage` does not go through its change log.
+- The target is a plain collection that only the materializer writes. The stored `_id` of a row carries its partition: by default `{ partition, id }` (`partitionTargetId`), where `id` is the `_id` of the row. Thus two partitions with the same keys share a target. A reader of a partition reads `_id.id`.
+- The option `targetId` gives another form of the stored `_id`, for example `` (id, partition) => `${partition}:${id}` ``. Two partitions must not give the same stored `_id`. The write of a row checks the partition, so the view of the second partition fails, and the row of the first one stays.
+- An app with targets from an older materializer (each row with the plain key as `_id`) needs no migration step. The first pass of each view writes its rows with the new `_id`. In the same transaction, it removes the rows of its partition with another `_id`. A row without the partition field stays.
 
 ## Integration with Ecosystem
 

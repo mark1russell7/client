@@ -61,7 +61,10 @@ const sumsView = (overrides: Partial<MaterializedView> = {}): MaterializedView =
   ...overrides,
 });
 
-const sorted = (docs: Document[]) => docs.sort((a, b) => String(a["_id"]).localeCompare(String(b["_id"])));
+/** The stored _id of a row of a view: `{ partition, id }`. */
+const at = (id: unknown, partition = "t1") => ({ partition, id });
+
+const sorted = (docs: Document[]) => docs.sort((a, b) => JSON.stringify(a["_id"]).localeCompare(JSON.stringify(b["_id"])));
 
 const withMongo = url ? describe : describe.skip;
 
@@ -77,17 +80,17 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await db.collection("_aggregations").insertOne(sumsView() as never);
     await views.start();
     const target = () => db.collection("sums").find({}).toArray();
-    expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 3 }]);
+    expect(sorted(await target())).toEqual([{ _id: at("a"), _part: "t1", total: 3 }]);
     expect(views.openStreamCount()).toBe(2);
 
     await db.collection("items").insertOne({ _id: "4" as never, _part: "t1", kind: "b", n: 5 });
-    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 3 }, { _id: "b", _part: "t1", total: 5 }]));
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: at("a"), _part: "t1", total: 3 }, { _id: at("b"), _part: "t1", total: 5 }]));
     await db.collection("items").updateOne({ _id: "1" as never }, { $set: { n: 10 } });
-    await eventually(async () => expect((await target()).find((row) => String(row["_id"]) === "a")?.["total"]).toBe(12));
+    await eventually(async () => expect((await db.collection("sums").findOne({ _id: at("a") as never }))?.["total"]).toBe(12));
     // A change of another partition does not reach the view
     await db.collection("items").insertOne({ _id: "5" as never, _part: "t2", kind: "c", n: 1 });
     await db.collection("items").deleteOne({ _id: "4" as never });
-    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: "a", _part: "t1", total: 12 }]));
+    await eventually(async () => expect(sorted(await target())).toEqual([{ _id: at("a"), _part: "t1", total: 12 }]));
     const doc = await db.collection("_aggregations").findOne({ _id: "sums" as never });
     expect(doc?.["_materializerStatus"]).toMatchObject({ state: "ok" });
 
@@ -108,7 +111,7 @@ withMongo("ViewMaterializer on MongoDB", () => {
       { _id: "count", _part: "t1", collections: ["kinds"], pipeline: [{ $group: { _id: "all", kinds: { $sum: 1 } } }], targetCollection: "count" } as never,
     ]);
     await views.start();
-    const count = async () => (await db.collection("count").findOne({ _id: "all" as never }))?.["kinds"];
+    const count = async () => (await db.collection("count").findOne({ _id: at("all") as never }))?.["kinds"];
     expect(await count()).toBe(2);
     await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "c", n: 3 });
     await eventually(async () => expect(await count()).toBe(3));
@@ -138,7 +141,7 @@ withMongo("ViewMaterializer on MongoDB", () => {
 
     await db.collection("_aggregations").updateOne({ _id: "sums" as never }, { $set: { pipeline: [{ $group: { _id: "$kind", total: { $sum: "$n" } } }] } });
     await eventually(async () => expect(await status()).toMatchObject({ state: "ok" }));
-    expect(await db.collection("sums").find({}).toArray()).toEqual([{ _id: "a", _part: "t1", total: 1 }]);
+    expect(await db.collection("sums").find({}).toArray()).toEqual([{ _id: at("a"), _part: "t1", total: 1 }]);
     await views.stop();
   });
 
@@ -158,6 +161,64 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await views.stop();
   });
 
+  it("keeps the rows of two partitions with the same keys apart in one target, and moves the rows of an older form", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const { db, views } = setup();
+    await db.collection("items").insertMany([
+      { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "2" as never, _part: "t2", kind: "a", n: 10 },
+    ]);
+    // The rows of an older materializer: the plain key as _id (the second partition could not even exist)
+    await db.collection("sums").insertMany([
+      { _id: "a" as never, _part: "t1", total: 1 },
+      { _id: "gone" as never, _part: "t1", total: 9 },
+      { _id: "kept" as never, total: 0 }, // no partition: not a row of a view
+    ]);
+    await db.collection("_aggregations").insertMany([sumsView() as never, sumsView({ _id: "sums-t2", _part: "t2" }) as never]);
+    await views.start();
+    const rows = async () => sorted(await db.collection("sums").find({}).toArray());
+    expect(await rows()).toEqual([{ _id: "kept", total: 0 }, { _id: at("a"), _part: "t1", total: 1 }, { _id: at("a", "t2"), _part: "t2", total: 10 }]);
+
+    // A change of t2 rewrites only t2, and its sweep removes only rows of t2
+    await db.collection("items").updateOne({ _id: "2" as never }, { $set: { kind: "b" } });
+    await eventually(async () =>
+      expect(await rows()).toEqual([{ _id: "kept", total: 0 }, { _id: at("a"), _part: "t1", total: 1 }, { _id: at("b", "t2"), _part: "t2", total: 10 }])
+    );
+    const statuses = (await db.collection("_aggregations").find({}).toArray()).map((doc) => (doc["_materializerStatus"] as Document | undefined)?.["state"]);
+    expect(statuses).toEqual(["ok", "ok"]);
+    await views.stop();
+  });
+
+  it("takes the stored _id of a row from targetId, and refuses to write over the row of another partition", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
+    dbs.push(db);
+    await db.collection("items").insertMany([
+      { _id: "1" as never, _part: "t1", kind: "a", n: 1 },
+      { _id: "2" as never, _part: "t2", kind: "a", n: 10 },
+    ]);
+    await db.collection("_aggregations").insertMany([sumsView() as never, sumsView({ _id: "sums-t2", _part: "t2" }) as never]);
+    // A host form: <partition>:<key>
+    const prefixed = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, log: () => undefined, targetId: (id, partition) => `${partition}:${String(id)}` });
+    await prefixed.start();
+    expect(sorted(await db.collection("sums").find({}).toArray())).toEqual([
+      { _id: "t1:a", _part: "t1", total: 1 },
+      { _id: "t2:a", _part: "t2", total: 10 },
+    ]);
+    await prefixed.stop();
+
+    // A form without the partition: t2 cannot take the row of t1, and its view fails
+    await db.collection("sums").deleteMany({});
+    const bare = new ViewMaterializer({ db: () => db, debounceMs: 20, rewatchMs: 100, log: () => undefined, targetId: (id) => id });
+    await bare.start();
+    const rows = await db.collection("sums").find({}).toArray();
+    expect(rows).toHaveLength(1);
+    const winner = rows[0]!["_part"] as string;
+    const states = Object.fromEntries((await db.collection("_aggregations").find({}).toArray()).map((doc) => [doc["_part"], (doc["_materializerStatus"] as Document)["state"]]));
+    expect(states).toEqual({ [winner]: "ok", [winner === "t1" ? "t2" : "t1"]: "errored" });
+    await bare.stop();
+  });
+
   it("has the stop parts of a transport, and takes its timers from the injected clock", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const db = client!.db(`client_mongo_views_${process.pid}_${Date.now()}_${++next}`);
@@ -168,7 +229,7 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1 });
     await db.collection("_aggregations").insertOne(sumsView() as never);
     await views.start();
-    const total = async () => (await db.collection("sums").findOne({ _id: "a" as never }))?.["total"];
+    const total = async () => (await db.collection("sums").findOne({ _id: at("a") as never }))?.["total"];
     await db.collection("items").insertOne({ _id: "2" as never, _part: "t1", kind: "a", n: 2 });
     await eventually(async () => expect(await total()).toBe(3));
     expect(delays).toContain(20); // the debounce of the pass is a timer of the clock
