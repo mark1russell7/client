@@ -726,7 +726,16 @@ Captures comprehensive Git state:
 
 ## The root of the files
 
-A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) refuses `snapshot.create`, `snapshot.restore` and `snapshot.diff`. The error is `FORBIDDEN` with the reason `outside-root`. These procedures start git and pnpm without the rules of the root, and they reach folders outside it. `snapshot.list` and `snapshot.delete` reach only S3, so they work under a root.
+A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) confines `snapshot.create` and `snapshot.diff`, and it refuses `snapshot.restore`. A refusal is `FORBIDDEN` with the reason `outside-root`.
+
+- Each folder of `paths` must be in the root. A relative path starts at the root.
+- `snapshot.create` takes the root when the call gives no `paths`.
+- `snapshot.diff` needs `paths` under a root, because the snapshot recorded its paths, maybe on another machine.
+- Git goes through the `git.*` procedures, so the rules of git under a root apply. For example, a repository whose configuration starts a program is refused.
+- Pnpm does not start under a root. The snapshot records the pnpm version as `unknown`.
+- `snapshot.create` does not read a `package.json` whose real path is outside the root.
+- `snapshot.restore` stays refused. It downloads the archive into the temporary folder of the host, and the names of the folders come from the data of the snapshot.
+- `snapshot.list` and `snapshot.delete` reach only S3, so they work under a root.
 
 The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
 

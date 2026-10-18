@@ -43,24 +43,27 @@ import {
 // =============================================================================
 
 // =============================================================================
-// The rules under a root of the files (roadmap R33, tracker item O36)
+// The rules under a root of the files (roadmap R33, tracker items O36 and O46)
 // =============================================================================
 
-/** `snapshot.create`: a root refuses it. */
-const CREATE_UNDER_A_ROOT: FsRootRules = {
-  refuse:
-    "its default folder is the working folder of the process, tar reads each folder from its parent folder, and it starts git and pnpm itself, without the rules of the root",
-};
+/**
+ * `snapshot.create`: each folder of `paths` is in the root, and the default folder is the root.
+ * Git goes through the `git.*` procedures, so their rules of the root apply. Pnpm does not start.
+ * Tar stores a symlink as a link, so the archive has only the files of the folders.
+ */
+const CREATE_UNDER_A_ROOT: FsRootRules = { paths: ["paths"] };
 
 /** `snapshot.restore`: a root refuses it. */
 const RESTORE_UNDER_A_ROOT: FsRootRules = {
   refuse: "it downloads the archive into the temporary folder of the host through s3.download, and the names of the folders come from the data of the snapshot",
 };
 
-/** `snapshot.diff`: a root refuses it. */
-const DIFF_UNDER_A_ROOT: FsRootRules = {
-  refuse: "its default folders are the paths that the snapshot recorded on another machine, and it starts git itself, without the rules of the root",
-};
+/**
+ * `snapshot.diff`: each folder of `paths` is in the root. Without `paths`, the folders are the
+ * paths that the snapshot recorded, maybe on another machine, so a root needs `paths`. Git goes
+ * through the `git.*` procedures, so their rules of the root apply.
+ */
+const DIFF_UNDER_A_ROOT: FsRootRules = { paths: ["paths"], required: ["paths"] };
 
 const snapshotCreateProcedure = createProcedure()
   .path(["snapshot", "create"])

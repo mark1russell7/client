@@ -6,8 +6,9 @@
 
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { gitText } from "./commands.js";
 import type { ProcedureContext } from "@procedures/client";
+import { isOutsideRoot } from "@procedures/fs/root";
+import { gitCall } from "./commands.js";
 import type {
   SnapshotDiffInput,
   SnapshotDiffOutput,
@@ -72,7 +73,7 @@ export async function snapshotDiff(
 
     try {
       // Get current branch (a failure is an error of this repository: the catch below)
-      const currentBranch = await gitText(["rev-parse", "--abbrev-ref", "HEAD"], repoPath, ctx.signal);
+      const currentBranch = (await gitCall<{ value: string }>(ctx, ["git", "revParse"], { cwd: repoPath, abbrevRef: true }))?.value;
       if (currentBranch === undefined) throw new Error(`git cannot read the branch of ${repoPath}`);
 
       if (currentBranch !== snapshotRepo.branch) {
@@ -83,7 +84,7 @@ export async function snapshotDiff(
       }
 
       // Get current commit
-      const currentCommit = await gitText(["rev-parse", "HEAD"], repoPath, ctx.signal);
+      const currentCommit = (await gitCall<{ value: string }>(ctx, ["git", "revParse"], { cwd: repoPath }))?.value;
       if (currentCommit === undefined) throw new Error(`git cannot read the commit of ${repoPath}`);
 
       if (currentCommit !== snapshotRepo.commit) {
@@ -99,12 +100,13 @@ export async function snapshotDiff(
           if (!/^[0-9a-f]{7,64}$/i.test(snapshotRepo.commit)) {
             throw new Error(`Not a commit hash: ${snapshotRepo.commit}`);
           }
-          const diffStat = await gitText(["diff", "--stat", `${snapshotRepo.commit}..HEAD`], repoPath, ctx.signal);
-          if (diffStat === undefined) throw new Error(`git cannot compare ${snapshotRepo.commit} with HEAD`);
-          // Count lines that represent files (contain |)
-          diff.filesChanged = diffStat.split("\n").filter((l) => l.includes("|")).length;
+          const changes = await gitCall<{ files: unknown[] }>(ctx, ["git", "diff"], { cwd: repoPath, ref: `${snapshotRepo.commit}..HEAD`, stat: true });
+          if (changes === undefined) throw new Error(`git cannot compare ${snapshotRepo.commit} with HEAD`);
+          // One entry for each file that changed, also a binary file
+          diff.filesChanged = changes.files.length;
           totalFilesChanged += diff.filesChanged;
-        } catch {
+        } catch (error) {
+          if (isOutsideRoot(error)) throw error;
           // Snapshot commit may not exist locally
           diff.filesChanged = -1;
         }
@@ -126,7 +128,9 @@ export async function snapshotDiff(
       ) {
         reposChanged++;
       }
-    } catch {
+    } catch (error) {
+      // A refusal of the root is not "no repository": the repository is there, and the root refuses it
+      if (isOutsideRoot(error)) throw error;
       // Not a git repo or error
       diff.filesChanged = -1;
       reposChanged++;

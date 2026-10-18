@@ -11,9 +11,10 @@ import { tmpdir, hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import * as tar from "tar";
 import type { ProcedureContext } from "@procedures/client";
+import { isOutsideRoot, realPathIsInside, resolveRoot } from "@procedures/fs/root";
 import { assertSnapshotName, isExcluded } from "./names.js";
 import { readPart, sha256File } from "./archive-io.js";
-import { gitText, pnpmVersion } from "./commands.js";
+import { gitCall, pnpmVersion } from "./commands.js";
 import type {
   SnapshotCreateInput,
   SnapshotCreateOutput,
@@ -49,7 +50,7 @@ export async function snapshotCreate(
     );
 
     // Get environment info
-    const environment = await getEnvironmentInfo(ctx.signal);
+    const environment = await getEnvironmentInfo(ctx.signal, ctx.fsRoot);
 
     // Create metadata
     const metadata: SnapshotMetadata = {
@@ -132,10 +133,10 @@ export async function snapshotCreate(
 /**
  * Get ecosystem repository paths from manifest
  */
-async function getEcosystemPaths(_ctx: ProcedureContext): Promise<string[]> {
+async function getEcosystemPaths(ctx: ProcedureContext): Promise<string[]> {
   // TODO: Read from ecosystem manifest
-  // For now, return current working directory
-  return [process.cwd()];
+  // For now, the root of the files under a root, else the current working directory
+  return [ctx.fsRoot ?? process.cwd()];
 }
 
 /**
@@ -152,8 +153,8 @@ async function getRepositoryInfo(
     >(["git", "status"], { cwd: repoPath });
 
     // The commit hash ("" for a repository with no commit) and the remote URL (none without "origin")
-    const commit = (await gitText(["rev-parse", "HEAD"], repoPath, ctx.signal)) ?? "";
-    const remoteUrl = await gitText(["remote", "get-url", "origin"], repoPath, ctx.signal);
+    const commit = (await gitCall<{ value: string }>(ctx, ["git", "revParse"], { cwd: repoPath }))?.value ?? "";
+    const remoteUrl = (await gitCall<{ url: string }>(ctx, ["git", "remote"], { cwd: repoPath, name: "origin" }))?.url;
 
     // Get stash count
     let stashCount = 0;
@@ -167,11 +168,13 @@ async function getRepositoryInfo(
       // No stashes
     }
 
-    // Get package name from package.json
+    // Get package name from package.json. Under a root, a package.json whose real path is outside
+    // the root (a symlink) is not read.
     let name = basename(repoPath);
     try {
       const pkgPath = join(repoPath, "package.json");
-      if (existsSync(pkgPath)) {
+      const readable = ctx.fsRoot === undefined || (await realPathIsInside(await resolveRoot(ctx.fsRoot), pkgPath));
+      if (readable && existsSync(pkgPath)) {
         const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
         name = pkg.name || name;
       }
@@ -191,6 +194,8 @@ async function getRepositoryInfo(
       behind: result.behind,
     };
   } catch (error) {
+    // A refusal of the root is not "no repository": the repository is there, and the root refuses it
+    if (isOutsideRoot(error)) throw error;
     // Not a git repo or error
     return {
       path: repoPath,
@@ -208,11 +213,11 @@ async function getRepositoryInfo(
 /**
  * Get environment info
  */
-async function getEnvironmentInfo(signal?: AbortSignal): Promise<SnapshotMetadata["environment"]> {
+async function getEnvironmentInfo(signal?: AbortSignal, fsRoot?: string): Promise<SnapshotMetadata["environment"]> {
   return {
     os: process.platform,
     nodeVersion: process.version,
-    pnpmVersion: await pnpmVersion(signal),
+    pnpmVersion: await pnpmVersion(signal, fsRoot),
     username: process.env["USER"] || process.env["USERNAME"] || "unknown",
     hostname: hostname(),
   };
@@ -259,11 +264,14 @@ async function createArchive(
   }
   // heavy preset includes everything
 
+  // Tar reads only the listed folders from their parent. Without `follow`, it stores a symlink as
+  // a link and does not read its target: under a root, the archive has only files of the root.
   await tar.create(
     {
       gzip: gzipOpts,
       file: archivePath,
       cwd,
+      follow: false,
       // Whole path segments, and "*.ext" for file endings. (Before, `path.includes("dist")`
       // left out src/distance.ts, and "*.log" matched nothing: deep dive DATA-3.)
       filter: (path) => !isExcluded(path, excludePatterns),
