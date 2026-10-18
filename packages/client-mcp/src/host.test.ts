@@ -96,6 +96,21 @@ describe("createMcpHost", () => {
     expect(client.getInstructions()).toBe("Use graph.set to change a document.");
   });
 
+  it("keeps the tool names of a server that moves to the host", async () => {
+    const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+    const host = createMcpHost({
+      modules: [graphModule],
+      surface: { namespaces: ["graph"] },
+      toolName: (path) => path.join("_"),
+      faces: { sdk: serverSide },
+    });
+    const client = await connect(host, clientSide);
+    expect((await client.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["graph_get", "graph_set"]);
+    expect(host.tools().map((tool) => tool.name).sort()).toEqual(["graph_get", "graph_set"]);
+    const result = (await client.callTool({ name: "graph_get", arguments: {} })) as { structuredContent?: unknown };
+    expect(result.structuredContent).toEqual({ text: "doc" });
+  });
+
   it("gives the interceptors the registry and the expose rule of the host", async () => {
     let seen: { expose?: ((path: ProcedurePath) => boolean) | undefined; calls: number } = { calls: 0 };
     const counter: Interceptor = (_invocation, next) => {
