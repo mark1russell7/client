@@ -4,12 +4,13 @@
 > from the workspace's package.json files and the live procedure registry.
 > Regenerate with `node packages/documentation/scripts/generate-packages.mjs` after `pnpm build`.
 
-**Packages:** 56. **Procedures:** 297. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
+**Packages:** 57. **Procedures:** 297. The full procedure list is in [PROCEDURES.md](./PROCEDURES.md).
 
 Dependencies marked *(general)* are separate repositories, published on npm under `@mark1russell7`.
 
 | Package | Folder | Description | Procedures | Depends on |
 |---|---|---|---|---|
+| `@procedures/access` | `packages/access` | The rights of a principal on a scope: access lists, owners, implied rights and conditions over a document, with the rules of the app as a policy, and the output filter of a host. | — | `client` |
 | `@procedures/archive` | `packages/archive` | Archives as procedures: make, list and extract tar.gz and zip, with a check of each path against zip slip and links out of the target. | `archive.*` (3) | `client`, `fs` |
 | `@procedures/better-auth` | `packages/better-auth` | Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token. | — | `client` |
 | `@procedures/bundle-assistant` | `packages/bundle-assistant` | The opt-in tools of the personal assistant for an MCP host: calendar files, mail parsing, places, routes, weather and photo metadata, without the procedures that can carry data out. | — | `client`, `exif`, `geo`, `ics`, `mail`, `weather` |

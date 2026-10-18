@@ -9,6 +9,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@mark1russell7/cue": "^1.0.0",
     "@playwright/test": "^1.64.0",
+    "@procedures/access": "workspace:*",
     "@procedures/archive": "workspace:*",
     "@procedures/better-auth": "workspace:*",
     "@procedures/bundle-assistant": "workspace:*",
