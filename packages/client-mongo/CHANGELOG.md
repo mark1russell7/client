@@ -1,5 +1,28 @@
 # @procedures/mongo
 
+## 0.9.2
+
+### Patch Changes
+
+- e192622: New `ViewMaterializer`: materialized views driven by change streams. A view is a document of a views collection, with a pipeline over source collections and a target collection, for one partition. The materializer computes each view again when its sources change, in the order of the dependencies. It keeps the status of each view (`ok`, `errored`, `cycle`).
+  
+  - The rows of a view are a generation, and the status names the current one. A reader filters with the new `viewFilter(view)`, so it reads one whole generation.
+  - A run writes only the rows that changed, and removes the rows that the result does not have, in one transaction. A larger view (`maxTransactionRows`), or a failed transaction, writes a whole new generation in groups. The previous generation stays for `generationGrace`. A pass in groups holds a lease on its view (`passLease`), so two processes can keep the same views. The time options are durations of `@procedures/client`.
+  - The stored `_id` of a row carries its partition and its generation: `{ partition, generation, id }` by default (`partitionTargetId`), or the form of the option `targetId`. Two partitions with the same keys share a target.
+  - Targets from an older materializer, with the plain key as `_id`, need no migration step. The first pass of each view replaces the rows of its partition.
+  - Each pipeline goes through `scopePipeline` by default. It reads only its partition, in its sources, and the current generation of a target.
+  
+  The code comes from the server of Graph (its split plan, part P4). The jobs of CI with a replica set start MongoDB with the test commands, for the failpoint tests.
+- 054ba7d: `ViewMaterializer`: a change reaches only the views of its partition when the partition is known (roadmap CLI-37). The filter only removes work: a change whose partition is unknown reaches the views of each partition, as before.
+  
+  - A delete has no document in its change event. Its partition comes from the pre-image, when its collection has `changeStreamPreAndPostImages`.
+  - The new option `storageSources` gives, for a collection of `MongoDocumentStorage`, the function from the storage partition (at the start of the id) to the partition of the views. `identityPartition` is for two partitions that are the same.
+  - With pre-images, an update that moves a document to another partition also reaches the views of its old partition.
+  - Without pre-images, a replace and an update of the partition field reach the views of each partition, as a delete does. The document can leave any partition.
+  - With `sourceFields`, the keys of an update are paths with dots: a `$push` (`tags.3`), a `$set` of `a.b`, a removal or a truncated array. Each key counts at the field, under it or above it, and the positions in arrays do not count (`lines.0.price` is `lines.price`). An update of the partition field starts a pass too.
+- @procedures/client@0.9.2
+  - @procedures/collections@0.9.2
+
 ## 0.9.1
 
 ### Patch Changes

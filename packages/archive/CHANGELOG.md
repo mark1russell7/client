@@ -1,5 +1,12 @@
 # @procedures/archive
 
+## 0.9.2
+
+### Patch Changes
+
+- @procedures/client@0.9.2
+  - @procedures/fs@0.9.2
+
 ## 0.9.1
 
 ### Patch Changes
