@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 519 names
+## . (dist/index.d.ts): 523 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -42,6 +42,8 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
+type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -329,6 +331,8 @@ checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
+collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -526,7 +530,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 501 names
+## ./browser (dist/browser.d.ts): 505 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -563,6 +567,8 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
+type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -839,6 +845,8 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
+collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -1238,7 +1246,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 273 names
+## ./procedures (dist/procedures/index.d.ts): 277 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1252,6 +1260,8 @@ type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
 type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
 type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
 type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
+type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
@@ -1395,6 +1405,8 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
+collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -2212,6 +2224,8 @@ export declare class Client<TContext = {}> {
     exec<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown, options?: ExecOptions): Promise<TOutput>;
     execStream<TOutput = unknown>(refOrPath: AnyProcedureRef | ProcedurePath, input?: unknown, options?: ExecOptions): AsyncIterable<TOutput>;
     stream<TReq, TRes>(method: Method, payload: TReq, options?: CallOptions<TContext> | Metadata): AsyncIterable<TRes>;
+    subscribe<T = unknown>(topics: string | readonly string[], handler: RemoteEventHandler<T>, options?: SubscribeOptions): Subscription;
+    events<T = unknown>(topics: string | readonly string[], options?: RemoteEventsOptions): AsyncIterable<RemoteEvent<T>>;
     get transportName(): string;
     close(): Promise<void>;
     schema<TInput extends ZodLike = ZodLike, TOutput extends ZodLike = ZodLike>(method: Method, schemas: {
@@ -2963,6 +2977,7 @@ export interface EventPublisherOptions {
     topics: TopicRule;
     allow?: ((topic: string, call: TopicCall) => boolean) | undefined;
     buffer?: number | undefined;
+    reads?: ((topic: string) => readonly string[]) | undefined;
 }
 
 ### dist/events/publisher.d.ts#MAX_SUBSCRIPTION_TOPICS
@@ -3389,9 +3404,36 @@ export declare function narrowCapability<C>(current: Capability<C> | undefined, 
 ### dist/procedures/capability.d.ts#toolHints
 export declare function toolHints(procedure: AnyProcedure): ToolHints;
 
+### dist/procedures/collection/changes.d.ts#CollectionChangeEvent
+export interface CollectionChangeEvent {
+    readonly since?: string | undefined;
+    readonly version?: string | undefined;
+    readonly changed: readonly string[];
+    readonly deleted: readonly string[];
+    readonly values?: ReadonlyArray<{
+        readonly id: string;
+        readonly value: unknown;
+    }> | undefined;
+    readonly withheld?: readonly string[] | undefined;
+    readonly origin?: string | undefined;
+}
+
+### dist/procedures/collection/changes.d.ts#collectionChangeTopic
+export declare function collectionChangeTopic(collection: string): string;
+
+### dist/procedures/collection/changes.d.ts#collectionTopicReads
+export declare function collectionTopicReads(topic: string): readonly string[];
+
+### dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
+export interface CollectionChangeEventsOptions {
+    topic?: ((collection: string, ctx: ProcedureContext) => string | undefined) | undefined;
+    values?: boolean | undefined;
+}
+
 ### dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 export interface CollectionProceduresOptions {
     queryPolicy?: StorageQueryPolicy | undefined;
+    changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
 }
 
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
@@ -4736,6 +4778,7 @@ export interface ProcedureContext {
     resources: ResourcesOf;
     caller?: AnyProcedure | undefined;
     principal?: Principal | undefined;
+    admit?: ((item: unknown) => Promise<boolean>) | undefined;
 }
 
 ### dist/procedures/types.d.ts#ProcedureError

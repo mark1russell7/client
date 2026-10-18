@@ -45,8 +45,24 @@ export {
   QueueStoreError,
   ConflictError,
   ModeSwitchError,
+  SyncStateError,
 } from "./hybrid.js";
 export type { HybridStorageOptions, HybridMode, LocalCopyStorage } from "./hybrid.js";
+// The push feed of the remote changes (roadmap CLI-21, CLI-15)
+export { EventsChangeFeed } from "./feed.js";
+export type {
+  ChangeEventSource,
+  EventSubscriber,
+  EventsChangeFeedOptions,
+  RemoteChangeFeed,
+  RemoteChangeHint,
+  RemoteChangeListener,
+  RemoteChanges,
+} from "./feed.js";
+// The sync state of HybridStorage: the cursor and the base versions (roadmap CLI-21).
+// IndexedDbSyncStateStore is in "@procedures/store/indexeddb".
+export { MemorySyncStateStore } from "./sync-state.js";
+export type { SyncState, SyncStateChange, SyncStateStore } from "./sync-state.js";
 // The queue of HybridStorage and its store (roadmap R28). FileQueueStore is in
 // "@procedures/store/file-queue": it uses node:fs. IndexedDbQueueStore is in
 // "@procedures/store/indexeddb": it uses the IndexedDB of a browser (roadmap R45).

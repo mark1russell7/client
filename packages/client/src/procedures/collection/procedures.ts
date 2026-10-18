@@ -57,7 +57,8 @@ import {
   type DeleteBatchInput,
 } from "./schemas.js";
 import { DEFAULT_FIND_LIMIT, applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy } from "./query.js";
-import type { CollectionStorage } from "./storage.js";
+import type { CollectionStorage, StorageWriteOptions } from "./storage.js";
+import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from "./changes.js";
 
 // =============================================================================
 // Handler Factory
@@ -96,6 +97,24 @@ function queryOptionsOf(input: FindInput, policy: StorageQueryPolicy): StorageQu
   };
 }
 
+/** The options of the change events of the collection procedures (roadmap CLI-15). */
+export interface CollectionChangeEventsOptions {
+  /**
+   * The topic of the change events of a call, or undefined for no event. The partition of a
+   * collection (roadmap CLI-17) goes into the topic here, for example from the scope of the call.
+   * @default the topic `collections.<name>` of `collectionChangeTopic()`
+   */
+  topic?: ((collection: string, ctx: ProcedureContext) => string | undefined) | undefined;
+  /**
+   * True: the events also carry the values of the changed items. Each row `{ id, value }` passes
+   * the output filter of the host (`admitItem`) for each subscriber, and a refused row stays out of
+   * that event: its id goes to `withheld`. Without it, the events carry only the ids and the
+   * versions, and a subscriber reads the values with `changes`.
+   * @default false
+   */
+  values?: boolean | undefined;
+}
+
 /** The options of the collection procedures. */
 export interface CollectionProceduresOptions {
   /**
@@ -105,6 +124,19 @@ export interface CollectionProceduresOptions {
    * @default DEFAULT_QUERY_POLICY, with `maxLimit` DEFAULT_FIND_LIMIT (1000)
    */
   queryPolicy?: StorageQueryPolicy | undefined;
+  /**
+   * The change events of the writes (roadmap CLI-15). Each write publishes a
+   * `CollectionChangeEvent` on the bus of its context, while a subscriber listens to the topic.
+   * The event has the ids and the versions, and the values only with `values`. False: the
+   * procedures publish no event.
+   * @default true, with the topic `collections.<name>` and no values
+   */
+  changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
+}
+
+/** The write options of an input with an origin. */
+function writeOptionsOf(input: { origin?: string }): StorageWriteOptions | undefined {
+  return input.origin === undefined ? undefined : { origin: input.origin };
 }
 
 /**
@@ -115,7 +147,7 @@ export interface CollectionProceduresOptions {
 const PATCHES = new WeakMap<object, Map<string, Promise<unknown>>>();
 
 /** This function patches an item of a storage without `patch()`: a read, a merge and a write. */
-function patchInParts(storage: CollectionStorage<unknown>, id: string, fields: StoragePatch): Promise<unknown> {
+function patchInParts(storage: CollectionStorage<unknown>, id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<unknown> {
   let running = PATCHES.get(storage);
   if (!running) {
     running = new Map();
@@ -127,7 +159,7 @@ function patchInParts(storage: CollectionStorage<unknown>, id: string, fields: S
     const current = await storage.get(id);
     if (current === undefined) return undefined;
     const next = applyPatch(current, fields);
-    await storage.set(id, next);
+    await storage.set(id, next, options);
     return next;
   });
   const settled = patch.then(
@@ -164,6 +196,15 @@ export function createCollectionProcedures(collectionName: string, options: Coll
   const queryPolicy: StorageQueryPolicy = { ...options.queryPolicy, maxLimit: options.queryPolicy?.maxLimit ?? DEFAULT_FIND_LIMIT };
   // Each collection is a resource of its own (CAPABILITIES-2026-10): a capability can permit one
   const resource = `collection:${collectionName}`;
+  // The topic of the change events of a call (roadmap CLI-15). CLI-17 adds the partition with the option topic.
+  const events = options.changeEvents ?? true;
+  const topicRule: ((collection: string, ctx: ProcedureContext) => string | undefined) | undefined =
+    events === false ? undefined : (events !== true && events.topic) || ((name: string) => collectionChangeTopic(name));
+  const topicOf = (ctx: ProcedureContext): string | undefined => topicRule?.(collectionName, ctx);
+  const withValues = events !== false && events !== true && events.values === true;
+  /** A write, and then its change event on the bus of the context. */
+  const changing = <R>(ctx: ProcedureContext, storage: CollectionStorage<unknown>, ids: readonly string[] | "*", origin: string | undefined, write: () => Promise<R>): Promise<R> =>
+    writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx) : undefined, ids, origin, write, withValues);
 
   return [
     // Get
@@ -198,7 +239,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       },
       handler: async (input: SetInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
-        await storage.set(input.id, input.value);
+        await changing(ctx, storage, [input.id], input.origin, () => storage.set(input.id, input.value, writeOptionsOf(input)));
       },
     }),
 
@@ -214,7 +255,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       },
       handler: async (input: DeleteInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
-        return storage.delete(input.id);
+        return changing(ctx, storage, [input.id], input.origin, () => storage.delete(input.id, writeOptionsOf(input)));
       },
     }),
 
@@ -302,6 +343,9 @@ export function createCollectionProcedures(collectionName: string, options: Coll
         const storage = getStorage(ctx);
         if (storage.getChangesSince) {
           const changes = await storage.getChangesSince(input.since);
+          // The chain of the change events starts at this version: the caller then applies the
+          // next event without a read (roadmap CLI-15)
+          if (topicRule) startChangeChain(ctx.bus, storage, topicOf(ctx), changes.version);
           return {
             version: changes.version,
             full: changes.full,
@@ -355,7 +399,10 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       },
       handler: async (input: PatchInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
-        const value = storage.patch ? await storage.patch(input.id, input.fields) : await patchInParts(storage, input.id, input.fields);
+        const write = writeOptionsOf(input);
+        const value = await changing(ctx, storage, [input.id], input.origin, () =>
+          storage.patch ? storage.patch(input.id, input.fields, write) : patchInParts(storage, input.id, input.fields, write),
+        );
         const output: GetFoundOutput = value === undefined ? { found: false } : { found: true, value };
         return output;
       },
@@ -387,9 +434,9 @@ export function createCollectionProcedures(collectionName: string, options: Coll
         description: `Clear all items from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (_input: ClearInput, ctx: ProcedureContext) => {
+      handler: async (input: ClearInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
-        await storage.clear();
+        await changing(ctx, storage, "*", input.origin, () => storage.clear(writeOptionsOf(input)));
       },
     }),
 
@@ -427,7 +474,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
           item.id,
           item.value,
         ]);
-        await storage.setBatch(items);
+        await changing(ctx, storage, items.map(([id]) => id), input.origin, () => storage.setBatch(items, writeOptionsOf(input)));
       },
     }),
 
@@ -443,7 +490,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       },
       handler: async (input: DeleteBatchInput, ctx: ProcedureContext) => {
         const storage = getStorage(ctx);
-        return storage.deleteBatch(input.ids);
+        return changing(ctx, storage, input.ids, input.origin, () => storage.deleteBatch(input.ids, writeOptionsOf(input)));
       },
     }),
   ];

@@ -152,7 +152,7 @@ export interface SyncStatus {
 export interface SyncError {
   /**
    * The work that failed: the load of the queue, a push of the queue or of the records, a pull, a
-   * sync of both directions, or a write of the queue store.
+   * sync of both directions, or the queue store or the sync state store.
    */
   readonly operation: "load" | "push" | "pull" | "sync" | "store";
   /** The error of the work. */
