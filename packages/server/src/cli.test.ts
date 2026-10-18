@@ -1,5 +1,5 @@
 /**
- * The server CLI starts and answers its health endpoint (a smoke test for deep dive CLI-6,
+ * The server CLI starts and answers `host.info` with its token (a smoke test for deep dive CLI-6,
  * where the CLI crashed at startup). It runs the built dist/cli.js. The server needs a token by
  * default and serves only the procedures of `--expose` (docs review of 2026-10-08: the
  * standalone server had no token and no expose rule).
@@ -60,12 +60,14 @@ async function call(port: number, path: string, token?: string): Promise<number>
 }
 
 describe("server CLI", () => {
-  it("starts, and answers /health", async () => {
-    const { port, child } = await startServer([]);
+  it("starts, and answers host.info with its token: it has no /health route (CLI-7)", async () => {
+    const { port, child, output } = await startServer([]);
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/health`);
-      expect(response.status).toBe(200);
-      expect(((await response.json()) as { status: string }).status).toBe("ok");
+      const token = /Token \(random, for this run\): ([0-9a-f]+)/.exec(output())?.[1];
+      expect(await call(port, "host/info", token)).toBe(200);
+      const health = await fetch(`http://127.0.0.1:${port}/health`);
+      await health.arrayBuffer();
+      expect(health.status).toBe(404);
     } finally {
       child.kill();
     }

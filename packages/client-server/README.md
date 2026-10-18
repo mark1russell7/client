@@ -17,7 +17,7 @@
 - **Automatic Discovery**: Peers exchange procedure manifests on connection
 - **Manifest Generation**: Generate TypeScript and JSON manifests from registered procedures
 - **Connection Management**: Track and manage multiple peer connections
-- **Express Integration**: Optional Express.js integration for HTTP transport
+- **One procedures host**: `createProcedureHost()` gives the parts of a service of `@mark1russell7/service` (CLI-7). It has no framework: the listener is the `httpTransport` of `@mark1russell7/service/http`.
 - **Zero Configuration**: Auto-register all procedures from the global registry
 
 ## Architecture
@@ -107,11 +107,46 @@ This package depends on:
 - `@procedures/client` - Core client/procedure system
 - `zod` - Schema validation
 - `zod-to-json-schema` - JSON schema generation
-- `express` (optional) - HTTP server for HTTP transport
+- `@mark1russell7/service` - The runner: the contracts of the parts, and `httpTransport` of `./http`
 
 ## Usage
 
+### The procedures host
+
+`createProcedureHost()` builds one procedures server with its faces, and gives the parts of a service. It starts nothing and installs no signal handler. The service of the process declares the parts, and only the entry of the process starts `run()` (decision D2).
+
+```typescript
+import { localDev, service } from "@mark1russell7/service";
+import { hostPolicy, seconds } from "@procedures/client";
+import { mcpFace } from "@procedures/mcp-server";
+import { createProcedureHost, LOCAL_LISTENER_KNOBS } from "@procedures/peer";
+
+const host = createProcedureHost({
+  registry,
+  policy: hostPolicy({ token }),
+  faces: { http: true, ws: true, mcp: mcpFace() },
+  listen: [{ port: 3000, knobs: LOCAL_LISTENER_KNOBS }],
+  collections: { notes: storage },
+});
+const svc = host
+  .declare(service("app").profile(localDev))
+  .readiness({ type: "debounce", interval: seconds(5), failAfter: 3, recoverAfter: 1 })
+  .liveness({ type: "window", failAfter: seconds(45) })
+  .startup(seconds(30));
+await svc.run();
+```
+
+- **The parts.** `host.parts` are the transports: the procedure server, the stop parts of each face, and an `httpTransport` for each listener. `host.dependencies` has one dependency handle for each storage. `host.controllers` has one route pattern for each face.
+- **The faces.** `http` and `ws` are the faces of this package (`httpFace()`, `wsFace()`). `mcp` takes `mcpFace()` of `@procedures/mcp-server`. A face of another package is a function with the same shape.
+- **The listeners.** The faces of a listener mount on its mount list, so they share one port. Without `listen`, the app mounts `host.handler` and `host.upgrade` on its own listener.
+- **The request tracking.** Each call goes through `life.request`, with the route `<face> <procedure>`. The function of the pattern gives the idempotency of each call: a repeatable procedure, a keyed call, or a call that runs one time (decision D3).
+- **The streams.** Each call is a stream, and a unary call is a stream of one (decision D4). A stream stays in flight until its end. A cut after the first item ends the stream with an error line.
+- **The collections.** The option `collections` gives the storages. The host serves `collections.<name>.*` for each one.
+- **No `/health` route.** The probes come from the runner (`probeHandler` or `probeServer`). A client checks a lockfile with `host.info` and the token of the lockfile.
+
 ### Creating a Server Peer
+
+A peer is a procedures host outside a service: `createPeer()` builds it with `createProcedureHost()`, starts its parts, and `stop()` stops them in the sequence of the stages. A peer has one token, and it starts one time.
 
 ```typescript
 import { createPeer } from "@procedures/peer";
@@ -326,10 +361,12 @@ Create a new peer instance.
 - `registry?: ProcedureRegistry` - Custom procedure registry (default: global)
 
 **Returns:** Peer instance with methods:
-- `start(): Promise<void>` - Start all transports
-- `stop(): Promise<void>` - Stop all transports
+- `start(): Promise<void>` - Start the parts of the host. A peer starts one time.
+- `stop(options?: { grace }): Promise<void>` - Stop the parts in the sequence of the stages
 - `getEndpoints(): PeerEndpoint[]` - Get active endpoints
 - `getServer(): ProcedureServer` - Get underlying procedure server
+- `getHost(): ProcedureHost` - The procedures host: its parts, its faces and its info
+- `connections(): string[]` and `clientFor(id): Client` - The WebSocket connections, and a client of one
 
 #### Transport Configurations
 
@@ -339,9 +376,9 @@ Create a new peer instance.
 {
   type: "http",
   port?: number,        // Default: 3000
-  host?: string,        // Default: "0.0.0.0"
+  host?: string,        // Default: "127.0.0.1"
   basePath?: string,    // Default: "/api"
-  cors?: boolean,       // Default: true
+  cors?: boolean,       // Default: false
   corsOrigins?: string[] // Allowed origins
 }
 ```
@@ -352,7 +389,7 @@ Create a new peer instance.
 {
   type: "websocket",
   port?: number,        // Default: 3001
-  host?: string,        // Default: "0.0.0.0"
+  host?: string,        // Default: "127.0.0.1"
   path?: string         // Default: "/ws"
 }
 ```

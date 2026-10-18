@@ -20,6 +20,10 @@ export { createMcpHost, mcpExposeRule, redirectConsoleToStderr } from "./host.js
 export type { McpHost, McpHostOptions, McpHostFaces, McpStdioFace, McpHostServerOptions, McpHostParts, McpHostState } from "./host.js";
 export { DEFAULT_ELICIT_TIMEOUT_MS } from "./transport/mcp-transport.js";
 
+// The MCP face of a procedures host (CLI-7): Streamable HTTP on a listener of the host
+export { mcpFace } from "./face.js";
+export type { McpFace, McpFaceContext, McpFaceOptions } from "./face.js";
+
 // The envelopes of the text from outside the host (CLI-10)
 export { createUntrustedEnvelopes, defaultUntrustedNotice, DEFAULT_UNTRUSTED_TAG } from "./untrusted.js";
 export type { UntrustedContentOptions, UntrustedWrapContext, UntrustedEnvelopes } from "./untrusted.js";

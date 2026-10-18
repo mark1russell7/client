@@ -5230,6 +5230,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
+    procedureOf(method: Method): AnyProcedure | undefined;
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];

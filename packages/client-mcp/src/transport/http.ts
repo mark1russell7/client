@@ -23,8 +23,13 @@ import type { HttpTransportOptions } from "../types.js";
 
 /** The HTTP endpoint of an MCP server, with a session for each client. */
 export interface McpHttpTransport {
-  /** This function starts to listen, when the endpoint has a server of its own. It gives the URL. */
+  /** This function starts to listen, when the endpoint has a server of its own. It gives the URL, or the path of a mounted endpoint. */
   listen(): Promise<string>;
+  /**
+   * This function answers a request of the path of the endpoint and gives true. It gives false for
+   * another path, when the endpoint does not own its server.
+   */
+  handle(req: IncomingMessage, res: ServerResponse): boolean;
   /** The number of open sessions. */
   readonly sessions: number;
   /** This function closes each session, and the server when the endpoint made one. */
@@ -41,8 +46,9 @@ export function createHttpTransport(
 ): McpHttpTransport {
   const path = options.path ?? "/mcp";
   const host = options.host ?? "127.0.0.1";
-  const owned = options.server === undefined;
-  const server: HttpServer = options.server ?? createServer();
+  const mounted = options.mount === true;
+  const owned = !mounted && options.server === undefined;
+  const server: HttpServer | undefined = mounted ? undefined : (options.server ?? createServer());
   const sessions = new Map<string, StreamableHTTPServerTransport>();
 
   const refuse = (res: ServerResponse, status: number, code: string, message: string): void => {
@@ -69,11 +75,12 @@ export function createHttpTransport(
     return transport;
   };
 
-  const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
+  const handle = (req: IncomingMessage, res: ServerResponse): boolean => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname !== path) {
-      if (owned) refuse(res, 404, "NOT_FOUND", `No MCP endpoint at ${url.pathname}`);
-      return;
+      if (!owned) return false;
+      refuse(res, 404, "NOT_FOUND", `No MCP endpoint at ${url.pathname}`);
+      return true;
     }
     // A web page must not reach the tools: the host and the origin of the request. A server that
     // reads cookies trusts a request with ambient credentials only from a named origin (CSRF)
@@ -81,11 +88,11 @@ export function createHttpTransport(
     const guard = checkBrowserRequest(req, { ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}) }, false, ambient);
     if (!guard.ok) {
       refuse(res, guard.status, guard.code, guard.message);
-      return;
+      return true;
     }
     if (options.token !== undefined && !tokenMatches(options.token, bearerOf(req.headers["authorization"]))) {
       refuse(res, 401, "UNAUTHORIZED", "Unauthorized: this server requires its token");
-      return;
+      return true;
     }
     void transportOf(req)
       .then((transport) => {
@@ -98,11 +105,17 @@ export function createHttpTransport(
       .catch((error: unknown) => {
         if (!res.headersSent) refuse(res, 500, "INTERNAL_ERROR", error instanceof Error ? error.message : String(error));
       });
+    return true;
   };
-  server.on("request", onRequest);
+  const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
+    handle(req, res);
+  };
+  server?.on("request", onRequest);
 
   return {
+    handle,
     listen: async () => {
+      if (!server) return path;
       if (owned && !server.listening) {
         await new Promise<void>((resolve, reject) => {
           server.once("error", reject);
@@ -120,11 +133,11 @@ export function createHttpTransport(
       return sessions.size;
     },
     close: async () => {
-      server.off("request", onRequest);
+      server?.off("request", onRequest);
       const open = [...sessions.values()];
       sessions.clear();
       await Promise.all(open.map((transport) => transport.close().catch(() => undefined)));
-      if (owned && server.listening) {
+      if (owned && server?.listening) {
         await new Promise<void>((resolve) => {
           server.close(() => resolve());
           server.closeAllConnections();

@@ -1,0 +1,37 @@
+---
+"@procedures/peer": minor
+"@procedures/mcp-server": minor
+"@procedures/client": minor
+---
+
+`createProcedureHost()` of `@procedures/peer` is one factory for each procedures server in Node. It gives the parts of a service of `@mark1russell7/service`, and `createPeer()` is a thin wrapper over it (server stack CLI-7, decisions D2, D3 and D4). This change is a break of the server stack, thus it is its own MINOR (decision D13).
+
+- New `createProcedureHost({ registry, policy, faces: { http, ws, mcp }, listen, collections })`. It gives `{ handler, upgrade, parts, dependencies, checks, controllers, info }` and `declare(svc)`. It starts nothing and installs no signal handler.
+- The parts: the procedure server (its stop parts of CLI-5), the stop parts of each face, and an `httpTransport` of `@mark1russell7/service/http` for each listener that the host owns. The faces of a listener mount on its mount list, so they share one port.
+- Without a listener, the app mounts `host.handler` and `host.upgrade` on its own listener.
+- The request tracking: each call goes through `life.request`, with the route `<face> <procedure>`. One route pattern for each face (`http *`, `ws *`, `mcp *`) matches each call. The function of the pattern gives the idempotency of each call: `repeatable`, `keyed` (an idempotency key) or `once` (decision D3).
+- Each call is a stream (decision D4). A stream stays in flight until its last item. A cut after the first item ends the stream with an error line, and the line tells the count of the items.
+- The faces are factories: `httpFace()` and `wsFace()` of `@procedures/peer`, and the new `mcpFace()` of `@procedures/mcp-server`. A face of another package has the same shape.
+- The collections come from the option `collections`. The host serves `collections.<name>.*`, and each storage is a dependency handle of the service.
+- New exports of `@procedures/peer`: `createProcedureHost`, `httpFace`, `wsFace`, `LOCAL_LISTENER_KNOBS`, `runOutsideService`, `faceHandler`, `callOperations`, `operationOfCall`, and their types. `Peer.getHost()` gives the host of a peer.
+- `@procedures/mcp-server`: new `mcpFace()`. New option `httpOptions.mount` and method `McpServerTransport.handleHttp()`: a Streamable HTTP endpoint on a listener of another part. `McpServerTransport` takes each `RequestHandler`, not only a `Server`.
+- `@procedures/client`: new `ProcedureServer.procedureOf(method)`.
+- `@procedures/peer` depends on `@mark1russell7/service` `^0.5.1`, and no longer on Express.
+
+The behavior that changes:
+
+- A peer has no `/health` and no `/api/health` route. The probes come from the runner. `checkServer()` of `@procedures/peer/lockfile` calls `host.info` with the token of the lockfile (a part of CLI-9).
+- A peer has one token: the token of its transports, or else the token of its policy. Two different tokens throw at `createPeer()`. The token applies to each face.
+- A WebSocket connection without the token opens, and each call on it gets `UNAUTHORIZED`. Before, the upgrade was refused.
+- A refused browser request gets the error of wire v1: `FORBIDDEN` with a `reason`. Before, the peer sent its own JSON.
+- A peer starts one time. A `start()` after `stop()` throws: create a new peer.
+- A listener that the peer cannot use gives `The HTTP server cannot listen on <host>:<port>` or `The WebSocket server cannot listen on <host>:<port>`.
+- `HttpTransportConfig.cors: true` gives the CORS of `procedureHandler`: each origin, without credentials.
+
+Migration steps:
+
+- The site and MiniMongo: no change is necessary, unless they read `/health` of a peer. Then call `host.info` with the token.
+- The MCP host of Graph: no change is necessary. To share the port of the Graph host, mount `mcpFace()` on its listener.
+- jarvis and Graph under `run()`: build the procedures with `createProcedureHost()`, and call `host.declare(svc)` in the service of the process. Give `listen` for a port of the host, or mount `host.handler` and `host.upgrade` on the listener of the app.
+- A caller of `createPeer()` with a different token for each transport: give one token.
+- A test that read `/health` of a peer: call `host.info` with the token, or check the status 404.

@@ -1046,6 +1046,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   }
 
   /**
+   * This method gives the procedure that answers a method now, or undefined. The registry comes
+   * first, then the pinned procedures. A host reads the effects of the procedure for the
+   * idempotency of each request (decision D3, CLI-7).
+   */
+  procedureOf(method: Method): AnyProcedure | undefined {
+    return this.resolveProcedure(method);
+  }
+
+  /**
    * This function publishes an event on the bus of the server: the bus of the option `events`, or
    * the global bus. Each subscription of the topic gets it (`documentation/EVENTS.md`).
    *

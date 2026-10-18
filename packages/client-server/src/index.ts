@@ -26,7 +26,44 @@ export type {
   ProcedureUpdateMessage,
 } from "./types.js";
 
-// Peer
+// The procedures host (CLI-7): the parts of a service, its faces, and its run outside a service
+export {
+  createProcedureHost,
+  httpFace,
+  wsFace,
+  LOCAL_LISTENER_KNOBS,
+  callOperations,
+  faceHandler,
+  operationOfCall,
+} from "./host/index.js";
+export type {
+  ProcedureHost,
+  ProcedureHostOptions,
+  ProcedureHostFaces,
+  HostListener,
+  HostCollection,
+  HostServerOptions,
+  HostPart,
+  HostDependency,
+  HostCheck,
+  HostPattern,
+  HostController,
+  HostEndpoint,
+  HostInfo,
+  HostKnobs,
+  HostFace,
+  HostFaceContext,
+  HostFaceEndpoint,
+  HostFaceFactory,
+  HostFaceUpgrade,
+  CallDetail,
+  CallOperation,
+  FaceHandler,
+  FaceHandlerOptions,
+} from "./host/index.js";
+export { runOutsideService, type OutsideRun } from "./host/outside.js";
+
+// Peer: a procedures host outside a service
 export { createPeer, type Peer, type PeerOptions, type PeerEndpoint } from "./peer/index.js";
 export { exposeRule } from "./expose.js";
 
