@@ -209,6 +209,22 @@ mergeCopies([{ _id: "card", left: UNSET }, { _id: "card", top: 10, left: 20 }]);
 - A copy is the operations form of a patch over the copies under it: `applyPatch(lower, copyAsPatch(copy))` gives the same result for field names without a dot. It is not a JSON Merge Patch: in a copy, `null` is a value, and an object field replaces the lower object whole.
 - `resolveStacks(rules, resolve)` gives the read stack, the write targets and the mode of each collection. The rules name layers with variables, and `resolve` gives each layer. `stackOf(stacks, collection, id)` gives the stack of one document. A rule for some documents goes before the rule of their collection.
 
+### The order of a list as data
+
+Each item of an ordered list keeps a numeric rank, and the list sorts by it. An item that moves between two others gets a rank between theirs. Thus a move writes one item and no other.
+
+```ts
+import { dropIndex, rankBetween } from "@procedures/collections";
+
+rankBetween(1, 2); // 1.5
+rankBetween(undefined, 4); // 3: the start of the list
+const index = dropIndex(pointer, items.map(centerOf));
+const rank = rankBetween(ranks[index - 1], ranks[index]);
+```
+
+- `rankBetween(prev, next)` gives a rank between two neighbors. Without `prev`, the rank comes before `next`. Without `next`, it comes after `prev`. A list without items gives 0.
+- `dropIndex(point, centers, rowTolerance)` gives the index of a point among the items on the screen, in reading order. The rows go from top to bottom, and each row from left to right.
+
 ### The contract suite: `@procedures/collections/testing`
 
 The test-only entry `@procedures/collections/testing` holds one test suite for the contract of `CollectionStorage`. A storage runs it with a factory:
