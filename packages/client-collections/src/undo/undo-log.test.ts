@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { InMemoryStorage, UndoLog, type CollectionStorage, type StoragePatch, type UndoEntry } from "../index.js";
+import { fingerprintOf, InMemoryStorage, UndoConflictError, UndoLog, type CollectionStorage, type StoragePatch, type UndoEntry } from "../index.js";
 
 /** A log over two collections, with a clock that the test moves. */
 function setup(options: { cap?: number } = {}) {
@@ -43,10 +43,10 @@ describe("UndoLog", () => {
     const before = await notes.get("n1");
     await archive.set("n1", before);
     tick();
-    await log.record({ collection: "archive", id: "n1", before: undefined, group: "move" });
+    await log.record({ collection: "archive", id: "n1", before: undefined, after: before, group: "move" });
     await notes.delete("n1");
     tick();
-    await log.record({ collection: "notes", id: "n1", before, group: "move" });
+    await log.record({ collection: "notes", id: "n1", before, after: undefined, group: "move" });
 
     const undone = await log.undo();
     expect(undone.map((e) => [e.collection, e.item])).toEqual([["notes", { id: "n1", n: 2 }], ["archive", null]]);
@@ -82,6 +82,87 @@ describe("UndoLog", () => {
     await plain.set("a", { id: "a", list: [0, 1, 2] });
     await log.undo();
     expect(await plain.get("a")).toEqual({ id: "a", list: [1, 2] });
+  });
+
+  it("refuses the undo of an inverse patch when another writer changed the item, and keeps the entry", async () => {
+    const { notes, log, change } = setup();
+    await notes.set("n1", { id: "n1", tags: ["a", "b", "c"] });
+    await change("n1", { $remove: ["tags.0"] });
+    // Another writer inserts at the front: the inverse $insert at index 0 now has the wrong neighbors
+    await notes.patch("n1", { $insert: { "tags.0": "z" } });
+    await expect(log.undo()).rejects.toThrow(UndoConflictError);
+    expect(await notes.get("n1")).toEqual({ id: "n1", tags: ["z", "b", "c"] });
+    expect((await log.entries()).length).toBe(1);
+  });
+
+  it("refuses the undo of a whole item when another writer changed it, and keeps their change", async () => {
+    const { notes, log, change } = setup();
+    await notes.set("n1", { id: "n1", tags: ["a", "b", "c"] });
+    const entry = await change("n1", { $remove: ["tags.0", "tags.1"] });
+    expect(entry.item).toBeDefined();
+    await notes.patch("n1", { $set: { title: "theirs" } });
+    const error = await log.undo().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UndoConflictError);
+    expect((error as UndoConflictError).entry.key).toBe(entry.key);
+    expect(await notes.get("n1")).toEqual({ id: "n1", tags: ["c"], title: "theirs" });
+  });
+
+  it("refuses a whole group before its first write when one item of the group changed", async () => {
+    const { notes, archive, log, tick } = setup();
+    await notes.set("n1", { id: "n1", n: 1 });
+    const before = await notes.get("n1");
+    await archive.set("n1", before);
+    tick();
+    await log.record({ collection: "archive", id: "n1", before: undefined, after: before, group: "move" });
+    await notes.delete("n1");
+    tick();
+    await log.record({ collection: "notes", id: "n1", before, after: undefined, group: "move" });
+    // Another writer changes the archived item: the undo of the newest entry (notes) must not happen alone
+    await archive.set("n1", { id: "n1", n: 9 });
+    await expect(log.undo()).rejects.toThrow(UndoConflictError);
+    expect(await notes.has("n1")).toBe(false);
+    expect(await archive.get("n1")).toEqual({ id: "n1", n: 9 });
+    expect((await log.entries()).length).toBe(2);
+  });
+
+  it("refuses the undo when the recorded item before the change was stale", async () => {
+    const { notes, log } = setup();
+    await notes.set("n1", { id: "n1", n: 2 });
+    // The caller read the item before another writer changed n to 2
+    await log.record({ collection: "notes", id: "n1", before: { id: "n1", n: 1 }, patch: { $set: { title: "t" } } });
+    await notes.patch("n1", { $set: { title: "t" } });
+    await expect(log.undo()).rejects.toThrow(UndoConflictError);
+    expect(await notes.get("n1")).toEqual({ id: "n1", n: 2, title: "t" });
+  });
+
+  it("undoes two changes of one item in one group, the newest first, with one write", async () => {
+    const { notes, log, change } = setup();
+    await notes.set("n1", { id: "n1", tags: ["a"], n: 0 });
+    await change("n1", { $insert: { "tags.1": "b" } }, "edit");
+    await change("n1", { $set: { n: 1 } }, "edit");
+    let writes = 0;
+    notes.observe?.(() => void writes++);
+    await log.undo();
+    expect(await notes.get("n1")).toEqual({ id: "n1", tags: ["a"], n: 0 });
+    expect(writes).toBe(1);
+  });
+
+  it("uses the item after the change that the caller gives, for a storage that changes the value", async () => {
+    const { notes, log } = setup();
+    await notes.set("n1", { n: 1, stamp: "s1" });
+    // The storage adds a field on each write: the caller gives the item that the storage keeps
+    await notes.set("n1", { n: 2, stamp: "s2" });
+    await log.record({ collection: "notes", id: "n1", before: { n: 1, stamp: "s1" }, patch: { $set: { n: 2 } }, after: { n: 2, stamp: "s2" } });
+    await log.undo();
+    expect(await notes.get("n1")).toEqual({ n: 1, stamp: "s2" });
+  });
+
+  it("fingerprintOf ignores the order of the keys, and a missing item is null", () => {
+    expect(fingerprintOf({ a: 1, b: [1, { c: 2, d: 3 }] })).toBe(fingerprintOf({ b: [1, { d: 3, c: 2 }], a: 1 }));
+    expect(fingerprintOf(undefined)).toBe(fingerprintOf(null));
+    expect(fingerprintOf({ a: 1 })).not.toBe(fingerprintOf({ a: "1" }));
+    expect(fingerprintOf({ a: 1, b: undefined })).toBe(fingerprintOf({ a: 1 }));
+    expect(fingerprintOf({ a: 1 })).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it("keeps the entry when the log has no storage for its collection", async () => {

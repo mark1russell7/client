@@ -3,4 +3,4 @@
  * that undoes a patch, and `UndoLog` keeps the undo of each change in a storage.
  */
 export { inversePatch } from "./inverse.js";
-export { UndoLog, type UndoChange, type UndoEntry, type UndoLogOptions } from "./undo-log.js";
+export { fingerprintOf, UndoConflictError, UndoLog, type UndoChange, type UndoEntry, type UndoLogOptions } from "./undo-log.js";
