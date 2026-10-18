@@ -65,10 +65,10 @@ A request can have more than one source of narrowing. For example, a gateway set
 2. The clearance is the meet of the clearance order. The effects are the intersection. The deadline is the earliest deadline.
 3. Thus each source can only make the capability narrower. The result is the same for each sequence of the sources.
 4. One place applies the sources: `invokeProcedure()`, for the call of a host. Thus each face and each call in the process obey the same rules.
-5. A part that asks for more than the call holds has no effect. On a ladder, the call keeps its clearance.
-6. A part that the server cannot compare has no effect. Examples are an unknown field and a clearance outside the order.
-7. A source that the server cannot read refuses the call with `INVALID_REQUEST`. Examples are a text that is not JSON and a value that is not an object. The server does not know what such a source asks for, so it does not ignore it.
-8. A server without a clearance order cannot meet two different clearances. Such a call gets `FORBIDDEN` with the reason `clearance`.
+5. A valid part that asks for more than the call holds has no effect, because the meet removes it. On a ladder, the call keeps its clearance.
+6. A part that is not valid refuses the call. The server does not know what such a source asks for, so it does not ignore the part. Thus a typo of a gateway does not leave the call with a wider capability.
+7. A part that is not well formed gives `INVALID_REQUEST`. Examples are a text that is not JSON and a value that is not an object. An unknown field (for example `efects`) and a time that is not a number are such parts too.
+8. A clearance outside the order (for example `pubic` on the ladder of jarvis) gives `FORBIDDEN` with the reason `clearance`. A server without a clearance order cannot meet two different clearances, so such a call gets the same refusal.
 9. The server reports each part without effect, and each refusal, in debug. The option `debug` of `ProcedureServer` gets a report with the topic `narrowing`.
 10. The key does not give a capability. It only removes a part of the capability that the server gives.
 11. The key stays in the metadata of the call. Thus a nested call to a remote server sends it again, and that server narrows the call too.
@@ -84,7 +84,7 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 | The header `x-jarvis-audience: shared` | The header `Procedure-Narrowing: {"clearance":"shared"}`, or the key in the metadata of `HttpTransport`. |
 | The cookie `jarvis_audience=shared` of the guest switch | `principalOf` reads the cookie and gives `narrowing: { clearance: "shared" }`. |
 | The narrower of the two carriers wins | The server applies the cookie of the hook and the key by the meet, in each sequence. |
-| An unknown value has no effect | The ladder does not have the value, so the server ignores it and reports it in debug. |
+| An unknown value has no effect | The ladder does not have the value, so the server refuses the call with `FORBIDDEN` (reason `clearance`). This rule is stricter than jarvis: a typo of a gateway does not leave the call wider. |
 | Below `intimate`, only the declared reads start | This rule stays the policy of jarvis. An interceptor of jarvis narrows the effects below `intimate`. |
 
 ## HTTP

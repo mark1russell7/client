@@ -877,7 +877,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     if (!report) return undefined;
     return (notes) => {
       for (const note of notes) {
-        report({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind } });
+        report({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind, ...(note.code ? { code: note.code } : {}) } });
       }
     };
   }

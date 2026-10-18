@@ -133,7 +133,7 @@ export interface ServerDebugReport {
   readonly method: Method;
   /** What occurred, as a sentence. */
   readonly message: string;
-  /** The facts of the report. For `"narrowing"`: the `field` and the `kind` of its note (`NarrowingNote`). */
+  /** The facts of the report. For `"narrowing"`: the `field`, the `kind` and the `code` of its note (`NarrowingNote`). */
   readonly detail?: Readonly<Record<string, unknown>> | undefined;
 }
 

@@ -324,8 +324,9 @@ async function* validatedItems(
 /**
  * The options of an invocation with its narrowing applied (CLI-30). The sources are the narrowing
  * key of the metadata, for the call of a host only (the nested calls get the metadata of their
- * caller), and the option `narrow`. They combine by the meet. A refusal throws: `INVALID_REQUEST`
- * for a source that the server cannot read, `FORBIDDEN` for clearances without a meet.
+ * caller), and the option `narrow`. They combine by the meet. A part that is not valid throws:
+ * `INVALID_REQUEST` for a part that is not well formed, `FORBIDDEN` (reason `clearance`) for a
+ * clearance outside the order or clearances without a meet.
  */
 function narrowedOptions(path: ProcedurePath, options: InvokeOptions): InvokeOptions {
   const metadata = options.parent === undefined ? options.metadata : undefined;
@@ -337,7 +338,7 @@ function narrowedOptions(path: ProcedurePath, options: InvokeOptions): InvokeOpt
   const notes = [...wire.notes, ...narrowed.notes];
   if (notes.length > 0) options.onNarrowingNotes?.(notes);
   const refusal = notes.find((note) => note.kind === "refused");
-  if (refusal?.field === "clearance") throw new InvocationError("FORBIDDEN", refusal.message, path, "clearance");
+  if (refusal?.code === "FORBIDDEN") throw new InvocationError("FORBIDDEN", refusal.message, path, "clearance");
   if (refusal) throw Object.assign(new Error(refusal.message), { code: "INVALID_REQUEST" });
   return { ...options, narrow: undefined, capability: narrowed.capability };
 }

@@ -71,7 +71,7 @@ describe("the narrowing key on the MCP face (CLI-30)", () => {
     expect((await call(client, "notes.read", { effects: { writes: [] } })).structuredContent).toEqual({ clearance: null, writes: [] });
   });
 
-  it("combines the header of Streamable HTTP and the _meta key: no source replaces the other, in each sequence", async () => {
+  it("combines the header of Streamable HTTP and the _meta key in each sequence, and refuses a header that is not valid", async () => {
     const port = await new Promise<number>((resolve) => {
       const probe = createServer();
       probe.listen(0, "127.0.0.1", () => {
@@ -103,6 +103,13 @@ describe("the narrowing key on the MCP face (CLI-30)", () => {
     // The effects of the header apply with the clearance of _meta
     const readOnly = await connect({ effects: { writes: [] } });
     expect((await call(readOnly, "notes.write", { clearance: "intimate", effects: { writes: "any" } }))._meta).toMatchObject({ code: "FORBIDDEN" });
+    // A gateway header that is not valid refuses the call, also next to a valid _meta key
+    const typo = await connect({ clearance: "pubic" });
+    expect((await call(typo, "notes.read", { clearance: "public" }))._meta).toMatchObject({ code: "FORBIDDEN", reason: "clearance" });
+    const time = await connect({ timeoutMs: "soon" });
+    expect((await call(time, "notes.read"))._meta).toMatchObject({ code: "INVALID_REQUEST" });
+    const field = await connect({ efects: { writes: [] } });
+    expect((await call(field, "notes.write"))._meta).toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("a key that tries to widen has no effect", async () => {

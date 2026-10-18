@@ -4421,7 +4421,8 @@ export interface NarrowedCapability<C = ClearanceOf> {
 ### dist/procedures/narrowing.d.ts#NarrowingNote
 export interface NarrowingNote {
     readonly field: "narrowing" | "clearance" | "effects" | "timeoutMs";
-    readonly kind: "widens" | "invalid" | "refused";
+    readonly kind: "widens" | "refused";
+    readonly code?: "INVALID_REQUEST" | "FORBIDDEN" | undefined;
     readonly message: string;
 }
 

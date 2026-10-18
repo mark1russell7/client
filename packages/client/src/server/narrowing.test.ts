@@ -267,6 +267,21 @@ describe("the narrowing key on the HTTP header (CLI-30)", () => {
     expect((await post(port, query, { "x-metadata": meta({ clearance: "intimate" }) })).body).toMatchObject({ clearance: "guest" });
   });
 
+  it("refuses a gateway header with an unknown clearance, a time that is not a number or an unknown field", async () => {
+    const port = await start();
+    // A typo of a gateway must not leave the call with its wider capability
+    const typo = await post(port, "/api/proc/diary/read", { [NARROWING_HEADER]: JSON.stringify({ clearance: "pubic" }) });
+    expect(typo.status).toBe(403);
+    expect(typo.body).toMatchObject({ code: "FORBIDDEN", reason: "clearance" });
+    const time = await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: JSON.stringify({ timeoutMs: "soon" }) });
+    expect([time.status, time.body["code"]]).toEqual([400, "INVALID_REQUEST"]);
+    const field = await post(port, "/api/proc/notes/write", { [NARROWING_HEADER]: JSON.stringify({ efects: { writes: [] } }) });
+    expect([field.status, field.body["code"]]).toEqual([400, "INVALID_REQUEST"]);
+    // A valid key of the client next to the bad header does not save the call
+    const meta = encodeURIComponent(JSON.stringify({ [NARROWING_METADATA_KEY]: { clearance: "public" } }));
+    expect((await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: JSON.stringify({ clearance: "pubic" }), "x-metadata": meta })).status).toBe(403);
+  });
+
   it("takes each line of a repeated header, and refuses a source that it cannot read", async () => {
     const port = await start();
     const lines = await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: [JSON.stringify({ clearance: "intimate" }), JSON.stringify({ clearance: "public" })] });
@@ -295,9 +310,9 @@ describe("the narrowing key in the process (CLI-30)", () => {
     await expect(invokePath(DIARY, {}, { ...options, capability: { clearance: "intimate" }, narrow: { clearance: "guest" } })).rejects.toMatchObject({ code: "FORBIDDEN" });
     const wider = await invokePath(READ, {}, { ...options, narrow: { clearance: "intimate", effects: { writes: "any" } } });
     expect(wider).toMatchObject({ kind: "value", value: { clearance: "guest" } });
-    // A value outside the order has no effect, and the invocation does not throw for it
-    const unknown = await invokePath(READ, {}, { ...options, narrow: { clearance: "secret" } });
-    expect(unknown).toMatchObject({ kind: "value", value: { clearance: "guest" } });
+    // A value outside the order refuses the call: the call does not keep its wider capability
+    await expect(invokePath(READ, {}, { ...options, narrow: { clearance: "secret" } })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "clearance" });
+    await expect(invokePath(READ, {}, { ...options, narrow: { timeoutMs: Number.NaN } })).rejects.toMatchObject({ code: "INVALID_REQUEST" });
     // The nested calls get the narrowed capability, so the option applies one time
     const narrowed = await invokePath(READ, {}, { ...options, capability: { clearance: "intimate" }, narrow: { clearance: "public", timeoutMs: 5000 } });
     expect(narrowed).toMatchObject({ kind: "value", value: { clearance: "public" } });
@@ -346,20 +361,35 @@ describe("the debug reports of the narrowing key (CLI-30)", () => {
   const handle = (server: ProcedureServer, narrowing: unknown, path: string[] = READ) =>
     server.handle({ id: "r1", method: pathToMethod(path), payload: {}, metadata: { [NARROWING_METADATA_KEY]: narrowing } });
 
-  it("reports each part that has no effect, and the call goes on without that part", async () => {
+  it("reports each valid part that asks for more: the meet removes it, and the call goes on", async () => {
+    const reports: ServerDebugReport[] = [];
+    const server = serverOf({ ...BASE, capability: { clearance: "guest", effects: { writes: [] } } }, reports);
+    const wider = await handle(server, { clearance: "intimate", effects: { writes: "any" } });
+    expect(wider.payload).toMatchObject({ clearance: "guest", writes: [] });
+    expect(reports.map((report) => ({ topic: report.topic, requestId: report.requestId, method: report.method, ...report.detail }))).toEqual([
+      { topic: "narrowing", requestId: "r1", method: pathToMethod(READ), field: "clearance", kind: "widens" },
+      { topic: "narrowing", requestId: "r1", method: pathToMethod(READ), field: "effects", kind: "widens" },
+    ]);
+  });
+
+  it("refuses the call for each part that is not valid, and reports each one", async () => {
     const reports: ServerDebugReport[] = [];
     const server = serverOf({ ...BASE, capability: { clearance: "guest" } }, reports);
-    const response = await handle(server, { clearance: "secret", timeoutMs: -1, extra: 1 });
-    expect(response.payload).toMatchObject({ clearance: "guest", deadline: null });
-    expect(reports.map((report) => ({ topic: report.topic, requestId: report.requestId, method: report.method, ...report.detail }))).toEqual([
-      { topic: "narrowing", requestId: "r1", method: pathToMethod(READ), field: "timeoutMs", kind: "invalid" },
-      { topic: "narrowing", requestId: "r1", method: pathToMethod(READ), field: "narrowing", kind: "invalid" },
-      { topic: "narrowing", requestId: "r1", method: pathToMethod(READ), field: "clearance", kind: "invalid" },
+    const invalid = await handle(server, { clearance: "secret", timeoutMs: -1, extra: 1 });
+    expect(invalid.status).toMatchObject({ type: "error", code: "INVALID_REQUEST" });
+    expect(reports.map((report) => report.detail)).toEqual([
+      { field: "timeoutMs", kind: "refused", code: "INVALID_REQUEST" },
+      { field: "narrowing", kind: "refused", code: "INVALID_REQUEST" },
+      { field: "clearance", kind: "refused", code: "FORBIDDEN" },
     ]);
     reports.length = 0;
-    // A source that the server cannot read refuses the call: the server does not know what it asks for
+    // A source that the server cannot read: the server does not know what it asks for
     expect((await handle(server, "not json")).status).toMatchObject({ type: "error", code: "INVALID_REQUEST" });
-    expect(reports.map((report) => report.detail)).toEqual([{ field: "narrowing", kind: "refused" }]);
+    expect(reports.map((report) => report.detail)).toEqual([{ field: "narrowing", kind: "refused", code: "INVALID_REQUEST" }]);
+    // A clearance outside the order: FORBIDDEN with the reason clearance
+    const unknown = await handle(server, { clearance: "pubic" });
+    expect(unknown.status).toMatchObject({ type: "error", code: "FORBIDDEN" });
+    expect(unknown.metadata["reason"]).toBe("clearance");
   });
 
   it("writes each report with console.debug for debug: true, and nothing without the option", async () => {
@@ -429,16 +459,16 @@ describe("the decoder of the narrowing key (CLI-30)", () => {
     expect(addNarrowing(["a", "b"], ["c"])).toEqual(["a", "b", "c"]);
   });
 
-  it("ignores each part that is not valid, with a note, and refuses a source that is not an object", () => {
+  it("gives a refusal note for each part that is not valid and for a source that is not an object", () => {
     expect(narrowingOf("[1]")).toMatchObject({ narrowings: [], notes: [{ field: "narrowing", kind: "refused" }] });
     expect(narrowingOf({ clearance: null, effects: { reads: "all", writes: [1], destructive: "no" }, timeoutMs: Number.NaN })).toMatchObject({
       narrowings: [],
       notes: [
-        { field: "clearance", kind: "invalid" },
-        { field: "effects", kind: "invalid" },
-        { field: "effects", kind: "invalid" },
-        { field: "effects", kind: "invalid" },
-        { field: "timeoutMs", kind: "invalid" },
+        { field: "clearance", kind: "refused", code: "INVALID_REQUEST" },
+        { field: "effects", kind: "refused", code: "INVALID_REQUEST" },
+        { field: "effects", kind: "refused", code: "INVALID_REQUEST" },
+        { field: "effects", kind: "refused", code: "INVALID_REQUEST" },
+        { field: "timeoutMs", kind: "refused", code: "INVALID_REQUEST" },
       ],
     });
   });
@@ -448,7 +478,8 @@ describe("the decoder of the narrowing key (CLI-30)", () => {
     expect(parsed.narrowings).toEqual([{ effects: { writes: [] } }]);
     expect(Object.getPrototypeOf(parsed.narrowings[0])).toBe(Object.prototype);
     expect(Object.getPrototypeOf(parsed.narrowings[0]?.effects)).toBe(Object.prototype);
-    expect(parsed.notes.map((note) => note.kind)).toEqual(["invalid", "invalid"]);
+    // A __proto__ key is an unknown field: it refuses the call, and it changes nothing
+    expect(parsed.notes.map((note) => [note.kind, note.code])).toEqual([["refused", "INVALID_REQUEST"], ["refused", "INVALID_REQUEST"]]);
     expect(({} as Record<string, unknown>)["clearance"]).toBeUndefined();
     // A field of the prototype of a value from the process does not count either
     expect(narrowingOf(Object.create({ clearance: "public" })).narrowings).toEqual([]);
