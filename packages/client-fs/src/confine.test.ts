@@ -243,6 +243,27 @@ describe("confineToRoot", () => {
     expect(seen["t.run"]).toEqual([{ cwd: join(root, "sub"), command: "tool" }, { cwd: root, command: "tool" }]);
   });
 
+  it("gives the root in ctx.fsRoot to a confined handler and to a program handler, and not without a root", async () => {
+    const roots: Record<string, unknown> = {};
+    const seeRoot = (key: string) => async (_input: Record<string, unknown>, ctx: ProcedureContext) => {
+      roots[key] = ctx.fsRoot;
+      return key === "r.tool" ? ctx.client.call(["r", "run"], {}) : key;
+    };
+    const module = defineModule("roots", [
+      recorder("r.read", { fsRoot: { cwd: "cwd" } }, seeRoot("r.read")),
+      recorder("r.run", { fsRoot: { program: true }, effects: { reads: [], writes: ["process"] } }, seeRoot("r.run")),
+      recorder("r.tool", { fsRoot: { cwd: "cwd" }, calls: ["r.run"] }, seeRoot("r.tool")),
+      recorder("r.network", { effects: { reads: ["network"], writes: [] } }, seeRoot("r.network")),
+    ]);
+    const plain = createRegistry(module);
+    for (const key of ["r.read", "r.network"]) await call(key, {}, plain);
+    expect(roots).toEqual({ "r.read": undefined, "r.network": undefined });
+    const rooted = createRegistry(module);
+    confineToRoot(rooted, root);
+    for (const key of ["r.read", "r.tool", "r.network"]) await call(key, {}, rooted);
+    expect(roots).toEqual({ "r.read": root, "r.tool": root, "r.run": root, "r.network": undefined });
+  });
+
   it("keeps the root of the fs procedures", async () => {
     confineToRoot(registry, root);
     expect(await call("fs.read", { path: "sub/a.txt" })).toMatchObject({ content: "a" });

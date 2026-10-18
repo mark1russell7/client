@@ -384,6 +384,13 @@ export interface ProcedureContext {
   caller?: AnyProcedure | undefined;
 
   /**
+   * The absolute path of the root of the files, for a procedure that a host confines to it
+   * (roadmap R33). `confineToRoot()` of `@procedures/fs` sets it for each procedure with rules. A
+   * procedure that starts a program uses it to keep the program in the root. Absent without a root.
+   */
+  fsRoot?: string | undefined;
+
+  /**
    * The principal of the call: who sends it. The server sets it from its authentication (the
    * token, the request hook `principalOf`, `authenticate`). The nested calls get the same
    * principal. An input or the metadata cannot change it. A call from this process has none.

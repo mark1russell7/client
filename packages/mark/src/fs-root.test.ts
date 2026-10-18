@@ -53,9 +53,12 @@ describe("the registry of mark with a root", () => {
 
   it("refuses the procedures that the root cannot confine, also for a path in the root", async () => {
     const { registry, refusedUnderRoot } = await loadEcosystemRegistry(false, false, { fsRoot: root });
-    expect(refusedUnderRoot).toEqual(expect.arrayContaining(["git.status", "pnpm.install", "docker.run", "shell.exec"]));
+    expect(refusedUnderRoot).toEqual(expect.arrayContaining(["pnpm.install", "docker.run", "shell.exec"]));
+    // git is confined (tracker item O35): it finds no repository above the root
+    expect(refusedUnderRoot).not.toContain("git.status");
+    await expect(invokePath(["git", "status"], { cwd: root }, { registry })).rejects.toThrow(/not a git repository/i);
+    await expect(invokePath(["git", "status"], { cwd: outside }, { registry })).rejects.toMatchObject({ code: "FORBIDDEN", reason: "outside-root" });
     for (const [path, input] of [
-      [["git", "status"], { cwd: root }],
       [["shell", "run"], { command: process.execPath, args: ["--version"], cwd: root }],
       [["docker", "run"], { image: "alpine", volumes: [`${outside}:/host`] }],
     ] as const) {

@@ -7,7 +7,8 @@
  * This file is referenced by package.json's client.procedures field.
  */
 
-import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type AnyProcedure, type Effects, type FsRootRules, type ProcedureContext, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { underGitRoot } from "./procedures/git/root.js";
 import { gitStatus } from "./procedures/git/status.js";
 import { gitAdd } from "./procedures/git/add.js";
 import { gitCommit } from "./procedures/git/commit.js";
@@ -245,20 +246,51 @@ const CHANGES_REPOSITORY: Effects = { reads: ["fs"], writes: ["fs"] };
 const RUNS_HOOKS: Effects = { reads: ["fs"], writes: ["fs", "process"] };
 
 /**
- * The rule of each git procedure under a root of the files (roadmap R33): a host with a root
- * refuses it. A root cannot keep git in its folder for two reasons:
- * - Git looks for the repository in the folders above the working folder, so a working folder in
- *   the root can open a repository outside it.
- * - The configuration of a repository can start a program: a hook, `core.fsmonitor` or a filter.
- *   A client with `fs.write` in the root can write that configuration.
+ * The rules of the git procedures under a root of the files (roadmap R33, tracker item O35). Each
+ * git procedure is confined: the working folder `cwd` is in the root, and its default is the root.
+ * The handler runs in `underGitRoot()`, so git stays in the root (`procedures/git/root.ts`):
+ * - `GIT_CEILING_DIRECTORIES` stops git at the root, so git finds no repository above the root.
+ * - The `-c` options turn off the hooks, `core.fsmonitor`, the local transports and the
+ *   submodules. The configuration of the system and the global configuration do not apply.
+ * - Before the first command in a folder, git examines the repository: a configuration key that
+ *   starts a program, a folder outside the root or a submodule is refused.
  */
-const REFUSED_UNDER_A_ROOT: FsRootRules = {
-  refuse: "the configuration of a repository can start a program (a hook, core.fsmonitor, a filter), and git looks for the repository in the folders above the working folder",
+const IN_A_ROOT: FsRootRules = { cwd: "cwd" };
+
+/** A procedure whose `paths` are pathspecs from the working folder. */
+const WITH_PATHSPECS: FsRootRules = { cwd: "cwd", names: ["paths"] };
+
+/** The rules of the procedures that name more than the working folder. The others get `IN_A_ROOT`. */
+const ROOT_RULES: Readonly<Record<string, FsRootRules>> = {
+  "git.status": WITH_PATHSPECS,
+  "git.add": WITH_PATHSPECS,
+  "git.commit": WITH_PATHSPECS,
+  "git.checkout": WITH_PATHSPECS,
+  "git.diff": WITH_PATHSPECS,
+  "git.stash.push": WITH_PATHSPECS,
+  "git.reset": WITH_PATHSPECS,
+  "git.restore": WITH_PATHSPECS,
+  "git.blame": { cwd: "cwd", names: ["path"] },
+  // The URL goes to the network only: the transports file and ext are off under a root
+  "git.clone": { cwd: "cwd", names: ["dest"] },
+  "git.worktree.add": { cwd: "cwd", names: ["path"] },
+  "git.worktree.remove": { cwd: "cwd", names: ["path"] },
 };
 
-/** The procedure with the rule of a root. */
+/**
+ * The procedure with its rules under a root. Its handler runs in `underGitRoot()` with the root of
+ * the call (`ctx.fsRoot`). Without a root, the handler runs as before.
+ */
 function underARoot(procedure: AnyProcedure): AnyProcedure {
-  return { ...procedure, metadata: { ...procedure.metadata, fsRoot: REFUSED_UNDER_A_ROOT } };
+  const handler = procedure.handler as ((input: unknown, ctx: ProcedureContext) => Promise<unknown>) | undefined;
+  const fsRoot = ROOT_RULES[procedure.path.join(".")] ?? IN_A_ROOT;
+  return {
+    ...procedure,
+    metadata: { ...procedure.metadata, fsRoot },
+    ...(handler === undefined
+      ? {}
+      : { handler: ((input: unknown, ctx: ProcedureContext) => underGitRoot(ctx?.fsRoot, procedure.path, () => handler(input, ctx))) as AnyProcedure["handler"] }),
+  };
 }
 
 // =============================================================================

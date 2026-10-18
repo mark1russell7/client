@@ -8,6 +8,7 @@
 
 import { runCommand } from "@procedures/shell/command";
 import { GIT_MAX_BUFFER } from "./args.js";
+import { confinedGitCommand, currentGitRoot } from "./root.js";
 
 /** The part of the procedure context that the git procedures read. */
 export interface GitContext {
@@ -37,15 +38,18 @@ export class GitError extends Error {
 
 /**
  * This function runs `git <args>` and gives its stdout. It throws a `GitError` when git fails,
- * and an `AbortError` when the signal aborts.
+ * and an `AbortError` when the signal aborts. In the handler of a git procedure under a root
+ * (`underGitRoot()`), git stays in the root: `confinedGitCommand()` of `root.ts`.
  */
 export async function git(args: string[], options: GitRunOptions = {}): Promise<string> {
+  const root = currentGitRoot();
+  const command = root === undefined ? { args, cwd: options.cwd, env: options.env } : await confinedGitCommand(root, args, options.cwd, options.env);
   const result = await runCommand("git", {
-    args,
-    cwd: options.cwd,
+    args: command.args,
+    cwd: command.cwd,
     signal: options.signal,
     input: options.input,
-    env: options.env,
+    env: command.env,
     maxOutputBytes: GIT_MAX_BUFFER,
   });
   if (result.aborted) {

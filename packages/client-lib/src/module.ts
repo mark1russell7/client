@@ -52,8 +52,8 @@ import type { FsRootRules, ProcedureContext } from "@procedures/client";
 /**
  * A procedure of a workspace: `rootPath` must be in the root, and without it the workspace is the
  * root. The procedure reads and writes the files of the workspace through `fs.*`, so the root
- * confines them too. The nested git calls of `lib.scan` and `lib.audit` are refused under a root,
- * and the two procedures report a warning in their place.
+ * confines them too. The nested git calls of `lib.scan` and `lib.audit` are confined too: git
+ * finds no repository above the root.
  */
 const WORKSPACE_IN_A_ROOT: FsRootRules = { cwd: "rootPath" };
 

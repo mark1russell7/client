@@ -68,12 +68,12 @@
   },
   "dependencies": {
     "@procedures/client": "workspace:*",
+    "@procedures/fs": "workspace:*",
     "@procedures/shell": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.0",
-    "@procedures/fs": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

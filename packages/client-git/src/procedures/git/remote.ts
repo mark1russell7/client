@@ -7,6 +7,7 @@
 
 import { gitArg } from "./args.js";
 import { git, GitError, type GitContext } from "./run.js";
+import { remoteUrlInGitRoot } from "./root.js";
 import type { GitRemoteInput, GitRemoteOutput, GitRemoteSetInput } from "../../types.js";
 
 /** This function gives the URL of a remote. */
@@ -20,6 +21,8 @@ export async function gitRemote(input: GitRemoteInput, ctx: GitContext = {}): Pr
 export async function gitRemoteSet(input: GitRemoteSetInput, ctx: GitContext = {}): Promise<GitRemoteOutput> {
   const { name, url, cwd } = input;
   const run = { cwd, signal: ctx.signal };
+  // Under a root, a URL that starts a remote helper is refused
+  remoteUrlInGitRoot(url);
   try {
     await git(["remote", "set-url", gitArg("name", name), gitArg("url", url)], run);
   } catch (error) {

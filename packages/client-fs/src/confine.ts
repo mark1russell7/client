@@ -9,6 +9,7 @@
  *   handler starts. A working folder that the call does not give is the root. A path of `paths`
  *   starts at the root, and the handler gets it absolute. A path of `names` starts at the working
  *   folder, and the handler gets it as the caller gave it (a program resolves it the same way).
+ *   The handler gets the root in `ctx.fsRoot`, so a program that it starts can stay in the root.
  * - **program**: the procedure starts the program of its input (`shell.run`). The host refuses a
  *   call of a client. It accepts the nested call of a confined procedure that names the program
  *   procedure in `metadata.calls`: that caller chose the program and its arguments.
@@ -191,6 +192,14 @@ async function confinedInput(input: unknown, rules: FsRootRules, root: ResolvedR
 type Handler = NonNullable<AnyProcedure["handler"]>;
 
 /**
+ * This function gives the context of a handler under a root: the same context with `fsRoot`. A
+ * procedure that starts a program (git) reads it to keep the program in the root.
+ */
+function withRoot(ctx: ProcedureContext | undefined, root: ResolvedRoot): ProcedureContext {
+  return { ...(ctx as ProcedureContext), fsRoot: root.folder };
+}
+
+/**
  * This function applies the decision of each procedure of the registry, except `fs.*`, to a root
  * that exists. It replaces the handler of each confined, program and refused procedure, and it
  * adds no procedure. `confineToRoot()` of the module starts it after the `fs.*` procedures.
@@ -231,12 +240,15 @@ export function confineOtherProcedures(registry: ProcedureRegistry, folder: stri
             `this procedure starts the program of its input. Under the root ${folder}, it runs only as the nested call of a confined procedure that names it in metadata.calls, not for ${from}`,
           );
         }
-        return original(await confinedInput(input, rules, await root(), procedure.path), ctx as ProcedureContext);
+        const resolved = await root();
+        return original(await confinedInput(input, rules, resolved, procedure.path), withRoot(ctx as ProcedureContext, resolved));
       }) as Handler;
       result.programs.push(key);
     } else {
-      handler = (async (input: unknown, ctx: ProcedureContext) =>
-        original(await confinedInput(input, rules, await root(), procedure.path), ctx)) as Handler;
+      handler = (async (input: unknown, ctx: ProcedureContext) => {
+        const resolved = await root();
+        return original(await confinedInput(input, rules, resolved, procedure.path), withRoot(ctx, resolved));
+      }) as Handler;
       result.confined.push(key);
     }
     registry.register({ ...procedure, handler }, { override: true });

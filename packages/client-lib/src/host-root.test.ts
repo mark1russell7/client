@@ -1,10 +1,12 @@
 /**
  * The lib procedures under the root of a host (roadmap R33): `rootPath` must be in the root, and
  * without it the workspace is the root. The files of the workspace go through the confined
- * `fs.*`. `lib.new` starts the cue program of the workspace, so a root refuses it.
+ * `fs.*`, and the nested git calls stay in the root. `lib.new` starts the cue program of the
+ * workspace, so a root refuses it.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,12 +51,17 @@ describe("the lib procedures under the root of a host", () => {
     expect(kinds).toEqual({ "lib.scan": "confined", "lib.rename": "confined", "lib.new": "refused", "lib.audit": "confined", "lib.graph": "confined" });
   });
 
-  it("scan the workspace in the root, also without rootPath, and warn for the refused git calls", async () => {
+  it("scan the workspace in the root, also without rootPath, with its nested git calls in the root", async () => {
     for (const input of [{ rootPath: root }, {}]) {
       const scanned = await call<LibScanOutput>("lib.scan", input);
       expect(Object.keys(scanned.packages)).toEqual(["inside-package"]);
-      expect(scanned.warnings.map((warning) => warning.issue).join(" ")).toContain("cannot confine");
+      // Git finds no repository above the root
+      expect(scanned.warnings.map((warning) => warning.issue).join(" ")).toMatch(/not a git repository/i);
     }
+    // A repository in the root gives its branch
+    execFileSync("git", ["init", "-q", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+    const scanned = await call<LibScanOutput>("lib.scan", {});
+    expect(scanned.packages["inside-package"]?.currentBranch).toBe("main");
   });
 
   it("refuse a workspace outside the root, and lib.new", async () => {
