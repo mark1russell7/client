@@ -6,7 +6,7 @@
  */
 
 import type { ProcedurePath, ProcedureMetadata } from "@procedures/client";
-import type { Duration } from "@procedures/client";
+import type { Clock, Duration } from "@procedures/client";
 
 // =============================================================================
 // Serialized Procedure
@@ -140,6 +140,23 @@ export interface SyncStatus {
 
   /** The mode of a hybrid storage (roadmap R28), or undefined for a storage without modes */
   mode?: "local-only" | "write-through" | "write-back" | "remote-only" | undefined;
+
+  /**
+   * The newest failure of the sync that a later success of the same work did not clear (roadmap
+   * CLI-13), or undefined. Before, the failures went to the console.
+   */
+  error?: SyncError | undefined;
+}
+
+/** A failure of a sync, for its status. */
+export interface SyncError {
+  /**
+   * The work that failed: the load of the queue, a push of the queue or of the records, a pull, a
+   * sync of both directions, or the queue store or the sync state store.
+   */
+  readonly operation: "load" | "push" | "pull" | "sync" | "store";
+  /** The error of the work. */
+  readonly error: unknown;
 }
 
 // =============================================================================
@@ -158,6 +175,13 @@ export interface SyncedRegistryOptions {
 
   /** Auto-sync interval, for example `minutes(1)` (0 to disable) */
   syncInterval?: Duration | undefined;
+
+  /**
+   * The clock of the auto-sync. A test gives `fakeClock` of `@mark1russell7/service/testing`. The
+   * timer does not keep a Node process alive.
+   * @default the clock of the platform (`realClock` of `@procedures/client`)
+   */
+  clock?: Clock | undefined;
 
   /** Handler loader for restoring handlers from references */
   handlerLoader?: HandlerLoader | undefined;

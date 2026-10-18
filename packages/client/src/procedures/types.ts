@@ -5,11 +5,15 @@
  * Procedures are the foundation for typed RPC calls with schema validation.
  */
 
+import type { Elicit } from "./elicit.js";
+import type { ReportProgress } from "./progress.js";
+import type { ToolHintOverride } from "./hints.js";
 import type { ZodErrorLike } from "../client/validation/types.js";
 import type { ProcedureSchema } from "./schema.js";
 import type { CollectionStorage } from "./collection/storage.js";
 import type { EventBus } from "../events/types.js";
 import type { HydrationEvent } from "./ref.js";
+import type { Principal } from "../server/types.js";
 
 // =============================================================================
 // Procedure Path
@@ -82,6 +86,23 @@ export interface ProcedureMetadata {
    * at its stream limits.
    */
   stream?: { readonly unbounded?: boolean } | undefined;
+
+  /**
+   * The output fields that hold text from outside the host: a web page, a mail (CLI-10). The value
+   * of each field is a text, an `UntrustedText` with its source, or a list of them. A face that
+   * gives text to a model (MCP) shows these texts in envelopes: data, never instructions.
+   */
+  untrusted?: readonly string[] | undefined;
+
+  /** The short name of the procedure for people, for example the title of an MCP tool. */
+  title?: string | undefined;
+
+  /**
+   * The override of the tool hints of the effects (CLI-10). It can only make the tool look more
+   * dangerous: `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: false`,
+   * `openWorldHint: true`. The registry refuses each other value.
+   */
+  toolHints?: ToolHintOverride | undefined;
 
   /**
    * The rules of the procedure under a root of the files (roadmap R33): the inputs that name a
@@ -330,6 +351,20 @@ export interface ProcedureContext {
   onRef?: ((event: HydrationEvent) => void) | undefined;
 
   /**
+   * The function that asks the person at the caller for input or a confirmation (CLI-12): MCP
+   * elicitation, or another face that can ask. Absent when no one can answer. The helpers
+   * `elicitInput` and `elicitConfirmation` then give the action `unavailable`. The nested calls
+   * get the same function.
+   */
+  elicit?: Elicit | undefined;
+
+  /**
+   * The function that tells the caller the progress of this call (an MCP progress notification).
+   * Absent when the caller asked for no progress. Only the call of the host gets it.
+   */
+  progress?: ReportProgress | undefined;
+
+  /**
    * The capability of this invocation (CAPABILITIES-2026-10): its clearance, permitted effects
    * and deadline. The nested calls of `ctx.client` get it, or a narrower one. Frozen.
    */
@@ -347,6 +382,20 @@ export interface ProcedureContext {
    * it. The root of the files reads it (roadmap R33).
    */
   caller?: AnyProcedure | undefined;
+
+  /**
+   * The principal of the call: who sends it. The server sets it from its authentication (the
+   * token, the request hook `principalOf`, `authenticate`). The nested calls get the same
+   * principal. An input or the metadata cannot change it. A call from this process has none.
+   */
+  principal?: Principal | undefined;
+
+  /**
+   * The output filter of the host for this call: its `admitItem`, with this invocation (roadmap
+   * CLI-15). A handler that sends the data of other writers later, for example a subscription,
+   * examines each row with it. Absent for a nested call, or when the host has no filter.
+   */
+  admit?: ((item: unknown) => Promise<boolean>) | undefined;
 }
 
 /**

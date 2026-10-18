@@ -15,6 +15,9 @@
  *   no allowed origin is refused (an image tag or a form sends no `Origin` for a GET).
  * - HTTP only: a procedure call by GET or HEAD is refused unless `allowGet` is true, and a
  *   request body must be JSON.
+ * - A request with ambient credentials (the cookies that a browser sends by itself) is trusted
+ *   only from a named origin. `"*"` does not open the origin check for it (CSRF). A list or a
+ *   function of origins still does.
  */
 
 import type { IncomingHttpHeaders } from "node:http";
@@ -74,8 +77,9 @@ export function hostNameOf(header: string | undefined): string {
   return (header.split(":")[0] ?? "").toLowerCase();
 }
 
-function originAllowedBy(origin: string, allowed: BrowserGuardOptions["allowedOrigins"]): boolean {
-  if (allowed === "*") return true;
+function originAllowedBy(origin: string, allowed: BrowserGuardOptions["allowedOrigins"], ambient: boolean): boolean {
+  // "*" names no origin: ambient credentials are not trusted from it
+  if (allowed === "*") return !ambient;
   if (typeof allowed === "function") return allowed(origin);
   return (allowed ?? []).includes(origin);
 }
@@ -103,13 +107,51 @@ function hasBody(headers: IncomingHttpHeaders): boolean {
 }
 
 /**
+ * True when a request carries ambient credentials: a `Cookie` header, which a browser sends by
+ * itself, also for a request that another site starts.
+ */
+export function hasAmbientCredentials(headers: IncomingHttpHeaders): boolean {
+  const cookie = headers.cookie;
+  return typeof cookie === "string" && cookie.trim() !== "";
+}
+
+/**
+ * True when a face trusts a request only from a named origin. This is so when the server reads
+ * cookies for each request (`"always"`), or when the request carries a cookie that an auth path can
+ * read. `cookiesNamed` is true for a face that trusts no cookie from
+ * an origin that is not named, with or without an auth path.
+ *
+ * @internal
+ */
+export function needsNamedOrigin(mode: "always" | "cookies" | undefined, headers: IncomingHttpHeaders, cookiesNamed: boolean): boolean {
+  return mode === "always" || (hasAmbientCredentials(headers) && (cookiesNamed || mode !== undefined));
+}
+
+/**
+ * This function refuses a face whose server reads cookies for each request (`principalOf`) while
+ * its browser checks permit each origin (`"*"`). Each site could then send a request with the cookies
+ * of the user (CSRF).
+ *
+ * @internal
+ */
+export function assertNamedOrigins(face: string, mode: "always" | "cookies" | undefined, allowedOrigins: BrowserGuardOptions["allowedOrigins"], originOption: string): void {
+  if (mode !== "always" || allowedOrigins !== "*") return;
+  throw new Error(
+    `${face}: the request hook principalOf reads the cookies of each request, and the origin "*" lets each site send them (CSRF). Give ${originOption} or allowedOrigins a list or a function of the origins that can call.`
+  );
+}
+
+/**
  * The checks of the host, the origin and the fetch site, for HTTP and WebSocket requests.
- * `http` adds the checks of the method and the body.
+ * `http` adds the checks of the method and the body. `ambient` is true when the server can trust
+ * ambient credentials (cookies) for the request. Then `"*"` does not permit another origin. Only a
+ * named origin (a list or a function) does.
  */
 export function checkBrowserRequest(
   req: GuardedRequest,
   options: BrowserGuardOptions = {},
-  http = false
+  http = false,
+  ambient = false
 ): GuardResult {
   const { headers } = req;
 
@@ -123,12 +165,12 @@ export function checkBrowserRequest(
 
   const origin = typeof headers.origin === "string" ? headers.origin : undefined;
   if (origin !== undefined) {
-    if (!sameOrigin(origin, headers.host) && !originAllowedBy(origin, options.allowedOrigins)) {
+    if (!sameOrigin(origin, headers.host) && !originAllowedBy(origin, options.allowedOrigins, ambient)) {
       return { ok: false, status: 403, code: "FORBIDDEN_ORIGIN", message: `Forbidden: the origin "${origin}" is not allowed` };
     }
   } else {
     const site = headers["sec-fetch-site"];
-    if ((site === "cross-site" || site === "same-site") && options.allowedOrigins !== "*") {
+    if ((site === "cross-site" || site === "same-site") && (options.allowedOrigins !== "*" || ambient)) {
       return { ok: false, status: 403, code: "FORBIDDEN_ORIGIN", message: "Forbidden: a request from another site" };
     }
   }

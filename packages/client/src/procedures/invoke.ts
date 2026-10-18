@@ -40,7 +40,10 @@ import { nestedCallRefusal } from "./policy.js";
 import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
 import { timeoutAfterMs } from "./interceptors.js";
+import type { Elicit } from "./elicit.js";
+import type { ReportProgress } from "./progress.js";
 import type { EventBus } from "../events/types.js";
+import type { Principal } from "../server/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
 // =============================================================================
@@ -120,6 +123,16 @@ export interface InvokeOptions {
   repository?: RepositoryProvider | undefined;
   /** The bus of `ctx.bus`. The default is the global bus of `getGlobalEventBus()`. */
   bus?: EventBus | undefined;
+  /**
+   * The function that asks the person at the caller (`ctx.elicit`, CLI-12). A face of the host
+   * gives it. The nested calls get the same function.
+   */
+  elicit?: Elicit | undefined;
+  /**
+   * The function that tells the caller the progress of the call (`ctx.progress`). Only the call
+   * of the host gets it in its context, not its nested calls.
+   */
+  progress?: ReportProgress | undefined;
   /** The input is valid already (for example, the route resolver validated it). */
   inputValidated?: boolean | undefined;
   /**
@@ -154,6 +167,11 @@ export interface InvokeOptions {
    * It drops a refused stream item. A refused value gives `FORBIDDEN` (reason `clearance`).
    */
   admitItem?: AdmitItem | undefined;
+  /**
+   * The principal of the call, from the authentication of the host. It goes to `ctx.principal`,
+   * to the invocation and to the nested calls.
+   */
+  principal?: Principal | undefined;
 }
 
 /**
@@ -184,6 +202,8 @@ export interface Invocation {
   readonly depth: number;
   /** The capability of the invocation (frozen). */
   readonly capability: Capability;
+  /** The principal of the call: who sends it. A call from this process has none. */
+  readonly principal?: Principal | undefined;
 }
 
 /** The changes that an interceptor gives to the next step: the handler and the nested calls get them. */
@@ -313,6 +333,7 @@ export async function invokeProcedure<TOutput = unknown>(
     parent: options.parent,
     depth: options.parent ? options.parent.depth + 1 : 0,
     capability: options.capability ?? UNLIMITED_CAPABILITY,
+    ...(options.principal !== undefined ? { principal: options.principal } : {}),
   };
   // A deadline that the parent does not have (from a host, a request or a narrowed nested call)
   // ends the invocation at that time, as the timeout interceptor does
@@ -486,13 +507,21 @@ export function createProcedureContext(
   if (options.expose) context.expose = options.expose;
   if (options.repository) context.repository = options.repository;
   if (options.onRef) context.onRef = options.onRef;
+  if (options.principal !== undefined) context.principal = options.principal;
   // The procedure of the parent invocation made this call (roadmap R33: the root of the files)
   if (invocation?.parent) context.caller = invocation.parent.procedure;
+  // The output filter of the host, for the data that a handler sends later (roadmap CLI-15)
+  const admitItem = options.admitItem;
+  if (invocation && invocation.depth === 0 && admitItem) context.admit = async (item) => admitItem(item, invocation);
   // Every context has a bus. With a signal, the waits of the handler on the bus end when the
   // invocation aborts, so a stream handler that waits on ctx.bus.stream() can finish. (Before,
   // no host set ctx.bus: deep dive CORE-15.)
   const bus = options.bus ?? getGlobalEventBus();
   context.bus = options.signal ? withEventBusSignal(bus, options.signal) : bus;
+  // What the face of the call offers (CLI-12): the nested calls ask the same person, and only
+  // the call of the host reports its progress, so the values of one call stay in order
+  if (options.elicit) context.elicit = options.elicit;
+  if (options.progress && !invocation?.parent && !options.parent) context.progress = options.progress;
   return context;
 }
 

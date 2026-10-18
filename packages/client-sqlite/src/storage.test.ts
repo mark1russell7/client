@@ -72,6 +72,7 @@ for (const engine of engines) {
       {
         create: () => storageOf<ContractItem>({ path: pathOf(), table: "items", engine }),
         createWithMaxTombstones: (max) => storageOf<ContractItem>({ path: pathOf(), table: "items", maxTombstones: max, engine }),
+        createWithQueryPolicy: (policy) => storageOf<ContractItem>({ path: pathOf(), table: "items", engine, queryPolicy: policy }),
       },
       { describe, it },
     );

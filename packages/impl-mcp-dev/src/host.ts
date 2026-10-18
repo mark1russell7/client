@@ -8,7 +8,8 @@
  * - each tool call has a time limit.
  *
  * `server.ts` (the file in the MCP configuration of Claude Code) and `mark mcp` both start the
- * server with `startDevToolsServer()`.
+ * server with `startDevToolsServer()`. The host comes from `createMcpHost()` of
+ * `@procedures/mcp-server` (CLI-10): the same factory as `mcp.serve` and the hosts of the apps.
  *
  * `MCP_FS_ROOT` confines the procedures to one folder (`confineToRoot()` of `@procedures/fs`):
  * each tool keeps its paths in it, or the root refuses the tool. The host serves no remote
@@ -20,17 +21,19 @@ import {
   ProcedureServer,
   createRegistry,
   registerClientProcedures,
-  capabilityRefusal,
-  narrowCapability,
-  surfaceRule,
-  hostPolicy,
-  procedureServerOptions,
   type HostPolicy,
   type ProcedureModule,
   type ProcedureRegistry,
   type ToolSurface,
 } from "@procedures/client";
-import { McpServerTransport, mergeSurfaces, type BundleSurfaceModule } from "@procedures/mcp-server";
+import {
+  createMcpHost,
+  mergeSurfaces,
+  redirectConsoleToStderr,
+  type BundleSurfaceModule,
+  type McpHost,
+  type McpHostFaces,
+} from "@procedures/mcp-server";
 import { programCheckInterceptor } from "@procedures/compiler";
 import { loadConfig, type McpServerConfig } from "./config.js";
 import { ms } from "@procedures/client";
@@ -91,6 +94,20 @@ export interface DevToolsHost {
   fsRoot?: string | undefined;
   /** With a root: the keys of the procedures that the root refuses. Some of them are tools. */
   refusedUnderRoot?: string[] | undefined;
+  /** The MCP host: `mcp.start()` starts its face (stdio, or Streamable HTTP with `config.http`). */
+  mcp: McpHost;
+}
+
+/** The face of the configuration: Streamable HTTP with `config.http`, else stdio. */
+function facesOf(config: McpServerConfig): McpHostFaces {
+  if (!config.http) return { stdio: true };
+  return {
+    http: {
+      port: config.http.port,
+      ...(config.http.host ? { host: config.http.host } : {}),
+      ...(config.http.token ? { token: config.http.token } : {}),
+    },
+  };
 }
 
 /** This function builds the host. It starts no transport. */
@@ -108,76 +125,53 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
   // Bundles without mcpNamespaces say nothing about their tools: then every procedure is a tool
   const surface = mergeSurfaces(loaded.surfaces);
   // Read only: the tools are the procedures that the capability permits, so the list shows only
-  // what a call can start (CAPABILITIES-2026-10)
-  const readOnly = config.readOnly === true;
-  const capability = readOnly ? narrowCapability(undefined, { effects: { writes: [] } }) : undefined;
-  const surfaceExpose = surface ? surfaceRule(surface) : undefined;
-  const expose = capability
-    ? (path: string[]): boolean => {
-        if (surfaceExpose && !surfaceExpose(path)) return false;
-        const procedure = registry.get(path);
-        return procedure !== undefined && capabilityRefusal(procedure, capability) === undefined;
-      }
-    : surface;
-  // The check before the run (roadmap R22): a program with an error does not start, so a refusal
-  // in step 3 comes before the write of step 1
-  const exposeRule = typeof expose === "function" ? expose : expose ? surfaceRule(expose) : undefined;
-  const programCheck = config.programCheck === false ? [] : [programCheckInterceptor({ registry, expose: exposeRule })];
-  const policy = hostPolicy({
-    ...(expose ? { expose } : {}),
-    strictCalls: true,
-    timeout: ms(config.toolTimeoutMs),
-    ...(readOnly ? { readOnly: true } : {}),
-    ...(programCheck.length > 0 ? { interceptors: programCheck } : {}),
+  // what a call can start (CAPABILITIES-2026-10). The check before the run (roadmap R22): a
+  // program with an error does not start, so a refusal in step 3 comes before the write of step 1.
+  const mcp = createMcpHost({
+    registry,
+    ...(surface ? { surface } : {}),
+    readOnly: config.readOnly === true,
+    policy: { strictCalls: true, timeout: ms(config.toolTimeoutMs) },
+    ...(config.programCheck === false ? {} : { interceptors: ({ expose }) => [programCheckInterceptor({ registry, expose })] }),
+    name: config.serverName,
+    version: config.serverVersion,
+    debug: config.debug,
+    faces: facesOf(config),
   });
-  const server = new ProcedureServer(procedureServerOptions(policy, registry));
-  return { registry, surface, policy, server, ...(fsRoot !== undefined ? { fsRoot, refusedUnderRoot } : {}) };
+  return {
+    registry,
+    surface,
+    policy: mcp.policy,
+    server: mcp.server,
+    mcp,
+    ...(fsRoot !== undefined ? { fsRoot, refusedUnderRoot } : {}),
+  };
 }
 
 /**
  * This function starts the dev-tools MCP server over stdio, or over Streamable HTTP with
  * `config.http` (roadmap R26). Over stdio, stdout carries the protocol, so `console.log` goes to
- * stderr from here on (BUGS-2026-07 Bug5).
+ * stderr from here on (BUGS-2026-07 Bug5). The stdio server stops when the client closes its
+ * input: `host.mcp.closed` then resolves.
  */
 export async function startDevToolsServer(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
-  // Defense-in-depth for the stdio transport: a stray console.log (from a procedure handler or a
-  // dependency) would corrupt the protocol. The MCP SDK writes its frames with
-  // process.stdout.write, so it is not affected.
-  console.log = (...args: unknown[]): void => {
-    console.error(...args);
-  };
+  // Defense-in-depth for the stdio transport: a stray console.log (from a procedure handler, a
+  // dependency or a bundle that loads) would corrupt the protocol. The MCP SDK writes its frames
+  // with process.stdout.write, so it is not affected.
+  redirectConsoleToStderr();
   if (config.debug) {
     console.error("[mcp-server] Starting with config:", JSON.stringify(config, null, 2));
   }
 
   const host = await createDevToolsHost(config);
-  const expose = host.policy.expose;
-  const transport = new McpServerTransport(host.server, {
-    ...(config.http
-      ? {
-          transport: "http" as const,
-          httpOptions: {
-            port: config.http.port,
-            ...(config.http.host ? { host: config.http.host } : {}),
-            ...(config.http.token ? { token: config.http.token } : {}),
-          },
-        }
-      : { transport: "stdio" as const }),
-    serverInfo: {
-      name: config.serverName,
-      version: config.serverVersion,
-    },
-    debug: config.debug,
-    ...(expose ? { toolFilter: { include: expose } } : {}),
-  });
-  host.server.addTransport(transport);
-  await host.server.start();
+  await host.mcp.start();
+  const face = host.mcp.state().faces[0];
 
   if (config.debug) {
-    console.error(`[mcp-server] Started with ${transport.getState().toolCount} tools`);
+    console.error(`[mcp-server] Started with ${face?.toolCount ?? 0} tools`);
   }
   if (host.fsRoot !== undefined) console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. Refused under the root: ${String(host.refusedUnderRoot)}`);
-  const url = transport.getState().url;
+  const url = face?.url;
   if (url) console.error(`[mcp-server] Streamable HTTP at ${url}${config.http?.token ? " (send Authorization: Bearer <token>)" : ""}`);
   return host;
 }

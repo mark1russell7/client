@@ -15,11 +15,26 @@ export { McpServerTransport } from "./transport/mcp-transport.js";
 export { createStdioTransport } from "./transport/stdio.js";
 export { createSseTransport } from "./transport/sse.js";
 
+// The host factory (CLI-10): one MCP host for each server of procedures
+export { createMcpHost, mcpExposeRule, redirectConsoleToStderr } from "./host.js";
+export type { McpHost, McpHostOptions, McpHostFaces, McpStdioFace, McpHostServerOptions, McpHostParts, McpHostState } from "./host.js";
+export { DEFAULT_ELICIT_TIMEOUT_MS } from "./transport/mcp-transport.js";
+
+// The envelopes of the text from outside the host (CLI-10)
+export { createUntrustedEnvelopes, defaultUntrustedNotice, DEFAULT_UNTRUSTED_TAG } from "./untrusted.js";
+export type { UntrustedContentOptions, UntrustedWrapContext, UntrustedEnvelopes } from "./untrusted.js";
+
 // Types
 export type {
   McpServerTransportOptions,
   McpServerTransportState,
   SseTransportOptions,
+  HttpTransportOptions,
+  StdioTransportOptions,
+  McpTextBlock,
+  McpToolContent,
+  McpToolContentInput,
+  McpToolContentHook,
 } from "./types.js";
 
 // Procedures

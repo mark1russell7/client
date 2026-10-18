@@ -20,8 +20,10 @@ import {
   DEFAULT_PROGRAM_DATABASE,
   IndexedDbProgramStore,
   IndexedDbQueueStore,
+  IndexedDbSyncStateStore,
   MemoryProgramStore,
   MemoryQueueStore,
+  MemorySyncStateStore,
   hasIndexedDb,
   type IdbFactoryLike,
 } from "../indexeddb.js";
@@ -217,5 +219,68 @@ describe("IndexedDbQueueStore", () => {
     expect(second.getPendingOpsCount()).toBe(0);
     await second.close();
     expect(await new IndexedDbQueueStore("items-queue", { indexedDB: factory }).load()).toEqual([]);
+  });
+});
+
+describe("IndexedDbSyncStateStore (CLI-21)", () => {
+  it("keeps the cursor and the bases for a new connection: a reset, the changes and the forgotten ids", async () => {
+    const factory = new IDBFactory();
+    const first = new IndexedDbSyncStateStore("items-sync", { indexedDB: factory });
+    expect(first.name).toBe("items-sync");
+    expect(await first.load()).toBeUndefined();
+    await first.write({ reset: true, cursor: "v1", bases: [["a", "1"], ["b", null]], forgotten: [] });
+    await first.write({ reset: false, cursor: "v2", bases: [["c", "3"]], forgotten: ["a"] });
+    await first.close();
+    const second = new IndexedDbSyncStateStore("items-sync", { indexedDB: factory });
+    const state = await second.load();
+    expect(state?.cursor).toBe("v2");
+    expect([...(state?.bases ?? [])].sort()).toEqual([["b", null], ["c", "3"]]);
+    // A reset without a cursor replaces the whole state
+    await second.write({ reset: true, cursor: undefined, bases: [["d", "4"]], forgotten: [] });
+    expect(await second.load()).toEqual({ bases: [["d", "4"]] });
+    await second.clear();
+    expect(await second.load()).toBeUndefined();
+    await second.close();
+  });
+
+  it("refuses a record that is not a sync state, and a database without a name", async () => {
+    const factory = new IDBFactory();
+    await putRaw(factory, "odd-sync", "state", { kind: "base", id: 7 }, "base:7");
+    await expect(new IndexedDbSyncStateStore("odd-sync", { indexedDB: factory }).load()).rejects.toThrow(/not a sync state/);
+    expect(() => new IndexedDbSyncStateStore("")).toThrow(TypeError);
+    // The memory store is the fallback
+    const memory = new MemorySyncStateStore();
+    await memory.write({ reset: true, cursor: "v1", bases: [], forgotten: [] });
+    expect(await memory.load()).toEqual({ cursor: "v1", bases: [] });
+  });
+
+  it("keeps the sync state of a HybridStorage through a reload: the first pull asks only for the changes", async () => {
+    const factory = new IDBFactory();
+    const data = new InMemoryStorage<{ n: number; rev: string }>();
+    const sinces: Array<string | undefined> = [];
+    const remote = connectionTo(data);
+    const getChangesSince = remote.getChangesSince!.bind(remote);
+    remote.getChangesSince = (since?: string) => {
+      sinces.push(since);
+      return getChangesSince(since);
+    };
+    // A local copy that keeps its items, as a durable storage does
+    const local = new InMemoryStorage<{ n: number; rev: string }>();
+    const options = {
+      syncInterval: ms(0),
+      local: connectionTo(local) as InMemoryStorage<{ n: number; rev: string }>,
+      versionOf: (item: { rev: string }) => item.rev,
+    };
+    const first = new HybridStorage<{ n: number; rev: string }>(remote, { ...options, syncState: new IndexedDbSyncStateStore("items-state", { indexedDB: factory }) });
+    await first.getAll();
+    await first.set("a", { n: 1, rev: "r1" });
+    await first.syncFromRemote();
+    await first.close();
+    const cursor = (await data.getChangesSince()).version;
+    sinces.length = 0;
+    const second = new HybridStorage<{ n: number; rev: string }>(remote, { ...options, syncState: new IndexedDbSyncStateStore("items-state", { indexedDB: factory }) });
+    expect(await second.getEntries()).toEqual([["a", { n: 1, rev: "r1" }]]);
+    expect(sinces).toEqual([cursor]);
+    await second.close();
   });
 });

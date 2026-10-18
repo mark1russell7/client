@@ -125,8 +125,23 @@ export type FetchText = (
 ) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
 /**
+ * The system error code of a failed request (`ECONNREFUSED`, `ENOTFOUND`, `UND_ERR_SOCKET`), or
+ * undefined. The `fetch` of Node puts it in the field `cause` of its `TypeError`. The function
+ * gives only a code of capital letters, digits and underscores, never a message, because a
+ * message can include the secret address.
+ */
+function errorCodeOf(error: unknown): string | undefined {
+  for (const each of [(error as { cause?: unknown } | null)?.cause, error]) {
+    const code = (each as { code?: unknown } | null | undefined)?.code;
+    if (typeof code === "string" && /^[A-Z][A-Z0-9_]{1,40}$/.test(code)) return code;
+  }
+  return undefined;
+}
+
+/**
  * This function gets the text of a calendar feed. The address of a private feed is a secret, so
- * an error never includes it. The option `fetch` replaces the global `fetch`.
+ * an error never includes it. An error of the request includes its system error code. The option
+ * `fetch` replaces the global `fetch`.
  */
 export async function fetchCalendar(
   url: string,
@@ -140,7 +155,9 @@ export async function fetchCalendar(
   try {
     response = await fetchText(url, { signal: AbortSignal.any(signals), headers: { accept: "text/calendar, */*" } });
   } catch (error) {
-    const reason = (error as { name?: string }).name === "TimeoutError" ? `no answer in ${timeoutMs} ms` : "the request failed";
+    const code = errorCodeOf(error);
+    const reason =
+      (error as { name?: string }).name === "TimeoutError" ? `no answer in ${timeoutMs} ms` : `the request failed${code === undefined ? "" : ` (${code})`}`;
     throw new Error(`The calendar feed did not answer: ${reason}`);
   }
   if (!response.ok) throw new Error(`The calendar feed gave HTTP ${response.status}`);

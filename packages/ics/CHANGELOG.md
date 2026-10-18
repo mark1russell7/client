@@ -1,5 +1,16 @@
 # @procedures/ics
 
+## 0.8.1
+
+### Patch Changes
+
+- f0bef70: When the request of `fetchCalendar` (and `ics.fetch`) fails, the error includes the system error code, for example "the request failed (ECONNREFUSED)". The code comes from the field `cause` of the error of `fetch`. The error never includes the message of the cause, because that message can include the secret address of the feed.
+- Updated dependencies [2d3f235]
+- Updated dependencies [1aa9ef7]
+- Updated dependencies [2523b1b]
+- Updated dependencies [c559b00]
+  - @procedures/client@0.8.1
+
 ## 0.8.0
 
 ### Patch Changes

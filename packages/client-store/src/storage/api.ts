@@ -7,11 +7,23 @@
  * This is the KEY integration between Collections and Universal Client!
  */
 
-import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
+import type { CollectionStorage, StorageChanges, StorageMetadata, StorageWriteOptions } from "@procedures/collections";
+import {
+  QUERY_OPERATORS,
+  patchProblems,
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+  type StoragePatch,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+} from "@procedures/client/query";
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
-import { optionalMs, type Duration } from "@procedures/client";
+import { optionalMs, realClock, type Clock, type Duration } from "@procedures/client";
+import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 
 /**
  * API storage configuration options.
@@ -38,7 +50,7 @@ export interface ApiStorageOptions {
   version?: string;
 
   /**
-   * Custom operation names (override defaults)
+   * Custom operation names (override defaults). `find` is the operation of `query()`.
    */
   operations?: {
     get?: string;
@@ -47,6 +59,7 @@ export interface ApiStorageOptions {
     ids?: string;
     changes?: string;
     find?: string;
+    patch?: string;
     has?: string;
     size?: string;
     set?: string;
@@ -65,16 +78,57 @@ export interface ApiStorageOptions {
 
   /**
    * Retry a call that fails with a retryable error: true (3 attempts), false (1 attempt), or the
-   * number of attempts.
+   * number of attempts. Each collection procedure is idempotent, so a retry is safe.
    * @default true
    */
   retry?: boolean | number;
 
   /**
-   * The first delay between attempts. Each later delay is two times longer.
+   * The backoff of the first retry. Each later backoff is `retryFactor` times longer, at most
+   * `maxRetryDelay`. The wait is `backoffDelay` of `@mark1russell7/service/backoff`.
    * @default 100 milliseconds
    */
   retryDelay?: Duration;
+
+  /**
+   * The factor of the backoff from one retry to the next.
+   * @default 2
+   */
+  retryFactor?: number;
+
+  /**
+   * The longest backoff of a retry, before its random part.
+   * @default 30 seconds
+   */
+  maxRetryDelay?: Duration;
+
+  /**
+   * The random part of each wait, from 0 to 1. With 1 (full jitter), the wait is a random time from
+   * 0 to the backoff, so the clients that failed together do not retry together. 0 gives the
+   * backoff exactly. A server that asks for a wait (`retryAfterMs` of the error) gets at least it.
+   * @default 1
+   */
+  retryJitter?: number;
+
+  /**
+   * The clock of the timeout and of the waits between attempts. A test gives `fakeClock` of
+   * `@mark1russell7/service/testing`.
+   * @default the clock of the platform (`realClock` of `@procedures/client`)
+   */
+  clock?: Clock;
+
+  /**
+   * The random numbers of the jitter, from 0 up to 1. A test gives a fixed generator.
+   * @default Math.random
+   */
+  random?: () => number;
+
+  /**
+   * The query policy that `query()` applies before it sends a query, for a call without a policy.
+   * The server applies its own policy too. Without it, the storage examines only the form of a
+   * selector, and the server decides the rest.
+   */
+  queryPolicy?: StorageQueryPolicy;
 
   /**
    * AbortSignal for cancelling requests
@@ -88,6 +142,18 @@ export interface ApiStorageOptions {
   closeClient?: boolean;
 }
 
+/**
+ * The policy of a query that only the server limits: each operator, and no limit of size. The form
+ * of the selector must still be correct.
+ */
+const FORM_ONLY: StorageQueryPolicy = Object.freeze({
+  operators: QUERY_OPERATORS,
+  maxRegexLength: Number.POSITIVE_INFINITY,
+  maxClauses: Number.POSITIVE_INFINITY,
+  maxDepth: Number.POSITIVE_INFINITY,
+  maxListLength: Number.POSITIVE_INFINITY,
+});
+
 /** An error that says whether another attempt can succeed (a ClientError does). */
 function isRetryable(error: unknown): boolean {
   return (
@@ -95,6 +161,12 @@ function isRetryable(error: unknown): boolean {
     error !== null &&
     (error as { retryable?: unknown }).retryable === true
   );
+}
+
+/** The wait that an error asks for before a retry, in milliseconds, or 0. */
+function retryAfterOf(error: unknown): number {
+  const value = (error as { retryAfterMs?: unknown } | null)?.retryAfterMs;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
 /** A promise that rejects when the signal aborts first. */
@@ -117,6 +189,25 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined, d
   });
 }
 
+/** A wait on the clock. The signal stops the wait and its timer. */
+function wait(clock: Clock, ms: number, signal: AbortSignal | undefined, describe: () => Error): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(describe());
+      return;
+    }
+    const onAbort = (): void => {
+      cancel();
+      reject(describe());
+    };
+    const cancel = clock.after(ms, () => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    });
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 /** True when the server does not know a procedure: an older server without `ids`. */
 function isNotFound(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "NOT_FOUND";
@@ -132,6 +223,14 @@ function isFoundOutput(value: unknown): value is { found: boolean; value?: unkno
   return typeof record["found"] === "boolean" && Object.keys(record).every((key) => key === "found" || key === "value");
 }
 
+/** The entries of the output `[{ id, value }]` of `entries` or `find`. */
+function entriesOf<T>(output: unknown, label: string): Array<[string, T]> {
+  if (!Array.isArray(output) || !output.every((entry) => typeof entry === "object" && entry !== null && typeof (entry as { id?: unknown }).id === "string")) {
+    throw new Error(`${label} did not return an array of { id, value }`);
+  }
+  return (output as Array<{ id: string; value: T }>).map((entry) => [entry.id, entry.value]);
+}
+
 /**
  * API storage backed by universal client.
  *
@@ -141,10 +240,15 @@ function isFoundOutput(value: unknown): value is { found: boolean; value?: unkno
  * - set(id, value) → `collections.<collection>.set` with `{ id, value }`
  * - setBatch(items) → `collections.<collection>.setBatch` with `{ items: [{ id, value }] }`
  * - getIds() → `collections.<collection>.ids` with `{}`, or the entries of an older server
+ * - query(selector, options) → `collections.<collection>.find` with `{ selector, sort, skip, limit }`
+ * - patch(id, fields) → `collections.<collection>.patch` with `{ id, fields }`
  * - etc.
  *
  * Before, the class expected a `{ data }` envelope and called `<service>.get`: no core
  * procedure matched, and every read was undefined (deep dive CORE-9, DATA-9).
+ *
+ * The retries wait with `backoffDelay` of `@mark1russell7/service/backoff` on the clock of the
+ * options, with full jitter by default. Before, the waits had no jitter, and they used the timers of the platform directly.
  *
  * @example
  * ```typescript
@@ -158,6 +262,7 @@ function isFoundOutput(value: unknown): value is { found: boolean; value?: unkno
  * // Operations are automatically sent to server
  * await storage.set("123", { name: "John" });
  * const user = await storage.get("123"); // Fetched from server
+ * const admins = await storage.query({ role: "admin" }, { sort: { name: 1 }, limit: 50 }); // Runs on the server
  * ```
  */
 export class ApiStorage<T> implements CollectionStorage<T> {
@@ -168,21 +273,32 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     operations: Required<NonNullable<ApiStorageOptions["operations"]>>;
     timeout: number;
     attempts: number;
-    retryDelay: number;
+    backoff: Backoff;
+    clock: Clock;
+    random: () => number;
+    queryPolicy: StorageQueryPolicy;
     signal?: AbortSignal;
     closeClient: boolean;
     /** True when the storage calls the `get` of the core collection procedures */
     askFound: boolean;
+    /** True when the writes send their origin: the core collection procedures take it (roadmap CLI-15) */
+    sendOrigin: boolean;
   };
   private closed = false;
   /** True when the server does not know the procedure `ids`: `getIds()` reads the entries */
   private idsUnsupported = false;
+  /** True when the server does not know the procedure `find`: `query()` reads the entries */
+  private findUnsupported = false;
 
   constructor(client: Client, options: ApiStorageOptions) {
     const service = options.service ?? (options.collection !== undefined ? `collections.${options.collection}` : undefined);
     if (!service) {
       throw new Error("ApiStorage requires a collection or a service");
     }
+    const jitter = options.retryJitter ?? 1;
+    if (!(jitter >= 0 && jitter <= 1)) throw new RangeError(`retryJitter must be from 0 to 1, not ${jitter}`);
+    const factor = options.retryFactor ?? 2;
+    if (!(Number.isFinite(factor) && factor >= 1)) throw new RangeError(`retryFactor must be a number of 1 or more, not ${factor}`);
     this.client = client;
     this.options = {
       service,
@@ -194,6 +310,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         ids: "ids",
         changes: "changes",
         find: "find",
+        patch: "patch",
         has: "has",
         size: "size",
         set: "set",
@@ -207,11 +324,21 @@ export class ApiStorage<T> implements CollectionStorage<T> {
       timeout: optionalMs(options.timeout, "timeout") ?? 30000,
       attempts:
         options.retry === false ? 1 : options.retry === true || options.retry === undefined ? 3 : Math.max(1, options.retry),
-      retryDelay: optionalMs(options.retryDelay, "retryDelay") ?? 100,
+      backoff: {
+        base: optionalMs(options.retryDelay, "retryDelay") ?? 100,
+        factor,
+        cap: optionalMs(options.maxRetryDelay, "maxRetryDelay") ?? 30000,
+        jitter: jitter === 0 ? { kind: "none" } : { kind: "subtract", fraction: jitter },
+      },
+      clock: options.clock ?? realClock,
+      random: options.random ?? Math.random,
+      queryPolicy: options.queryPolicy ?? FORM_ONLY,
       ...(options.signal !== undefined && { signal: options.signal }),
       closeClient: options.closeClient ?? false,
       // A custom service can refuse an unknown input field: it gets the input { id }
       askFound: options.service === undefined && (options.operations?.get ?? "get") === "get",
+      // A custom service can refuse an unknown input field: it gets no origin
+      sendOrigin: options.service === undefined,
     };
   }
 
@@ -244,11 +371,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
 
   /** Every item with its id, from the `entries` procedure of the collection (roadmap R2). */
   async getEntries(): Promise<Array<[string, T]>> {
-    const entries = await this.call<Array<{ id: string; value: T }>>("entries", {});
-    if (!Array.isArray(entries)) {
-      throw new Error(`${this.options.service}.entries did not return an array`);
-    }
-    return entries.map((entry) => [entry.id, entry.value]);
+    return entriesOf<T>(await this.call<unknown>("entries", {}), `${this.options.service}.entries`);
   }
 
   /**
@@ -296,10 +419,44 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     };
   }
 
+  /**
+   * The items for which the predicate gives true. A function cannot go over the network, so this
+   * method reads all items and filters here. `query()` sends a JSON selector to the server.
+   */
   async find(predicate: (item: T) => boolean): Promise<T[]> {
-    // A predicate cannot go over the network: read all items, then filter here
     const all = await this.getAll();
     return all.filter(predicate);
+  }
+
+  /**
+   * The entries whose items match the selector, from the `find` procedure of the collection: the
+   * server runs the selector, the order, the skip and the limit (roadmap CLI-14), under its own
+   * query policy. An older server without the procedure answers `NOT_FOUND`. Then this call and
+   * each later call read the entries and run the query here, with the same result.
+   *
+   * @param policy - The policy that the storage applies before it sends the query. The default is
+   *   the option `queryPolicy`. The server applies its own policy too.
+   */
+  async query(selector: StorageSelector, options: StorageQueryOptions = {}, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
+    // A selector with a problem does not go to the server: the server would refuse it
+    const limits = policy ?? this.options.queryPolicy;
+    const problems = [...selectorProblems(selector, limits), ...queryOptionsProblems(options, limits)];
+    if (problems.length > 0) throw new TypeError(`The query is not correct: ${problems.join(". ")}`);
+    if (!this.findUnsupported) {
+      const input = {
+        selector,
+        ...(options.sort !== undefined && { sort: options.sort }),
+        ...(options.skip !== undefined && { skip: options.skip }),
+        ...(options.limit !== undefined && { limit: options.limit }),
+      };
+      try {
+        return entriesOf<T>(await this.call<unknown>("find", input), `${this.options.service}.find`);
+      } catch (error) {
+        if (!isNotFound(error)) throw error;
+        this.findUnsupported = true;
+      }
+    }
+    return queryEntries(await this.getEntries(), selector, options, limits);
   }
 
   async has(id: string): Promise<boolean> {
@@ -314,29 +471,46 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Write Operations ═══
   //
 
-  async set(id: string, value: T): Promise<void> {
-    await this.call("set", { id, value });
+  /**
+   * This method sets an item on the server. The origin of the options goes to the procedure `set`,
+   * so the storage of the server and the change event of the write have it (roadmap CLI-15).
+   */
+  async set(id: string, value: T, options?: StorageWriteOptions): Promise<void> {
+    await this.call("set", { id, value, ...this.originOf(options) });
   }
 
-  async delete(id: string): Promise<boolean> {
-    return (await this.call<boolean>("delete", { id })) === true;
+  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
+    return (await this.call<boolean>("delete", { id, ...this.originOf(options) })) === true;
   }
 
-  async clear(): Promise<void> {
-    await this.call("clear", {});
+  async clear(options?: StorageWriteOptions): Promise<void> {
+    await this.call("clear", { ...this.originOf(options) });
+  }
+
+  /**
+   * This method changes an item on the server in one step: the `patch` procedure of the collection
+   * (roadmap CLI-14). The fields are a JSON Merge Patch, or the operations `$set` and `$unset`.
+   * It gives the new item, or undefined for a missing id.
+   */
+  async patch(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined> {
+    const [problem] = patchProblems(fields);
+    if (problem !== undefined) throw new TypeError(`The patch of ${id} is not correct: ${problem}`);
+    const result = await this.call<unknown>("patch", { id, fields, ...this.originOf(options) });
+    if (!isFoundOutput(result)) throw new Error(`${this.options.service}.patch did not return { found, value }`);
+    return result.found ? (result.value as T) : undefined;
   }
 
   //
   // ═══ Bulk Operations ═══
   //
 
-  async setBatch(items: Array<[string, T]>): Promise<void> {
+  async setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
     // The collection procedure takes objects, not tuples
-    await this.call("setBatch", { items: items.map(([id, value]) => ({ id, value })) });
+    await this.call("setBatch", { items: items.map(([id, value]) => ({ id, value })), ...this.originOf(options) });
   }
 
-  async deleteBatch(ids: string[]): Promise<number> {
-    return Number(await this.call<number>("deleteBatch", { ids }));
+  async deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number> {
+    return Number(await this.call<number>("deleteBatch", { ids, ...this.originOf(options) }));
   }
 
   async getBatch(ids: string[]): Promise<Map<string, T>> {
@@ -385,8 +559,15 @@ export class ApiStorage<T> implements CollectionStorage<T> {
   // ═══ Internal Helpers ═══
   //
 
+  /** The field `origin` of a write input, or no field: a custom service gets no origin. */
+  private originOf(options: StorageWriteOptions | undefined): { origin?: string } {
+    return this.options.sendOrigin && options?.origin !== undefined ? { origin: options.origin } : {};
+  }
+
   /**
-   * Make an RPC call via the universal client, with the timeout, the signal and the retries.
+   * Make an RPC call via the universal client, with the timeout, the signal and the retries. The
+   * wait before retry `n` is `backoffDelay(backoff, n)`, or the wait that the error asks for when
+   * it is longer.
    */
   private async call<TRes>(operation: keyof Required<ApiStorageOptions>["operations"], payload: unknown): Promise<TRes> {
     if (this.closed) throw new Error(`The ApiStorage of ${this.options.service} is closed`);
@@ -404,8 +585,8 @@ export class ApiStorage<T> implements CollectionStorage<T> {
         if (attempt >= this.options.attempts || !isRetryable(error) || this.options.signal?.aborted) {
           throw error;
         }
-        const delay = this.options.retryDelay * 2 ** (attempt - 1);
-        await untilAborted(new Promise((resolve) => setTimeout(resolve, delay)), this.options.signal, () => error as Error);
+        const delay = Math.max(backoffDelay(this.options.backoff, attempt, this.options.random), retryAfterOf(error));
+        await wait(this.options.clock, delay, this.options.signal, () => error as Error);
       }
     }
   }
@@ -415,9 +596,9 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     const signals: AbortSignal[] = [];
     if (this.options.signal) signals.push(this.options.signal);
     const timer = this.options.timeout > 0 ? new AbortController() : undefined;
-    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    let cancelTimeout: (() => void) | undefined;
     if (timer) {
-      timeoutHandle = setTimeout(() => timer.abort(), this.options.timeout);
+      cancelTimeout = this.options.clock.after(this.options.timeout, () => timer.abort());
       signals.push(timer.signal);
     }
     const signal = signals.length === 0 ? undefined : signals.length === 1 ? signals[0] : AbortSignal.any(signals);
@@ -432,7 +613,7 @@ export class ApiStorage<T> implements CollectionStorage<T> {
     return untilAborted(call, signal, () =>
       timer?.signal.aborted ? new Error(`${label} timed out after ${this.options.timeout} ms`) : new Error(`${label} was aborted`)
     ).finally(() => {
-      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+      cancelTimeout?.();
     });
   }
 }

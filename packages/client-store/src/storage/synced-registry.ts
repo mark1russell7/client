@@ -5,13 +5,14 @@
  * Enables procedure persistence and sync across backends.
  */
 
-import type { CollectionStorage } from "@procedures/collections";
+import { StorageListeners, type CollectionStorage } from "@procedures/collections";
 import { ProcedureRegistry } from "@procedures/client";
 import type { AnyProcedure, ProcedurePath, RegistrationOptions } from "@procedures/client";
 import { pathToKey } from "@procedures/client";
 import type {
   SerializedProcedure,
   SyncedRegistryOptions,
+  SyncError,
   SyncResult,
   SyncStatus,
   SyncDirection,
@@ -21,7 +22,7 @@ import type {
 } from "./types.js";
 import { ProcedureStorageAdapter } from "./adapter.js";
 import { serializeProcedure, deserializeProcedure, getSerializedKey } from "./serialization.js";
-import { optionalMs, toMs, type Duration } from "@procedures/client";
+import { optionalMs, realClock, toMs, type Cancel, type Clock, type Duration } from "@procedures/client";
 import type { HybridMode } from "./hybrid.js";
 
 /** A storage with modes: `HybridStorage` (roadmap R28). */
@@ -155,8 +156,17 @@ export class SyncedProcedureRegistry {
   /** Whether currently syncing */
   private syncing = false;
 
-  /** Auto-sync interval handle */
-  private syncIntervalHandle: ReturnType<typeof setInterval> | undefined;
+  /** The clock of the auto-sync */
+  private readonly clock: Clock;
+
+  /** The auto-sync that runs: the timer of its next sync */
+  private autoSync: { cancel: Cancel | undefined } | undefined;
+
+  /** The failures of the auto-sync and of the write-through writes that a later success did not clear */
+  private readonly failures = new Map<SyncError["operation"], SyncError>();
+
+  /** The listeners of `onStatus()` */
+  private readonly statusListeners = new StorageListeners<SyncStatus>();
 
   constructor(
     baseRegistry: ProcedureRegistry,
@@ -175,6 +185,7 @@ export class SyncedProcedureRegistry {
       handlerLoader: options.handlerLoader,
       syncOnInit: options.syncOnInit ?? false,
     };
+    this.clock = options.clock ?? realClock;
 
     // The storage procedures of this registry find this wrapper
     STORES.set(baseRegistry, this);
@@ -216,11 +227,12 @@ export class SyncedProcedureRegistry {
     }
     this.pendingDeletes.delete(key);
     if (this.options.writeStrategy === "write-through") {
-      // Write-through: persist now. flushWrites() waits for these writes.
+      // Write-through: persist now. flushWrites() waits for these writes. A failure goes to the status.
       this.track(
-        this.storeRecords([registered]).catch((err) => {
-          console.error(`Failed to persist procedure ${key}:`, err);
-        })
+        this.storeRecords([registered]).then(
+          () => this.succeed("push"),
+          (error: unknown) => this.fail("push", new Error(`Failed to persist procedure ${key}`, { cause: error })),
+        )
       );
     } else {
       // Write-back: queue for later sync
@@ -244,9 +256,10 @@ export class SyncedProcedureRegistry {
       this.touch(key);
       if (this.options.writeStrategy === "write-through") {
         this.track(
-          this.adapter.remove(path).catch((err) => {
-            console.error(`Failed to remove procedure ${key} from storage:`, err);
-          })
+          this.adapter.remove(path).then(
+            () => this.succeed("push"),
+            (error: unknown) => this.fail("push", new Error(`Failed to remove procedure ${key} from storage`, { cause: error })),
+          )
         );
       } else {
         this.pendingDeletes.set(key, path);
@@ -509,9 +522,11 @@ export class SyncedProcedureRegistry {
   }
 
   /**
-   * Get current sync status.
+   * Get current sync status. `error` is the newest failure of the auto-sync or of a write-through
+   * write that a later success did not clear.
    */
   getStatus(): SyncStatus {
+    const error = [...this.failures.values()].at(-1);
     return {
       connected: this.connected,
       endpoint: this.endpoint,
@@ -519,7 +534,30 @@ export class SyncedProcedureRegistry {
       pendingChanges: this.pendingChanges.size + this.pendingDeletes.size,
       syncing: this.syncing,
       mode: this.getMode(),
+      ...(error !== undefined && { error }),
     };
+  }
+
+  /**
+   * This method sends the status to a listener after each failure and each success of the auto-sync
+   * and of the write-through writes (roadmap CLI-13). Before, the failures went to the console.
+   *
+   * @returns The function that stops the status. A second use of it does nothing.
+   */
+  onStatus(listener: (status: SyncStatus) => void): () => void {
+    return this.statusListeners.add(listener);
+  }
+
+  /** This method keeps a failure for the status, and sends the status. */
+  private fail(operation: SyncError["operation"], error: unknown): void {
+    this.failures.delete(operation);
+    this.failures.set(operation, { operation, error });
+    this.statusListeners.emit(this.getStatus());
+  }
+
+  /** This method clears the failure of an operation after a success, and sends the status. */
+  private succeed(operation: SyncError["operation"]): void {
+    if (this.failures.delete(operation)) this.statusListeners.emit(this.getStatus());
   }
 
   // ===========================================================================
@@ -560,31 +598,38 @@ export class SyncedProcedureRegistry {
     // A number is the internal form of the option, in milliseconds
     const intervalMs = typeof interval === "number" ? interval : toMs(interval, "interval");
     this.stopAutoSync();
-    const handle = setInterval(() => {
-      // One auto-sync at a time, and none after close()
-      if (this.closed || this.autoSyncRun) return;
-      const run = this.sync("both")
-        .catch((err) => {
-          console.error("Auto-sync failed:", err);
-        })
-        .finally(() => {
-          if (this.autoSyncRun === run) this.autoSyncRun = undefined;
-        });
-      this.autoSyncRun = run;
-    }, intervalMs);
-    // Don't let the auto-sync timer keep the process alive. See BUGS-2026-07.md (M4).
-    handle.unref?.();
-    this.syncIntervalHandle = handle;
+    const loop: { cancel: Cancel | undefined } = { cancel: undefined };
+    this.autoSync = loop;
+    // The next sync waits for the interval after the end of the last one: one auto-sync at a time
+    const arm = (): void => {
+      const cancel = this.clock.after(intervalMs, () => {
+        loop.cancel = undefined;
+        // None after close() or stopAutoSync()
+        if (this.closed || this.autoSync !== loop) return;
+        const run = this.sync("both")
+          .then(
+            () => this.succeed("sync"),
+            (error: unknown) => this.fail("sync", error),
+          )
+          .finally(() => {
+            if (this.autoSyncRun === run) this.autoSyncRun = undefined;
+            if (!this.closed && this.autoSync === loop) arm();
+          });
+        this.autoSyncRun = run;
+      });
+      // Don't let the auto-sync timer keep the process alive. See BUGS-2026-07.md (M4).
+      cancel.unref?.();
+      loop.cancel = cancel;
+    };
+    arm();
   }
 
   /**
    * Stop auto-sync.
    */
   stopAutoSync(): void {
-    if (this.syncIntervalHandle) {
-      clearInterval(this.syncIntervalHandle);
-      this.syncIntervalHandle = undefined;
-    }
+    this.autoSync?.cancel?.();
+    this.autoSync = undefined;
   }
 
   // ===========================================================================

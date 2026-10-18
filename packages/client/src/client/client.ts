@@ -30,6 +30,7 @@ import type {
   Method,
   Metadata,
   Message,
+  ResponseItem,
   ClientMiddleware,
   ClientContext,
   ClientRunner,
@@ -56,8 +57,19 @@ import { RouteResolver, type ResolvedRoute, type RouteResolutionResult } from ".
 import { BatchExecutor, type ExecutionContext } from "./batch-executor.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { EventBus } from "../events/types.js";
+import {
+  remoteEvents,
+  subscribeRemote,
+  type EventTransport,
+  type RemoteEvent,
+  type RemoteEventHandler,
+  type RemoteEventsOptions,
+  type SubscribeOptions,
+  type Subscription,
+} from "../events/remote.js";
 import { narrowCapability } from "../procedures/capability.js";
-import { TIMEOUT_METADATA_KEY, absorbTimeout, writeRemainingTime } from "./deadline.js";
+import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY, absorbTimeout, writeRemainingTime } from "./deadline.js";
+import { ms } from "../duration.js";
 import type { Capability, ClearanceOrder, NestedCallOptions } from "../procedures/types.js";
 import { PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { validateSchema } from "../procedures/schema.js";
@@ -170,6 +182,12 @@ function callerOf(options: ExecOptions): CallerContext {
 }
 
 /**
+ * The timeouts of a subscription: none. The timeout middleware takes 0 as "no timeout", so the
+ * timeouts of the client do not end a subscription, which has no end (roadmap CLI-15).
+ */
+const NO_SUBSCRIPTION_TIMEOUT = Object.freeze({ overall: ms(0), perAttempt: ms(0) });
+
+/**
  * Generate a unique message ID.
  */
 function generateId(): string {
@@ -221,6 +239,8 @@ export class Client<TContext = {}> {
   private readonly throwOnError: boolean;
   /** The bus of the local procedures. Undefined: the global bus. */
   private bus: EventBus | undefined;
+  /** The transport of the subscriptions through the middleware, made at the first subscription */
+  private subscriptionTransport: EventTransport | undefined;
   /** The interceptors of the local invocations (roadmap 1.2) */
   private interceptors: readonly Interceptor[] = [];
   /** The capability of the local invocations (CAPABILITIES-2026-10). Undefined: no limits. */
@@ -777,6 +797,68 @@ export class Client<TContext = {}> {
 
       yield item.payload;
     }
+  }
+
+  /**
+   * This method subscribes to topics of the event bus of the server (`documentation/EVENTS.md`).
+   * The call of `events.subscribe` goes through the middleware and the context of this client, as
+   * `stream()` does. Thus a token of the auth middleware goes with it. The subscriber resubscribes
+   * after a failure that a retry can repair, and the subscribers of the same topics share one call.
+   *
+   * A subscription has no deadline: the timeouts of the client (its timeout middleware, the
+   * `timeout` of its context and a `procedure-timeout` of its metadata) do not apply to it. For a
+   * deadline, give it in the metadata of the options, for example
+   * `{ metadata: { timeout: { overall: minutes(5) } } }`.
+   *
+   * @param topics - One topic, or a list of 1 to 64 topics
+   * @param handler - The handler of each event. A promise that it gives holds the next event.
+   * @param options - `onSubscribed`, `onError`, a signal, the metadata of the call, the resubscribe rules
+   * @returns The unsubscribe function, with the `ready` promise of the first confirmation
+   *
+   * @example
+   * ```typescript
+   * const unsubscribe = client.subscribe("collections.users", (event) => console.log(event));
+   * await unsubscribe.ready;
+   * unsubscribe();
+   * ```
+   */
+  subscribe<T = unknown>(topics: string | readonly string[], handler: RemoteEventHandler<T>, options: SubscribeOptions = {}): Subscription {
+    return subscribeRemote<T>(this.eventTransport(), topics, handler, options);
+  }
+
+  /**
+   * This method gives the events of topics of the event bus of the server as an async iterator,
+   * through the middleware of this client. A `break` or the signal ends the subscription. As for
+   * `subscribe()`, the timeouts of the client do not apply: the metadata of the options can give one.
+   *
+   * @param topics - One topic, or a list of 1 to 64 topics
+   * @param options - A signal, `onSubscribed`, the metadata of the call, the resubscribe rules
+   */
+  events<T = unknown>(topics: string | readonly string[], options: RemoteEventsOptions = {}): AsyncIterable<RemoteEvent<T>> {
+    return remoteEvents<T>(this.eventTransport(), topics, options);
+  }
+
+  /**
+   * The transport of the subscriptions of this client: each call goes through the middleware, with
+   * the context of the client in its metadata. The subscriptions of one client share it, so they
+   * share their calls. The timeouts and the deadline of the client stay out: only the metadata of
+   * the subscription can give them.
+   */
+  private eventTransport(): EventTransport {
+    if (!this.subscriptionTransport) {
+      const send = <TReq, TRes>(message: Message<TReq>): AsyncIterable<ResponseItem<TRes>> => {
+        const metadata: Metadata = { ...this.defaultMetadata, ...(this.getEffectiveContext() as object) };
+        delete metadata["timeout"];
+        delete metadata[TIMEOUT_METADATA_KEY];
+        delete metadata[DEADLINE_METADATA_KEY];
+        metadata["timeout"] = NO_SUBSCRIPTION_TIMEOUT as unknown as NonNullable<Metadata["timeout"]>;
+        Object.assign(metadata, message.metadata);
+        absorbTimeout(metadata);
+        return this.composeMiddleware<TReq, TRes>()({ message: { ...message, metadata } });
+      };
+      this.subscriptionTransport = { send };
+    }
+    return this.subscriptionTransport;
   }
 
   /**

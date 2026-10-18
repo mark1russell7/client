@@ -201,6 +201,8 @@ The July session deferred this because it touched the core package across reposi
 
 Step 2 (delete the modules nothing uses) is a separate commit. Reverse with `git revert`.
 
+**Superseded on 2026-10-12.** Commit `0fe2fbc` (roadmap 3.2 and 3.3) moved `ApiStorage`, `HybridStorage` and the synced registry from `client` to `@procedures/store` (`packages/client-store`). The core declares its own copy of `CollectionStorage`, so `client` does not depend on `@procedures/collections` any more. The subpath `/collections` of `client` does not exist. Import the two storages from `@procedures/store`.
+
 ### Delete ecosystem (plan Phase 5.1)
 
 The manifest (`ecosystem.manifest.json`) listed one repository per package. The workspace (`pnpm-workspace.yaml`) is that list now. All readers of the manifest in this repository moved to the workspace:

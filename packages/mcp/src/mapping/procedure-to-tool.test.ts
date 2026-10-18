@@ -5,7 +5,18 @@
 
 import { describe, it, expect } from "vitest";
 import { defineProcedure, markDataDriven, outputSchema, type AnyProcedure } from "@procedures/client";
-import { effectsSentence, procedureToMcpTool, toolDescription, toToolDefinition } from "./procedure-to-tool.js";
+import {
+  createToolMap,
+  effectsSentence,
+  findToolByPath,
+  procedureToMcpTool,
+  proceduresToMcpTools,
+  toolDescription,
+  toToolDefinition,
+  UNTRUSTED_FIELD_DESCRIPTION,
+  withUntrustedFields,
+} from "./procedure-to-tool.js";
+import { decodePath, encodePath, isValidPath, isValidPathSegment, sanitizePathSegment } from "./path-encoder.js";
 
 function procedure(path: string[], metadata: Record<string, unknown>): AnyProcedure {
   return defineProcedure({
@@ -65,5 +76,79 @@ describe("the description of a defined procedure (roadmap R23)", () => {
 
   it("writes a list of effects in words", () => {
     expect(effectsSentence({ reads: ["fs"], writes: ["fs", "network"] })).toBe("It reads fs and changes fs and network.");
+  });
+});
+
+describe("the title and the untrusted fields of a tool (CLI-10)", () => {
+  const page = (metadata: Record<string, unknown>): AnyProcedure =>
+    defineProcedure({
+      path: ["web", "read"],
+      input: outputSchema<Record<string, never>>(),
+      // A schema with its own JSON Schema (`~jsonSchema`): this package has no zod
+      output: Object.assign(outputSchema<unknown>(), {
+        "~jsonSchema": {
+          type: "object",
+          properties: { doc: { type: "string" }, text: { type: "array", items: { type: "object", properties: { text: { type: "string" } } } } },
+        },
+      }),
+      metadata,
+      handler: async () => ({ doc: "d", text: [] }),
+    }) as AnyProcedure;
+
+  it("gives the title of the procedure to the tool and to its definition", () => {
+    const tool = procedureToMcpTool(page({ title: "Read a page" }));
+    expect(tool.title).toBe("Read a page");
+    expect(toToolDefinition(tool).title).toBe("Read a page");
+    expect(procedureToMcpTool(page({ title: "" })).title).toBeUndefined();
+  });
+
+  it("makes each untrusted field a string in the output schema, and keeps the cached schema", () => {
+    const procedure = page({ untrusted: ["text"] });
+    const tool = procedureToMcpTool(procedure);
+    expect(tool.untrusted).toEqual(["text"]);
+    expect(tool.outputSchema?.properties?.["text"]).toEqual({ type: "string", description: UNTRUSTED_FIELD_DESCRIPTION });
+    expect(tool.outputSchema?.properties?.["doc"]).toMatchObject({ type: "string" });
+    // The cache keeps the schema of the procedure: a tool without untrusted fields gets an array
+    expect(procedureToMcpTool(page({})).outputSchema?.properties?.["text"]).toMatchObject({ type: "array" });
+    const schema = { type: "object", properties: { a: { type: "number" } } };
+    expect(withUntrustedFields(schema, ["b"])).toEqual({ type: "object", properties: { a: { type: "number" }, b: { type: "string", description: UNTRUSTED_FIELD_DESCRIPTION } } });
+    expect(schema.properties).toEqual({ a: { type: "number" } });
+  });
+});
+
+describe("the override of the hints of a tool (CLI-10)", () => {
+  it("gives the cautious values of the override in the annotations", () => {
+    const tool = procedureToMcpTool(procedure(["store", "read"], { effects: { reads: ["store"], writes: [] }, toolHints: { openWorldHint: true } }));
+    expect(tool.annotations).toEqual({ readOnlyHint: true, openWorldHint: true });
+    const plain = procedureToMcpTool(procedure(["any", "thing"], { toolHints: { destructiveHint: true } }));
+    expect(toToolDefinition(plain).annotations).toEqual({ destructiveHint: true });
+  });
+});
+
+describe("the names and the lookup of tools", () => {
+  it("validates and sanitizes the segments of a path", () => {
+    expect(isValidPath(["git", "status"])).toBe(true);
+    expect(isValidPath([])).toBe(false);
+    expect(isValidPathSegment("9lives")).toBe(false);
+    expect(sanitizePathSegment("a.b")).toBe("a_b");
+    expect(sanitizePathSegment("9")).toBe("_9");
+    expect(sanitizePathSegment("")).toBe("_");
+    expect(decodePath(encodePath(["a", "b"]))).toEqual(["a", "b"]);
+  });
+
+  it("finds a tool by its path in a list and in a map", () => {
+    const tools = proceduresToMcpTools([procedure(["files", "read"], {}), procedure(["files", "write"], {})], { pathPrefix: ["files"] });
+    const map = createToolMap(tools);
+    expect(findToolByPath(map, ["files", "write"])?.name).toBe("files.write");
+    expect(findToolByPath(tools, ["files", "read"])?.name).toBe("files.read");
+    expect(findToolByPath(tools, ["files", "gone"])).toBeUndefined();
+  });
+
+  it("filters the tools by tags and by the internal mark", () => {
+    const tagged = procedure(["t", "a"], { tags: ["public"] });
+    const hidden = procedure(["t", "b"], { internal: true, tags: ["secret"] });
+    expect(proceduresToMcpTools([tagged, hidden], { includeTags: ["public"] }).map((tool) => tool.name)).toEqual(["t.a"]);
+    expect(proceduresToMcpTools([tagged, hidden], { excludeTags: ["secret"], excludeInternal: false }).map((tool) => tool.name)).toEqual(["t.a"]);
+    expect(proceduresToMcpTools([tagged, hidden], { excludeInternal: false }).map((tool) => tool.name)).toEqual(["t.a", "t.b"]);
   });
 });

@@ -21,13 +21,49 @@
  * - A full sync reads the local ids with `getIds()`, so it does not copy each local item.
  * - A pull reads a local item only when the result depends on it. With `versionOf`, the storage
  *   knows the version of each local item that it wrote or read.
+ * - The timers run on the clock of the options. After a failed push, pull or send of the queue,
+ *   the next delay grows with `backoffDelay` of `@mark1russell7/service/backoff` (roadmap CLI-13).
+ * - `getStatus()` and `onStatus()` give the state of the sync and its errors. Before, the errors
+ *   went to the console.
+ * - `query()` runs a selector on the local copy, or on the remote in `remote-only` mode.
  * - After `close()`, each operation rejects, and a second `close()` does nothing.
+ *
+ * The sync engine of roadmap CLI-21 (decision D9: a SignalDB collection is one strategy of the local copy):
+ * - `observe()` gives the batches of the changes of the storage, with their origins.
+ * - `capture: "observe"` queues the changes that the application writes to the local copy itself.
+ * - `syncState` keeps the cursor and the base versions after a reload.
+ * - `feed` pushes the remote deltas. A delta whose `since` is the cursor applies without a read.
+ * - A pull never erases a delta that came during it, and the echo of an older own write never
+ *   writes over a newer local write.
+ * - The syncs of one storage run one at a time, in their order: the deltas and the hints of the
+ *   feed, the pulls, the pushes, the reads after an own write, and the mode switches. Thus a
+ *   remote delta and a full sync never run at the same time (Graph R18).
  */
 
-import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
-import { InMemoryStorage } from "@procedures/collections";
-import { optionalMs, type Duration } from "@procedures/client";
+import type {
+  CollectionStorage,
+  StorageChangeBatch,
+  StorageChangeEvent,
+  StorageChanges,
+  StorageMetadata,
+  StorageObserver,
+  StorageWriteOptions,
+} from "@procedures/collections";
+import { InMemoryStorage, StorageListeners, type ListenerErrorHandler } from "@procedures/collections";
+import {
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+} from "@procedures/client/query";
+import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
+import { backoffDelay } from "@mark1russell7/service/backoff";
 import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
+import type { SyncError, SyncStatus } from "./types.js";
+import type { RemoteChangeFeed, RemoteChangeHint, RemoteChanges } from "./feed.js";
+import { isSyncState, type SyncStateStore } from "./sync-state.js";
 
 /**
  * Conflict resolution strategy.
@@ -168,11 +204,223 @@ export interface HybridStorageOptions {
    * The storage of the local copy (roadmap R45). A durable storage, for example `SqliteStorage`
    * of `@procedures/sqlite`, keeps the local copy after a restart. Then a new storage in
    * `local-only` mode reads the items of the last run. Give it with a durable `queueStore`.
-   * `close()` closes it. Only the storage writes to the local copy: with `versionOf`, a pull does
-   * not see a write from outside.
+   * `close()` closes it. Without `capture`, only the storage writes to the local copy: with
+   * `versionOf`, a pull does not see a write from outside.
    * @default a new `InMemoryStorage`
    */
   local?: LocalCopyStorage<any>;
+
+  /**
+   * The capture of the writes of the application to the local copy (roadmap CLI-21).
+   *
+   * - `"none"`: only the storage writes to the local copy.
+   * - `"observe"`: the storage observes the local copy, and it queues each change whose origin is
+   *   not `origin`. The application can then write to the local copy directly, for example with
+   *   the synchronous writes of a SignalDB collection. The local copy must have `observe()`.
+   *
+   * A captured change always goes in the queue, because the application made it already: the limit
+   * `maxOfflineOps` does not refuse it. In the modes `write-through` and `remote-only`, the storage
+   * sends the queue at once.
+   * @default "none"
+   */
+  capture?: "none" | "observe";
+
+  /**
+   * The tag of the writes of this storage (roadmap CLI-21). Each write of the storage to the local
+   * copy and to the remote has it. Thus `capture` knows the writes of the storage, and the change
+   * events of a server tell which writes came from this storage.
+   * @default a new random tag: `hybrid-` and 8 characters
+   */
+  origin?: string;
+
+  /**
+   * The origin of the changes that the sync makes in the local copy, in the batches of `observe()`:
+   * a pull, a delta of the feed, a fill after a read, a mode switch and the load of the queue.
+   * @default "sync"
+   */
+  syncOrigin?: string;
+
+  /**
+   * The push feed of the remote changes, for example `EventsChangeFeed` (roadmap CLI-21, CLI-15).
+   * The storage subscribes in the modes `write-through` and `write-back`.
+   *
+   * - A delta whose `since` is the cursor applies without a read of the remote.
+   * - A delta of the version of the cursor changes nothing: a pull read it already.
+   * - Another delta, a gap, a lost event or a new subscription makes the storage pull the changes
+   *   since its cursor. Many requests while a pull waits make one pull.
+   * - A delta that comes during a pull applies after the pull, so the pull does not erase it.
+   * - A hint without values (the default of the change events) makes a pull: the values come
+   *   through the checks of a read. A hint with only deletes applies without a read.
+   * - The deltas, the hints, the pulls, the pushes and the mode switches run one at a time. A
+   *   remote delta and a full sync never run at the same time.
+   */
+  feed?: RemoteChangeFeed<any>;
+
+  /**
+   * The store of the sync state: the cursor and the base versions (roadmap CLI-21). A new storage
+   * with the same store asks the remote only for the changes since the cursor, and it finds the
+   * conflicts of the base versions. `IndexedDbSyncStateStore` of `@procedures/store/indexeddb`
+   * keeps the state in a browser.
+   *
+   * The state belongs to the local copy. The storage uses a loaded cursor only with the option
+   * `local` and a local copy that has items. Give it with a durable local copy.
+   */
+  syncState?: SyncStateStore;
+
+  /**
+   * With `versionOf` or a `feed`: the time that the storage keeps the mark of an own write for its
+   * echo (roadmap CLI-21). The mark is the version, or else the JSON of the value. While a newer own
+   * write of an id waits for its echo, a remote change with the mark of an older own write is stale,
+   * and the storage does not apply it. A local delete is a tombstone: an older echo does not bring
+   * the item back. The time starts again when the write goes to the remote.
+   * @default 30 seconds
+   */
+  echoWindow?: Duration;
+
+  /**
+   * The clock of the timers: the push of `write-back`, the periodic pull, and the send of the queue
+   * after a failure. A test gives `fakeClock` of `@mark1russell7/service/testing`. The timers do
+   * not keep a Node process alive.
+   * @default the clock of the platform (`realClock` of `@procedures/client`)
+   */
+  clock?: Clock;
+
+  /**
+   * The growth of the delays after a failure (roadmap CLI-13). After `n` failed runs of a timer in
+   * a row, its next delay is `interval × factor^n`, at most `maxDelay`, with the random part
+   * `jitter`. A run that succeeds sets the delay back to the interval.
+   */
+  backoff?: {
+    /** @default 2 */
+    factor?: number;
+    /** The longest backoff, for example `minutes(5)`. A timer with a longer interval uses its interval. @default 5 minutes */
+    maxDelay?: Duration;
+    /** The random part of each delay after a failure, from 0 to 1. @default 0.5 */
+    jitter?: number;
+  };
+
+  /**
+   * The random numbers of the jitter, from 0 up to 1. A test gives a fixed generator.
+   * @default Math.random
+   */
+  random?: () => number;
+
+  /**
+   * The function that gets the error of a listener of `onStatus()`. The default throws the error
+   * again in a microtask.
+   */
+  onListenerError?: ListenerErrorHandler;
+
+  /**
+   * The query policy of `query()` for a call without a policy. The storage gives it to the local
+   * copy, or to the remote in `remote-only` mode. The procedure `find` gives the policy of its host.
+   * @default DEFAULT_QUERY_POLICY: no `$regex`
+   */
+  queryPolicy?: StorageQueryPolicy;
+}
+
+/** The kinds of the timers of a `HybridStorage`. */
+interface TimerOptions {
+  readonly clock: Clock;
+  /** The delay of a run after a run that succeeded, in milliseconds */
+  readonly interval: number;
+  readonly factor: number;
+  readonly maxDelay: number;
+  readonly jitter: number;
+  readonly random: () => number;
+  /** True: the timer runs again after a run that succeeded. False: it stops. */
+  readonly repeat: boolean;
+  readonly work: () => Promise<unknown>;
+}
+
+/**
+ * A timer of a `HybridStorage` on a clock. It runs `work` after its interval. After a failed run,
+ * the next delay grows with `backoffDelay` (roadmap CLI-13). The timer does not keep a Node
+ * process alive.
+ */
+class SyncTimer {
+  private cancel: Cancel | undefined;
+  private active = false;
+  /** True while `work` runs */
+  private running = false;
+  /** True when `start()` came during a run: the timer waits again after the run */
+  private again = false;
+  private failures = 0;
+
+  constructor(private readonly options: TimerOptions) {}
+
+  /**
+   * This method starts the timer. A timer that waits does not start again. A start during a run
+   * makes the timer wait again after the run, also when it does not repeat.
+   */
+  start(): void {
+    if (this.running) {
+      this.again = true;
+      if (this.active) return;
+      this.active = true;
+      this.failures = 0;
+      return;
+    }
+    if (this.active) return;
+    this.active = true;
+    this.failures = 0;
+    this.arm();
+  }
+
+  /** This method stops the timer. A run that is on its way ends, and no next run starts. */
+  stop(): void {
+    this.active = false;
+    this.again = false;
+    this.cancel?.();
+    this.cancel = undefined;
+  }
+
+  /** The delay of the next run: the interval, or the backoff after failures. */
+  private delay(): number {
+    const { interval, factor, maxDelay, jitter, random } = this.options;
+    if (this.failures === 0) return interval;
+    return backoffDelay(
+      {
+        base: interval,
+        factor,
+        cap: Math.max(maxDelay, interval),
+        jitter: jitter > 0 ? { kind: "subtract", fraction: jitter } : { kind: "none" },
+      },
+      this.failures + 1,
+      random,
+    );
+  }
+
+  private arm(): void {
+    const cancel = this.options.clock.after(this.delay(), () => {
+      this.cancel = undefined;
+      void this.run();
+    });
+    // The timer must not keep the process alive (deep dive DATA-9)
+    cancel.unref?.();
+    this.cancel = cancel;
+  }
+
+  private async run(): Promise<void> {
+    if (!this.active) return;
+    this.running = true;
+    let failed = false;
+    try {
+      await this.options.work();
+      this.failures = 0;
+    } catch {
+      // The work reports its error in the status of the storage
+      failed = true;
+      this.failures++;
+    } finally {
+      this.running = false;
+    }
+    if (!this.active) return;
+    const again = this.again;
+    this.again = false;
+    if (failed || again || this.options.repeat) this.arm();
+    else this.active = false;
+  }
 }
 
 /**
@@ -242,6 +490,18 @@ export class ModeSwitchError extends Error {
   }
 }
 
+/**
+ * The sync state store failed (roadmap CLI-21). The storage goes on: after a failed load, the first
+ * pull reads all items, and after a failed write, the next write gives the whole state.
+ */
+export class SyncStateError extends Error {
+  override readonly name = "SyncStateError";
+  readonly code = "SYNC_STATE";
+  constructor(action: "load" | "write", cause: unknown) {
+    super(`The sync state store could not ${action === "load" ? "load the state" : "keep the state"}`, { cause });
+  }
+}
+
 const defaultIsUnavailable = (error: unknown): boolean => {
   if (typeof error !== "object" || error === null) return true;
   const { retryable, code } = error as { retryable?: unknown; code?: unknown };
@@ -266,6 +526,186 @@ function checkMode(mode: unknown): HybridMode {
 
 /** The changes that a pull applies: from `getChangesSince`, or all entries. */
 type PulledChanges<T> = Omit<StorageChanges<T>, "version"> & { version?: string };
+
+/** The data of a queued operation of each type. */
+type OperationData<T> = { id: string; value: T; ids: string[]; items: Array<[string, T]> };
+
+/** A change with an origin, when there is one. */
+function withOrigin<T>(change: StorageChangeEvent<T>, origin: string | undefined): StorageChangeEvent<T> {
+  return origin === undefined ? change : { ...change, origin };
+}
+
+/** A `set` change with a copy of the value: an observer cannot change the stored item. */
+function setChange<T>(id: string, value: T, origin: string | undefined): StorageChangeEvent<T> {
+  return withOrigin<T>({ type: "set", id, value: structuredClone(value) }, origin);
+}
+
+/**
+ * The queued operations of a batch of changes of the local copy (roadmap CLI-21). The sets in a
+ * row go in one operation, and the deletes in a row too. Each value is a copy.
+ */
+function operationsOf<T>(changes: readonly StorageChangeEvent<T>[]): QueuedOperation[] {
+  const ops: QueuedOperation[] = [];
+  const timestamp = Date.now();
+  let sets: Array<[string, T]> = [];
+  let deletes: string[] = [];
+  const flush = (): void => {
+    if (sets.length === 1) ops.push({ type: "set", data: { id: sets[0]![0], value: sets[0]![1] }, timestamp });
+    else if (sets.length > 1) ops.push({ type: "setBatch", data: { items: sets }, timestamp });
+    if (deletes.length === 1) ops.push({ type: "delete", data: { id: deletes[0] }, timestamp });
+    else if (deletes.length > 1) ops.push({ type: "deleteBatch", data: { ids: deletes }, timestamp });
+    sets = [];
+    deletes = [];
+  };
+  for (const change of changes) {
+    if (change.type === "set") {
+      if (deletes.length > 0) flush();
+      sets.push([change.id, structuredClone(change.value)]);
+    } else if (change.type === "delete") {
+      if (sets.length > 0) flush();
+      deletes.push(change.id);
+    } else {
+      flush();
+      ops.push({ type: "clear", data: {}, timestamp });
+    }
+  }
+  flush();
+  return ops;
+}
+
+/**
+ * The batch of a write of the `remote-only` mode. A delete gives a change only for an id that
+ * existed: `existing` has the ids of a `deleteBatch`, or tells if a `clear` found items.
+ */
+function remoteChangesOf<T>(op: QueuedOperation, result: unknown, existing: ReadonlySet<string> | boolean | undefined, origin: string | undefined): StorageChangeEvent<T>[] {
+  const data = op.data as OperationData<T>;
+  switch (op.type) {
+    case "set":
+      return [setChange(data.id, data.value, origin)];
+    case "setBatch":
+      return data.items.map(([id, value]) => setChange(id, value, origin));
+    case "delete":
+      return result === true ? [withOrigin<T>({ type: "delete", id: data.id }, origin)] : [];
+    case "deleteBatch":
+      return [...new Set(data.ids)].filter((id) => existing instanceof Set && existing.has(id)).map((id) => withOrigin<T>({ type: "delete", id }, origin));
+    case "clear":
+      return existing === true ? [withOrigin<T>({ type: "clear" }, origin)] : [];
+  }
+}
+
+/** One version of an own write in the echo ledger. */
+interface EchoEntry {
+  /** The version that the write gives, or `null` for a delete */
+  readonly version: string | null;
+  /** The time of the write, or of its send to the remote */
+  at: number;
+}
+
+/**
+ * The versions of the own writes of a `HybridStorage` that no remote change echoed yet (roadmap
+ * CLI-21, after the EchoLedger of Graph).
+ *
+ * - The ledger keeps the versions of each id in the order of the writes. It records a write when
+ *   the local copy takes it, because a stale echo can come before the push.
+ * - A remote change with a version of the ledger is an echo: that version and each older version
+ *   leave the ledger. When a newer version stays, the echo is stale: the newer echo comes later.
+ * - A remote change with another version is a write of another writer.
+ * - A version expires `window` milliseconds after its write, or after its send to the remote. Thus
+ *   a write whose echo never comes does not hold an id long.
+ */
+class EchoLedger {
+  /** The versions of each id, the oldest first. The ids are in the order of their last write. */
+  private readonly entries = new Map<string, EchoEntry[]>();
+
+  constructor(
+    private readonly window: number,
+    private readonly now: () => number,
+    private readonly maxPerId = 20,
+    private readonly maxIds = 10_000,
+  ) {}
+
+  /** This method records the version that an own write of an id gives. `null`: a delete. */
+  wrote(id: string, version: string | null): void {
+    const now = this.now();
+    const list = this.live(id, now);
+    list.push({ version, at: now });
+    if (list.length > this.maxPerId) list.shift();
+    // The id moves to the end: the ids stay in the order of their last write
+    this.entries.delete(id);
+    this.entries.set(id, list);
+    this.prune(now);
+  }
+
+  /** This method records a delete of each id of the ledger: an own clear. */
+  cleared(): void {
+    for (const id of [...this.entries.keys()]) this.wrote(id, null);
+  }
+
+  /** This method starts the time of the versions of an id again: its write goes to the remote. */
+  sent(id: string): void {
+    const list = this.entries.get(id);
+    if (!list) return;
+    const now = this.now();
+    for (const entry of list) entry.at = now;
+    this.entries.delete(id);
+    this.entries.set(id, list);
+  }
+
+  /**
+   * True when a remote version of an id is a stale echo: a version of the ledger, with a newer
+   * version after it. The echo takes its version and each older version out of the ledger.
+   */
+  isStale(id: string, version: string | null): boolean {
+    const list = this.live(id, this.now());
+    const at = list.findIndex((entry) => entry.version === version);
+    if (at < 0) return false;
+    list.splice(0, at + 1);
+    if (list.length > 0) return true;
+    this.entries.delete(id);
+    return false;
+  }
+
+  /** The versions of an id that did not expire. */
+  private live(id: string, now: number): EchoEntry[] {
+    const list = this.entries.get(id);
+    if (!list) return [];
+    const kept = list.filter((entry) => now - entry.at < this.window);
+    if (kept.length === 0) this.entries.delete(id);
+    else this.entries.set(id, kept);
+    return kept;
+  }
+
+  /** This method drops the ids whose versions expired, and the oldest ids above the limit. */
+  private prune(now: number): void {
+    for (const [id, list] of this.entries) {
+      if (this.entries.size <= this.maxIds && now - list[list.length - 1]!.at < this.window) break;
+      this.entries.delete(id);
+    }
+  }
+}
+
+/**
+ * The base versions of a `HybridStorage`: a map that keeps the ids that changed since the last
+ * write of the sync state (roadmap CLI-21). Without a sync state store, it keeps no ids.
+ */
+class BaseVersions extends Map<string, string | null> {
+  /** The ids that changed since the last write of the sync state */
+  readonly changed = new Set<string>();
+  /** True when the storage has a sync state store */
+  tracked = false;
+
+  override set(id: string, version: string | null): this {
+    super.set(id, version);
+    if (this.tracked) this.changed.add(id);
+    return this;
+  }
+
+  override delete(id: string): boolean {
+    const had = super.delete(id);
+    if (had && this.tracked) this.changed.add(id);
+    return had;
+  }
+}
 
 /**
  * A storage for the local copy of a `HybridStorage` (roadmap R45): a collection storage that gives
@@ -327,14 +767,25 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private storeDirty = false;
   /** The calls of the queue store, one at a time */
   private storeChain: Promise<unknown> = Promise.resolve();
-  /** The push timer of the write-back mode */
-  private syncTimer: ReturnType<typeof setInterval> | null = null;
-  /** The periodic pull */
-  private pullTimer: ReturnType<typeof setInterval> | null = null;
+  /** The push timer of the write-back mode, or undefined without `syncInterval` */
+  private readonly pushTimer: SyncTimer | undefined;
+  /** The periodic pull, or undefined without `pullInterval` */
+  private readonly pullTimer: SyncTimer | undefined;
   /** True while pushQueue sends the queue: the first operation can be on its way */
   private pushing = false;
   /** The timer that sends the queue of the write-through mode after a failure */
-  private drainTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly drainTimer: SyncTimer;
+  /** The failures that a later success did not clear, the newest last */
+  private readonly failures = new Map<SyncError["operation"], SyncError>();
+  /** The number of pushes and pulls that run */
+  private syncs = 0;
+  /** The time of the last pull that succeeded (`Date.now()`) */
+  private lastSync: number | undefined;
+  /** The listeners of `onStatus()`, and the status that they got last */
+  private readonly statusListeners: StorageListeners<SyncStatus>;
+  private lastStatus: SyncStatus | undefined;
+  /** The query policy of a call without a policy */
+  private readonly queryPolicy: StorageQueryPolicy | undefined;
   /** The load of the queue. The writes wait for it. */
   private readonly loaded: Promise<void>;
   /** The load and the first sync. The reads wait for it, so a read never sees an empty cache by mistake. */
@@ -361,7 +812,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /** True when the remote has `getChangesSince` but its server does not know `changes` */
   private changesUnsupported = false;
   /** With `versionOf`: the last known remote version of each id. `null`: the remote has no item. */
-  private readonly bases = new Map<string, string | null>();
+  private readonly bases = new BaseVersions();
   /**
    * With `versionOf`: the version of each local item that the storage wrote or read. A pull does
    * not read an item whose version it knows. The version of an id that is not here is unknown.
@@ -372,6 +823,46 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private localWriteCount = 0;
   /** The number of clears of the local copy: a clear cancels the records of the writes that run */
   private localClears = 0;
+  /** The observers of `observe()` */
+  private readonly observers: StorageListeners<StorageChangeBatch<T>>;
+  /** The tag of the writes of this storage, and the write options that give it */
+  private readonly origin: string;
+  private readonly own: StorageWriteOptions;
+  /** The origin of the changes that the sync makes in the local copy */
+  private readonly syncOrigin: string;
+  /** The push feed, the stop of its subscription, and the number of the subscription */
+  private readonly feed: RemoteChangeFeed<T> | undefined;
+  private feedStop: (() => void) | undefined;
+  private feedToken = 0;
+  /** True while a pull that a gap asked for waits to start */
+  private gapPull = false;
+  /** The stop of the capture of the local copy */
+  private readonly stopCapture: (() => void) | undefined;
+  /** The captured changes that came before the end of the load. Undefined after the load. */
+  private captured: StorageChangeEvent<T>[] | undefined = [];
+  /** With `versionOf`: the versions of the own writes that wait for their echo */
+  private readonly echoes: EchoLedger | undefined;
+  /** The store of the sync state, and the state of its writes */
+  private readonly stateStore: SyncStateStore | undefined;
+  private stateReset = true;
+  private savedCursor: string | undefined;
+  private stateSaving: Promise<void> | undefined;
+  private stateAgain = false;
+  /** True when the application gave the local copy */
+  private readonly localGiven: boolean;
+  /**
+   * The own writes of the `write-through` mode that wait for the remote, for each id: their number
+   * and the newest value (`undefined` for a delete). A pull does not write over these ids.
+   */
+  private readonly inFlight = new Map<string, { count: number; value: T | undefined }>();
+  /** The number of own clears that wait for the remote: each id waits */
+  private inFlightClears = 0;
+  /** The remote values that a pull did not apply because an own write of the id waited: `undefined` for a delete */
+  private readonly deferred = new Map<string, { readonly item: T | undefined }>();
+  /** The number of the last local write, of the last write of each id, and of the last clear */
+  private writeSeq = 0;
+  private readonly lastWrite = new Map<string, number>();
+  private lastClear = 0;
   private stats = {
     cacheHits: 0,
     cacheMisses: 0,
@@ -399,11 +890,503 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       offlineQueue: options.offlineQueue ?? true,
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
     };
+    this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
+    this.queryPolicy = options.queryPolicy;
+    this.origin = options.origin ?? `hybrid-${Math.random().toString(36).slice(2, 10)}`;
+    this.own = { origin: this.origin };
+    this.syncOrigin = options.syncOrigin ?? "sync";
+    this.observers = new StorageListeners<StorageChangeBatch<T>>(options.onListenerError);
+    this.feed = options.feed;
+    this.stateStore = options.syncState;
+    this.bases.tracked = this.stateStore !== undefined;
+    this.localGiven = options.local !== undefined;
+
+    // The timers on the clock, with the backoff after a failure (roadmap CLI-13)
+    const factor = options.backoff?.factor ?? 2;
+    if (!(Number.isFinite(factor) && factor >= 1)) throw new RangeError(`backoff.factor must be a number of 1 or more, not ${factor}`);
+    const jitter = options.backoff?.jitter ?? 0.5;
+    if (!(jitter >= 0 && jitter <= 1)) throw new RangeError(`backoff.jitter must be from 0 to 1, not ${jitter}`);
+    const timing = {
+      clock: options.clock ?? realClock,
+      factor,
+      maxDelay: optionalMs(options.backoff?.maxDelay, "backoff.maxDelay") ?? 300_000,
+      jitter,
+      random: options.random ?? Math.random,
+    };
+    this.pushTimer =
+      this.options.syncInterval > 0
+        ? new SyncTimer({ ...timing, interval: this.options.syncInterval, repeat: true, work: () => (this.closed ? Promise.resolve() : this.push()) })
+        : undefined;
+    this.pullTimer =
+      this.options.pullInterval > 0
+        ? new SyncTimer({ ...timing, interval: this.options.pullInterval, repeat: true, work: () => (this.closed ? Promise.resolve() : this.pull()) })
+        : undefined;
+    this.drainTimer = new SyncTimer({
+      ...timing,
+      interval: this.options.syncInterval > 0 ? this.options.syncInterval : 5000,
+      repeat: false,
+      work: () => (this.closed ? Promise.resolve() : this.push()),
+    });
+
+    // The echoes of the own writes: by version, or by the JSON of the value with a feed (roadmap CLI-21)
+    this.echoes = this.options.versionOf || this.feed
+      ? new EchoLedger(optionalMs(options.echoWindow, "echoWindow") ?? 30_000, () => timing.clock.now())
+      : undefined;
+    const capture: unknown = options.capture ?? "none";
+    if (capture !== "none" && capture !== "observe") throw new TypeError(`Unknown capture ${JSON.stringify(capture)}: use none or observe`);
+    if (capture === "observe") {
+      if (!this.local.observe) throw new TypeError('capture: "observe" needs a local copy with observe()');
+      // The capture starts before the load: a change of the application during the load waits for it
+      this.stopCapture = this.local.observe((batch) => this.onLocalChanges(batch));
+    } else {
+      this.stopCapture = undefined;
+    }
 
     // The queue first, then the first sync. The reads wait for both (roadmap R2, R28).
     this.loaded = this.loadQueue();
     this.ready = this.loaded.then(() => this.initialSync());
     this.updateTimers();
+  }
+
+  //
+  // ═══ The status of the sync ═══
+  //
+
+  /**
+   * The state of the sync now (roadmap CLI-13).
+   *
+   * - `connected` is false after a remote call failed, until a remote call succeeds.
+   * - `pendingChanges` is the number of operations in the queue.
+   * - `syncing` is true while a push or a pull runs.
+   * - `lastSync` is the time (`Date.now()`) of the last pull that succeeded.
+   * - `error` is the newest failure of a load, a push, a pull or the queue store that a later
+   *   success of the same work did not clear.
+   */
+  getStatus(): SyncStatus {
+    const error = [...this.failures.values()].at(-1);
+    return {
+      connected: this.isOnline,
+      lastSync: this.lastSync,
+      pendingChanges: this.offlineOps.length,
+      syncing: this.syncs > 0,
+      mode: this.mode,
+      ...(error !== undefined && { error }),
+    };
+  }
+
+  /**
+   * This method starts to send the status to a listener at each change: a failure, a sync that
+   * starts or ends, a change of the queue, of the connection or of the mode. A failure of a timer
+   * reaches the listeners here: the storage does not write to the console.
+   *
+   * @returns The function that stops the status. A second use of it does nothing.
+   */
+  onStatus(listener: (status: SyncStatus) => void): () => void {
+    if (this.closed) throw this.closedError();
+    return this.statusListeners.add(listener);
+  }
+
+  //
+  // ═══ The changes of the storage (roadmap CLI-21) ═══
+  //
+
+  /**
+   * This method starts to send the changes of the storage to an observer. Each write that changes
+   * the storage gives one batch, before the write resolves.
+   *
+   * - A write of this storage gives its batch with the origin of its options.
+   * - A pull, a delta of the feed, a fill after a read and a mode switch give their changes with
+   *   `syncOrigin`.
+   * - With `capture: "observe"`, a write of the application to the local copy gives the batch of
+   *   the local copy, with its origin.
+   * - In `remote-only` mode, the batches tell the writes of this storage to the remote.
+   *
+   * @returns The function that stops the batches. A second use of it does nothing.
+   * @throws Error after `close()`
+   */
+  observe(observer: StorageObserver<T>): () => void {
+    if (this.closed) throw this.closedError();
+    return this.observers.add(observer);
+  }
+
+  /** This method sends a batch to the observers. */
+  private emit(changes: readonly StorageChangeEvent<T>[]): void {
+    if (changes.length > 0 && this.observers.size > 0) this.observers.emit(changes);
+  }
+
+  /**
+   * This method takes a batch of the local copy. The changes whose origin is not the origin of this
+   * storage come from the application: the storage queues them, and its observers get them.
+   */
+  private onLocalChanges(batch: StorageChangeBatch<T>): void {
+    if (this.closed) return;
+    const foreign = batch.filter((change) => change.origin !== this.origin);
+    if (foreign.length === 0) return;
+    if (this.captured) this.captured.push(...foreign);
+    else this.captureChanges(foreign);
+    this.emit(foreign);
+  }
+
+  /**
+   * This method queues the changes of the application to the local copy (roadmap CLI-21). The
+   * operations go in the queue at once, in the order of the changes. The queue store keeps them
+   * later. A failure of the store keeps them in memory, and the status shows it.
+   */
+  private captureChanges(changes: readonly StorageChangeEvent<T>[]): void {
+    if (this.loadError || this.closed) return;
+    for (const op of operationsOf(changes)) {
+      this.noteCaptured(op);
+      this.noteOwnWrite(op);
+      this.attachBase(op);
+      this.enqueueCaptured(op);
+    }
+    this.notify();
+    if (this.mode === "write-through" || this.mode === "remote-only") {
+      // A failed send waits for the timer of the queue
+      void this.push().catch(() => this.scheduleDrain());
+    }
+  }
+
+  /**
+   * This method records a captured change as a local write: a sync that runs keeps its value, and
+   * the version of the local item is known.
+   */
+  private noteCaptured(op: QueuedOperation): void {
+    if (op.type === "clear") {
+      this.bumpClear();
+      this.localClears++;
+      this.localVersions.clear();
+      return;
+    }
+    const data = op.data as OperationData<T>;
+    const sets = op.type === "set" ? [[data.id, data.value] as [string, T]] : op.type === "setBatch" ? data.items : [];
+    const deletes = op.type === "delete" ? [data.id] : op.type === "deleteBatch" ? data.ids : [];
+    for (const [id, value] of sets) {
+      this.bump(id);
+      // A local write of the storage that runs now makes the version unknown
+      const version = this.localWrites.has(id) ? undefined : this.recordedVersion(value);
+      this.localWrites.delete(id);
+      if (version === undefined) this.localVersions.delete(id);
+      else this.localVersions.set(id, version);
+    }
+    for (const id of deletes) {
+      this.bump(id);
+      this.localWrites.delete(id);
+      this.localVersions.delete(id);
+    }
+  }
+
+  /** This method puts a captured operation in the queue, and then in the queue store. */
+  private enqueueCaptured(op: QueuedOperation): void {
+    const index = this.replaceableIndex(op);
+    if (index >= 0) {
+      const previous = this.offlineOps[index]!;
+      if (previous.base) op.base = previous.base;
+      else delete op.base;
+      this.offlineOps[index] = op;
+    } else {
+      this.offlineOps.push(op);
+    }
+    this.unpersisted.add(op);
+    // The application made the change already: a failure of the store keeps the operation, and
+    // the next write of the store gives the whole queue
+    void this.persist(op, index < 0, () => undefined).catch(() => undefined);
+  }
+
+  /**
+   * This method queues the changes that the application made during the load. The load wrote the
+   * loaded queue to the local copy, so the changes go to the local copy again, in order.
+   */
+  private async flushCaptured(): Promise<void> {
+    const changes: StorageChangeEvent<T>[] = [];
+    while (this.captured && this.captured.length > 0 && !this.loadError) {
+      const batch = this.captured.splice(0);
+      changes.push(...batch);
+      for (const op of operationsOf(batch)) await this.applyToLocal(op, this.syncOrigin);
+    }
+    this.captured = undefined;
+    if (changes.length > 0) this.captureChanges(changes);
+  }
+
+  /**
+   * The mark of a value in the echo ledger: its version with `versionOf`, or else its JSON. A
+   * delete is `null` in the ledger: a tombstone, so an older echo does not bring the item back.
+   */
+  private echoPrint(value: T): string | undefined {
+    if (this.options.versionOf) return this.recordedVersion(value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** This method records the versions of an own write, for its echo (roadmap CLI-21). */
+  private noteOwnWrite(op: QueuedOperation): void {
+    const echoes = this.echoes;
+    if (!echoes) return;
+    const data = op.data as OperationData<T>;
+    const wrote = (id: string, value: T): void => {
+      const print = this.echoPrint(value);
+      if (print !== undefined) echoes.wrote(id, print);
+    };
+    switch (op.type) {
+      case "set":
+        wrote(data.id, data.value);
+        break;
+      case "setBatch":
+        for (const [id, value] of data.items) wrote(id, value);
+        break;
+      case "delete":
+        echoes.wrote(data.id, null);
+        break;
+      case "deleteBatch":
+        for (const id of data.ids) echoes.wrote(id, null);
+        break;
+      case "clear":
+        echoes.cleared();
+        break;
+    }
+  }
+
+  /** This method starts the echo time of the ids of an operation again: it goes to the remote. */
+  private echoSent(op: QueuedOperation): void {
+    if (!this.echoes) return;
+    for (const id of idsOf(op)) if (id !== "*") this.echoes.sent(id);
+  }
+
+  //
+  // ═══ The push feed (roadmap CLI-21, CLI-15) ═══
+  //
+
+  /** This method subscribes to the feed in the modes with a local copy and a remote, and stops it in the others. */
+  private updateFeed(): void {
+    const feed = this.feed;
+    if (!feed) return;
+    const wanted = !this.closed && (this.mode === "write-through" || this.mode === "write-back");
+    if (wanted === (this.feedStop !== undefined)) return;
+    const token = ++this.feedToken;
+    if (!wanted) {
+      const stop = this.feedStop!;
+      this.feedStop = undefined;
+      try {
+        stop();
+      } catch {
+        // The subscription is gone
+      }
+      return;
+    }
+    const live = (): boolean => token === this.feedToken && !this.closed;
+    try {
+      const stop = feed.subscribe({
+        onChanges: (changes) => {
+          if (live()) this.onRemoteChanges(changes);
+        },
+        onHint: (hint) => {
+          if (live()) this.onRemoteHint(hint);
+        },
+        onGap: () => {
+          if (live()) this.requestPull();
+        },
+        onError: (error) => {
+          if (live()) this.fail("pull", error);
+        },
+      });
+      if (live()) this.feedStop = stop;
+      else stop();
+    } catch (error) {
+      this.fail("pull", error);
+    }
+  }
+
+  /**
+   * This method takes a delta of the feed. The delta applies after the syncs that run, so a pull
+   * that runs does not erase it. Each decision about it comes when it applies, at its turn in the
+   * chain of the syncs, from the local state of that time: the queue, the own writes that wait,
+   * the echo ledger and the versions. On arrival, the storage keeps only the count of the local
+   * writes: a local write after the arrival is newer than the delta, and it keeps its value.
+   */
+  private onRemoteChanges(changes: RemoteChanges<T>): void {
+    const mark = this.writeSeq;
+    void this.loaded
+      .then(() => this.serialize(() => this.track("pull", () => this.applyFeed(changes, mark))))
+      .catch(() => undefined);
+  }
+
+  /**
+   * This method applies a delta of the feed: without a read when its `since` is the cursor. A
+   * delta of the version of the cursor changes nothing. Another delta is a gap: a pull.
+   */
+  private async applyFeed(changes: RemoteChanges<T>, mark: number): Promise<void> {
+    if (this.loadError) throw this.loadError;
+    if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    if (changes.version === this.cursor) return;
+    if (changes.since === undefined || changes.since !== this.cursor) {
+      await this.pullRemote(false);
+      return;
+    }
+    await this.applyChanges(changes, (id) => this.changedSince(mark, id));
+  }
+
+  /**
+   * This method takes a hint of the feed: the ids that changed, without their values (roadmap
+   * CLI-15). The hint applies after the syncs that run, against the cursor and the local state of
+   * that time, as a delta does.
+   */
+  private onRemoteHint(hint: RemoteChangeHint): void {
+    const mark = this.writeSeq;
+    void this.loaded
+      .then(() => this.serialize(() => this.track("pull", () => this.applyHint(hint, mark))))
+      .catch(() => undefined);
+  }
+
+  /**
+   * This method applies a hint. A hint of the version of the cursor changes nothing. A hint whose
+   * `since` is the cursor and that changed no value applies its deletes without a read. Each other
+   * hint asks for a pull: the values come through the checks of a read of the remote, and the
+   * hints that come while the pull waits join it.
+   */
+  private async applyHint(hint: RemoteChangeHint, mark: number): Promise<void> {
+    if (this.loadError) throw this.loadError;
+    if (this.closed || (this.mode !== "write-through" && this.mode !== "write-back")) return;
+    if (hint.version !== undefined && hint.version === this.cursor) return;
+    if (hint.since !== undefined && hint.since === this.cursor && hint.version !== undefined && hint.changed.length === 0) {
+      await this.applyChanges({ version: hint.version, full: false, changed: [], deleted: [...hint.deleted] }, (id) => this.changedSince(mark, id));
+      return;
+    }
+    this.requestPull();
+  }
+
+  /** This method asks for a pull after the syncs that run. A request while a pull waits joins it. */
+  private requestPull(): void {
+    if (this.gapPull) return;
+    this.gapPull = true;
+    void this.loaded
+      .then(() =>
+        this.serialize(() => {
+          this.gapPull = false;
+          if (this.closed) return Promise.resolve();
+          return this.track("pull", async () => {
+            if (this.loadError) throw this.loadError;
+            if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
+          });
+        }),
+      )
+      .catch(() => undefined);
+  }
+
+  //
+  // ═══ The sync state (roadmap CLI-21) ═══
+  //
+
+  /** This method loads the sync state: the bases, and the cursor that the load then examines. */
+  private async loadState(): Promise<string | undefined> {
+    if (!this.stateStore) return undefined;
+    try {
+      const state: unknown = await this.stateStore.load();
+      if (state === undefined) return undefined;
+      if (!isSyncState(state)) throw new TypeError("The store gave a value that is not a sync state");
+      for (const [id, version] of state.bases) this.bases.set(id, version);
+      return state.cursor;
+    } catch (error) {
+      // The storage goes on without the state: the first pull reads all items
+      this.fail("store", new SyncStateError("load", error));
+      return undefined;
+    }
+  }
+
+  /**
+   * This method writes the changes of the sync state to its store: the cursor and the bases that
+   * changed. The writes run one at a time, and a change during a write goes in the next write.
+   */
+  private saveState(): void {
+    if (!this.stateStore || this.loadError) return;
+    if (!this.stateReset && this.bases.changed.size === 0 && this.cursor === this.savedCursor) return;
+    if (this.stateSaving) {
+      this.stateAgain = true;
+      return;
+    }
+    this.stateSaving = this.writeState().finally(() => {
+      this.stateSaving = undefined;
+      if (this.stateAgain) {
+        this.stateAgain = false;
+        this.saveState();
+      }
+    });
+  }
+
+  /** One write of the sync state. The first write, and the write after a failure, give the whole state. */
+  private async writeState(): Promise<void> {
+    const reset = this.stateReset;
+    const ids = reset ? [...this.bases.keys()] : [...this.bases.changed];
+    this.bases.changed.clear();
+    this.stateReset = false;
+    const cursor = this.cursor;
+    const bases: Array<[string, string | null]> = [];
+    const forgotten: string[] = [];
+    for (const id of ids) {
+      const version = this.bases.get(id);
+      if (version === undefined) forgotten.push(id);
+      else bases.push([id, version]);
+    }
+    try {
+      await this.stateStore!.write({ reset, cursor, bases, forgotten: reset ? [] : forgotten });
+      this.savedCursor = cursor;
+      this.succeed("store");
+    } catch (error) {
+      this.stateReset = true;
+      this.fail("store", new SyncStateError("write", error));
+    }
+  }
+
+  /** This method sends the status to the listeners when it changed. */
+  private notify(): void {
+    if (this.statusListeners.size === 0) return;
+    const status = this.getStatus();
+    const last = this.lastStatus;
+    if (
+      last &&
+      last.connected === status.connected &&
+      last.lastSync === status.lastSync &&
+      last.pendingChanges === status.pendingChanges &&
+      last.syncing === status.syncing &&
+      last.mode === status.mode &&
+      last.error === status.error
+    ) {
+      return;
+    }
+    this.lastStatus = status;
+    this.statusListeners.emit(status);
+  }
+
+  /** This method keeps a failure for the status. The failure of an operation replaces its older one. */
+  private fail(operation: SyncError["operation"], error: unknown): void {
+    this.failures.delete(operation);
+    this.failures.set(operation, { operation, error });
+    this.notify();
+  }
+
+  /** This method clears the failure of an operation after a success. */
+  private succeed(operation: SyncError["operation"]): void {
+    if (this.failures.delete(operation)) this.notify();
+  }
+
+  /** A push or a pull: the status shows it while it runs, and keeps its failure. */
+  private async track(operation: "push" | "pull", work: () => Promise<void>): Promise<void> {
+    this.syncs++;
+    this.notify();
+    try {
+      await work();
+      this.succeed(operation);
+    } catch (error) {
+      // A storage whose load failed keeps the failure of the load
+      if (error !== this.loadError) this.fail(operation, error);
+      throw error;
+    } finally {
+      this.syncs--;
+      this.notify();
+      this.saveState();
+    }
   }
 
   //
@@ -465,57 +1448,39 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
     this.mode = target;
     this.updateTimers();
+    this.notify();
+    this.saveState();
   }
 
   /** This method drops the local copy. A read in flight does not fill it again. */
   private async dropLocal(): Promise<void> {
-    this.clearVersion++;
+    this.bumpClear();
     this.cursor = undefined;
-    await this.localClear();
+    await this.localClear(this.syncOrigin);
   }
 
   /** This method makes the local copy from the queue only, before a full sync. */
   private async rebuildLocal(): Promise<void> {
     await this.dropLocal();
-    for (const op of this.offlineOps) await this.applyToLocal(op);
+    for (const op of this.offlineOps) await this.applyToLocal(op, this.syncOrigin);
   }
 
-  /** This method starts and stops the timers for the mode. */
+  /**
+   * This method starts and stops the timers for the mode. The push timer runs in `write-back`, the
+   * pull timer in `write-through` and `write-back`, and the send of the queue after a failure only
+   * in `write-through`. A failed run reports its error in the status, and the next delay grows.
+   */
   private updateTimers(): void {
     if (this.closed) return;
-    const push = this.mode === "write-back" && this.options.syncInterval > 0;
-    if (push && !this.syncTimer) {
-      this.syncTimer = setInterval(() => {
-        if (this.closed) return;
-        this.push().catch((err) => {
-          console.error("Periodic sync failed:", err);
-        });
-      }, this.options.syncInterval);
-      // The timer must not keep the process alive (deep dive DATA-9)
-      (this.syncTimer as { unref?: () => void }).unref?.();
-    } else if (!push && this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
-    }
+    if (this.mode === "write-back") this.pushTimer?.start();
+    else this.pushTimer?.stop();
 
-    const pull = this.options.pullInterval > 0 && (this.mode === "write-through" || this.mode === "write-back");
-    if (pull && !this.pullTimer) {
-      this.pullTimer = setInterval(() => {
-        if (this.closed) return;
-        this.pull().catch((err) => {
-          console.error("Periodic pull failed:", err);
-        });
-      }, this.options.pullInterval);
-      (this.pullTimer as { unref?: () => void }).unref?.();
-    } else if (!pull && this.pullTimer) {
-      clearInterval(this.pullTimer);
-      this.pullTimer = null;
-    }
+    if (this.mode === "write-through" || this.mode === "write-back") this.pullTimer?.start();
+    else this.pullTimer?.stop();
 
-    if (this.mode !== "write-through" && this.drainTimer) {
-      clearTimeout(this.drainTimer);
-      this.drainTimer = null;
-    }
+    if (this.mode !== "write-through") this.drainTimer.stop();
+
+    this.updateFeed();
   }
 
   //
@@ -538,16 +1503,17 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       }
 
       this.stats.cacheMisses++;
-      // A pending local delete means "no item": do not read it back from the remote
-      if (this.mode === "local-only" || this.hasPendingOp(id)) {
+      // A pending local delete means "no item": do not read it back from the remote. An own delete
+      // that waits for the remote too (roadmap CLI-21).
+      if (this.mode === "local-only" || this.hasPendingOp(id) || this.waitsForRemote(id)) {
         return undefined;
       }
       const version = this.writeKey(id);
       try {
         const remote = await this.remote.get(id);
         this.isOnline = true;
-        if (this.writeKey(id) === version && !this.hasPendingOp(id)) {
-          if (remote !== undefined) await this.localSet(id, remote);
+        if (this.writeKey(id) === version && !this.hasPendingOp(id) && !this.waitsForRemote(id)) {
+          if (remote !== undefined) await this.localSet(id, remote, this.syncOrigin);
           this.noteBase(id, remote);
         }
         return remote;
@@ -580,6 +1546,26 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     return this.run(true, () =>
       this.mode === "remote-only" ? this.remoteRead(() => this.remote.find(predicate)) : this.local.find(predicate),
     );
+  }
+
+  /**
+   * The entries whose items match the selector (roadmap CLI-14): from the local copy, or from the
+   * remote in `remote-only` mode. A storage under it with `query()` runs the selector itself, for
+   * example `ApiStorage` on its server. Else this method runs `queryEntries()` on its entries. The
+   * policy of the call, or of the options, goes to the storage under it.
+   */
+  async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
+    return this.run(true, async () => {
+      const limits = policy ?? this.queryPolicy;
+      const problems = [...selectorProblems(selector, limits), ...queryOptionsProblems(options, limits)];
+      if (problems.length > 0) throw new TypeError(`The query is not correct: ${problems.join(". ")}`);
+      if (this.mode === "remote-only") {
+        return this.remoteRead(async () =>
+          this.remote.query ? this.remote.query(selector, options, limits) : queryEntries(await this.remoteEntries(), selector, options, limits),
+        );
+      }
+      return this.local.query ? this.local.query(selector, options, limits) : queryEntries(await this.local.getEntries(), selector, options, limits);
+    });
   }
 
   async has(id: string): Promise<boolean> {
@@ -615,28 +1601,32 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * This method sets an item. The storage takes a copy of the value, so a later change of the
-   * value does not change the local copy, the queue or the remote write.
+   * value does not change the local copy, the queue or the remote write. The origin of the options
+   * goes to the batches of `observe()`. The local copy and the remote get the origin of the storage.
    */
-  async set(id: string, written: T): Promise<void> {
+  async set(id: string, written: T, options?: StorageWriteOptions): Promise<void> {
     const value = structuredClone(written);
-    await this.write("set", { id, value }, [id], async () => {
+    const origin = options?.origin;
+    await this.write("set", { id, value }, [id], origin, async () => {
       this.bump(id);
-      await this.localSet(id, value);
-    }, () => this.remote.set(id, value));
+      await this.localSet(id, value, origin);
+    }, () => this.remote.set(id, value, this.own));
   }
 
-  async delete(id: string): Promise<boolean> {
-    return this.write("delete", { id }, [id], async () => {
+  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
+    const origin = options?.origin;
+    return this.write("delete", { id }, [id], origin, async () => {
       this.bump(id);
-      return this.localDelete(id);
-    }, () => this.remote.delete(id));
+      return this.localDelete(id, origin);
+    }, () => this.remote.delete(id, this.own));
   }
 
-  async clear(): Promise<void> {
-    await this.write("clear", {}, "*", async () => {
-      this.clearVersion++;
-      await this.localClear();
-    }, () => this.remote.clear());
+  async clear(options?: StorageWriteOptions): Promise<void> {
+    const origin = options?.origin;
+    await this.write("clear", {}, "*", origin, async () => {
+      this.bumpClear();
+      await this.localClear(origin);
+    }, () => this.remote.clear(this.own));
   }
 
   //
@@ -644,19 +1634,21 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   //
 
   /** This method sets several items. The storage takes a copy of each value, as `set` does. */
-  async setBatch(written: Array<[string, T]>): Promise<void> {
+  async setBatch(written: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
     const items = written.map(([id, value]): [string, T] => [id, structuredClone(value)]);
-    await this.write("setBatch", { items }, items.map(([id]) => id), async () => {
+    const origin = options?.origin;
+    await this.write("setBatch", { items }, items.map(([id]) => id), origin, async () => {
       for (const [id] of items) this.bump(id);
-      await this.localSetBatch(items);
-    }, () => this.remote.setBatch(items));
+      await this.localSetBatch(items, origin);
+    }, () => this.remote.setBatch(items, this.own));
   }
 
-  async deleteBatch(ids: string[]): Promise<number> {
-    return this.write("deleteBatch", { ids }, ids, async () => {
+  async deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number> {
+    const origin = options?.origin;
+    return this.write("deleteBatch", { ids }, ids, origin, async () => {
       for (const id of ids) this.bump(id);
-      return this.localDeleteBatch(ids);
-    }, () => this.remote.deleteBatch(ids));
+      return this.localDeleteBatch(ids, origin);
+    }, () => this.remote.deleteBatch(ids, this.own));
   }
 
   /**
@@ -680,6 +1672,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     type: QueuedOperation["type"],
     data: unknown,
     ids: string[] | "*",
+    origin: string | undefined,
     applyLocal: () => Promise<R>,
     applyRemote: () => Promise<R>,
   ): Promise<R> {
@@ -689,8 +1682,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       if (this.mode === "remote-only") {
         const send = async (): Promise<R> => {
           await this.ensureStoreClean();
+          // The observers get a delete only for an id that existed
+          const existing = this.observers.size > 0 ? await this.remoteExisting(op) : undefined;
           const result = await applyRemote();
           this.noteRemoteWrite(op);
+          if (this.observers.size > 0) this.emit(remoteChangesOf<T>(op, result, existing, origin));
           return result;
         };
         try {
@@ -711,55 +1707,184 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       if (this.mode === "write-back" || this.mode === "local-only") {
         this.ensureQueueRoom(op);
         this.attachBase(op);
-        const undo = await this.snapshot(ids);
+        const undo = await this.snapshot(ids, origin);
         const result = await applyLocal();
+        this.noteOwnWrite(op);
         await this.enqueue(op, undo);
         return result;
       }
 
-      const undo = await this.snapshot(ids);
-      const result = await applyLocal();
+      const undo = await this.snapshot(ids, origin);
+      // Until the remote takes the write, or the queue or the undo replaces it, a pull does not
+      // write over its local value (roadmap CLI-21)
+      this.startFlight(op);
       try {
-        if (this.offlineOps.length > 0) {
-          // The queued operations are older: they reach the remote first, or the older value of a
-          // queued write replaces this one later. A failed send keeps this write behind them.
-          await this.serialize(async () => {
-            await this.pushQueue();
+        const result = await applyLocal();
+        this.noteOwnWrite(op);
+        try {
+          if (this.offlineOps.length > 0) {
+            // The queued operations are older: they reach the remote first, or the older value of a
+            // queued write replaces this one later. A failed send keeps this write behind them.
+            await this.serialize(async () => {
+              await this.pushQueue();
+              await this.ensureStoreClean();
+              this.echoSent(op);
+              await applyRemote();
+            });
+          } else {
             await this.ensureStoreClean();
+            this.echoSent(op);
             await applyRemote();
-          });
-        } else {
-          await this.ensureStoreClean();
-          await applyRemote();
+          }
+          this.isOnline = true;
+          this.noteRemoteWrite(op);
+        } catch (error) {
+          if (
+            !(error instanceof QueueStoreError) &&
+            this.options.offlineQueue &&
+            this.options.isUnavailable(error) &&
+            this.hasQueueRoom(op)
+          ) {
+            // The status shows the queue and the connection. The caller gets PendingWriteError.
+            this.isOnline = false;
+            this.attachBase(op);
+            await this.enqueue(op, undo);
+            this.scheduleDrain();
+            throw new PendingWriteError(type, error);
+          }
+          await undo();
+          throw error;
         }
-        this.isOnline = true;
-        this.noteRemoteWrite(op);
-      } catch (error) {
-        if (
-          !(error instanceof QueueStoreError) &&
-          this.options.offlineQueue &&
-          this.options.isUnavailable(error) &&
-          this.hasQueueRoom(op)
-        ) {
-          this.isOnline = false;
-          console.error(`Remote ${type} failed: the operation waits in the queue`);
-          this.attachBase(op);
-          await this.enqueue(op, undo);
-          this.scheduleDrain();
-          throw new PendingWriteError(type, error);
-        }
-        await undo();
-        throw error;
+        return result;
+      } finally {
+        this.endFlight(op);
       }
-      return result;
     });
+  }
+
+  //
+  // ═══ The own writes that wait for the remote (roadmap CLI-21) ═══
+  //
+
+  /** This method records an own write of the `write-through` mode that goes to the remote. */
+  private startFlight(op: QueuedOperation): void {
+    if (op.type === "clear") {
+      this.inFlightClears++;
+      return;
+    }
+    const data = op.data as OperationData<T>;
+    const values: Array<[string, T | undefined]> =
+      op.type === "set" ? [[data.id, data.value]] :
+      op.type === "setBatch" ? data.items :
+      op.type === "delete" ? [[data.id, undefined]] :
+      data.ids.map((id): [string, undefined] => [id, undefined]);
+    for (const [id, value] of values) {
+      const flight = this.inFlight.get(id);
+      if (flight) {
+        flight.count++;
+        flight.value = value;
+      } else {
+        this.inFlight.set(id, { count: 1, value });
+      }
+    }
+  }
+
+  /**
+   * This method ends an own write that went to the remote: the remote took it, or the queue or the
+   * undo replaced it. The deferred remote values of the ids that no own write waits for now go
+   * through a new read of the remote, after the syncs that run.
+   */
+  private endFlight(op: QueuedOperation): void {
+    if (op.type === "clear") {
+      this.inFlightClears--;
+    } else {
+      for (const id of new Set(idsOf(op))) {
+        const flight = this.inFlight.get(id);
+        if (!flight) continue;
+        if (--flight.count <= 0) this.inFlight.delete(id);
+      }
+    }
+    const ready = [...this.deferred.keys()].filter((id) => !this.waitsForRemote(id));
+    if (ready.length === 0) return;
+    void this.serialize(() => this.track("pull", () => this.applyDeferred(ready))).catch(() => undefined);
+  }
+
+  /** True when an own write of the id waits for the remote. */
+  private waitsForRemote(id: string): boolean {
+    return this.inFlightClears > 0 || this.inFlight.has(id);
+  }
+
+  /**
+   * True when a remote value of an id is the value of the newest own write that waits for the
+   * remote: its echo. `undefined` is a delete. With `versionOf` the versions decide, else the JSON.
+   */
+  private isFlightValue(id: string, item: T | undefined): boolean {
+    const flight = this.inFlight.get(id);
+    const value = flight ? flight.value : undefined;
+    if (item === undefined || value === undefined) return item === undefined && value === undefined;
+    if (this.options.versionOf) {
+      const version = this.recordedVersion(item);
+      return version !== undefined && version === this.recordedVersion(value);
+    }
+    return JSON.stringify(item) === JSON.stringify(value);
+  }
+
+  /**
+   * A pull keeps the local value of an id whose own write waits for the remote, and the storage
+   * keeps the remote value for later. True when the pull defers the id. The echo of the write
+   * itself is not deferred: it is the local value.
+   */
+  private deferIfInFlight(id: string, item: T | undefined): boolean {
+    if (!this.waitsForRemote(id) || this.isFlightValue(id, item)) return false;
+    this.deferred.set(id, { item });
+    return true;
+  }
+
+  /**
+   * This method applies the deferred remote values of ids whose own writes ended. The storage
+   * reads each id from the remote again: the deferred value can be older than the write, or a
+   * newer write of another writer. Then the rules of a pull decide. When the remote cannot answer,
+   * the deferred value goes through the rules.
+   */
+  private async applyDeferred(ids: readonly string[]): Promise<void> {
+    if (this.loadError) throw this.loadError;
+    if (this.closed) return;
+    const conflicts: string[] = [];
+    let queueChanged = false;
+    for (const id of ids) {
+      const deferred = this.deferred.get(id);
+      // A new own write of the id waits: its end applies the value
+      if (!deferred || this.waitsForRemote(id)) continue;
+      this.deferred.delete(id);
+      const mark = this.writeSeq;
+      let item = deferred.item;
+      if (this.mode === "write-through" || this.mode === "write-back") {
+        try {
+          item = await this.remote.get(id);
+          this.isOnline = true;
+        } catch {
+          // The deferred value is the newest value that the storage knows
+          this.isOnline = false;
+        }
+      }
+      const changedLocally = (other: string): boolean => this.changedSince(mark, other);
+      const changed = item === undefined
+        ? await this.pullDelete(id, changedLocally, conflicts)
+        : await this.pullItem(id, item, changedLocally, conflicts);
+      if (changed) queueChanged = true;
+    }
+    if (queueChanged) {
+      this.storeDirty = true;
+      await this.persistAll().catch(() => undefined);
+    }
+    if (conflicts.length > 0) throw new ConflictError(conflicts);
   }
 
   /**
    * The local values of the ids before a write, and a function that puts them back. It puts back
    * only the ids that no later write changed.
    */
-  private async snapshot(ids: string[] | "*"): Promise<() => Promise<void>> {
+  private async snapshot(ids: string[] | "*", origin: string | undefined): Promise<() => Promise<void>> {
     const before = ids === "*" ? new Map(await this.local.getEntries()) : await this.local.getBatch(ids);
     const touched = ids === "*" ? [...before.keys()] : ids;
     // The versions after the write: this write adds one to each id (clear adds to clearVersion)
@@ -770,8 +1895,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       for (const id of touched) {
         if ((this.writeVersions.get(id) ?? 0) !== versions.get(id)) continue;
         const value = before.get(id);
-        if (value === undefined) await this.localDelete(id);
-        else await this.localSet(id, value);
+        if (value === undefined) await this.localDelete(id, origin);
+        else await this.localSet(id, value, origin);
       }
     };
   }
@@ -826,22 +1951,26 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     await this.syncFromRemote();
   }
 
-  /** The pull of `syncFromRemote()`, after the syncs that run. */
+  /** The pull of `syncFromRemote()`, after the syncs that run. The status keeps its failure. */
   private pull(): Promise<void> {
-    return this.serialize(async () => {
-      await this.loaded;
-      if (this.loadError) throw this.loadError;
-      if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
-    });
+    return this.serialize(() =>
+      this.track("pull", async () => {
+        await this.loaded;
+        if (this.loadError) throw this.loadError;
+        if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
+      }),
+    );
   }
 
-  /** The push of `syncToRemote()`, after the syncs that run. */
+  /** The push of `syncToRemote()`, after the syncs that run. The status keeps its failure. */
   private push(): Promise<void> {
-    return this.serialize(async () => {
-      await this.loaded;
-      if (this.loadError) throw this.loadError;
-      if (this.mode !== "local-only") await this.pushQueue();
-    });
+    return this.serialize(() =>
+      this.track("push", async () => {
+        await this.loaded;
+        if (this.loadError) throw this.loadError;
+        if (this.mode !== "local-only") await this.pushQueue();
+      }),
+    );
   }
 
   /** The error of an operation after `close()`. */
@@ -872,36 +2001,37 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /** The work of `close()`. */
   private async shutDown(): Promise<void> {
-    for (const timer of [this.syncTimer, this.pullTimer]) {
-      if (timer) clearInterval(timer);
-    }
-    this.syncTimer = null;
-    this.pullTimer = null;
-    if (this.drainTimer) {
-      clearTimeout(this.drainTimer);
-      this.drainTimer = null;
-    }
+    this.pushTimer?.stop();
+    this.pullTimer?.stop();
+    this.drainTimer.stop();
+    this.updateFeed();
+    this.stopCapture?.();
 
-    await this.loaded;
-    // The operations and the switch that started before close() end first
-    await this.gate;
-    await this.idle();
-    // After the syncs that run: send the pending operations
-    await this.serialize(async () => {
-      if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
-      try {
-        await this.pushQueue();
-      } catch (error) {
-        console.error("Failed to sync before close:", error);
-      }
-    });
-    await this.storeChain;
-
-    // Close remote storage (an ApiStorage leaves the caller's client open)
     try {
-      await this.remote.close();
+      await this.loaded;
+      // The operations and the switch that started before close() end first
+      await this.gate;
+      await this.idle();
+      // After the syncs that run: send the pending operations. The queue store keeps the ones that
+      // the remote did not take, and the status gets the failure.
+      await this.serialize(async () => {
+        if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
+        await this.track("push", () => this.pushQueue()).catch(() => undefined);
+      });
+      await this.storeChain;
+      // The last changes of the sync state reach its store
+      this.saveState();
+      while (this.stateSaving) await this.stateSaving;
+
+      // Close remote storage (an ApiStorage leaves the caller's client open)
+      try {
+        await this.remote.close();
+      } finally {
+        await this.local.close();
+      }
     } finally {
-      await this.local.close();
+      this.statusListeners.clear();
+      this.observers.clear();
     }
   }
 
@@ -963,6 +2093,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       if (--this.active === 0) {
         for (const resolve of this.idleWaiters.splice(0)) resolve();
       }
+      // A write changes the queue, and a remote call the connection
+      this.notify();
+      // A remote write or a read of the remote changes the bases
+      this.saveState();
     }
   }
 
@@ -974,12 +2108,16 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /** This method loads the queue, and puts its writes in the local copy. */
   private async loadQueue(): Promise<void> {
+    // The sync state first: its bases are newer than the bases of the queued operations
+    const cursor = await this.loadState();
     let ops: QueuedOperation[];
     try {
       ops = await this.queueStore.load();
     } catch (error) {
+      // The storage refuses each operation. The status shows the failure.
       this.loadError = new QueueStoreError("load", error);
-      console.error("The queue store could not load the queue: the storage refuses each operation", error);
+      this.fail("load", this.loadError);
+      this.captured = undefined;
       return;
     }
     this.offlineOps = ops.slice();
@@ -990,11 +2128,15 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         }
         // A durable local copy can hold the operation already: each operation gives the same
         // result two times
-        await this.applyToLocal(op);
+        await this.applyToLocal(op, this.syncOrigin);
       }
+      // The cursor belongs to a durable local copy with items. Else the first pull reads all items.
+      if (cursor !== undefined && this.localGiven && (await this.local.size()) > 0) this.cursor = cursor;
+      await this.flushCaptured();
     } catch (error) {
       this.loadError = new Error("The local copy could not take the loaded queue: the storage refuses each operation", { cause: error });
-      console.error(this.loadError.message, error);
+      this.fail("load", this.loadError);
+      this.captured = undefined;
     }
   }
 
@@ -1003,38 +2145,33 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     // A close() before the first sync: the storage makes no remote call
     if (this.loadError || this.closed) return;
     if (this.options.syncOnInit && this.mode !== "local-only") {
-      if (this.offlineOps.length > 0) {
-        await this.push().catch((err) => {
-          console.error("Failed to send the queue on init:", err);
-        });
-      }
+      // A failure goes to the status: the reads go on with the local copy
+      if (this.offlineOps.length > 0) await this.push().catch(() => undefined);
       if (!this.closed && (this.mode === "write-through" || this.mode === "write-back")) {
-        await this.pull().catch((err) => {
-          console.error("Failed to sync on init:", err);
-        });
+        await this.pull().catch(() => undefined);
       }
     }
     if (this.offlineOps.length > 0) this.scheduleDrain();
   }
 
-  /** This method applies a queued operation to the local copy. */
-  private async applyToLocal(op: QueuedOperation): Promise<void> {
-    const data = op.data as { id: string; value: T; ids: string[]; items: Array<[string, T]> };
+  /** This method applies a queued operation to the local copy. The observers get the origin. */
+  private async applyToLocal(op: QueuedOperation, origin: string | undefined): Promise<void> {
+    const data = op.data as OperationData<T>;
     switch (op.type) {
       case "set":
-        await this.localSet(data.id, data.value);
+        await this.localSet(data.id, data.value, origin);
         break;
       case "delete":
-        await this.localDelete(data.id);
+        await this.localDelete(data.id, origin);
         break;
       case "setBatch":
-        await this.localSetBatch(data.items);
+        await this.localSetBatch(data.items, origin);
         break;
       case "deleteBatch":
-        await this.localDeleteBatch(data.ids);
+        await this.localDeleteBatch(data.ids, origin);
         break;
       case "clear":
-        await this.localClear();
+        await this.localClear(origin);
         break;
     }
   }
@@ -1108,26 +2245,55 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
   }
 
-  private localSet(id: string, value: T): Promise<void> {
-    return this.writeLocal(() => [[id, this.recordedVersion(value)]], () => this.local.set(id, value));
+  // The writes of the local copy have the origin of this storage, so the capture does not queue
+  // them. The observers get each change with the origin of the caller.
+
+  private async localSet(id: string, value: T, origin: string | undefined): Promise<void> {
+    await this.writeLocal(() => [[id, this.recordedVersion(value)]], () => this.local.set(id, value, this.own));
+    if (this.observers.size > 0) this.emit([setChange(id, value, origin)]);
   }
 
-  private localDelete(id: string): Promise<boolean> {
-    return this.writeLocal(() => [[id, undefined]], () => this.local.delete(id));
+  private async localDelete(id: string, origin: string | undefined): Promise<boolean> {
+    const existed = await this.writeLocal(() => [[id, undefined]], () => this.local.delete(id, this.own));
+    if (existed) this.emit([withOrigin<T>({ type: "delete", id }, origin)]);
+    return existed;
   }
 
-  private localSetBatch(items: Array<[string, T]>): Promise<void> {
-    return this.writeLocal(() => items.map(([id, value]) => [id, this.recordedVersion(value)]), () => this.local.setBatch(items));
+  private async localSetBatch(items: Array<[string, T]>, origin: string | undefined): Promise<void> {
+    await this.writeLocal(() => items.map(([id, value]) => [id, this.recordedVersion(value)]), () => this.local.setBatch(items, this.own));
+    if (this.observers.size > 0) this.emit(items.map(([id, value]) => setChange(id, value, origin)));
   }
 
-  private localDeleteBatch(ids: string[]): Promise<number> {
-    return this.writeLocal(() => ids.map((id): [string, undefined] => [id, undefined]), () => this.local.deleteBatch(ids));
+  private async localDeleteBatch(ids: string[], origin: string | undefined): Promise<number> {
+    // The observers get a delete for each id that existed
+    const before = this.observers.size > 0 ? await this.local.getBatch(ids) : undefined;
+    const count = await this.writeLocal(() => ids.map((id): [string, undefined] => [id, undefined]), () => this.local.deleteBatch(ids, this.own));
+    if (before && count > 0) this.emit([...new Set(ids)].filter((id) => before.has(id)).map((id) => withOrigin<T>({ type: "delete", id }, origin)));
+    return count;
   }
 
-  private localClear(): Promise<void> {
+  private localClear(origin: string | undefined): Promise<void> {
     this.localClears++;
     this.localVersions.clear();
-    return this.local.clear();
+    if (this.observers.size === 0) return this.local.clear(this.own);
+    return this.observedClear(origin);
+  }
+
+  /** A clear of the local copy with observers: they get the change when the copy had items. */
+  private async observedClear(origin: string | undefined): Promise<void> {
+    const had = (await this.local.size()) > 0;
+    await this.local.clear(this.own);
+    if (had) this.emit([withOrigin<T>({ type: "clear" }, origin)]);
+  }
+
+  /** The ids that a delete of the `remote-only` mode finds, for its batch. */
+  private async remoteExisting(op: QueuedOperation): Promise<ReadonlySet<string> | boolean | undefined> {
+    if (op.type === "deleteBatch") {
+      const ids = [...new Set((op.data as OperationData<T>).ids)];
+      return new Set((await this.remote.getBatch(ids)).keys());
+    }
+    if (op.type === "clear") return (await this.remote.size()) > 0;
+    return undefined;
   }
 
   /**
@@ -1138,11 +2304,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
    *   comes again at the next pull.
    */
   private async pullRemote(full: boolean): Promise<void> {
-    const versions = new Map(this.writeVersions);
-    const clearVersion = this.clearVersion;
-    // True when a local write changed the id after the sync started
-    const changedLocally = (id: string): boolean =>
-      this.clearVersion !== clearVersion || (this.writeVersions.get(id) ?? 0) !== (versions.get(id) ?? 0);
+    // A local write after this mark keeps its value: the remote value is older
+    const mark = this.writeSeq;
 
     let changes: PulledChanges<T>;
     try {
@@ -1151,7 +2314,15 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       if (!(error instanceof MissingKeysError)) this.isOnline = false;
       throw error;
     }
+    await this.applyChanges(changes, (id) => this.changedSince(mark, id));
+  }
 
+  /**
+   * This method applies remote changes to the local copy: the changes of a pull, or a delta of
+   * the feed. `changedLocally` tells the ids that a local write changed after the changes left the
+   * remote: they keep their local values. The cursor moves only without conflicts.
+   */
+  private async applyChanges(changes: PulledChanges<T>, changedLocally: (id: string) => boolean): Promise<void> {
     const conflicts: string[] = [];
     let queueChanged = false;
     const remoteIds = new Set<string>();
@@ -1168,14 +2339,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
     if (queueChanged) {
       this.storeDirty = true;
-      await this.persistAll().catch((error) => {
-        console.error("The queue store could not keep the queue after the sync:", error);
-      });
+      // The status gets the failure of the queue store. A later direct write repairs the store first.
+      await this.persistAll().catch(() => undefined);
     }
     this.stats.syncCount++;
     this.isOnline = true;
     if (conflicts.length > 0) throw new ConflictError(conflicts);
     if (changes.version !== undefined) this.cursor = changes.version;
+    this.lastSync = Date.now();
   }
 
   /**
@@ -1213,6 +2384,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   ): Promise<boolean> {
     if (changedLocally(id)) return false;
     const remoteVersion = this.versionOfItem(item);
+    // The echo of an older own write: a newer own write of the id, or its delete (a tombstone),
+    // waits for its echo (roadmap CLI-21)
+    const print = this.echoes ? this.echoPrint(item) : undefined;
+    if (print !== undefined && this.echoes?.isStale(id, print)) return false;
+    // An own write of the id waits for the remote: the remote value can be older (roadmap CLI-21)
+    if (this.deferIfInFlight(id, item)) return false;
     const knownVersion = remoteVersion === undefined ? undefined : this.localVersions.get(id);
 
     if (this.hasPendingOp(id)) {
@@ -1237,7 +2414,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
     if (knownVersion !== undefined) {
       // Only the remote changed: it is not a conflict. The version of the local item is known.
-      if (knownVersion !== remoteVersion) await this.localSet(id, item);
+      if (knownVersion !== remoteVersion) await this.localSet(id, item, this.syncOrigin);
       this.bases.set(id, remoteVersion!);
       return false;
     }
@@ -1246,10 +2423,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     if (changedLocally(id)) return false;
     const localVersion = localItem === undefined ? undefined : this.versionOfItem(localItem);
     if (localItem === undefined) {
-      await this.localSet(id, item);
+      await this.localSet(id, item, this.syncOrigin);
     } else if (remoteVersion !== undefined && localVersion !== undefined) {
       // Only the remote changed: it is not a conflict
-      if (localVersion !== remoteVersion) await this.localSet(id, item);
+      if (localVersion !== remoteVersion) await this.localSet(id, item, this.syncOrigin);
     } else if (JSON.stringify(localItem) !== JSON.stringify(item)) {
       // Conflict - resolve according to strategy
       if (this.options.conflictResolution === "error") {
@@ -1258,7 +2435,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         return false;
       }
       const resolved = this.resolveConflict(localItem, item);
-      await this.localSet(id, resolved);
+      await this.localSet(id, resolved, this.syncOrigin);
       this.stats.conflicts++;
     }
     if (remoteVersion !== undefined) this.bases.set(id, remoteVersion);
@@ -1268,8 +2445,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   /** This method applies one remote delete. It gives true when the queue changed. */
   private async pullDelete(id: string, changedLocally: (id: string) => boolean, conflicts: string[]): Promise<boolean> {
     if (changedLocally(id)) return false;
+    // The echo of an older own delete: a newer own write of the id waits for its echo (roadmap CLI-21)
+    if (this.echoes?.isStale(id, null)) return false;
+    // An own write of the id waits for the remote: the remote delete can be older (roadmap CLI-21)
+    if (this.deferIfInFlight(id, undefined)) return false;
     if (!this.hasPendingOp(id)) {
-      await this.localDelete(id);
+      await this.localDelete(id, this.syncOrigin);
       if (this.options.versionOf) this.bases.set(id, null);
       return false;
     }
@@ -1288,7 +2469,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     switch (this.options.conflictResolution) {
       case "remote":
         if (!this.dropQueued(id)) break;
-        await this.localDelete(id);
+        await this.localDelete(id, this.syncOrigin);
         this.bases.set(id, null);
         return true;
       case "error":
@@ -1318,14 +2499,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       case "remote":
         // The remote value replaces the queued write. A queued clear cannot lose one id.
         if (!this.dropQueued(id)) break;
-        await this.localSet(id, remoteItem);
+        await this.localSet(id, remoteItem, this.syncOrigin);
         this.bases.set(id, remoteVersion);
         return true;
       case "merge": {
         if (localItem === undefined) break;
         const merged = this.resolveConflict(localItem, remoteItem);
         if (!this.dropQueued(id)) break;
-        await this.localSet(id, merged);
+        await this.localSet(id, merged, this.syncOrigin);
         this.bases.set(id, remoteVersion);
         this.offlineOps.push({ type: "set", data: { id, value: merged }, timestamp: Date.now(), base: [[id, remoteVersion]] });
         return true;
@@ -1404,6 +2585,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           continue;
         }
         try {
+          this.echoSent(op);
           await this.executeOperation(op);
         } catch (error) {
           // This operation and the later ones stay queued
@@ -1422,10 +2604,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     } finally {
       this.pushing = false;
       if (sent > 0) {
-        await this.persistAll().catch((error) => {
-          // The store keeps sent operations. A later direct write repairs it first.
-          console.error("The queue store could not remove the sent operations:", error);
-        });
+        // The store keeps sent operations, and the status gets the failure. A later direct write
+        // repairs the store first.
+        await this.persistAll().catch(() => undefined);
       }
     }
   }
@@ -1439,6 +2620,18 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   private bump(id: string): void {
     this.writeVersions.set(id, (this.writeVersions.get(id) ?? 0) + 1);
+    this.lastWrite.set(id, ++this.writeSeq);
+  }
+
+  /** A local clear: each id changed. */
+  private bumpClear(): void {
+    this.clearVersion++;
+    this.lastClear = ++this.writeSeq;
+  }
+
+  /** True when a local write changed the id after the mark, a value of `writeSeq`. */
+  private changedSince(mark: number, id: string): boolean {
+    return this.lastClear > mark || (this.lastWrite.get(id) ?? 0) > mark;
   }
 
   /** The count of local writes of an id: it changes with each write and each clear. */
@@ -1634,11 +2827,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           this.unpersisted.delete(op);
           this.storeDirty = false;
         }
+        this.succeed("store");
       } catch (error) {
         this.storeDirty = true;
         this.unpersisted.delete(op);
         rollback();
-        throw new QueueStoreError("write", error);
+        const failure = new QueueStoreError("write", error);
+        this.fail("store", failure);
+        throw failure;
       }
     });
     this.storeChain = run.catch(() => undefined);
@@ -1655,9 +2851,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         else await this.queueStore.replace(snapshot);
         for (const kept of snapshot) this.unpersisted.delete(kept);
         this.storeDirty = false;
+        this.succeed("store");
       } catch (error) {
         this.storeDirty = true;
-        throw new QueueStoreError("write", error);
+        const failure = new QueueStoreError("write", error);
+        this.fail("store", failure);
+        throw failure;
       }
     });
     this.storeChain = run.catch(() => undefined);
@@ -1700,17 +2899,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * In write-through mode, a timer sends the queue after a failure, and again after each failed
-   * send, until the queue is empty.
+   * send, until the queue is empty. The delay after a failed send grows with the backoff.
    */
   private scheduleDrain(): void {
-    if (this.drainTimer || this.closed || this.mode !== "write-through") return;
-    const delay = this.options.syncInterval > 0 ? this.options.syncInterval : 5000;
-    this.drainTimer = setTimeout(() => {
-      this.drainTimer = null;
-      if (this.closed) return;
-      this.push().catch(() => this.scheduleDrain());
-    }, delay);
-    (this.drainTimer as { unref?: () => void }).unref?.();
+    if (this.closed || this.mode !== "write-through") return;
+    this.drainTimer.start();
   }
 
   /**
@@ -1721,23 +2914,23 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
     switch (op.type) {
       case "set":
-        await this.remote.set(data.id, data.value);
+        await this.remote.set(data.id, data.value, this.own);
         break;
 
       case "delete":
-        await this.remote.delete(data.id);
+        await this.remote.delete(data.id, this.own);
         break;
 
       case "setBatch":
-        await this.remote.setBatch(data.items);
+        await this.remote.setBatch(data.items, this.own);
         break;
 
       case "deleteBatch":
-        await this.remote.deleteBatch(data.ids);
+        await this.remote.deleteBatch(data.ids, this.own);
         break;
 
       case "clear":
-        await this.remote.clear();
+        await this.remote.clear(this.own);
         break;
     }
   }

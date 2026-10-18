@@ -27,16 +27,31 @@ async function freePort(): Promise<number> {
   return port;
 }
 
+/**
+ * The port of the endpoint of a transport of a started server. The tests start each transport on
+ * port 0 and read the port that the system gave. Before, a helper found a free port and closed it,
+ * and the server took it later: in that gap another test took it, and a CI run failed with
+ * EADDRINUSE.
+ */
+function portOf(server: RunningServer, type: "http" | "websocket"): number {
+  const endpoint = server.endpoints.find((each) => each.type === type);
+  const port = Number(new URL(endpoint!.address).port);
+  expect(port).toBeGreaterThan(0);
+  return port;
+}
+
 const running: RunningServer[] = [];
 afterEach(async () => {
   for (const server of running.splice(0)) await server.peer.stop();
 });
 
 async function start(args: string[]): Promise<{ server: RunningServer; port: number }> {
-  const port = await freePort();
-  const server = await startServer(parseConfig(["--port", String(port), "--token", "t", ...args]), () => {});
+  // The CLI refuses --port 0, so the config gets port 0 after the parse
+  const config = parseConfig(["--port", "3000", "--token", "t", ...args]);
+  config.transports = config.transports.map((transport) => ({ ...transport, port: 0 }));
+  const server = await startServer(config, () => {});
   running.push(server);
-  return { server, port };
+  return { server, port: portOf(server, "http") };
 }
 
 async function call(port: number, path: string): Promise<number> {
@@ -55,13 +70,11 @@ async function post(port: number, path: string, input: unknown): Promise<{ statu
 
 /** A server with an HTTP and a WebSocket transport, each on a free port. */
 async function startBoth(args: string[]): Promise<{ server: RunningServer; http: number; ws: number }> {
-  const http = await freePort();
-  const ws = await freePort();
-  const config = parseConfig(["--port", String(http), "--token", "t", "-t", "http,websocket", ...args]);
-  config.transports[1] = { ...config.transports[1]!, port: ws };
+  const config = parseConfig(["--port", "3000", "--token", "t", "-t", "http,websocket", ...args]);
+  config.transports = config.transports.map((transport) => ({ ...transport, port: 0 }));
   const server = await startServer(config, () => {});
   running.push(server);
-  return { server, http, ws };
+  return { server, http: portOf(server, "http"), ws: portOf(server, "websocket") };
 }
 
 const cleanups: Array<() => Promise<void> | void> = [];

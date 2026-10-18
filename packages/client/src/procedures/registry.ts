@@ -15,6 +15,7 @@ import type {
 } from "./types.js";
 import { pathToKey } from "./types.js";
 import { validateCalls } from "./policy.js";
+import { toolHintOverrideRefusal } from "./hints.js";
 
 // =============================================================================
 // Registry Errors
@@ -135,6 +136,9 @@ export class ProcedureRegistry {
     } catch (error) {
       throw new RegistryError((error as Error).message, path);
     }
+    // An override of the tool hints can only make the tool look more dangerous than its effects
+    const hintRefusal = toolHintOverrideRefusal(procedure);
+    if (hintRefusal) throw new RegistryError(`${hintRefusal} (${key})`, path);
 
     const replaced = this.procedures.get(key);
     // The key joins the segments with dots: ["a.b", "c"] and ["a", "b.c"] have one key

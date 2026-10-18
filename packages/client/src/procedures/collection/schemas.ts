@@ -6,6 +6,16 @@
  */
 
 import type { ZodLike, ZodErrorLike } from "../../client/validation/types.js";
+import {
+  DEFAULT_FIND_LIMIT,
+  patchProblems,
+  queryOptionsProblems,
+  selectorProblems,
+  type StoragePatch,
+  type StorageQueryPolicy,
+  type StorageSelector,
+  type StorageSort,
+} from "./query.js";
 
 // =============================================================================
 // Generic Schema Builder
@@ -51,6 +61,26 @@ function isArray(value: unknown): value is unknown[] {
  */
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** The longest origin of a write, in characters. */
+const MAX_ORIGIN_LENGTH = 256;
+
+/**
+ * The error of the field `origin` of a write input (roadmap CLI-15), or undefined. An origin is a
+ * string of 1 to 256 characters. The procedure gives it to the storage and to the change event.
+ */
+function originError(data: Record<string, unknown>): ZodErrorLike | undefined {
+  const origin = data["origin"];
+  if (origin === undefined || (isString(origin) && origin.length > 0 && origin.length <= MAX_ORIGIN_LENGTH)) return undefined;
+  const message = `origin must be a string of 1 to ${MAX_ORIGIN_LENGTH} characters`;
+  return { message, errors: [{ path: ["origin"], message }] };
+}
+
+/** The input with the origin of the data, when the data has one. */
+function withOriginOf<I extends object>(data: Record<string, unknown>, input: I): I & { origin?: string } {
+  const origin = data["origin"];
+  return (isString(origin) ? { ...input, origin } : input) as I & { origin?: string };
 }
 
 // =============================================================================
@@ -185,6 +215,8 @@ export const getOutputSchema : ZodLike<unknown> = createSchema<unknown>((data) =
 export interface SetInput {
   id: string;
   value: unknown;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) => {
@@ -215,7 +247,9 @@ export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) 
       },
     };
   }
-  return { success: true, data: { id: data["id"], value: data["value"] } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { id: data["id"], value: data["value"] }) };
 });
 
 /**
@@ -234,6 +268,8 @@ export const setOutputSchema : ZodLike<void> = createSchema<void>((_data) => {
  */
 export interface DeleteInput {
   id: string;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput>((data) => {
@@ -255,7 +291,9 @@ export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput
       },
     };
   }
-  return { success: true, data: { id: data["id"] } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { id: data["id"] }) };
 });
 
 /**
@@ -407,6 +445,144 @@ export const entriesOutputSchema : ZodLike<CollectionEntry[]> = createSchema<Col
 });
 
 // =============================================================================
+// Find Operation Schemas
+// =============================================================================
+
+/**
+ * Input for find operation: a JSON selector, and the order, the skip and the limit. The selector
+ * is the selector of `query()` of a storage.
+ */
+export interface FindInput {
+  /** The selector. Without it, each item matches. */
+  selector?: StorageSelector;
+  /** The order of the result: field paths with 1 (ascending) or -1 (descending). */
+  sort?: StorageSort;
+  /** The number of items to skip after the sort. */
+  skip?: number;
+  /** The largest number of items in the result. */
+  limit?: number;
+}
+
+/** The problems of a find input under a query policy, as the errors of a schema. */
+function findErrors(data: Record<string, unknown>, policy: StorageQueryPolicy): Array<{ path: Array<string | number>; message: string }> {
+  const errors: Array<{ path: Array<string | number>; message: string }> = [];
+  for (const key of Object.keys(data)) {
+    if (data[key] !== undefined && key !== "selector" && key !== "sort" && key !== "skip" && key !== "limit") {
+      errors.push({ path: [key], message: `${key} is not a field of the input: use selector, sort, skip and limit` });
+    }
+  }
+  if (data["selector"] !== undefined) {
+    for (const message of selectorProblems(data["selector"], policy)) errors.push({ path: ["selector"], message });
+  }
+  const options = { sort: data["sort"], skip: data["skip"], limit: data["limit"] };
+  for (const message of queryOptionsProblems(options, policy)) errors.push({ path: [/^(sort|skip|limit)/.exec(message)?.[1] ?? "options"], message });
+  return errors;
+}
+
+/**
+ * The input schema of find under a query policy: a selector or options that the policy does not
+ * permit are a validation error (`VALIDATION_ERROR`), with the reason.
+ */
+export function findInputSchemaOf(policy: StorageQueryPolicy): ZodLike<FindInput> {
+  return createSchema<FindInput>((data) => findInputOf(data, policy));
+}
+
+/** The find input of the data, or the errors of the schema. */
+function findInputOf(data: unknown, policy: StorageQueryPolicy): { success: true; data: FindInput } | { success: false; error: ZodErrorLike } {
+  if (!isObject(data)) {
+    return {
+      success: false,
+      error: {
+        message: "Input must be an object",
+        errors: [{ path: [], message: "Input must be an object" }],
+      },
+    };
+  }
+  const errors = findErrors(data, policy);
+  if (errors.length > 0) {
+    return { success: false, error: { message: errors.map((error) => error.message).join(". "), errors } };
+  }
+  const input: FindInput = {};
+  if (data["selector"] !== undefined) input.selector = data["selector"] as StorageSelector;
+  if (data["sort"] !== undefined) input.sort = data["sort"] as StorageSort;
+  if (data["skip"] !== undefined) input.skip = data["skip"] as number;
+  if (data["limit"] !== undefined) input.limit = data["limit"] as number;
+  return { success: true, data: input };
+}
+
+/** The input schema of find under the default query policy: no `$regex`, at most `DEFAULT_FIND_LIMIT` items. */
+export const findInputSchema : ZodLike<FindInput> = findInputSchemaOf({ maxLimit: DEFAULT_FIND_LIMIT });
+
+/** Output for find operation: the matching items with their ids, in the order of the query. */
+export const findOutputSchema : ZodLike<CollectionEntry[]> = createSchema<CollectionEntry[]>((data) => entriesOutputSchema.safeParse(data));
+
+// =============================================================================
+// Patch Operation Schemas
+// =============================================================================
+
+/**
+ * Input for patch operation: the id, and the fields. The fields are a JSON Merge Patch (RFC 7386),
+ * or the operations `{ $set, $unset }`, which can set `null` and nested field paths.
+ */
+export interface PatchInput {
+  id: string;
+  fields: StoragePatch;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
+}
+
+export const patchInputSchema : ZodLike<PatchInput> = createSchema<PatchInput>((data) => {
+  if (!isObject(data)) {
+    return {
+      success: false,
+      error: {
+        message: "Input must be an object",
+        errors: [{ path: [], message: "Input must be an object" }],
+      },
+    };
+  }
+  if (!isString(data["id"]) || data["id"].length === 0) {
+    return {
+      success: false,
+      error: {
+        message: "id must be a non-empty string",
+        errors: [{ path: ["id"], message: "id must be a non-empty string" }],
+      },
+    };
+  }
+  const [problem] = patchProblems(data["fields"]);
+  if (problem !== undefined) {
+    return {
+      success: false,
+      error: {
+        message: problem,
+        errors: [{ path: ["fields"], message: problem }],
+      },
+    };
+  }
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { id: data["id"], fields: data["fields"] as StoragePatch }) };
+});
+
+/**
+ * Output for patch operation: `found` is true when the collection has the id. Then `value` is the
+ * new item.
+ */
+export const patchOutputSchema : ZodLike<GetFoundOutput> = createSchema<GetFoundOutput>((data) => {
+  if (isObject(data) && typeof data["found"] === "boolean") {
+    return { success: true, data: data as unknown as GetFoundOutput };
+  }
+  return {
+    success: false,
+    error: {
+      message: "Output must be { found, value }",
+      errors: [{ path: [], message: "Output must be { found, value }" }],
+    },
+  };
+});
+
+// =============================================================================
 // Ids Operation Schemas
 // =============================================================================
 
@@ -553,7 +729,10 @@ export const sizeOutputSchema : ZodLike<number> = createSchema<number>((data) =>
 /**
  * Input for clear operation - empty object.
  */
-export interface ClearInput {}
+export interface ClearInput {
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
+}
 
 export const clearInputSchema : ZodLike<ClearInput> = createSchema<ClearInput>((data) => {
   if (!isObject(data)) {
@@ -565,7 +744,9 @@ export const clearInputSchema : ZodLike<ClearInput> = createSchema<ClearInput>((
       },
     };
   }
-  return { success: true, data: {} };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, {}) };
 });
 
 /**
@@ -629,6 +810,8 @@ export const getBatchOutputSchema : ZodLike<Record<string, unknown>> = createSch
  */
 export interface SetBatchInput {
   items: Array<{ id: string; value: unknown }>;
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const setBatchInputSchema : ZodLike<SetBatchInput> = createSchema<SetBatchInput>((data) => {
@@ -662,11 +845,13 @@ export const setBatchInputSchema : ZodLike<SetBatchInput> = createSchema<SetBatc
       };
     }
   }
+  const error = originError(data);
+  if (error) return { success: false, error };
   return {
     success: true,
-    data: {
+    data: withOriginOf(data, {
       items: data["items"].map((item: any) => ({ id: item["id"], value: item["value"] })),
-    },
+    }),
   };
 });
 
@@ -682,6 +867,8 @@ export const setBatchOutputSchema : ZodLike<void> = createSchema<void>((_data) =
  */
 export interface DeleteBatchInput {
   ids: string[];
+  /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
+  origin?: string;
 }
 
 export const deleteBatchInputSchema : ZodLike<DeleteBatchInput> = createSchema<DeleteBatchInput>((data) => {
@@ -703,7 +890,9 @@ export const deleteBatchInputSchema : ZodLike<DeleteBatchInput> = createSchema<D
       },
     };
   }
-  return { success: true, data: { ids: data["ids"] as string[] } };
+  const error = originError(data);
+  if (error) return { success: false, error };
+  return { success: true, data: withOriginOf(data, { ids: data["ids"] as string[] }) };
 });
 
 /**

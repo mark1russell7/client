@@ -48,6 +48,8 @@ export {
   toToolDefinition,
   createToolMap,
   findToolByPath,
+  withUntrustedFields,
+  UNTRUSTED_FIELD_DESCRIPTION,
 } from "./mapping/index.js";
 
 // Context utilities

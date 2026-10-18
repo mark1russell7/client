@@ -83,6 +83,10 @@ export class HttpTransport implements Transport {
   private readonly headerConverter: HeaderConverter;
   private readonly defaultHeaders: Record<string, string>;
   private readonly timeout: number | undefined;
+  /** The more options of each fetch call: the credentials mode and the others (CLI-18) */
+  private readonly requestInit: Omit<RequestInit, "method" | "headers" | "body" | "signal">;
+  /** The fetch function, or undefined for the global fetch at the time of each call */
+  private readonly fetchFn: typeof fetch | undefined;
 
   constructor(options: HttpTransportOptions) {
     this.baseUrl = options.baseUrl;
@@ -93,6 +97,11 @@ export class HttpTransport implements Transport {
       options.headerConverter || createDefaultHeaderConverter();
     this.defaultHeaders = options.defaultHeaders || {};
     this.timeout = optionalMs(options.timeout, "timeout");
+    this.requestInit = {
+      ...options.requestInit,
+      ...(options.credentials !== undefined ? { credentials: options.credentials } : {}),
+    };
+    this.fetchFn = options.fetch;
   }
 
   /**
@@ -136,6 +145,7 @@ export class HttpTransport implements Transport {
 
       // Build fetch options
       const fetchOptions: RequestInit = {
+        ...this.requestInit,
         method: httpMethod,
         headers: {
           [HTTPHeaders.CONTENT_TYPE]: "application/json",
@@ -156,7 +166,7 @@ export class HttpTransport implements Transport {
       }
 
       // Execute HTTP request
-      const response = await fetch(url, fetchOptions);
+      const response = await (this.fetchFn ?? fetch)(url, fetchOptions);
       const metadata = this.headerConverter.headersToMetadata(response.headers);
 
       if (response.headers.get(HTTPHeaders.CONTENT_TYPE)?.includes(NDJSON) && response.body) {

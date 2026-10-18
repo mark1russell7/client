@@ -86,6 +86,21 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
   clock?: Clock;
 
   /**
+   * More headers that carry a secret, for example the token header of an application. They go
+   * into the credentials of the request, not into its metadata. `Authorization`,
+   * `Proxy-Authorization`, `Cookie` and `X-Api-Key` are always secret.
+   */
+  secretHeaders?: readonly string[];
+
+  /**
+   * The query parameters that carry a secret. They go into the credentials of the request, not
+   * into its metadata. The default keeps each query parameter in the metadata, as before.
+   * `procedureHandler` has the default `["token"]`.
+   * @default []
+   */
+  secretQuery?: readonly string[];
+
+  /**
    * Custom CORS options. `origin` is "*", one origin or a list: the response names the
    * request's origin when it is in the list.
    */

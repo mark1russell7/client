@@ -91,9 +91,18 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **The ids.** `getIds()` gives the ids in the order of the entries. `ApiStorage.getIds()` uses the procedure `collections.<name>.ids`, so the values stay on the server.
 - **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
+- **The queries.** `query(selector, { sort, skip, limit })` gives the result of `queryEntries()` of `@procedures/collections`. `ApiStorage.query()` sends the JSON selector to the procedure `collections.<name>.find`, so the server applies it.
+- **The patches.** `ApiStorage.patch(id, fields)` sends a patch to the procedure `collections.<name>.patch`. The server changes the item in one step. A patch is a JSON Merge Patch, or the operations `{ $set, $unset }`.
+- **The query policy.** The server applies the policy of its host to each `find`. The default policy does not permit `$regex`, and a `find` gets at most 1000 items.
+
 Notes:
 
 - A custom `service` or a custom `get` operation gets the input `{ id }`, as before. Its `null` reads back as `undefined`.
+- A server before the procedure `find` answers `NOT_FOUND`. Then `ApiStorage.query()` reads the entries and applies the query in the client, with the same result.
+- `ApiStorage.find(predicate)` reads each item, because a function cannot go over the network. Use `query()` with a selector to filter on the server.
+- `HybridStorage.query()` reads the local copy, or the remote in `remote-only` mode. Its option `queryPolicy` goes to the storage under it.
+- `ApiStorage.query()` examines the form of a selector before it sends it. Its option `queryPolicy` adds the limits of the client.
+- A host turns `$regex` on with `server.registerCollectionProcedures(name, { queryPolicy })` or `createCollectionProcedures(name, { queryPolicy })`.
 - A server before `found` ignores it and gives the item. Then a stored `null` reads back as `undefined`, as before.
 - A server before the procedure `ids` answers `NOT_FOUND`. Then `ApiStorage.getIds()` reads the ids from the entries, and it does not ask for `ids` again.
 - `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.
@@ -182,6 +191,85 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
 - Without versions, a pull reads each local item without a queued write. It compares the JSON of the local item and the remote item.
 - The option `pullInterval` starts a periodic pull in the modes `write-through` and `write-back`. `close()` stops it.
+
+### The clock, the backoff and the status
+
+The timers and the retries run on a clock: `Clock` of `@mark1russell7/service/clock`. A test gives `fakeClock` of `@mark1russell7/service/testing`, and the times are then exact.
+
+- The option `clock` of `HybridStorage` and of `ApiStorage` gives the clock. The default is `realClock` of `@procedures/client`.
+- The timers of `HybridStorage` do not keep a Node process alive. These timers are the push of `write-back`, the periodic pull, and the send of the queue after a failure.
+- After a failed run of a timer, the next delay grows with `backoffDelay` of `@mark1russell7/service/backoff`. The option `backoff` gives the `factor`, the `maxDelay` and the `jitter`.
+- A run that succeeds sets the delay back to its interval.
+- `ApiStorage` waits `backoffDelay` between its tries, with full jitter. The options are `retryDelay`, `retryFactor`, `maxRetryDelay` and `retryJitter`.
+- An error with `retryAfterMs` gets at least that wait.
+- The timeout of each call of `ApiStorage` uses the clock too.
+
+`HybridStorage.getStatus()` gives the state of the sync. `onStatus(listener)` sends the status at each change. The storages of this package do not write to the console.
+
+| Field | Value |
+|---|---|
+| `connected` | False after a remote call failed, until a remote call succeeds |
+| `pendingChanges` | The number of operations in the queue |
+| `syncing` | True while a push or a pull runs |
+| `lastSync` | The time of the last pull that succeeded |
+| `mode` | The mode of the storage |
+| `error` | The newest failure of a load, a push, a pull, the queue store or the sync state store, with its `operation` and its `error`. A later success of the same work clears it. |
+
+```ts
+const stop = users.onStatus((status) => {
+  if (status.error) showBanner(`The sync failed: ${String(status.error.error)}`);
+  else if (status.pendingChanges > 0) showBanner(`${status.pendingChanges} changes wait for the server`);
+});
+```
+
+`SyncedProcedureRegistry` takes the option `clock` for its auto-sync. Its `getStatus()` and `onStatus()` give the failures of the auto-sync and of the write-through writes.
+
+### The changes, the capture, the sync state and the push feed
+
+`HybridStorage` is a sync engine for each local copy: `InMemoryStorage`, `SqliteStorage`, IndexedDB or a SignalDB collection (server stack D9, CLI-21, CLI-15).
+
+- `observe(observer)` gives one batch of `set`, `delete` and `clear` changes for each change of the storage.
+- A write of the storage gives its batch with the `origin` of its options. A pull and a delta of the feed give their changes with the origin `syncOrigin`, `"sync"` by default.
+- The option `origin` is the tag of the storage. Each write of the storage to the local copy and to the remote has it.
+- With `capture: "observe"`, the storage observes the local copy. It puts each change with another origin in the queue. Thus the application can write to the local copy directly.
+- A captured change always goes in the queue, because the application made it already. In `write-through` mode, the storage sends it at once.
+- The option `syncState` keeps the cursor and the base versions. A new storage with the same store asks only for the changes since the cursor.
+- `MemorySyncStateStore` keeps the state in memory. `IndexedDbSyncStateStore` of `@procedures/store/indexeddb` keeps it in a browser.
+- The storage uses a loaded cursor only with the option `local` and a local copy that has items. Give the state store with a durable local copy.
+- The option `feed` takes a push feed of the remote changes, for example `EventsChangeFeed`. The storage subscribes in the modes `write-through` and `write-back`.
+- A delta whose `since` is the cursor of the storage applies without a read of the remote.
+- A gap, a lost event, a new subscription or another delta makes the storage pull the changes since its cursor.
+- A delta that comes during a pull applies after the pull. Thus a pull does not erase a change that came during it.
+- In `write-through` mode, a pull or a delta does not write over an own write that waits for the remote. After the write, the storage reads the id again, and the rules of a pull decide.
+- With `versionOf`, the storage keeps the versions of its own writes until their echoes come. The echo of an older own write does not write over a newer local write.
+- The option `echoWindow` gives the time that the storage waits for an echo. The default is 30 seconds.
+
+`EventsChangeFeed` subscribes to the change events of the core collection procedures. Each write of `collections.<name>.*` publishes `{ since, version, changed, deleted, origin }` on the topic `collections.<name>`.
+
+- An event has the ids and the versions, and no value. The storage reads the values with `changes`, so the checks of a read apply. A hint with only deletes applies without a read.
+- A subscriber must have a capability that reads `collection:<name>`, as for a read.
+- With `changeEvents: { values: true }` on the server, the events also have the values. Each row passes the output filter of the host for each subscriber, and a refused id goes in `withheld`.
+- An event with a value for each changed id applies without a read. An event with a withheld id makes the storage pull.
+- The syncs of one storage run one at a time: the deltas, the hints, the pulls, the pushes and the mode switches. Thus a remote delta and a full sync do not run at the same time.
+
+```ts
+import { ApiStorage, EventsChangeFeed, HybridStorage } from "@procedures/store";
+import { IndexedDbQueueStore, IndexedDbSyncStateStore } from "@procedures/store/indexeddb";
+
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  local: signalDbStorage,
+  capture: "observe",
+  versionOf: (user) => user.rev,
+  queueStore: new IndexedDbQueueStore("users-queue"),
+  syncState: new IndexedDbSyncStateStore("users-sync"),
+  feed: new EventsChangeFeed(client, { collection: "users" }),
+});
+```
+
+- The source of an `EventsChangeFeed` is a `Client`, a `WebSocketTransport`, or another transport of `@procedures/client`. `Client.subscribe()` sends the subscription through the middleware of the client.
+- The delivery of the events is at most once. Thus the feed gives each loss to the storage, and the storage pulls.
+- The server serves the events with the option `events` of `ProcedureServer`, for example `{ topics: ["collections.*"] }`. Without a subscriber, the procedures publish nothing.
+- `ApiStorage` sends the `origin` of a write to the procedure. Thus the storage of the server and the event have it.
 
 ### The change of a storage in a server
 

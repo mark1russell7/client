@@ -301,6 +301,39 @@ for await (const event of transport.events(["orders.created", "orders.paid"], { 
 - The options are `signal`, `onSubscribed`, `metadata`, `resubscribe`, `maxAttempts`, `backoff` and `clock`. `subscribeRemote()` also takes `onError`.
 - A bad `backoff` or `maxAttempts` throws a `TypeError` at the call, before any request.
 - The `onEvent` option of `WebSocketTransport` is a wrapper. It gets each event of each subscription of the transport, with the id of its subscription.
+- `client.subscribe(topics, handler, options)` and `client.events(topics, options)` of a `Client` do the same through the middleware and the context of the client. Thus a token of the auth middleware goes with the call. The subscriptions of one client share their calls.
+- A subscription of a `Client` has no deadline. The timeout middleware, the `timeout` of the context and `procedure-timeout` of the client do not apply to it. For a deadline, give `metadata: { timeout: { overall } }` in the options.
+
+### The change events of the collections
+
+Each write of the core collection procedures publishes a change event on the bus of the procedure (server stack CLI-15). The topic is `collections.<name>`.
+
+| Field | Meaning |
+|---|---|
+| `since` | The version of the storage before the changes. Without it, the event is only a hint. |
+| `version` | The version of the storage after the changes. |
+| `changed` | The ids of the items that changed. |
+| `deleted` | The ids that were deleted. |
+| `values` | Only with the option `values`: the changed items, as `{ id, value }`, that the subscriber can read. |
+| `withheld` | Only with the option `values`: the changed ids whose values the output filter refused. |
+| `origin` | The origin of the writes, when one origin made all the changes. |
+
+- The changes come from the change log of the storage (`getChangesSince`). The events of one storage make a chain: the `since` of an event is the `version` of the event before it.
+- A call of `changes` starts the chain. While no one listens to the topic, the procedures publish nothing and do not read the log.
+- A storage without a change log gives a hint without `since`. The subscriber then reads the changes.
+- The delivery is at most once. `EventsChangeFeed` of `@procedures/store` thus tells each loss to its `HybridStorage`, and the storage pulls.
+- The option `changeEvents` of `createCollectionProcedures()` turns the events off, or gives the topic of each call. The partition of a collection goes in the topic.
+
+#### The values reach a subscriber only through the checks of a read
+
+A value of a collection reaches a caller only through a read with its checks. Thus the events obey these rules:
+
+- By default, an event has the ids and the versions, and no value. The subscriber reads the values with `changes`, so the capability and the output filter of the host apply.
+- A subscriber of a topic `collections.<name>` must have a capability that reads `collection:<name>`, as for a read. A topic of a partition, `collections.<name>.<partition>`, has the same rule.
+- Without that read, the subscription gets `FORBIDDEN` with the reason `effects-exceeded`. The option `reads` of `EventPublisher` gives the rule of other topics.
+- With the option `values: true`, an event also has the values. Each row `{ id, value }` passes the output filter of the host (`admitItem`) for each subscriber.
+- A row that the filter refuses stays out of the event of that subscriber, and its id goes in `withheld`. The subscriber then reads that id with `changes`.
+- A procedure that sends the data of other writers later, for example a subscription, gets the output filter of its host as `ctx.admit`.
 
 ### The publisher
 

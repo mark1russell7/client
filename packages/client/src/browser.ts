@@ -76,8 +76,9 @@ export {
 export { Server } from "./server/server.js";
 export type { ServerOptions } from "./server/server.js";
 export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream, tokenMatches } from "./server/procedure-server.js";
-// The credentials of a network request (roadmap R18)
-export { credentialsOf, bearerOf, withoutSecretHeaders } from "./server/request-auth.js";
+// The credentials of a network request (roadmap R18), and the parts that a request hook reads (CLI-2a)
+export { credentialsOf, bearerOf, withoutSecretHeaders, cookiesOf, requestCredentials } from "./server/request-auth.js";
+export type { RequestCredentialsOptions } from "./server/request-auth.js";
 // The procedures of a host: host.health, host.info, host.metrics (roadmap R19)
 export { hostProcedures } from "./server/host-procedures.js";
 export type { HostSource } from "./server/host-procedures.js";
@@ -93,6 +94,9 @@ export type {
   RequestHandler,
   Credentials,
   Principal,
+  PrincipalOf,
+  RequestIdentity,
+  AmbientCredentials,
   ServerHandler,
   ServerMiddleware,
   ServerContext,
@@ -117,6 +121,24 @@ export {
   pathToKey,
   keyToPath,
   createCollectionProcedures,
+  // The change events of the collection writes (roadmap CLI-15)
+  collectionChangeTopic,
+  collectionTopicReads,
+  // The query language of the collection storages (roadmap CLI-14, CLI-34)
+  DEFAULT_FIND_LIMIT,
+  DEFAULT_QUERY_OPERATORS,
+  DEFAULT_QUERY_POLICY,
+  QUERY_OPERATORS,
+  applyPatch,
+  compareStorageValues,
+  compileSelector,
+  isPatchOperations,
+  matchesSelector,
+  mergePatch,
+  patchProblems,
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
   // Manual registration helpers
   registerModule,
   registerProcedures,
@@ -235,6 +257,25 @@ export type {
   CollectionStorage,
   StorageChanges,
   StorageMetadata,
+  StorageWriteOptions,
+  StorageSetChange,
+  StorageDeleteChange,
+  StorageClearChange,
+  StorageChangeEvent,
+  StorageChangeBatch,
+  StorageObserver,
+  StorageFieldOperators,
+  StoragePatch,
+  StorageQueryOptions,
+  StorageSelector,
+  StorageSort,
+  StorageSortDirection,
+  StoragePatchOperations,
+  StorageQueryOperator,
+  StorageQueryPolicy,
+  CollectionProceduresOptions,
+  CollectionChangeEventsOptions,
+  CollectionChangeEvent,
   ProcedureModule,
   ModuleInput,
   Caller,
@@ -335,6 +376,42 @@ export { TIMEOUT_METADATA_KEY, DEADLINE_METADATA_KEY } from "./client/deadline.j
 // Typed durations: each public option that is a time takes a Duration (roadmap R11)
 export { ms, seconds, minutes, hours, toMs, optionalMs, isDuration } from "./duration.js";
 export type { Duration, TimeUnit } from "./duration.js";
+// What the face of a call offers the procedure: the questions to the person at the caller, the
+// progress, and the text from outside the host (CLI-10, CLI-12)
+export {
+  createElicit,
+  elicitWithPolicy,
+  operatorAnswer,
+  elicitInput,
+  elicitConfirmation,
+  NO_ELICITATION_REASON,
+} from "./procedures/elicit.js";
+export type {
+  Elicit,
+  ElicitRequest,
+  ElicitFormRequest,
+  ElicitUrlRequest,
+  ElicitMode,
+  ElicitAction,
+  ElicitResult,
+  ElicitOptions,
+  ElicitField,
+  ElicitFieldBase,
+  ElicitTextField,
+  ElicitNumberField,
+  ElicitBooleanField,
+  ElicitChoiceField,
+  ElicitChoicesField,
+  ElicitValue,
+  ElicitationPolicy,
+  ConfirmationOptions,
+  ConfirmationResult,
+} from "./procedures/elicit.js";
+export type { ProgressUpdate, ReportProgress } from "./procedures/progress.js";
+export { toolHintsOf, toolHintOverrideOf, toolHintOverrideRefusal } from "./procedures/hints.js";
+export type { ToolHintOverride } from "./procedures/hints.js";
+export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./procedures/untrusted.js";
+export type { UntrustedText, UntrustedSource, UntrustedValue } from "./procedures/untrusted.js";
 // One manifest type (roadmap R17)
 export { MANIFEST_FORMAT, describeProcedure as describeProcedureEntry, describeRegistry, exposedProcedures, hashOf } from "./procedures/manifest.js";
 export type { ProcedureEntry, ProcedureManifest, CliDescription, DescribeOptions, DescribeRegistryOptions } from "./procedures/manifest.js";

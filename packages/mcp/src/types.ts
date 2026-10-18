@@ -35,6 +35,8 @@ export interface JsonSchema {
 export interface McpToolDefinition {
   /** Tool name (procedure path joined with dots) */
   name: string;
+  /** The short name of the tool for people (MCP 2025-06-18): `metadata.title` of the procedure. */
+  title?: string;
   /** Human-readable description */
   description?: string;
   /** JSON Schema for tool input */
@@ -70,6 +72,11 @@ export interface McpTool extends McpToolDefinition {
   streaming?: boolean;
   /** Procedure tags for filtering */
   tags?: string[];
+  /**
+   * The output fields that hold text from outside the host (`metadata.untrusted`, CLI-10). The
+   * MCP host shows their texts in envelopes, apart from the data.
+   */
+  untrusted?: string[];
 }
 
 /**
