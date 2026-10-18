@@ -3,7 +3,7 @@
  *
  * The lockfile module reads the home folder when it loads, so this file sets HOME (and
  * USERPROFILE on Windows) before it imports the procedures. The tests never use the lockfiles of
- * the user. A server of a test is an HTTP server that answers `/health` with a peer id. A test
+ * the user. A server of a test is an HTTP server that answers each request with a peer id. A test
  * that stops a server starts it as a child process, because server.stop signals its PID.
  */
 
@@ -51,7 +51,7 @@ afterEach(async () => {
   for (const lockfile of lockfiles.readAllLockfiles()) lockfiles.removeLockfileForPort(lockfile.port);
 });
 
-/** An HTTP server that answers `/health` with this peer id. It gives its port. */
+/** An HTTP server that answers each request (`host.info` too) with this peer id. It gives its port. */
 async function healthServer(peerId: string): Promise<number> {
   const server = createServer((_request, response) => {
     response.setHeader("content-type", "application/json");

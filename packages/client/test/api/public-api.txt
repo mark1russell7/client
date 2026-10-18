@@ -5226,10 +5226,12 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     protected findHandler(method: Method): ServerHandler | null;
     get callsInFlight(): number;
     get stopping(): boolean;
+    admits(credentials: Credentials): Promise<boolean>;
     registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void;
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
+    procedureOf(method: Method): AnyProcedure | undefined;
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];

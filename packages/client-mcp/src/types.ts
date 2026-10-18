@@ -66,6 +66,11 @@ export interface HttpTransportOptions {
   /** An HTTP server to answer on, in place of a server of the transport (it does not listen then) */
   server?: import("node:http").Server | undefined;
   /**
+   * True: the endpoint has no server and attaches to none. The owner of a listener mounts its
+   * request handler (`McpServerTransport.handleHttp`), for example the procedures host (CLI-7).
+   */
+  mount?: boolean | undefined;
+  /**
    * How the procedure server reads cookies (`ambientCredentials` of `ProcedureServer`). The
    * transport sets it from its server. With a value, a request with a cookie needs a named origin.
    */

@@ -101,11 +101,15 @@ describe("peer request checks", () => {
     expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
-  it("answers the health endpoint without the token (a client checks a lockfile with it)", async () => {
+  it("answers host.info with the token, and has no /health route (CLI-7)", async () => {
     const port = await startPeer();
-    const response = await send(port, "/api/health", { Host: `localhost:${port}` });
-    expect(response.status).toBe(200);
-    expect(JSON.parse(response.body).peerId).toBe("peer-test");
+    // The probes come from the runner: the peer has no static /health route of its own
+    expect((await send(port, "/health", { Host: `localhost:${port}` })).status).toBe(404);
+    // A client checks a lockfile with host.info and the token of the lockfile
+    const info = await send(port, "/api/host/info", { ...json, Host: `localhost:${port}`, Authorization: `Bearer ${TOKEN}` }, "{}");
+    expect(info.status).toBe(200);
+    expect(JSON.parse(info.body).peerId).toBe("peer-test");
+    expect((await send(port, "/api/host/info", { ...json, Host: `localhost:${port}` }, "{}")).status).toBe(401);
   });
 });
 

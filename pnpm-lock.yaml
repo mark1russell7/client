@@ -383,7 +383,7 @@ importers:
         version: 0.2.0(zod@4.6.5)
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.1(zod@4.6.5)
+        version: 0.5.2(zod@4.6.5)
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -823,6 +823,9 @@ importers:
 
   packages/client-server:
     dependencies:
+      '@mark1russell7/service':
+        specifier: ^0.5.2
+        version: 0.5.2(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -836,9 +839,6 @@ importers:
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
-      '@types/express':
-        specifier: ^5.0.6
-        version: 5.0.6
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -848,10 +848,6 @@ importers:
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@22.20.5)(@vitest/coverage-v8@5.0.3)(vite@6.4.4(@types/node@22.20.5)(tsx@4.23.15)(yaml@2.9.1))
-    optionalDependencies:
-      express:
-        specifier: ^5.0.0
-        version: 5.2.1(supports-color@7.2.0)
 
   packages/client-shell:
     dependencies:
@@ -981,7 +977,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.1(zod@4.6.5)
+        version: 0.5.2(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1327,7 +1323,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.1(zod@4.6.5)
+        version: 0.5.2(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1714,7 +1710,7 @@ importers:
         version: 1.0.0
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.1(zod@4.6.5)
+        version: 0.5.2(zod@4.6.5)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1965,7 +1961,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.1(zod@4.6.5)
+        version: 0.5.2(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3001,8 +2997,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.5.1':
-    resolution: {integrity: sha512-8bwk8mk0frsss2IMibjIPdfKAbCvonDO6nzi0hDkyv8shUJ8XxCYk8L2i4Ce2H1QNcefc4pFfC/HcjWgrFj8pg==}
+  '@mark1russell7/service@0.5.2':
+    resolution: {integrity: sha512-PwoZg09iW3my0Iu/+dlf9dWXCu6v28Lqd5Joy/eRpO0HNdwGkBcUjvptYkzF4ApaFzJpxDu/sMaG1vBn8KudxA==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -5857,7 +5853,7 @@ snapshots:
     optionalDependencies:
       zod: 4.6.5
 
-  '@mark1russell7/service@0.5.1(zod@4.6.5)':
+  '@mark1russell7/service@0.5.2(zod@4.6.5)':
     dependencies:
       '@mark1russell7/algebra': 0.7.1(zod@4.6.5)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
