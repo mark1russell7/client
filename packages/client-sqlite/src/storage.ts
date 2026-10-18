@@ -16,6 +16,9 @@
  *   id, and `_storage_versions` has the version of each collection: `<epoch>:<seq>`, as
  *   `InMemoryStorage` has. The epoch stays in the file, so a version stays valid after a restart.
  * - Each write runs in a transaction. A batch that fails changes nothing.
+ * - `query()` runs a JSON selector of `@procedures/client/query` on the rows of one read, under a
+ *   query policy. `patch()` changes an item in one transaction, so two processes keep the fields
+ *   of each patch.
  * - The storages of one file in one process share one database. Thus the storages of two tables
  *   in one file keep the changes of each other.
  * - A storage that only reads does not make the file.
@@ -23,7 +26,18 @@
 
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
-import { optionalMs, type CollectionStorage, type Duration, type StorageChanges, type StorageMetadata } from "@procedures/client";
+import {
+  optionalMs,
+  type CollectionStorage,
+  type Duration,
+  type StorageChanges,
+  type StorageMetadata,
+  type StoragePatch,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+} from "@procedures/client";
+import { applyPatch, patchProblems, queryEntries } from "@procedures/client/query";
 import {
   MEMORY_PATH,
   checkEngine,
@@ -78,6 +92,12 @@ export interface SqliteStorageOptions {
    * @default 5 seconds
    */
   busyTimeout?: Duration;
+  /**
+   * The query policy of `query()` for a call without a policy. The procedure `find` gives the
+   * policy of its host.
+   * @default DEFAULT_QUERY_POLICY: no `$regex`
+   */
+  queryPolicy?: StorageQueryPolicy | undefined;
 }
 
 /** The pattern of a table name: a letter, then letters, digits and underscores. */
@@ -415,6 +435,8 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   /** The engine choice of the options. `getEngine()` gives the engine that the storage uses. */
   readonly engine: SqliteEngine;
   private readonly maxTombstones: number;
+  /** The query policy of a call without a policy */
+  private readonly queryPolicy: StorageQueryPolicy | undefined;
   /** The quoted table name, for the SQL text. */
   private readonly quoted: string;
   private readonly opening: Promise<SharedDatabase>;
@@ -430,6 +452,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     const busyTimeoutMs = optionalMs(options.busyTimeout, "busyTimeout") ?? 5000;
     this.quoted = `"${this.table}"`;
     this.maxTombstones = Math.max(0, options.maxTombstones ?? 10_000);
+    this.queryPolicy = options.queryPolicy;
     this.opening = this.open(busyTimeoutMs);
     // An operation gives the error of the open. This handler only stops an unhandled rejection.
     this.opening.catch(() => undefined);
@@ -494,6 +517,15 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     return (await this.getAll()).filter((item) => predicate(item));
   }
 
+  /**
+   * The entries whose items match the selector, with the order, the skip and the limit of
+   * `queryEntries()` (roadmap CLI-14), under the policy of the call or of the options. The storage
+   * reads the rows in the order of the entries, and runs the query on them.
+   */
+  async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
+    return queryEntries(this.entries(await this.database()), selector, options, policy ?? this.queryPolicy);
+  }
+
   async has(id: string): Promise<boolean> {
     const db = await this.database();
     return db.all(`SELECT 1 FROM ${this.quoted} WHERE id = ? LIMIT 1`, [checkId(id)]).length > 0;
@@ -512,6 +544,24 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   async set(id: string, value: T): Promise<void> {
     const text = toJson(checkId(id), value);
     await this.write((db, next) => this.put(db, id, text, next));
+  }
+
+  /**
+   * This method changes the item of the id in one transaction (a JSON Merge Patch, or the
+   * operations `$set` and `$unset`), and gives a copy of the new item. A missing id stays missing,
+   * and the result is undefined. A patch that cannot apply to the item changes nothing.
+   */
+  async patch(id: string, fields: StoragePatch): Promise<T | undefined> {
+    checkId(id);
+    const [problem] = patchProblems(fields);
+    if (problem !== undefined) throw new TypeError(`The patch of ${JSON.stringify(id)} is not correct: ${problem}`);
+    return this.write((db, next) => {
+      const [row] = db.all<{ value: string }>(`SELECT value FROM ${this.quoted} WHERE id = ?`, [id]);
+      if (row === undefined) return undefined;
+      const text = toJson(id, applyPatch(JSON.parse(row.value), fields));
+      this.put(db, id, text, next);
+      return JSON.parse(text) as T;
+    });
   }
 
   async delete(id: string): Promise<boolean> {

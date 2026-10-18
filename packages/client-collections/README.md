@@ -89,17 +89,20 @@ interface CollectionStorage<T> {
   getIds?(): Promise<string[]>;
   getChangesSince?(since?: string): Promise<StorageChanges<T>>;
   find(predicate: (item: T) => boolean): Promise<T[]>;
+  query?(selector: StorageSelector, options?: StorageQueryOptions): Promise<Array<[string, T]>>;
+  observe?(observer: StorageObserver<T>): () => void;
   has(id: string): Promise<boolean>;
   size(): Promise<number>;
 
-  // Write Operations
-  set(id: string, value: T): Promise<void>;
-  delete(id: string): Promise<boolean>;
-  clear(): Promise<void>;
+  // Write Operations (the options give the origin of the write to the observers)
+  set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
+  delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+  clear(options?: StorageWriteOptions): Promise<void>;
+  patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
 
   // Bulk Operations
-  setBatch(items: Array<[string, T]>): Promise<void>;
-  deleteBatch(ids: string[]): Promise<number>;
+  setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+  deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
   getBatch(ids: string[]): Promise<Map<string, T>>;
 
   // Lifecycle
@@ -116,6 +119,72 @@ Each storage agrees on these points:
 - A delta of `getChangesSince` follows the order of the last change of each id. A full result follows the order of the entries.
 - `getIds()` gives the ids in the order of the entries, and it does not read or copy the values. A storage that cannot give the ids cheaply does not have it. `HybridStorage` uses it for a full sync.
 - After `close()`, each operation rejects with an error whose message says "closed". A second `close()` does nothing.
+- `query()` gives the result of `queryEntries()` for the entries of the storage. Refer to "The query language".
+- `observe()` gives one batch of changes for each write that changes the storage, before the write resolves. Each change has the `origin` of its write.
+- `patch()` merges fields into one item in one step, as a JSON Merge Patch (RFC 7386). Two patches of one item at the same time keep each field.
+- The optional methods are features. A caller tests for each one before it uses it.
+
+### The query language
+
+A selector is JSON: a subset of the query selectors of MongoDB. The same selector goes to `query()` of a storage and to the procedure `collections.<name>.find` of `@procedures/client`.
+
+The language is a part of the wire contract of the core, so its one copy is in `@procedures/client/query`, an entry that imports nothing else. This package depends on `@procedures/client` for it, and it exports the same names again.
+
+```typescript
+const storage = new InMemoryStorage<Task>();
+const open = await storage.query(
+  { done: false, "owner.team": "core", tags: { $in: ["bug", "urgent"] }, $or: [{ due: { $lt: "2026-11-01" } }, { due: null }] },
+  { sort: { due: 1, title: 1 }, skip: 0, limit: 20 },
+);
+// open: [id, task] pairs, with copies of the tasks
+```
+
+- A key is a field path. A number in a path is an index of an array. A path through an array of objects looks into each object.
+- A literal is a test for equality. An array field also matches an equal element. `null` also matches a missing field.
+- The operators are `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$exists`, `$not`, `$regex` with `$options`, `$size`, `$all`, `$elemMatch`, `$and`, `$or` and `$nor`.
+- An operator that is not in the list is an error. `selectorProblems()` and `queryOptionsProblems()` give the problems, and `query()` rejects with a `TypeError`.
+- The comparisons compare only values of one type. The order of a sort is `null`, numbers, strings, objects, arrays, then booleans.
+- `queryEntries(entries, selector, options, policy)` is the reference. A storage that runs a selector itself, for example a database, gives the same result.
+- `compileSelector(selector, policy)` gives a test for many items.
+
+#### The query policy
+
+A query policy limits the queries of a caller. The default policy does not permit `$regex`: a pattern runs in the process, and some patterns take an exponential time.
+
+| Limit | Default | What a larger query gets |
+|---|---|---|
+| `operators` | `DEFAULT_QUERY_OPERATORS`: each operator except `$regex` | A `TypeError`, or `VALIDATION_ERROR` from `find` |
+| `maxRegexLength` | 128 characters | The same |
+| `regexFlags` | `"imsu"` | The same |
+| `maxClauses` | 64: each condition of a field, each operator, each `$and`, `$or` and `$nor` | The same |
+| `maxDepth` | 6: each `$and`, `$or`, `$nor`, `$not` and `$elemMatch` adds a level | The same |
+| `maxListLength` | 256 values of `$in`, `$nin` and `$all` | The same |
+| `maxLimit` | No limit for a storage. 1000 (`DEFAULT_FIND_LIMIT`) for the procedure `find`. | A larger `limit` is an error. A query without a limit gets `maxLimit`. |
+
+```typescript
+import { QUERY_OPERATORS } from "@procedures/collections";
+
+// A storage of trusted data turns $regex on
+const notes = new InMemoryStorage<Note>({ queryPolicy: { operators: QUERY_OPERATORS, maxRegexLength: 64 } });
+await notes.query({ title: { $regex: "^draft", $options: "i" } });
+```
+
+- The option `queryPolicy` of a storage applies to each call without a policy. The third argument of `query()` gives the policy of one call.
+- The procedure `find` gives the policy of its host to `query()` of the storage, so the host sets the policy in one place.
+- A pattern that repeats a group that repeats without a bound, for example `(a+)+`, is always an error.
+
+#### The two forms of a patch
+
+`patch(id, fields)` takes one of two forms. A patch whose keys each start with `$` is the operations form. A patch that mixes the two forms is an error.
+
+| Form | Example | What it does |
+|---|---|---|
+| JSON Merge Patch (RFC 7386) | `{ title: "New", meta: { score: 2 }, draft: null }` | Each field replaces the field of the item. An object merges into an object field. `null` removes the field. |
+| Operations | `{ $set: { "meta.score": 2, draft: null }, $unset: ["tags.0"] }` | `$set` sets field paths, also to `null`. `$unset` removes field paths. An element of an array becomes `null`. |
+
+- `applyPatch(value, fields)` applies either form, and `mergePatch(value, fields)` applies only a JSON Merge Patch. `patchProblems(fields)` gives the problems of a patch.
+- `$set` makes each missing or `null` part of a path an object. A path through another value, or past the end of an array, is a `TypeError`, and the item does not change.
+- `$set` comes before `$unset`. Two paths that overlap, for example `a` and `a.b`, are an error.
 
 ### The contract suite: `@procedures/collections/testing`
 
@@ -138,6 +207,7 @@ describeCollectionStorageContract(
 - The suite tests the reads, the writes and the batches, the order of the entries, `getIds`, and the results as new arrays.
 - It tests the copies, the JSON values with `null`, and the writes at the same time.
 - It tests `getChangesSince` with its versions and its order, `flush`, `getMetadata`, `close` and the errors.
+- It tests `query()` with fixed and random selectors against `queryEntries()`, `patch()` with patches at the same time, and the batches and origins of `observe()`.
 - A case for an optional method skips a storage without the method.
 - A random sequence of writes runs against a `Map`. Each saved version must give the right changes, in the order of the last change of each id.
 - The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws `ContractViolation`. The runtime entries do not import this entry.
@@ -145,10 +215,10 @@ describeCollectionStorageContract(
 
 | Storage | Package | Notes |
 |---|---|---|
-| `InMemoryStorage` | `@procedures/collections` | It copies with `structuredClone`. The run with `copies: false` skips only the case of the copies. |
-| `SqliteStorage` (each engine, in memory and in a file) | `@procedures/sqlite` | It keeps JSON text, so it gives copies. |
-| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. Its `getIds` uses the procedure `ids`. |
-| `HybridStorage` (each mode, and a queue in IndexedDB) | `@procedures/store` | It has no `getChangesSince`. |
+| `InMemoryStorage` | `@procedures/collections` | It copies with `structuredClone`. The run with `copies: false` skips only the case of the copies. It has `query`, `observe` and `patch`. |
+| `SqliteStorage` (each engine, in memory and in a file) | `@procedures/sqlite` | It keeps JSON text, so it gives copies. Its `patch` runs in one transaction. |
+| `ApiStorage` | `@procedures/store` | It reads `{ found, value }` from the procedure `get`, so a stored `null` stays `null`. Its `getIds` uses the procedure `ids`, its `query` the procedure `find`, and its `patch` the procedure `patch`. |
+| `HybridStorage` (each mode, and a queue in IndexedDB) | `@procedures/store` | It has no `getChangesSince`. Its `query` reads the local copy, or the remote in `remote-only` mode. |
 
 ## Storage Backends
 
@@ -167,6 +237,7 @@ const user = await storage.get("user-1");
 - The storage keeps a copy of each written value, and each read gives a new copy (`structuredClone`). A `Date` stays a `Date`. A function in a value makes the write reject.
 - The option `copies: false` turns the copies off: the storage keeps the values themselves, and the reads give them. It is faster. Give it only when no caller changes a value after a write or a read.
 - `getIds()` gives the ids without a copy of the values.
+- `observe()` gives each batch before the write resolves. The error of an observer goes to the option `onObserverError`. The default throws it again in a microtask, as an `EventTarget` does.
 - `close()` drops the items. After it, each operation rejects, and the methods of the `Map` interface (`keys()`, `values()`, `entries()`, `forEach()`) throw.
 
 ### ApiStorage and HybridStorage

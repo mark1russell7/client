@@ -21,13 +21,28 @@
  * - A full sync reads the local ids with `getIds()`, so it does not copy each local item.
  * - A pull reads a local item only when the result depends on it. With `versionOf`, the storage
  *   knows the version of each local item that it wrote or read.
+ * - The timers run on the clock of the options. After a failed push, pull or send of the queue,
+ *   the next delay grows with `backoffDelay` of `@mark1russell7/service/backoff` (roadmap CLI-13).
+ * - `getStatus()` and `onStatus()` give the state of the sync and its errors. Before, the errors
+ *   went to the console.
+ * - `query()` runs a selector on the local copy, or on the remote in `remote-only` mode.
  * - After `close()`, each operation rejects, and a second `close()` does nothing.
  */
 
 import type { CollectionStorage, StorageChanges, StorageMetadata } from "@procedures/collections";
-import { InMemoryStorage } from "@procedures/collections";
-import { optionalMs, type Duration } from "@procedures/client";
+import { InMemoryStorage, StorageListeners, type ListenerErrorHandler } from "@procedures/collections";
+import {
+  queryEntries,
+  queryOptionsProblems,
+  selectorProblems,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+} from "@procedures/client/query";
+import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
+import { backoffDelay } from "@mark1russell7/service/backoff";
 import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
+import type { SyncError, SyncStatus } from "./types.js";
 
 /**
  * Conflict resolution strategy.
@@ -173,6 +188,151 @@ export interface HybridStorageOptions {
    * @default a new `InMemoryStorage`
    */
   local?: LocalCopyStorage<any>;
+
+  /**
+   * The clock of the timers: the push of `write-back`, the periodic pull, and the send of the queue
+   * after a failure. A test gives `fakeClock` of `@mark1russell7/service/testing`. The timers do
+   * not keep a Node process alive.
+   * @default the clock of the platform (`realClock` of `@procedures/client`)
+   */
+  clock?: Clock;
+
+  /**
+   * The growth of the delays after a failure (roadmap CLI-13). After `n` failed runs of a timer in
+   * a row, its next delay is `interval × factor^n`, at most `maxDelay`, with the random part
+   * `jitter`. A run that succeeds sets the delay back to the interval.
+   */
+  backoff?: {
+    /** @default 2 */
+    factor?: number;
+    /** The longest backoff, for example `minutes(5)`. A timer with a longer interval uses its interval. @default 5 minutes */
+    maxDelay?: Duration;
+    /** The random part of each delay after a failure, from 0 to 1. @default 0.5 */
+    jitter?: number;
+  };
+
+  /**
+   * The random numbers of the jitter, from 0 up to 1. A test gives a fixed generator.
+   * @default Math.random
+   */
+  random?: () => number;
+
+  /**
+   * The function that gets the error of a listener of `onStatus()`. The default throws the error
+   * again in a microtask.
+   */
+  onListenerError?: ListenerErrorHandler;
+
+  /**
+   * The query policy of `query()` for a call without a policy. The storage gives it to the local
+   * copy, or to the remote in `remote-only` mode. The procedure `find` gives the policy of its host.
+   * @default DEFAULT_QUERY_POLICY: no `$regex`
+   */
+  queryPolicy?: StorageQueryPolicy;
+}
+
+/** The kinds of the timers of a `HybridStorage`. */
+interface TimerOptions {
+  readonly clock: Clock;
+  /** The delay of a run after a run that succeeded, in milliseconds */
+  readonly interval: number;
+  readonly factor: number;
+  readonly maxDelay: number;
+  readonly jitter: number;
+  readonly random: () => number;
+  /** True: the timer runs again after a run that succeeded. False: it stops. */
+  readonly repeat: boolean;
+  readonly work: () => Promise<unknown>;
+}
+
+/**
+ * A timer of a `HybridStorage` on a clock. It runs `work` after its interval. After a failed run,
+ * the next delay grows with `backoffDelay` (roadmap CLI-13). The timer does not keep a Node
+ * process alive.
+ */
+class SyncTimer {
+  private cancel: Cancel | undefined;
+  private active = false;
+  /** True while `work` runs */
+  private running = false;
+  /** True when `start()` came during a run: the timer waits again after the run */
+  private again = false;
+  private failures = 0;
+
+  constructor(private readonly options: TimerOptions) {}
+
+  /**
+   * This method starts the timer. A timer that waits does not start again. A start during a run
+   * makes the timer wait again after the run, also when it does not repeat.
+   */
+  start(): void {
+    if (this.running) {
+      this.again = true;
+      if (this.active) return;
+      this.active = true;
+      this.failures = 0;
+      return;
+    }
+    if (this.active) return;
+    this.active = true;
+    this.failures = 0;
+    this.arm();
+  }
+
+  /** This method stops the timer. A run that is on its way ends, and no next run starts. */
+  stop(): void {
+    this.active = false;
+    this.again = false;
+    this.cancel?.();
+    this.cancel = undefined;
+  }
+
+  /** The delay of the next run: the interval, or the backoff after failures. */
+  private delay(): number {
+    const { interval, factor, maxDelay, jitter, random } = this.options;
+    if (this.failures === 0) return interval;
+    return backoffDelay(
+      {
+        base: interval,
+        factor,
+        cap: Math.max(maxDelay, interval),
+        jitter: jitter > 0 ? { kind: "subtract", fraction: jitter } : { kind: "none" },
+      },
+      this.failures + 1,
+      random,
+    );
+  }
+
+  private arm(): void {
+    const cancel = this.options.clock.after(this.delay(), () => {
+      this.cancel = undefined;
+      void this.run();
+    });
+    // The timer must not keep the process alive (deep dive DATA-9)
+    cancel.unref?.();
+    this.cancel = cancel;
+  }
+
+  private async run(): Promise<void> {
+    if (!this.active) return;
+    this.running = true;
+    let failed = false;
+    try {
+      await this.options.work();
+      this.failures = 0;
+    } catch {
+      // The work reports its error in the status of the storage
+      failed = true;
+      this.failures++;
+    } finally {
+      this.running = false;
+    }
+    if (!this.active) return;
+    const again = this.again;
+    this.again = false;
+    if (failed || again || this.options.repeat) this.arm();
+    else this.active = false;
+  }
 }
 
 /**
@@ -327,14 +487,25 @@ export class HybridStorage<T> implements CollectionStorage<T> {
   private storeDirty = false;
   /** The calls of the queue store, one at a time */
   private storeChain: Promise<unknown> = Promise.resolve();
-  /** The push timer of the write-back mode */
-  private syncTimer: ReturnType<typeof setInterval> | null = null;
-  /** The periodic pull */
-  private pullTimer: ReturnType<typeof setInterval> | null = null;
+  /** The push timer of the write-back mode, or undefined without `syncInterval` */
+  private readonly pushTimer: SyncTimer | undefined;
+  /** The periodic pull, or undefined without `pullInterval` */
+  private readonly pullTimer: SyncTimer | undefined;
   /** True while pushQueue sends the queue: the first operation can be on its way */
   private pushing = false;
   /** The timer that sends the queue of the write-through mode after a failure */
-  private drainTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly drainTimer: SyncTimer;
+  /** The failures that a later success did not clear, the newest last */
+  private readonly failures = new Map<SyncError["operation"], SyncError>();
+  /** The number of pushes and pulls that run */
+  private syncs = 0;
+  /** The time of the last pull that succeeded (`Date.now()`) */
+  private lastSync: number | undefined;
+  /** The listeners of `onStatus()`, and the status that they got last */
+  private readonly statusListeners: StorageListeners<SyncStatus>;
+  private lastStatus: SyncStatus | undefined;
+  /** The query policy of a call without a policy */
+  private readonly queryPolicy: StorageQueryPolicy | undefined;
   /** The load of the queue. The writes wait for it. */
   private readonly loaded: Promise<void>;
   /** The load and the first sync. The reads wait for it, so a read never sees an empty cache by mistake. */
@@ -399,11 +570,127 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       offlineQueue: options.offlineQueue ?? true,
       isUnavailable: options.isUnavailable ?? defaultIsUnavailable,
     };
+    this.statusListeners = new StorageListeners<SyncStatus>(options.onListenerError);
+    this.queryPolicy = options.queryPolicy;
+
+    // The timers on the clock, with the backoff after a failure (roadmap CLI-13)
+    const factor = options.backoff?.factor ?? 2;
+    if (!(Number.isFinite(factor) && factor >= 1)) throw new RangeError(`backoff.factor must be a number of 1 or more, not ${factor}`);
+    const jitter = options.backoff?.jitter ?? 0.5;
+    if (!(jitter >= 0 && jitter <= 1)) throw new RangeError(`backoff.jitter must be from 0 to 1, not ${jitter}`);
+    const timing = {
+      clock: options.clock ?? realClock,
+      factor,
+      maxDelay: optionalMs(options.backoff?.maxDelay, "backoff.maxDelay") ?? 300_000,
+      jitter,
+      random: options.random ?? Math.random,
+    };
+    this.pushTimer =
+      this.options.syncInterval > 0
+        ? new SyncTimer({ ...timing, interval: this.options.syncInterval, repeat: true, work: () => (this.closed ? Promise.resolve() : this.push()) })
+        : undefined;
+    this.pullTimer =
+      this.options.pullInterval > 0
+        ? new SyncTimer({ ...timing, interval: this.options.pullInterval, repeat: true, work: () => (this.closed ? Promise.resolve() : this.pull()) })
+        : undefined;
+    this.drainTimer = new SyncTimer({
+      ...timing,
+      interval: this.options.syncInterval > 0 ? this.options.syncInterval : 5000,
+      repeat: false,
+      work: () => (this.closed ? Promise.resolve() : this.push()),
+    });
 
     // The queue first, then the first sync. The reads wait for both (roadmap R2, R28).
     this.loaded = this.loadQueue();
     this.ready = this.loaded.then(() => this.initialSync());
     this.updateTimers();
+  }
+
+  //
+  // ═══ The status of the sync ═══
+  //
+
+  /**
+   * The state of the sync now (roadmap CLI-13).
+   *
+   * - `connected` is false after a remote call failed, until a remote call succeeds.
+   * - `pendingChanges` is the number of operations in the queue.
+   * - `syncing` is true while a push or a pull runs.
+   * - `lastSync` is the time (`Date.now()`) of the last pull that succeeded.
+   * - `error` is the newest failure of a load, a push, a pull or the queue store that a later
+   *   success of the same work did not clear.
+   */
+  getStatus(): SyncStatus {
+    const error = [...this.failures.values()].at(-1);
+    return {
+      connected: this.isOnline,
+      lastSync: this.lastSync,
+      pendingChanges: this.offlineOps.length,
+      syncing: this.syncs > 0,
+      mode: this.mode,
+      ...(error !== undefined && { error }),
+    };
+  }
+
+  /**
+   * This method starts to send the status to a listener at each change: a failure, a sync that
+   * starts or ends, a change of the queue, of the connection or of the mode. A failure of a timer
+   * reaches the listeners here: the storage does not write to the console.
+   *
+   * @returns The function that stops the status. A second use of it does nothing.
+   */
+  onStatus(listener: (status: SyncStatus) => void): () => void {
+    if (this.closed) throw this.closedError();
+    return this.statusListeners.add(listener);
+  }
+
+  /** This method sends the status to the listeners when it changed. */
+  private notify(): void {
+    if (this.statusListeners.size === 0) return;
+    const status = this.getStatus();
+    const last = this.lastStatus;
+    if (
+      last &&
+      last.connected === status.connected &&
+      last.lastSync === status.lastSync &&
+      last.pendingChanges === status.pendingChanges &&
+      last.syncing === status.syncing &&
+      last.mode === status.mode &&
+      last.error === status.error
+    ) {
+      return;
+    }
+    this.lastStatus = status;
+    this.statusListeners.emit(status);
+  }
+
+  /** This method keeps a failure for the status. The failure of an operation replaces its older one. */
+  private fail(operation: SyncError["operation"], error: unknown): void {
+    this.failures.delete(operation);
+    this.failures.set(operation, { operation, error });
+    this.notify();
+  }
+
+  /** This method clears the failure of an operation after a success. */
+  private succeed(operation: SyncError["operation"]): void {
+    if (this.failures.delete(operation)) this.notify();
+  }
+
+  /** A push or a pull: the status shows it while it runs, and keeps its failure. */
+  private async track(operation: "push" | "pull", work: () => Promise<void>): Promise<void> {
+    this.syncs++;
+    this.notify();
+    try {
+      await work();
+      this.succeed(operation);
+    } catch (error) {
+      // A storage whose load failed keeps the failure of the load
+      if (error !== this.loadError) this.fail(operation, error);
+      throw error;
+    } finally {
+      this.syncs--;
+      this.notify();
+    }
   }
 
   //
@@ -465,6 +752,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     }
     this.mode = target;
     this.updateTimers();
+    this.notify();
   }
 
   /** This method drops the local copy. A read in flight does not fill it again. */
@@ -480,42 +768,20 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     for (const op of this.offlineOps) await this.applyToLocal(op);
   }
 
-  /** This method starts and stops the timers for the mode. */
+  /**
+   * This method starts and stops the timers for the mode. The push timer runs in `write-back`, the
+   * pull timer in `write-through` and `write-back`, and the send of the queue after a failure only
+   * in `write-through`. A failed run reports its error in the status, and the next delay grows.
+   */
   private updateTimers(): void {
     if (this.closed) return;
-    const push = this.mode === "write-back" && this.options.syncInterval > 0;
-    if (push && !this.syncTimer) {
-      this.syncTimer = setInterval(() => {
-        if (this.closed) return;
-        this.push().catch((err) => {
-          console.error("Periodic sync failed:", err);
-        });
-      }, this.options.syncInterval);
-      // The timer must not keep the process alive (deep dive DATA-9)
-      (this.syncTimer as { unref?: () => void }).unref?.();
-    } else if (!push && this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
-    }
+    if (this.mode === "write-back") this.pushTimer?.start();
+    else this.pushTimer?.stop();
 
-    const pull = this.options.pullInterval > 0 && (this.mode === "write-through" || this.mode === "write-back");
-    if (pull && !this.pullTimer) {
-      this.pullTimer = setInterval(() => {
-        if (this.closed) return;
-        this.pull().catch((err) => {
-          console.error("Periodic pull failed:", err);
-        });
-      }, this.options.pullInterval);
-      (this.pullTimer as { unref?: () => void }).unref?.();
-    } else if (!pull && this.pullTimer) {
-      clearInterval(this.pullTimer);
-      this.pullTimer = null;
-    }
+    if (this.mode === "write-through" || this.mode === "write-back") this.pullTimer?.start();
+    else this.pullTimer?.stop();
 
-    if (this.mode !== "write-through" && this.drainTimer) {
-      clearTimeout(this.drainTimer);
-      this.drainTimer = null;
-    }
+    if (this.mode !== "write-through") this.drainTimer.stop();
   }
 
   //
@@ -580,6 +846,26 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     return this.run(true, () =>
       this.mode === "remote-only" ? this.remoteRead(() => this.remote.find(predicate)) : this.local.find(predicate),
     );
+  }
+
+  /**
+   * The entries whose items match the selector (roadmap CLI-14): from the local copy, or from the
+   * remote in `remote-only` mode. A storage under it with `query()` runs the selector itself, for
+   * example `ApiStorage` on its server. Else this method runs `queryEntries()` on its entries. The
+   * policy of the call, or of the options, goes to the storage under it.
+   */
+  async query(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>> {
+    return this.run(true, async () => {
+      const limits = policy ?? this.queryPolicy;
+      const problems = [...selectorProblems(selector, limits), ...queryOptionsProblems(options, limits)];
+      if (problems.length > 0) throw new TypeError(`The query is not correct: ${problems.join(". ")}`);
+      if (this.mode === "remote-only") {
+        return this.remoteRead(async () =>
+          this.remote.query ? this.remote.query(selector, options, limits) : queryEntries(await this.remoteEntries(), selector, options, limits),
+        );
+      }
+      return this.local.query ? this.local.query(selector, options, limits) : queryEntries(await this.local.getEntries(), selector, options, limits);
+    });
   }
 
   async has(id: string): Promise<boolean> {
@@ -741,8 +1027,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           this.options.isUnavailable(error) &&
           this.hasQueueRoom(op)
         ) {
+          // The status shows the queue and the connection. The caller gets PendingWriteError.
           this.isOnline = false;
-          console.error(`Remote ${type} failed: the operation waits in the queue`);
           this.attachBase(op);
           await this.enqueue(op, undo);
           this.scheduleDrain();
@@ -826,22 +1112,26 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     await this.syncFromRemote();
   }
 
-  /** The pull of `syncFromRemote()`, after the syncs that run. */
+  /** The pull of `syncFromRemote()`, after the syncs that run. The status keeps its failure. */
   private pull(): Promise<void> {
-    return this.serialize(async () => {
-      await this.loaded;
-      if (this.loadError) throw this.loadError;
-      if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
-    });
+    return this.serialize(() =>
+      this.track("pull", async () => {
+        await this.loaded;
+        if (this.loadError) throw this.loadError;
+        if (this.mode === "write-through" || this.mode === "write-back") await this.pullRemote(false);
+      }),
+    );
   }
 
-  /** The push of `syncToRemote()`, after the syncs that run. */
+  /** The push of `syncToRemote()`, after the syncs that run. The status keeps its failure. */
   private push(): Promise<void> {
-    return this.serialize(async () => {
-      await this.loaded;
-      if (this.loadError) throw this.loadError;
-      if (this.mode !== "local-only") await this.pushQueue();
-    });
+    return this.serialize(() =>
+      this.track("push", async () => {
+        await this.loaded;
+        if (this.loadError) throw this.loadError;
+        if (this.mode !== "local-only") await this.pushQueue();
+      }),
+    );
   }
 
   /** The error of an operation after `close()`. */
@@ -872,36 +1162,31 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /** The work of `close()`. */
   private async shutDown(): Promise<void> {
-    for (const timer of [this.syncTimer, this.pullTimer]) {
-      if (timer) clearInterval(timer);
-    }
-    this.syncTimer = null;
-    this.pullTimer = null;
-    if (this.drainTimer) {
-      clearTimeout(this.drainTimer);
-      this.drainTimer = null;
-    }
+    this.pushTimer?.stop();
+    this.pullTimer?.stop();
+    this.drainTimer.stop();
 
-    await this.loaded;
-    // The operations and the switch that started before close() end first
-    await this.gate;
-    await this.idle();
-    // After the syncs that run: send the pending operations
-    await this.serialize(async () => {
-      if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
-      try {
-        await this.pushQueue();
-      } catch (error) {
-        console.error("Failed to sync before close:", error);
-      }
-    });
-    await this.storeChain;
-
-    // Close remote storage (an ApiStorage leaves the caller's client open)
     try {
-      await this.remote.close();
+      await this.loaded;
+      // The operations and the switch that started before close() end first
+      await this.gate;
+      await this.idle();
+      // After the syncs that run: send the pending operations. The queue store keeps the ones that
+      // the remote did not take, and the status gets the failure.
+      await this.serialize(async () => {
+        if (this.loadError || this.offlineOps.length === 0 || this.mode === "local-only") return;
+        await this.track("push", () => this.pushQueue()).catch(() => undefined);
+      });
+      await this.storeChain;
+
+      // Close remote storage (an ApiStorage leaves the caller's client open)
+      try {
+        await this.remote.close();
+      } finally {
+        await this.local.close();
+      }
     } finally {
-      await this.local.close();
+      this.statusListeners.clear();
     }
   }
 
@@ -963,6 +1248,8 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       if (--this.active === 0) {
         for (const resolve of this.idleWaiters.splice(0)) resolve();
       }
+      // A write changes the queue, and a remote call the connection
+      this.notify();
     }
   }
 
@@ -978,8 +1265,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     try {
       ops = await this.queueStore.load();
     } catch (error) {
+      // The storage refuses each operation. The status shows the failure.
       this.loadError = new QueueStoreError("load", error);
-      console.error("The queue store could not load the queue: the storage refuses each operation", error);
+      this.fail("load", this.loadError);
       return;
     }
     this.offlineOps = ops.slice();
@@ -994,7 +1282,7 @@ export class HybridStorage<T> implements CollectionStorage<T> {
       }
     } catch (error) {
       this.loadError = new Error("The local copy could not take the loaded queue: the storage refuses each operation", { cause: error });
-      console.error(this.loadError.message, error);
+      this.fail("load", this.loadError);
     }
   }
 
@@ -1003,15 +1291,10 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     // A close() before the first sync: the storage makes no remote call
     if (this.loadError || this.closed) return;
     if (this.options.syncOnInit && this.mode !== "local-only") {
-      if (this.offlineOps.length > 0) {
-        await this.push().catch((err) => {
-          console.error("Failed to send the queue on init:", err);
-        });
-      }
+      // A failure goes to the status: the reads go on with the local copy
+      if (this.offlineOps.length > 0) await this.push().catch(() => undefined);
       if (!this.closed && (this.mode === "write-through" || this.mode === "write-back")) {
-        await this.pull().catch((err) => {
-          console.error("Failed to sync on init:", err);
-        });
+        await this.pull().catch(() => undefined);
       }
     }
     if (this.offlineOps.length > 0) this.scheduleDrain();
@@ -1168,14 +1451,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
     if (queueChanged) {
       this.storeDirty = true;
-      await this.persistAll().catch((error) => {
-        console.error("The queue store could not keep the queue after the sync:", error);
-      });
+      // The status gets the failure of the queue store. A later direct write repairs the store first.
+      await this.persistAll().catch(() => undefined);
     }
     this.stats.syncCount++;
     this.isOnline = true;
     if (conflicts.length > 0) throw new ConflictError(conflicts);
     if (changes.version !== undefined) this.cursor = changes.version;
+    this.lastSync = Date.now();
   }
 
   /**
@@ -1422,10 +1705,9 @@ export class HybridStorage<T> implements CollectionStorage<T> {
     } finally {
       this.pushing = false;
       if (sent > 0) {
-        await this.persistAll().catch((error) => {
-          // The store keeps sent operations. A later direct write repairs it first.
-          console.error("The queue store could not remove the sent operations:", error);
-        });
+        // The store keeps sent operations, and the status gets the failure. A later direct write
+        // repairs the store first.
+        await this.persistAll().catch(() => undefined);
       }
     }
   }
@@ -1634,11 +1916,14 @@ export class HybridStorage<T> implements CollectionStorage<T> {
           this.unpersisted.delete(op);
           this.storeDirty = false;
         }
+        this.succeed("store");
       } catch (error) {
         this.storeDirty = true;
         this.unpersisted.delete(op);
         rollback();
-        throw new QueueStoreError("write", error);
+        const failure = new QueueStoreError("write", error);
+        this.fail("store", failure);
+        throw failure;
       }
     });
     this.storeChain = run.catch(() => undefined);
@@ -1655,9 +1940,12 @@ export class HybridStorage<T> implements CollectionStorage<T> {
         else await this.queueStore.replace(snapshot);
         for (const kept of snapshot) this.unpersisted.delete(kept);
         this.storeDirty = false;
+        this.succeed("store");
       } catch (error) {
         this.storeDirty = true;
-        throw new QueueStoreError("write", error);
+        const failure = new QueueStoreError("write", error);
+        this.fail("store", failure);
+        throw failure;
       }
     });
     this.storeChain = run.catch(() => undefined);
@@ -1700,17 +1988,11 @@ export class HybridStorage<T> implements CollectionStorage<T> {
 
   /**
    * In write-through mode, a timer sends the queue after a failure, and again after each failed
-   * send, until the queue is empty.
+   * send, until the queue is empty. The delay after a failed send grows with the backoff.
    */
   private scheduleDrain(): void {
-    if (this.drainTimer || this.closed || this.mode !== "write-through") return;
-    const delay = this.options.syncInterval > 0 ? this.options.syncInterval : 5000;
-    this.drainTimer = setTimeout(() => {
-      this.drainTimer = null;
-      if (this.closed) return;
-      this.push().catch(() => this.scheduleDrain());
-    }, delay);
-    (this.drainTimer as { unref?: () => void }).unref?.();
+    if (this.closed || this.mode !== "write-through") return;
+    this.drainTimer.start();
   }
 
   /**

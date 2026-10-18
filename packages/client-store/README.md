@@ -91,9 +91,18 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **The ids.** `getIds()` gives the ids in the order of the entries. `ApiStorage.getIds()` uses the procedure `collections.<name>.ids`, so the values stay on the server.
 - **After `close()`.** Each operation rejects with an error whose message says "closed". A second `close()` does nothing.
 
+- **The queries.** `query(selector, { sort, skip, limit })` gives the result of `queryEntries()` of `@procedures/collections`. `ApiStorage.query()` sends the JSON selector to the procedure `collections.<name>.find`, so the server applies it.
+- **The patches.** `ApiStorage.patch(id, fields)` sends a patch to the procedure `collections.<name>.patch`. The server changes the item in one step. A patch is a JSON Merge Patch, or the operations `{ $set, $unset }`.
+- **The query policy.** The server applies the policy of its host to each `find`. The default policy does not permit `$regex`, and a `find` gets at most 1000 items.
+
 Notes:
 
 - A custom `service` or a custom `get` operation gets the input `{ id }`, as before. Its `null` reads back as `undefined`.
+- A server before the procedure `find` answers `NOT_FOUND`. Then `ApiStorage.query()` reads the entries and applies the query in the client, with the same result.
+- `ApiStorage.find(predicate)` reads each item, because a function cannot go over the network. Use `query()` with a selector to filter on the server.
+- `HybridStorage.query()` reads the local copy, or the remote in `remote-only` mode. Its option `queryPolicy` goes to the storage under it.
+- `ApiStorage.query()` examines the form of a selector before it sends it. Its option `queryPolicy` adds the limits of the client.
+- A host turns `$regex` on with `server.registerCollectionProcedures(name, { queryPolicy })` or `createCollectionProcedures(name, { queryPolicy })`.
 - A server before `found` ignores it and gives the item. Then a stored `null` reads back as `undefined`, as before.
 - A server before the procedure `ids` answers `NOT_FOUND`. Then `ApiStorage.getIds()` reads the ids from the entries, and it does not ask for `ids` again.
 - `HybridStorage.close()` waits for the operations, the switch and the syncs that run. Then it sends the queue, and it closes the remote and the local copy.
@@ -182,6 +191,38 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
 - Without versions, a pull reads each local item without a queued write. It compares the JSON of the local item and the remote item.
 - The option `pullInterval` starts a periodic pull in the modes `write-through` and `write-back`. `close()` stops it.
+
+### The clock, the backoff and the status
+
+The timers and the retries run on a clock: `Clock` of `@mark1russell7/service/clock`. A test gives `fakeClock` of `@mark1russell7/service/testing`, and the times are then exact.
+
+- The option `clock` of `HybridStorage` and of `ApiStorage` gives the clock. The default is `realClock` of `@procedures/client`.
+- The timers of `HybridStorage` do not keep a Node process alive. These timers are the push of `write-back`, the periodic pull, and the send of the queue after a failure.
+- After a failed run of a timer, the next delay grows with `backoffDelay` of `@mark1russell7/service/backoff`. The option `backoff` gives the `factor`, the `maxDelay` and the `jitter`.
+- A run that succeeds sets the delay back to its interval.
+- `ApiStorage` waits `backoffDelay` between its tries, with full jitter. The options are `retryDelay`, `retryFactor`, `maxRetryDelay` and `retryJitter`.
+- An error with `retryAfterMs` gets at least that wait.
+- The timeout of each call of `ApiStorage` uses the clock too.
+
+`HybridStorage.getStatus()` gives the state of the sync. `onStatus(listener)` sends the status at each change. The storages of this package do not write to the console.
+
+| Field | Value |
+|---|---|
+| `connected` | False after a remote call failed, until a remote call succeeds |
+| `pendingChanges` | The number of operations in the queue |
+| `syncing` | True while a push or a pull runs |
+| `lastSync` | The time of the last pull that succeeded |
+| `mode` | The mode of the storage |
+| `error` | The newest failure of a load, a push, a pull or the queue store, with its `operation` and its `error`. A later success of the same work clears it. |
+
+```ts
+const stop = users.onStatus((status) => {
+  if (status.error) showBanner(`The sync failed: ${String(status.error.error)}`);
+  else if (status.pendingChanges > 0) showBanner(`${status.pendingChanges} changes wait for the server`);
+});
+```
+
+`SyncedProcedureRegistry` takes the option `clock` for its auto-sync. Its `getStatus()` and `onStatus()` give the failures of the auto-sync and of the write-through writes.
 
 ### The change of a storage in a server
 

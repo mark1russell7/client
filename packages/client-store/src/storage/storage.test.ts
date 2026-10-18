@@ -19,7 +19,7 @@ import { HybridStorage } from "./hybrid.js";
 import { SyncedProcedureRegistry } from "./synced-registry.js";
 import { getSerializedKey } from "./serialization.js";
 import type { HandlerLoader, SerializedProcedure } from "./types.js";
-import { ms } from "@procedures/client";
+import { ms, type Clock } from "@procedures/client";
 
 /**
  * A server side: the core collection procedures of one collection, with in-memory storage. The
@@ -258,13 +258,24 @@ describe("HybridStorage (deep dive CORE-9, DATA-9)", () => {
     await hybrid.close();
   });
 
-  it("the sync timer does not keep the process alive", async () => {
+  it("the sync timer runs on the clock of the options, and does not keep the process alive", async () => {
     const server = collectionServer<{ id: string }>("items");
     const remote = new ApiStorage<{ id: string }>(new Client(server.transport), { collection: "items" });
-    const hybrid = new HybridStorage(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(1000) });
-    const timer = (hybrid as unknown as { syncTimer: { hasRef?: () => boolean } }).syncTimer;
-    expect(timer.hasRef?.()).toBe(false);
+    const delays: number[] = [];
+    let unrefs = 0;
+    let stops = 0;
+    const clock: Clock = {
+      now: () => 0,
+      after: (delay) => {
+        delays.push(delay);
+        return Object.assign(() => void stops++, { unref: () => void unrefs++ });
+      },
+    };
+    const hybrid = new HybridStorage(remote, { syncOnInit: false, writeStrategy: "write-back", syncInterval: ms(1000), clock });
+    expect(delays).toEqual([1000]);
+    expect(unrefs).toBe(1);
     await hybrid.close();
+    expect(stops).toBe(1);
   });
 });
 

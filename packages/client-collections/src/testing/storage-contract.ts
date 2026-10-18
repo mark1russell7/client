@@ -19,9 +19,16 @@
  * The suite has no option that hides a difference of a storage. Each storage keeps copies, keeps
  * a stored `null`, gives a delta in the order of the last change of each id, and rejects each
  * operation after `close()`.
+ *
+ * The optional `query()` gives the result of `queryEntries()` of `@procedures/client/query` for the
+ * entries of the storage: the reference of the query language. Without a policy, `$regex` is off.
+ * With `createWithQueryPolicy`, the suite also tests the opt-in of `$regex` and each limit of a
+ * policy. `observe()` gives one batch for each write that changes the storage. `patch()` changes
+ * an item in one step, in each of its two forms. A storage without them skips their cases.
  */
 
-import type { CollectionStorage, StorageChanges } from "../storage/interface.js";
+import type { CollectionStorage, StorageChangeBatch, StorageChanges } from "../storage/interface.js";
+import { QUERY_OPERATORS, queryEntries, type StorageQueryOptions, type StorageQueryPolicy, type StorageSelector } from "@procedures/client/query";
 import { holds, rejects, same, show } from "./check.js";
 
 /** The item of the suite. Its `id` is its key, so a `HybridStorage` can sync it. */
@@ -46,6 +53,12 @@ export interface CollectionStorageContractOptions {
    * the suite tests the drop of the old deletes. A storage without such a limit does not give it.
    */
   createWithMaxTombstones?: ((max: number) => ContractStorage | Promise<ContractStorage>) | undefined;
+  /**
+   * This function makes a new, empty storage whose queries follow the policy: the policy of the
+   * storage, or of the server of a remote storage. With it, the suite tests the opt-in of `$regex`
+   * and each limit of a policy.
+   */
+  createWithQueryPolicy?: ((policy: StorageQueryPolicy) => ContractStorage | Promise<ContractStorage>) | undefined;
 }
 
 /** The context that a test framework gives to a case. Vitest gives `skip`. */
@@ -88,11 +101,169 @@ function changesOf(storage: ContractStorage): (since?: string) => Promise<Storag
   return (since) => storage.getChangesSince!(since);
 }
 
+/** The optional methods of a storage. */
+type OptionalMethod = "getEntries" | "getIds" | "getChangesSince" | "flush" | "getMetadata" | "query" | "observe" | "patch";
+
 /** This function skips a case for a storage without an optional method, and gives true. */
-function lacks(storage: ContractStorage, method: "getEntries" | "getIds" | "getChangesSince" | "flush" | "getMetadata", context: ContractTestContext | undefined): boolean {
+function lacks(storage: ContractStorage, method: OptionalMethod, context: ContractTestContext | undefined): boolean {
   if (typeof storage[method] === "function") return false;
   context?.skip?.(`The storage has no ${method}()`);
   return true;
+}
+
+/** A storage of JSON values, for the cases of the query language. */
+type JsonStorage = CollectionStorage<unknown>;
+
+/** The documents of the cases of the query language, in the order of the entries. */
+const DOCUMENTS: ReadonlyArray<[string, unknown]> = [
+  ["a", { id: "a", n: 1, tags: ["x"], meta: { kind: "k1", score: 10 }, items: [{ name: "p", qty: 1 }] }],
+  ["b", { id: "b", n: 2, tags: ["x", "y"], meta: { kind: "k2" }, items: [{ name: "q", qty: 5 }, { name: "p", qty: 2 }] }],
+  ["c", { id: "c", n: 3, tags: [], meta: null }],
+  ["d", { id: "d", n: 4, label: "Delta" }],
+  ["e", { id: "e", n: "5", tags: ["y"] }],
+  ["f", { id: "f", n: null, flag: true }],
+  ["g", { id: "g", flag: false, meta: { kind: "k1" } }],
+];
+
+/** The selectors of the cases, with the ids that each one matches. */
+const SELECTOR_CASES: ReadonlyArray<[StorageSelector, string[]]> = [
+  [{}, ["a", "b", "c", "d", "e", "f", "g"]],
+  [{ n: 2 }, ["b"]],
+  [{ n: { $gt: 1, $lte: 3 } }, ["b", "c"]],
+  [{ n: { $gte: "4" } }, ["e"]],
+  [{ tags: "x" }, ["a", "b"]],
+  [{ tags: ["x", "y"] }, ["b"]],
+  [{ "tags.0": "y" }, ["e"]],
+  [{ tags: { $size: 0 } }, ["c"]],
+  [{ tags: { $all: ["x", "y"] } }, ["b"]],
+  [{ tags: { $exists: false } }, ["d", "f", "g"]],
+  [{ n: null }, ["f", "g"]],
+  [{ n: { $ne: null } }, ["a", "b", "c", "d", "e"]],
+  [{ n: { $in: [1, 3, "5"] } }, ["a", "c", "e"]],
+  [{ n: { $nin: [1, 3] } }, ["b", "d", "e", "f", "g"]],
+  [{ "meta.kind": "k1" }, ["a", "g"]],
+  [{ meta: { kind: "k2" } }, ["b"]],
+  [{ meta: null }, ["c", "d", "e", "f"]],
+  [{ "meta.score": { $lt: 20 } }, ["a"]],
+  [{ "items.name": "p" }, ["a", "b"]],
+  [{ "items.qty": { $gt: 4 } }, ["b"]],
+  [{ "items.1.name": "p" }, ["b"]],
+  [{ items: { $elemMatch: { name: "p", qty: { $gte: 2 } } } }, ["b"]],
+  [{ tags: { $elemMatch: { $eq: "y" } } }, ["b", "e"]],
+  [{ $or: [{ n: 1 }, { flag: true }] }, ["a", "f"]],
+  [{ $and: [{ "meta.kind": "k1" }, { flag: false }] }, ["g"]],
+  [{ $nor: [{ n: { $exists: true } }, { flag: true }] }, ["g"]],
+  [{ n: { $not: { $gt: 2 } } }, ["a", "b", "e", "f", "g"]],
+  [{ flag: { $exists: true }, n: null }, ["f", "g"]],
+];
+
+/** The selectors with `$regex`, for a policy that permits it, with the ids that each one matches. */
+const REGEX_CASES: ReadonlyArray<[StorageSelector, string[]]> = [
+  [{ label: { $regex: "^del", $options: "i" } }, ["d"]],
+  [{ id: { $regex: "^[ab]$" } }, ["a", "b"]],
+  [{ tags: { $regex: "y" } }, ["b", "e"]],
+  [{ id: { $not: { $regex: "^[a-e]" } } }, ["f", "g"]],
+];
+
+/** A policy that permits `$regex`, with the default limits. */
+const REGEX_POLICY: StorageQueryPolicy = { operators: QUERY_OPERATORS };
+
+/** A selector that can take an exponential time: a repetition of a repetition. */
+const REDOS: StorageSelector = { label: { $regex: "^(a+)+$" } };
+
+/** The options of the cases, with the ids of the result for the selector `{}`. */
+const OPTION_CASES: ReadonlyArray<[StorageQueryOptions, string[]]> = [
+  [{ sort: { n: 1 } }, ["f", "g", "a", "b", "c", "d", "e"]],
+  [{ sort: { n: -1 } }, ["e", "d", "c", "b", "a", "f", "g"]],
+  [{ sort: { "meta.kind": 1, n: -1 } }, ["e", "d", "c", "f", "a", "g", "b"]],
+  [{ sort: { tags: 1 } }, ["c", "d", "f", "g", "a", "b", "e"]],
+  [{ sort: { tags: -1 } }, ["b", "e", "a", "c", "d", "f", "g"]],
+  [{ sort: { n: 1 }, skip: 2, limit: 3 }, ["a", "b", "c"]],
+  [{ skip: 5 }, ["f", "g"]],
+  [{ limit: 2 }, ["a", "b"]],
+  [{ skip: 7 }, []],
+];
+
+/** The ids of the entries of a result. */
+const entryIds = (entries: ReadonlyArray<readonly [string, unknown]>): string[] => entries.map(([id]) => id);
+
+/** The random parts of the query language, from a seeded random number generator. */
+function randomQueries(random: (below: number) => number): {
+  selector: (depth: number) => StorageSelector;
+  options: () => StorageQueryOptions;
+  document: (id: string) => unknown;
+} {
+  const fields = ["n", "tags", "tags.0", "meta", "meta.kind", "meta.score", "items.name", "items.qty", "flag", "label", "missing"];
+  const values: unknown[] = [0, 1, 2, 3, 4, 10, "5", "x", "y", "z", "k1", "k2", "p", "q", true, false, null, ["x"], ["x", "y"], { kind: "k1" }];
+  const scalars: unknown[] = [0, 1, 2, 3, 4, 10, "4", "5", "k1", "x", "y", true, false, null];
+  const pick = <V>(list: readonly V[]): V => list[random(list.length)]!;
+  const operators = (): Record<string, unknown> => {
+    switch (random(11)) {
+      case 0:
+        return { $eq: pick(values) };
+      case 1:
+        return { $ne: pick(values) };
+      case 2:
+        return { [pick(["$gt", "$gte", "$lt", "$lte"])]: pick(scalars) };
+      case 3:
+        return { $in: [pick(values), pick(values)] };
+      case 4:
+        return { $nin: [pick(values)] };
+      case 5:
+        return { $exists: random(2) === 0 };
+      case 6:
+        return { $size: random(3) };
+      case 7:
+        return { $all: [pick(["x", "y", "z", "p"])] };
+      case 8:
+        return { $regex: pick(["^k", "1$", "^[a-c]", "Y"]), ...(random(2) === 0 ? { $options: "i" } : {}) };
+      case 9:
+        return { $elemMatch: random(2) === 0 ? { $gte: pick(["x", "y", 1]) } : { name: pick(["p", "q"]) } };
+      default:
+        return { $gt: pick(scalars), $lt: pick(scalars) };
+    }
+  };
+  const condition = (): unknown => {
+    const kind = random(5);
+    if (kind === 0) return pick(values);
+    if (kind === 1) return { $not: operators() };
+    return operators();
+  };
+  const selector = (depth: number): StorageSelector => {
+    const result: Record<string, unknown> = {};
+    for (let count = random(3); count > 0; count--) result[pick(fields)] = condition();
+    if (depth > 0 && random(3) === 0) {
+      result[pick(["$and", "$or", "$nor"])] = Array.from({ length: 1 + random(2) }, () => selector(depth - 1));
+    }
+    return result as StorageSelector;
+  };
+  const options = (): StorageQueryOptions => {
+    const result: { sort?: Record<string, 1 | -1>; skip?: number; limit?: number } = {};
+    if (random(2) === 0) {
+      const sort: Record<string, 1 | -1> = {};
+      for (let count = 1 + random(2); count > 0; count--) sort[pick(fields)] = random(2) === 0 ? 1 : -1;
+      result.sort = sort;
+    }
+    if (random(3) === 0) result.skip = random(4);
+    if (random(3) === 0) result.limit = 1 + random(5);
+    return result;
+  };
+  const document = (id: string): unknown => {
+    const result: Record<string, unknown> = { id };
+    if (random(4) !== 0) result["n"] = pick([0, 1, 2, 3, "5", null, true]);
+    if (random(3) !== 0) result["tags"] = Array.from({ length: random(3) }, () => pick(["x", "y", "z"]));
+    if (random(3) !== 0) result["meta"] = random(4) === 0 ? null : { kind: pick(["k1", "k2"]), ...(random(2) === 0 ? { score: random(20) } : {}) };
+    if (random(3) === 0) result["items"] = Array.from({ length: 1 + random(2) }, () => ({ name: pick(["p", "q"]), qty: random(6) }));
+    if (random(2) === 0) result["flag"] = random(2) === 0;
+    if (random(4) === 0) result["label"] = pick(["Delta", "kilo", "Y"]);
+    return result;
+  };
+  return { selector, options, document };
+}
+
+/** The changes of a batch without the keys whose values are undefined, for a comparison. */
+function plainBatch(batch: StorageChangeBatch<unknown>): unknown[] {
+  return batch.map((change) => Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined)));
 }
 
 /** A random number generator with a seed, so a failed sequence comes again in the next run. */
@@ -300,6 +471,22 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       }))[0]!.n = 95;
       if (storage.getEntries) (await storage.getEntries())[0]![1].n = 94;
       if (storage.getChangesSince) (await storage.getChangesSince()).changed[0]![1].n = 93;
+      if (storage.query) (await storage.query({}))[0]![1].n = 92;
+      if (storage.patch) {
+        const fields = { tags: ["x"] };
+        const patched = (await storage.patch("a", fields))!;
+        fields.tags.push("changed after patch");
+        patched.n = 91;
+        patched.tags!.push("changed after patch");
+      }
+      if (storage.observe) {
+        const stop = storage.observe((batch) => {
+          for (const change of batch) if (change.type === "set") change.value.tags?.push("changed by an observer");
+        });
+        await storage.set("c", item("c", 3, ["z"]));
+        stop();
+        same(await storage.get("c"), item("c", 3, ["z"]), "get() after an observer changed the value of a change");
+      }
       same(await storage.get("a"), item("a", 1, ["x"]), "get() after changes of the read values");
       same(await storage.get("b"), item("b", 2, ["y"]), "get() of the other item after changes of the read values");
     }),
@@ -546,6 +733,325 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
+  //
+  // ═══ query() ═══
+  //
+
+  add("query() gives the entries whose items match the selector, in the order of the entries", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "query", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.setBatch([...DOCUMENTS]);
+      for (const [selector, expected] of SELECTOR_CASES) {
+        const result = await storage.query!(selector);
+        same(entryIds(result), expected, `the ids of query(${show(selector)})`);
+        same(result, queryEntries(DOCUMENTS, selector), `the entries of query(${show(selector)})`);
+      }
+    }),
+  );
+
+  add("query() sorts, then skips, then limits, and items with equal keys keep the order of the entries", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "query", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.setBatch([...DOCUMENTS]);
+      for (const [options, expected] of OPTION_CASES) {
+        same(entryIds(await storage.query!({}, options)), expected, `the ids of query({}, ${show(options)})`);
+      }
+      same(entryIds(await storage.query!({ n: { $exists: true } }, { sort: { n: -1 }, limit: 2 })), ["e", "d"], "a selector with a sort and a limit");
+    }),
+  );
+
+  add("query() rejects a selector or options that are not correct", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "query", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.setBatch([...DOCUMENTS]);
+      const wrong: Array<[unknown, unknown]> = [
+        [{ n: { $where: "1" } }, undefined],
+        [{ $or: [] }, undefined],
+        [{ n: { $gt: 1, x: 2 } }, undefined],
+        [{ n: { $regex: "(" } }, undefined],
+        [{ n: { $gt: [1] } }, undefined],
+        [{ $text: "x" }, undefined],
+        [{}, { limit: 0 }],
+        [{}, { skip: -1 }],
+        [{}, { sort: { n: 2 } }],
+        [{}, { fields: { n: 1 } }],
+      ];
+      for (const [selector, options] of wrong) {
+        await rejects(() => storage.query!(selector as StorageSelector, options as StorageQueryOptions), `query(${show(selector)}, ${show(options)})`);
+      }
+    }),
+  );
+
+  const createWithQueryPolicy = options.createWithQueryPolicy;
+  const randomPolicy: StorageQueryPolicy | undefined = createWithQueryPolicy ? REGEX_POLICY : undefined;
+  add("query() agrees with queryEntries() for random selectors, orders, skips and limits", (context) =>
+    withStorage(createWithQueryPolicy ? () => createWithQueryPolicy(REGEX_POLICY) : create, async (typed) => {
+      if (lacks(typed, "query", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      const random = randomQueries(seeded(20));
+      const entries: Array<[string, unknown]> = [...DOCUMENTS];
+      for (let index = 0; index < 13; index++) entries.push([`r${index}`, random.document(`r${index}`)]);
+      await storage.setBatch(entries);
+      for (let round = 0; round < 60; round++) {
+        const selector = random.selector(2);
+        const options = random.options();
+        const label = `query(${show(selector)}, ${show(options)})`;
+        let expected: Array<[string, unknown]> | undefined;
+        try {
+          expected = queryEntries(entries, selector, options, randomPolicy);
+        } catch {
+          expected = undefined;
+        }
+        if (expected === undefined) await rejects(() => storage.query!(selector, options), label);
+        else same(await storage.query!(selector, options), expected, label);
+      }
+    }),
+  );
+
+  add("query() refuses $regex without a policy that permits it, and a pattern that repeats a repetition", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "query", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.setBatch([...DOCUMENTS]);
+      for (const [selector] of REGEX_CASES) await rejects(() => storage.query!(selector), `query(${show(selector)}) without a policy`);
+      await rejects(() => storage.query!(REDOS), `query(${show(REDOS)}) without a policy`);
+    }),
+  );
+
+  if (createWithQueryPolicy) {
+    add("query() runs $regex under a policy that permits it, and still refuses a pattern that repeats a repetition", (context) =>
+      withStorage(() => createWithQueryPolicy(REGEX_POLICY), async (typed) => {
+        if (lacks(typed, "query", context)) return;
+        const storage = typed as unknown as JsonStorage;
+        await storage.setBatch([...DOCUMENTS]);
+        for (const [selector, expected] of REGEX_CASES) {
+          const result = await storage.query!(selector);
+          same(entryIds(result), expected, `the ids of query(${show(selector)})`);
+          same(result, queryEntries(DOCUMENTS, selector, {}, REGEX_POLICY), `the entries of query(${show(selector)})`);
+        }
+        await rejects(() => storage.query!(REDOS), `query(${show(REDOS)}) under a policy with $regex`);
+      }),
+    );
+
+    add("query() refuses each part that the policy does not permit, and a query without a limit gets maxLimit", (context) =>
+      withStorage(
+        () =>
+          createWithQueryPolicy({
+            operators: ["$eq", "$in", "$all", "$and", "$or", "$not", "$regex", "$exists"],
+            maxRegexLength: 4,
+            regexFlags: "i",
+            maxClauses: 4,
+            maxDepth: 2,
+            maxListLength: 3,
+            maxLimit: 3,
+          }),
+        async (typed) => {
+          if (lacks(typed, "query", context)) return;
+          const storage = typed as unknown as JsonStorage;
+          await storage.setBatch([...DOCUMENTS]);
+          const refused: Array<[string, StorageSelector, StorageQueryOptions]> = [
+            ["an operator that the policy does not permit", { n: { $gt: 1 } }, {}],
+            ["a logical operator that the policy does not permit", { $nor: [{ n: 1 }] }, {}],
+            ["a pattern longer than maxRegexLength", { label: { $regex: "^Delt" + "a" } }, {}],
+            ["a flag that the policy does not permit", { label: { $regex: "^D", $options: "m" } }, {}],
+            ["more clauses than maxClauses", { n: 1, id: "a", flag: true, label: "x", meta: null }, {}],
+            ["a selector deeper than maxDepth", { $and: [{ $or: [{ n: { $not: { $eq: 1 } } }] }] }, {}],
+            ["a list longer than maxListLength", { n: { $in: [1, 2, 3, 4] } }, {}],
+            ["a list of $all longer than maxListLength", { tags: { $all: ["x", "y", "z", "w"] } }, {}],
+            ["a limit above maxLimit", {}, { limit: 4 }],
+          ];
+          for (const [what, selector, query] of refused) {
+            await rejects(() => storage.query!(selector, query), `query(${show(selector)}, ${show(query)}): ${what}`);
+          }
+          const permitted: Array<[StorageSelector, StorageQueryOptions, string[]]> = [
+            [{ label: { $regex: "^Del", $options: "i" } }, {}, ["d"]],
+            [{ n: { $in: [1, 2, 3] }, flag: { $exists: false } }, {}, ["a", "b", "c"]],
+            [{ $and: [{ $or: [{ n: 1 }, { n: 2 }] }] }, {}, ["a", "b"]],
+            [{ n: { $not: { $eq: 1 } } }, { limit: 3 }, ["b", "c", "d"]],
+            // A query without a limit gets maxLimit
+            [{}, {}, ["a", "b", "c"]],
+            [{}, { skip: 5 }, ["f", "g"]],
+          ];
+          for (const [selector, query, expected] of permitted) {
+            same(entryIds(await storage.query!(selector, query)), expected, `the ids of query(${show(selector)}, ${show(query)})`);
+          }
+        },
+      ),
+    );
+  }
+
+  //
+  // ═══ patch() ═══
+  //
+
+  add("patch() merges the fields into the item, gives the new item, and leaves a missing id missing", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "patch", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.set("a", { id: "a", n: 1, tags: ["x"], meta: { kind: "k1", score: 10 } });
+      same(await storage.patch!("a", { n: 2 }), { id: "a", n: 2, tags: ["x"], meta: { kind: "k1", score: 10 } }, "patch() of one field");
+      same(await storage.patch!("a", { meta: { score: 11, extra: true }, tags: null }), { id: "a", n: 2, meta: { kind: "k1", score: 11, extra: true } }, "patch() of an object field and a null field");
+      same(await storage.patch!("a", { tags: ["y", "z"], meta: { extra: null } }), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "patch() of an array field and a nested null");
+      same(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches");
+      same(await storage.patch!("missing", { n: 1 }), undefined, "patch() of a missing id");
+      same(await storage.has("missing"), false, "has() of a missing id after patch()");
+      same(await storage.size(), 1, "size() after patch() of a missing id");
+      await storage.set("plain", 5);
+      same(await storage.patch!("plain", { n: 1 }), { n: 1 }, "patch() of an item that is not an object");
+      for (const fields of [null, [1], "x", 3]) {
+        await rejects(() => storage.patch!("a", fields as never), `patch() with the fields ${show(fields)}`);
+      }
+      same(await storage.get("a"), { id: "a", n: 2, meta: { kind: "k1", score: 11 }, tags: ["y", "z"] }, "get() after the patches that were not correct");
+    }),
+  );
+
+  add("patch() with the operations $set and $unset sets null and nested paths, and a patch of two forms rejects", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "patch", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.set("a", { id: "a", n: 1, tags: ["x", "y"], meta: { kind: "k1", score: 10 } });
+      same(
+        await storage.patch!("a", { $set: { "meta.kind": "k2", note: null, "tags.1": "z", "deep.new.path": 1 }, $unset: ["meta.score"] }),
+        { id: "a", n: 1, tags: ["x", "z"], meta: { kind: "k2" }, note: null, deep: { new: { path: 1 } } },
+        "patch() with $set and $unset",
+      );
+      same(
+        await storage.patch!("a", { $unset: ["tags.0", "missing.path", "deep"], $set: { "tags.2": "w" } }),
+        { id: "a", n: 1, tags: [null, "z", "w"], meta: { kind: "k2" }, note: null },
+        "patch() that removes an element of an array, a missing path and a field, and adds an element",
+      );
+      const after = { id: "a", n: 1, tags: [null, "z", "w"], meta: { kind: "k2" }, note: null };
+      const wrong: Array<[string, unknown]> = [
+        ["a patch of two forms", { $set: { n: 2 }, n: 3 }],
+        ["an operation that is not known", { $inc: { n: 1 } }],
+        ["paths that overlap", { $set: { meta: {}, "meta.kind": "k3" } }],
+        ["a $set that is not an object", { $set: [1] }],
+        ["an $unset that is not a list of paths", { $unset: "n" }],
+        ["a path through a value that is not an object", { $set: { "n.x": 1 } }],
+        ["a path past the end of an array", { $set: { "tags.7": "v" } }],
+      ];
+      for (const [what, fields] of wrong) await rejects(() => storage.patch!("a", fields as never), `patch() with ${what}`);
+      same(await storage.get("a"), after, "get() after the patches that were not correct");
+      same(await storage.patch!("missing", { $set: { n: 1 } }), undefined, "patch() with $set of a missing id");
+      same(await storage.has("missing"), false, "has() of a missing id after patch() with $set");
+    }),
+  );
+
+  add("patch() runs in one step: patches of one item at the same time keep each field", (context) =>
+    withStorage(create, async (typed) => {
+      if (lacks(typed, "patch", context)) return;
+      const storage = typed as unknown as JsonStorage;
+      await storage.set("a", { id: "a" });
+      const count = 12;
+      await Promise.all(Array.from({ length: count }, (_, n) => storage.patch!("a", { [`f${n}`]: n })));
+      const expected: Record<string, unknown> = { id: "a" };
+      for (let n = 0; n < count; n++) expected[`f${n}`] = n;
+      same(await storage.get("a"), expected, `get() after ${count} patches at the same time`);
+    }),
+  );
+
+  add("patch() is a change: getChangesSince() gives the patched item", (context) =>
+    withStorage(create, async (storage) => {
+      if (lacks(storage, "patch", context) || lacks(storage, "getChangesSince", context)) return;
+      await storage.setBatch([["a", item("a", 1)], ["b", item("b", 2)]]);
+      const start = await storage.getChangesSince!();
+      await storage.patch!("a", { n: 10 });
+      await storage.patch!("missing", { n: 3 });
+      const delta = await storage.getChangesSince!(start.version);
+      same({ full: delta.full, changed: delta.changed, deleted: delta.deleted }, { full: false, changed: [["a", item("a", 10)]], deleted: [] }, "the changes after a patch");
+    }),
+  );
+
+  //
+  // ═══ observe() ═══
+  //
+
+  add("observe() gives one batch for each write that changes the storage, before the write resolves", (context) =>
+    withStorage(create, async (storage) => {
+      if (lacks(storage, "observe", context)) return;
+      const batches: unknown[][] = [];
+      const stop = storage.observe!((batch) => batches.push(plainBatch(batch)));
+      await storage.set("a", item("a", 1));
+      same(batches.length, 1, "the batches when set() resolves");
+      await storage.setBatch([["b", item("b", 2)], ["c", item("c", 3)]]);
+      await storage.delete("a");
+      await storage.deleteBatch(["b", "missing"]);
+      if (storage.patch) await storage.patch("c", { n: 30 });
+      await storage.clear();
+      stop();
+      same(
+        batches,
+        [
+          [{ type: "set", id: "a", value: item("a", 1) }],
+          [
+            { type: "set", id: "b", value: item("b", 2) },
+            { type: "set", id: "c", value: item("c", 3) },
+          ],
+          [{ type: "delete", id: "a" }],
+          [{ type: "delete", id: "b" }],
+          ...(storage.patch ? [[{ type: "set", id: "c", value: item("c", 30) }]] : []),
+          [{ type: "clear" }],
+        ],
+        "the batches of the writes",
+      );
+    }),
+  );
+
+  add("observe(): a write that changes nothing gives no batch, and each change has the origin of its write", (context) =>
+    withStorage(create, async (storage) => {
+      if (lacks(storage, "observe", context)) return;
+      const batches: unknown[][] = [];
+      const stop = storage.observe!((batch) => batches.push(plainBatch(batch)));
+      await storage.delete("missing");
+      await storage.deleteBatch(["missing"]);
+      await storage.deleteBatch([]);
+      await storage.setBatch([]);
+      await storage.clear();
+      if (storage.patch) await storage.patch("missing", { n: 1 });
+      same(batches, [], "the batches of the writes that change nothing");
+      await storage.set("a", item("a", 1), { origin: "sync" });
+      await storage.setBatch([["b", item("b", 2)]], { origin: "app" });
+      await storage.delete("a", { origin: "sync" });
+      await storage.deleteBatch(["b"], { origin: "app" });
+      await storage.set("c", item("c", 3), {});
+      await storage.clear({ origin: "reset" });
+      stop();
+      same(
+        batches,
+        [
+          [{ type: "set", id: "a", value: item("a", 1), origin: "sync" }],
+          [{ type: "set", id: "b", value: item("b", 2), origin: "app" }],
+          [{ type: "delete", id: "a", origin: "sync" }],
+          [{ type: "delete", id: "b", origin: "app" }],
+          [{ type: "set", id: "c", value: item("c", 3) }],
+          [{ type: "clear", origin: "reset" }],
+        ],
+        "the batches with their origins",
+      );
+    }),
+  );
+
+  add("observe(): each observer gets each batch, and the function that observe() gives stops the batches", (context) =>
+    withStorage(create, async (storage) => {
+      if (lacks(storage, "observe", context)) return;
+      const first: string[] = [];
+      const second: string[] = [];
+      const stopFirst = storage.observe!((batch) => first.push(...batch.map((change) => change.type)));
+      const stopSecond = storage.observe!((batch) => second.push(...batch.map((change) => change.type)));
+      await storage.set("a", item("a", 1));
+      stopFirst();
+      stopFirst();
+      await storage.delete("a");
+      stopSecond();
+      await storage.set("b", item("b", 2));
+      same(first, ["set"], "the changes of the first observer");
+      same(second, ["set", "delete"], "the changes of the second observer");
+    }),
+  );
+
   add("flush() resolves, and the items stay", (context) =>
     withStorage(create, async (storage) => {
       if (lacks(storage, "flush", context)) return;
@@ -591,6 +1097,8 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
       if (storage.getChangesSince) operations.push(["getChangesSince", () => storage.getChangesSince!()]);
       if (storage.flush) operations.push(["flush", () => storage.flush!()]);
       if (storage.getMetadata) operations.push(["getMetadata", () => storage.getMetadata!()]);
+      if (storage.query) operations.push(["query", () => storage.query!({})]);
+      if (storage.patch) operations.push(["patch", () => storage.patch!("a", { n: 2 })]);
       const check = async (when: string): Promise<void> => {
         for (const [name, start] of operations) {
           const error = await rejects(start, `${name}() ${when}`);
@@ -600,10 +1108,22 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
           );
         }
       };
+      const checkObserve = (when: string): void => {
+        if (!storage.observe) return;
+        let error: unknown;
+        try {
+          storage.observe(() => undefined);
+        } catch (thrown) {
+          error = thrown;
+        }
+        holds(error instanceof Error && /closed/i.test(error.message), `observe() ${when} must throw an Error whose message says "closed", not ${show(error instanceof Error ? error.message : error)}`);
+      };
       await check("after close()");
+      checkObserve("after close()");
       // A second close() resolves, and the storage stays closed
       await storage.close();
       await check("after a second close()");
+      checkObserve("after a second close()");
     }),
   );
 

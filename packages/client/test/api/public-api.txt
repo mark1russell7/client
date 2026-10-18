@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 488 names
+## . (dist/index.d.ts): 519 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -42,12 +42,16 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
+DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
+DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
 type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
 type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
@@ -194,6 +198,7 @@ type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
 type ProgressUpdate: dist/procedures/progress.d.ts#ProgressUpdate
 type ProtocolErrorCode: dist/protocol.d.ts#ProtocolErrorCode
+QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
 RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
 REGISTRY_READ_EFFECTS: dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
 RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
@@ -247,9 +252,25 @@ type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
+type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
+type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+type StoragePatchOperations: dist/procedures/collection/query.d.ts#StoragePatchOperations
+type StorageQueryOperator: dist/procedures/collection/query.d.ts#StorageQueryOperator
+type StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+type StorageQueryPolicy: dist/procedures/collection/query.d.ts#StorageQueryPolicy
+type StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+type StorageSetChange: dist/procedures/collection/storage.d.ts#StorageSetChange
+type StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
@@ -296,6 +317,7 @@ allProcedure: dist/procedures/core/index.d.ts#allProcedure
 andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
+applyPatch: dist/procedures/collection/query.d.ts#applyPatch
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 bearerOf: dist/server/request-auth.d.ts#bearerOf
 buildResponse: dist/client/call-types.d.ts#buildResponse
@@ -307,6 +329,8 @@ checkBrowserRequest: dist/server/browser-guard.d.ts#checkBrowserRequest
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
+compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
 constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
 cookiesOf: dist/server/request-auth.d.ts#cookiesOf
@@ -393,6 +417,7 @@ isLiteral: dist/procedures/ref.d.ts#isLiteral
 isLoopbackAddress: dist/server/browser-guard.d.ts#isLoopbackAddress
 isLoopbackHost: dist/server/browser-guard.d.ts#isLoopbackHost
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
+isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
 isPlainObject: dist/procedures/ref.d.ts#isPlainObject
 isProcedureRef: dist/procedures/ref.d.ts#isProcedureRef
 isProcedureRefJson: dist/procedures/ref.d.ts#isProcedureRefJson
@@ -413,6 +438,8 @@ manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
 matchPath: dist/client/route-resolver.d.ts#matchPath
+matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
 methodToPath: dist/server/method.d.ts#methodToPath
@@ -440,6 +467,7 @@ outputValue: dist/procedures/invoke.d.ts#outputValue
 parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
 parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
 parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
+patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
@@ -447,6 +475,8 @@ prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
 protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
+queryEntries: dist/procedures/collection/query.d.ts#queryEntries
+queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
 rawInputRule: dist/procedures/ref.d.ts#rawInputRule
 realClock: dist/clock.d.ts#realClock
 reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
@@ -463,6 +493,7 @@ rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStra
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 seconds: dist/duration.d.ts#seconds
+selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 streamOutput: dist/procedures/invoke.d.ts#streamOutput
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
@@ -495,7 +526,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 470 names
+## ./browser (dist/browser.d.ts): 501 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -532,12 +563,16 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
+DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
+DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
 type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
 type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
@@ -679,6 +714,7 @@ type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
 type ProgressUpdate: dist/procedures/progress.d.ts#ProgressUpdate
 type ProtocolErrorCode: dist/protocol.d.ts#ProtocolErrorCode
+QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
 RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
 REGISTRY_READ_EFFECTS: dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
 RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
@@ -732,9 +768,25 @@ type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
+type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
+type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+type StoragePatchOperations: dist/procedures/collection/query.d.ts#StoragePatchOperations
+type StorageQueryOperator: dist/procedures/collection/query.d.ts#StorageQueryOperator
+type StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+type StorageQueryPolicy: dist/procedures/collection/query.d.ts#StorageQueryPolicy
+type StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+type StorageSetChange: dist/procedures/collection/storage.d.ts#StorageSetChange
+type StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type StreamConfig: dist/client/call-types.d.ts#StreamConfig
 type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
@@ -776,6 +828,7 @@ allProcedure: dist/procedures/core/index.d.ts#allProcedure
 andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
+applyPatch: dist/procedures/collection/query.d.ts#applyPatch
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 bearerOf: dist/server/request-auth.d.ts#bearerOf
 buildResponse: dist/client/call-types.d.ts#buildResponse
@@ -786,6 +839,8 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
+compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
 constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
 cookiesOf: dist/server/request-auth.d.ts#cookiesOf
@@ -867,6 +922,7 @@ isDuration: dist/duration.d.ts#isDuration
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
+isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
 isPlainObject: dist/procedures/ref.d.ts#isPlainObject
 isProcedureRef: dist/procedures/ref.d.ts#isProcedureRef
 isProcedureRefJson: dist/procedures/ref.d.ts#isProcedureRefJson
@@ -887,6 +943,8 @@ manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
 matchPath: dist/client/route-resolver.d.ts#matchPath
+matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 mergeRoutes: dist/client/call-types.d.ts#mergeRoutes
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
 methodToPath: dist/server/method.d.ts#methodToPath
@@ -914,6 +972,7 @@ outputValue: dist/procedures/invoke.d.ts#outputValue
 parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
 parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
 parseTraceparent: dist/tracing/traceparent.d.ts#parseTraceparent
+patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
@@ -921,6 +980,8 @@ prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
 protocolVersionOf: dist/protocol.d.ts#protocolVersionOf
+queryEntries: dist/procedures/collection/query.d.ts#queryEntries
+queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
 rawInputRule: dist/procedures/ref.d.ts#rawInputRule
 realClock: dist/clock.d.ts#realClock
 reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
@@ -936,6 +997,7 @@ restfulHttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#restfulHttp
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
 seconds: dist/duration.d.ts#seconds
+selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 streamOutput: dist/procedures/invoke.d.ts#streamOutput
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
@@ -1176,7 +1238,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 242 names
+## ./procedures (dist/procedures/index.d.ts): 273 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1190,10 +1252,14 @@ type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
 type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
 type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
 type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
+DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
+DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
 type DefineProcedureInput: dist/procedures/define-procedure.d.ts#DefineProcedureInput
 type DefineProcedureOutput: dist/procedures/define-procedure.d.ts#DefineProcedureOutput
 type DescribeOptions: dist/procedures/manifest.d.ts#DescribeOptions
@@ -1268,6 +1334,7 @@ type ProcedureSchema: dist/procedures/schema.d.ts#ProcedureSchema
 type ProcedureStub: dist/procedures/define.d.ts#ProcedureStub
 type ProcedureWhen: dist/procedures/ref.d.ts#ProcedureWhen
 type ProgressUpdate: dist/procedures/progress.d.ts#ProgressUpdate
+QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
 RAW_INPUT_TAG: dist/procedures/ref.d.ts#RAW_INPUT_TAG
 REGISTRY_READ_EFFECTS: dist/procedures/effects.d.ts#REGISTRY_READ_EFFECTS
 RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
@@ -1286,8 +1353,24 @@ type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
+type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
+type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
+type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
+type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
+type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
+type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
+type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+type StoragePatchOperations: dist/procedures/collection/query.d.ts#StoragePatchOperations
+type StorageQueryOperator: dist/procedures/collection/query.d.ts#StorageQueryOperator
+type StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+type StorageQueryPolicy: dist/procedures/collection/query.d.ts#StorageQueryPolicy
+type StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+type StorageSetChange: dist/procedures/collection/storage.d.ts#StorageSetChange
+type StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+type StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+type StorageWriteOptions: dist/procedures/collection/storage.d.ts#StorageWriteOptions
 type ToolHintOverride: dist/procedures/hints.d.ts#ToolHintOverride
 type ToolHints: dist/procedures/capability.d.ts#ToolHints
 UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
@@ -1304,6 +1387,7 @@ allProcedure: dist/procedures/core/index.d.ts#allProcedure
 andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
+applyPatch: dist/procedures/collection/query.d.ts#applyPatch
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 callerOf: dist/procedures/caller.d.ts#callerOf
 capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
@@ -1311,6 +1395,8 @@ chainProcedure: dist/procedures/core/index.d.ts#chainProcedure
 checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
+compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
+compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
 constantProcedure: dist/procedures/core/index.d.ts#constantProcedure
 coreModule: dist/procedures/core/index.d.ts#coreModule
@@ -1359,6 +1445,7 @@ isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
+isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
 isPlainObject: dist/procedures/ref.d.ts#isPlainObject
 isProcedureRef: dist/procedures/ref.d.ts#isProcedureRef
 isProcedureRefJson: dist/procedures/ref.d.ts#isProcedureRefJson
@@ -1374,6 +1461,8 @@ lookupOutputRef: dist/procedures/ref.d.ts#lookupOutputRef
 manifestProcedure: dist/procedures/define-procedure.d.ts#manifestProcedure
 mapProcedure: dist/procedures/core/index.d.ts#mapProcedure
 markDataDriven: dist/procedures/ref.d.ts#markDataDriven
+matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 metaProcedures: dist/procedures/define-procedure.d.ts#metaProcedures
 moduleClosure: dist/procedures/module.d.ts#moduleClosure
 namespace: dist/procedures/define.d.ts#namespace
@@ -1388,9 +1477,12 @@ orProcedure: dist/procedures/core/index.d.ts#orProcedure
 outputSchema: dist/procedures/core/schemas.d.ts#outputSchema
 parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
 parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
+patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
+queryEntries: dist/procedures/collection/query.d.ts#queryEntries
+queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
 rawInputRule: dist/procedures/ref.d.ts#rawInputRule
 reduceProcedure: dist/procedures/core/index.d.ts#reduceProcedure
 registerClientProcedures: dist/procedures/module.d.ts#registerClientProcedures
@@ -1400,6 +1492,7 @@ registerProcedures: dist/procedures/discovery.d.ts#registerProcedures
 resolveOutputRef: dist/procedures/ref.d.ts#resolveOutputRef
 runtimeProgramOf: dist/procedures/define-procedure.d.ts#runtimeProgramOf
 scopeOf: dist/procedures/ref.d.ts#scopeOf
+selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 shouldExecuteRef: dist/procedures/ref.d.ts#shouldExecuteRef
 stringifyProcedureJson: dist/procedures/ref.d.ts#stringifyProcedureJson
 takesRawInput: dist/procedures/ref.d.ts#takesRawInput
@@ -1476,6 +1569,32 @@ isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
 methodToPath: dist/server/method.d.ts#methodToPath
 pathToMethod: dist/server/method.d.ts#pathToMethod
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
+
+## ./query (dist/procedures/collection/query.d.ts): 23 names
+
+DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
+DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
+QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
+StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
+StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
+StoragePatchOperations: dist/procedures/collection/query.d.ts#StoragePatchOperations
+StorageQueryOperator: dist/procedures/collection/query.d.ts#StorageQueryOperator
+StorageQueryOptions: dist/procedures/collection/query.d.ts#StorageQueryOptions
+StorageQueryPolicy: dist/procedures/collection/query.d.ts#StorageQueryPolicy
+StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
+StorageSort: dist/procedures/collection/query.d.ts#StorageSort
+StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+applyPatch: dist/procedures/collection/query.d.ts#applyPatch
+compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
+compileSelector: dist/procedures/collection/query.d.ts#compileSelector
+isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
+matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
+mergePatch: dist/procedures/collection/query.d.ts#mergePatch
+patchProblems: dist/procedures/collection/query.d.ts#patchProblems
+queryEntries: dist/procedures/collection/query.d.ts#queryEntries
+queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
+selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
 
 ## Declarations
 
@@ -3270,8 +3389,118 @@ export declare function narrowCapability<C>(current: Capability<C> | undefined, 
 ### dist/procedures/capability.d.ts#toolHints
 export declare function toolHints(procedure: AnyProcedure): ToolHints;
 
+### dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+export interface CollectionProceduresOptions {
+    queryPolicy?: StorageQueryPolicy | undefined;
+}
+
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
-export declare function createCollectionProcedures(collectionName: string): AnyProcedure[];
+export declare function createCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): AnyProcedure[];
+
+### dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
+export declare const DEFAULT_FIND_LIMIT: number;
+
+### dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
+export declare const DEFAULT_QUERY_OPERATORS: readonly StorageQueryOperator[];
+
+### dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
+export declare const DEFAULT_QUERY_POLICY: StorageQueryPolicy;
+
+### dist/procedures/collection/query.d.ts#QUERY_OPERATORS
+export declare const QUERY_OPERATORS: readonly StorageQueryOperator[];
+
+### dist/procedures/collection/query.d.ts#StorageFieldOperators
+export interface StorageFieldOperators {
+    readonly $eq?: unknown;
+    readonly $ne?: unknown;
+    readonly $gt?: number | string | boolean | null | undefined;
+    readonly $gte?: number | string | boolean | null | undefined;
+    readonly $lt?: number | string | boolean | null | undefined;
+    readonly $lte?: number | string | boolean | null | undefined;
+    readonly $in?: readonly unknown[] | undefined;
+    readonly $nin?: readonly unknown[] | undefined;
+    readonly $exists?: boolean | undefined;
+    readonly $not?: StorageFieldOperators | undefined;
+    readonly $regex?: string | undefined;
+    readonly $options?: string | undefined;
+    readonly $size?: number | undefined;
+    readonly $all?: readonly unknown[] | undefined;
+    readonly $elemMatch?: StorageSelector | StorageFieldOperators | undefined;
+}
+
+### dist/procedures/collection/query.d.ts#StoragePatch
+export type StoragePatch = Readonly<Record<string, unknown>>;
+
+### dist/procedures/collection/query.d.ts#StoragePatchOperations
+export type StoragePatchOperations = {
+    readonly $set?: Readonly<Record<string, unknown>> | undefined;
+    readonly $unset?: readonly string[] | undefined;
+};
+
+### dist/procedures/collection/query.d.ts#StorageQueryOperator
+export type StorageQueryOperator = "$eq" | "$ne" | "$gt" | "$gte" | "$lt" | "$lte" | "$in" | "$nin" | "$exists" | "$not" | "$regex" | "$size" | "$all" | "$elemMatch" | "$and" | "$or" | "$nor";
+
+### dist/procedures/collection/query.d.ts#StorageQueryOptions
+export interface StorageQueryOptions {
+    readonly sort?: StorageSort | undefined;
+    readonly skip?: number | undefined;
+    readonly limit?: number | undefined;
+}
+
+### dist/procedures/collection/query.d.ts#StorageQueryPolicy
+export interface StorageQueryPolicy {
+    readonly operators?: readonly StorageQueryOperator[] | undefined;
+    readonly maxRegexLength?: number | undefined;
+    readonly regexFlags?: string | undefined;
+    readonly maxClauses?: number | undefined;
+    readonly maxDepth?: number | undefined;
+    readonly maxListLength?: number | undefined;
+    readonly maxLimit?: number | undefined;
+}
+
+### dist/procedures/collection/query.d.ts#StorageSelector
+export interface StorageSelector {
+    readonly $and?: readonly StorageSelector[] | undefined;
+    readonly $or?: readonly StorageSelector[] | undefined;
+    readonly $nor?: readonly StorageSelector[] | undefined;
+    readonly [path: string]: unknown;
+}
+
+### dist/procedures/collection/query.d.ts#StorageSort
+export type StorageSort = Readonly<Record<string, StorageSortDirection>>;
+
+### dist/procedures/collection/query.d.ts#StorageSortDirection
+export type StorageSortDirection = 1 | -1;
+
+### dist/procedures/collection/query.d.ts#applyPatch
+export declare function applyPatch(value: unknown, fields: StoragePatch): Record<string, unknown>;
+
+### dist/procedures/collection/query.d.ts#compareStorageValues
+export declare function compareStorageValues(a: unknown, b: unknown): number;
+
+### dist/procedures/collection/query.d.ts#compileSelector
+export declare function compileSelector(selector: StorageSelector, policy?: StorageQueryPolicy): (item: unknown) => boolean;
+
+### dist/procedures/collection/query.d.ts#isPatchOperations
+export declare function isPatchOperations(fields: unknown): fields is StoragePatchOperations;
+
+### dist/procedures/collection/query.d.ts#matchesSelector
+export declare function matchesSelector(selector: StorageSelector, item: unknown, policy?: StorageQueryPolicy): boolean;
+
+### dist/procedures/collection/query.d.ts#mergePatch
+export declare function mergePatch(value: unknown, fields: StoragePatch): Record<string, unknown>;
+
+### dist/procedures/collection/query.d.ts#patchProblems
+export declare function patchProblems(fields: unknown): string[];
+
+### dist/procedures/collection/query.d.ts#queryEntries
+export declare function queryEntries<T>(entries: Iterable<readonly [string, T]>, selector?: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Array<[string, T]>;
+
+### dist/procedures/collection/query.d.ts#queryOptionsProblems
+export declare function queryOptionsProblems(options: unknown, policy?: StorageQueryPolicy): string[];
+
+### dist/procedures/collection/query.d.ts#selectorProblems
+export declare function selectorProblems(selector: unknown, policy?: StorageQueryPolicy): string[];
 
 ### dist/procedures/collection/storage.d.ts#CollectionStorage
 export interface CollectionStorage<T> {
@@ -3281,18 +3510,27 @@ export interface CollectionStorage<T> {
     getIds?(): Promise<string[]>;
     getChangesSince?(since?: string): Promise<StorageChanges<T>>;
     find(predicate: (item: T) => boolean): Promise<T[]>;
+    query?(selector: StorageSelector, options?: StorageQueryOptions, policy?: StorageQueryPolicy): Promise<Array<[string, T]>>;
+    observe?(observer: StorageObserver<T>): () => void;
     has(id: string): Promise<boolean>;
     size(): Promise<number>;
-    set(id: string, value: T): Promise<void>;
-    delete(id: string): Promise<boolean>;
-    clear(): Promise<void>;
-    setBatch(items: Array<[string, T]>): Promise<void>;
-    deleteBatch(ids: string[]): Promise<number>;
+    set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+    clear(options?: StorageWriteOptions): Promise<void>;
+    patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
+    setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+    deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
     getBatch(ids: string[]): Promise<Map<string, T>>;
     flush?(): Promise<void>;
     close(): Promise<void>;
     getMetadata?(): Promise<StorageMetadata>;
 }
+
+### dist/procedures/collection/storage.d.ts#StorageChangeBatch
+export type StorageChangeBatch<T> = readonly StorageChangeEvent<T>[];
+
+### dist/procedures/collection/storage.d.ts#StorageChangeEvent
+export type StorageChangeEvent<T> = StorageSetChange<T> | StorageDeleteChange | StorageClearChange;
 
 ### dist/procedures/collection/storage.d.ts#StorageChanges
 export interface StorageChanges<T> {
@@ -3300,6 +3538,19 @@ export interface StorageChanges<T> {
     full: boolean;
     changed: Array<[string, T]>;
     deleted: string[];
+}
+
+### dist/procedures/collection/storage.d.ts#StorageClearChange
+export interface StorageClearChange {
+    readonly type: "clear";
+    readonly origin?: string | undefined;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageDeleteChange
+export interface StorageDeleteChange {
+    readonly type: "delete";
+    readonly id: string;
+    readonly origin?: string | undefined;
 }
 
 ### dist/procedures/collection/storage.d.ts#StorageMetadata
@@ -3313,6 +3564,22 @@ export interface StorageMetadata {
         memoryUsage?: number;
         [key: string]: unknown;
     };
+}
+
+### dist/procedures/collection/storage.d.ts#StorageObserver
+export type StorageObserver<T> = (changes: StorageChangeBatch<T>) => void;
+
+### dist/procedures/collection/storage.d.ts#StorageSetChange
+export interface StorageSetChange<T> {
+    readonly type: "set";
+    readonly id: string;
+    readonly value: T;
+    readonly origin?: string | undefined;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageWriteOptions
+export interface StorageWriteOptions {
+    readonly origin?: string | undefined;
 }
 
 ### dist/procedures/core/index.d.ts#allCoreModules
@@ -4745,7 +5012,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     protected findHandler(method: Method): ServerHandler | null;
     get callsInFlight(): number;
     get stopping(): boolean;
-    registerCollectionProcedures(collectionName: string): void;
+    registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void;
     get procedureCount(): number;
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;

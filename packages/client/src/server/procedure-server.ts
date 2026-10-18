@@ -28,6 +28,7 @@ import { realClock, type Clock } from "../clock.js";
 import { errorCodeOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
+import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
 
 // =============================================================================
 // Types
@@ -850,11 +851,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * Creates standard CRUD procedures using the configured storage.
    *
    * @param collectionName - Collection name
+   * @param options - The query policy of `find`. `$regex` is off unless the policy permits it.
    */
-  registerCollectionProcedures(collectionName: string): void {
+  registerCollectionProcedures(collectionName: string, options?: CollectionProceduresOptions): void {
     // Uses a top-level import; require() is not available in this ESM package and
     // previously threw "Cannot find module" on every call. See BUGS-2026-07 H13.
-    const procedures = createCollectionProcedures(collectionName);
+    const procedures = createCollectionProcedures(collectionName, options);
 
     // Register with the procedure registry first
     this.procedureRegistry.registerAll(procedures);

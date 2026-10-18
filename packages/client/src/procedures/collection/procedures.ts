@@ -34,6 +34,12 @@ import {
   setBatchOutputSchema,
   deleteBatchInputSchema,
   deleteBatchOutputSchema,
+  findInputSchemaOf,
+  findOutputSchema,
+  patchInputSchema,
+  patchOutputSchema,
+  type FindInput,
+  type PatchInput,
   type GetInput,
   type GetFoundOutput,
   type SetInput,
@@ -50,6 +56,8 @@ import {
   type SetBatchInput,
   type DeleteBatchInput,
 } from "./schemas.js";
+import { DEFAULT_FIND_LIMIT, applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy } from "./query.js";
+import type { CollectionStorage } from "./storage.js";
 
 // =============================================================================
 // Handler Factory
@@ -77,6 +85,62 @@ function getStorage<T>(ctx: ProcedureContext): ReturnType<NonNullable<ProcedureC
   return ctx.repository.getStorage<T>(collection);
 }
 
+/** The options of a query from the input of `find`. */
+function queryOptionsOf(input: FindInput, policy: StorageQueryPolicy): StorageQueryOptions {
+  // A find without a limit gets the maxLimit of the policy (roadmap CLI-14)
+  const limit = input.limit ?? (Number.isFinite(policy.maxLimit) ? policy.maxLimit : undefined);
+  return {
+    ...(input.sort !== undefined && { sort: input.sort }),
+    ...(input.skip !== undefined && { skip: input.skip }),
+    ...(limit !== undefined && { limit }),
+  };
+}
+
+/** The options of the collection procedures. */
+export interface CollectionProceduresOptions {
+  /**
+   * The query policy of `find`: the operators, and the limits of a selector and of the result. A
+   * selector or a limit that the policy does not permit is a `VALIDATION_ERROR`. The policy also
+   * goes to `query()` of the storage. `$regex` is off unless the policy has it in `operators`.
+   * @default DEFAULT_QUERY_POLICY, with `maxLimit` DEFAULT_FIND_LIMIT (1000)
+   */
+  queryPolicy?: StorageQueryPolicy | undefined;
+}
+
+/**
+ * The patches of a storage without `patch()` that run, for each id. A patch of an id waits for the
+ * patch before it, so two patches of one process keep each field. A write of another writer
+ * between the read and the write of a patch is lost: give the storage a `patch()` for one step.
+ */
+const PATCHES = new WeakMap<object, Map<string, Promise<unknown>>>();
+
+/** This function patches an item of a storage without `patch()`: a read, a merge and a write. */
+function patchInParts(storage: CollectionStorage<unknown>, id: string, fields: StoragePatch): Promise<unknown> {
+  let running = PATCHES.get(storage);
+  if (!running) {
+    running = new Map();
+    PATCHES.set(storage, running);
+  }
+  const queue = running;
+  const before = queue.get(id) ?? Promise.resolve();
+  const patch = before.then(async () => {
+    const current = await storage.get(id);
+    if (current === undefined) return undefined;
+    const next = applyPatch(current, fields);
+    await storage.set(id, next);
+    return next;
+  });
+  const settled = patch.then(
+    () => undefined,
+    () => undefined,
+  );
+  queue.set(id, settled);
+  void settled.then(() => {
+    if (queue.get(id) === settled) queue.delete(id);
+  });
+  return patch;
+}
+
 // =============================================================================
 // Collection Procedure Definitions
 // =============================================================================
@@ -85,6 +149,7 @@ function getStorage<T>(ctx: ProcedureContext): ReturnType<NonNullable<ProcedureC
  * Create collection procedures for a specific collection name.
  *
  * @param collectionName - Name of the collection
+ * @param options - The query policy of `find`
  * @returns Array of procedure definitions
  *
  * @example
@@ -93,8 +158,10 @@ function getStorage<T>(ctx: ProcedureContext): ReturnType<NonNullable<ProcedureC
  * registry.registerAll(userProcedures);
  * ```
  */
-export function createCollectionProcedures(collectionName: string): AnyProcedure[] {
+export function createCollectionProcedures(collectionName: string, options: CollectionProceduresOptions = {}): AnyProcedure[] {
   const basePath = ["collections", collectionName];
+  // A find of a caller gets a limit: DEFAULT_FIND_LIMIT, unless the policy gives its own maxLimit
+  const queryPolicy: StorageQueryPolicy = { ...options.queryPolicy, maxLimit: options.queryPolicy?.maxLimit ?? DEFAULT_FIND_LIMIT };
   // Each collection is a resource of its own (CAPABILITIES-2026-10): a capability can permit one
   const resource = `collection:${collectionName}`;
 
@@ -249,6 +316,48 @@ export function createCollectionProcedures(collectionName: string): AnyProcedure
           return { version: "", full: true, changed: entries.map(([id, value]) => ({ id, value })), deleted: [] };
         }
         throw new Error(`The storage of ${collectionName} cannot give its changes or the ids of its items`);
+      },
+    }),
+
+    // Find: the items that match a JSON selector, with an order, a skip and a limit (roadmap CLI-14)
+    defineProcedure({
+      path: [...basePath, "find"],
+      input: findInputSchemaOf(queryPolicy),
+      output: findOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [] },
+        description: `Find the items of ${collectionName} that match a selector, with their ids, an order, a skip and a limit`,
+        tags: ["collections", collectionName, "read", "query"],
+      },
+      handler: async (input: FindInput, ctx: ProcedureContext) => {
+        const storage = getStorage(ctx);
+        const selector = input.selector ?? {};
+        const query = queryOptionsOf(input, queryPolicy);
+        // The storage runs the selector itself when it can: a database does not read each item. It
+        // gets the policy of the host, so it permits what the procedure permits.
+        if (storage.query) return (await storage.query(selector, query, queryPolicy)).map(([id, value]) => ({ id, value }));
+        if (!storage.getEntries) {
+          throw new Error(`The storage of ${collectionName} cannot run a selector or give the ids of its items`);
+        }
+        return queryEntries(await storage.getEntries(), selector, query, queryPolicy).map(([id, value]) => ({ id, value }));
+      },
+    }),
+
+    // Patch: merge fields into one item, a JSON Merge Patch (roadmap CLI-14)
+    defineProcedure({
+      path: [...basePath, "patch"],
+      input: patchInputSchema,
+      output: patchOutputSchema,
+      metadata: {
+        effects: { reads: [resource], writes: [resource], idempotent: true },
+        description: `Merge fields into one item of ${collectionName}: a JSON Merge Patch, or the operations $set and $unset`,
+        tags: ["collections", collectionName, "write"],
+      },
+      handler: async (input: PatchInput, ctx: ProcedureContext) => {
+        const storage = getStorage(ctx);
+        const value = storage.patch ? await storage.patch(input.id, input.fields) : await patchInParts(storage, input.id, input.fields);
+        const output: GetFoundOutput = value === undefined ? { found: false } : { found: true, value };
+        return output;
       },
     }),
 
