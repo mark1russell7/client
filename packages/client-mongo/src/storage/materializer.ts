@@ -162,10 +162,13 @@ class ViewRunError extends Error {}
 /** A pass that another process supersedes (its lease, or a newer generation): it gives way, with no error of the view. */
 class PassSuperseded extends Error {}
 
-/** True for an error that MongoDB labels transient in a transaction, for example a write conflict with another process. */
-function isTransient(error: unknown): boolean {
-  const labelled = error as { hasErrorLabel?: (label: string) => boolean } | null;
-  return labelled?.hasErrorLabel?.("TransientTransactionError") === true;
+/**
+ * True for a write conflict with another process (code 112). The label `TransientTransactionError`
+ * is not enough: a transaction over its lifetime limit has it too, and that view goes in groups.
+ */
+function isWriteConflict(error: unknown): boolean {
+  const value = error as { code?: unknown; codeName?: unknown } | null;
+  return value?.code === 112 || value?.codeName === "WriteConflict";
 }
 
 /** A row of the result, ready to store. */
@@ -682,7 +685,7 @@ export class ViewMaterializer {
         return await this.runInTransaction(view, partition, target, current, generations);
       } catch (error) {
         if (error instanceof ViewRunError || error instanceof PassSuperseded) throw error;
-        if (isTransient(error)) throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
+        if (isWriteConflict(error)) throw new PassSuperseded(`another process wrote the view at the same time (${String((error as Error)?.message ?? error)})`);
         this.log("warn", `${view._id}: the transaction failed (${String((error as Error)?.message ?? error)}): the pass writes a new generation in groups`);
       }
     }
@@ -783,6 +786,11 @@ export class ViewMaterializer {
    * A run in one transaction, in the current generation (a new one at the first run): the rows that
    * changed, and the removal of the rows that the result does not have. At the first run, the
    * removal also takes the rows of no generation (an older materializer).
+   *
+   * The rule of convergence: a pass in groups of another process can start after this transaction
+   * reads its generation, and flip after it commits. Then the flip overtakes this commit, and the
+   * new generation can miss a change that only this pass saw. The change also made the partition
+   * dirty in the other process, so its next pass computes the view again, and the view converges.
    */
   private async runInTransaction(view: MaterializedView, partition: string, target: Collection, current: ObjectId | undefined, generations: readonly ObjectId[]): Promise<boolean> {
     const generation = current ?? new ObjectId();
