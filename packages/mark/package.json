@@ -80,7 +80,6 @@
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.0",
     "@procedures/archive": "workspace:*",
-    "@procedures/better-auth": "workspace:*",
     "@procedures/bundle-assistant": "workspace:*",
     "@procedures/bundle-dev": "workspace:*",
     "@procedures/bundle-mcp": "workspace:*",
