@@ -1,5 +1,20 @@
 # @procedures/lib
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies [61d60c6]
+- Updated dependencies [79f750a]
+- Updated dependencies [d0c9856]
+- Updated dependencies [b5db4d8]
+  - @procedures/client@0.9.1
+  - @procedures/fs@0.9.1
+  - @procedures/git@0.9.1
+  - @procedures/dag@0.9.1
+  - @procedures/pnpm@0.9.1
+  - @procedures/shell@0.9.1
+
 ## 0.9.0
 
 ### Patch Changes
