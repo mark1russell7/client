@@ -358,6 +358,9 @@ export class EventPublisher {
   private async busTopic(topic: string, ctx: ProcedureContext): Promise<string> {
     const parts = collectionTopicPartition(topic);
     if (!parts) return topic;
+    // A collection without partitions can have a dot in its name: its whole name follows "collections."
+    const whole = topic.slice("collections.".length);
+    if (parts.partition !== undefined && ctx.repository?.hasCollection(whole) && !ctx.repository.hasPartitions?.(whole)) return topic;
     const partition = await partitionOfCall(ctx, parts.collection, parts.partition);
     return collectionChangeTopic(parts.collection, partition);
   }

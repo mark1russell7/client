@@ -31,6 +31,11 @@ export interface PartitionInput {
  * partition that the input asks for. It gives the partition, `undefined` for the storage of the
  * collection without a partition, or `null` to refuse the call (`FORBIDDEN`, reason
  * `partition-not-allowed`). An error that it throws passes through.
+ *
+ * The contract: the resolver gives a partition of the caller, or `null`. It never gives the
+ * partition of another tenant. A resolver that maps a request of tenant B to the partition of
+ * tenant A is a defect of the app: the events of A then reach B under the topic that B named, and
+ * a `HybridStorage` of B keeps the items of A.
  */
 export type PartitionResolver = (ctx: ProcedureContext, requested: string | undefined) => string | undefined | null | Promise<string | undefined | null>;
 

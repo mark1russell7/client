@@ -298,4 +298,22 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
     const error = await errorOf(invokeProcedure(publisher.procedure, { topics: ["collections.notes.t2"] }, { bus, principal: ann }));
     expect(error.reason).toBe("partition-not-allowed");
   });
+
+  it("keeps the plain topic of a collection without partitions whose name has a dot", async () => {
+    const h = host(null);
+    h.server.useStorage("a.b", new MapStorage());
+    const sub = await subscribe(h, ["collections.a.b"], ann);
+    expect(sub.first).toEqual({ type: "subscribed", topics: ["collections.a.b"] });
+    h.bus.emit("collections.a.b", { changed: ["x"], deleted: [] });
+    await settle();
+    expect(sub.received.map((item) => item.topic)).toEqual(["collections.a.b"]);
+    sub.stop();
+  });
+
+  it("refuses partitions for a collection whose name has a dot", () => {
+    const server = new ProcedureServer({ autoRegister: false });
+    expect(() => server.usePartitions("a.b", { storageOf: () => new MapStorage(), resolve: byTenant })).toThrow(/dot/);
+    expect(server.hasPartitions("a.b")).toBe(false);
+  });
 });
+
