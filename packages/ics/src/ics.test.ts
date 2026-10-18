@@ -254,6 +254,18 @@ describe("the procedures", () => {
 
     const page = async () => ({ ok: true, status: 200, text: async () => "<html>Sign in</html>" });
     await expect(fetchCalendar("https://calendar.example.com/a.ics", 1000, undefined, { fetch: page })).rejects.toThrow(/did not give an iCalendar text/);
+    // A failed request gives its system error code, as the fetch of Node gives it, and never the address
+    const secret = "https://calendar.example.com/private-0123456789abcdef/basic.ics";
+    const refused = async () => {
+      throw new TypeError("fetch failed", { cause: Object.assign(new Error(`connect ECONNREFUSED ${secret}`), { code: "ECONNREFUSED" }) });
+    };
+    const failure = fetchCalendar(secret, 1000, undefined, { fetch: refused });
+    await expect(failure).rejects.toThrow("The calendar feed did not answer: the request failed (ECONNREFUSED)");
+    await expect(failure).rejects.not.toThrow(/private-0123456789abcdef/);
+    const noCode = async () => {
+      throw new Error(`no code here ${secret}`);
+    };
+    await expect(fetchCalendar(secret, 1000, undefined, { fetch: noCode })).rejects.toThrow(/the request failed$/);
     const missing = async () => ({ ok: false, status: 503, text: async () => "" });
     await expect(fetchCalendar("https://calendar.example.com/a.ics", 1000, undefined, { fetch: missing })).rejects.toThrow(/HTTP 503/);
   });
