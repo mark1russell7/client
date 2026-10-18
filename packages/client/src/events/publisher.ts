@@ -81,7 +81,12 @@ export interface EventPublisherOptions {
    * The resources that a subscriber of a topic reads (roadmap CLI-15). The publisher refuses a
    * topic whose reads the capability of the call does not permit, as for a procedure that reads
    * them: `FORBIDDEN` with the reason `effects-exceeded`.
-   * @default `collectionTopicReads`: a topic `collections.<name>` reads `collection:<name>`
+   *
+   * A custom function gets only the topic. For a topic of a collection, give the read of the
+   * collection that the publisher listens to: the collection of `collectionTopicTarget(topic,
+   * repository)` with the repository of the host. A function that reads the first part of the
+   * topic alone checks `collection:a` for the dotted collection `a.b`.
+   * @default the read of the collection of `collectionTopicTarget()`, with the repository of the call
    */
   reads?: ((topic: string) => readonly string[]) | undefined;
 }
