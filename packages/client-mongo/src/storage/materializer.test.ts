@@ -572,6 +572,25 @@ withMongo("ViewMaterializer on MongoDB", () => {
     await views.stop();
   });
 
+  it("with sourceFields, matches a path into an array of subdocuments at each position", async (context) => {
+    if (!replicaSet) return context.skip?.("change streams need a replica set");
+    const db = newDb();
+    const { views, counter } = counting(db);
+    await db.collection("items").insertOne({ _id: "1" as never, _part: "t1", kind: "a", n: 1, lines: [{ price: 1, note: "a" }] });
+    await db.collection("_aggregations").insertOne(sumsView({ sourceFields: { items: ["lines.price"] } }) as never);
+    await views.start();
+    const items = db.collection("items");
+    const one = { _id: "1" as never };
+    await items.updateOne(one, { $set: { "lines.0.note": "b" } }); // lines.0.note is lines.note: dropped
+    await items.updateOne(one, { $set: { "lines.0.price": 2 } }); // lines.0.price is lines.price: passes
+    await eventually(async () => expect(counter.events).toBe(1));
+    await items.updateOne(one, { $push: { lines: { price: 3 } } } as never); // lines.1 is lines, above lines.price: passes
+    await eventually(async () => expect(counter.events).toBe(2));
+    await items.updateOne(one, { $set: { "lines.0": { price: 4 } } }); // lines.0 is lines: passes
+    await settles(counter, 3);
+    await views.stop();
+  });
+
   it("gives an update of the partition field without a pre-image to the views of each partition", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
     const db = newDb();

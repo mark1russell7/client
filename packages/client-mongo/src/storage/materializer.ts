@@ -221,6 +221,14 @@ interface RunningView {
   streams: ChangeStream[];
 }
 
+/** A path without its positions in arrays (the segments of digits only): `lines.0.price` gives `lines.price`. */
+function withoutPositions(path: string): string {
+  return path
+    .split(".")
+    .filter((segment) => !/^\d+$/.test(segment))
+    .join(".");
+}
+
 /** The key of a row id for the signatures: type-aware, so an ObjectId and its text are different keys. */
 function idKey(id: unknown): string {
   return BSON.EJSON.stringify({ id }, { relaxed: false });
@@ -549,14 +557,15 @@ export class ViewMaterializer {
    * True for an update that changes no field of `fields` and not the partition field. The keys of
    * an update are paths with dots (`tags.3` after a `$push`, `a.b` after a `$set` of `a.b`), so a key
    * counts when it is a field, a field under it, or a field above it. The removed fields and the
-   * truncated arrays count too.
+   * truncated arrays count too. The positions in an array do not count (`lines.0.price` is
+   * `lines.price`, and `lines.3` is `lines`): that only widens the match.
    */
   private touchesNoField(change: Document, fields: readonly string[] | undefined): boolean {
     if (change["operationType"] !== "update" || !fields || fields.length === 0) return false;
     const description = (change["updateDescription"] ?? {}) as { updatedFields?: Document; removedFields?: string[]; truncatedArrays?: Array<{ field: string }> };
     const keys = [...Object.keys(description.updatedFields ?? {}), ...(description.removedFields ?? []), ...(description.truncatedArrays ?? []).map((truncated) => truncated.field)];
-    const watched = [...fields, this.partitionField];
-    return !keys.some((key) => watched.some((name) => key === name || key.startsWith(`${name}.`) || name.startsWith(`${key}.`)));
+    const watched = [...fields, this.partitionField].map(withoutPositions);
+    return !keys.map(withoutPositions).some((key) => watched.some((name) => key === name || key.startsWith(`${name}.`) || name.startsWith(`${key}.`)));
   }
 
   /**
