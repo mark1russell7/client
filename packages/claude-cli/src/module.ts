@@ -9,6 +9,7 @@ import {
   registerModules,
   PROCEDURE_REGISTRY,
   type AnyProcedure,
+  type FsRootRules,
   type ProcedureModule,
   type ProcedureRegistry,
   createProcedure,
@@ -40,6 +41,15 @@ import {
 /** The effects of a read of the output file. The check of the process id reads the turn process. */
 const READS_TURN = { reads: ["fs", "jobs"], writes: [] } as const;
 
+/** The rule of `claude.start` under a root of the files (roadmap R33, tracker item O36): a root refuses it. */
+const START_UNDER_A_ROOT: FsRootRules = {
+  refuse:
+    "it starts the claude program of its input with free arguments, the agent of the turn reads and changes files in each folder, and claude reads its configuration in the home folder",
+};
+
+/** The rule of `claude.read` and `claude.follow` under a root: the output file is in the root. */
+const READ_IN_A_ROOT: FsRootRules = { paths: ["outputFile"] };
+
 export const claudeStartProcedure: AnyProcedure = createProcedure()
   .path(["claude", "start"])
   .input(zodAdapter<ClaudeStartInput>(ClaudeStartInputSchema))
@@ -51,6 +61,7 @@ export const claudeStartProcedure: AnyProcedure = createProcedure()
     output: "json",
     // The agent of the turn can read and change files, start programs and use the network
     effects: { reads: ["fs", "network", "process"], writes: ["fs", "network", "process", "jobs"] },
+    fsRoot: START_UNDER_A_ROOT,
   })
   .handler(async (input: ClaudeStartInput): Promise<ClaudeStartOutput> => claudeStart(input))
   .build() as AnyProcedure;
@@ -65,6 +76,7 @@ export const claudeReadProcedure: AnyProcedure = createProcedure()
     shorts: {},
     output: "json",
     effects: READS_TURN,
+    fsRoot: READ_IN_A_ROOT,
   })
   .handler(async (input: ClaudeReadInput): Promise<ClaudeReadOutput> => claudeRead(input))
   .build() as AnyProcedure;
@@ -82,6 +94,7 @@ export const claudeFollowProcedure: AnyProcedure = createProcedure()
     // A turn has no time limit: the stream ends with the turn
     stream: { unbounded: true },
     effects: READS_TURN,
+    fsRoot: READ_IN_A_ROOT,
   })
   .handler(claudeFollow)
   .build() as AnyProcedure;

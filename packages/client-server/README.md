@@ -710,6 +710,10 @@ try {
 - **Auto-Registration**: Minimal overhead - procedures are registered once at startup
 - **Discovery**: Procedures are announced once per connection, then cached
 
+## The root of the files
+
+Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `manifest.generate` writes its files only in a folder of the root. A relative `outputDir` starts at the root. The other procedures of this package reach no file.
+
 ## License
 
 MIT

@@ -73,6 +73,8 @@ A host can confine all its procedures to one folder: `mark --fs-root`, `procedur
 | `refuse` | The reason that a root cannot confine the procedure. Under a root, the host refuses it. |
 | `program` | True for a procedure that starts the program of its input (`shell.run`) |
 
+Under a root, the handler of a procedure with rules gets the root in `ctx.fsRoot`. A procedure that starts a program uses it to keep the program in the root. For example, git gets `GIT_CEILING_DIRECTORIES`. Without a root, `ctx.fsRoot` is absent.
+
 A procedure without `metadata.fsRoot` gets a decision from its effects. The host refuses it when its effects are not known, name `fs`, or write `process`. The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
 
 ## Give a host a capability

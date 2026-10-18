@@ -286,6 +286,10 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 
 `createSyncedRegistry({ type: "hybrid", client, mode })` takes the first mode. `setMode()` of the registry changes the mode of its storage.
 
+## The root of the files
+
+No input of `procedure.store`, `procedure.load` and `procedure.sync` names a file. Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), they use the program store of the host. The host chooses the file of a file store, also outside the root. A loaded program is data-driven, so its nested calls get their own rules.
+
 ## License
 
 MIT

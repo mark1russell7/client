@@ -17,6 +17,7 @@ import {
   zodAdapter,
   type AnyProcedure,
   type Effects,
+  type FsRootRules,
   type ProcedureContext,
   type ProcedureModule,
   type ProcedureRegistry,
@@ -122,6 +123,14 @@ const REMOVES: Effects = Object.freeze({ reads: Object.freeze(["fs", "schedules"
 /** `schedule.next`: its output comes from its input and the time. */
 const PURE: Effects = Object.freeze({ reads: Object.freeze([]), writes: Object.freeze([]) });
 
+/**
+ * The rule of `schedule.add`, `schedule.list` and `schedule.remove` under a root of the files
+ * (roadmap R33, tracker item O36). No input names a file: the store of the host holds the
+ * schedules, and the host chooses its file. So a root has no path to examine. A scheduled program
+ * runs its nested calls with their own rules.
+ */
+const STORE_OF_THE_HOST: FsRootRules = Object.freeze({});
+
 /** The four procedures, with handlers that use the settings. */
 function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
   const scheduleAddProcedure = createProcedure()
@@ -135,6 +144,7 @@ function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
       shorts: { timeZone: "z" },
       output: "json",
       effects: ADDS,
+      fsRoot: STORE_OF_THE_HOST,
     })
     .handler(async (input: ScheduleAddInput, ctx: ProcedureContext): Promise<ScheduleAddOutput> => scheduleAdd(input, ctx, settings))
     .build();
@@ -150,6 +160,7 @@ function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
       shorts: {},
       output: "json",
       effects: LISTS,
+      fsRoot: STORE_OF_THE_HOST,
     })
     .handler(async (input: ScheduleListInput): Promise<ScheduleListOutput> => scheduleList(input, settings))
     .build();
@@ -165,6 +176,7 @@ function scheduleProcedures(settings: ScheduleSettings): AnyProcedure[] {
       shorts: {},
       output: "json",
       effects: REMOVES,
+      fsRoot: STORE_OF_THE_HOST,
     })
     .handler(async (input: ScheduleRemoveInput): Promise<ScheduleRemoveOutput> => scheduleRemove(input, settings))
     .build();

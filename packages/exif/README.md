@@ -27,3 +27,7 @@ const { takenAt, lat, lon } = await client.exec(["exif", "read"], { path: "photo
 ## What it reads
 
 It reads `DateTimeOriginal`, `OffsetTimeOriginal` and the GPS position, and nothing else. A photo without EXIF (a screenshot, an edited copy) gives an empty result. A position of 0, 0 is the value of a camera without a position, so the result does not include it.
+
+## The root of the files
+
+Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `exif.read` reads only a photo in the root. A relative `path` starts at the root. A path outside the root gives `FORBIDDEN` with the reason `outside-root`.

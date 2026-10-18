@@ -175,7 +175,8 @@ mark serve --procedures ./my-procedures.js --events orders.created --events audi
 - `mark serve` and `mark mcp`: the root goes to their servers. `mark mcp` also reads `MCP_FS_ROOT`.
 - A path outside the folder gives `FORBIDDEN` with the reason `outside-root`. A relative path starts at the folder. A working folder without a value is the folder.
 - The nested calls are confined too. For example, `mark --fs-root ./data lib scan` cannot list the packages of a workspace outside `./data`.
-- A procedure that the folder cannot confine gives the same error, also for a path in the folder. Examples are `git.*`, `pnpm.*`, `docker.run`, `docker.compose.*`, `shell.run` and `vitest.run`.
+- A procedure that the folder cannot confine gives the same error, also for a path in the folder. Examples are `pnpm.*`, `docker.run`, `docker.compose.*`, `shell.run` and `vitest.run`.
+- The `git.*` procedures are confined: git finds no repository above the folder, and the configuration of a repository starts no program.
 - Give `--fs-root` before the command. After the command, it is an error, because the procedures loaded without it.
 - A command uses a CLI server only when the server has the same root. The lockfile of the server records its root.
 

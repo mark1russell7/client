@@ -3,7 +3,7 @@
  * Generates procedure manifests in various formats
  */
 
-import { createProcedure, describeRegistry, type AnyProcedure, type Effects, type Procedure, type ProcedureContext, PROCEDURE_REGISTRY } from "@procedures/client";
+import { createProcedure, describeRegistry, type AnyProcedure, type Effects, type FsRootRules, type Procedure, type ProcedureContext, PROCEDURE_REGISTRY } from "@procedures/client";
 import { infoOf } from "../discovery/index.js";
 import { wrapSchema } from "../schema.js";
 import { ManifestGenerateOutputSchema } from "../output-schemas.js";
@@ -17,10 +17,16 @@ import { join, dirname } from "path";
 // Use pass-through schemas
 const manifestGenerateOutputSchema = wrapSchema<ManifestGenerateOutput>(ManifestGenerateOutputSchema);
 
+/**
+ * The rule under a root of the files (roadmap R33, tracker item O36): the folder `outputDir` is in
+ * the root. Without `outputDir`, the procedure writes no file.
+ */
+const GENERATE_IN_A_ROOT: FsRootRules = { paths: ["outputDir"] };
+
 export const manifestGenerateProcedure: Procedure<
   ManifestGenerateInput,
   ManifestGenerateOutput,
-  { description: string; effects: Effects }
+  { description: string; effects: Effects; fsRoot: FsRootRules }
 > = createProcedure()
   .path(["manifest", "generate"])
   .input(manifestGenerateInputSchema)
@@ -29,6 +35,7 @@ export const manifestGenerateProcedure: Procedure<
     description: "Generate procedure manifests in various formats",
     // With `outputDir`, it overwrites procedures.json and procedures.d.ts there
     effects: { reads: ["registry"], writes: ["fs"], idempotent: true },
+    fsRoot: GENERATE_IN_A_ROOT,
   })
   .handler(async (input: ManifestGenerateInput, ctx?: ProcedureContext) => {
     // The one manifest of the core (roadmap R17): the procedures that the host exposes, with

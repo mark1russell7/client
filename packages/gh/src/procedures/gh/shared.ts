@@ -4,6 +4,7 @@
  * option. The output is the JSON of `--json` where gh has it.
  */
 
+import { devNull } from "node:os";
 import type { ProcedureContext } from "@procedures/client";
 import type { GhCommonInput } from "../../types.js";
 
@@ -42,12 +43,16 @@ export function repoArgs(input: GhCommonInput): string[] {
 /**
  * This function runs `gh <args>` and gives its output. It throws a GhError for a failed command.
  * The `env` variables go to gh in addition to the environment of the host.
+ *
+ * Under a root of the files (`ctx.fsRoot`), `GIT_DIR` is the null device. Then the git commands
+ * of gh find no repository, and the configuration of a repository in the root starts no program.
  */
 export async function runGh(args: string[], input: GhCommonInput, ctx: ProcedureContext, env?: Record<string, string>): Promise<string> {
   const shellInput: ShellRunInput = { command: "gh", args };
   if (input.cwd !== undefined) shellInput.cwd = input.cwd;
   if (input.timeoutMs !== undefined) shellInput.timeout = input.timeoutMs;
-  if (env !== undefined) shellInput.env = env;
+  const shellEnv = ctx.fsRoot === undefined ? env : { ...env, GIT_DIR: devNull };
+  if (shellEnv !== undefined) shellInput.env = shellEnv;
   const result = await ctx.client.call<ShellRunInput, { exitCode: number; stdout: string; stderr: string }>(["shell", "run"], shellInput);
   if (result.exitCode !== 0) {
     const text = result.stderr.trim() || result.stdout.trim();

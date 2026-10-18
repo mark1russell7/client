@@ -58,6 +58,7 @@
     "./dist/register.js"
   ],
   "devDependencies": {
+    "@procedures/fs": "workspace:*",
     "@mark1russell7/cue": "^1.0.0",
     "@mark1russell7/service": "^0.4.1",
     "typescript": "^7.0.2",

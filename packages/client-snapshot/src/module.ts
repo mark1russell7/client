@@ -6,7 +6,7 @@
  * Provides snapshot.create, snapshot.list, snapshot.restore, snapshot.diff, snapshot.delete procedures.
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import type { ProcedureContext } from "@procedures/client";
 import {
   snapshotCreate,
@@ -42,6 +42,26 @@ import {
 // Procedures
 // =============================================================================
 
+// =============================================================================
+// The rules under a root of the files (roadmap R33, tracker item O36)
+// =============================================================================
+
+/** `snapshot.create`: a root refuses it. */
+const CREATE_UNDER_A_ROOT: FsRootRules = {
+  refuse:
+    "its default folder is the working folder of the process, tar reads each folder from its parent folder, and it starts git and pnpm itself, without the rules of the root",
+};
+
+/** `snapshot.restore`: a root refuses it. */
+const RESTORE_UNDER_A_ROOT: FsRootRules = {
+  refuse: "it downloads the archive into the temporary folder of the host through s3.download, and the names of the folders come from the data of the snapshot",
+};
+
+/** `snapshot.diff`: a root refuses it. */
+const DIFF_UNDER_A_ROOT: FsRootRules = {
+  refuse: "its default folders are the paths that the snapshot recorded on another machine, and it starts git itself, without the rules of the root",
+};
+
 const snapshotCreateProcedure = createProcedure()
   .path(["snapshot", "create"])
   .input(zodAdapter<SnapshotCreateInput>(SnapshotCreateInputSchema))
@@ -51,6 +71,7 @@ const snapshotCreateProcedure = createProcedure()
     // It writes the archive to a new folder of the temporary directory and to new S3 keys with a
     // unique id, so it replaces no data
     effects: { reads: ["fs", "s3", "network"], writes: ["fs", "s3", "network"], destructive: false },
+    fsRoot: CREATE_UNDER_A_ROOT,
     args: ["name"],
     shorts: { bucket: "b", preset: "p", description: "d" },
     output: "json",
@@ -85,6 +106,7 @@ const snapshotRestoreProcedure = createProcedure()
     description: "Restore environment from S3 snapshot",
     // With overwrite: true, a restored folder replaces the existing folder
     effects: { reads: ["fs", "s3", "network"], writes: ["fs"] },
+    fsRoot: RESTORE_UNDER_A_ROOT,
     args: ["id"],
     shorts: { bucket: "b", targetPath: "t", overwrite: "f" },
     output: "json",
@@ -102,6 +124,7 @@ const snapshotDiffProcedure = createProcedure()
     description: "Compare current state against a snapshot",
     // It reads the repositories with git queries that change nothing
     effects: { reads: ["fs", "s3", "network"], writes: [] },
+    fsRoot: DIFF_UNDER_A_ROOT,
     args: ["id"],
     shorts: { bucket: "b" },
     output: "json",

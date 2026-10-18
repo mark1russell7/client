@@ -3,7 +3,7 @@
  * `privacyScan.files` (it reads files). Both change nothing.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure } from "@procedures/client";
+import { createProcedure, zodAdapter, type AnyProcedure, type FsRootRules } from "@procedures/client";
 import { z } from "zod";
 import { FINDING_KINDS, readTermList, scanFiles, scanText, type Finding, type FileScan, type FindingKind } from "./scan.js";
 
@@ -68,6 +68,12 @@ const FilesOutputSchema = z.object({
   skipped: z.array(z.string()),
 });
 
+/**
+ * The rule of `privacyScan.files` under a root of the files (roadmap R33, tracker item O36): each
+ * path to scan and each list file is in the root. The walk of a folder does not follow a link.
+ */
+const FILES_IN_A_ROOT: FsRootRules = { paths: ["paths", "termsFile", "allowFile"] };
+
 export const privacyScanFilesProcedure: AnyProcedure = createProcedure()
   .path(["privacyScan", "files"])
   .input(zodAdapter<FilesInput>(FilesInputSchema))
@@ -77,6 +83,7 @@ export const privacyScanFilesProcedure: AnyProcedure = createProcedure()
     args: ["paths"],
     output: "json",
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: FILES_IN_A_ROOT,
   })
   .handler(async (input: FilesInput): Promise<FileScan> => {
     const terms = [...(input.terms ?? []), ...(input.termsFile === undefined ? [] : await readTermList(input.termsFile))];

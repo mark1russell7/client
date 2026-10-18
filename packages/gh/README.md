@@ -74,6 +74,10 @@ const { run } = await client.exec(["gh", "workflow", "run"], { workflow: "ci.yml
 const { data } = await client.exec(["gh", "api"], { endpoint: "repos/{owner}/{repo}/pulls", repo: "owner/name", paginate: true });
 ```
 
+## The root of the files
+
+Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), each gh procedure starts gh in a working folder of the root. The default `cwd` is the root. The `dir` of `gh.run.download` starts at `cwd`, and it must be in the root. `GIT_DIR` is the null device, so the git of gh finds no repository: give `repo`. gh reads its own login in the home folder.
+
 ## Tests
 
 `pnpm --filter @procedures/gh test` runs the procedures with a fake shell. The tests examine each argument list, the JSON of `gh`, the failures and the values that cannot become options.

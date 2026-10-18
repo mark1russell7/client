@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type AnyProcedure, type Effects, type ProcedureModule, type ProcedureRegistry, createProcedure, zodAdapter } from "@procedures/client";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, type AnyProcedure, type Effects, type FsRootRules, type ProcedureModule, type ProcedureRegistry, createProcedure, zodAdapter } from "@procedures/client";
 import shellModule from "@procedures/shell/module";
 import { ghPrList } from "./procedures/gh/pr/list.js";
 import { ghPrView } from "./procedures/gh/pr/view.js";
@@ -43,6 +43,16 @@ const DOWNLOADS: Effects = { reads: ["network"], writes: ["fs"], destructive: fa
  */
 const CALLS_API: Effects = { reads: ["network"], writes: ["network"] };
 
+/**
+ * The rule of each gh procedure under a root of the files (roadmap R33, tracker item O36): gh runs
+ * in a working folder of the root, and its nested `shell.run` is the call of a confined procedure.
+ * Under a root, the git of gh finds no repository (`runGh`), so a call gives `repo`.
+ */
+const IN_A_ROOT: FsRootRules = { cwd: "cwd" };
+
+/** The rule of `gh.run.download`: the folder `dir` of the files starts at the working folder, in the root. */
+const DOWNLOAD_IN_A_ROOT: FsRootRules = { cwd: "cwd", names: ["dir"] };
+
 const common = {
   repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "owner/name").optional().describe("The repository as owner/name (default: the repository of the folder)"),
   cwd: z.string().optional().describe("The folder where gh runs"),
@@ -67,7 +77,7 @@ function gh<I, O>(
     .path(path)
     .input(zodAdapter<I>(input))
     .output(zodAdapter<O>(output))
-    .meta({ description, args, shorts: {}, output: "json", effects, calls: ["shell.run"] })
+    .meta({ description, args, shorts: {}, output: "json", effects, calls: ["shell.run"], fsRoot: path.join(".") === "gh.run.download" ? DOWNLOAD_IN_A_ROOT : IN_A_ROOT })
     .handler(handler as never)
     .build() as unknown as AnyProcedure;
 }

@@ -3,7 +3,7 @@
  */
 
 import { open } from "node:fs/promises";
-import { createProcedure, zodAdapter, type AnyProcedure } from "@procedures/client";
+import { createProcedure, zodAdapter, type AnyProcedure, type FsRootRules } from "@procedures/client";
 import { z } from "zod";
 import { readExif, type PhotoFacts } from "./exif.js";
 
@@ -28,6 +28,9 @@ const ReadInputSchema = z.object({
 type ReadInput = z.infer<typeof ReadInputSchema>;
 const ReadOutputSchema = z.object({ takenAt: z.string().optional(), lat: z.number().optional(), lon: z.number().optional() });
 
+/** The rule of `exif.read` under a root of the files (roadmap R33, tracker item O36): the photo is in the root. */
+const READ_IN_A_ROOT: FsRootRules = { paths: ["path"] };
+
 export const exifReadProcedure: AnyProcedure = createProcedure()
   .path(["exif", "read"])
   .input(zodAdapter<ReadInput>(ReadInputSchema))
@@ -37,6 +40,7 @@ export const exifReadProcedure: AnyProcedure = createProcedure()
     args: ["path"],
     output: "json",
     effects: { reads: ["fs"], writes: [] },
+    fsRoot: READ_IN_A_ROOT,
   })
   .handler(async (input: ReadInput): Promise<PhotoFacts> => readExif(await readHead(input.path)))
   .build() as AnyProcedure;

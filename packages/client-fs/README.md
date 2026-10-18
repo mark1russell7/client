@@ -128,6 +128,7 @@ const { root, fs, confined, programs, refused, unchanged } = confineToRoot(regis
 - Each `fs.*` procedure gets the handler of `createFsModule({ root })`.
 - Each other procedure gets the decision of `rootDecisionOf(procedure)`. The decision reads the rules of `metadata.fsRoot`, or the effects of a procedure without rules.
 - A confined procedure gets each path of its rules in the root. A procedure that the root cannot confine gives `FORBIDDEN` with the reason `outside-root`, as a path outside the root does.
+- The handler of a confined procedure and of a program procedure gets the root in `ctx.fsRoot`. A procedure that starts a program uses it to keep the program in the root, as `git.*` does.
 - A nested call of another procedure finds the new handler in the registry. Thus `lib.scan`, which calls `fs.readdir`, reads only the folders in the root.
 - The root must be a folder that exists. Otherwise the function throws, and the host does not start.
 - An `fs.*` procedure of another package is an error, because the root cannot confine it. Rules that are not correct are an error too. The function changes nothing when it throws.

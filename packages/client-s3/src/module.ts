@@ -8,7 +8,7 @@
  * Credentials are loaded from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).
  */
 
-import { createProcedure, zodAdapter, defineModule, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
+import { createProcedure, zodAdapter, defineModule, type FsRootRules, type ProcedureModule, PROCEDURE_REGISTRY, registerModules, type ProcedureRegistry } from "@procedures/client";
 import {
   s3Upload,
   s3Download,
@@ -96,6 +96,19 @@ const s3UploadProcedure = createProcedure()
   })
   .build();
 
+// =============================================================================
+// The rules under a root of the files (roadmap R33, tracker item O36)
+// =============================================================================
+
+/** `s3.download`: under a root, the file of `destPath` is in the root. Without it, the object stays in memory. */
+const DOWNLOAD_IN_A_ROOT: FsRootRules = { paths: ["destPath"] };
+
+/**
+ * `s3.presign`: no input names a file. Its file reads are the AWS credentials of the host, as for
+ * each `s3.*` procedure, so a root has nothing to examine.
+ */
+const PRESIGN_IN_A_ROOT: FsRootRules = {};
+
 const s3DownloadProcedure = createProcedure()
   .path(["s3", "download"])
   .input(zodAdapter<S3DownloadInput>(S3DownloadInputSchema))
@@ -104,6 +117,7 @@ const s3DownloadProcedure = createProcedure()
     description: "Download content from S3 bucket",
     // With destPath, it replaces the file at that path
     effects: { reads: ["s3", "network"], writes: ["fs"], idempotent: true },
+    fsRoot: DOWNLOAD_IN_A_ROOT,
     shorts: { bucket: "b", key: "k", encoding: "e" },
     output: "json",
   })
@@ -260,6 +274,7 @@ const s3PresignProcedure = createProcedure()
     // host (fs) or the instance metadata service (network). A call that cannot change s3 gets no
     // PUT URL (see presign.ts).
     effects: { reads: ["fs", "network"], writes: [] },
+    fsRoot: PRESIGN_IN_A_ROOT,
     shorts: { bucket: "b", key: "k", method: "m", expiresIn: "e" },
     output: "json",
   })

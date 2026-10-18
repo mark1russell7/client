@@ -920,6 +920,12 @@ npm run clean
 - Enable S3 bucket versioning for important data
 - Consider S3 bucket encryption at rest
 
+## The root of the files
+
+Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `s3.download` writes its `destPath` only in the root. A relative `destPath` starts at the root. `s3.presign` has no path input, and the other procedures reach no file. The AWS SDK reads the credentials of the host, also under a root.
+
+The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
 ## License
 
 MIT

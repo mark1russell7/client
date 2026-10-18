@@ -1179,6 +1179,19 @@ const customStatusProcedure = createProcedure()
 registerProcedures([customStatusProcedure]);
 ```
 
+## The root of the files
+
+A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) confines each `git.*` procedure to the root (roadmap R33, tracker item O35). Without a root, nothing changes.
+
+- The working folder `cwd` must be in the root, and its default is the root. The pathspecs `paths`, the `path` of `git.blame` and of the worktree procedures, and the `dest` of `git.clone` start at `cwd`. They must be in the root too.
+- `GIT_CEILING_DIRECTORIES` is the parent of the root, so git does not find a repository above the root.
+- The configuration of the system does not apply. The global configuration has only `user.name`, `user.email` and `init.defaultBranch` of the host, so a credential helper of the host does not apply.
+- Git starts no hook and no `core.fsmonitor` program. Only the transports https, http, ssh and git are permitted, and git does not go into a submodule.
+- Before the first command in a folder, the procedure examines the repository. It refuses a repository outside the root, a repository with submodules, and a configuration key that starts a program. Examples are `filter.*.clean`, `core.sshCommand`, `credential.helper` and `include.path`.
+- A refusal is `FORBIDDEN` with the reason `outside-root`. The error names each refused key.
+
+The list of the keys is in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#git-under-a-root).
+
 ## Error Handling
 
 All git procedures may throw errors for invalid operations:

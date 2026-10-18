@@ -5,7 +5,7 @@
  * The procedure came from `@procedures/peer`: it belongs to the host.
  */
 
-import { createProcedure, zodAdapter, type Effects, type Procedure } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStopOutputSchema, serverStopInputSchema } from "../schemas.js";
 import type { ServerStopInput, ServerStopOutput } from "../types.js";
@@ -29,10 +29,18 @@ function killProcess(pid: number, signal: NodeJS.Signals = "SIGTERM"): boolean {
   }
 }
 
+/**
+ * The rule under a root of the files (roadmap R33, tracker item O36): a root refuses it. It reads
+ * and deletes the lock files in `~/.mark`, and it stops the server processes of the host.
+ */
+const STOP_UNDER_A_ROOT: FsRootRules = {
+  refuse: "it reads and deletes the lock files in the home folder (~/.mark), and it stops the server processes of the host",
+};
+
 export const serverStopProcedure: Procedure<
   ServerStopInput,
   ServerStopOutput,
-  { description: string; effects: Effects }
+  { description: string; effects: Effects; fsRoot: FsRootRules }
 > = createProcedure()
   .path(["server", "stop"])
   .input(serverStopInputSchema)
@@ -41,6 +49,7 @@ export const serverStopProcedure: Procedure<
     description: "Stop running CLI server",
     // It stops the servers of the lockfiles and deletes their lockfiles
     effects: { reads: ["fs", "server"], writes: ["fs", "server"], idempotent: true },
+    fsRoot: STOP_UNDER_A_ROOT,
     args: [],
     shorts: { port: "p" },
   })

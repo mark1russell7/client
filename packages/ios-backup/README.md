@@ -55,6 +55,10 @@ The package root exports the functions of the procedures.
 - The times are ISO 8601 strings in UTC, to the second. The package reads the times in nanoseconds (iOS 11 and later) and in seconds (older databases).
 - The package loads `node:sqlite` at the first read. Thus an import of the package does not show the experimental warning of Node.
 
+## The root of the files
+
+A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) refuses the three procedures with `FORBIDDEN` and the reason `outside-root`. The default backups are in the home folder. The procedures follow a linked backup folder, and the names of the files come from the data of `Manifest.db`.
+
 ## Privacy
 
 A backup holds the private messages of a person and of the people who write to that person. Read a backup only with permission. Do not send the messages to a service that you do not control.

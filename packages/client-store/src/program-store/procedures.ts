@@ -24,6 +24,7 @@ import {
   runtimeProgramOf,
   zodAdapter,
   type AnyProcedure,
+  type FsRootRules,
   type ProcedureContext,
   type ProcedurePath,
 } from "@procedures/client";
@@ -110,6 +111,14 @@ interface StoreOutput {
   storedAt: number;
 }
 
+/**
+ * The rule of `procedure.store`, `procedure.load` and `procedure.sync` under a root of the files
+ * (roadmap R33, tracker item O36). No input names a file: the program store of the host holds the
+ * programs, and the host chooses its file. So a root has no path to examine. A loaded program
+ * runs its nested calls with their own rules.
+ */
+const STORE_OF_THE_HOST: FsRootRules = Object.freeze({});
+
 export const procedureStoreProcedure: AnyProcedure = createProcedure()
   .path(["procedure", "store"])
   .input(zodAdapter<StoreInput>(z.object({ path: pathField })))
@@ -127,6 +136,7 @@ export const procedureStoreProcedure: AnyProcedure = createProcedure()
     tags: ["procedure", "registry", "storage"],
     // It replaces a stored program of the same key. A FileProgramStore keeps the programs in a file.
     effects: { reads: ["registry"], writes: ["fs", "programs"] },
+    fsRoot: STORE_OF_THE_HOST,
     args: ["path"],
   })
   .handler(async (input: StoreInput, ctx: ProcedureContext): Promise<StoreOutput> => {
@@ -188,6 +198,7 @@ export const procedureLoadProcedure: AnyProcedure = createProcedure()
     calls: ["procedure.define"],
     // A loaded program replaces a runtime-defined procedure of the same path
     effects: { reads: ["fs", "programs", "registry"], writes: ["registry"] },
+    fsRoot: STORE_OF_THE_HOST,
   })
   .handler(async (input: LoadInput, ctx: ProcedureContext): Promise<LoadOutput> => {
     const chosen = [input.path !== undefined, input.prefix !== undefined, input.all === true].filter(Boolean).length;
@@ -274,6 +285,7 @@ export const procedureSyncProcedure: AnyProcedure = createProcedure()
     tags: ["procedure", "registry", "storage"],
     calls: ["procedure.define"],
     effects: { reads: ["fs", "programs", "registry"], writes: ["fs", "programs", "registry"] },
+    fsRoot: STORE_OF_THE_HOST,
   })
   .handler(async (input: SyncInput, ctx: ProcedureContext): Promise<SyncOutput> => {
     const direction = input.direction ?? "both";

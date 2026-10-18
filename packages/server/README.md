@@ -190,7 +190,9 @@ With `--fs-root <folder>`, the server starts `confineToRoot()` of `@procedures/f
 
 - Each procedure refuses a path outside the folder with `FORBIDDEN` and the reason `outside-root`. A relative path starts at the folder. A working folder without a value is the folder.
 - The `fs.*` procedures get the handlers of the root. A procedure with rules (`metadata.fsRoot`) gets each path of its rules examined. A nested call is confined too.
-- The server refuses each procedure that the folder cannot confine, with the same error: `git.*`, `pnpm.*`, `docker.run`, a call of `shell.run`, and a procedure that reaches files without rules.
+- The server refuses each procedure that the folder cannot confine, with the same error: `pnpm.*`, `docker.run`, a call of `shell.run`, and a procedure that reaches files without rules.
+- The `git.*` procedures are confined: git finds no repository above the folder (tracker item O35).
+- The folder refuses `server.start`, `server.stop` and `server.status` of this package. They read and write the lock files in the home folder (`~/.mark`), and `server.start` starts a server without the folder.
 - The server does not start when the folder does not exist, or when it cannot load a version of `@procedures/fs` with `confineToRoot()`.
 
 The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).

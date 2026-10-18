@@ -208,6 +208,7 @@ The declaration is `FsRootRules` of the core: `cwd`, `paths`, `names`, `required
 - The check is the check of the `fs.*` procedures (`inRoot()` of `@procedures/fs/root`). It follows each symbolic link and junction.
 - A program procedure operates only for a confined caller. That caller chose the program and its arguments, and the root examined the paths of the caller. The core gives the caller to the handler as `ctx.caller`, so an input cannot give it. This is one level: a program procedure cannot start another one.
 - The context of the call holds the caller, so the rule also holds for a stream (`docker.logs` with `follow` starts `shell.stream`).
+- The handler of a confined procedure and of a program procedure gets the root in `ctx.fsRoot`. A procedure that starts a program uses it to keep the program in the root. Git and gh use it.
 
 ### The default for a procedure without rules
 
@@ -233,7 +234,7 @@ Refusal is the safe default. A procedure of another package that reaches files w
 | `sqlite.migrate` | confined | `dbPath` (a call must give it), `folder` | |
 | `sqlite.backup` | confined | `dbPath` (a call must give it), `to` | |
 | `cue.init`, `cue.add`, `cue.remove`, `cue.generate`, `cue.validate` | confined | `cwd` (the default is the root) | The files of the project go through `fs.*`. The `cue` program starts in a folder of the installed cue package, with its files only. |
-| `lib.scan`, `lib.graph`, `lib.audit`, `lib.rename` | confined | `rootPath` (the default is the root) | The files go through `fs.*`. Their nested git calls are refused, and `lib.scan` gives a warning. |
+| `lib.scan`, `lib.graph`, `lib.audit`, `lib.rename` | confined | `rootPath` (the default is the root) | The files go through `fs.*`. Their nested git calls are confined too. |
 | `lib.new` | refused | | It starts the cue program of the workspace, which is code of the project |
 | `procedure.new` | confined | `path` (the default is the root) | The files go through `fs.*` |
 | `docker.ps`, `docker.logs`, `docker.stop`, `docker.rm`, `docker.images`, `docker.inspect`, `docker.pull`, `docker.push`, `docker.tag`, `docker.prune`, `docker.volume.*`, `docker.network.*` | confined | `cwd` (the default is the root) | The command goes to the daemon, and the input names no path of the host |
@@ -241,16 +242,54 @@ Refusal is the safe default. A procedure of another package that reaches files w
 | `docker.exec` | refused | | The container starts the program of the caller, and it can have host folders |
 | `docker.build` | refused | | The Dockerfile runs programs, and docker resolves the context and the Dockerfile itself |
 | `docker.compose.*` | refused | | A compose file can name host paths: bind mounts, `env_file`, `include` and `extends` |
-| `git.*` | refused | | Git looks for the repository above the working folder. The configuration of a repository can start a program: a hook, `core.fsmonitor` or a filter. |
+| `git.*` | confined | `cwd` (the default is the root). From `cwd`: the pathspecs `paths` of `git.status`, `git.add`, `git.commit`, `git.checkout`, `git.diff`, `git.stash.push`, `git.reset` and `git.restore`, the `path` of `git.blame`, `git.worktree.add` and `git.worktree.remove`, and the `dest` of `git.clone` | Git stays in the root. The section [Git under a root](#git-under-a-root) gives the rules. |
 | `pnpm.*` | refused | | pnpm reads the workspace, the store and `.npmrc` outside the working folder. The scripts and `.pnpmfile.cjs` of a project start programs. |
 | `shell.run`, `shell.stream` | program | `cwd` (the default is the root) | Only the nested call of a confined procedure that names them, for example `docker.ps` |
 | `shell.exec`, `shell.which` | refused | | A command line in a shell, and the folders of `PATH` |
 | `vitest.run`, `vitest.coverage`, `vitest.watch`, `vite.dev`, `vite.build`, `vite.preview`, `node.run`, `node.spawn`, `restic.run`, `tailscale.run`, `pdf.render`, `claude.start`, `cli.run`, `npm.pack`, `ecosystem.procedures` | refused (the default) | | They write `process` |
-| `s3.download`, `s3.presign`, `snapshot.create`, `snapshot.restore`, `snapshot.diff`, `schedule.add`, `schedule.list`, `schedule.remove`, `exif.read`, `iosBackup.*`, `privacyScan.files`, `dag.traverse`, `claude.read`, `claude.follow`, `manifest.generate`, `server.start`, `server.stop`, `server.status`, `procedure.store`, `procedure.load`, `procedure.sync` and the other procedures with `fs` in their effects | refused (the default) | | They read or write files, and they declare no rules |
-| `gh.*` | unchanged, but refused at the nested `shell.run` | | `gh` is not a confined procedure, so its program does not start |
+| `s3.download` | confined | `destPath` | Without `destPath`, the object stays in memory |
+| `s3.presign` | confined | | No input names a file. The AWS SDK reads the credentials of the host, as for each `s3.*` procedure. |
+| `snapshot.create` | refused | | Its default folder is the working folder of the process. Tar reads each folder from its parent folder, and the procedure starts git and pnpm itself. |
+| `snapshot.restore` | refused | | It downloads the archive into the temporary folder of the host through `s3.download`. The names of the folders come from the data of the snapshot. |
+| `snapshot.diff` | refused | | Its default folders are the paths that the snapshot recorded on another machine, and it starts git itself |
+| `schedule.add`, `schedule.list`, `schedule.remove` | confined | | No input names a file. The store of the host holds the schedules, and the host chooses its file. |
+| `exif.read` | confined | `path` | |
+| `iosBackup.find`, `iosBackup.file`, `iosBackup.messages` | refused | | The default backups are in the home folder. The procedures follow a linked backup folder, and the names of the files come from the data of `Manifest.db`. |
+| `privacyScan.files` | confined | `paths`, `termsFile`, `allowFile` | The walk of a folder does not follow a link |
+| `dag.traverse` | unchanged | | It is data-driven: `lib.scan` and the procedure of `visit` get their own rules |
+| `claude.start` | refused | | It starts the claude program of its input with free arguments. The agent of the turn reaches each folder, and claude reads its configuration in the home folder. |
+| `claude.read`, `claude.follow` | confined | `outputFile` | |
+| `manifest.generate` | confined | `outputDir` | Without `outputDir`, it writes no file |
+| `server.start`, `server.stop`, `server.status` | refused | | They read and write the lock files in the home folder (`~/.mark`). `server.start` starts a server without the root. |
+| `procedure.store`, `procedure.load`, `procedure.sync` | confined | | No input names a file. The program store of the host holds the programs. A loaded program is data-driven. |
+| `gh.*` | confined | `cwd` (the default is the root), and the `dir` of `gh.run.download` (from `cwd`) | The nested `shell.run` is the call of a confined procedure. Under a root, `GIT_DIR` is the null device, so the git of gh finds no repository: give `repo`. |
+| The other procedures with `fs` in their effects | refused (the default) | | They read or write files, and they declare no rules |
 | `mongo.*`, `json.*`, `yaml.*`, `http.*`, `client.*`, `program.*`, `procedure.list`, `vitest.stop`, `node.kill` and the other procedures without `fs` and `process` | unchanged | | They reach no file of the host |
 
 The tests of each package pin the kind of each of its procedures. They also show a path in the root that works and a path outside that is refused. A refused procedure works without a root.
+
+### Git under a root
+
+Each `git.*` procedure is confined (tracker item O35). Its handler operates in `underGitRoot()` with `ctx.fsRoot`, and each git command of the handler gets these rules:
+
+- The working folder must be in the root. `GIT_CEILING_DIRECTORIES` is the parent of the root, so git does not look for a repository above the root.
+- `GIT_CONFIG_NOSYSTEM=1` turns off the configuration of the system. `GIT_CONFIG_GLOBAL` is a file of the process with only `user.name`, `user.email` and `init.defaultBranch` of the global configuration of the host. The variables that move the repository or add configuration do not apply: `GIT_DIR`, `GIT_WORK_TREE`, `GIT_CONFIG_PARAMETERS`, `GIT_ALLOW_PROTOCOL` and the others.
+- The `-c` options turn off what starts a program: `core.hooksPath` is an empty folder, and `core.fsmonitor` is false. Only the transports https, http, ssh and git are permitted. The transports `file` and `ext` and the remote helpers are off. Git does not go into a submodule: `diff.ignoreSubmodules=all`, `submodule.recurse=false`, and `--no-recurse-submodules` for a fetch and a pull. A checkout is quiet, so it does not examine the submodules that it brings.
+- Before the first command of a call in a folder, the procedure examines the repository. It refuses a git folder, an object folder or an alternate object folder outside the root. It also refuses a repository with submodules (a `.gitmodules` file in the working tree, the index or `HEAD`), and the configuration keys below.
+- Under a root, `git.clone` and `git.remote.set` refuse a URL with `::`, because the form `<transport>::<address>` starts a program. The folder of a clone must be in the root, also when it comes from the URL.
+
+The keys of the configuration of a repository that a root refuses. The error names each of them.
+
+| The keys | Why |
+|---|---|
+| `filter.*.clean`, `filter.*.smudge`, `filter.*.process`, `diff.external`, `diff.*.command`, `diff.*.textconv`, `merge.*.driver`, `diff.tool`, `merge.tool`, `difftool.*`, `mergetool.*` | They start a program for the files |
+| `core.sshCommand`, `core.gitProxy`, `core.askPass`, `core.editor`, `core.pager`, `pager.*`, `sequence.editor`, `core.alternateRefsCommand`, `credential.helper`, `credential.*.helper`, `remote.*.uploadpack`, `remote.*.receivepack`, `remote.*.vcs`, `hook.*`, `trailer.*.command` | They start a program |
+| `gpg.program`, `gpg.*.program`, `gpg.ssh.defaultKeyCommand`, and `commit.gpgSign`, `tag.gpgSign`, `tag.forceSignAnnotated` or `push.gpgSign` when they are not false | They start the signing program |
+| `include.path`, `includeIf.*.path` | They read a configuration file outside the repository |
+| `core.worktree`, `core.excludesFile`, `core.attributesFile`, `commit.template`, `init.templateDir`, `mailmap.file`, `blame.ignoreRevsFile`, `diff.orderFile`, `gpg.ssh.allowedSignersFile`, the files of `http.*` (`sslCert`, `sslKey`, `sslCAInfo`, `cookieFile` and the others) | They name a file or a folder outside the repository |
+| `protocol.*`, `bundle.*`, `fetch.bundleURI`, `transfer.bundleURI`, a `remote.*.url` with `::`, a `url.*.insteadOf` whose base has `::`, and a `submodule.*.update` with `!` | They let git use a transport or a local bundle, or they start a program |
+
+`core.hooksPath` and `core.fsmonitor` in the configuration of a repository are not refused: the `-c` options override them.
 
 ### The limits
 
@@ -259,3 +298,6 @@ The tests of each package pin the kind of each of its procedures. They also show
 - A program that a confined procedure starts reads its own configuration. For example, the docker program reads its configuration in the home folder.
 - `confineToRoot()` examines the procedures of the registry when it starts. A procedure that a host registers later gets no rules. `procedure.define` makes data-driven procedures, and their nested calls get the rules.
 - The root does not replace the permissions of the operating system.
+- Git examines a repository before the first command of a call in a folder, and not again. A later command of the same call can bring a `.gitmodules` file and a submodule into the working tree, for example the patch of `git.stash.import`. Git can then start git in the folder of the submodule, with the configuration of that folder. The quiet checkout and `diff.ignoreSubmodules=all` close the main ways.
+- Under a root, the global configuration of the host does not apply to git. A credential helper of the host thus does not apply: a push over HTTPS needs SSH, or a credential in the environment.
+- A procedure can write a private temporary file outside the root, for example the body of `gh.api` or the files of git under a root. The caller does not name it, and the procedure deletes it.

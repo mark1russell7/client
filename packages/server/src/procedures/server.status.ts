@@ -7,7 +7,7 @@
 
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, zodAdapter, type Effects, type Procedure } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { checkServer, readAllLockfiles, readLockfileForPort, removeLockfileForPort, type LockfileData } from "@procedures/peer/lockfile";
 import { ServerStatusOutputSchema, serverStatusInputSchema } from "../schemas.js";
 import type { ServerStatusInput, ServerStatusOutput } from "../types.js";
@@ -47,10 +47,18 @@ function formatUptime(startedAt: string): string {
   return `${days}d ${hours}h`;
 }
 
+/**
+ * The rule under a root of the files (roadmap R33, tracker item O36): a root refuses it. It reads
+ * the lock files in `~/.mark`, which hold the tokens of the servers, and it deletes the old ones.
+ */
+const STATUS_UNDER_A_ROOT: FsRootRules = {
+  refuse: "it reads the lock files in the home folder (~/.mark), which hold the tokens of the servers, and it deletes the old ones",
+};
+
 export const serverStatusProcedure: Procedure<
   ServerStatusInput,
   ServerStatusOutput,
-  { description: string; effects: Effects; output: string }
+  { description: string; effects: Effects; output: string; fsRoot: FsRootRules }
 > = createProcedure()
   .path(["server", "status"])
   .input(serverStatusInputSchema)
@@ -59,6 +67,7 @@ export const serverStatusProcedure: Procedure<
     description: "Get CLI server status",
     // It deletes the lockfile of a server that does not answer
     effects: { reads: ["fs", "server"], writes: ["fs"], idempotent: true },
+    fsRoot: STATUS_UNDER_A_ROOT,
     args: [],
     shorts: { port: "p" },
     output: "text",

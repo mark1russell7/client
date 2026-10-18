@@ -91,3 +91,7 @@ claude [executableArgs] -p --output-format stream-json --verbose [args]
 4. The folders of the native installer: `~/.local/bin` and `~/.claude/local`.
 
 A batch file (`claude.cmd`) does not start without a shell. On Windows, use the native `claude.exe`, or give `node` as `executable` and the path of `cli.js` in `executableArgs`.
+
+## The root of the files
+
+A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) refuses `claude.start`. It starts the claude program, and the agent of the turn reaches each folder. `claude.read` and `claude.follow` read only an output file in the root. `claude.cancel` reaches no file.

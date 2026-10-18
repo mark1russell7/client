@@ -137,6 +137,10 @@ An expression with `*` at the start of its minute field or of its hour field fol
 
 The same rules apply to the zones with a change of 30 minutes, for example `Australia/Lord_Howe`.
 
+## The root of the files
+
+No input of a schedule procedure names a file. Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `schedule.add`, `schedule.list` and `schedule.remove` use the store of the host. The host chooses the file of a file store, also outside the root. A scheduled program starts its nested calls with their own rules.
+
 ## MCP
 
 `schedule.next` and `schedule.list` change nothing, and they are good tools. `schedule.add` makes the host start a program later, at each time, so a host gives it to Claude only on purpose. `schedule.remove` stops the runs that the owner wants.

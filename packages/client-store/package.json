@@ -82,6 +82,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@procedures/fs": "workspace:*",
     "@mark1russell7/cue": "^1.0.0",
     "@types/node": "^22.0.0",
     "fake-indexeddb": "^6.2.5",

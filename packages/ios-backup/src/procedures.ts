@@ -3,7 +3,7 @@
  * `iosBackup.messages`. Each one reads files and changes nothing.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure } from "@procedures/client";
+import { createProcedure, zodAdapter, type AnyProcedure, type FsRootRules } from "@procedures/client";
 import { z } from "zod";
 import {
   IosBackupError,
@@ -18,6 +18,15 @@ import {
 
 /** The procedures read files and change nothing. A copy in a temporary folder is deleted after the read. */
 const READS_FILES = { reads: ["fs"], writes: [] };
+
+/**
+ * The rule of the procedures under a root of the files (roadmap R33, tracker item O36): a root
+ * refuses them. The default backups are in the home folder. The procedure follows a linked backup
+ * folder, and the names of the files in a backup come from the data of `Manifest.db`.
+ */
+const REFUSED_UNDER_A_ROOT: FsRootRules = {
+  refuse: "the default backups are in the home folder, a linked backup folder is followed, and the names of the files come from the data of Manifest.db",
+};
 
 const rootsField = z
   .array(z.string().min(1))
@@ -67,6 +76,7 @@ export const iosBackupFindProcedure: AnyProcedure = createProcedure()
     args: [],
     output: "json",
     effects: READS_FILES,
+    fsRoot: REFUSED_UNDER_A_ROOT,
   })
   .handler(async (input: FindInput): Promise<FindOutput> => {
     const roots = input.roots ?? defaultBackupRoots();
@@ -112,6 +122,7 @@ export const iosBackupFileProcedure: AnyProcedure = createProcedure()
     args: ["domain", "relativePath"],
     output: "json",
     effects: READS_FILES,
+    fsRoot: REFUSED_UNDER_A_ROOT,
   })
   .handler(async (input: FileInput): Promise<FileOutput> => {
     const backup = await resolveBackup(input);
@@ -159,6 +170,7 @@ export const iosBackupMessagesProcedure: AnyProcedure = createProcedure()
     args: [],
     output: "json",
     effects: READS_FILES,
+    fsRoot: REFUSED_UNDER_A_ROOT,
   })
   .handler(async (input: MessagesInput): Promise<MessagesOutput> => {
     const backup = await resolveBackup(input);

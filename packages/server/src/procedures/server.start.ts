@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { createProcedure, zodAdapter, type Effects, type Procedure } from "@procedures/client";
+import { createProcedure, zodAdapter, type Effects, type FsRootRules, type Procedure } from "@procedures/client";
 import { checkServer, readLockfileForPort } from "@procedures/peer/lockfile";
 import { ServerStartOutputSchema, serverStartInputSchema } from "../schemas.js";
 import type { ServerStartInput, ServerStartOutput } from "../types.js";
@@ -86,10 +86,18 @@ function findCliPath(): string {
   return "mark";
 }
 
+/**
+ * The rule under a root of the files (roadmap R33, tracker item O36): a root refuses it. It starts
+ * a mark server without the root, and it writes the log and the lock files in `~/.mark`.
+ */
+const START_UNDER_A_ROOT: FsRootRules = {
+  refuse: "it starts a mark server process without the root, and it writes the log and the lock files in the home folder (~/.mark)",
+};
+
 export const serverStartProcedure: Procedure<
   ServerStartInput,
   ServerStartOutput,
-  { description: string; effects: Effects; args: string[]; shorts: Record<string, string> }
+  { description: string; effects: Effects; args: string[]; shorts: Record<string, string>; fsRoot: FsRootRules }
 > = createProcedure()
   .path(["server", "start"])
   .input(serverStartInputSchema)
@@ -99,6 +107,7 @@ export const serverStartProcedure: Procedure<
     // The daemon loads the procedure packages of the workspace. The procedure moves server.log
     // over server.log.1.
     effects: { reads: ["fs", "server"], writes: ["fs", "network", "process", "server"] },
+    fsRoot: START_UNDER_A_ROOT,
     args: [],
     shorts: { port: "p", host: "h" },
   })

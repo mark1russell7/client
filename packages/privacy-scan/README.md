@@ -53,6 +53,10 @@ The term list is private data. Keep it in a file outside the repository, and giv
 
 A list file has one entry on each line. A line that starts with `#` is a comment.
 
+## The root of the files
+
+Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), `privacyScan.files` scans only the files and the folders in the root. It reads `termsFile` and `allowFile` only from the root. A relative path starts at the root, and each `file` of the output is absolute. Under a root, give the terms in `terms`, or keep the list file in the root.
+
 ## Functions
 
 The package root exports the functions of the procedures.

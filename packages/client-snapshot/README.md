@@ -724,6 +724,12 @@ Captures comprehensive Git state:
 - Remote tracking information
 - Ahead/behind commit counts
 
+## The root of the files
+
+A host with a root (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`) refuses `snapshot.create`, `snapshot.restore` and `snapshot.diff`. The error is `FORBIDDEN` with the reason `outside-root`. These procedures start git and pnpm without the rules of the root, and they reach folders outside it. `snapshot.list` and `snapshot.delete` reach only S3, so they work under a root.
+
+The rules and the table of the procedures are in [CAPABILITIES-2026-10.md](../documentation/CAPABILITIES-2026-10.md#the-root-of-the-files-roadmap-r33).
+
 ## License
 
 MIT
