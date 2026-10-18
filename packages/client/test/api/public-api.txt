@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 539 names
+## . (dist/index.d.ts): 541 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -263,6 +263,7 @@ type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StopParts: dist/server/procedure-server.d.ts#StopParts
 type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
 type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
@@ -270,6 +271,7 @@ type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearCha
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
 type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
+type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
 type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
@@ -546,7 +548,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 521 names
+## ./browser (dist/browser.d.ts): 523 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -799,6 +801,7 @@ type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StopParts: dist/server/procedure-server.d.ts#StopParts
 type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
 type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
@@ -806,6 +809,7 @@ type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearCha
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
 type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
+type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
 type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
@@ -1594,7 +1598,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 39 names
+## ./server (dist/server/index.d.ts): 41 names
 
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
@@ -1621,7 +1625,9 @@ type ServerResponse: dist/server/types.d.ts#ServerResponse
 type ServerRunner: dist/server/types.d.ts#ServerRunner
 type ServerTransport: dist/server/types.d.ts#ServerTransport
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
+type StopParts: dist/server/procedure-server.d.ts#StopParts
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
+type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
 type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
 type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
@@ -5199,7 +5205,7 @@ export declare function methodToPath(method: Pick<Method, "service" | "operation
 export declare function pathToMethod(path: readonly string[]): Method;
 
 ### dist/server/procedure-server.d.ts#ProcedureServer
-export declare class ProcedureServer extends Server implements RepositoryProvider {
+export declare class ProcedureServer extends Server implements RepositoryProvider, StopParts {
     readonly publisher: EventPublisher | undefined;
     readonly ambientCredentials: AmbientCredentials | undefined;
     constructor(options?: ProcedureServerOptions);
@@ -5226,6 +5232,12 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     hasProcedure(path: ProcedurePath): boolean;
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
+    storageHandles(): StorageHandle[];
+    start(): Promise<void>;
+    stopIntake(): void;
+    drain(deadline: number, signal: AbortSignal): Promise<void>;
+    inFlight(): number;
+    close(): Promise<void>;
     stop(options?: StopOptions): Promise<void>;
 }
 
@@ -5259,10 +5271,27 @@ export interface StopOptions {
     grace?: Duration | undefined;
 }
 
+### dist/server/procedure-server.d.ts#StopParts
+export interface StopParts {
+    stopIntake(): Promise<void> | void;
+    drain(deadline: number, signal: AbortSignal): Promise<void> | void;
+    inFlight(): number;
+    close(): Promise<void> | void;
+}
+
 ### dist/server/procedure-server.d.ts#StorageConfig
 export interface StorageConfig<T = unknown> {
     storage: CollectionStorage<T>;
     name: string;
+}
+
+### dist/server/procedure-server.d.ts#StorageHandle
+export interface StorageHandle {
+    readonly name: string;
+    readonly collections: readonly string[];
+    readonly storage: CollectionStorage<unknown>;
+    connect(signal: AbortSignal): Promise<void> | void;
+    close(): Promise<void>;
 }
 
 ### dist/server/procedure-server.d.ts#UseStorageOptions
