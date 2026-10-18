@@ -41,6 +41,7 @@ import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
 import { timeoutAfterMs } from "./interceptors.js";
 import type { EventBus } from "../events/types.js";
+import type { Principal } from "../server/types.js";
 import { getGlobalEventBus, withEventBusSignal } from "../events/bus.js";
 
 // =============================================================================
@@ -154,6 +155,11 @@ export interface InvokeOptions {
    * It drops a refused stream item. A refused value gives `FORBIDDEN` (reason `clearance`).
    */
   admitItem?: AdmitItem | undefined;
+  /**
+   * The principal of the call, from the authentication of the host. It goes to `ctx.principal`,
+   * to the invocation and to the nested calls.
+   */
+  principal?: Principal | undefined;
 }
 
 /**
@@ -184,6 +190,8 @@ export interface Invocation {
   readonly depth: number;
   /** The capability of the invocation (frozen). */
   readonly capability: Capability;
+  /** The principal of the call: who sends it. A call from this process has none. */
+  readonly principal?: Principal | undefined;
 }
 
 /** The changes that an interceptor gives to the next step: the handler and the nested calls get them. */
@@ -313,6 +321,7 @@ export async function invokeProcedure<TOutput = unknown>(
     parent: options.parent,
     depth: options.parent ? options.parent.depth + 1 : 0,
     capability: options.capability ?? UNLIMITED_CAPABILITY,
+    ...(options.principal !== undefined ? { principal: options.principal } : {}),
   };
   // A deadline that the parent does not have (from a host, a request or a narrowed nested call)
   // ends the invocation at that time, as the timeout interceptor does
@@ -486,6 +495,7 @@ export function createProcedureContext(
   if (options.expose) context.expose = options.expose;
   if (options.repository) context.repository = options.repository;
   if (options.onRef) context.onRef = options.onRef;
+  if (options.principal !== undefined) context.principal = options.principal;
   // The procedure of the parent invocation made this call (roadmap R33: the root of the files)
   if (invocation?.parent) context.caller = invocation.parent.procedure;
   // Every context has a bus. With a signal, the waits of the handler on the bus end when the

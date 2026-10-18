@@ -10,6 +10,7 @@ import type { ProcedureSchema } from "./schema.js";
 import type { CollectionStorage } from "./collection/storage.js";
 import type { EventBus } from "../events/types.js";
 import type { HydrationEvent } from "./ref.js";
+import type { Principal } from "../server/types.js";
 
 // =============================================================================
 // Procedure Path
@@ -347,6 +348,13 @@ export interface ProcedureContext {
    * it. The root of the files reads it (roadmap R33).
    */
   caller?: AnyProcedure | undefined;
+
+  /**
+   * The principal of the call: who sends it. The server sets it from its authentication (the
+   * token, the request hook `principalOf`, `authenticate`). The nested calls get the same
+   * principal. An input or the metadata cannot change it. A call from this process has none.
+   */
+  principal?: Principal | undefined;
 }
 
 /**

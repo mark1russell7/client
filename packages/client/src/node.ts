@@ -9,9 +9,30 @@
  * This entry also exports `writeNdjsonStream`: the writer of an NDJSON stream response of wire
  * protocol v1, for a `ServerResponse` of `node:http`. `HttpServerTransport` uses it, so a server
  * without Express writes the same bytes.
+ *
+ * The procedure faces of Node, without a framework (CLI-3): `procedureHandler(server, options)`
+ * gives a request handler `(req, res) => boolean`, and `upgradeHandler(server, options)` gives an
+ * upgrade handler `(req, socket, head) => boolean`. Each one takes the requests of its path and
+ * gives `false` for the others, so the routes of the application share the listener.
  */
 
 export { WebSocketTransport } from "./adapters/websocket/client/node.js";
 export type { WebSocketTransportOptions, WebSocketClass } from "./adapters/websocket/client/types.js";
 export { writeNdjsonStream } from "./adapters/http/server/ndjson.js";
 export type { WriteNdjsonStreamOptions, NdjsonError } from "./adapters/http/server/ndjson.js";
+export { procedureHandler } from "./adapters/http/server/handler.js";
+export type { ProcedureHandlerOptions, NodeProcedureHandler, NodeUrlStrategy, UrlRequest } from "./adapters/http/server/handler.js";
+export type { CorsOptions } from "./adapters/http/server/cors.js";
+export type { RoutedRequest } from "./adapters/http/server/strategies.js";
+export { defaultServerUrlStrategy, rpcServerUrlStrategy } from "./adapters/http/server/strategies.js";
+export { upgradeHandler } from "./adapters/websocket/server/upgrade.js";
+export type { UpgradeHandlerOptions, NodeUpgradeHandler } from "./adapters/websocket/server/upgrade.js";
+export { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";
+export type {
+  WebSocketServerTransportOptions,
+  WebSocketAuthHandler,
+  WebSocketConnectionHandler,
+  WebSocketMessage,
+  TrackedConnection,
+  ConnectionEventHandler,
+} from "./adapters/websocket/server/types.js";

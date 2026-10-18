@@ -51,6 +51,12 @@ const transport = new HttpTransport({
   // Request timeout (ms)
   timeout: seconds(30),
 
+  // The credentials mode of fetch: "include" sends the cookies of the server to another origin
+  credentials: "include",
+
+  // More options of fetch: mode, redirect, referrerPolicy, keepalive
+  requestInit: { mode: "cors" },
+
   // Custom fetch implementation
   fetch: customFetch,
 });
@@ -142,6 +148,26 @@ await writeNdjsonStream(res, items, { signal: controller.signal });
 - When the buffer of the response is full, it waits for `drain` before it reads the next item.
 - A closed connection or an abort of `signal` stops it, and the iterator of the items gets `return()`. After an abort, an open response gets the error line `ABORTED`.
 - `errorOf` gives the `error` line of an error. The default gives the code of the error, or `HANDLER_ERROR`.
+
+### Procedure handler without a framework
+
+`procedureHandler(server, options?)` of `@procedures/client/node` gives a request handler of `node:http`: `(req, res) => boolean`. It takes each request under `basePath` and gives `true`. It gives `false` for each other request, so the routes of the application get it.
+
+```typescript
+import { procedureHandler } from "@procedures/client/node";
+
+const procedures = procedureHandler(server, {
+  basePath: "/api/proc",
+  cors: { origin: ["https://app.example"], credentials: true },
+  secretHeaders: ["X-App-Token"],
+});
+createServer((req, res) => procedures(req, res) || appRoutes(req, res));
+```
+
+- The wire is the wire of `HttpServerTransport`. The error codes are the codes of wire v1: `UNAVAILABLE` after `stopIntake()`, and `FORBIDDEN` with a reason for a refused browser request.
+- `procedures.middleware` mounts the handler in Connect or Express.
+- The stop parts are `start()`, `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`.
+- `HttpServerTransport` is a shim over the same handler. It keeps its former codes.
 
 ### Server URL Strategies
 

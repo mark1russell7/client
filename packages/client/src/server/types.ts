@@ -6,6 +6,7 @@
  */
 
 import type { Metadata, Status, Method } from "../client/types.js";
+import type { CapabilityRequest } from "../procedures/types.js";
 
 // Re-export Method from client types
 export type { Method };
@@ -31,22 +32,68 @@ export interface ServerRequest<TReq = unknown> {
   signal?: AbortSignal;
 
   /**
-   * The credentials that a network transport read from the request: the bearer token of an
-   * `Authorization` header, or of the `token` query of a WebSocket connection (roadmap R18). They
-   * are not in the metadata, so a handler and a nested call do not see them. A request without
-   * credentials comes from this process (a direct `handle()`, MCP over stdio).
+   * The credentials that a network transport read from the request (roadmap R18). They have the
+   * bearer token of an `Authorization` header, or of the `token` query of a WebSocket connection.
+   * They also have the cookies, the headers and the query of the request. They are not in the
+   * metadata, so a handler and a nested call do not see them. A request without credentials comes
+   * from this process (a direct `handle()`, MCP over stdio).
    */
   credentials?: Credentials | undefined;
 
   /** The principal of the request: who sends it. `ProcedureServer` sets it when it authenticates the request. */
   principal?: Principal | undefined;
+
+  /**
+   * A narrower capability that the request asks for. The request hook of the server
+   * (`principalOf`) can set it. The server narrows the capability of the call with it, so the
+   * capability does not become wider.
+   */
+  narrowing?: CapabilityRequest | undefined;
 }
 
-/** The credentials of a request. */
+/**
+ * The credentials of a request. A network transport sets each field that it can read. The request
+ * hook of the server (`principalOf`) reads them.
+ */
 export interface Credentials {
   /** The bearer token that the request presents. */
   readonly bearer?: string | undefined;
+  /** The cookies of the request, by name (the `Cookie` header of an HTTP request or of an upgrade). */
+  readonly cookies?: Readonly<Record<string, string>> | undefined;
+  /** Each header of the request, the secret headers too, by lower-case name. */
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+  /** The first value of each query parameter of the request URL, by name. */
+  readonly query?: Readonly<Record<string, string>> | undefined;
 }
+
+/**
+ * What the request hook of a server (`principalOf`) gives for a network request. Each field is
+ * optional: an empty object accepts the request without a principal.
+ */
+export interface RequestIdentity {
+  /**
+   * The token to compare with the token of the server, for example the value of a cookie or of an
+   * application header. Without it, the server compares the bearer token of the credentials.
+   */
+  readonly bearer?: string | undefined;
+  /** The principal of the request. It replaces the principal of the token check. */
+  readonly principal?: Principal | undefined;
+  /**
+   * A narrower capability that the request asks for, for example a guest mode of a cookie. The
+   * server narrows the capability of the call with it. A request for more has no effect.
+   */
+  readonly narrowing?: CapabilityRequest | undefined;
+}
+
+/**
+ * The request hook of a server: it reads the credentials of a network request (a cookie, a header,
+ * the query) and gives the identity of the request. Undefined, or an error, refuses the request
+ * with `UNAUTHORIZED`. The hook runs before the token check and before `authenticate`.
+ */
+export type PrincipalOf = (
+  credentials: Credentials,
+  request: ServerRequest<unknown>
+) => RequestIdentity | undefined | Promise<RequestIdentity | undefined>;
 
 /** Who sends a request (roadmap R18). */
 export interface Principal {
@@ -66,7 +113,22 @@ export interface Principal {
  */
 export interface RequestHandler {
   handle(request: ServerRequest): Promise<ServerResponse>;
+  /**
+   * How the handler can authenticate a network request with ambient credentials: the cookies that
+   * a browser sends by itself, also for a request of another site (CSRF). A network face then
+   * trusts such a request only from a named origin. Absent: the handler reads no cookies.
+   */
+  readonly ambientCredentials?: AmbientCredentials | undefined;
 }
+
+/**
+ * How a server can authenticate a request with ambient credentials (cookies):
+ * - `"always"`: each network request. The request hook `principalOf` reads the cookies, so a face
+ *   trusts a request only from a named origin.
+ * - `"cookies"`: a request that carries a cookie. An `authenticate` function can read it, so a face
+ *   trusts a request with a cookie only from a named origin.
+ */
+export type AmbientCredentials = "always" | "cookies";
 
 /**
  * Server response in unified RPC format.

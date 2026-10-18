@@ -522,10 +522,10 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 | The heartbeat watchdog of the Redis client | The heartbeat of the WebSocket (R3) | Move it out of the Redis client into a general function of `service`, then use it in the client. |
 | The backoff of the Redis client | `reconnectDelay` (R3) and the retry middleware (R12) | Move it out into a general function of `service`, then use it. |
 | The machines as data and `replay` | The WebSocket state and the circuit breaker | Adopt later (R35). `replay` moves into `algebra` with open machine names. |
-| `run()`: stages of the stop, a limit for each stage, one exit | `ProcedureServer.stop`, the peer, the `server` bin | Adopt later in the Node packages (R14, R18). The core takes only the shape of the contract. |
-| `start()`: health checks and probes | `/health` of the peer | Adopt later (R19). |
+| `run()`: stages of the stop, a limit for each stage, one exit | `ProcedureServer.stop`, the peer, the `server` bin | Adopt later in the Node packages (R14, R18). The core takes only the shape of the contract. The server stack does it: CLI-5, CLI-7 and CLI-8. |
+| `start()`: health checks and probes | `/health` of the peer | Adopt later (R19). The server stack does it: CLI-9. |
 | `describe` and `lint` | `checkEffects` | They examine different things. `@procedures/systems` uses `lint` with rules for the client (R34). |
-| The harness cells | The fault tests of the client | Adopt last (R36). |
+| The harness cells | The fault tests of the client | Adopt last (R36). The client owns the test subject image of its cells (CLI-33, D16). |
 
 - The order: R11 and R35 in the client, then small changes to `systems` for service 0.3.0 (the heartbeat, the backoff, `replay` in `algebra`, a clock entry without `node:net`, the rule data). Then R3 and R12 use those functions.
 - The dependency direction stays: the client depends on the general packages of npm, and `systems` does not know `@procedures`.
@@ -544,7 +544,7 @@ A study of 2026-10-16 compared `@mark1russell7/service` 0.2.0 with the client. T
 - The Redis client of service uses the heartbeat and the backoff. Its tests did not change, and a new workflow runs them against a real Redis 7.4.
 - The client uses the four entries: the clock, the heartbeat of the WebSocket client, `reconnectDelay`, the retry middleware and `replayTransitions`. The delays are the same, and a property test of service compares the heartbeat with the old code of the client on 300 schedules.
 - The heartbeat of the WebSocket server stays in the client. It has one interval for all its sockets and a count of misses for each socket.
-- Not adopted yet: `run()` for the stop of the Node packages, and `start()` for the health checks of the peer.
+- Not adopted yet: `run()` for the stop of the Node packages, and `start()` for the health checks of the peer. The server stack adopts them. Refer to [SERVER-LAYERS.md](./SERVER-LAYERS.md) and to the section "The server stack (R37)".
 
 ## Tier 9: new packages and procedures
 
@@ -617,6 +617,61 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O41 | New packages | `privacy-scan` treats the TLD `.example` as an example domain | S | done | O23 | jarvis-side client session | [client PR #10](https://github.com/mark1russell7/client/pull/10), [92e1c6e](https://github.com/mark1russell7/client/commit/92e1c6e) |
 | O42 | Releases | Release 0.8.1: the PATCH pull requests after 0.8.0 | S | in progress | O23, O41 | markt-02, markt-54 and Mark | — |
 | O43 | Releases | Release 0.9.0: O22 alone | S | later | O22, O42 | markt-54 and Mark | — |
+
+### The server stack (R37)
+
+The server stack does the rest of R37. Each Node host starts under `run()` and `start()` of `service`, and the apps get one procedures server. [SERVER-LAYERS.md](./SERVER-LAYERS.md) is the contract: the layers, their owners, the rules and the decisions D1 to D18.
+
+- The cross-repo tracker https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb shows these items with the items of `systems`, jarvis and Graph. The IDs are the same. Change this table and that tracker together.
+- In the client tracker, O24 links to the cross-repo tracker.
+- An ID in the column "Needs" that starts with `SYS-`, `REL-1` or `D` is in the cross-repo tracker. There is no CLI-29.
+
+| ID | Area | Item | Size | Status | Needs | Owner | Where |
+|---|---|---|---|---|---|---|---|
+| CLI-1 | Auth | `ProcedureServer` refuses a missing credential when the host has a token | M | open | D13 | Client session | — |
+| CLI-2a | Auth | A request hook: the credentials, the principal and a narrowing from each part of the request | M | in progress | — | markt-02 | `server-stack/host` |
+| CLI-2b | Auth | Remove the second token, host and origin checks of the peer | M | blocked | CLI-1, CLI-2a, D13 | Client session | — |
+| CLI-3 | HTTP host | `procedureHandler()` and `upgradeHandler()` with no framework, in `@procedures/client/node` | M | in progress | — | markt-02 | `server-stack/host` |
+| CLI-4 | HTTP host | Fold the stray error codes into wire v1 | S | blocked | CLI-3 | Client session | — |
+| CLI-5 | Runner | `ProcedureServer.stop` becomes stop parts in the shape of the runner | M | blocked | SYS-4 | Client session | — |
+| CLI-6 | HTTP host | The root of `@procedures/client` becomes node-free, and the server faces move to `./node` | S | blocked | CLI-3 | Client session | — |
+| CLI-7 | HTTP host | `createProcedureHost()`: one host factory that gives the parts of a service | L | blocked | CLI-2a, CLI-3, CLI-5, SYS-1, SYS-5, SYS-6, SYS-8, SYS-15, REL-1, D2, D3 | Client session | — |
+| CLI-8 | Runner | `runProcedureHost()`: one runner entry on `run()` for `procedure-server`, `mark serve` and `mark --server` | M | blocked | CLI-7, SYS-9, SYS-10, CI-2, D6, D7, D17 | Client session | — |
+| CLI-9 | Health | The probes come from `start()`, and the lockfile check uses `host.info` | S | blocked | CLI-8, SYS-2, D5 | Client session | — |
+| CLI-10 | MCP | Export `createMcpHost()`, and `impl-mcp-dev` and `mcp.serve` use it | S | open | — | Client session | — |
+| CLI-11 | MCP | The MCP hosts under `run()`: stdio with the stdin trigger, and Streamable HTTP at `/mcp` | M | blocked | CLI-7, CLI-10, SYS-7 | Client session | — |
+| CLI-12 | MCP | MCP elicitation in `McpServerTransport` | M | open | — | Client session | — |
+| CLI-13 | Sync | `HybridStorage` and `ApiStorage` on the clock and the backoff of `service` | S | open | — | Client session | — |
+| CLI-14 | Sync | `collections.<name>.find` with a JSON selector, and `patch(id, fields)` | M | open | D9 | Client session | — |
+| CLI-15 | Sync | Change events of a collection, and a push change feed | M | blocked | CLI-14, D9 | Client session | — |
+| CLI-16 | Sync | An optional `expectedVersion` on `set`, `setBatch` and `delete` of a collection | S | open | D11 | Client session | — |
+| CLI-17 | Sync | A partition resolver for collections: the tenant and the scope come from the principal | M | blocked | CLI-2a, D9 | Client session | — |
+| CLI-18 | Sync | A `credentials` option for `fetch` in `HttpTransport` | S | in progress | — | markt-02 | `server-stack/host` |
+| CLI-19 | Sync | A browser-safe entry of `@procedures/store` | S | blocked | CLI-6 | Client session | — |
+| CLI-20 | Sync | `CollectionStorage`: optional `observe()` and `query()`, with contract tests | M | open | D9 | Client session | — |
+| CLI-21 | Sync | `HybridStorage` captures the writes of the app, has `observe()`, keeps its sync state and reads a push feed | L | blocked | CLI-20, D9 | Client session | — |
+| CLI-22 | Sync | `IndexedDbStorage`: a plain document storage for the browser | M | blocked | CLI-20 | Client session | — |
+| CLI-23 | Sync | `@procedures/signaldb`: `SignalDbStorage`, a local-copy strategy over a SignalDB `Collection` | M | blocked | CLI-20, CLI-21 | Client session | — |
+| CLI-24 | Sync | `MongoStorage`: a change log, versions from the server, queries in Mongo and partitions | L | blocked | CLI-20, CLI-16, CLI-17 | Client session | — |
+| CLI-25 | Sync | `TabCoordinator`: one leader tab does the sync, and the other tabs copy its changes | M | blocked | CLI-21 | Client session | — |
+| CLI-26 | Runner | The cold mode of `mark` starts the same host in the process under `run()` | M | blocked | CLI-8, SYS-16, SYS-7 | Client session | — |
+| CLI-27 | Runner | An optional auto-warm: the background host starts after a cold command | S | later | CLI-26 | Client session | — |
+| CLI-28 | HTTP host | Procedure paths of each length on each face | M | open | — | Client session | — |
+| CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | blocked | CLI-2a | Client session | — |
+| CLI-31 | HTTP host | An addressing hook: from the request and the body to the method and the payload | S | blocked | CLI-3 | Client session | — |
+| CLI-32 | Streams | A batch: one request with several calls, and one stream of tagged results | M | later | — | Client session | — |
+| CLI-33 | CI | The client owns its procedures test subject for the harness of `systems` | M | blocked | SYS-17 | Client session | — |
+| CI-2 | CI | Client CI: an end-to-end test of the host lifecycle, and checks of the entry purity | M | open | — | Client session | — |
+| DOC-1 | Docs | [SERVER-LAYERS.md](./SERVER-LAYERS.md) replaces the host ownership brief | M | in progress | D14 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| DOC-2 | Docs | Correct the stale storage docs, and record the server-stack items in this roadmap | S | in progress | — | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| DOC-3 | Docs | Link the cross-repo tracker and the layer contract from `CLAUDE.md` and this roadmap | S | in progress | DOC-1 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| DOC-4 | Docs | A migration note in each MINOR, and a deprecation one release before the break | S | in progress | D13 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
+| REL-2 | Releases | Release the additive pieces of the server stack as a PATCH of the client group | S | blocked | CLI-2a, CLI-3, CLI-10, D13 | markt-54 and Mark | — |
+
+- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11 and CLI-16. Each one is its own MINOR of the client group (D13).
+- CLI-26 breaks the API only if the exit codes of the CLI change. CLI-28 breaks it only if the version leaves the URL.
+- The other items are additive. Each one ships as a PATCH of the client group.
+- Refer to the section "Releases of the server stack" of [SERVER-LAYERS.md](./SERVER-LAYERS.md) for the deprecation and the migration notes.
 
 ## Items for a decision
 
