@@ -47,6 +47,7 @@ json.query: read only
 json.validate: read only
 lib.audit: additive, idempotent
 lib.graph: read only
+lib.importCycles: read only
 lib.new: additive, open world
 lib.rename: destructive
 lib.scan: read only

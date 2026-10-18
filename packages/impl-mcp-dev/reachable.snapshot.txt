@@ -46,6 +46,9 @@ lib.audit -> git.remote
 lib.audit -> git.status
 lib.graph -> fs.read.json
 lib.graph -> fs.readdir
+lib.importCycles -> fs.glob
+lib.importCycles -> fs.read
+lib.importCycles -> fs.stat
 lib.new -> fs.exists
 lib.new -> fs.mkdir
 lib.new -> fs.read.json

@@ -412,6 +412,40 @@ export const LibAuditOutputSchema: z.ZodType<LibAuditOutput> = z.looseObject({
 /** The fields of package.json that give the edges of the graph. */
 export type DependencyKind = "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies";
 
+/** The edges that `lib.importCycles` counts: `runtime` (after the elision of TypeScript), `declared` or `raw`. */
+export type ImportMode = "runtime" | "declared" | "raw";
+
+export interface LibImportCyclesInput {
+  /** The folder of the sources, for example `packages/web/src` */
+  path: string;
+  /** The edges to count. The default is `runtime`. */
+  mode?: ImportMode | undefined;
+  /** The decorators whose class keeps the types of its constructor parameters at runtime, for example the Angular ones */
+  diDecorators?: string[] | undefined;
+  /** The glob patterns of the files to leave out. The default leaves out node_modules, declarations and tests. */
+  exclude?: string[] | undefined;
+  /** Lower limits than the defaults: the most files of a call (20000), and the largest file that it reads (1 MiB) */
+  limits?: { maxFiles?: number | undefined; maxFileBytes?: number | undefined } | undefined;
+}
+
+export interface LibImportCyclesOutput {
+  /** The folder of the sources */
+  path: string;
+  mode: ImportMode;
+  /** The number of files */
+  files: number;
+  /** The number of import edges between the files */
+  edges: number;
+  /** True when the graph has no cycle */
+  acyclic: boolean;
+  /** Each cycle: the files of a strongly connected component, in name order. The largest cycle comes first. */
+  components: string[][];
+  /** The number of files in a cycle */
+  filesInCycles: number;
+  /** The files larger than limits.maxFileBytes: the call did not read them */
+  skipped: Array<{ path: string; bytes: number }>;
+}
+
 export interface LibGraphInput {
   /** The workspace root (default: the pnpm workspace that contains client-lib) */
   rootPath?: string | undefined;
@@ -450,6 +484,33 @@ export interface LibGraphOutput {
   /** The folders that the procedure could not read */
   warnings: Array<{ path: string; issue: string }>;
 }
+
+export const LibImportCyclesInputSchema: z.ZodType<LibImportCyclesInput> = z.object({
+  path: z.string().describe("The folder of the sources, for example packages/web/src"),
+  mode: z.enum(["runtime", "declared", "raw"]).optional().describe("The edges to count: runtime (after the import elision, the default), declared or raw"),
+  diDecorators: z.array(z.string()).optional().describe("The decorators whose class keeps the types of its constructor parameters at runtime (Angular: Injectable, Component, Directive, Pipe, NgModule)"),
+  exclude: z.array(z.string()).optional().describe("The glob patterns of the files to leave out (default: node_modules, declarations and tests)"),
+  limits: z
+    .object({
+      maxFiles: z.number().int().positive().max(20_000).optional().describe("The most files of the call: 20000 at most, and the default. A call with more files is refused before it reads a file."),
+      maxFileBytes: z.number().int().positive().max(1024 * 1024).optional().describe("The largest file that the call reads, in bytes: 1 MiB at most, and the default. The result lists each larger file."),
+    })
+    .optional()
+    .describe("Lower limits than the defaults. A higher value is refused."),
+});
+
+export const LibImportCyclesOutputSchema: z.ZodType<LibImportCyclesOutput> = z.looseObject({
+  path: z.string().describe("The folder of the sources"),
+  mode: z.enum(["runtime", "declared", "raw"]).describe("The edges that the call counted"),
+  files: z.number().describe("The number of files"),
+  edges: z.number().describe("The number of import edges between the files"),
+  acyclic: z.boolean().describe("True when the graph has no cycle"),
+  components: z.array(z.array(z.string())).describe("Each cycle: the files of a strongly connected component, in name order. The largest cycle comes first."),
+  filesInCycles: z.number().describe("The number of files in a cycle"),
+  skipped: z
+    .array(z.object({ path: z.string().describe("The file, relative to the folder"), bytes: z.number().describe("The size of the file") }))
+    .describe("The files larger than limits.maxFileBytes: the call did not read them"),
+});
 
 export const LibGraphInputSchema: z.ZodType<LibGraphInput> = z.object({
   rootPath: z.string().optional().describe("The workspace root (default: the pnpm workspace that contains client-lib)"),

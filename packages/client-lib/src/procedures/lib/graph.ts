@@ -33,6 +33,8 @@ interface FsReaddirOutput {
 /**
  * The cycles of a graph: each strongly connected component with more than one node, and each
  * node with an edge to itself (Tarjan's algorithm). Each cycle and the list are in name order.
+ * The search keeps its own stack, so a long chain of edges (the imports of a large source tree)
+ * does not overflow the call stack.
  */
 export function findCycles(names: readonly string[], edges: ReadonlyMap<string, readonly string[]>): string[][] {
   let counter = 0;
@@ -41,35 +43,47 @@ export function findCycles(names: readonly string[], edges: ReadonlyMap<string, 
   const stack: string[] = [];
   const onStack = new Set<string>();
   const cycles: string[][] = [];
-
-  const visit = (name: string): void => {
+  const open = (name: string): void => {
     index.set(name, counter);
     low.set(name, counter);
     counter++;
     stack.push(name);
     onStack.add(name);
-    for (const next of edges.get(name) ?? []) {
-      if (!index.has(next)) {
-        visit(next);
-        low.set(name, Math.min(low.get(name)!, low.get(next)!));
-      } else if (onStack.has(next)) {
-        low.set(name, Math.min(low.get(name)!, index.get(next)!));
+  };
+  for (const start of names) {
+    if (index.has(start)) continue;
+    open(start);
+    // Each frame: a node, and the position of its next edge
+    const work: Array<{ name: string; next: number }> = [{ name: start, next: 0 }];
+    while (work.length > 0) {
+      const frame = work[work.length - 1]!;
+      const targets = edges.get(frame.name) ?? [];
+      if (frame.next < targets.length) {
+        const target = targets[frame.next++]!;
+        if (!index.has(target)) {
+          open(target);
+          work.push({ name: target, next: 0 });
+        } else if (onStack.has(target)) {
+          low.set(frame.name, Math.min(low.get(frame.name)!, index.get(target)!));
+        }
+        continue;
+      }
+      work.pop();
+      const parent = work[work.length - 1];
+      if (parent) low.set(parent.name, Math.min(low.get(parent.name)!, low.get(frame.name)!));
+      if (low.get(frame.name) === index.get(frame.name)) {
+        const component: string[] = [];
+        let member: string;
+        do {
+          member = stack.pop()!;
+          onStack.delete(member);
+          component.push(member);
+        } while (member !== frame.name);
+        const selfEdge = component.length === 1 && targets.includes(frame.name);
+        if (component.length > 1 || selfEdge) cycles.push(component.sort());
       }
     }
-    if (low.get(name) === index.get(name)) {
-      const component: string[] = [];
-      let member: string;
-      do {
-        member = stack.pop()!;
-        onStack.delete(member);
-        component.push(member);
-      } while (member !== name);
-      const selfEdge = component.length === 1 && (edges.get(name) ?? []).includes(name);
-      if (component.length > 1 || selfEdge) cycles.push(component.sort());
-    }
-  };
-
-  for (const name of names) if (!index.has(name)) visit(name);
+  }
   return cycles.sort((a, b) => a[0]!.localeCompare(b[0]!));
 }
 

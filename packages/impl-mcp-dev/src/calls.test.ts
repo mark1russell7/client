@@ -106,6 +106,7 @@ function samples(): Record<string, unknown> {
     "lib.rename": { oldName: "@mark1russell7/calls-a", newName: "@mark1russell7/calls-b", rootPath: workspace },
     "lib.scan": { rootPath: workspace },
     "lib.graph": { rootPath: workspace },
+    "lib.importCycles": { path: workspace },
     "logs.query": { dbPath: db },
     "logs.store": { dbPath: db, level: "info", message: "calls test" },
     "mongo.collections.create": { collection: "c" },

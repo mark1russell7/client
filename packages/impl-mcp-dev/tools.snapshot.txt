@@ -47,6 +47,7 @@ json.query
 json.validate
 lib.audit
 lib.graph
+lib.importCycles
 lib.new
 lib.rename
 lib.scan
