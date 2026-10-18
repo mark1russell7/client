@@ -70,7 +70,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.4.1",
+    "@mark1russell7/service": "^0.5.1",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   },
