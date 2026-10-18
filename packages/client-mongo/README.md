@@ -780,42 +780,12 @@ const call = createTypedCaller<AllProcedures>(client.call);
 
 ## Package Structure
 
-```
-client-mongo/
-├── src/
-│   ├── connection.ts           # Connection management
-│   ├── types.ts                # Core type definitions
-│   ├── procedures.types.ts     # Typed procedures interface
-│   ├── register.ts             # Auto-registration
-│   ├── index.ts                # Main entry point
-│   ├── procedures/
-│   │   ├── schema.ts           # Minimal schema helpers
-│   │   ├── index.ts            # Procedure barrel export
-│   │   ├── database.ping.ts
-│   │   ├── database.info.ts
-│   │   ├── collections.list.ts
-│   │   ├── collections.create.ts
-│   │   ├── collections.drop.ts
-│   │   ├── collections.stats.ts
-│   │   ├── documents.find.ts
-│   │   ├── documents.get.ts
-│   │   ├── documents.insert.ts
-│   │   ├── documents.update.ts
-│   │   ├── documents.delete.ts
-│   │   ├── documents.count.ts
-│   │   ├── documents.aggregate.ts
-│   │   ├── documents.distinct.ts
-│   │   ├── documents.bulk.ts
-│   │   ├── documents.explain.ts
-│   │   ├── indexes.list.ts
-│   │   ├── indexes.create.ts
-│   │   ├── indexes.drop.ts
-│   │   └── watch.ts            # mongo.watch
-├── dist/                       # Compiled output
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+- `src/index.ts`: the entry. It registers nothing.
+- `src/module.ts`: `mongoModule`, the procedures as data. `src/register.ts` registers them in the global registry.
+- `src/connection.ts`: the connection and its management.
+- `src/scope.ts`: the database and the collection of a call.
+- `src/procedures/`: one file for each procedure, with the schemas of the inputs.
+- `src/storage/`: `MongoStorage`, `MongoDocumentStorage`, `scopePipeline` and `ViewMaterializer`.
 
 ## Development
 
