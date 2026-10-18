@@ -639,7 +639,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-5 | Runner | `ProcedureServer.stop` becomes stop parts in the shape of the runner | M | in progress | SYS-4 | Client session | [client PR #20](https://github.com/mark1russell7/client/pull/20) |
 | CLI-6 | HTTP host | The root of `@procedures/client` becomes node-free, and the server faces move to `./node` | S | blocked | CLI-3 | Client session | — |
 | CLI-7 | HTTP host | `createProcedureHost()`: one host factory that gives the parts of a service | L | in progress | CLI-2a, CLI-3, CLI-5, SYS-1, SYS-5, SYS-6, SYS-8, SYS-15, REL-1, D2, D3 | Client session | [client PR #25](https://github.com/mark1russell7/client/pull/25) |
-| CLI-8 | Runner | `runProcedureHost()`: one runner entry on `run()` for `procedure-server`, `mark serve` and `mark --server` | M | blocked | CLI-7, SYS-9, SYS-10, CI-2, D6, D7, D17 | Client session | — |
+| CLI-8 | Runner | `runProcedureHost()`: one runner entry on `run()` for `procedure-server`, `mark serve` and `mark --server` | M | in progress | CLI-7, SYS-9, SYS-10, CI-2, D6, D7, D17 | Client session | [client PR #28](https://github.com/mark1russell7/client/pull/28) |
 | CLI-9 | Health | The probes come from `start()`, and the lockfile check uses `host.info` | S | blocked | CLI-8, SYS-2, D5 | Client session | — |
 | CLI-10 | MCP | Export `createMcpHost()`, and `impl-mcp-dev` and `mcp.serve` use it | S | open | — | Client session | — |
 | CLI-11 | MCP | The MCP hosts under `run()`: stdio with the stdin trigger, and Streamable HTTP at `/mcp` | M | blocked | CLI-7, CLI-10, SYS-7 | Client session | — |

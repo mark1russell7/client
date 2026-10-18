@@ -5,13 +5,18 @@
  * via HTTP. The server has the registry of mark (the module of each package, roadmap 3.1) and
  * the host policy of the core (roadmap 2.3): the token in the lockfile, and the topics of
  * `--events`. With `--fs-root`, each procedure keeps its paths in the root, or the root refuses it.
+ *
+ * The server is the background host of `mark` (decision D17): it runs under `run()` of
+ * `@mark1russell7/service` through `runProcedureHost()`, with the profile `daemon` (CLI-8). The
+ * runner owns the signals, the stop in stages and the exit. The lockfile is a dependency of the
+ * service: its connect writes it, and its close removes it after the listeners close.
  */
 
+import type { ProcedureHostRunConfig } from "@procedures/server";
 import { print } from "./print.js";
 import { loadEcosystemRegistry } from "./ecosystem.js";
 import { randomBytes } from "node:crypto";
-import { writeLockfile, removeLockfileForPort, getLockfilePath, currentBuild } from "./lockfile.js";
-import { seconds } from "@procedures/client";
+import { getLockfilePath, currentBuild } from "./lockfile.js";
 
 export interface ServerModeOptions {
   port: number;
@@ -25,12 +30,6 @@ export interface ServerModeOptions {
   events?: readonly string[] | undefined;
   /** The folder that confines each path of the `fs.*` procedures (`--fs-root`). */
   fsRoot?: string | undefined;
-}
-
-interface ServerCreateResult {
-  serverId: string;
-  endpoints: Array<{ type: string; address: string }>;
-  procedureCount: number;
 }
 
 /**
@@ -71,9 +70,10 @@ function buildTransports(options: ServerModeOptions) {
 }
 
 /**
- * Start CLI in server mode
+ * Start CLI in server mode. The promise ends when the lifecycle of the server ends. `run` gives
+ * the options of `run()`, for a test: a process port and a clock.
  */
-export async function startServerMode(options: ServerModeOptions): Promise<void> {
+export async function startServerMode(options: ServerModeOptions, run?: ProcedureHostRunConfig["run"]): Promise<void> {
   const { port = 3000, verbose = false } = options;
 
   print.info("Starting CLI server mode...");
@@ -104,44 +104,50 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   // The bus is the global bus, which is also the ctx.bus of the procedures.
   const events = [...(options.events ?? [])];
   const { hostPolicy } = await import("@procedures/client");
-  const { createPeer } = await import("@procedures/peer");
-  const peer = await createPeer({
-    id: `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    transports,
-    registry,
-    policy: hostPolicy({ token, events: { topics: events } }),
-  });
-  await peer.start();
-  const result: ServerCreateResult = {
-    serverId: peer.id,
-    endpoints: peer.getEndpoints(),
-    procedureCount: peer.getServer().procedureCount,
-  };
+  const { peerHostOptions } = await import("@procedures/peer");
+  const { runProcedureHost } = await import("@procedures/server");
+  const id = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  // Write lockfile for client discovery. A client uses this server only from the same folder,
-  // with the same build of mark, and when the health endpoint answers with this peer id.
-  await writeLockfile({
-    pid: process.pid,
-    port,
-    transport: options.transport ?? "http",
-    endpoint: result.endpoints[0]?.address ?? `http://127.0.0.1:${port}/api`,
-    startedAt: new Date().toISOString(),
-    token,
-    cwd: process.cwd(),
-    build: currentBuild(),
-    peerId: result.serverId,
-    // A client uses this server only with the same --fs-root (or none)
-    ...(fsRoot !== undefined ? { fsRoot } : {}),
+  // The lockfile for client discovery. A client uses this server only from the same folder,
+  // with the same build of mark, and when host.info answers its token with this peer id.
+  const shown = host === "0.0.0.0" ? "localhost" : host;
+  const endpoint = options.transport === "websocket" ? `ws://${shown}:${port}/ws` : `http://${shown}:${port}/api`;
+  const running = await runProcedureHost({
+    name: "mark-server",
+    mode: "background",
+    host: peerHostOptions({ id, transports, registry, policy: hostPolicy({ token, events: { topics: events } }) }, "procedures"),
+    lockfile: {
+      pid: process.pid,
+      port,
+      transport: options.transport ?? "http",
+      endpoint,
+      startedAt: new Date().toISOString(),
+      token,
+      cwd: process.cwd(),
+      build: currentBuild(),
+      peerId: id,
+      // A client uses this server only with the same --fs-root (or none)
+      ...(fsRoot !== undefined ? { fsRoot } : {}),
+    },
+    log: (line) => print.info(line),
+    ...(run ? { run } : {}),
   });
+  if (running.life.state !== "running") {
+    // The startup failed: the lifecycle stops the parts that started, and the process exits with 1
+    print.error("The server did not start:");
+    for (const error of running.life.errors) print.error(`  ${error}`);
+    await running.life.done;
+    return;
+  }
 
   print.success("\nCLI Server running!");
   print.info(`  PID: ${process.pid}`);
-  print.info(`  Server ID: ${result.serverId}`);
-  print.info(`  Procedures: ${result.procedureCount}`);
+  print.info(`  Server ID: ${running.host.id}`);
+  print.info(`  Procedures: ${running.host.server.procedureCount}`);
   print.info(`  Lockfile: ${getLockfilePath()}`);
   print.info("\nEndpoints:");
-  for (const endpoint of result.endpoints) {
-    print.info(`  [${endpoint.type}] ${endpoint.address}`);
+  for (const each of running.host.info.endpoints()) {
+    print.info(`  [${each.type}] ${each.address}`);
   }
   print.info(events.length > 0 ? `\nEvent topics (events.subscribe): ${events.join(", ")}` : "\nEvent topics: none (--events adds them)");
   if (fsRoot !== undefined) {
@@ -150,34 +156,8 @@ export async function startServerMode(options: ServerModeOptions): Promise<void>
   }
   print.info("\nPress Ctrl+C to stop.");
 
-  // Handle shutdown: the peer stops (its requests end and its ports close) before the process
-  // exits, with a limit of 10 seconds. A second signal exits at once. Before, the process exited
-  // without a stop (roadmap R5).
-  let stopping = false;
-  const cleanup = async () => {
-    if (stopping) process.exit(1);
-    stopping = true;
-    print.info("\nStopping server...");
-    removeLockfileForPort(port);
-    const limit = setTimeout(() => process.exit(1), 10_000);
-    limit.unref();
-    try {
-      // The calls in flight have 5 seconds to end (roadmap R14)
-      await peer.stop({ grace: seconds(5) });
-      process.exit(0);
-    } catch (error) {
-      print.error(`The server did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`);
-      process.exit(1);
-    }
-  };
-
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
-
-  // Keep the process alive
-  await new Promise(() => {
-    // Never resolves - keeps process running
-  });
+  // A signal starts the stop in stages, and the runner ends the process (CLI-8)
+  await running.life.done;
 }
 
 /**
