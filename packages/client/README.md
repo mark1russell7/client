@@ -250,10 +250,20 @@ new HttpTransport(options: HttpTransportOptions)
 interface HttpTransportOptions {
   baseUrl: string;
   urlStrategy?: UrlStrategy;           // default: defaultUrlPattern
-  httpMethodStrategy?: HttpMethodStrategy;  // default: restfulHttpMethodStrategy
-  headers?: Record<string, string>;
-  fetch?: typeof fetch;
+  httpMethodStrategy?: HttpMethodStrategy;  // default: postOnlyStrategy
+  headerConverter?: HeaderConverter;
+  defaultHeaders?: Record<string, string>;
+  timeout?: Duration;                  // the time to the first item
+  credentials?: "include" | "same-origin" | "omit";  // the credentials mode of fetch
+  requestInit?: Omit<RequestInit, "method" | "headers" | "body" | "signal">;
+  fetch?: typeof fetch;                // default: globalThis.fetch
 }
+```
+
+An application with a cookie session on another origin sets `credentials: "include"`. The browser then sends the cookies of the server with each call. The server must permit the origin of the page with credentials (CORS). Refer to "Procedure handler without a framework".
+
+```typescript
+const client = new Client(new HttpTransport({ baseUrl: "https://api.example.com/api", credentials: "include" }));
 ```
 
 #### `WebSocketTransport`
@@ -630,17 +640,55 @@ createServer((req, res) => {
 
 The promise of `writeNdjsonStream` resolves when the response ends. A closed connection or an abort of `signal` stops the stream, and the iterator of the items gets `return()`.
 
+#### Procedure handler without a framework
+
+`procedureHandler(server, options)` of `@procedures/client/node` gives a request handler of `node:http`: `(req, res) => boolean`. The handler takes each request under `basePath` and gives `true`. For each other request, it gives `false` and does not touch the request. Thus the routes of the application share the listener with the procedures.
+
+```typescript
+import { createServer } from "node:http";
+import { ProcedureServer } from "@procedures/client";
+import { procedureHandler, upgradeHandler } from "@procedures/client/node";
+
+const server = new ProcedureServer({ registry, token });
+server.registerFromRegistry();
+const procedures = procedureHandler(server, { basePath: "/api/proc" });
+const sockets = upgradeHandler(server, { path: "/ws" });
+
+const http = createServer((req, res) => {
+  if (procedures(req, res)) return;
+  appRoutes(req, res); // for example /api/chat
+});
+http.on("upgrade", (req, socket, head) => {
+  if (!sockets(req, socket, head)) socket.destroy();
+});
+http.listen(4820);
+```
+
+- The handler speaks the wire of `HttpServerTransport` ([WIRE-PROTOCOL.md](../documentation/WIRE-PROTOCOL.md)). This includes the URL of the method, NDJSON streams with `seq` and keep-alive lines, idempotency keys, deadlines, events and the browser checks.
+- The error codes are the codes of wire v1. A stopped handler answers `UNAVAILABLE` (503, retryable). A refused browser request answers `FORBIDDEN` (403) with a reason: `origin-not-allowed`, `host-header-not-allowed`, `method-not-allowed` or `media-type-not-allowed`.
+- An `OPTIONS` request gets 204 and starts no procedure.
+- `cors: { origin: ["https://app.example"], credentials: true }` lets a page of that origin call with its cookies. A list or a function of origins sends `Access-Control-Allow-Credentials: true` by default.
+- `secretHeaders` names more headers that carry a secret, for example `X-Jarvis-Token`. `secretQuery` names the query parameters that carry a secret. Its default is `["token"]`. These values go into the credentials of the request, not into its metadata.
+- `handler.middleware` mounts the handler in Connect or Express. A request outside `basePath` goes to `next`.
+- The handler has the stop parts of a service transport: `start()`, `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. It does not make a server and does not listen.
+
+`upgradeHandler(server, options)` gives an upgrade handler for the "no server" mode of `ws`: `(req, socket, head) => boolean`. It takes each upgrade of its `path`. Two handlers of different paths share one listener. `handler.transport` gives the API of `WebSocketServerTransport`: `broadcast`, `callConnection`, `subscribe` and the others. The upgrade handler has the same stop parts. After `stopIntake()`, a new upgrade gets 503, and a new call gets `UNAVAILABLE`.
+
 #### WebSocket Server Transport
 ```typescript
-new WebSocketServerTransport(server: Server, options: WebSocketServerTransportOptions)
+new WebSocketServerTransport(server: Server, options?: WebSocketServerTransportOptions)
 
 interface WebSocketServerTransportOptions {
-  port: number;
-  path?: string;
-  auth?: WebSocketAuthHandler;
+  server?: HttpServer;           // the server whose upgrades of `path` the transport takes
+  path?: string;                 // default: "/ws"
+  authenticate?: WebSocketAuthHandler;
   onConnection?: WebSocketConnectionHandler;
+  secretHeaders?: readonly string[];
+  heartbeat?: { interval?: Duration; misses?: number } | false;
 }
 ```
+
+The transport takes only the upgrades of its path. Thus two transports of different paths share one server. An upgrade that no transport and no other listener takes gets 400. Without `server`, give each upgrade to `transport.upgrade(req, socket, head)`, or use `upgradeHandler`.
 
 #### Procedure Server
 ```typescript
@@ -651,8 +699,36 @@ interface ProcedureServerOptions {
   storage?: StorageConfig;
   transports?: ServerTransport[];
   events?: EventPublisherOptions | EventPublisher;   // the remote events: refer to "Remote events"
+  token?: string;                // the token that each network request presents
+  principalOf?: PrincipalOf;     // the request hook: refer to "The request hook"
+  authenticate?: (request: ServerRequest) => Principal | undefined | Promise<Principal | undefined>;
 }
 ```
+
+#### The request hook
+
+`principalOf` reads the credentials of each network request and gives its identity. The credentials have the bearer token, the cookies, each header and the query of the request. The secret headers and the secret query parameters are in the credentials only, not in the metadata.
+
+```typescript
+const server = new ProcedureServer({
+  token,
+  clearanceOrder: ladder(["public", "guest", "intimate"]),
+  capability: { clearance: "intimate" },
+  principalOf: ({ cookies = {}, headers = {}, query = {} }) => ({
+    // The token of a cookie, of an application header or of the query
+    bearer: cookies["jarvis_token"] ?? headers["x-jarvis-token"] ?? query["token"],
+    // A guest switch can only make the capability narrower
+    ...(cookies["jarvis_audience"] ? { narrowing: { clearance: cookies["jarvis_audience"] } } : {}),
+  }),
+});
+```
+
+- `bearer`: the server compares this token with its `token`. Without it, the server compares the bearer token of the `Authorization` header.
+- `principal`: the principal of the request, for example the user of a session cookie. The procedure reads it as `ctx.principal`, and its nested calls get the same principal.
+- `narrowing`: a narrower capability that the request asks for. The server narrows the capability of the call with it. A request for more has no effect.
+- An empty object accepts the request without a principal. Undefined, or an error, refuses the request with `UNAUTHORIZED`.
+- `authenticate` operates after the hook and can read `request.principal`. A request of this process (no credentials) does not go through the hook.
+- `hostPolicy({ principalOf })` gives the hook to each server of the policy.
 
 ### Error System
 
@@ -698,7 +774,7 @@ import { ... } from "@procedures/client/events";
 |---|---|
 | `@procedures/client` | Node. The browser entry and the server transports. Its `WebSocketTransport` uses the global `WebSocket`. |
 | `@procedures/client/browser` | A browser bundle. It does not import `http` or `ws`. |
-| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. |
+| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. `procedureHandler` and `upgradeHandler`: the procedure faces of HTTP and WebSocket, without a framework. |
 | `@procedures/client/register` | It registers the core procedures in the global registry. |
 
 ## Procedure Discovery

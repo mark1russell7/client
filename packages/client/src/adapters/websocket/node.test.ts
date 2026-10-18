@@ -246,4 +246,13 @@ describe("the browser entries do not import ws", () => {
     }
     expect([...runtimeImports(join(SRC, "node.ts"))]).toContain("ws");
   });
+
+  it("the browser entry and the procedure handler of HTTP load no Node module at run time (CLI-3)", async () => {
+    const { builtinModules } = await import("node:module");
+    const nodeModules = new Set([...builtinModules, ...builtinModules.map((name) => `node:${name}`), "ws", "express"]);
+    for (const entry of ["browser.ts", "adapters/http/server/handler.ts", "adapters/http/server/cors.ts"]) {
+      const loaded = [...runtimeImports(join(SRC, entry))].filter((name) => nodeModules.has(name) || name.startsWith("node:"));
+      expect(loaded, entry).toEqual([]);
+    }
+  });
 });

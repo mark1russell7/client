@@ -3,9 +3,16 @@
  *
  * Adapts WebSocket connections to unified RPC format.
  * Supports bidirectional streaming and persistent connections.
+ *
+ * The transport runs the `WebSocketServer` of `ws` in its "no server" mode (CLI-3). `upgrade()`
+ * takes the upgrade requests of its path. With the option `server`, the transport attaches
+ * `upgrade()` to that server through one router for each server, so two endpoints of different
+ * paths can share a server. Without it, the owner of the listener gives the upgrades to
+ * `upgrade()`, or mounts `upgradeHandler()` of `@procedures/client/node`.
  */
 
 import type { IncomingMessage } from "http";
+import type { Duplex } from "stream";
 import { WebSocketServer, WebSocket } from "ws";
 import type { ServerTransport, ServerRequest } from "../../../server/types.js";
 import type { Message, ResponseItem, Transport } from "../../../client/types.js";
@@ -21,7 +28,9 @@ import type {
 import { withoutInternalKeys } from "../../metadata.js";
 import { checkBrowserRequest, type BrowserGuardOptions } from "../../../server/browser-guard.js";
 import { optionalMs } from "../../../duration.js";
-import { credentialsOf, withoutSecretHeaders } from "../../../server/request-auth.js";
+import { headerNames, requestCredentials, urlParts, withoutSecretHeaders } from "../../../server/request-auth.js";
+import { attachUpgradeTarget, refuseUpgrade } from "./upgrade-router.js";
+import { realClock, type Cancel } from "../../../clock.js";
 import { PROTOCOL_VERSION, protocolVersionOf } from "../../../protocol.js";
 import { TIMER_DEFAULTS } from "../../../timers.js";
 import {
@@ -64,11 +73,23 @@ export class WebSocketServerTransport implements ServerTransport {
 
   private wss: WebSocketServer | null = null;
   private options: Required<
-    Omit<WebSocketServerTransportOptions, "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout">
+    Omit<
+      WebSocketServerTransportOptions,
+      "server" | "authenticate" | "onConnection" | "allowedOrigins" | "allowedHosts" | "heartbeat" | "reverseRequestTimeout" | "secretHeaders"
+    >
   > & {
+    server: WebSocketServerTransportOptions["server"];
     authenticate?: WebSocketServerTransportOptions["authenticate"];
     onConnection?: WebSocketServerTransportOptions["onConnection"];
   };
+  /** The more headers that carry a secret (CLI-2a) */
+  private readonly secretHeaders: ReadonlySet<string>;
+  /** The function that detaches `upgrade()` from the `server` of the options */
+  private detach: (() => void) | undefined;
+  /** True after `stopIntake()`: a new upgrade gets 503, and a new call gets `UNAVAILABLE` */
+  private intakeStopped = false;
+  /** The functions that `drain()` waits on: each one runs when no call is in flight */
+  private idleWaiters: Array<() => void> = [];
   private server: RequestHandler;
   private connections: Set<WebSocket> = new Set();
 
@@ -103,7 +124,7 @@ export class WebSocketServerTransport implements ServerTransport {
   private connectHandlers: ConnectionEventHandler[] = [];
   private disconnectHandlers: ConnectionEventHandler[] = [];
 
-  constructor(server: RequestHandler, options: WebSocketServerTransportOptions) {
+  constructor(server: RequestHandler, options: WebSocketServerTransportOptions = {}) {
     this.server = server;
     this.options = {
       server: options.server,
@@ -116,6 +137,7 @@ export class WebSocketServerTransport implements ServerTransport {
       highWaterMark: options.highWaterMark ?? 1024 * 1024,
     };
     this.guard = { allowedOrigins: options.allowedOrigins, allowedHosts: options.allowedHosts };
+    this.secretHeaders = headerNames(options.secretHeaders);
     this.reverseRequestTimeoutMs = optionalMs(options.reverseRequestTimeout, "reverseRequestTimeout") ?? TIMER_DEFAULTS.webSocketServer.reverseRequestTimeoutMs;
     this.heartbeat =
       options.heartbeat === false
@@ -149,9 +171,21 @@ export class WebSocketServerTransport implements ServerTransport {
   }
 
   async start(): Promise<void> {
-    // Create WebSocket server
+    this.open();
+  }
+
+  /**
+   * This method creates the WebSocket server at once, and attaches it to the `server` of the
+   * options. `start()` calls it, and `upgradeHandler()` too. A second call does nothing.
+   *
+   * @internal
+   */
+  open(): void {
+    this.intakeStopped = false;
+    if (this.wss) return;
+    // The "no server" mode: upgrade() takes the upgrades of the path, and leaves the others alone
     this.wss = new WebSocketServer({
-      server: this.options.server,
+      noServer: true,
       path: this.options.path,
       perMessageDeflate: this.options.perMessageDeflate,
       maxPayload: this.options.maxPayload,
@@ -185,6 +219,7 @@ export class WebSocketServerTransport implements ServerTransport {
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
     });
+    if (this.options.server) this.detach = attachUpgradeTarget(this.options.server, this);
 
     if (this.heartbeat) {
       this.heartbeatTimer = setInterval(() => this.beat(), this.heartbeat.interval);
@@ -200,6 +235,8 @@ export class WebSocketServerTransport implements ServerTransport {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = undefined;
     }
+    this.detach?.();
+    this.detach = undefined;
     if (this.wss) {
       // Stop the requests in progress, so their handlers end (deep dive TRN-15), and fail the
       // calls that the server sent to its clients
@@ -208,6 +245,7 @@ export class WebSocketServerTransport implements ServerTransport {
         channel.outgoing.failAll("Server stopped");
       }
       this.channels.clear();
+      this.callSettled();
 
       // Close all connections
       for (const ws of this.connections) {
@@ -234,6 +272,83 @@ export class WebSocketServerTransport implements ServerTransport {
     return this.wss !== null;
   }
 
+  /** The path of the WebSocket endpoint. */
+  get path(): string {
+    return this.options.path;
+  }
+
+  /** This method gives true when an upgrade request is for the path of this endpoint. */
+  matches(req: IncomingMessage): boolean {
+    return urlParts(req.url).path === this.options.path;
+  }
+
+  /**
+   * This method takes an upgrade request of its path and gives true. The browser checks, the
+   * `authenticate` handler and the handshake of `ws` follow. It gives false for another path, or
+   * before `start()`, and does not touch the socket. After `stopIntake()`, it refuses the upgrade
+   * with 503.
+   */
+  upgrade(req: IncomingMessage, socket: Duplex, head: Buffer): boolean {
+    const wss = this.wss;
+    if (!wss || !this.matches(req)) return false;
+    if (this.intakeStopped) {
+      refuseUpgrade(socket, 503, "The server is stopping");
+      return true;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+    return true;
+  }
+
+  /**
+   * This method stops the intake: a new upgrade gets 503, and a new call on an open connection gets
+   * the retryable error `UNAVAILABLE`. The calls in flight go on. `start()` accepts again.
+   */
+  stopIntake(): void {
+    this.intakeStopped = true;
+  }
+
+  /** The number of the calls in flight on all connections, open streams too. */
+  inFlight(): number {
+    let count = 0;
+    for (const channel of this.channels.values()) count += channel.incoming.size;
+    return count;
+  }
+
+  /**
+   * This method waits until no call is in flight, until the `deadline` (milliseconds on the
+   * monotonic clock of `performance.now()`), or until the signal aborts.
+   */
+  drain(deadline: number, signal?: AbortSignal): Promise<void> {
+    if (this.inFlight() === 0 || signal?.aborted) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      let timer: Cancel | undefined;
+      const done = (): void => {
+        timer?.();
+        signal?.removeEventListener("abort", done);
+        const index = this.idleWaiters.indexOf(done);
+        if (index >= 0) this.idleWaiters.splice(index, 1);
+        resolve();
+      };
+      this.idleWaiters.push(done);
+      signal?.addEventListener("abort", done, { once: true });
+      timer = realClock.after(Math.max(0, deadline - realClock.now()), done);
+      timer.unref?.();
+    });
+  }
+
+  /** This method stops the transport: the same as `stop()`. */
+  close(): Promise<void> {
+    return this.stop();
+  }
+
+  /** A call ended: a drain can end when no call is in flight. */
+  private callSettled(): void {
+    if (this.idleWaiters.length === 0 || this.inFlight() > 0) return;
+    const waiters = this.idleWaiters;
+    this.idleWaiters = [];
+    for (const waiter of waiters) waiter();
+  }
+
   /**
    * Handle new WebSocket connection.
    */
@@ -249,10 +364,13 @@ export class WebSocketServerTransport implements ServerTransport {
       connectedAt: new Date(),
       metadata: {
         remoteAddress: req.socket.remoteAddress,
-        headers: withoutSecretHeaders(req.headers as Record<string, unknown>),
+        headers: withoutSecretHeaders(req.headers as Record<string, unknown>, this.secretHeaders),
       },
     };
     this.trackedConnections.set(connectionId, trackedConnection);
+    // The credentials of the upgrade, for each call of the connection: the bearer token of its
+    // Authorization header or of its token query, its cookies, its headers and its query (CLI-2a)
+    const credentials = requestCredentials({ headers: req.headers as Record<string, unknown>, url: req.url }, { tokenQuery: "token" });
 
     // The calls of this connection in the two directions (roadmap R24)
     const isOpen = (): boolean => ws.readyState === WebSocket.OPEN;
@@ -263,7 +381,8 @@ export class WebSocketServerTransport implements ServerTransport {
         send,
         sendWithBackpressure: (frame, signal) => this.sendWithBackpressure(ws, frame, signal),
         isOpen,
-        requestOf: (frame, signal) => this.requestOf(frame, req, connectionId, signal),
+        requestOf: (frame, signal) => this.requestOf(frame, req, connectionId, signal, credentials),
+        onSettled: () => this.callSettled(),
       }),
       outgoing: new OutgoingCalls({
         send,
@@ -309,6 +428,7 @@ export class WebSocketServerTransport implements ServerTransport {
       channel?.incoming.abortAll();
       channel?.outgoing.failAll("WebSocket connection closed");
       this.channels.delete(connectionId);
+      this.callSettled();
       this.eventTransports.delete(connectionId);
       const conn = this.trackedConnections.get(connectionId);
       if (conn) {
@@ -336,7 +456,13 @@ export class WebSocketServerTransport implements ServerTransport {
    * The server request of a `request` frame of a connection: the metadata of the frame and of the
    * connection, the signal of the call, and the credentials of the upgrade (roadmap R18).
    */
-  private requestOf(frame: WebSocketMessage, req: IncomingMessage, connectionId: string, signal: AbortSignal): ServerRequest {
+  private requestOf(
+    frame: WebSocketMessage,
+    req: IncomingMessage,
+    connectionId: string,
+    signal: AbortSignal,
+    credentials: ServerRequest["credentials"]
+  ): ServerRequest {
     return {
       id: frame.id,
       method: frame.method!,
@@ -348,11 +474,12 @@ export class WebSocketServerTransport implements ServerTransport {
         connectionId,
         remoteAddress: req.socket.remoteAddress,
         // The upgrade headers without their secrets (roadmap R18)
-        headers: withoutSecretHeaders(req.headers as Record<string, unknown>),
+        headers: withoutSecretHeaders(req.headers as Record<string, unknown>, this.secretHeaders),
       },
       signal,
-      // The credentials of the connection: the bearer token of its upgrade (R18)
-      credentials: credentialsOf(req),
+      // The credentials of the connection: the bearer token of its upgrade (R18), its cookies,
+      // its headers and its query (CLI-2a)
+      credentials,
     };
   }
 
@@ -401,6 +528,11 @@ export class WebSocketServerTransport implements ServerTransport {
     if (!channel) return;
     // A frame of a call that the server sent to this client (roadmap R24)
     if (channel.outgoing.receive(message)) return;
+    // After stopIntake(), a new call goes to another server or comes again later
+    if (this.intakeStopped && message.type === "request") {
+      this.sendError(ws, message.id || "unknown", "The server is stopping", "UNAVAILABLE", true);
+      return;
+    }
     // A frame of a call of the client: a request, a cancel or a credit
     if (channel.incoming.receive(message)) return;
     // A server-response frame of an older client, for a call that no longer exists
@@ -436,7 +568,7 @@ export class WebSocketServerTransport implements ServerTransport {
   /**
    * Send error to client.
    */
-  private sendError(ws: WebSocket, id: string, message: string, code = "INTERNAL_ERROR"): void {
+  private sendError(ws: WebSocket, id: string, message: string, code = "INTERNAL_ERROR", retryable = false): void {
     const errorMessage: WebSocketMessage = {
       id,
       type: "error",
@@ -444,12 +576,12 @@ export class WebSocketServerTransport implements ServerTransport {
         type: "error",
         code,
         message,
-        retryable: false,
+        retryable,
       },
       error: {
         code,
         message,
-        retryable: false,
+        retryable,
       },
     };
 

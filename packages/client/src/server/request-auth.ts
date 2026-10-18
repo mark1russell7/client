@@ -1,19 +1,41 @@
 /**
  * The credentials of a network request (roadmap R18). A server transport reads them into
- * `ServerRequest.credentials`, and leaves the secret headers out of the metadata, so a handler
- * and a nested call do not see them. `ProcedureServer` examines them.
+ * `ServerRequest.credentials`. It leaves the secret headers out of the metadata, so a handler and a
+ * nested call do not see them. `ProcedureServer` examines them.
+ *
+ * This module imports no Node code: a server in a browser or a worker can use it too.
  */
 
 import type { Credentials } from "./types.js";
 
 /** The headers that carry a secret. They do not go into the metadata of a request. */
-const SECRET_HEADERS = new Set(["authorization", "proxy-authorization", "cookie", "x-api-key"]);
+const SECRET_HEADERS: ReadonlySet<string> = new Set(["authorization", "proxy-authorization", "cookie", "x-api-key"]);
 
-/** The headers without the secret ones, and without the headers that are not text. */
-export function withoutSecretHeaders(headers: Record<string, unknown>): Record<string, string> {
+/**
+ * True when a header carries a secret: a header of the default list (`Authorization`,
+ * `Proxy-Authorization`, `Cookie`, `X-Api-Key`), or a header of `more`. The names are lower case.
+ */
+export function isSecretHeader(name: string, more?: ReadonlySet<string>): boolean {
+  const key = name.toLowerCase();
+  return SECRET_HEADERS.has(key) || (more?.has(key) ?? false);
+}
+
+/** This function gives a set of lower-case header names. */
+export function headerNames(names: Iterable<string> | undefined): ReadonlySet<string> {
+  const set = new Set<string>();
+  for (const name of names ?? []) set.add(name.toLowerCase());
+  return set;
+}
+
+/**
+ * The headers without the secret ones, and without the headers that are not text. `secret` names
+ * more headers that carry a secret, for example the token header of an application.
+ */
+export function withoutSecretHeaders(headers: Record<string, unknown>, secret?: Iterable<string>): Record<string, string> {
+  const more = secret === undefined ? undefined : headerNames(secret);
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    if (!SECRET_HEADERS.has(key.toLowerCase()) && typeof value === "string") out[key] = value;
+    if (!isSecretHeader(key, more) && typeof value === "string") out[key] = value;
   }
   return out;
 }
@@ -32,4 +54,95 @@ export function credentialsOf(request: { headers: Record<string, unknown>; url?:
   if (bearer !== undefined) return { bearer };
   const query = new URL(request.url ?? "/", "http://localhost").searchParams.get("token");
   return query === null ? {} : { bearer: query };
+}
+
+/** The text of a header value: a list of values becomes one text, with ", " between the values. */
+function headerText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string").join(", ");
+  return undefined;
+}
+
+/** This function decodes a cookie value. A value that is not valid URI encoding stays as it is. */
+function decodeCookieValue(value: string): string {
+  const unquoted = value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
+  try {
+    return decodeURIComponent(unquoted);
+  } catch {
+    return unquoted;
+  }
+}
+
+/**
+ * The cookies of a `Cookie` header, by name. The function decodes each URI-encoded value when it
+ * can. When two cookies have the same name, the first one stays: a browser sends the
+ * cookie of the longest path first. A part without `=` is not a cookie.
+ */
+export function cookiesOf(header: unknown): Record<string, string> {
+  const text = Array.isArray(header) ? header.filter((item): item is string => typeof item === "string").join("; ") : header;
+  if (typeof text !== "string" || text === "") return {};
+  const cookies = new Map<string, string>();
+  for (const part of text.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    const name = part.slice(0, eq).trim();
+    if (name === "" || cookies.has(name)) continue;
+    cookies.set(name, decodeCookieValue(part.slice(eq + 1).trim()));
+  }
+  // fromEntries defines own properties: a cookie named "__proto__" changes no prototype
+  return Object.fromEntries(cookies);
+}
+
+/**
+ * The parts of a request URL: its path and its query. The function does not resolve the URL
+ * against a host, so a path that starts with "//" stays a path.
+ */
+export function urlParts(url: string | undefined): { path: string; query: URLSearchParams } {
+  const raw = url ?? "/";
+  const mark = raw.indexOf("?");
+  return mark === -1 ? { path: raw, query: new URLSearchParams() } : { path: raw.slice(0, mark), query: new URLSearchParams(raw.slice(mark + 1)) };
+}
+
+/** The first value of each query parameter, by name. */
+export function queryRecord(query: URLSearchParams): Record<string, string> {
+  const values = new Map<string, string>();
+  for (const [key, value] of query) if (!values.has(key)) values.set(key, value);
+  return Object.fromEntries(values);
+}
+
+/** The options of `requestCredentials`. */
+export interface RequestCredentialsOptions {
+  /**
+   * The query parameter whose value is the bearer token of a request without an
+   * `Authorization: Bearer` header. A browser WebSocket cannot set headers, so the WebSocket
+   * server reads `token`. `false` reads no query parameter.
+   * @default false
+   */
+  readonly tokenQuery?: string | false | undefined;
+}
+
+/**
+ * The credentials of a network request (roadmap R18): the bearer token, the cookies, each header
+ * (the secret ones too) and the first value of each query parameter. The request hook of a server
+ * (`principalOf`) reads them. They are not in the metadata, so a handler does not see them.
+ */
+export function requestCredentials(
+  request: { headers: Record<string, unknown>; url?: string | undefined },
+  options: RequestCredentialsOptions = {}
+): Credentials {
+  const headers = new Map<string, string>();
+  for (const [key, value] of Object.entries(request.headers)) {
+    const text = headerText(value);
+    if (text !== undefined) headers.set(key.toLowerCase(), text);
+  }
+  const { query } = urlParts(request.url);
+  const fromHeader = bearerOf(headers.get("authorization"));
+  const fromQuery = options.tokenQuery ? query.get(options.tokenQuery) ?? undefined : undefined;
+  const bearer = fromHeader ?? fromQuery;
+  return {
+    ...(bearer !== undefined ? { bearer } : {}),
+    cookies: cookiesOf(headers.get("cookie")),
+    headers: Object.fromEntries(headers),
+    query: queryRecord(query),
+  };
 }

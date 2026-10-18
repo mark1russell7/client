@@ -317,6 +317,8 @@ export interface IncomingCallsOptions {
   isOpen: () => boolean;
   /** This function makes the server request of a `request` frame: the metadata, the credentials. */
   requestOf: (frame: WebSocketMessage, signal: AbortSignal) => ServerRequest;
+  /** This function runs when the number of calls that run becomes smaller. A drain waits on it. */
+  onSettled?: (() => void) | undefined;
 }
 
 /** The calls that the other side sends on one socket, served by a handler. */
@@ -340,7 +342,7 @@ export class IncomingCalls {
   receive(frame: WebSocketMessage): boolean {
     if (frame.type === "cancel") {
       this.inflight.get(frame.id)?.abort();
-      this.inflight.delete(frame.id);
+      if (this.inflight.delete(frame.id)) this.options.onSettled?.();
       return true;
     }
     if (frame.type === "credit") {
@@ -365,8 +367,10 @@ export class IncomingCalls {
   /** This function aborts each call that runs: the socket closed, or the side stops. */
   abortAll(): void {
     for (const controller of this.inflight.values()) controller.abort();
+    const had = this.inflight.size > 0;
     this.inflight.clear();
     this.credits.clear();
+    if (had) this.options.onSettled?.();
   }
 
   private async serve(frame: WebSocketMessage): Promise<void> {
@@ -395,7 +399,10 @@ export class IncomingCalls {
       this.sendError(frame.id, error instanceof Error ? error.message : "Internal server error", "INTERNAL_ERROR");
     } finally {
       // Delete only this request's entries (deep dive TRN-9)
-      if (this.inflight.get(frame.id) === controller) this.inflight.delete(frame.id);
+      if (this.inflight.get(frame.id) === controller) {
+        this.inflight.delete(frame.id);
+        this.options.onSettled?.();
+      }
       this.credits.delete(frame.id);
     }
   }

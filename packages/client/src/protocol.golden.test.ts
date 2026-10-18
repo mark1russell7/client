@@ -22,6 +22,7 @@ import { ProcedureServer } from "./server/procedure-server.js";
 import { pathToMethod } from "./server/method.js";
 import { HttpServerTransport } from "./adapters/http/server/transport.js";
 import { writeNdjsonStream } from "./adapters/http/server/ndjson.js";
+import { procedureHandler } from "./adapters/http/server/handler.js";
 import { HttpTransport } from "./adapters/http/client/transport.js";
 import { WebSocketServerTransport } from "./adapters/websocket/server/transport.js";
 import { WebSocketTransport } from "./adapters/websocket/client/transport.js";
@@ -549,6 +550,44 @@ describe("the HTTP exchange of protocol v1 (R25)", () => {
       notFound: await exchange("wire/missing", {}),
       newerVersion: { status: newer.status, body: await newer.json() },
     });
+  });
+
+  it("procedureHandler without Express: the same bytes as the golden server (CLI-3)", async () => {
+    const server = new ProcedureServer({ registry: registry(), capability: { effects: { writes: [] } } });
+    server.registerFromRegistry();
+    const handler = procedureHandler(server);
+    const http = createServer((req, res) => {
+      if (!handler(req, res)) res.end("app");
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(async () => {
+      handler.close();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    });
+    const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}/api`;
+    const exchange = async (path: string, body: unknown, accept = "application/json") => {
+      const response = await fetch(`${base}/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept, "procedures-protocol": "1" },
+        body: JSON.stringify(body),
+      });
+      return {
+        status: response.status,
+        protocol: response.headers.get("procedures-protocol"),
+        contentType: (response.headers.get("content-type") ?? "").split(";")[0],
+        body: await response.text(),
+      };
+    };
+    const newer = await fetch(`${base}/wire/echo`, { method: "POST", headers: { "content-type": "application/json", "procedures-protocol": "2" }, body: "{}" });
+    const recorded = JSON.parse(readFileSync(join(GOLDENS, "http-server.golden.json"), "utf8")) as unknown;
+    expect({
+      value: await exchange("wire/echo", { text: "hi" }),
+      stream: await exchange("wire/count", { to: 2 }, "application/x-ndjson, application/json"),
+      forbidden: await exchange("wire/write", {}),
+      notFound: await exchange("wire/missing", {}),
+      newerVersion: { status: newer.status, body: await newer.json() },
+    }).toEqual(recorded);
   });
 
   it("the client: the method, the path and the headers of a request", async () => {

@@ -1,0 +1,12 @@
+---
+"@procedures/client": patch
+---
+
+The procedure faces of Node without a framework, a request hook for credentials, and the credentials mode of `fetch`. Each change is additive: the old behavior stays.
+
+- `@procedures/client/node`: new `procedureHandler(server, options)` gives a request handler of `node:http`, `(req, res) => boolean`. It takes each request under `basePath` (default `/api`) and gives `false` for each other request, so the routes of the application share the listener. It speaks the wire of `HttpServerTransport` with the error codes of wire v1, and has CORS, `secretHeaders`, `secretQuery`, a Connect middleware and the stop parts `start`, `stopIntake`, `drain`, `inFlight` and `close`.
+- `@procedures/client/node`: new `upgradeHandler(server, options)` gives an upgrade handler for the "no server" mode of `ws`. Two endpoints of different paths share one listener. The entry also exports `WebSocketServerTransport`, `defaultServerUrlStrategy` and `rpcServerUrlStrategy`.
+- `HttpServerTransport` is a thin Express shim over `procedureHandler`, and keeps its former codes. `WebSocketServerTransport` takes only the upgrades of its path: two transports on one server now both work, and the option `server` is optional.
+- New option `principalOf` of `ProcedureServer` and `hostPolicy`: a request hook that reads the cookies, the headers and the query of a network request. It gives a bearer token for the token check, a principal and a narrowing of the capability. The procedure reads the principal as `ctx.principal`. New `requestCredentials` and `cookiesOf`.
+- A `Cookie` or `Proxy-Authorization` header no longer goes into the root of the metadata of an HTTP request. The secret headers stay in the credentials only.
+- `HttpTransport`: new options `credentials` (for example `"include"` for a cookie session on another origin), `requestInit` and `fetch`.

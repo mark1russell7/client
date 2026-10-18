@@ -48,6 +48,8 @@ export {
   type RequestHandler,
   type Credentials,
   type Principal,
+  type PrincipalOf,
+  type RequestIdentity,
   type ServerHandler,
   type ServerMiddleware,
   type ServerContext,

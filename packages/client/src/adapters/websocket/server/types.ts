@@ -29,10 +29,11 @@ export type WebSocketConnectionHandler = (ws: WebSocket, req: IncomingMessage) =
  */
 export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOptions, "allowGet"> {
   /**
-   * HTTP server to attach WebSocket server to.
-   * Required - WebSocket upgrades HTTP connections.
+   * The HTTP server whose upgrade requests the transport takes. The transport takes only the
+   * upgrades of its path, so several endpoints can share one server. Without it, the owner of the
+   * listener gives each upgrade to `upgrade()`, or mounts `upgradeHandler()`.
    */
-  server: HttpServer;
+  server?: HttpServer | undefined;
 
   /**
    * Path for WebSocket connections.
@@ -91,6 +92,13 @@ export interface WebSocketServerTransportOptions extends Omit<BrowserGuardOption
    * @default seconds(30)
    */
   reverseRequestTimeout?: Duration;
+
+  /**
+   * More headers that carry a secret, for example the token header of an application. They go
+   * into the credentials of each call, not into its metadata. `Authorization`,
+   * `Proxy-Authorization`, `Cookie` and `X-Api-Key` are always secret.
+   */
+  secretHeaders?: readonly string[] | undefined;
 }
 
 /**

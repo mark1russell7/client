@@ -6,7 +6,7 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { Method, Principal, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
+import type { Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import type {
   AnyProcedure,
@@ -19,7 +19,7 @@ import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
 import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ResourcesOf } from "../procedures/types.js";
-import { TIMEOUT_METADATA_KEY, effectsOf, narrowCapability } from "../procedures/capability.js";
+import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
@@ -138,6 +138,16 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `request.principal`.
    */
   authenticate?: ((request: ServerRequest<unknown>) => Principal | undefined | Promise<Principal | undefined>) | undefined;
+
+  /**
+   * The request hook of the server: it reads the credentials of each network request (a cookie, a
+   * header, the query) and gives a bearer token, a principal and a narrowing. It runs before the
+   * token check: its bearer token replaces the bearer token of the credentials. Its principal
+   * replaces the principal of the token check. `authenticate` runs after it and can read
+   * `request.principal`. Undefined or an error refuses the request with `UNAUTHORIZED`. A request
+   * without credentials (from this process) does not go through the hook.
+   */
+  principalOf?: PrincipalOf | undefined;
 
   /**
    * The remote events of the server (`documentation/EVENTS.md`): a bus and its topic rule, or an
@@ -326,8 +336,9 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private draining = false;
   /** The calls in flight, a stream until its end */
   private inFlight = 0;
-  /** The token of the server, and its authenticate function (R18) */
+  /** The token of the server, its request hook and its authenticate function (R18) */
   private readonly token: string | undefined;
+  private readonly principalOf: PrincipalOf | undefined;
   private readonly authenticate: ProcedureServerOptions["authenticate"];
   /** The functions that `stop()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
@@ -350,6 +361,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     };
     this.idempotency = options.idempotency === false ? undefined : new IdempotencyCache(options.idempotency ?? {});
     this.token = options.token;
+    this.principalOf = options.principalOf;
     this.authenticate = options.authenticate;
     // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
@@ -642,9 +654,11 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   }
 
   /**
-   * The token check and the principal of a request (roadmap R18). A network request (with
-   * credentials) must present the token. The authenticate function gives the principal. The
-   * function gives an UNAUTHORIZED response, or undefined when the request passes.
+   * The token check and the principal of a request (roadmap R18). The request hook reads the
+   * credentials of a network request first: a bearer token, a principal and a narrowing. A
+   * network request (with credentials) must present the token. The authenticate function gives
+   * the principal. The function gives an UNAUTHORIZED response, or undefined when the request
+   * passes.
    */
   private async admit(request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
     const unauthorized = (message: string): ServerResponse<unknown> => ({
@@ -652,9 +666,25 @@ export class ProcedureServer extends Server implements RepositoryProvider {
       status: { type: "error", code: "UNAUTHORIZED", message, retryable: false },
       metadata: {},
     });
-    if (this.token !== undefined && request.credentials !== undefined) {
-      if (!tokenMatches(this.token, request.credentials.bearer)) return unauthorized("Unauthorized: this server requires its token");
+    const credentials = request.credentials;
+    let identity: RequestIdentity | undefined;
+    if (this.principalOf && credentials !== undefined) {
+      try {
+        identity = await this.principalOf(credentials, request);
+      } catch {
+        identity = undefined;
+      }
+      if (!identity) return unauthorized("Unauthorized: the server did not accept the credentials");
+    }
+    if (this.token !== undefined && credentials !== undefined) {
+      const bearer = identity?.bearer ?? credentials.bearer;
+      if (!tokenMatches(this.token, bearer)) return unauthorized("Unauthorized: this server requires its token");
       request.principal = { id: "token", via: "token" };
+    }
+    if (identity?.principal) request.principal = identity.principal;
+    if (identity?.narrowing) {
+      const order = this.capabilityOptions.clearanceOrder;
+      request.narrowing = request.narrowing ? joinNarrowing(request.narrowing, identity.narrowing, order) : identity.narrowing;
     }
     if (this.authenticate) {
       let principal: Principal | undefined;
@@ -734,6 +764,17 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     return { ...response, id: request.id };
   }
 
+  /**
+   * The capability of a request. It comes from the server, never from the request. The remaining
+   * time of the caller and the narrowing of the request can only make it narrower
+   * (CAPABILITIES-2026-10, decision 9). Two different clearances without an order throw.
+   */
+  private capabilityOf(request: ServerRequest<unknown>): Capability | undefined {
+    const { capability, clearanceOrder } = this.capabilityOptions;
+    const base = withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder);
+    return request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
+  }
+
   /** Run a procedure for a request with a signal. */
   private async run(procedure: AnyProcedure, request: ServerRequest<unknown>, signal: AbortSignal | undefined): Promise<ServerResponse<unknown>> {
     // The call uses the storages that it takes until its end: the end of a stream, for a stream
@@ -742,7 +783,14 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     try {
       // One invocation path for every host (ARCHITECTURE-PROPOSALS P1): input validation, the
       // context, the expose rule for nested calls (BUGS-2026-07 H18) and output validation
-      const { capability, clearanceOrder, resources, admitItem } = this.capabilityOptions;
+      const { clearanceOrder, resources, admitItem } = this.capabilityOptions;
+      let capability: Capability | undefined;
+      try {
+        capability = this.capabilityOf(request);
+      } catch (error) {
+        const message = `The server cannot narrow the capability of the request: ${error instanceof Error ? error.message : String(error)}`;
+        return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }));
+      }
       const output = await invokeProcedure(procedure, request.payload, {
         registry: this.procedureRegistry,
         metadata: request.metadata,
@@ -751,12 +799,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         expose: this.expose,
         strictCalls: this.strictCalls,
         interceptors: this.interceptors,
-        // The capability comes from the server, never from the request. The remaining time of
-        // the caller can only make the deadline earlier (CAPABILITIES-2026-10, decision 9).
-        capability: withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder),
+        capability,
         clearanceOrder,
         resources,
         admitItem,
+        // The principal of the authentication: ctx.principal, and the nested calls (R18)
+        ...(request.principal !== undefined ? { principal: request.principal } : {}),
         // The bus of the remote events is the bus of the procedures (EVENTS.md)
         ...(this.publisher ? { bus: this.publisher.bus } : {}),
       });

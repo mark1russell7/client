@@ -308,6 +308,38 @@ const transport = new WebSocketServerTransport({
 server.addTransport(transport);
 ```
 
+### The handlers of `@procedures/client/node`
+
+An application with its own `node:http` server mounts the procedures with two functions. They make no server and do not listen.
+
+```typescript
+import { procedureHandler, upgradeHandler } from "@procedures/client/node";
+
+const procedures = procedureHandler(server, { basePath: "/api/proc" });
+const sockets = upgradeHandler(server, { path: "/ws" });
+http.on("request", (req, res) => procedures(req, res) || appRoutes(req, res));
+http.on("upgrade", (req, socket, head) => sockets(req, socket, head) || socket.destroy());
+```
+
+Each handler gives `false` for a request of another path, and does not touch it.
+
+### The request hook
+
+The option `principalOf` of `ProcedureServer` (and of `hostPolicy`) reads the credentials of each network request. The credentials have the bearer token, the cookies, each header and the query.
+
+```typescript
+const server = new ProcedureServer({
+  principalOf: async ({ cookies = {} }) => {
+    const user = await sessions.userOf(cookies["session"]);
+    return user ? { principal: { id: `user:${user.id}`, via: "session" } } : {};
+  },
+});
+```
+
+- The hook gives a `bearer` token for the token check, a `principal`, and a `narrowing` of the capability.
+- The procedure reads the principal as `ctx.principal`. The nested calls get the same principal.
+- Undefined, or an error, refuses the request with `UNAUTHORIZED`.
+
 ---
 
 ## Complete Example

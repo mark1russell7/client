@@ -178,6 +178,27 @@ export function narrowCapability<C>(
   return Object.freeze(result) as Capability<C>;
 }
 
+/**
+ * This function joins two requests for a narrower capability into one request that asks for
+ * both: the meet of the clearances, the intersection of the effects and the shorter time. Two
+ * different clearances need an order.
+ */
+export function joinNarrowing<C>(first: CapabilityRequest<C>, second: CapabilityRequest<C>, order?: ClearanceOrder<C>): CapabilityRequest<C> {
+  const result: CapabilityRequest<C> = {};
+  if (first.clearance === undefined || second.clearance === undefined || Object.is(first.clearance, second.clearance)) {
+    const clearance = first.clearance ?? second.clearance;
+    if (clearance !== undefined) result.clearance = clearance;
+  } else {
+    if (!order) throw new Error("Two different clearances need a clearance order: give clearanceOrder to the host (hostPolicy)");
+    result.clearance = order.meet(first.clearance, second.clearance);
+  }
+  const effects = first.effects === undefined ? second.effects : narrowEffects(first.effects, second.effects);
+  if (effects !== undefined) result.effects = effects;
+  const times = [first.timeoutMs, second.timeoutMs].filter((time): time is number => typeof time === "number" && Number.isFinite(time) && time >= 0);
+  if (times.length > 0) result.timeoutMs = Math.min(...times);
+  return result;
+}
+
 // =============================================================================
 // Admission
 // =============================================================================
