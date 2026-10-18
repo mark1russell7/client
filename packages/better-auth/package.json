@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@procedures/better-auth",
+  "version": "0.12.0",
+  "description": "Better Auth for a procedures server: the sign-in with GitHub, Google and passkeys over MongoDB, and a request hook that gives the principal of a session or of an agent token.",
+  "keywords": [
+    "procedures",
+    "better-auth",
+    "authentication",
+    "oauth",
+    "passkey",
+    "session",
+    "principal"
+  ],
+  "homepage": "https://mark1russell7.github.io/client/",
+  "bugs": {
+    "url": "https://github.com/mark1russell7/client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/client.git",
+    "directory": "packages/better-auth"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "sideEffects": false,
+  "devDependencies": {
+    "@mark1russell7/cue": "^1.0.0",
+    "mongodb": "^7.7.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "client": null,
+  "dependencies": {
+    "@better-auth/passkey": "^1.7.10",
+    "@procedures/client": "workspace:*",
+    "better-auth": "^1.7.10",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "mongodb": "^6.0.0 || ^7.0.0"
+  }
+}
