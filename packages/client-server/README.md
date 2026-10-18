@@ -143,6 +143,8 @@ await svc.run();
 - **The readiness of the calls.** The option `controller.requires` names the dependencies of the service that each call needs. While a check of one of them fails readiness, the service refuses each call with `UNAVAILABLE` (CLI-45).
 - **The streams.** Each call is a stream, and a unary call is a stream of one (decision D4). A stream stays in flight until its end. A cut after the first item ends the stream with an error line.
 - **The collections.** The option `collections` gives the storages. The host serves `collections.<name>.*` for each one.
+- **The expose rule.** The rule of the policy applies to each procedure that the host serves, also to the collection procedures (CLI-47). A host with an expose rule must list the collection procedures that it serves, for example `collections.notes.*`. An `exclude` hides one of them, for example `collections.notes.clear`. The option `expose` of the host wins over the rule of the policy, for the server and for each face.
+- **Always on.** `host.health`, `host.info`, `host.metrics` and `events.subscribe` stay on, whatever the expose rule says. The host pins them with `registerProcedures(procedures, { alwaysOn: true })`. The topic rule is the expose rule of `events.subscribe`.
 - **No `/health` route.** The probes come from the runner (`probeHandler` or `probeServer`). A client checks a lockfile with `host.info` and the token of the lockfile.
 
 ### Creating a Server Peer

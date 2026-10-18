@@ -124,6 +124,7 @@ This layer is the one procedures server in Node. `mark serve` and `mark --server
 - `createProcedureHost({ registry, policy, faces: { http, ws, mcp }, collections })`. It gives `{ handler, upgrade, parts, dependencies, checks, info }`, and the service of a parent declares them (D2, CLI-7).
 - `runProcedureHost(config)`: the only entry that starts `run()` for `procedure-server`, `mark serve` and `mark --server`. The lockfile is a phase of it (CLI-8).
 - `host.info`, `host.health` and `host.metrics` as procedures, with the identity of the host: the peer ID and the count of the procedures.
+- One expose rule for the server and each face. It applies to each procedure that the host serves, also to the collection procedures. Only `host.*` and `events.subscribe` are always on (CLI-47).
 - `server.create`, with the same factory and the same `HostPolicy`.
 
 The limits of the host:

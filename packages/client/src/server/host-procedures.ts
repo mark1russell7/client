@@ -3,9 +3,10 @@
  *
  * Before, a peer gave its health only as an Express route (`/health`), and the counts of
  * `metricsInterceptor` had no way out. A host pins these procedures on its `ProcedureServer`
- * (`registerProcedure`), so they do not change the registry that the host serves. A call needs
- * the token of the host, as each other call does. The `/health` route stays for the checks
- * that have no token.
+ * (`registerProcedures(procedures, { alwaysOn: true })`), so they do not change the registry that
+ * the host serves. They are always on: the expose rule of the host does not hide them (CLI-47). A
+ * call needs the token of the host, as each other call does. The `/health` route stays for the
+ * checks that have no token.
  */
 
 import { z } from "zod";

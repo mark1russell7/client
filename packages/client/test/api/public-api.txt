@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 541 names
+## . (dist/index.d.ts): 542 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -215,6 +215,7 @@ RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
 type RefExecutor: dist/procedures/ref.d.ts#RefExecutor
 type RefScope: dist/procedures/ref.d.ts#RefScope
 type Register: dist/procedures/types.d.ts#Register
+type RegisterProcedureOptions: dist/server/procedure-server.d.ts#RegisterProcedureOptions
 type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
@@ -548,7 +549,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 523 names
+## ./browser (dist/browser.d.ts): 524 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -753,6 +754,7 @@ RUNS_REFS_TAG: dist/procedures/ref.d.ts#RUNS_REFS_TAG
 type RefExecutor: dist/procedures/ref.d.ts#RefExecutor
 type RefScope: dist/procedures/ref.d.ts#RefScope
 type Register: dist/procedures/types.d.ts#Register
+type RegisterProcedureOptions: dist/server/procedure-server.d.ts#RegisterProcedureOptions
 type RegistrationOptions: dist/procedures/types.d.ts#RegistrationOptions
 RegistryError: dist/procedures/registry.d.ts#RegistryError
 type RegistryEventType: dist/procedures/types.d.ts#RegistryEventType
@@ -1598,7 +1600,7 @@ compose: dist/middleware/compose.d.ts#compose
 wrapWithAsyncMiddlewares: dist/middleware/compose.d.ts#wrapWithAsyncMiddlewares
 wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 
-## ./server (dist/server/index.d.ts): 41 names
+## ./server (dist/server/index.d.ts): 42 names
 
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
@@ -1610,6 +1612,7 @@ type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
 type ProcedureServerOptions: dist/server/procedure-server.d.ts#ProcedureServerOptions
+type RegisterProcedureOptions: dist/server/procedure-server.d.ts#RegisterProcedureOptions
 type RequestHandler: dist/server/types.d.ts#RequestHandler
 type RequestIdentity: dist/server/types.d.ts#RequestIdentity
 STREAM_METADATA_KEY: dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
@@ -5219,9 +5222,9 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     useStorage<T>(name: string, storage: CollectionStorage<T>, options: UseStorageOptions): Promise<this>;
     useStorages(storages: Record<string, CollectionStorage<unknown>>): this;
     getCollectionNames(): string[];
-    registerProcedure(procedure: AnyProcedure): void;
-    registerProcedures(procedures: AnyProcedure[]): void;
-    registerModule(module: ProcedureModule): void;
+    registerProcedure(procedure: AnyProcedure, options?: RegisterProcedureOptions): void;
+    registerProcedures(procedures: AnyProcedure[], options?: RegisterProcedureOptions): void;
+    registerModule(module: ProcedureModule, options?: RegisterProcedureOptions): void;
     registerFromRegistry(): void;
     protected findHandler(method: Method): ServerHandler | null;
     get callsInFlight(): number;
@@ -5263,6 +5266,11 @@ export interface ProcedureServerOptions extends ServerOptions {
     ambientCredentials?: AmbientCredentials | false | undefined;
     events?: EventPublisherOptions | EventPublisher | undefined;
     debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
+}
+
+### dist/server/procedure-server.d.ts#RegisterProcedureOptions
+export interface RegisterProcedureOptions {
+    alwaysOn?: boolean | undefined;
 }
 
 ### dist/server/procedure-server.d.ts#STREAM_METADATA_KEY
