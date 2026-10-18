@@ -15,8 +15,6 @@ import { pathToMethod } from "./method.js";
 import { createRegistry } from "../procedures/module.js";
 import { defineProcedure } from "../procedures/define.js";
 import { outputSchema } from "../procedures/core/schemas.js";
-import { coreProcedures } from "../procedures/core/index.js";
-import { manifestProcedure } from "../procedures/define-procedure.js";
 import type { AnyProcedure } from "../procedures/types.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import type { ProcedureManifest } from "../procedures/manifest.js";
@@ -55,13 +53,13 @@ const appProcedure = (path: string[]): AnyProcedure =>
   }) as AnyProcedure;
 
 /**
- * A server of a host policy, with `client.chain`, `procedure.manifest` and the collection `notes`.
- * The server serves its registry, and it pins the collection procedures.
+ * A server of a host policy, with the collection `notes`. The registry of `createRegistry()` has
+ * the procedures of the client module, also `client.chain` and `procedure.manifest`. The server
+ * serves its registry, and it pins the collection procedures.
  */
 function notesServer(policy: HostPolicyOptions = {}): { server: ProcedureServer; clears: () => number } {
   const { storage, clears } = notesStorage();
   const registry = createRegistry();
-  for (const procedure of [...coreProcedures, manifestProcedure as AnyProcedure]) registry.register(procedure);
   const server = new ProcedureServer({ ...procedureServerOptions(hostPolicy(policy), registry), collections: { notes: storage } });
   server.registerCollectionProcedures("notes");
   return { server, clears };

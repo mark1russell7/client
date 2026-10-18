@@ -157,7 +157,7 @@ describe("the expose rule of a procedures host covers the collection procedures 
     expect(host.server.hasProcedure(CLEAR)).toBe(false);
 
     // The other procedures of the collection stay
-    expect((await post(http, GET, { id: "a" })).status).toBe(200);
+    expect((await post(http, GET, { id: "a" })).status).toBe(204);
     await ws.call(pathToMethod(GET), { id: "a" });
 
     // The procedures of the host stay on
@@ -185,8 +185,8 @@ describe("the expose rule of a procedures host covers the collection procedures 
 
   it("serves the collection procedures that the rule lists", async () => {
     const { clears, http, ws } = await runNotesHost("with-collections", { expose: ["test.*", "collections.notes.*"] });
-    expect((await post(http, GET, { id: "a" })).status).toBe(200);
-    expect((await post(http, CLEAR)).status).toBe(200);
+    expect((await post(http, GET, { id: "a" })).status).toBe(204);
+    expect((await post(http, CLEAR)).status).toBe(204);
     await ws.call(pathToMethod(CLEAR), {});
     expect(clears()).toBe(2);
   }, 20000);
@@ -201,7 +201,7 @@ describe("the expose rule of a procedures host covers the collection procedures 
 
   it("changes nothing without an expose rule: each collection procedure stays served", async () => {
     const { clears, http, ws } = await runNotesHost("open");
-    expect((await post(http, CLEAR)).status).toBe(200);
+    expect((await post(http, CLEAR)).status).toBe(204);
     await ws.call(pathToMethod(CLEAR), {});
     expect(clears()).toBe(2);
     expect((await post(http, ["host", "health"])).status).toBe(200);
