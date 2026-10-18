@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 528 names
+## . (dist/index.d.ts): 529 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -338,6 +338,7 @@ clientModule: dist/procedures/module.d.ts#clientModule
 collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
+collectionTopicTarget: dist/procedures/collection/partition.d.ts#collectionTopicTarget
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -535,7 +536,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 510 names
+## ./browser (dist/browser.d.ts): 511 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -857,6 +858,7 @@ clientModule: dist/procedures/module.d.ts#clientModule
 collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
+collectionTopicTarget: dist/procedures/collection/partition.d.ts#collectionTopicTarget
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -1256,7 +1258,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 282 names
+## ./procedures (dist/procedures/index.d.ts): 283 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1422,6 +1424,7 @@ clientModule: dist/procedures/module.d.ts#clientModule
 collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
 collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
+collectionTopicTarget: dist/procedures/collection/partition.d.ts#collectionTopicTarget
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
 conditionalProcedure: dist/procedures/core/index.d.ts#conditionalProcedure
@@ -3459,6 +3462,12 @@ export type PartitionResolver = (ctx: ProcedureContext, requested: string | unde
 
 ### dist/procedures/collection/partition.d.ts#collectionTopicPartition
 export declare function collectionTopicPartition(topic: string): {
+    collection: string;
+    partition: string | undefined;
+} | undefined;
+
+### dist/procedures/collection/partition.d.ts#collectionTopicTarget
+export declare function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): {
     collection: string;
     partition: string | undefined;
 } | undefined;
