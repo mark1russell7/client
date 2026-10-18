@@ -4,7 +4,7 @@
  * Converts procedures from PROCEDURE_REGISTRY to MCP tool definitions.
  */
 
-import { inferredEffectsOf, isDataDriven, toolHints, untrustedFieldsOf, type AnyProcedure, type Effects, type ProcedurePath } from "@procedures/client";
+import { inferredEffectsOf, isDataDriven, toolHintsOf, untrustedFieldsOf, type AnyProcedure, type Effects, type ProcedurePath } from "@procedures/client";
 import type { JsonSchema, McpTool, McpToolDefinition, McpToolFilter } from "../types.js";
 import { cachedToolInputSchema, cachedToolOutputSchema } from "../schema/tool-schema.js";
 import { encodePath, sanitizePath } from "./path-encoder.js";
@@ -106,8 +106,9 @@ export function procedureToMcpTool(procedure: AnyProcedure): McpTool {
     tool.outputSchema = untrusted.length > 0 ? withUntrustedFields(outputSchema, untrusted) : outputSchema;
   }
 
-  // The hints of the tool, from the declared effects (CAPABILITIES-2026-10)
-  const hints = toolHints(procedure);
+  // The hints of the tool, from the declared effects (CAPABILITIES-2026-10), with the cautious
+  // values of the override of the procedure (`metadata.toolHints`, CLI-10)
+  const hints = toolHintsOf(procedure);
   if (Object.keys(hints).length > 0) {
     tool.annotations = { ...hints };
   }

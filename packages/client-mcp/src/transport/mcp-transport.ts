@@ -61,8 +61,10 @@ interface CallExtra {
 /** The most text blocks of a stream result: the last items of a long stream. */
 const MAX_STREAM_BLOCKS = 100;
 
-function toText(value: unknown): string {
-  return typeof value === "string" ? value : (JSON.stringify(value, null, 2) ?? String(value));
+/** The text of a value: a string as it is, another value as JSON (pretty, or compact on one line). */
+function toText(value: unknown, json: "pretty" | "compact" = "pretty"): string {
+  if (typeof value === "string") return value;
+  return (json === "compact" ? JSON.stringify(value) : JSON.stringify(value, null, 2)) ?? String(value);
 }
 
 /**
@@ -315,7 +317,7 @@ export class McpServerTransport implements ServerTransport {
         }
         // An item with untrusted fields gives its data, then its envelopes (CLI-10)
         const rendered = tool?.untrusted ? this.render(item, tool).content : undefined;
-        const text = rendered ? rendered.map((block) => block.text).join("\n") : toText(item);
+        const text = rendered ? rendered.map((block) => block.text).join("\n") : toText(item, this.options.json);
         blocks.push({ type: "text", text });
         if (blocks.length > MAX_STREAM_BLOCKS) blocks.shift();
         if (progressToken !== undefined && !ownProgress()) {
@@ -351,7 +353,7 @@ export class McpServerTransport implements ServerTransport {
     const fields = tool.untrusted ?? [];
     if (fields.length === 0 || value === null || typeof value !== "object" || Array.isArray(value)) {
       const structured = tool.outputSchema ? structuredContentOf(value) : undefined;
-      return { content: [{ type: "text", text: toText(value) }], ...(structured ? { structuredContent: structured } : {}) };
+      return { content: [{ type: "text", text: toText(value, this.options.json) }], ...(structured ? { structuredContent: structured } : {}) };
     }
     const data: Record<string, unknown> = { ...(value as Record<string, unknown>) };
     const envelopes = createUntrustedEnvelopes(this.options.untrusted ?? {});
@@ -366,7 +368,7 @@ export class McpServerTransport implements ServerTransport {
       texts[field] = text;
       if (text !== "") blocks.push(text);
     }
-    const content: McpTextBlock[] = [{ type: "text", text: toText(data) }];
+    const content: McpTextBlock[] = [{ type: "text", text: toText(data, this.options.json) }];
     if (blocks.length > 0) content.push({ type: "text", text: blocks.join("\n") });
     const structured = tool.outputSchema ? structuredContentOf(data) : undefined;
     return { content, ...(structured ? { structuredContent: { ...structured, ...texts } } : {}) };

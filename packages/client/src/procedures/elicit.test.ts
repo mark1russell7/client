@@ -77,7 +77,19 @@ describe("ctx.elicit", () => {
       throw new Error("client gone");
     });
     const result = await elicitInput({ elicit: broken }, { message: "Name?", fields: { name: { type: "string" } } });
-    expect(result).toEqual({ action: "unavailable", reason: "client gone" });
+    expect(result).toEqual({ action: "unavailable", reason: "The face could not get the answer of the person: client gone" });
+  });
+
+  it("gives `cancel` and does not throw when the call aborts", async () => {
+    const controller = new AbortController();
+    const waits = createElicit(["form"], (_request, options) => {
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+      });
+    });
+    const pending = elicitConfirmation({ elicit: waits, signal: controller.signal }, "Go on?");
+    controller.abort();
+    expect(await pending).toMatchObject({ action: "cancel", confirmed: false });
   });
 });
 
@@ -105,14 +117,17 @@ describe("the elicitation policy of a host", () => {
     expect(await elicit!(question)).toEqual({ action: "decline", by: "person" });
   });
 
-  it("lets the operator answer when the question of the face fails", async () => {
-    const broken = createElicit(["form"], async () => {
-      throw new Error("timeout");
-    });
-    const elicit = elicitWithPolicy(broken, { operatorConsent: true });
-    expect(await elicit!(question)).toMatchObject({ action: "accept", by: "operator" });
-    const strict = elicitWithPolicy(broken);
-    expect(await strict!(question)).toMatchObject({ action: "unavailable", reason: "The face could not ask the person: timeout" });
+  it("does not let the operator answer when the face can ask and the question fails", async () => {
+    // The person can see the question: a timeout or a lost connection is not a consent (review of #9)
+    for (const failure of ["Request timed out", "Connection closed"]) {
+      const broken = createElicit(["form"], async () => {
+        throw new Error(failure);
+      });
+      const elicit = elicitWithPolicy(broken, { operatorConsent: true });
+      expect(await elicit!(question)).toEqual({ action: "unavailable", reason: `The face could not get the answer of the person: ${failure}` });
+      const confirmation = await elicitConfirmation({ elicit: elicitWithPolicy(broken, { operatorConsent: ["go"] }) }, "Go on?", { consent: "go" });
+      expect(confirmation).toMatchObject({ action: "unavailable", confirmed: false });
+    }
   });
 
   it("does not ask the person when the host turns asking off", async () => {

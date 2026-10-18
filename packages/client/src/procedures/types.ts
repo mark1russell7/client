@@ -7,6 +7,7 @@
 
 import type { Elicit } from "./elicit.js";
 import type { ReportProgress } from "./progress.js";
+import type { ToolHintOverride } from "./hints.js";
 import type { ZodErrorLike } from "../client/validation/types.js";
 import type { ProcedureSchema } from "./schema.js";
 import type { CollectionStorage } from "./collection/storage.js";
@@ -95,6 +96,13 @@ export interface ProcedureMetadata {
 
   /** The short name of the procedure for people, for example the title of an MCP tool. */
   title?: string | undefined;
+
+  /**
+   * The override of the tool hints of the effects (CLI-10). It can only make the tool look more
+   * dangerous: `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: false`,
+   * `openWorldHint: true`. The registry refuses each other value.
+   */
+  toolHints?: ToolHintOverride | undefined;
 
   /**
    * The rules of the procedure under a root of the files (roadmap R33): the inputs that name a
