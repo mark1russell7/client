@@ -8,14 +8,24 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRegistry, invokePath, outputValue, type ProcedureRegistry } from "@procedures/client";
 import { confineToRoot, rootDecisionOf } from "@procedures/fs/module";
 import { resolveRoot } from "@procedures/fs/root";
 import { gitModule } from "./module.js";
-import { ceilingOf, confinedGitCommand, currentGitRoot, isRefusedConfigKey, parseConfigList, refusedConfigKeys, underGitRoot } from "./procedures/git/root.js";
+import {
+  ceilingOf,
+  confinedGitCommand,
+  currentGitRoot,
+  gitRootSetup,
+  isRefusedConfigKey,
+  parseConfigList,
+  refusedConfigKeys,
+  removeGitRootSetup,
+  underGitRoot,
+} from "./procedures/git/root.js";
 import type { GitCommitOutput, GitInitOutput, GitLogOutput, GitStatusOutput } from "./types.js";
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -28,6 +38,8 @@ const plain = createRegistry(gitModule);
 /** The environment variables that the tests change, and restore after the tests. */
 const ENV = ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM", "GIT_CEILING_DIRECTORIES"] as const;
 const saved = new Map<string, string | undefined>();
+/** The global configuration of the "host" of the tests. */
+let hostConfig: string;
 
 async function call<T>(key: string, input: unknown, at: ProcedureRegistry = rooted): Promise<T> {
   return outputValue(await invokePath<T>(key.split("."), input, { registry: at }));
@@ -74,13 +86,16 @@ beforeAll(() => {
   for (const name of ENV) saved.set(name, process.env[name]);
   // The global and the system configurations of the machine do not apply to the setup
   const shared = mkdtempSync(join(tmpdir(), "git-host-root-config-"));
-  writeFileSync(join(shared, "gitconfig"), "");
-  process.env["GIT_CONFIG_GLOBAL"] = join(shared, "gitconfig");
+  hostConfig = join(shared, "gitconfig");
+  writeFileSync(hostConfig, "");
+  process.env["GIT_CONFIG_GLOBAL"] = hostConfig;
   process.env["GIT_CONFIG_NOSYSTEM"] = "1";
   delete process.env["GIT_CEILING_DIRECTORIES"];
 });
 
 afterAll(() => {
+  removeGitRootSetup();
+  rmSync(dirname(hostConfig), { recursive: true, force: true });
   for (const [name, value] of saved) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
@@ -236,6 +251,22 @@ describe("the git procedures under the root of a host", () => {
     // Without a root, the clone of a local path works
     await call("git.clone", { url: origin, dest: join(base, "copy") }, plain);
     expect(existsSync(join(base, "copy", ".git"))).toBe(true);
+  });
+
+  it("make their files one time, with only the identity of the host, and delete them", async () => {
+    const first = await gitRootSetup();
+    expect(await gitRootSetup()).toBe(first);
+    expect(readdirSync(first.hooks)).toEqual([]);
+    removeGitRootSetup();
+    expect(existsSync(first.hooks)).toBe(false);
+    // The next setup copies user.name, and not a key that starts a program
+    writeFileSync(hostConfig, "[user]\n\tname = Host User\n[core]\n\tpager = less\n");
+    const second = await gitRootSetup();
+    expect(second.hooks).not.toBe(first.hooks);
+    const copied = readFileSync(second.globalConfig, "utf8");
+    expect(copied).toContain("Host User");
+    expect(copied).not.toContain("pager");
+    writeFileSync(hostConfig, "");
   });
 
   it("run without a root", async () => {

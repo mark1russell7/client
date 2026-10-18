@@ -173,34 +173,51 @@ const KEPT_GLOBAL_KEYS = ["user.name", "user.email", "init.defaultBranch"] as co
 
 let setup: Promise<GitRootSetup> | undefined;
 
+/** The folder of the files of git under a root, when they exist. */
+let setupFolder: string | undefined;
+
 /**
  * This function makes the files of git under a root one time for each process: a new folder in
  * the temporary folder, with an empty hooks folder and a global configuration. The configuration
  * has only the identity of the user from the global configuration of the host, so a commit works.
- * The process deletes the folder at its end.
+ * The process deletes the folder at its end (`removeGitRootSetup()`).
  */
 export function gitRootSetup(): Promise<GitRootSetup> {
-  setup ??= makeSetup().catch((error: unknown) => {
-    setup = undefined;
-    throw error;
-  });
+  setup ??= makeSetup();
   return setup;
 }
 
+/**
+ * This function deletes the files of git under a root. The process starts it at its end. The next
+ * git command under a root makes the files again.
+ */
+export function removeGitRootSetup(): void {
+  if (setupFolder !== undefined) rmSync(setupFolder, { recursive: true, force: true });
+  setupFolder = undefined;
+  setup = undefined;
+}
+
 async function makeSetup(): Promise<GitRootSetup> {
-  const folder = await mkdtemp(join(tmpdir(), "procedures-git-root-"));
-  process.once("exit", () => rmSync(folder, { recursive: true, force: true }));
-  const hooks = join(folder, "hooks");
-  await mkdir(hooks);
-  const globalConfig = join(folder, "global.gitconfig");
-  await writeFile(globalConfig, "");
-  for (const key of KEPT_GLOBAL_KEYS) {
-    const value = await runCommand("git", { args: ["config", "--global", "--get", key], cwd: folder });
-    if (!value.success) continue;
-    // Git writes the value, so a special character of the value stays correct
-    await runCommand("git", { args: ["config", "--file", globalConfig, key, value.stdout.replace(/\r?\n$/, "")], cwd: folder });
+  try {
+    const folder = await mkdtemp(join(tmpdir(), "procedures-git-root-"));
+    setupFolder = folder;
+    process.once("exit", removeGitRootSetup);
+    const hooks = join(folder, "hooks");
+    await mkdir(hooks);
+    const globalConfig = join(folder, "global.gitconfig");
+    await writeFile(globalConfig, "");
+    for (const key of KEPT_GLOBAL_KEYS) {
+      const value = await runCommand("git", { args: ["config", "--global", "--get", key], cwd: folder });
+      if (!value.success) continue;
+      // Git writes the value, so a special character of the value stays correct
+      await runCommand("git", { args: ["config", "--file", globalConfig, key, value.stdout.replace(/\r?\n$/, "")], cwd: folder });
+    }
+    return { hooks, globalConfig };
+  } catch (error) {
+    // The next call tries again
+    setup = undefined;
+    throw error;
   }
-  return { hooks, globalConfig };
 }
 
 // =============================================================================
