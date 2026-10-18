@@ -1,5 +1,13 @@
 # @procedures/vitest
 
+## 0.11.0
+
+### Patch Changes
+
+- Updated dependencies [37c96a3]
+  - @procedures/client@0.11.0
+  - @procedures/shell@0.11.0
+
 ## 0.10.0
 
 ### Patch Changes
