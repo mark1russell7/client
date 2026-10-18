@@ -211,6 +211,12 @@ describe("followTurn", () => {
 describe("cancelTurn", () => {
   const ok: CommandResult = { exitCode: 0, stdout: "", stderr: "", success: true, duration: 1 };
 
+  /**
+   * A process id that is neither this process nor its parent: cancelTurn refuses those two. A
+   * fixed id was the id of the host on one CI runner, and the test failed there.
+   */
+  const TURN_PID = [4321, 4322, 4323].find((pid) => pid !== process.pid && pid !== process.ppid)!;
+
   it("refuses an id that is not a process of a turn", async () => {
     await expect(cancelTurn(1)).rejects.toThrow(/refuses the process id 1/);
     await expect(cancelTurn(0)).rejects.toThrow(/refuses/);
@@ -220,7 +226,7 @@ describe("cancelTurn", () => {
   });
 
   it("does nothing for a process that does not run", async () => {
-    expect(await cancelTurn(4321, { isAlive: () => false })).toEqual({ stopped: false, reason: "The process has ended" });
+    expect(await cancelTurn(TURN_PID, { isAlive: () => false })).toEqual({ stopped: false, reason: "The process has ended" });
   });
 
   it("starts taskkill for the process tree on Windows", async () => {
@@ -229,32 +235,32 @@ describe("cancelTurn", () => {
       calls.push({ command, options });
       return ok;
     };
-    expect(await cancelTurn(4321, { platform: "win32", runner, isAlive: () => true })).toEqual({ stopped: true });
-    expect(calls[0]).toMatchObject({ command: "taskkill", options: { args: ["/T", "/F", "/PID", "4321"] } });
+    expect(await cancelTurn(TURN_PID, { platform: "win32", runner, isAlive: () => true })).toEqual({ stopped: true });
+    expect(calls[0]).toMatchObject({ command: "taskkill", options: { args: ["/T", "/F", "/PID", String(TURN_PID)] } });
 
     const failing = async (): Promise<CommandResult> => ({ ...ok, exitCode: 128, success: false, stderr: "ERROR: not found\n" });
-    expect(await cancelTurn(4321, { platform: "win32", runner: failing, isAlive: () => true })).toEqual({ stopped: false, reason: "ERROR: not found" });
+    expect(await cancelTurn(TURN_PID, { platform: "win32", runner: failing, isAlive: () => true })).toEqual({ stopped: false, reason: "ERROR: not found" });
     const silent = async (): Promise<CommandResult> => ({ ...ok, exitCode: 1, success: false });
-    expect(await cancelTurn(4321, { platform: "win32", runner: silent, isAlive: () => true })).toEqual({ stopped: false, reason: "taskkill gave the exit code 1" });
+    expect(await cancelTurn(TURN_PID, { platform: "win32", runner: silent, isAlive: () => true })).toEqual({ stopped: false, reason: "taskkill gave the exit code 1" });
   });
 
   it("signals the process group on POSIX, then the process", async () => {
     const signals: [number, string][] = [];
-    expect(await cancelTurn(4321, { platform: "linux", isAlive: () => true, kill: (pid, signal) => void signals.push([pid, signal]) })).toEqual({ stopped: true });
-    expect(signals).toEqual([[-4321, "SIGTERM"]]);
+    expect(await cancelTurn(TURN_PID, { platform: "linux", isAlive: () => true, kill: (pid, signal) => void signals.push([pid, signal]) })).toEqual({ stopped: true });
+    expect(signals).toEqual([[-TURN_PID, "SIGTERM"]]);
 
     const groupless: [number, string][] = [];
     const kill = (pid: number, signal: string): void => {
       if (pid < 0) throw new Error("ESRCH");
       groupless.push([pid, signal]);
     };
-    expect(await cancelTurn(4321, { platform: "darwin", isAlive: () => true, kill, signal: "SIGKILL" })).toEqual({ stopped: true });
-    expect(groupless).toEqual([[4321, "SIGKILL"]]);
+    expect(await cancelTurn(TURN_PID, { platform: "darwin", isAlive: () => true, kill, signal: "SIGKILL" })).toEqual({ stopped: true });
+    expect(groupless).toEqual([[TURN_PID, "SIGKILL"]]);
 
     const refusing = (): void => {
       throw new Error("EPERM");
     };
-    expect(await cancelTurn(4321, { platform: "linux", isAlive: () => true, kill: refusing })).toEqual({ stopped: false, reason: "EPERM" });
+    expect(await cancelTurn(TURN_PID, { platform: "linux", isAlive: () => true, kill: refusing })).toEqual({ stopped: false, reason: "EPERM" });
   });
 });
 
