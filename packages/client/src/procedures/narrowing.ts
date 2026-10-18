@@ -7,10 +7,15 @@
  * `Procedure-Narrowing`, and WebSocket has the metadata of a frame. MCP has the `_meta` of a
  * request, and an invocation in the process has the option `narrow`.
  *
- * The server applies the key after the narrowing of its request hook (`principalOf`). It uses the
- * meet of the clearance order, the intersection of the effects and the earlier deadline. Thus the
- * key can only make the capability narrower. A part that asks for more has no effect, and the
- * server reports it in debug.
+ * A request can have more than one source of narrowing, for example the header of a gateway and
+ * the key of `X-Metadata` of the client. No source replaces another: the value of the key
+ * becomes a list of the sources (`addNarrowing`). The invocation of the host applies all the
+ * sources. The clearance is the meet of the clearance order, the effects are the intersection,
+ * and the deadline is the earliest. Thus each source can only narrow, in each sequence.
+ *
+ * A part that asks for more has no effect. A part that the server cannot read or compare has no
+ * effect too. A source that the server cannot read at all refuses the call, because the server
+ * does not know what that source asks for. The notes of these parts go to the debug reports.
  *
  * This module imports no Node code.
  */
@@ -18,7 +23,10 @@
 import type { Capability, CapabilityRequest, ClearanceOf, ClearanceOrder, PermittedEffects } from "./types.js";
 import { UNLIMITED_CAPABILITY, narrowCapability } from "./capability.js";
 
-/** The metadata key of the narrowing of a call. Its value is a `CapabilityRequest` as JSON. */
+/**
+ * The metadata key of the narrowing of a call. Its value is a `CapabilityRequest` as an object or
+ * as JSON text, or a list of them: each item is one source.
+ */
 export const NARROWING_METADATA_KEY = "procedure-narrowing";
 
 /**
@@ -27,30 +35,36 @@ export const NARROWING_METADATA_KEY = "procedure-narrowing";
  */
 export const NARROWING_HEADER = "Procedure-Narrowing";
 
-/** A part of a narrowing that has no effect, and the reason. */
+/** A part of a narrowing that has no effect or that refuses the call, and the reason. */
 export interface NarrowingNote {
-  /** The part: the whole narrowing, its clearance, its effects or its time. */
+  /** The part: a whole source, its clearance, its effects or its time. */
   readonly field: "narrowing" | "clearance" | "effects" | "timeoutMs";
   /**
-   * `"widens"`: the part asks for more than the call holds, so the server keeps what the call
-   * holds. `"invalid"`: the server cannot read or compare the part, so it ignores the part.
+   * - `"widens"`: the part asks for more than the call holds, so it has no effect.
+   * - `"invalid"`: the server cannot read or compare the part, so it ignores the part.
+   * - `"refused"`: the server refuses the call. A source that it cannot read (the field
+   *   `narrowing`) gives `INVALID_REQUEST`. Clearances without a meet (the field `clearance`)
+   *   give `FORBIDDEN` with the reason `clearance`.
    */
-  readonly kind: "widens" | "invalid";
+  readonly kind: "widens" | "invalid" | "refused";
   /** The reason, as a sentence. */
   readonly message: string;
 }
 
-/** A narrowing from the wire, and the notes of the parts that the decoder ignored. */
+/** The sources of narrowing from the wire, and the notes of the parts that the decoder did not take. */
 export interface WireNarrowing {
-  /** The narrowing, or undefined when the value asks for nothing that the decoder can read. */
-  readonly narrowing: CapabilityRequest<unknown> | undefined;
+  /** The sources that the decoder can read, in their sequence. Each one can only narrow. */
+  readonly narrowings: readonly CapabilityRequest<unknown>[];
   readonly notes: readonly NarrowingNote[];
 }
 
 /** A capability after a narrowing, and the notes of the parts that had no effect. */
 export interface NarrowedCapability<C = ClearanceOf> {
+  /** The narrowed capability. When the narrowing refuses the call, it is the capability that the call held. */
   readonly capability: Capability<C>;
   readonly notes: readonly NarrowingNote[];
+  /** The note that refuses the call, or undefined when the call can go on. */
+  readonly refusal?: NarrowingNote | undefined;
 }
 
 /** The fields of a `CapabilityRequest`. */
@@ -58,6 +72,12 @@ const FIELDS: ReadonlySet<string> = new Set(["clearance", "effects", "timeoutMs"
 
 /** The fields of `PermittedEffects`. */
 const EFFECT_FIELDS: ReadonlySet<string> = new Set(["reads", "writes", "destructive"]);
+
+/** The depth of the lists and the texts in one value of the key: a list of texts of lists. */
+const MAX_DEPTH = 4;
+
+/** The value of `parseText` for a text that is not JSON. */
+const UNREADABLE: unique symbol = Symbol("unreadable");
 
 /** True for an object that is not an array and not null. */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -89,18 +109,34 @@ function describe(value: unknown): string {
   }
 }
 
-/** The value of a text: the JSON of the text, or of its URI-decoded form, or undefined. */
-function parseText(text: string): unknown {
+/** The JSON value of a text, or `UNREADABLE`. */
+function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    // The URI-encoded form of a header value that is not Latin-1
+    return UNREADABLE;
   }
+}
+
+/**
+ * The value of a text: its JSON, or the JSON of its URI-decoded form. Two header values that a
+ * server joined with ", " are two JSON objects with a comma between them: the function reads them
+ * as a list.
+ */
+function parseText(text: string): unknown {
+  let decoded: string | undefined;
   try {
-    return JSON.parse(decodeURIComponent(text)) as unknown;
+    decoded = decodeURIComponent(text);
   } catch {
-    return undefined;
+    decoded = undefined;
   }
+  for (const candidate of decoded === undefined || decoded === text ? [text] : [text, decoded]) {
+    for (const json of [candidate, `[${candidate}]`]) {
+      const value = parseJson(json);
+      if (value !== UNREADABLE) return value;
+    }
+  }
+  return UNREADABLE;
 }
 
 /** The permitted effects of a narrowing from the wire, or undefined. Each part that is not valid gets a note. */
@@ -126,60 +162,114 @@ function effectsFromWire(value: unknown, notes: NarrowingNote[]): PermittedEffec
   return Object.keys(result).length > 0 ? (Object.freeze(result) as PermittedEffects) : undefined;
 }
 
-/**
- * This function reads the narrowing key of a call (CLI-30): a `CapabilityRequest` as an object,
- * or as the JSON text of a header (raw or URI-encoded). It reads only the own fields `clearance`,
- * `effects` and `timeoutMs`. A part that is not valid gets a note, and the function ignores it.
- * An absent value asks for nothing and gets no note.
- */
-export function narrowingOf(value: unknown): WireNarrowing {
-  if (value === undefined || value === null || value === "") return { narrowing: undefined, notes: [] };
-  const decoded = typeof value === "string" ? parseText(value) : value;
-  if (!isRecord(decoded)) {
-    return { narrowing: undefined, notes: [{ field: "narrowing", kind: "invalid", message: `The narrowing is not a JSON object: ${describe(value)}` }] };
-  }
-  const notes: NarrowingNote[] = [];
+/** The source of one object, or undefined when it asks for nothing that the decoder can read. */
+function sourceOf(record: Record<string, unknown>, notes: NarrowingNote[]): CapabilityRequest<unknown> | undefined {
   const narrowing: CapabilityRequest<unknown> = {};
-  const clearance = own(decoded, "clearance");
+  const clearance = own(record, "clearance");
   if (clearance === null) notes.push({ field: "clearance", kind: "invalid", message: "The clearance of the narrowing is null" });
   else if (clearance !== undefined) narrowing.clearance = clearance;
-  const effects = own(decoded, "effects");
+  const effects = own(record, "effects");
   if (effects !== undefined) {
     const permitted = effectsFromWire(effects, notes);
     if (permitted) narrowing.effects = permitted;
   }
-  const timeoutMs = own(decoded, "timeoutMs");
+  const timeoutMs = own(record, "timeoutMs");
   if (isTime(timeoutMs)) narrowing.timeoutMs = timeoutMs;
   else if (timeoutMs !== undefined) notes.push({ field: "timeoutMs", kind: "invalid", message: `The time of the narrowing is not a number of milliseconds: ${describe(timeoutMs)}` });
-  for (const key of Object.keys(decoded)) {
+  for (const key of Object.keys(record)) {
     if (!FIELDS.has(key)) notes.push({ field: "narrowing", kind: "invalid", message: `The narrowing has an unknown field: ${describe(key)}` });
   }
-  return { narrowing: Object.keys(narrowing).length > 0 ? narrowing : undefined, notes };
+  return Object.keys(narrowing).length > 0 ? narrowing : undefined;
 }
 
-/** The clearance that a narrowing can apply, or undefined. A clearance that has no effect gets a note. */
-function clearanceWithin<C>(held: C | undefined, asked: C, order: ClearanceOrder<C> | undefined, notes: NarrowingNote[]): C | undefined {
-  if (held !== undefined && Object.is(held, asked)) return asked;
-  if (!order) {
-    if (held === undefined) return asked;
-    notes.push({ field: "clearance", kind: "invalid", message: `The server has no clearance order, so it cannot compare the clearance ${describe(asked)} with ${describe(held)}` });
-    return undefined;
+/** This function reads the sources of one value of the key into `sources`. */
+function collect(value: unknown, depth: number, sources: CapabilityRequest<unknown>[], notes: NarrowingNote[]): void {
+  if (value === undefined || value === null || value === "") return;
+  if (depth > MAX_DEPTH) {
+    notes.push({ field: "narrowing", kind: "refused", message: "The narrowing has too many nested lists or texts" });
+    return;
   }
+  if (typeof value === "string") {
+    const parsed = parseText(value);
+    if (parsed === UNREADABLE) notes.push({ field: "narrowing", kind: "refused", message: `The narrowing is not JSON: ${describe(value)}` });
+    else collect(parsed, depth + 1, sources, notes);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collect(item, depth + 1, sources, notes);
+    return;
+  }
+  if (!isRecord(value)) {
+    notes.push({ field: "narrowing", kind: "refused", message: `The narrowing is not a JSON object: ${describe(value)}` });
+    return;
+  }
+  const source = sourceOf(value, notes);
+  if (source) sources.push(source);
+}
+
+/**
+ * This function reads the narrowing key of a call (CLI-30). The value is a `CapabilityRequest` as
+ * an object or as the JSON text of a header, or a list of them. It reads only the own
+ * fields `clearance`, `effects` and `timeoutMs`. A part that is not valid gets a note, and the
+ * function ignores the part. A source that is not a JSON object gets a note of the kind
+ * `"refused"`. An absent value asks for nothing and gets no note.
+ */
+export function narrowingOf(value: unknown): WireNarrowing {
+  const narrowings: CapabilityRequest<unknown>[] = [];
+  const notes: NarrowingNote[] = [];
+  collect(value, 0, narrowings, notes);
+  return { narrowings, notes };
+}
+
+/**
+ * This function adds a source to the value of the narrowing key. The result is a list of the
+ * sources, so no source replaces another. A face calls it for each source of a request: a header,
+ * a key of `X-Metadata`, the `_meta` of MCP.
+ */
+export function addNarrowing(current: unknown, source: unknown): unknown {
+  if (source === undefined) return current;
+  if (current === undefined) return source;
+  return [...(Array.isArray(current) ? current : [current]), ...(Array.isArray(source) ? source : [source])];
+}
+
+/**
+ * The clearance that a source can apply, or undefined. A value outside the order gets a note, and a
+ * value above the held clearance gets a note too.
+ */
+function clearanceOf<C>(held: C | undefined, asked: C, order: ClearanceOrder<C> | undefined, notes: NarrowingNote[]): C | undefined {
+  if (!order) return asked;
   try {
     // A value outside the order throws here: a ladder throws for a value that it does not have
-    if (held === undefined) {
-      order.leq(asked, asked);
-      return asked;
-    }
-    const within = order.leq(asked, held);
-    order.meet(held, asked);
-    if (!within) {
+    order.leq(asked, asked);
+    if (held !== undefined && !Object.is(held, asked) && !order.leq(asked, held)) {
       notes.push({ field: "clearance", kind: "widens", message: `The clearance ${describe(asked)} is not at or below the clearance of the call (${describe(held)}). The part above it has no effect.` });
     }
     return asked;
   } catch {
     notes.push({ field: "clearance", kind: "invalid", message: `The clearance ${describe(asked)} is not a value of the clearance order of the server` });
     return undefined;
+  }
+}
+
+/** The result of `meetOf` when the clearances have no meet. */
+const NO_MEET: unique symbol = Symbol("no meet");
+
+/** The meet of the held clearance and the clearances of the sources, or `NO_MEET` with a note. */
+function meetOf<C>(held: C | undefined, asked: readonly C[], order: ClearanceOrder<C> | undefined, notes: NarrowingNote[]): C | undefined | typeof NO_MEET {
+  const values = held === undefined ? [...asked] : [held, ...asked];
+  if (values.length === 0) return undefined;
+  if (!order) {
+    // Without an order, two clearances meet only when they are the same value
+    const distinct = values.filter((value, index) => values.findIndex((other) => Object.is(other, value)) === index);
+    if (distinct.length === 1) return distinct[0];
+    notes.push({ field: "clearance", kind: "refused", message: `The server has no clearance order, so it cannot meet the clearances ${distinct.map(describe).join(" and ")}` });
+    return NO_MEET;
+  }
+  try {
+    return values.reduce((met, value) => order.meet(met, value));
+  } catch (error) {
+    notes.push({ field: "clearance", kind: "refused", message: `The clearance order cannot meet the clearances: ${error instanceof Error ? error.message : String(error)}` });
+    return NO_MEET;
   }
 }
 
@@ -201,38 +291,60 @@ function noteWiderEffects(held: PermittedEffects | undefined, asked: PermittedEf
 }
 
 /**
- * This function narrows a capability with a request that can come from outside the host (CLI-30).
- * It is `narrowCapability` that does not throw: a part that the order cannot compare gets a note,
- * and the function ignores it. A part that asks for more than `held` gets a note too. The result
- * is the same as `held`, or narrower. Without `asked`, the result is `held`.
+ * This function narrows a capability with one or more sources that can come from outside the host
+ * (CLI-30). The clearance is the meet of the held clearance and of each source, the effects are the
+ * intersection, and the deadline is the earliest. Thus the result does not depend on the sequence
+ * of the sources, and each source can only make it narrower.
+ *
+ * The function does not throw. A part that asks for more than `held`, or that the order cannot
+ * compare, gets a note and has no effect. Clearances without a meet (two different values and no
+ * order) give `refusal`: the caller refuses the call.
  */
 export function narrowWithin<C>(
   held: Capability<C> | undefined,
-  asked: CapabilityRequest<unknown> | undefined,
+  asked: CapabilityRequest<unknown> | readonly CapabilityRequest<unknown>[] | undefined,
   order?: ClearanceOrder<C>,
   now: number = Date.now()
 ): NarrowedCapability<C> {
   const base = held ?? (UNLIMITED_CAPABILITY as Capability<C>);
-  if (!asked) return { capability: base, notes: [] };
+  const sources: readonly CapabilityRequest<unknown>[] = asked === undefined ? [] : Array.isArray(asked) ? asked : [asked as CapabilityRequest<unknown>];
+  if (sources.length === 0) return { capability: base, notes: [] };
   const notes: NarrowingNote[] = [];
-  const request: CapabilityRequest<C> = {};
-  if (asked.clearance !== undefined) {
-    const clearance = clearanceWithin(base.clearance, asked.clearance as C, order, notes);
-    if (clearance !== undefined) request.clearance = clearance;
-  }
-  if (asked.effects !== undefined) {
-    noteWiderEffects(base.effects, asked.effects, notes);
-    request.effects = asked.effects;
-  }
-  if (asked.timeoutMs !== undefined) {
-    if (!isTime(asked.timeoutMs)) {
-      notes.push({ field: "timeoutMs", kind: "invalid", message: `The time of the narrowing is not a number of milliseconds: ${describe(asked.timeoutMs)}` });
-    } else {
-      if (base.deadline !== undefined && now + asked.timeoutMs > base.deadline) {
-        notes.push({ field: "timeoutMs", kind: "widens", message: `The narrowing asks for ${asked.timeoutMs} ms, and the deadline of the call is earlier. That part has no effect.` });
+  const clearances: C[] = [];
+  let capability = base;
+  for (const source of sources) {
+    if (source.clearance !== undefined) {
+      const clearance = clearanceOf(base.clearance, source.clearance as C, order, notes);
+      if (clearance !== undefined) clearances.push(clearance);
+    }
+    const part: CapabilityRequest<C> = {};
+    if (source.effects !== undefined) {
+      noteWiderEffects(base.effects, source.effects, notes);
+      part.effects = source.effects;
+    }
+    if (source.timeoutMs !== undefined) {
+      if (!isTime(source.timeoutMs)) {
+        notes.push({ field: "timeoutMs", kind: "invalid", message: `The time of the narrowing is not a number of milliseconds: ${describe(source.timeoutMs)}` });
+      } else {
+        if (base.deadline !== undefined && now + source.timeoutMs > base.deadline) {
+          notes.push({ field: "timeoutMs", kind: "widens", message: `The narrowing asks for ${source.timeoutMs} ms, and the deadline of the call is earlier. That part has no effect.` });
+        }
+        part.timeoutMs = source.timeoutMs;
       }
-      request.timeoutMs = asked.timeoutMs;
+    }
+    // Without a clearance, the narrowing of the effects and of the time does not throw
+    capability = narrowCapability(capability, part, order, now);
+  }
+  const met = meetOf(base.clearance, clearances, order, notes);
+  if (met === NO_MEET) return { capability: base, notes, refusal: notes.find((note) => note.kind === "refused") };
+  if (met !== undefined) {
+    try {
+      capability = narrowCapability(capability, { clearance: met }, order, now);
+    } catch (error) {
+      const refusal: NarrowingNote = { field: "clearance", kind: "refused", message: `The clearance order cannot meet the clearances: ${error instanceof Error ? error.message : String(error)}` };
+      notes.push(refusal);
+      return { capability: base, notes, refusal };
     }
   }
-  return { capability: narrowCapability(base, request, order, now), notes };
+  return { capability, notes };
 }

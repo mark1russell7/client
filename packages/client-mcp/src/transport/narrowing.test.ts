@@ -1,14 +1,17 @@
 /**
  * The narrowing key on the MCP face (CLI-30): the key `procedure-narrowing` of the `_meta` of a
- * tool call asks for a narrower capability. The server applies it, so a narrowed call cannot
- * reach a tool above the narrowing, and a key that asks for more has no effect.
+ * tool call asks for a narrower capability, and so does the header of a call over Streamable HTTP.
+ * The two sources combine: neither one replaces the other. A narrowed call cannot reach a tool
+ * above the narrowing, and a source that asks for more has no effect.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
+import { createServer } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createProcedure, defineModule, ladder, NARROWING_METADATA_KEY, type AnyProcedure } from "@procedures/client";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { createProcedure, defineModule, ladder, NARROWING_HEADER, NARROWING_METADATA_KEY, type AnyProcedure } from "@procedures/client";
 import { createMcpHost, type McpHostOptions } from "../host.js";
 
 const AUDIENCES = ["public", "guest", "intimate"];
@@ -66,6 +69,40 @@ describe("the narrowing key on the MCP face (CLI-30)", () => {
     expect(refused.isError).toBe(true);
     expect(refused._meta).toMatchObject({ code: "FORBIDDEN", reason: "effects-exceeded" });
     expect((await call(client, "notes.read", { effects: { writes: [] } })).structuredContent).toEqual({ clearance: null, writes: [] });
+  });
+
+  it("combines the header of Streamable HTTP and the _meta key: no source replaces the other, in each sequence", async () => {
+    const port = await new Promise<number>((resolve) => {
+      const probe = createServer();
+      probe.listen(0, "127.0.0.1", () => {
+        const address = probe.address();
+        probe.close(() => resolve(typeof address === "object" && address ? address.port : 0));
+      });
+    });
+    const host = createMcpHost({
+      modules: [testModule()],
+      faces: { http: { port } },
+      policy: { capability: { clearance: "intimate" }, clearanceOrder: ladder(AUDIENCES) },
+    });
+    await host.start();
+    cleanups.push(() => host.stop());
+    const url = new URL(host.state().faces[0]!.url!);
+    const connect = async (header: unknown): Promise<McpClient> => {
+      const client = new McpClient({ name: "test", version: "0" });
+      // The SDK types do not agree with exactOptionalPropertyTypes
+      await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers: { [NARROWING_HEADER]: JSON.stringify(header) } } }) as never);
+      cleanups.push(() => client.close());
+      return client;
+    };
+    // A gateway narrows with the header, and the client asks for more in _meta
+    const gateway = await connect({ clearance: "public" });
+    expect((await call(gateway, "notes.read", { clearance: "intimate" })).structuredContent).toMatchObject({ clearance: "public" });
+    // The reverse: the header asks for more, and the _meta key narrows
+    const wide = await connect({ clearance: "intimate" });
+    expect((await call(wide, "notes.read", { clearance: "public" })).structuredContent).toMatchObject({ clearance: "public" });
+    // The effects of the header apply with the clearance of _meta
+    const readOnly = await connect({ effects: { writes: [] } });
+    expect((await call(readOnly, "notes.write", { clearance: "intimate", effects: { writes: "any" } }))._meta).toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("a key that tries to widen has no effect", async () => {

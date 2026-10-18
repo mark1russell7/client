@@ -29,6 +29,7 @@ import { ms, type Duration } from "../../../duration.js";
 import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
+import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 
 /** The parts of a request that a URL strategy of `procedureHandler` reads. */
 export interface UrlRequest {
@@ -214,6 +215,19 @@ const GUARD_REASONS: Record<string, string> = {
   UNSUPPORTED_MEDIA_TYPE: "media-type-not-allowed",
 };
 
+/** This function sets a key as an own property, also the key `__proto__` (the `put` of the query language). */
+function put(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+/**
+ * This function sets a key at the root of the metadata. Each source of the narrowing key adds to
+ * the key, so no source replaces another (CLI-30).
+ */
+function setMetadata(metadata: Metadata, key: string, value: unknown): void {
+  metadata[key] = key === NARROWING_METADATA_KEY ? addNarrowing(metadata[key], value) : value;
+}
+
 /** This function writes a JSON response without a framework. */
 function writeJson(res: NodeResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);
@@ -374,8 +388,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     const id = (req.headers["x-request-id"] as string | undefined) ?? `req-${Date.now()}-${Math.random()}`;
 
     // The query without its secret parameters: they go into the credentials (CLI-2a)
+    // An own property for each key, also `__proto__`: a key of the request changes no prototype
     const query: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(queryOf(req))) if (!secretQuery.has(key)) query[key] = value;
+    for (const [key, value] of Object.entries(queryOf(req))) if (!secretQuery.has(key)) put(query, key, value);
     const params = paramsOf(req);
 
     // The metadata of the headers and of the query. The query parameters cannot replace headers,
@@ -387,17 +402,21 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       params,
     };
     for (const [key, value] of Object.entries(query)) {
-      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) metadata[key] = value;
+      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) setMetadata(metadata, key, value);
     }
 
     // The custom headers at the root of the metadata, as the client's metadataToHeaders() sends
     // them. A secret header (Cookie too) does not go there.
     for (const [key, value] of Object.entries(req.headers)) {
       const lower = key.toLowerCase();
-      if (STANDARD_HEADERS.has(lower) || isSecretHeader(lower, secretHeaders) || typeof value !== "string") continue;
+      if (STANDARD_HEADERS.has(lower) || isSecretHeader(lower, secretHeaders) || typeof value !== "string" || lower === NARROWING_METADATA_KEY) continue;
       const normalizedKey = HEADER_MAPPINGS[lower] ?? key;
       if (!RESERVED_METADATA.has(normalizedKey) && !normalizedKey.startsWith("__")) metadata[normalizedKey] = value;
     }
+    // Each value of the narrowing header is one source, also each line of a repeated header. No
+    // source replaces another: a gateway's header and the client's key of X-Metadata both apply (CLI-30)
+    const narrowingHeader = req.headersDistinct?.[NARROWING_METADATA_KEY] ?? req.headers[NARROWING_METADATA_KEY];
+    for (const value of [narrowingHeader].flat()) if (typeof value === "string") setMetadata(metadata, NARROWING_METADATA_KEY, value);
 
     // The custom metadata of the HTTP client: any JSON value, any key (deep dive TRN-11)
     const encoded = req.headers["x-metadata"];
@@ -408,7 +427,7 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       const custom = decodeMetadataHeader(encoded);
       if (!custom) throw new BodyError("The X-Metadata header is not URI-encoded JSON of an object", 400);
       for (const [key, value] of Object.entries(custom)) {
-        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) metadata[key] = value;
+        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) setMetadata(metadata, key, value);
       }
     }
 

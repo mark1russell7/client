@@ -25,7 +25,7 @@ import type {
   ElicitOptions,
   ReportProgress,
 } from "@procedures/client";
-import { NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
+import { NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -72,15 +72,14 @@ function callCredentials(extra: CallExtra): Credentials | undefined {
 
 /**
  * The narrowing key of a tool call (CLI-30): the key `procedure-narrowing` of the `_meta` of the
- * request. Over Streamable HTTP, the `Procedure-Narrowing` header is the same key. The server
- * applies it, so it can only make the capability of the call narrower.
+ * request, and the `Procedure-Narrowing` header of a call over Streamable HTTP. They are two
+ * sources, and no source replaces the other. The server applies each one, so each one can only
+ * make the capability of the call narrower.
  */
 function callNarrowing(extra: CallExtra): unknown {
   const meta = extra._meta;
   const fromMeta = meta !== undefined && Object.hasOwn(meta, NARROWING_METADATA_KEY) ? meta[NARROWING_METADATA_KEY] : undefined;
-  const header = extra.requestInfo?.headers[NARROWING_METADATA_KEY];
-  const value = fromMeta ?? (Array.isArray(header) ? header[0] : header);
-  return value;
+  return addNarrowing(fromMeta, extra.requestInfo?.headers[NARROWING_METADATA_KEY]);
 }
 
 /**

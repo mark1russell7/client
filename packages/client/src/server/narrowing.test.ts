@@ -22,8 +22,8 @@ import { createProcedure } from "../procedures/define.js";
 import { createRegistry } from "../procedures/module.js";
 import { ladder } from "../procedures/capability.js";
 import { invokePath, type Interceptor } from "../procedures/invoke.js";
-import { NARROWING_HEADER, NARROWING_METADATA_KEY, narrowWithin, narrowingOf } from "../procedures/narrowing.js";
-import type { ClearanceOrder } from "../procedures/types.js";
+import { NARROWING_HEADER, NARROWING_METADATA_KEY, addNarrowing, narrowWithin, narrowingOf } from "../procedures/narrowing.js";
+import type { CapabilityRequest, ClearanceOrder } from "../procedures/types.js";
 import { ProcedureServer, type ProcedureServerOptions } from "./procedure-server.js";
 import { pathToMethod } from "./method.js";
 import type { PrincipalOf, ServerDebugReport } from "./types.js";
@@ -35,6 +35,7 @@ const ORDER = ladder(AUDIENCES);
 const READ = ["notes", "read"];
 const DIARY = ["diary", "read"];
 const WRITE = ["notes", "write"];
+const NESTED = ["notes", "nested"];
 
 function registry() {
   return createRegistry({
@@ -64,6 +65,13 @@ function registry() {
         .output(z.string())
         .meta({ effects: { reads: [], writes: ["notes"] } })
         .handler(async () => "written")
+        .build(),
+      createProcedure()
+        .path(NESTED)
+        .input(z.object({}))
+        .output(z.unknown())
+        .meta({ effects: { reads: ["world"], writes: [] }, calls: ["notes.read"] })
+        .handler(async (_input, ctx) => ctx.client.call(READ, {}))
         .build(),
     ],
   });
@@ -102,7 +110,7 @@ function serverOf(options: ProcedureServerOptions, reports: ServerDebugReport[])
 }
 
 /** One POST over HTTP with any headers: the status and the body. */
-function post(port: number, path: string, headers: Record<string, string> = {}, body = "{}"): Promise<{ status: number; body: Record<string, unknown> }> {
+function post(port: number, path: string, headers: Record<string, string | string[]> = {}, body = "{}"): Promise<{ status: number; body: Record<string, unknown> }> {
   return new Promise((resolve, reject) => {
     const req = request({ host: "127.0.0.1", port, method: "POST", path, headers: { "content-type": "application/json", ...headers } }, (res: IncomingMessage) => {
       let text = "";
@@ -242,6 +250,33 @@ describe("the narrowing key on the HTTP header (CLI-30)", () => {
     expect(res.body).toMatchObject({ clearance: "guest" });
   });
 
+  it("combines the header and the key of X-Metadata: no source replaces the other, in each sequence", async () => {
+    const port = await start();
+    const meta = (narrowing: unknown): string => encodeURIComponent(JSON.stringify({ [NARROWING_METADATA_KEY]: narrowing }));
+    // A gateway narrows with the header, and the client asks for more in X-Metadata
+    const gateway = await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: JSON.stringify({ clearance: "public" }), "x-metadata": meta({ clearance: "intimate" }) });
+    expect(gateway.body).toMatchObject({ clearance: "public" });
+    // The reverse: the header asks for more, and the key of X-Metadata narrows
+    const client = await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: JSON.stringify({ clearance: "intimate" }), "x-metadata": meta({ clearance: "public" }) });
+    expect(client.body).toMatchObject({ clearance: "public" });
+    // The effects of one source and the clearance of the other both apply
+    const both = await post(port, "/api/proc/notes/write", { [NARROWING_HEADER]: JSON.stringify({ effects: { writes: [] } }), "x-metadata": meta({ clearance: "intimate", effects: { writes: "any" } }) });
+    expect(both.status).toBe(403);
+    // A query parameter with the name of the key is one more source
+    const query = `/api/proc/notes/read?${NARROWING_METADATA_KEY}=${encodeURIComponent(JSON.stringify({ clearance: "guest" }))}`;
+    expect((await post(port, query, { "x-metadata": meta({ clearance: "intimate" }) })).body).toMatchObject({ clearance: "guest" });
+  });
+
+  it("takes each line of a repeated header, and refuses a source that it cannot read", async () => {
+    const port = await start();
+    const lines = await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: [JSON.stringify({ clearance: "intimate" }), JSON.stringify({ clearance: "public" })] });
+    expect(lines.body).toMatchObject({ clearance: "public" });
+    // A broken line of the client does not remove the line of a gateway: the server refuses the call
+    const broken = await post(port, "/api/proc/notes/read", { [NARROWING_HEADER]: ['{"clearance":', JSON.stringify({ clearance: "public" })] });
+    expect(broken.status).toBe(400);
+    expect(broken.body).toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
   it("is in the default CORS headers, so a browser on another origin can send it", () => {
     expect(DEFAULT_CORS_HEADERS).toContain(NARROWING_HEADER);
   });
@@ -268,6 +303,39 @@ describe("the narrowing key in the process (CLI-30)", () => {
     expect(narrowed).toMatchObject({ kind: "value", value: { clearance: "public" } });
   });
 
+  it("combines the option narrow with the key of the metadata, and refuses a source that it cannot read", async () => {
+    const options = { registry: registry(), capability: { clearance: "intimate" }, clearanceOrder: ORDER, interceptors: [audienceGate] };
+    const both = await invokePath(READ, {}, { ...options, metadata: { [NARROWING_METADATA_KEY]: { clearance: "intimate" } }, narrow: { clearance: "public" } });
+    expect(both).toMatchObject({ value: { clearance: "public" } });
+    const reverse = await invokePath(READ, {}, { ...options, metadata: { [NARROWING_METADATA_KEY]: { clearance: "public" } }, narrow: { clearance: "intimate" } });
+    expect(reverse).toMatchObject({ value: { clearance: "public" } });
+    await expect(invokePath(READ, {}, { ...options, metadata: { [NARROWING_METADATA_KEY]: "{broken" } })).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    // Without an order, two different clearances have no meet: the invocation refuses the call
+    const unmet = invokePath(READ, {}, { registry: registry(), capability: { clearance: "a" }, metadata: { [NARROWING_METADATA_KEY]: { clearance: "b" } } });
+    await expect(unmet).rejects.toMatchObject({ code: "FORBIDDEN", reason: "clearance" });
+  });
+
+  it("applies the key one time, for the call of the host: a nested call gets the narrowed capability", async () => {
+    const notes: unknown[] = [];
+    const output = await invokePath(NESTED, {}, {
+      registry: registry(),
+      clearanceOrder: ORDER,
+      metadata: { [NARROWING_METADATA_KEY]: { clearance: "guest", timeoutMs: 5000 } },
+      onNarrowingNotes: (list) => notes.push(...list),
+    });
+    expect(output).toMatchObject({ value: { clearance: "guest" } });
+    // A second application in the nested call would note that its time is after the deadline
+    expect(notes).toEqual([]);
+  });
+
+  it("narrows a local procedure of a Client through the metadata of exec()", async () => {
+    const reg = registry();
+    const client = new Client({ transport: new LocalTransport({ registry: reg }), capability: { clearance: "intimate" }, clearanceOrder: ORDER, interceptors: [audienceGate] }).useRegistry(reg);
+    expect(await client.exec(DIARY, {})).toBe("secret");
+    await expect(client.exec(DIARY, {}, { metadata: { [NARROWING_METADATA_KEY]: { clearance: "guest" } } })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await client.exec(READ, {}, { metadata: { [NARROWING_METADATA_KEY]: { clearance: "public" } } })).toMatchObject({ clearance: "public" });
+  });
+
   it("is part of the cache key of the client: a narrowed call does not get the cached result of a wider call", () => {
     const method = pathToMethod(READ);
     expect(defaultKeyGenerator(method, {}, { [NARROWING_METADATA_KEY]: { clearance: "guest" } })).not.toBe(defaultKeyGenerator(method, {}, {}));
@@ -289,8 +357,9 @@ describe("the debug reports of the narrowing key (CLI-30)", () => {
       { topic: "narrowing", requestId: "r1", method: pathToMethod(READ), field: "clearance", kind: "invalid" },
     ]);
     reports.length = 0;
-    expect((await handle(server, "not json")).status.type).toBe("success");
-    expect(reports.map((report) => report.detail)).toEqual([{ field: "narrowing", kind: "invalid" }]);
+    // A source that the server cannot read refuses the call: the server does not know what it asks for
+    expect((await handle(server, "not json")).status).toMatchObject({ type: "error", code: "INVALID_REQUEST" });
+    expect(reports.map((report) => report.detail)).toEqual([{ field: "narrowing", kind: "refused" }]);
   });
 
   it("writes each report with console.debug for debug: true, and nothing without the option", async () => {
@@ -341,18 +410,29 @@ describe("a jarvis-style mapping of the audience (CLI-30)", () => {
 
 describe("the decoder of the narrowing key (CLI-30)", () => {
   it("reads an object, the JSON of a header and its URI-encoded form", () => {
-    expect(narrowingOf(undefined)).toEqual({ narrowing: undefined, notes: [] });
-    expect(narrowingOf({ clearance: "guest" }).narrowing).toEqual({ clearance: "guest" });
-    expect(narrowingOf('{"clearance":"guest","timeoutMs":20}').narrowing).toEqual({ clearance: "guest", timeoutMs: 20 });
-    expect(narrowingOf(encodeURIComponent('{"effects":{"reads":["a"],"writes":"any","destructive":false}}')).narrowing).toEqual({
-      effects: { reads: ["a"], writes: "any", destructive: false },
-    });
+    expect(narrowingOf(undefined)).toEqual({ narrowings: [], notes: [] });
+    expect(narrowingOf({ clearance: "guest" }).narrowings).toEqual([{ clearance: "guest" }]);
+    expect(narrowingOf('{"clearance":"guest","timeoutMs":20}').narrowings).toEqual([{ clearance: "guest", timeoutMs: 20 }]);
+    expect(narrowingOf(encodeURIComponent('{"effects":{"reads":["a"],"writes":"any","destructive":false}}')).narrowings).toEqual([
+      { effects: { reads: ["a"], writes: "any", destructive: false } },
+    ]);
   });
 
-  it("ignores each part that is not valid, with a note", () => {
-    expect(narrowingOf("[1]")).toMatchObject({ narrowing: undefined, notes: [{ field: "narrowing", kind: "invalid" }] });
+  it("reads each source of a list, and two header values that a server joined", () => {
+    expect(narrowingOf([{ clearance: "guest" }, '{"timeoutMs":5}']).narrowings).toEqual([{ clearance: "guest" }, { timeoutMs: 5 }]);
+    expect(narrowingOf('{"clearance":"guest"}, {"clearance":"public"}').narrowings).toEqual([{ clearance: "guest" }, { clearance: "public" }]);
+    expect(narrowingOf(encodeURIComponent('{"clearance":"guest"}') + ", " + encodeURIComponent('{"timeoutMs":5}')).narrowings).toEqual([{ clearance: "guest" }, { timeoutMs: 5 }]);
+    // A joined value with a broken part is not JSON: the server refuses the call
+    expect(narrowingOf('{"clearance":, {"clearance":"public"}').notes).toMatchObject([{ field: "narrowing", kind: "refused" }]);
+    expect(addNarrowing(undefined, "a")).toBe("a");
+    expect(addNarrowing("a", undefined)).toBe("a");
+    expect(addNarrowing(["a", "b"], ["c"])).toEqual(["a", "b", "c"]);
+  });
+
+  it("ignores each part that is not valid, with a note, and refuses a source that is not an object", () => {
+    expect(narrowingOf("[1]")).toMatchObject({ narrowings: [], notes: [{ field: "narrowing", kind: "refused" }] });
     expect(narrowingOf({ clearance: null, effects: { reads: "all", writes: [1], destructive: "no" }, timeoutMs: Number.NaN })).toMatchObject({
-      narrowing: undefined,
+      narrowings: [],
       notes: [
         { field: "clearance", kind: "invalid" },
         { field: "effects", kind: "invalid" },
@@ -365,13 +445,13 @@ describe("the decoder of the narrowing key (CLI-30)", () => {
 
   it("reads only own fields: a __proto__ key gives nothing and changes no prototype", () => {
     const parsed = narrowingOf('{"__proto__": {"clearance": "intimate"}, "effects": {"__proto__": {"writes": "any"}, "writes": []}}');
-    expect(parsed.narrowing).toEqual({ effects: { writes: [] } });
-    expect(Object.getPrototypeOf(parsed.narrowing)).toBe(Object.prototype);
-    expect(Object.getPrototypeOf(parsed.narrowing?.effects)).toBe(Object.prototype);
+    expect(parsed.narrowings).toEqual([{ effects: { writes: [] } }]);
+    expect(Object.getPrototypeOf(parsed.narrowings[0])).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(parsed.narrowings[0]?.effects)).toBe(Object.prototype);
     expect(parsed.notes.map((note) => note.kind)).toEqual(["invalid", "invalid"]);
     expect(({} as Record<string, unknown>)["clearance"]).toBeUndefined();
     // A field of the prototype of a value from the process does not count either
-    expect(narrowingOf(Object.create({ clearance: "public" })).narrowing).toBeUndefined();
+    expect(narrowingOf(Object.create({ clearance: "public" })).narrowings).toEqual([]);
   });
 });
 
@@ -387,10 +467,33 @@ describe("narrowWithin (CLI-30)", () => {
     expect(narrowWithin<readonly string[]>({ clearance: ["health", "finance"] }, { clearance: ["health"] }, compartments).notes).toEqual([]);
   });
 
-  it("keeps the clearance when the server has no order, and keeps the earlier deadline", () => {
+  it("gives the same result for the sources in each sequence", () => {
+    const sources: CapabilityRequest<unknown>[] = [{ clearance: "guest", effects: { reads: ["world", "diary"] } }, { clearance: "public", timeoutMs: 50 }, { effects: { reads: ["world"], writes: [] } }];
+    const held = { clearance: "intimate" as Audience };
+    const sequences = [sources, [...sources].reverse(), [sources[1]!, sources[2]!, sources[0]!]];
+    for (const sequence of sequences) {
+      expect(narrowWithin(held, sequence, ORDER, 1000).capability).toEqual({ clearance: "public", effects: { reads: ["world"], writes: [] }, deadline: 1050 });
+    }
+    // One more source can only make the result narrower
+    expect(narrowWithin(held, [...sources, { clearance: "intimate", effects: { reads: "any" } }], ORDER, 1000).capability).toEqual({
+      clearance: "public",
+      effects: { reads: ["world"], writes: [] },
+      deadline: 1050,
+    });
+  });
+
+  it("refuses clearances without a meet when the server has no order, in each sequence", () => {
     const noOrder = narrowWithin<string>({ clearance: "a" }, { clearance: "b" });
+    expect(noOrder.refusal).toMatchObject({ field: "clearance", kind: "refused" });
     expect(noOrder.capability.clearance).toBe("a");
-    expect(noOrder.notes).toMatchObject([{ field: "clearance", kind: "invalid" }]);
+    expect(narrowWithin<string>(undefined, [{ clearance: "a" }, { clearance: "b" }]).refusal).toBeDefined();
+    expect(narrowWithin<string>(undefined, [{ clearance: "b" }, { clearance: "a" }]).refusal).toBeDefined();
+    const same = narrowWithin<string>(undefined, [{ clearance: "a" }, { clearance: "a" }]);
+    expect(same.refusal).toBeUndefined();
+    expect(same.capability.clearance).toBe("a");
+  });
+
+  it("keeps the earlier deadline", () => {
     const later = narrowWithin({ deadline: 1100 }, { timeoutMs: 1000 }, undefined, 1000);
     expect(later.capability.deadline).toBe(1100);
     expect(later.notes).toMatchObject([{ field: "timeoutMs", kind: "widens" }]);

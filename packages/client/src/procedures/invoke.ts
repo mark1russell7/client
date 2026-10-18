@@ -39,7 +39,7 @@ import { PROCEDURE_REGISTRY } from "./registry.js";
 import { nestedCallRefusal } from "./policy.js";
 import { scopeOf, withScope, type HydrationEvent } from "./ref.js";
 import { UNLIMITED_CAPABILITY, capabilityRefusal, examinesNestedCall, narrowCapability, type CapabilityRefusalReason } from "./capability.js";
-import { narrowWithin } from "./narrowing.js";
+import { NARROWING_METADATA_KEY, narrowWithin, narrowingOf, type NarrowingNote } from "./narrowing.js";
 import { timeoutAfterMs } from "./interceptors.js";
 import type { Elicit } from "./elicit.js";
 import type { ReportProgress } from "./progress.js";
@@ -162,12 +162,17 @@ export interface InvokeOptions {
    */
   capability?: Capability | undefined;
   /**
-   * A narrower capability that the caller asks for (CLI-30). The invocation narrows `capability`
-   * with it, as a server narrows with the narrowing key of a call. A part that asks for more has no
-   * effect. A clearance that the order cannot compare has no effect too. The nested calls get the
-   * narrowed capability.
+   * A narrower capability that the caller asks for (CLI-30). The invocation of the host combines
+   * it with the narrowing key of `metadata` (`procedure-narrowing`) by the meet, so each source can
+   * only narrow. A part that asks for more has no effect. The nested calls get the narrowed
+   * capability.
    */
   narrow?: CapabilityRequest | undefined;
+  /**
+   * This function gets the notes of the narrowing of the call (CLI-30): each part that has no
+   * effect, and the part that refuses the call. A server gives them to its debug reports.
+   */
+  onNarrowingNotes?: ((notes: readonly NarrowingNote[]) => void) | undefined;
   /** The order of the clearance values. Narrowing two different clearances needs it. */
   clearanceOrder?: ClearanceOrder | undefined;
   /** The resources of an invocation for its capability (`ctx.resources`). */
@@ -317,6 +322,27 @@ async function* validatedItems(
 }
 
 /**
+ * The options of an invocation with its narrowing applied (CLI-30). The sources are the narrowing
+ * key of the metadata, for the call of a host only (the nested calls get the metadata of their
+ * caller), and the option `narrow`. They combine by the meet. A refusal throws: `INVALID_REQUEST`
+ * for a source that the server cannot read, `FORBIDDEN` for clearances without a meet.
+ */
+function narrowedOptions(path: ProcedurePath, options: InvokeOptions): InvokeOptions {
+  const metadata = options.parent === undefined ? options.metadata : undefined;
+  const keyed = metadata !== undefined && Object.hasOwn(metadata, NARROWING_METADATA_KEY);
+  if (!keyed && !options.narrow) return options;
+  const wire = metadata !== undefined && keyed ? narrowingOf(metadata[NARROWING_METADATA_KEY]) : narrowingOf(undefined);
+  const sources = options.narrow ? [...wire.narrowings, options.narrow] : wire.narrowings;
+  const narrowed = narrowWithin(options.capability, sources, options.clearanceOrder);
+  const notes = [...wire.notes, ...narrowed.notes];
+  if (notes.length > 0) options.onNarrowingNotes?.(notes);
+  const refusal = notes.find((note) => note.kind === "refused");
+  if (refusal?.field === "clearance") throw new InvocationError("FORBIDDEN", refusal.message, path, "clearance");
+  if (refusal) throw Object.assign(new Error(refusal.message), { code: "INVALID_REQUEST" });
+  return { ...options, narrow: undefined, capability: narrowed.capability };
+}
+
+/**
  * This function runs a procedure: it validates the input, makes the context, runs the handler
  * and validates the output. It throws an `InvocationError` for an invocation that cannot run,
  * and the handler's own error when the handler throws. The interceptors of the options run
@@ -328,11 +354,9 @@ export async function invokeProcedure<TOutput = unknown>(
   options: InvokeOptions = {},
 ): Promise<ProcedureOutput<TOutput>> {
   const { path } = procedure;
-  // The narrowing of the caller applies one time, here: the nested calls get the result (CLI-30)
-  if (options.narrow) {
-    const { narrow, ...rest } = options;
-    options = { ...rest, capability: narrowWithin(options.capability, narrow, options.clearanceOrder).capability };
-  }
+  // The narrowing of the call applies one time, here, for each face and each path of the process:
+  // the nested calls get the result (CLI-30)
+  options = narrowedOptions(path, options);
   if (!procedure.handler) {
     throw new InvocationError("NO_HANDLER", `Procedure has no handler: ${pathToKey(path)}`, path);
   }

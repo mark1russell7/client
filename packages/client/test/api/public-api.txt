@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 537 names
+## . (dist/index.d.ts): 538 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -323,6 +323,7 @@ WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTrans
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
+addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -544,7 +545,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 519 names
+## ./browser (dist/browser.d.ts): 520 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -852,6 +853,7 @@ WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTrans
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
+addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -1280,7 +1282,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 290 names
+## ./procedures (dist/procedures/index.d.ts): 291 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1434,6 +1436,7 @@ WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
+addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -4283,6 +4286,7 @@ export interface InvokeOptions {
     parent?: Invocation | undefined;
     capability?: Capability | undefined;
     narrow?: CapabilityRequest | undefined;
+    onNarrowingNotes?: ((notes: readonly NarrowingNote[]) => void) | undefined;
     clearanceOrder?: ClearanceOrder | undefined;
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
@@ -4411,23 +4415,27 @@ export declare const NARROWING_METADATA_KEY = "procedure-narrowing";
 export interface NarrowedCapability<C = ClearanceOf> {
     readonly capability: Capability<C>;
     readonly notes: readonly NarrowingNote[];
+    readonly refusal?: NarrowingNote | undefined;
 }
 
 ### dist/procedures/narrowing.d.ts#NarrowingNote
 export interface NarrowingNote {
     readonly field: "narrowing" | "clearance" | "effects" | "timeoutMs";
-    readonly kind: "widens" | "invalid";
+    readonly kind: "widens" | "invalid" | "refused";
     readonly message: string;
 }
 
 ### dist/procedures/narrowing.d.ts#WireNarrowing
 export interface WireNarrowing {
-    readonly narrowing: CapabilityRequest<unknown> | undefined;
+    readonly narrowings: readonly CapabilityRequest<unknown>[];
     readonly notes: readonly NarrowingNote[];
 }
 
+### dist/procedures/narrowing.d.ts#addNarrowing
+export declare function addNarrowing(current: unknown, source: unknown): unknown;
+
 ### dist/procedures/narrowing.d.ts#narrowWithin
-export declare function narrowWithin<C>(held: Capability<C> | undefined, asked: CapabilityRequest<unknown> | undefined, order?: ClearanceOrder<C>, now?: number): NarrowedCapability<C>;
+export declare function narrowWithin<C>(held: Capability<C> | undefined, asked: CapabilityRequest<unknown> | readonly CapabilityRequest<unknown>[] | undefined, order?: ClearanceOrder<C>, now?: number): NarrowedCapability<C>;
 
 ### dist/procedures/narrowing.d.ts#narrowingOf
 export declare function narrowingOf(value: unknown): WireNarrowing;

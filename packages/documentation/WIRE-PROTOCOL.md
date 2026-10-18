@@ -42,27 +42,36 @@ The value is a `CapabilityRequest` as a JSON object. Each field is optional.
 | `effects` | An object with `reads`, `writes` and `destructive` | The permitted effects. `reads` and `writes` are `"any"` or a list of resource names. `destructive: false` refuses a destructive procedure. |
 | `timeoutMs` | A count of milliseconds, zero or more | The longest time of the call, from the start of the call. |
 
-For example, `{"clearance":"shared","effects":{"writes":[]}}` asks for the clearance `shared` and for no changes.
+For example, `{"clearance":"shared","effects":{"writes":[]}}` asks for the clearance `shared` and for no changes. A list of such objects is also a valid value: each item is one source.
 
-### The field on each face
+### The sources on each face
 
-| Face | Field |
+A request can have more than one source of narrowing. For example, a gateway sets the header, and the client sets the key of `X-Metadata`. No source replaces another source: the server applies each one.
+
+| Face | Sources |
 |---|---|
-| HTTP | The header `Procedure-Narrowing`, with the JSON of the value, raw or URI-encoded. The key `procedure-narrowing` of `X-Metadata` is the same field. When a request has the two, the key of `X-Metadata` applies. |
+| HTTP | Each line of the header `Procedure-Narrowing`, with the JSON of the value, raw or URI-encoded. The key `procedure-narrowing` of `X-Metadata`. A query parameter with the name `procedure-narrowing`. |
 | WebSocket | The key `procedure-narrowing` of the `metadata` of a `request` frame. |
-| MCP | The key `procedure-narrowing` of the `_meta` of a `tools/call` request. Over Streamable HTTP, the header `Procedure-Narrowing` is the same field. |
-| The process | The key `procedure-narrowing` of the metadata of `ProcedureServer.handle()` or of `LocalTransport`, or the option `narrow` of `invokeProcedure()`. |
+| MCP | The key `procedure-narrowing` of the `_meta` of a `tools/call` request, and the header `Procedure-Narrowing` of a call over Streamable HTTP. |
+| The process | The key `procedure-narrowing` of the metadata of a call: `ProcedureServer.handle()`, `LocalTransport`, `invokeProcedure()`, and `Client.exec()` with the option `metadata`. The option `narrow` of `invokeProcedure()` is one more source. |
+| Each face | The narrowing that the request hook `principalOf` gives. |
 
-The default CORS headers of `procedureHandler` and `HttpServerTransport` include `Procedure-Narrowing`, so a browser on a permitted origin can send it.
+- A WebSocket connection has no narrowing key of its own. The request hook `principalOf` reads the upgrade, and its narrowing applies to each call of the connection.
+- The default CORS headers of `procedureHandler` and `HttpServerTransport` include `Procedure-Narrowing`, so a browser on a permitted origin can send it.
 
 ### The rules of the server
 
-1. The server calculates the capability of the call from its own authentication. Then it applies the narrowing of its request hook (`principalOf`). Then it applies the narrowing key.
-2. The clearance is the meet of the clearance order. The effects are the intersection. The deadline is the earlier deadline. Thus the key can only make the capability narrower.
-3. A part that asks for more than the call holds has no effect. On a ladder, the call keeps its clearance.
-4. A part that the server cannot read or compare has no effect. Examples are a value that is not JSON, an unknown field, or a clearance outside the order.
-5. The server reports each part without effect in debug. The option `debug` of `ProcedureServer` gets a report with the topic `narrowing`, and the call continues without that part.
-6. The key does not give a capability. It only removes a part of the capability that the server gives.
+1. The server calculates the capability of the call from its own authentication. Then the invocation of the call applies each source.
+2. The clearance is the meet of the clearance order. The effects are the intersection. The deadline is the earliest deadline.
+3. Thus each source can only make the capability narrower. The result is the same for each sequence of the sources.
+4. One place applies the sources: `invokeProcedure()`, for the call of a host. Thus each face and each call in the process obey the same rules.
+5. A part that asks for more than the call holds has no effect. On a ladder, the call keeps its clearance.
+6. A part that the server cannot compare has no effect. Examples are an unknown field and a clearance outside the order.
+7. A source that the server cannot read refuses the call with `INVALID_REQUEST`. Examples are a text that is not JSON and a value that is not an object. The server does not know what such a source asks for, so it does not ignore it.
+8. A server without a clearance order cannot meet two different clearances. Such a call gets `FORBIDDEN` with the reason `clearance`.
+9. The server reports each part without effect, and each refusal, in debug. The option `debug` of `ProcedureServer` gets a report with the topic `narrowing`.
+10. The key does not give a capability. It only removes a part of the capability that the server gives.
+11. The key stays in the metadata of the call. Thus a nested call to a remote server sends it again, and that server narrows the call too.
 
 ### The audience of jarvis
 
@@ -74,7 +83,7 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 | The audience of the server | The option `capability`, for example `{ clearance: "intimate" }`, or a function of the principal. |
 | The header `x-jarvis-audience: shared` | The header `Procedure-Narrowing: {"clearance":"shared"}`, or the key in the metadata of `HttpTransport`. |
 | The cookie `jarvis_audience=shared` of the guest switch | `principalOf` reads the cookie and gives `narrowing: { clearance: "shared" }`. |
-| The narrower of the two carriers wins | The server applies the key after the narrowing of the hook. |
+| The narrower of the two carriers wins | The server applies the cookie of the hook and the key by the meet, in each sequence. |
 | An unknown value has no effect | The ladder does not have the value, so the server ignores it and reports it in debug. |
 | Below `intimate`, only the declared reads start | This rule stays the policy of jarvis. An interceptor of jarvis narrows the effects below `intimate`. |
 
@@ -113,6 +122,7 @@ The server finds the method and the payload of a request with its addressing (CL
 - `urlAddressing()` is the default. The URL gives the method, and the body is the payload. This is the format of `HttpTransport`.
 - `bodyPathAddressing()` reads the path and the input from the body of a single endpoint: `POST {base}` with `{"path": ["notes", "list"], "input": {}}`.
 - The path in the body is a list of segments, or a text with dots, for example `"notes.list"`. Without `input`, the payload is `{}`.
+- A path of one segment, for example `["morning"]`, gets `INVALID_REQUEST` until the paths of each length are done (CLI-28).
 - With `bodyPathAddressing()`, the handler also takes the base path itself. The options `pathField` and `inputField` change the names of the fields.
 - The addressing reads only the own fields of the body. A `__proto__` key gives no path.
 - The option `addressing` of `procedureHandler` and of `HttpServerTransport` sets the hook. An application can give its own hook, for example the URL first and then the body.

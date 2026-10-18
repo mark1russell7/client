@@ -46,6 +46,16 @@ const REGISTRY = createRegistry({
       .meta({ effects: read })
       .handler(async (_input, ctx) => ({ clearance: ctx.capability.clearance ?? null }))
       .build(),
+    createProcedure()
+      .path(["notes", "query"])
+      .input(z.object({}))
+      .output(z.unknown())
+      .meta({ effects: read })
+      .handler(async (_input, ctx) => {
+        const query = ctx.metadata["query"] as Record<string, unknown>;
+        return { polluted: query["polluted"] ?? null, prototype: Object.getPrototypeOf(query) === Object.prototype, own: Object.keys(query) };
+      })
+      .build(),
   ],
 });
 
@@ -201,5 +211,23 @@ describe("the addressing of the Express shim (CLI-31)", () => {
     cleanups.push(() => transport.stop());
     expect(JSON.parse((await send(port, "/api/notes/echo", JSON.stringify({ text: "url" }))).body)).toEqual({ text: "url" });
     expect((await send(port, "/api", "{}")).status).toBe(404);
+  });
+});
+
+describe("the query in the metadata of a request", () => {
+  it("copies each key of the query as an own property: a __proto__ key changes no prototype", async () => {
+    const server = new ProcedureServer({ registry: REGISTRY });
+    server.registerFromRegistry();
+    const handler = procedureHandler(server);
+    const port = await listen(
+      createServer((req, res) => {
+        // A framework can give a parsed query with an own __proto__ key
+        Object.assign(req, { query: JSON.parse('{"__proto__": {"polluted": true}, "page": "2"}') as unknown });
+        if (!handler(req, res)) res.end("app");
+      }),
+    );
+    const res = await send(port, "/api/notes/query", "{}");
+    expect(JSON.parse(res.body)).toEqual({ polluted: null, prototype: true, own: ["__proto__", "page"] });
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
   });
 });

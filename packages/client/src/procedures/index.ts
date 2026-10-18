@@ -108,7 +108,7 @@ export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./untrusted.
 export type { UntrustedText, UntrustedSource, UntrustedValue } from "./untrusted.js";
 export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./capability.js";
 // The narrowing key of a call (CLI-30)
-export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin } from "./narrowing.js";
+export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin, addNarrowing } from "./narrowing.js";
 export type { NarrowingNote, WireNarrowing, NarrowedCapability } from "./narrowing.js";
 
 // Registry

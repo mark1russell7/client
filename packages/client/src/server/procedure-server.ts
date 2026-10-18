@@ -30,7 +30,7 @@ import { errorCodeOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
-import { NARROWING_METADATA_KEY, narrowWithin, narrowingOf } from "../procedures/narrowing.js";
+import type { NarrowingNote } from "../procedures/narrowing.js";
 import type { ServerDebugReport } from "./types.js";
 
 // =============================================================================
@@ -171,9 +171,9 @@ export interface ProcedureServerOptions extends ServerOptions {
 
   /**
    * The debug reports of the server. `true` writes each report with `console.debug`, and a
-   * function gets each report. The server reports each part of the narrowing key of a call that
-   * has no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid.
-   * The call goes on without that part.
+   * function gets each report. The server reports each part of the narrowing of a call that has
+   * no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid. The
+   * call goes on without that part. The server also reports a source that refuses the call.
    * @default false
    */
   debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
@@ -862,23 +862,24 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * time of the caller and the narrowing of the request can only make it narrower
    * (CAPABILITIES-2026-10, decision 9). Two different clearances without an order throw.
    *
-   * The narrowing key of the call (`procedure-narrowing`, CLI-30) applies last, after the
-   * narrowing of the request hook. It cannot throw: a part that has no effect goes to the debug
-   * reports.
+   * The narrowing key of the call (`procedure-narrowing`, CLI-30) is not part of it. The
+   * invocation applies the key for each face, after the narrowing of the request hook.
    */
   private capabilityOf(request: ServerRequest<unknown>): Capability | undefined {
     const { capability, clearanceOrder } = this.capabilityOptions;
     const base = withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder);
-    const held = request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
-    if (!Object.hasOwn(request.metadata, NARROWING_METADATA_KEY)) return held;
-    const wire = narrowingOf(request.metadata[NARROWING_METADATA_KEY]);
-    const narrowed = narrowWithin(held, wire.narrowing, clearanceOrder);
-    if (this.debugReport) {
-      for (const note of [...wire.notes, ...narrowed.notes]) {
-        this.debugReport({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind } });
+    return request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
+  }
+
+  /** The debug reports of the notes of the narrowing of a request (CLI-30), or undefined when `debug` is off. */
+  private narrowingReports(request: ServerRequest<unknown>): ((notes: readonly NarrowingNote[]) => void) | undefined {
+    const report = this.debugReport;
+    if (!report) return undefined;
+    return (notes) => {
+      for (const note of notes) {
+        report({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind } });
       }
-    }
-    return narrowed.capability;
+    };
   }
 
   /** Run a procedure for a request with a signal. */
@@ -912,6 +913,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         clearanceOrder,
         resources,
         admitItem,
+        // The parts of the narrowing key without effect go to the debug reports (CLI-30)
+        onNarrowingNotes: this.narrowingReports(request),
         // The principal of the authentication: ctx.principal, and the nested calls (R18)
         ...(request.principal !== undefined ? { principal: request.principal } : {}),
         // The bus of the remote events is the bus of the procedures (EVENTS.md)

@@ -381,7 +381,7 @@ export { STREAM_GAP_METADATA_KEY, STREAM_ITEM_METADATA_KEY } from "./adapters/se
 // The deadline of a call: the remaining time goes as procedure-timeout (roadmap R10)
 export { TIMEOUT_METADATA_KEY, DEADLINE_METADATA_KEY } from "./client/deadline.js";
 // The narrowing key of a call: the call asks for a narrower capability on each face (CLI-30)
-export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin } from "./procedures/narrowing.js";
+export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin, addNarrowing } from "./procedures/narrowing.js";
 export type { NarrowingNote, WireNarrowing, NarrowedCapability } from "./procedures/narrowing.js";
 export type { ServerDebugReport } from "./server/types.js";
 // Typed durations: each public option that is a time takes a Duration (roadmap R11)
