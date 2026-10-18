@@ -1,5 +1,12 @@
 # @procedures/gh
 
+## 0.13.1
+
+### Patch Changes
+
+- @procedures/client@0.13.1
+  - @procedures/shell@0.13.1
+
 ## 0.13.0
 
 ### Patch Changes
