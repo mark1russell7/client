@@ -595,9 +595,9 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O19 | Systems | The void runs of the silent-drop cell | S–M | later | — | Systems session | [systems tracker](https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V) |
 | O20 | Releases | `@mark1russell7/machines` 0.3.0 on npm | S | waits for the owner | — | markt-54 and Mark | [npm tracker](https://claude.ai/artifact/W5oqQFc9Ty1miMP63z1XwS) |
 | O21 | Systems | jarvis on a newer harness | S | later | — | Systems session | — |
-| O22 | Decisions | The raw `event` frame of old peers | S | waits for the owner | — | Mark | — |
-| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | waits for the owner | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33, O34, O37, O38 | markt-54 and Mark | — |
-| O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | Host-ownership session | [the brief](https://github.com/mark1russell7/client/blob/main/packages/documentation/HOST-OWNERSHIP-BRIEF.md) |
+| O22 | Decisions | The raw `event` frame of old peers | S | in progress | O42 | Client session | `integration-o22` |
+| O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | done | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33, O34, O37, O38, O39, O40 | markt-54 and Mark | [client PR #7](https://github.com/mark1russell7/client/pull/7), [82e7946](https://github.com/mark1russell7/client/commit/82e7946), [publish run 39096727534](https://github.com/mark1russell7/client/actions/runs/39096727534) |
+| O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | markt-02 (server-stack plan) | [the layer contract](https://github.com/mark1russell7/client/blob/main/packages/documentation/SERVER-LAYERS.md), [server tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) |
 | O25 | Apps | jarvis on client 0.7.0 | M | in progress | — | jarvis session | — |
 | O26 | New packages | `shiftMonth` in `@procedures/ics` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
 | O27 | New packages | A `fetch` option of `fetchCalendar` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
@@ -608,10 +608,15 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O32 | Docs | The storage sections of the `client-collections` README | S | done | — | Client session | [c4cfa34](https://github.com/mark1russell7/client/commit/c4cfa34) |
 | O33 | Testing | The coverage floor of the functions of `http` is flaky | S | done | — | Client session | [0fc2ecb](https://github.com/mark1russell7/client/commit/0fc2ecb) |
 | O34 | LLM | The tool loop and a `fallback` block of an answer | S | done | O12 | Client session | [a9f5420](https://github.com/mark1russell7/client/commit/a9f5420), [ac7af4c](https://github.com/mark1russell7/client/commit/ac7af4c), [API docs: Refusals and fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) |
-| O35 | fs root | Confine git under a root | M | later | O5 | Client session | — |
-| O36 | fs root | Root rules for the other procedures that reach files | M | later | O5 | Client session | — |
+| O35 | fs root | Confine git under a root | M | next | O5 | Client session | — |
+| O36 | fs root | Root rules for the other procedures that reach files | M | next | O5 | Client session | — |
 | O37 | New packages | `weatherCodeGroup(code)` in `@procedures/weather` | S | done | — | jarvis-side client session | [client PR #5](https://github.com/mark1russell7/client/pull/5), [78f02c1](https://github.com/mark1russell7/client/commit/78f02c1) |
 | O38 | New packages | A node-only entry `@procedures/geo/tiles` | S | done | — | jarvis-side client session | [client PR #5](https://github.com/mark1russell7/client/pull/5), [78f02c1](https://github.com/mark1russell7/client/commit/78f02c1) |
+| O39 | Testing | One item for each argument of a last array positional of `mark` | S | done | — | Client session | [808a508](https://github.com/mark1russell7/client/commit/808a508), [the failing run](https://github.com/mark1russell7/client/actions/runs/39078345778) |
+| O40 | Testing | The flaky copy of the git test template | S | done | — | Client session | [1893d54](https://github.com/mark1russell7/client/commit/1893d54), [the failing run](https://github.com/mark1russell7/client/actions/runs/39079695949) |
+| O41 | New packages | `privacy-scan` treats the TLD `.example` as an example domain | S | done | O23 | jarvis-side client session | [client PR #10](https://github.com/mark1russell7/client/pull/10), [92e1c6e](https://github.com/mark1russell7/client/commit/92e1c6e) |
+| O42 | Releases | Release 0.8.1: the PATCH pull requests after 0.8.0 | S | in progress | O23, O41 | markt-02, markt-54 and Mark | — |
+| O43 | Releases | Release 0.9.0: O22 alone | S | later | O22, O42 | markt-54 and Mark | — |
 
 ## Items for a decision
 
