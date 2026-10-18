@@ -608,8 +608,8 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O32 | Docs | The storage sections of the `client-collections` README | S | done | — | Client session | [c4cfa34](https://github.com/mark1russell7/client/commit/c4cfa34) |
 | O33 | Testing | The coverage floor of the functions of `http` is flaky | S | done | — | Client session | [0fc2ecb](https://github.com/mark1russell7/client/commit/0fc2ecb) |
 | O34 | LLM | The tool loop and a `fallback` block of an answer | S | done | O12 | Client session | [a9f5420](https://github.com/mark1russell7/client/commit/a9f5420), [ac7af4c](https://github.com/mark1russell7/client/commit/ac7af4c), [API docs: Refusals and fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) |
-| O35 | fs root | Confine git under a root | M | in progress | O5 | Client session | `integration-fs-root-rest` |
-| O36 | fs root | Root rules for the other procedures that reach files | M | in progress | O5 | Client session | `integration-fs-root-rest` |
+| O35 | fs root | Confine git under a root | M | done | O5 | Client session | [dddeea1](https://github.com/mark1russell7/client/commit/dddeea1), [CI 39108361863](https://github.com/mark1russell7/client/actions/runs/39108361863) |
+| O36 | fs root | Root rules for the other procedures that reach files | M | done | O5 | Client session | [dddeea1](https://github.com/mark1russell7/client/commit/dddeea1), [CI 39108361863](https://github.com/mark1russell7/client/actions/runs/39108361863) |
 | O37 | New packages | `weatherCodeGroup(code)` in `@procedures/weather` | S | done | — | jarvis-side client session | [client PR #5](https://github.com/mark1russell7/client/pull/5), [78f02c1](https://github.com/mark1russell7/client/commit/78f02c1) |
 | O38 | New packages | A node-only entry `@procedures/geo/tiles` | S | done | — | jarvis-side client session | [client PR #5](https://github.com/mark1russell7/client/pull/5), [78f02c1](https://github.com/mark1russell7/client/commit/78f02c1) |
 | O39 | Testing | One item for each argument of a last array positional of `mark` | S | done | — | Client session | [808a508](https://github.com/mark1russell7/client/commit/808a508), [the failing run](https://github.com/mark1russell7/client/actions/runs/39078345778) |
@@ -618,6 +618,8 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O42 | Releases | Release 0.8.1: the PATCH pull requests after 0.8.0 | S | done | O23, O41, O44 | markt-54 | [805ed50](https://github.com/mark1russell7/client/commit/805ed50), [ab1605e](https://github.com/mark1russell7/client/commit/ab1605e) |
 | O43 | Releases | Release 0.9.0: O22, #18, #15 and #19 | S | done | O22, O42 | markt-02, markt-54 and Mark | [db6adca](https://github.com/mark1russell7/client/commit/db6adca), [client PR #24](https://github.com/mark1russell7/client/pull/24), [publish run 39105749789](https://github.com/mark1russell7/client/actions/runs/39105749789) |
 | O44 | New packages | A failed calendar request of `ics` names the system error code | S | done | — | jarvis-side client session | [client PR #13](https://github.com/mark1russell7/client/pull/13), [a03be76](https://github.com/mark1russell7/client/commit/a03be76) |
+| O45 | Testing | `ios-backup` joins a file id from Manifest.db into a path unchecked | S | done | — | Client session | [6cc9da1](https://github.com/mark1russell7/client/commit/6cc9da1), [16ce161](https://github.com/mark1russell7/client/commit/16ce161) |
+| O46 | fs root | `snapshot.create` and `snapshot.diff` run git themselves | M | later | O35 | Client session | — |
 
 ### The server stack (R37)
 
