@@ -233,3 +233,87 @@ describe("other parts that name a path of one segment (CLI-28)", () => {
     expect(await client.call({ service: "notes", operation: "list", version: "v2" }, {})).toEqual({ path: ["notes", "list"], input: {} });
   });
 });
+
+describe("segments that look like URL separators (CLI-28)", () => {
+  /** A registry with a segment that has a slash, and the paths that a split or a ".." could reach. */
+  function tricky(): ProcedureRegistry {
+    const paths = [["x/y", "z"], ["x", "y", "z"], ["list"], ["notes"], ["notes", "list"]];
+    return createRegistry({
+      name: "tricky",
+      procedures: paths.map((path) =>
+        createProcedure()
+          .path(path)
+          .input(z.object({}).passthrough())
+          .output(z.unknown())
+          .meta({ effects: { reads: [], writes: [] } })
+          .handler(async (_input, ctx) => ({ path: ctx.path }))
+          .build(),
+      ),
+    });
+  }
+
+  function trickyServer(): ProcedureServer {
+    const value = new ProcedureServer({ registry: tricky() });
+    value.registerFromRegistry();
+    return value;
+  }
+
+  /** One raw POST: Node sends the path as it is, without a normalization of ".." */
+  function post(port: number, path: string, body = "{}"): Promise<{ status: number; body: Record<string, unknown> }> {
+    return new Promise((resolve, reject) => {
+      const req = request({ host: "127.0.0.1", port, method: "POST", path, headers: { "content-type": "application/json" } }, (res: IncomingMessage) => {
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => (text += chunk));
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, body: JSON.parse(text) as Record<string, unknown> }));
+      });
+      req.on("error", reject);
+      req.end(body);
+    });
+  }
+
+  async function startRaw(): Promise<number> {
+    const handler = procedureHandler(trickyServer());
+    const single = procedureHandler(trickyServer(), { basePath: "/proc", addressing: bodyPathAddressing() });
+    return listen(createServer((req, res) => {
+      if (!single(req, res) && !handler(req, res)) res.end("app");
+    }));
+  }
+
+  it("does not split a %2F inside a segment into two segments", async () => {
+    const port = await startRaw();
+    expect((await post(port, "/api/x%2Fy/z")).body).toEqual({ path: ["x/y", "z"] });
+    // The client encodes the slash, so its call reaches the same procedure, and not ["x", "y", "z"]
+    const client = new Client({ transport: new HttpTransport({ baseUrl: `http://127.0.0.1:${port}/api` }), throwOnError: true });
+    expect(await client.call(pathToMethod(["x/y", "z"]), {})).toEqual({ path: ["x/y", "z"] });
+    expect(await client.call(pathToMethod(["x", "y", "z"]), {})).toEqual({ path: ["x", "y", "z"] });
+    // The Express shim reads the same URL
+    const app = express();
+    const http = createServer(app);
+    const transport = new HttpServerTransport(trickyServer(), { app, httpServer: http });
+    await transport.start();
+    const shimPort = await listen(http);
+    cleanups.push(() => transport.stop());
+    expect((await post(shimPort, "/api/x%2Fy/z")).body).toEqual({ path: ["x/y", "z"] });
+  });
+
+  it("answers NOT_FOUND for a \"..\" segment, and never reaches another procedure", async () => {
+    const port = await startRaw();
+    for (const url of ["/api/notes/..", "/api/../list", "/api/%2E%2E/list", "/api/notes/%2E%2E", "/api/notes../list", "/api/.notes/list"]) {
+      const res = await post(port, url);
+      expect([res.status, res.body["code"]], url).toEqual([404, "NOT_FOUND"]);
+    }
+    // The same through the body of a single endpoint, and through a method of a frame
+    for (const path of [["..", "list"], ["notes", ".."]]) {
+      const res = await post(port, "/proc", JSON.stringify({ path }));
+      expect([res.status, res.body["code"]], JSON.stringify(path)).toEqual([404, "NOT_FOUND"]);
+    }
+    const value = trickyServer();
+    for (const method of [{ service: "..", operation: "list" }, { service: "notes", operation: ".." }, { service: "notes.", operation: "list" }, { service: "notes", operation: "" }]) {
+      const response = await value.handle({ id: "1", method, payload: {}, metadata: {} });
+      expect(response.status, JSON.stringify(method)).toMatchObject({ type: "error", code: "NOT_FOUND" });
+    }
+    expect(methodToPath({ service: "..", operation: "list" })).toEqual(["", "", "list"]);
+    expect(methodToPath({ service: "", operation: "list" })).toEqual(["list"]);
+  });
+});

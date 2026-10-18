@@ -17,6 +17,7 @@ A call names a procedure with a method: `{ "service": "docker.compose", "operati
 - A path has one segment or more (CLI-28). Each face calls a path of each length.
 - A path of one segment has the empty service: `["morning"]` is `{ "service": "", "operation": "morning" }`.
 - A segment with a dot does not round-trip, because the dot joins the segments of the service.
+- A method with an empty segment names no procedure and gets `NOT_FOUND`. Examples are a `..` segment and a stray dot (`notes.`). Thus `/api/notes/..` does not reach the procedure `notes`.
 
 The metadata of a call is a JSON object. These keys have a meaning in the protocol:
 

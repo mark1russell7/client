@@ -38,5 +38,8 @@ export function methodName(method: Pick<Method, "service" | "operation">): strin
  * `{ service: "a.b", operation: "c" }` and `{ service: "a", operation: "b.c" }` give `["a", "b", "c"]`.
  */
 export function methodToPath(method: Pick<Method, "service" | "operation">): ProcedurePath {
-  return [...method.service.split("."), ...method.operation.split(".")].filter((segment) => segment !== "");
+  // The empty service of a path of one segment has no segment. Each other empty segment stays, so
+  // a method with ".." or a stray dot names no procedure: the registry has no empty segment (CLI-28)
+  const service = method.service === "" ? [] : method.service.split(".");
+  return [...service, ...method.operation.split(".")];
 }
