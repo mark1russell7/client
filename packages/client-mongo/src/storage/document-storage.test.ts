@@ -348,7 +348,11 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
   });
 
   it("on a replica set, a write is one transaction with its numbers, and leaves no pending numbers", async (context) => {
-    if (!(await onReplicaSet())) return context.skip?.("the test database is a single server");
+    if (!(await onReplicaSet())) {
+      // The replica-set job of CI must run this test: a skip there would hide the path of the transactions
+      if (process.env["MONGO_TEST_TOPOLOGY"] === "replica-set") throw new Error("MONGO_TEST_TOPOLOGY is replica-set, but the test database is a single server");
+      return context.skip?.("the test database is a single server");
+    }
     let sessions = 0;
     const counted = new Proxy(client!, {
       get(target, prop) {
