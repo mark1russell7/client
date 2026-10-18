@@ -174,6 +174,68 @@ export function keysBetween(prev: string | null | undefined, next: string | null
   return [...keysBetween(a, middle, half), middle, ...keysBetween(middle, b, count - half - 1)];
 }
 
+/** The options of `isValidKey`. */
+export interface KeyCheckOptions {
+  /** The longest key that the check accepts. The default is 1024 characters. */
+  readonly maxLength?: number;
+}
+
+/**
+ * This function tells if a value is a valid key, for example a key that a client writes. A key that
+ * is longer than `maxLength` is not valid.
+ */
+export function isValidKey(key: unknown, options: KeyCheckOptions = {}): key is string {
+  if (typeof key !== "string" || key.length > (options.maxLength ?? 1024)) return false;
+  try {
+    validateKey(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** An item of an ordered list: its id and its key. */
+export interface KeyedItem {
+  readonly id: string;
+  readonly key: string;
+}
+
+/**
+ * This function gives the writes of a move: the new key of the item that moves, and new keys for the
+ * neighbors that need them. Give the other items of the list in order (by key, then by id), without
+ * the item that moves, and the index of the drop from 0 to their number (`dropIndex`).
+ *
+ * Two writers can give two items one key. A drop between two such items has no key between them, so
+ * the helper first gives new keys to the items after the drop that have the key of the item before
+ * it. Each write is `{ id, key }`. The writes of the neighbors come first, and the write of the item
+ * that moves comes last.
+ *
+ * @throws RangeError when the index is outside the list, when the list holds the item that moves, or
+ * when a key is not valid
+ *
+ * @example
+ * ```ts
+ * const index = dropIndex(pointer, others.map(centerOf));
+ * for (const { id, key } of keysForDrop(others, index, dragged.id)) await save(id, { rank: key });
+ * ```
+ */
+export function keysForDrop(items: readonly KeyedItem[], index: number, movingId: string): Array<{ id: string; key: string }> {
+  if (!Number.isInteger(index) || index < 0 || index > items.length) throw invalid(`The index ${index} is outside the list of ${items.length} items`);
+  if (items.some((item) => item.id === movingId)) throw invalid(`The list holds the item that moves (${movingId})`);
+  const prev = items[index - 1]?.key ?? null;
+  // The items from the index on that do not come after the item before the drop need new keys
+  let end = index;
+  while (end < items.length && prev !== null && items[end]!.key <= prev) end++;
+  const writes: Array<{ id: string; key: string }> = [];
+  if (end > index) {
+    const keys = keysBetween(prev, items[end]?.key ?? null, end - index);
+    for (let i = index; i < end; i++) writes.push({ id: items[i]!.id, key: keys[i - index]! });
+  }
+  const next = writes.length > 0 ? writes[0]!.key : (items[index]?.key ?? null);
+  writes.push({ id: movingId, key: keyBetween(prev, next) });
+  return writes;
+}
+
 /** The order of two keys: the code units of the strings, as the keys need (never `localeCompare`). */
 export function compareKeys(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareKeys, dropIndex, keyBetween, keysBetween } from "../index.js";
+import { compareKeys, dropIndex, isValidKey, keyBetween, keysBetween, keysForDrop, type KeyedItem } from "../index.js";
 
 /** True when the keys are in strictly ascending order of their code units. */
 function ascending(keys: readonly string[]): boolean {
@@ -104,6 +104,74 @@ describe("keysBetween", () => {
 
   it("refuses a count that is not an integer of 0 or more", () => {
     for (const bad of [-1, 1.5, Number.NaN]) expect(() => keysBetween(null, null, bad)).toThrow(RangeError);
+  });
+});
+
+/** The list after the writes of a move, sorted by key, then by id: the ids in order. */
+function after(items: readonly KeyedItem[], writes: ReadonlyArray<{ id: string; key: string }>): string[] {
+  const byId = new Map(items.map((item) => [item.id, item.key]));
+  for (const { id, key } of writes) byId.set(id, key);
+  return [...byId].sort(([ia, ka], [ib, kb]) => compareKeys(ka, kb) || compareKeys(ia, ib)).map(([id]) => id);
+}
+
+describe("keysForDrop", () => {
+  const list = (...pairs: Array<[string, string]>): KeyedItem[] => pairs.map(([id, key]) => ({ id, key }));
+
+  it("gives one write when the neighbors have different keys, at each place of the list", () => {
+    const items = list(["a", "a0"], ["b", "a1"], ["c", "a2"]);
+    for (let index = 0; index <= items.length; index++) {
+      const writes = keysForDrop(items, index, "m");
+      expect(writes).toHaveLength(1);
+      expect(writes[0]!.id).toBe("m");
+      const ids = items.map((item) => item.id);
+      ids.splice(index, 0, "m");
+      expect(after(items, writes)).toEqual(ids);
+    }
+    expect(keysForDrop([], 0, "m")).toEqual([{ id: "m", key: "a0" }]);
+  });
+
+  it("gives a new key to the tied neighbor when the drop is between two items with one key (two writers)", () => {
+    const items = list(["a", "a0"], ["b", "a1"], ["c", "a1"], ["d", "a2"]);
+    const writes = keysForDrop(items, 2, "m");
+    expect(writes.map((w) => w.id)).toEqual(["c", "m"]);
+    expect(after(items, writes)).toEqual(["a", "b", "m", "c", "d"]);
+  });
+
+  it("needs no new key at either end of a tie run", () => {
+    const items = list(["a", "a0"], ["b", "a1"], ["c", "a1"], ["d", "a2"]);
+    const atStart = keysForDrop(items, 1, "m");
+    expect(atStart.map((w) => w.id)).toEqual(["m"]);
+    expect(after(items, atStart)).toEqual(["a", "m", "b", "c", "d"]);
+    const atEnd = keysForDrop(items, 3, "m");
+    expect(atEnd.map((w) => w.id)).toEqual(["m"]);
+    expect(after(items, atEnd)).toEqual(["a", "b", "c", "m", "d"]);
+  });
+
+  it("gives new keys to each tied item after the drop in a run of three, and at the end of the list", () => {
+    const run = list(["a", "a1"], ["b", "a1"], ["c", "a1"]);
+    const writes = keysForDrop(run, 1, "m");
+    expect(writes.map((w) => w.id)).toEqual(["b", "c", "m"]);
+    expect(after(run, writes)).toEqual(["a", "m", "b", "c"]);
+    const last = keysForDrop(run, 3, "m");
+    expect(after(run, last)).toEqual(["a", "b", "c", "m"]);
+  });
+
+  it("refuses an index outside the list, and a list that holds the item that moves", () => {
+    const items = list(["a", "a0"]);
+    for (const bad of [-1, 2, 0.5]) expect(() => keysForDrop(items, bad, "m")).toThrow(RangeError);
+    expect(() => keysForDrop(items, 0, "a")).toThrow(RangeError);
+  });
+});
+
+describe("isValidKey", () => {
+  it("accepts a key that keyBetween can take, up to the longest length", () => {
+    expect(isValidKey("a0")).toBe(true);
+    expect(isValidKey("a0V")).toBe(true);
+    for (const bad of ["", "a", "a00", "a0 ", 42, null, undefined, {}]) expect(isValidKey(bad), String(bad)).toBe(false);
+    const long = `a0${"V".repeat(30)}`;
+    expect(isValidKey(long)).toBe(true);
+    expect(isValidKey(long, { maxLength: 16 })).toBe(false);
+    expect(isValidKey(`a0${"V".repeat(1100)}`)).toBe(false);
   });
 });
 
