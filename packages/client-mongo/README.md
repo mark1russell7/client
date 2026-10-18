@@ -699,6 +699,33 @@ const { pipeline: bounded, limited } = boundPipeline(scoped, 5000);
 - The function does not change the pipeline of the caller.
 - `MongoDocumentStorage.aggregate(pipeline, { maxTime, maxResults })` is read-only, reads only its own collection, and keeps the tombstones out. It gives `{ docs, truncated }`. The defaults are `seconds(10)` and 5000 documents. `maxTime` is a duration of `@procedures/client`.
 
+### Materialized views: `ViewMaterializer`
+
+A view is a document of a views collection: a pipeline over source collections, whose result goes into a target collection, for one partition. `ViewMaterializer` keeps each target equal to the result of its pipeline, with change streams. Change streams need a replica set.
+
+```ts
+import { ViewMaterializer } from "@procedures/mongo";
+
+await db.collection("_aggregations").insertOne({
+  _id: "totals",
+  _part: "tenant-1",
+  collections: ["orders"],
+  pipeline: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+  targetCollection: "orderTotals",
+});
+const views = new ViewMaterializer({ db: () => db });
+await views.start();
+```
+
+- A change of a source starts a pass of its partition after the burst (`debounceMs`). A pass computes only the views whose sources changed, in the order of their dependencies. A view whose result changed makes its target dirty, so the views that read it are in the same pass.
+- A run computes the result first. A result that did not change writes nothing. Else a `$merge` writes the result, and the rows that the result does not have are removed.
+- A view in a cycle of views stays idle. Its status is `cycle` until the cycle ends.
+- The status of each view (`ok`, `errored` with `lastError`, `cycle`) goes into the field `_materializerStatus` of its document.
+- Each pipeline goes through `scopePipeline` by default. It reads only the documents of the partition in its sources, and writes only into its target. The option `scope` gives another guard.
+- A stream that ends opens again after `rewatchMs`, and a pass catches up.
+- `stop()` closes the streams and waits for the work in flight. `inFlight()` counts that work.
+- The target is a plain collection. A `$merge` into the collection of a `MongoDocumentStorage` does not go through its change log.
+
 ## Integration with Ecosystem
 
 ### Bundle Packages

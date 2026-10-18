@@ -17,3 +17,6 @@ export {
   scopePipeline,
 } from "./pipeline-scope.js";
 export type { PipelineLimits, PipelineScope } from "./pipeline-scope.js";
+// Materialized views driven by change streams (Graph's split plan, P4)
+export { ViewMaterializer } from "./materializer.js";
+export type { MaterializedView, MaterializedViewStatus, ViewMaterializerOptions, ViewPipelineScope } from "./materializer.js";
