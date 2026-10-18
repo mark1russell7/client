@@ -12,9 +12,9 @@ import {
   type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
   ServerTransport,
-  Server,
   ProcedureRegistry,
   RequestHandler,
   Credentials,
@@ -156,7 +156,8 @@ export class McpServerTransport implements ServerTransport {
   readonly name = "mcp";
 
   private mcpServer: McpServer;
-  private server: Server;
+  /** The handler of the calls: a server, or the handler of a face of a procedures host (CLI-7). */
+  private server: RequestHandler;
   private registry: ProcedureRegistry;
   private options: Required<Pick<McpServerTransportOptions, "transport" | "serverInfo">> &
     McpServerTransportOptions;
@@ -176,7 +177,7 @@ export class McpServerTransport implements ServerTransport {
   /** This function removes the listener of the end of the stdio input */
   private stdinEnd: (() => void) | undefined;
 
-  constructor(server: Server, options: McpServerTransportOptions = {}) {
+  constructor(server: RequestHandler, options: McpServerTransportOptions = {}) {
     this.server = server;
     this.options = {
       transport: options.transport ?? "stdio",
@@ -669,6 +670,14 @@ export class McpServerTransport implements ServerTransport {
     this.httpUrl = undefined;
     this.running = false;
     this.log("MCP server stopped");
+  }
+
+  /**
+   * This method answers a request of the Streamable HTTP endpoint on a listener that another part
+   * owns (`httpOptions.mount`, CLI-7). It gives false for another path, and before `start()`.
+   */
+  handleHttp(req: IncomingMessage, res: ServerResponse): boolean {
+    return this.http?.handle(req, res) ?? false;
   }
 
   /**

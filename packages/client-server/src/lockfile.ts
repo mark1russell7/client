@@ -5,7 +5,8 @@
  * the build of `mark` and its peer id. Before, five copies of this logic had drifted, and a
  * server counted as alive when its PID existed: Windows reuses PIDs, so a stale lockfile broke
  * every `mark` command and `server stop` killed an unrelated process (deep dive CLI-4). Now a
- * server is alive only when its health endpoint answers with the peer id of its lockfile.
+ * server is alive only when its procedure `host.info` answers the token of its lockfile with the
+ * peer id of its lockfile.
  */
 
 import * as fs from "node:fs";
@@ -95,21 +96,28 @@ export function removeLockfileForPort(port: number): void {
 }
 
 /**
- * The state of a lockfile's server:
- * - "alive": the health endpoint answers with the lockfile's peer id;
+ * The state of a lockfile's server, from the procedure `host.info` with the token of the lockfile
+ * (CLI-7, CLI-9). Before, the server answered a `/health` route without the token, and that route said
+ * "ok" also while the server stopped.
+ * - "alive": `host.info` answers with the lockfile's peer id;
  * - "dead": nothing answers (the lockfile is stale);
- * - "other": something else answers on the port (another server, or a lockfile without a peer id).
+ * - "other": something else answers on the port (another server, a refused token, or a lockfile without a peer id).
  */
 export async function checkServer(lockfile: LockfileData, timeoutMs = 1000): Promise<"alive" | "dead" | "other"> {
   let response: Response;
   try {
-    response = await fetch(`${lockfile.endpoint}/health`, { signal: AbortSignal.timeout(timeoutMs) });
+    response = await fetch(`${lockfile.endpoint}/host/info`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(lockfile.token !== undefined ? { authorization: `Bearer ${lockfile.token}` } : {}) },
+      body: "{}",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
   } catch {
     return "dead";
   }
   try {
-    const health = (await response.json()) as { peerId?: unknown };
-    return lockfile.peerId !== undefined && health.peerId === lockfile.peerId ? "alive" : "other";
+    const info = (await response.json()) as { peerId?: unknown };
+    return response.ok && lockfile.peerId !== undefined && info.peerId === lockfile.peerId ? "alive" : "other";
   } catch {
     return "other";
   }

@@ -6,7 +6,7 @@
  */
 
 import { Server, type ServerOptions } from "./server.js";
-import type { AmbientCredentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
+import type { AmbientCredentials, Credentials, Method, Principal, PrincipalOf, RequestIdentity, ServerHandler, ServerRequest, ServerResponse } from "./types.js";
 import { methodToPath, pathToMethod } from "./method.js";
 import type {
   AnyProcedure,
@@ -858,6 +858,17 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   }
 
   /**
+   * This method tells if the server admits a connection with these credentials, before its first
+   * call. It uses the path of each call: the request hook, the token check and the authenticate
+   * function (R18, CLI-2a). A face of connections refuses the upgrade when it gives false (CLI-7).
+   * A request hook that accepts a request without credentials (an empty identity) admits it.
+   */
+  async admits(credentials: Credentials): Promise<boolean> {
+    const request: ServerRequest<unknown> = { id: "connection", method: { service: "", operation: "" }, payload: undefined, metadata: {}, credentials };
+    return (await this.admit(request)) === undefined;
+  }
+
+  /**
    * Run a keyed call one time. The run continues when its caller goes away, so that the next try
    * gets its result: only the deadline of the call and the stop of the server end it. A stream
    * still stops with its caller, because nobody can read it again.
@@ -1043,6 +1054,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
 
   hasProcedure(path: ProcedurePath): boolean {
     return this.resolveProcedure(pathToMethod(path)) !== undefined;
+  }
+
+  /**
+   * This method gives the procedure that answers a method now, or undefined. The registry comes
+   * first, then the pinned procedures. A host reads the effects of the procedure for the
+   * idempotency of each request (decision D3, CLI-7).
+   */
+  procedureOf(method: Method): AnyProcedure | undefined {
+    return this.resolveProcedure(method);
   }
 
   /**

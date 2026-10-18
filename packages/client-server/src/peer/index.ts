@@ -1,49 +1,36 @@
 /**
  * Peer Module
  *
- * Transport-agnostic peer implementation for bidirectional RPC.
+ * A peer is a procedures host with a service of its own (CLI-7), for a process that has no service
+ * of its own: a test, or a host that a procedure starts (`server.create`). `createPeer()` builds it
+ * with `createProcedureHost()`: each HTTP or WebSocket transport of the options is a face on a
+ * listener of the host, and the listener is an `httpTransport` of `@mark1russell7/service/http`.
+ *
+ * - `start()` declares the parts in a service and starts `run()` of `@mark1russell7/service`, on
+ *   a process port that installs no signal handler and never ends the process.
+ * - `stop()` asks the lifecycle for its shutdown, and waits for the end of its stages.
+ *
+ * A process that has a service of its own declares the parts of `createProcedureHost()` with
+ * `host.declare(svc)`, in place of a peer (decision D2). The peer has no listener, URL strategy,
+ * `/health` route or token check of its own.
  */
 
+import { daemon, embeddedProcess, service, type Lifecycle, type Profile } from "@mark1russell7/service";
 import {
-  ProcedureServer,
-  HttpServerTransport,
-  WebSocketServerTransport,
-  type ProcedureRegistry,
-  PROCEDURE_REGISTRY,
-  rpcServerUrlStrategy,
-  defaultServerUrlStrategy,
-  defaultUrlPattern,
-  procedureServerOptions,
-  hostProcedures,
-  metricsInterceptor,
-  Client,
+  hostPolicy,
+  seconds,
   type BrowserGuardOptions,
+  type Client,
   type HostPolicy,
-  type Method,
+  type ProcedurePath,
+  type ProcedureRegistry,
+  type ProcedureServer,
+  type StopOptions,
 } from "@procedures/client";
-import type { Request } from "express";
-import type { ProcedurePath, StopOptions } from "@procedures/client";
+import { defaultServerUrlStrategy, rpcServerUrlStrategy, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
 import type { HttpTransportConfig, TransportConfig, TransportType, WebSocketTransportConfig } from "../types.js";
-import { bearerToken, hostAllowed, originAllowed, tokenMatches } from "./security.js";
-
-/**
- * URL strategy that matches the client's defaultUrlPattern
- * Maps: POST /api/server/status → { service: "server", operation: "status" }
- */
-function patternUrlStrategy(req: Request): Method | null {
-  const basePath = "/api";
-  let path = req.path;
-
-  // Remove base path prefix if present
-  if (path.startsWith(basePath)) {
-    path = path.slice(basePath.length);
-  }
-
-  // Use the client's defaultUrlPattern parser
-  // Cast method to expected type (parser doesn't actually use it for this pattern)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return defaultUrlPattern.parse(path, req.method.toUpperCase() as any);
-}
+import { createProcedureHost, httpFace, LOCAL_LISTENER_KNOBS, wsFace, type HostFaceFactory, type HostListener, type ProcedureHost, type ProcedureHostOptions } from "../host/index.js";
+import { originAllowed } from "./security.js";
 
 // =============================================================================
 // Types
@@ -67,16 +54,13 @@ export interface PeerOptions {
   metrics?: boolean | undefined;
   /**
    * The policy of the host (`hostPolicy()` of the core, roadmap 2.3): the expose rule, the call
-   * rule, the interceptors (a time limit), the token of each network transport that has none of
-   * its own, and the browser checks. `expose` above, when given, wins over the policy's.
+   * rule, the interceptors (a time limit), the token and the browser checks. `expose` above, when
+   * given, wins over the policy's. A peer has one token: the token of its transports, or else the
+   * token of the policy.
    */
   policy?: HostPolicy | undefined;
-}
-
-/** The port that a listening server got, or undefined. With port 0 the system gives a free port. */
-function listeningPort(server: import("node:http").Server): number | undefined {
-  const address = server.address();
-  return typeof address === "object" && address !== null ? address.port : undefined;
+  /** The profile of the service of the peer. The default is `PEER_PROFILE`. */
+  profile?: Profile | undefined;
 }
 
 export interface PeerEndpoint {
@@ -87,15 +71,21 @@ export interface PeerEndpoint {
 export interface Peer {
   /** Peer ID */
   id: string;
-  /** Start all transports */
+  /** This method starts the parts of the host. A peer starts one time. */
   start(): Promise<void>;
-  /** Stop all transports */
-  /** Stop the peer. With `grace`, the calls in flight have that time to end (roadmap R14). */
+  /**
+   * This method asks the lifecycle of the peer for its shutdown, and waits for the end of its stages.
+   *
+   * @param options - Deprecated: the grace has no effect. The drain of the profile of the peer gives
+   *   the calls in flight their time (CLI-7).
+   */
   stop(options?: StopOptions): Promise<void>;
   /** Get active endpoints */
   getEndpoints(): PeerEndpoint[];
   /** Get underlying server */
   getServer(): ProcedureServer;
+  /** The procedures host of the peer: its parts, its faces and its info (CLI-7). */
+  getHost(): ProcedureHost;
   /** The ids of the WebSocket connections of the clients (roadmap R24). */
   connections(): string[];
   /**
@@ -109,277 +99,166 @@ export interface Peer {
 // Implementation
 // =============================================================================
 
+/**
+ * The policy of a peer, with its one token. A transport token and a policy token must be the same:
+ * the one server examines one token for each face.
+ */
+function peerPolicy(options: PeerOptions): HostPolicy {
+  const own = new Set(options.transports.flatMap((transport) => (transport.type !== "local" && transport.token !== undefined ? [transport.token] : [])));
+  const policyToken = options.policy?.token;
+  if (own.size > 1 || (own.size === 1 && policyToken !== undefined && !own.has(policyToken))) {
+    throw new Error("A peer has one token: give the same token to each transport, or give it only in the policy");
+  }
+  const token = [...own][0] ?? policyToken;
+  if (options.policy) return token === policyToken ? options.policy : { ...options.policy, token };
+  return hostPolicy(token !== undefined ? { token } : {});
+}
+
+/** The options of the HTTP face of a transport: the rules of the peer before CLI-7, on `procedureHandler`. */
+function httpOptionsOf(config: HttpTransportConfig, browser: BrowserGuardOptions): ProcedureHandlerOptions {
+  return {
+    basePath: config.basePath ?? "/api",
+    // Off by default: before, every peer sent Access-Control-Allow-Origin: * (deep dive CLI-2)
+    cors: config.cors ?? false,
+    ...(config.urlStrategy === "rpc" ? { urlStrategy: rpcServerUrlStrategy } : config.urlStrategy === "rest" ? { urlStrategy: defaultServerUrlStrategy } : {}),
+    // The browser checks follow the rule of the peer: loopback origins and the listed ones
+    allowedOrigins: browser.allowedOrigins ?? ((origin: string) => originAllowed(origin, config.corsOrigins)),
+    ...(browser.allowedHosts !== undefined ? { allowedHosts: browser.allowedHosts } : {}),
+    // The RESTful strategy calls by GET
+    allowGet: browser.allowGet ?? config.urlStrategy === "rest",
+    ...(config.bodyLimit !== undefined ? { bodyLimit: config.bodyLimit } : {}),
+  };
+}
+
+/** The options of the WebSocket face of a transport. */
+function wsOptionsOf(config: WebSocketTransportConfig, browser: BrowserGuardOptions): UpgradeHandlerOptions {
+  return {
+    path: config.path ?? "/ws",
+    allowedOrigins: browser.allowedOrigins ?? ((origin: string) => originAllowed(origin, config.origins)),
+    ...(browser.allowedHosts !== undefined ? { allowedHosts: browser.allowedHosts } : {}),
+  };
+}
+
+/**
+ * The faces and the listeners of the transports. Two transports on one address and port share one
+ * listener. Loopback is the default address, so the whole registry (`shell.run`, `fs.write`) is
+ * not served on each interface (BUGS-2026-07 H19). Give `host: "0.0.0.0"` on purpose for the LAN.
+ */
+function facesOf(transports: readonly TransportConfig[], browser: BrowserGuardOptions): { faces: Record<string, HostFaceFactory>; listen: HostListener[] } {
+  const faces: Record<string, HostFaceFactory> = {};
+  const listeners: Array<{ name: string; port: number; host: string; faces: string[] }> = [];
+  const counts = { http: 0, websocket: 0 };
+  for (const transport of transports) {
+    if (transport.type === "local") continue;
+    const kind = transport.type === "http" ? "http" : "ws";
+    const index = counts[transport.type]++;
+    const faceName = index === 0 ? kind : `${kind}${index + 1}`;
+    faces[faceName] =
+      transport.type === "http" ? httpFace(httpOptionsOf(transport, browser)) : wsFace(wsOptionsOf(transport, browser));
+    const port = transport.port ?? (transport.type === "http" ? 3000 : 3001);
+    const host = transport.host ?? "127.0.0.1";
+    const shared = port === 0 ? undefined : listeners.find((listener) => listener.port === port && listener.host === host);
+    if (shared) shared.faces.push(faceName);
+    else listeners.push({ name: faceName, port, host, faces: [faceName] });
+  }
+  return { faces, listen: listeners.map((listener) => ({ ...listener, knobs: LOCAL_LISTENER_KNOBS })) };
+}
+
+/**
+ * This function gives the options of a procedures host for the options of a peer: each HTTP or
+ * WebSocket transport is a face on a listener with `LOCAL_LISTENER_KNOBS`, and the peer has one
+ * token. `createPeer()` uses it, and so does `runProcedureHost()` of `@procedures/server` (CLI-8).
+ */
+export function peerHostOptions(options: PeerOptions, name: string = "peer"): ProcedureHostOptions {
+  const policy = peerPolicy(options);
+  const { faces, listen } = facesOf(options.transports, policy.browser);
+  const local = options.transports.some((transport) => transport.type === "local");
+  return {
+    name,
+    id: options.id,
+    policy,
+    faces,
+    listen,
+    autoRegister: options.autoRegister ?? true,
+    ...(options.registry ? { registry: options.registry } : {}),
+    ...(options.expose ? { expose: options.expose } : {}),
+    ...(options.metrics !== undefined ? { metrics: options.metrics } : {}),
+    ...(local ? { endpoints: [{ type: "local", address: "local://in-process" }] } : {}),
+  };
+}
+
+/** The cap of the stage `drain` of the profile `daemon`. */
+const DAEMON_DRAIN = daemon.phases?.find((phase) => phase.name === "drain")?.cap ?? seconds(4);
+
+/**
+ * The profile of the service of a peer, as data: the caps of `daemon`, and the cooperative abort at
+ * the start of the drain. Thus `stop()` aborts the calls in flight at once, as `stop()` without a
+ * grace did before (CLI-7). A repeat signal has no effect, and the port of a peer has no signal.
+ */
+export const PEER_PROFILE: Profile = Object.freeze({ ...daemon, cooperativeWindow: DAEMON_DRAIN, cooperativeFloor: "none" as const });
+
 class PeerImpl implements Peer {
   readonly id: string;
-  private server: ProcedureServer;
-  private transports: TransportConfig[];
-  private endpoints: PeerEndpoint[] = [];
-  private started = false;
-  /** The WebSocket transports of the peer: the calls to its clients go over them (R24) */
-  private wsTransports: WebSocketServerTransport[] = [];
-  /** The HTTP servers that the peer made for its WebSocket transports: `stop()` closes them */
-  private ownedServers: Array<import("node:http").Server> = [];
-  private registry: ProcedureRegistry;
-  private startTime: number = Date.now();
-
-  /** The browser checks of the policy (an origin rule here replaces the peer's own rule). */
-  private browser: BrowserGuardOptions;
+  private readonly host: ProcedureHost;
+  private readonly profile: Profile;
+  private life: Lifecycle | undefined;
+  private state: "new" | "started" | "stopped" = "new";
 
   constructor(options: PeerOptions) {
     this.id = options.id;
-    const policy = options.policy;
-    // The policy's token goes to each network transport that has none of its own
-    this.transports = options.transports.map((transport) =>
-      transport.type === "local" || policy?.token === undefined || transport.token !== undefined
-        ? transport
-        : { ...transport, token: policy.token }
-    );
-    this.registry = options.registry ?? PROCEDURE_REGISTRY;
-    this.browser = policy?.browser ?? {};
-
-    // Create procedure server. The metrics interceptor counts each call for host.metrics (R19).
-    const metrics = options.metrics === false ? undefined : metricsInterceptor();
-    const serverOptions = policy ? procedureServerOptions(policy, this.registry) : {};
-    const interceptors = [...(serverOptions.interceptors ?? []), ...(metrics ? [metrics.interceptor] : [])];
-    this.server = new ProcedureServer({
-      ...serverOptions,
-      ...(interceptors.length > 0 ? { interceptors } : {}),
-      autoRegister: options.autoRegister ?? true,
-      registry: this.registry,
-      ...(options.expose ? { expose: options.expose } : {}),
-    });
-    // host.health, host.info and host.metrics: pinned on the server, not in the registry (R19)
-    this.server.registerProcedures(
-      hostProcedures({
-        id: this.id,
-        startedAt: this.startTime,
-        server: this.server,
-        endpoints: () => this.getEndpoints(),
-        ...(metrics ? { metrics } : {}),
-      })
-    );
+    this.host = createProcedureHost(peerHostOptions(options));
+    this.profile = options.profile ?? PEER_PROFILE;
   }
 
   async start(): Promise<void> {
-    if (this.started) return;
-
-    try {
-      for (const transport of this.transports) {
-        await this.startTransport(transport);
-      }
-    } catch (error) {
-      // Stop the transports that started, so a failed start leaves no port open
-      await this.server.stop().catch(() => {});
-      this.endpoints = [];
-      throw error;
+    if (this.state === "started") return;
+    if (this.state === "stopped") throw new Error("This peer stopped. A peer starts one time: create a new peer.");
+    this.state = "started";
+    const svc = this.host.declare(service(this.id).profile(this.profile));
+    // No check gates the policies of a peer: it is ready from the end of its startup
+    if (!this.profile.readiness) svc.readiness({ type: "debounce", interval: seconds(5), failAfter: 3, recoverAfter: 1 });
+    if (!this.profile.liveness) svc.liveness({ type: "window", failAfter: seconds(45) });
+    if (!this.profile.startup) svc.startup(seconds(30));
+    if (!this.profile.onRepeatSignal) svc.onRepeatSignal("ignore");
+    // The port of a lifecycle in a process that another part owns (SYS-27): no signal handler, no
+    // hold of the process, and an exit that only records the code
+    const life = await svc.run({ process: embeddedProcess() });
+    if (life.state !== "running") {
+      // The startup failed: the lifecycle stops the parts that started, so no port stays open
+      this.state = "stopped";
+      await life.done;
+      throw new Error(life.errors.join("; ") || "The peer did not start");
     }
-
-    this.started = true;
+    this.life = life;
   }
 
-  private async startTransport(config: TransportConfig): Promise<void> {
-    switch (config.type) {
-      case "http":
-        await this.startHttpTransport(config);
-        break;
-      case "websocket":
-        await this.startWebSocketTransport(config);
-        break;
-      case "local":
-        // Local transport doesn't need network setup
-        this.endpoints.push({
-          type: "local",
-          address: "local://in-process",
-        });
-        break;
-    }
-  }
-
-  private async startHttpTransport(config: HttpTransportConfig): Promise<void> {
-    // Dynamic import to avoid bundling express if not used
-    const express = (await import("express")).default;
-
-    const app = express();
-    // No body parser here: the transport reads the body itself, with bodyLimit, and accepts each
-    // JSON value (roadmap R5). Before, the strict parser of express refused a bare value (a
-    // number, a string, null) with 400, and its limit of 100 kB replaced bodyLimit.
-
-    const port = config.port ?? 3000;
-    // Loopback by default so the full procedure registry (incl. shell.run / fs.write) is not
-    // served unauthenticated on all interfaces. Pass host: "0.0.0.0" to expose on the LAN
-    // deliberately. See documentation/BUGS-2026-07.md (H19).
-    const host = config.host ?? "127.0.0.1";
-    const basePath = config.basePath ?? "/api";
-
-    // Host, origin and token checks (deep dive TRN-1, CLI-1, CLI-2). The health endpoints need no
-    // token: a client uses them to check that a lockfile's server is alive.
-    app.use((req, res, next) => {
-      if (!hostAllowed(host, req.headers.host) || !originAllowed(req.headers.origin, config.corsOrigins)) {
-        res.status(403).json({ error: "Forbidden: the host or the origin is not allowed", code: "FORBIDDEN" });
-        return;
-      }
-      const isHealth = req.path === "/health" || req.path === `${basePath}/health`;
-      if (!isHealth && req.method !== "OPTIONS" && !tokenMatches(config.token, bearerToken(req.headers.authorization))) {
-        res.status(401).json({ error: "Unauthorized: this server requires its token", code: "UNAUTHORIZED" });
-        return;
-      }
-      next();
-    });
-
-    // Health endpoint for container orchestration
-    app.get(`${basePath}/health`, (_req, res) => {
-      const procedureCount = this.registry.getAll().filter((p) => p.handler).length;
-      res.json({
-        status: "ok",
-        uptime: Date.now() - this.startTime,
-        procedures: procedureCount,
-        peerId: this.id,
-      });
-    });
-
-    // Also add at root /health for convenience
-    app.get("/health", (_req, res) => {
-      const procedureCount = this.registry.getAll().filter((p) => p.handler).length;
-      res.json({
-        status: "ok",
-        uptime: Date.now() - this.startTime,
-        procedures: procedureCount,
-        peerId: this.id,
-      });
-    });
-
-    // Select URL strategy based on config
-    // Default to patternUrlStrategy which matches the client's defaultUrlPattern
-    const urlStrategy = config.urlStrategy === "rpc"
-      ? rpcServerUrlStrategy
-      : config.urlStrategy === "rest"
-        ? defaultServerUrlStrategy
-        : patternUrlStrategy;
-
-    const httpTransport = new HttpServerTransport(this.server, {
-      app,
-      port,
-      host,
-      basePath,
-      // Off by default: before, every peer sent Access-Control-Allow-Origin: * (deep dive CLI-2)
-      cors: config.cors ?? false,
-      urlStrategy,
-      // The transport's browser checks follow the peer's rule: loopback origins and the listed
-      // ones (the token is required in any case). The RESTful strategy calls by GET.
-      allowedOrigins: this.browser.allowedOrigins ?? ((origin) => originAllowed(origin, config.corsOrigins)),
-      ...(this.browser.allowedHosts ? { allowedHosts: this.browser.allowedHosts } : {}),
-      allowGet: this.browser.allowGet ?? config.urlStrategy === "rest",
-      ...(config.bodyLimit !== undefined ? { bodyLimit: config.bodyLimit } : {}),
-    });
-
-    this.server.addTransport(httpTransport);
-    await httpTransport.start();
-
-    this.endpoints.push({
-      type: "http",
-      // The real port: with port 0 the system gives a free port
-      address: `http://${host === "0.0.0.0" ? "localhost" : host}:${httpTransport.port() ?? port}${basePath}`,
-    });
-  }
-
-  private async startWebSocketTransport(config: WebSocketTransportConfig): Promise<void> {
-    // WebSocket transport requires an HTTP server to attach to
-    // For standalone WebSocket, we create an HTTP server first
-    const { createServer } = await import("http");
-
-    const port = config.port ?? 3001;
-    // Loopback by default so the full procedure registry (incl. shell.run / fs.write) is not
-    // served unauthenticated on all interfaces. Pass host: "0.0.0.0" to expose on the LAN
-    // deliberately. See documentation/BUGS-2026-07.md (H19).
-    const host = config.host ?? "127.0.0.1";
-    const path = config.path ?? "/ws";
-
-    const httpServer = createServer();
-
-    // Listen first, then attach the WebSocket server. A listen error (EADDRINUSE, EACCES) rejects:
-    // before, the error had no listener, so the process ended with an unhandled 'error' event
-    // (deep dive CLI-16).
-    await new Promise<void>((resolve, reject) => {
-      const onError = (error: Error): void => {
-        reject(new Error(`The WebSocket server cannot listen on ${host}:${port}: ${error.message}`));
-      };
-      httpServer.once("error", onError);
-      httpServer.listen(port, host, () => {
-        httpServer.off("error", onError);
-        resolve();
-      });
-    });
-
-    const wsTransport = new WebSocketServerTransport(this.server, {
-      server: httpServer,
-      path,
-      allowedOrigins: this.browser.allowedOrigins ?? ((origin) => originAllowed(origin, config.origins)),
-      ...(this.browser.allowedHosts ? { allowedHosts: this.browser.allowedHosts } : {}),
-      // Host, origin and token checks: before, any web page could open a connection and call
-      // procedures (cross-site WebSocket hijacking, deep dive TRN-1)
-      authenticate: (req) => {
-        const token = new URL(req.url ?? "/", "http://localhost").searchParams.get("token") ?? bearerToken(req.headers.authorization);
-        return (
-          hostAllowed(host, req.headers.host) &&
-          originAllowed(req.headers.origin, config.origins) &&
-          tokenMatches(config.token, token)
-        );
-      },
-    });
-
-    this.server.addTransport(wsTransport);
-    try {
-      await wsTransport.start();
-    } catch (error) {
-      httpServer.close();
-      throw error;
-    }
-    this.ownedServers.push(httpServer);
-    this.wsTransports.push(wsTransport);
-
-    this.endpoints.push({
-      type: "websocket",
-      address: `ws://${host === "0.0.0.0" ? "localhost" : host}:${listeningPort(httpServer) ?? port}${path}`,
-    });
-  }
-
-  async stop(options: StopOptions = {}): Promise<void> {
-    if (!this.started) return;
-    await this.server.stop(options);
-    // The HTTP servers of the WebSocket transports: before, they stayed open, so the port stayed
-    // bound after stop() (roadmap R5)
-    const owned = this.ownedServers;
-    this.ownedServers = [];
-    await Promise.all(
-      owned.map(
-        (httpServer) =>
-          new Promise<void>((resolve) => {
-            httpServer.close(() => resolve());
-            httpServer.closeAllConnections();
-          }),
-      ),
-    );
-    this.started = false;
-    this.endpoints = [];
-    this.wsTransports = [];
+  async stop(_options: StopOptions = {}): Promise<void> {
+    const life = this.life;
+    if (this.state !== "started" || life === undefined) return;
+    this.state = "stopped";
+    await life.shutdown("the peer stops");
+    await life.done;
   }
 
   getEndpoints(): PeerEndpoint[] {
-    return [...this.endpoints];
+    if (this.state !== "started" || this.life === undefined) return [];
+    return this.host.info.endpoints().map((endpoint) => ({ type: endpoint.type as TransportType, address: endpoint.address }));
   }
 
   getServer(): ProcedureServer {
-    return this.server;
+    return this.host.server;
+  }
+
+  getHost(): ProcedureHost {
+    return this.host;
   }
 
   connections(): string[] {
-    return this.wsTransports.flatMap((transport) => transport.getTrackedConnections().map((connection) => connection.id));
+    return this.host.connections();
   }
 
   clientFor(connectionId: string): Client {
-    const transport = this.wsTransports.find((ws) => ws.getTrackedConnection(connectionId) !== undefined);
-    if (!transport) throw new Error(`Connection not found: ${connectionId}`);
-    return new Client({ transport: transport.transportFor(connectionId), throwOnError: true });
+    return this.host.clientFor(connectionId);
   }
 }
 
@@ -388,7 +267,8 @@ class PeerImpl implements Peer {
 // =============================================================================
 
 /**
- * Create a new peer instance
+ * Create a new peer instance: a procedures host with a service of its own, for a process that has
+ * no service of its own. A process with a service uses `createProcedureHost()` and `host.declare(svc)`.
  */
 export async function createPeer(options: PeerOptions): Promise<Peer> {
   return new PeerImpl(options);

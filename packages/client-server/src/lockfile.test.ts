@@ -1,6 +1,6 @@
 /**
  * The shared lockfile module (deep dive CLI-3, CLI-4, CLI-14): a server counts only when its
- * health endpoint answers with the peer id of its lockfile, and a client uses only a server of
+ * `host.info` answers with the peer id of its lockfile, and a client uses only a server of
  * its own folder and build. The tests use a temporary home folder, never the real ~/.mark.
  */
 
@@ -21,9 +21,20 @@ let healthPort = 0;
 
 beforeAll(async () => {
   lockfile = await import("./lockfile.js");
-  health = createServer((_req, res) => {
+  // host.info of a peer: a POST with the token of the lockfile (CLI-7)
+  health = createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ status: "ok", peerId: "peer-live" }));
+    if (req.method !== "POST" || req.url !== "/api/host/info") {
+      res.statusCode = 404;
+      res.end(JSON.stringify({ code: "NOT_FOUND" }));
+      return;
+    }
+    if (req.headers.authorization !== "Bearer t") {
+      res.statusCode = 401;
+      res.end(JSON.stringify({ code: "UNAUTHORIZED" }));
+      return;
+    }
+    res.end(JSON.stringify({ peerId: "peer-live" }));
   });
   await new Promise<void>((resolve) => health.listen(0, "127.0.0.1", () => resolve()));
   const address = health.address();
@@ -57,9 +68,10 @@ describe("lockfiles", () => {
     lockfile.removeLockfileForPort(healthPort);
   });
 
-  it("checkServer: alive only when the health endpoint answers with the lockfile's peer id", async () => {
+  it("checkServer: alive only when host.info answers the lockfile's token with its peer id", async () => {
     expect(await lockfile.checkServer(lock(healthPort))).toBe("alive");
     expect(await lockfile.checkServer(lock(healthPort, { peerId: "another-peer" }))).toBe("other");
+    expect(await lockfile.checkServer(lock(healthPort, { token: "wrong" }))).toBe("other");
     expect(await lockfile.checkServer(lock(1))).toBe("dead");
   });
 
