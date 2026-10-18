@@ -1,5 +1,24 @@
 # @procedures/fs
 
+## 0.8.0
+
+### Patch Changes
+
+- 90ea741: `confineToRoot(registry, root)` confines each procedure of a registry to a root (roadmap R33). The `fs.*` procedures get the handlers of `createFsModule({ root })`. Each other procedure gets the decision of `rootDecisionOf()`: the root examines the path inputs of its `metadata.fsRoot`, or it refuses the procedure with `FORBIDDEN` and the reason `outside-root`. A procedure without rules is refused when its effects are not known, name `fs`, or write `process`.
+  
+  The new entry `@procedures/fs/root` has the rules of the root without the procedures. `inRoot()` takes an optional base folder, and `resolveRoot()` an optional name for its error. `confineFsProcedures()` does not change.
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

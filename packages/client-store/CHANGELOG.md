@@ -1,5 +1,35 @@
 # @procedures/store
 
+## 0.8.0
+
+### Patch Changes
+
+- aa6e3aa: `ApiStorage` has `getIds()`. A full pull through it does not read each entry for the ids.
+  
+  - The collections have the procedure `collections.<name>.ids`. It gives the ids in the order of the entries, without the values. Its effects read the collection and write nothing. A storage without `getIds()` gives the ids of its entries.
+  - The `CollectionStorage` of the core has the optional method `getIds()`, as the `CollectionStorage` of `@procedures/collections` has.
+  - `ApiStorage.getIds()` uses the procedure `ids`. An older server without it answers `NOT_FOUND`. Then the storage reads the ids from the entries, and it does not ask for `ids` again.
+  - `ApiStorageOptions.operations` takes `ids`, the name of the operation. The default is `ids`.
+- 9380ba0: `FileQueueStore.load` names the right line in its "not JSON (line N)" error when blank lines come before the bad line. Before, it counted the lines after it had removed the blank ones.
+- 276b93c: A pull of `HybridStorage` reads a local item only when the result depends on it. Before, the pull read each local item. The results do not change.
+  
+  - A pull does not read the item of a queued write that wins: without versions, or when the remote version did not change after the last sync.
+  - With `versionOf`, the storage keeps the version of each local item that it wrote or read. A pull then reads a local item only for a conflict, or when it does not know the version. A full pull of a collection without a change reads no local item.
+  - Without versions, a pull reads each local item without a queued write. It compares the JSON of the two items, as before.
+  - Only the storage writes to its local copy: with `versionOf`, a pull does not see a write from outside.
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+  - @procedures/collections@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

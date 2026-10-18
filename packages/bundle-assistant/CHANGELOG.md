@@ -1,5 +1,28 @@
 # @procedures/bundle-assistant
 
+## 0.8.0
+
+### Patch Changes
+
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [6cbc15a]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+- Updated dependencies [715ce03]
+  - @procedures/client@0.8.0
+  - @procedures/ics@0.8.0
+  - @procedures/weather@0.8.0
+  - @procedures/geo@0.8.0
+  - @procedures/exif@0.8.0
+  - @procedures/mail@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

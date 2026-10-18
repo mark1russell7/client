@@ -1,5 +1,24 @@
 # @procedures/archive
 
+## 0.8.0
+
+### Patch Changes
+
+- 90ea741: The root of `createArchiveModule({ root })` uses the rules of `@procedures/fs/root`, so the package has no copy of them. The procedures declare their path inputs in `metadata.fsRoot`, so the root of a host (`confineToRoot()`) confines them too (roadmap R33).
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+  - @procedures/fs@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

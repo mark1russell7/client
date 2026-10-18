@@ -1,5 +1,26 @@
 # @procedures/ics
 
+## 0.8.0
+
+### Patch Changes
+
+- 6cbc15a: Two additions for the calendar dates and the feeds.
+  
+  - New `shiftMonth(date, months)` gives the date `months` months after a date (`YYYY-MM-DD`). When the month of the result does not have the day, the result is its last day: one month after `2026-01-31` is `2026-02-28`. For the arithmetic of `Date.UTC`, add the days to the 1st with `shiftDay`.
+  - `fetchCalendar` has a new option `fetch`, the fourth argument. It replaces the global `fetch`, as the option `fetch` of `drivingRoute` in `@procedures/geo` does.
+  - The README lists `localTime`, `weekdayOf` and `weekdayName`, which came in 0.7.0.
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes

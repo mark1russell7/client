@@ -1,5 +1,25 @@
 # @procedures/weather
 
+## 0.8.0
+
+### Patch Changes
+
+- 715ce03: Two additions for maps and forecasts.
+  
+  - `@procedures/weather`: new `weatherCodeGroup(code)` gives the group of a WMO weather code, for example `clear`, `fog`, `rain-showers` or `thunderstorm`. It gives `undefined` for a code that Open-Meteo does not use.
+  - `@procedures/geo`: new Node entry `@procedures/geo/tiles` with `cachedTile`, `isTile`, `tileUrl` and `OSM_TILES`. `cachedTile` gets a map tile one time with a real `User-Agent`, keeps it in a folder, and gives the kept file after that. The root of the package stays safe for a browser.
+- Updated dependencies [4b09a03]
+- Updated dependencies [4b09a03]
+- Updated dependencies [aa6e3aa]
+- Updated dependencies [698e24d]
+- Updated dependencies [4b09a03]
+- Updated dependencies [600c497]
+- Updated dependencies [7c2e7f7]
+- Updated dependencies [90ea741]
+- Updated dependencies [c4cfa34]
+- Updated dependencies [d25805a]
+  - @procedures/client@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes
