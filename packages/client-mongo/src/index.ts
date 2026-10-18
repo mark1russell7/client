@@ -138,8 +138,8 @@ export type {
 // Storage (CollectionStorage implementation)
 // =============================================================================
 
-export { MongoStorage } from "./storage/index.js";
-export type { MongoStorageOptions } from "./storage/index.js";
+export { MongoStorage, MongoDocumentStorage, selectorPrefilter } from "./storage/index.js";
+export type { MongoStorageOptions, MongoDocumentStorageOptions } from "./storage/index.js";
 
 // =============================================================================
 // Procedure Registration
