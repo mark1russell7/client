@@ -78,6 +78,9 @@ export * from "./overlay/index.js";
 // The order of a list as data: a rank between two neighbors, and the index of a drop
 export * from "./order/index.js";
 
+// The undo of the changes of items: the inverse of a patch, and an undo log
+export * from "./undo/index.js";
+
 // Export queue interfaces with disambiguation for PriorityQueue
 export type {
   ReadonlyQueue,

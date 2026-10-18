@@ -236,6 +236,30 @@ for (const { id, key } of keysForDrop(others, index, dragged.id)) await save(id,
 - `isValidKey(key, { maxLength })` examines a key that a client writes. The default longest key is 1024 characters.
 - `dropIndex(point, centers, rowTolerance)` gives the index of a point among the items on the screen, from 0 to the number of items. Give the centers in reading order (the rows from top to bottom, and each row from left to right). They are in the order of the keys, without the item that moves.
 
+### The undo of a change
+
+`inversePatch(before, patch)` gives the patch that undoes a patch. `UndoLog` keeps the undo of each change in a storage, and undoes the newest change:
+
+```ts
+import { InMemoryStorage, inversePatch, UndoLog, type UndoEntry } from "@procedures/collections";
+
+inversePatch({ tags: ["a", "b"] }, { $remove: ["tags.0"] }); // { $insert: { "tags.0": "a" } }
+
+const log = new UndoLog(new InMemoryStorage<UndoEntry>(), (name) => storages[name], { cap: 50 });
+const after = await notes.patch!("n1", patch);
+await log.record({ collection: "notes", id: "n1", before, patch, after });
+await log.undo(); // one write to "notes", or an UndoConflictError
+```
+
+- The inverse of a removal of an element is an insertion of the element, and the inverse of an insertion is a removal. The undo does not keep the whole array.
+- The inverse uses the indices of the item after the patch. The function applies the inverse to check it.
+- When no patch can undo a change exactly, `inversePatch` gives `undefined`. Then the log keeps the whole item before the change. An example is the removal of two adjacent elements.
+- A change without a patch replaced or removed the whole item. Its entry keeps the item before it, or `null` when the item did not exist. Give `after`: the item after the change, or nothing when the change removed it.
+- Each entry keeps the fingerprint of the item after the change (`fingerprintOf`, a hash of its JSON text with the keys in order). With a patch, the default `after` is `applyPatch(before, patch)`. Give the result of `patch` of the storage when the storage changes the value.
+- The changes with the same `group` undo together, the newest first, for example the two items of a move. Give each action a new group id.
+- `undo()` reads each item of the group before the first write. When another writer changed an item after its recorded change, the undo writes nothing. It gives an `UndoConflictError`, and the entries stay in the log. Otherwise each item gets one `set` or `delete`.
+- The log removes the oldest entries past the cap.
+
 ### The contract suite: `@procedures/collections/testing`
 
 The test-only entry `@procedures/collections/testing` holds one test suite for the contract of `CollectionStorage`. A storage runs it with a factory:
