@@ -424,6 +424,8 @@ export interface LibImportCyclesInput {
   diDecorators?: string[] | undefined;
   /** The glob patterns of the files to leave out. The default leaves out node_modules, declarations and tests. */
   exclude?: string[] | undefined;
+  /** Lower limits than the defaults: the most files of a call (20000), and the largest file that it reads (1 MiB) */
+  limits?: { maxFiles?: number | undefined; maxFileBytes?: number | undefined } | undefined;
 }
 
 export interface LibImportCyclesOutput {
@@ -440,6 +442,8 @@ export interface LibImportCyclesOutput {
   components: string[][];
   /** The number of files in a cycle */
   filesInCycles: number;
+  /** The files larger than limits.maxFileBytes: the call did not read them */
+  skipped: Array<{ path: string; bytes: number }>;
 }
 
 export interface LibGraphInput {
@@ -486,6 +490,13 @@ export const LibImportCyclesInputSchema: z.ZodType<LibImportCyclesInput> = z.obj
   mode: z.enum(["runtime", "declared", "raw"]).optional().describe("The edges to count: runtime (after the import elision, the default), declared or raw"),
   diDecorators: z.array(z.string()).optional().describe("The decorators whose class keeps the types of its constructor parameters at runtime (Angular: Injectable, Component, Directive, Pipe, NgModule)"),
   exclude: z.array(z.string()).optional().describe("The glob patterns of the files to leave out (default: node_modules, declarations and tests)"),
+  limits: z
+    .object({
+      maxFiles: z.number().int().positive().optional().describe("The most files of the call (default 20000). A call with more files is refused before it reads a file."),
+      maxFileBytes: z.number().int().positive().optional().describe("The largest file that the call reads, in bytes (default 1 MiB). The result lists each larger file."),
+    })
+    .optional()
+    .describe("Lower limits than the defaults"),
 });
 
 export const LibImportCyclesOutputSchema: z.ZodType<LibImportCyclesOutput> = z.looseObject({
@@ -496,6 +507,7 @@ export const LibImportCyclesOutputSchema: z.ZodType<LibImportCyclesOutput> = z.l
   acyclic: z.boolean(),
   components: z.array(z.array(z.string())),
   filesInCycles: z.number(),
+  skipped: z.array(z.object({ path: z.string(), bytes: z.number() })),
 });
 
 export const LibGraphInputSchema: z.ZodType<LibGraphInput> = z.object({

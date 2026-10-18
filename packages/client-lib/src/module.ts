@@ -172,7 +172,7 @@ const libImportCyclesProcedure = createProcedure()
   .output(zodAdapter<LibImportCyclesOutput>(LibImportCyclesOutputSchema))
   .meta({
     description: "The import cycles of a tree of TypeScript sources: the cycles at runtime (after the import elision), of the declared imports, or of each import",
-    calls: ["fs.glob", "fs.read"],
+    calls: ["fs.glob", "fs.stat", "fs.read"],
     effects: { reads: ["fs"], writes: [] },
     fsRoot: SOURCES_IN_A_ROOT,
     args: ["path"],

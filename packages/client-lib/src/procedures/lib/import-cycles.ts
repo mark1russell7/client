@@ -28,12 +28,25 @@ export const ANGULAR_DI_DECORATORS: readonly string[] = Object.freeze(["Injectab
 /** The files that the procedure leaves out by default: the tests, the declarations and node_modules. */
 export const DEFAULT_IMPORT_EXCLUDE: readonly string[] = Object.freeze(["**/node_modules/**", "**/*.d.ts", "**/*.{spec,test,unit}.{ts,tsx}"]);
 
+/** The limits of `lib.importCycles`. A host can give lower ones. */
+export interface ImportCycleLimits {
+  /** The most files that one call reads. A call with more files is refused before it reads a file. The default is 20000. */
+  readonly maxFiles: number;
+  /** The largest file that the call reads, in bytes. A larger file is skipped, and the result lists it. The default is 1 MiB. */
+  readonly maxFileBytes: number;
+}
+
+/** The default limits of `lib.importCycles`. */
+export const DEFAULT_IMPORT_CYCLE_LIMITS: ImportCycleLimits = Object.freeze({ maxFiles: 20_000, maxFileBytes: 1024 * 1024 });
+
 /** The options of `importGraph` and `importCycles`. */
 export interface ImportGraphOptions {
   /** `runtime` (the default), `declared` or `raw`. */
   readonly mode?: ImportMode | undefined;
   /** The decorators whose class keeps the types of its constructor parameters at runtime. The default is none. */
   readonly diDecorators?: readonly string[] | undefined;
+  /** An abort signal: the functions examine it before each file, and stop with its reason. */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /** The result of `importCycles`. */
@@ -158,7 +171,12 @@ export function importGraph(sources: ReadonlyMap<string, string>, options: Impor
   const files = new Set(sources.keys());
   const decorators = new Set(options.diDecorators ?? []);
   const mode = options.mode ?? "runtime";
-  return new Map([...sources].map(([file, text]) => [file, edgesOf(file, text, files, mode, decorators)]));
+  const graph = new Map<string, string[]>();
+  for (const [file, text] of sources) {
+    options.signal?.throwIfAborted();
+    graph.set(file, edgesOf(file, text, files, mode, decorators));
+  }
+  return graph;
 }
 
 /**
@@ -172,7 +190,8 @@ export function importGraph(sources: ReadonlyMap<string, string>, options: Impor
  */
 export function importCycles(sources: ReadonlyMap<string, string>, options: ImportGraphOptions = {}): ImportCycles {
   const graph = importGraph(sources, options);
-  const components = findCycles([...graph.keys()], graph).sort((a, b) => b.length - a.length || a[0]!.localeCompare(b[0]!));
+  // The largest cycle first, then the order of the code units of the first file
+  const components = findCycles([...graph.keys()], graph).sort((a, b) => b.length - a.length || (a[0]! < b[0]! ? -1 : a[0]! > b[0]! ? 1 : 0));
   let edges = 0;
   for (const targets of graph.values()) edges += targets.length;
   return { files: graph.size, edges, components, filesInCycles: components.reduce((n, component) => n + component.length, 0) };
@@ -182,22 +201,44 @@ interface FsGlobOutput {
   matches: string[];
 }
 
+function tooManyFiles(count: number, maxFiles: number): Error {
+  return Object.assign(new Error(`The folder has ${count} source files, more than the limit of ${maxFiles}. Give a narrower path, exclude patterns, or a higher limits.maxFiles.`), {
+    code: "PAYLOAD_TOO_LARGE",
+    retryable: false,
+  });
+}
+
 /**
  * The import cycles of the TypeScript sources under a folder
  */
 export async function libImportCycles(input: LibImportCyclesInput, ctx: ProcedureContext): Promise<LibImportCyclesOutput> {
   const exclude = input.exclude ?? [...DEFAULT_IMPORT_EXCLUDE];
+  const limits: ImportCycleLimits = {
+    maxFiles: input.limits?.maxFiles ?? DEFAULT_IMPORT_CYCLE_LIMITS.maxFiles,
+    maxFileBytes: input.limits?.maxFileBytes ?? DEFAULT_IMPORT_CYCLE_LIMITS.maxFileBytes,
+  };
   const { matches } = await ctx.client.call<{ pattern: string; cwd: string; ignore: string[] }, FsGlobOutput>(["fs", "glob"], {
     pattern: "**/*.{ts,tsx}",
     cwd: input.path,
     ignore: exclude,
   });
+  // The limit comes before any read: a call cannot make the host read a whole node_modules
+  if (matches.length > limits.maxFiles) throw tooManyFiles(matches.length, limits.maxFiles);
+  const root = input.path.split("\\").join("/");
   const sources = new Map<string, string>();
+  const skipped: Array<{ path: string; bytes: number }> = [];
   for (const match of matches.map((m) => m.split("\\").join("/")).sort()) {
-    const { content } = await ctx.client.call<{ path: string }, { content: string }>(["fs", "read"], { path: posix.join(input.path.split("\\").join("/"), match) });
+    ctx.signal?.throwIfAborted();
+    const path = posix.join(root, match);
+    const { size } = await ctx.client.call<{ path: string }, { size: number }>(["fs", "stat"], { path });
+    if (size > limits.maxFileBytes) {
+      skipped.push({ path: match, bytes: size });
+      continue;
+    }
+    const { content } = await ctx.client.call<{ path: string }, { content: string }>(["fs", "read"], { path });
     sources.set(match, content);
   }
   const mode = input.mode ?? "runtime";
-  const result = importCycles(sources, { mode, diDecorators: input.diDecorators });
-  return { path: input.path, mode, ...result, acyclic: result.components.length === 0 };
+  const result = importCycles(sources, { mode, diDecorators: input.diDecorators, signal: ctx.signal });
+  return { path: input.path, mode, ...result, acyclic: result.components.length === 0, skipped };
 }

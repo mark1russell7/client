@@ -18,7 +18,7 @@ export {
   libGraph,
 } from "./procedures/lib/index.js";
 export { findCycles } from "./procedures/lib/graph.js";
-export { importCycles, importGraph, ANGULAR_DI_DECORATORS, DEFAULT_IMPORT_EXCLUDE, type ImportCycles, type ImportGraphOptions } from "./procedures/lib/import-cycles.js";
+export { importCycles, importGraph, ANGULAR_DI_DECORATORS, DEFAULT_IMPORT_EXCLUDE, DEFAULT_IMPORT_CYCLE_LIMITS, type ImportCycleLimits, type ImportCycles, type ImportGraphOptions } from "./procedures/lib/import-cycles.js";
 
 // Re-export ecosystem procedures
 export {

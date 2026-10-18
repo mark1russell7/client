@@ -72,12 +72,77 @@ describe("lib.importCycles", () => {
       writeFileSync(join(dir, "a.test.ts"), "import { a } from './a';\nexport const t = a;");
       const registry = createRegistry(libModule);
       const client = new Client(new LocalTransport({ registry })).useRegistry(registry);
-      const out = (await client.call(pathToMethod(["lib", "importCycles"]), { path: dir })) as { files: number; acyclic: boolean; components: string[][] };
+      const out = (await client.call(pathToMethod(["lib", "importCycles"]), { path: dir })) as { files: number; acyclic: boolean; components: string[][]; skipped: unknown[] };
       expect(out.files).toBe(2);
       expect(out.acyclic).toBe(false);
       expect(out.components).toEqual([["a.ts", "sub/b.ts"]]);
+      expect(out.skipped).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  /** A folder with a few sources, and a client of the lib procedures. */
+  function folder(files: Record<string, string>) {
+    const dir = mkdtempSync(join(tmpdir(), "lib-import-cycles-"));
+    for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+    const registry = createRegistry(libModule);
+    const client = new Client(new LocalTransport({ registry })).useRegistry(registry);
+    const call = (input: Record<string, unknown>, options?: { signal?: AbortSignal }) =>
+      client.call(pathToMethod(["lib", "importCycles"]), { path: dir, ...input }, options) as Promise<{ files: number; skipped: Array<{ path: string; bytes: number }> }>;
+    return { dir, call, done: () => rmSync(dir, { recursive: true, force: true }) };
+  }
+
+  it("refuses a folder with more files than limits.maxFiles, before it reads a file", async () => {
+    const f = folder({ "a.ts": "export const a = 1;", "b.ts": "export const b = 1;", "c.ts": "export const c = 1;" });
+    try {
+      await expect(f.call({ limits: { maxFiles: 2 } })).rejects.toThrow(/3 source files, more than the limit of 2/);
+      expect((await f.call({ limits: { maxFiles: 3 } })).files).toBe(3);
+    } finally {
+      f.done();
+    }
+  });
+
+  it("skips a file larger than limits.maxFileBytes, and lists it in the result", async () => {
+    const f = folder({ "small.ts": "export const s = 1;", "large.ts": `export const l = "${"x".repeat(200)}";` });
+    try {
+      const out = await f.call({ limits: { maxFileBytes: 100 } });
+      expect(out.files).toBe(1);
+      expect(out.skipped).toHaveLength(1);
+      expect(out.skipped[0]!.path).toBe("large.ts");
+      expect(out.skipped[0]!.bytes).toBeGreaterThan(100);
+    } finally {
+      f.done();
+    }
+  });
+
+  it("stops at an abort of the call", async () => {
+    const f = folder({ "a.ts": "export const a = 1;" });
+    try {
+      const abort = new AbortController();
+      abort.abort(new Error("stopped by the test"));
+      await expect(f.call({}, { signal: abort.signal })).rejects.toThrow();
+    } finally {
+      f.done();
+    }
+  });
+});
+
+describe("the abort signal of importCycles", () => {
+  it("stops before the next file", () => {
+    const abort = new AbortController();
+    abort.abort(new Error("stopped"));
+    expect(() => importCycles(new Map([["a.ts", "export const a = 1;"]]), { signal: abort.signal })).toThrow("stopped");
+  });
+
+  it("sorts cycles of one size by the code units of their first file", () => {
+    const files = new Map([
+      ["b/x.ts", "import { y } from './y';\nexport const x = y;"],
+      ["b/y.ts", "import { x } from './x';\nexport const y = x;"],
+      ["B/x.ts", "import { y } from './y';\nexport const x = y;"],
+      ["B/y.ts", "import { x } from './x';\nexport const y = x;"],
+    ]);
+    // "B" (66) comes before "b" (98) in code units
+    expect(importCycles(files).components.map((c) => c[0])).toEqual(["B/x.ts", "b/x.ts"]);
   });
 });
