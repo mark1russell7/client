@@ -65,6 +65,11 @@ export interface HttpTransportOptions {
   allowedOrigins?: string[] | undefined;
   /** An HTTP server to answer on, in place of a server of the transport (it does not listen then) */
   server?: import("node:http").Server | undefined;
+  /**
+   * How the procedure server reads cookies (`ambientCredentials` of `ProcedureServer`). The
+   * transport sets it from its server. With a value, a request with a cookie needs a named origin.
+   */
+  ambientCredentials?: import("@procedures/client").AmbientCredentials | undefined;
 }
 
 export interface SseTransportOptions {

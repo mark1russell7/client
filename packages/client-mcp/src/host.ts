@@ -83,6 +83,7 @@ export type McpHostServerOptions = Omit<
   | "resources"
   | "admitItem"
   | "token"
+  | "principalOf"
   | "events"
 >;
 

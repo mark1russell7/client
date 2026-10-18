@@ -106,6 +106,8 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 
 When the client closes the input of stdio, the host stops, and `closed` resolves. The entry `dist/server.js` of `@procedures/mcp-dev-tools` then ends its process.
 
+Each tool call over Streamable HTTP carries the credentials of its HTTP request: the bearer token, the cookies, the headers and the query. Thus the request hook of the policy (`principalOf`) and the token check of the server apply to each call. When the server reads cookies, the face trusts a request with a cookie only from a named origin (CSRF). A call over stdio comes from this process and has no credentials.
+
 ## Questions to the person
 
 A procedure can ask the person at the caller for input or a confirmation during a call. MCP elicitation is one face that answers. The shape is not specific to MCP: another face (a terminal) can answer the same questions.

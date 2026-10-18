@@ -16,6 +16,8 @@ import type {
   ServerTransport,
   Server,
   ProcedureRegistry,
+  RequestHandler,
+  Credentials,
   Elicit,
   ElicitMode,
   ElicitRequest,
@@ -23,7 +25,7 @@ import type {
   ElicitOptions,
   ReportProgress,
 } from "@procedures/client";
-import { PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, untrustedTextsOf } from "@procedures/client";
+import { PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -53,6 +55,19 @@ interface CallExtra {
   requestId: string | number;
   _meta?: { progressToken?: string | number | undefined } | undefined;
   sendNotification: (notification: ServerNotification) => Promise<void>;
+  /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
+  requestInfo?: { headers: Record<string, string | string[] | undefined>; url?: URL | undefined } | undefined;
+}
+
+/**
+ * The credentials of a tool call that came over the network (CLI-10): the bearer token, the
+ * cookies, the headers and the query of its HTTP request. A call over stdio or an in-memory
+ * transport has none: it comes from this process.
+ */
+function callCredentials(extra: CallExtra): Credentials | undefined {
+  const info = extra.requestInfo;
+  if (!info) return undefined;
+  return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
 }
 
 /**
@@ -211,6 +226,7 @@ export class McpServerTransport implements ServerTransport {
       const path = tool.procedurePath;
 
       // Build ServerRequest
+      const credentials = callCredentials(extra as CallExtra);
       const serverRequest = {
         id: generateRequestId(),
         method: pathToMethod(path),
@@ -221,6 +237,9 @@ export class McpServerTransport implements ServerTransport {
         },
         // A cancelled tool call (notifications/cancelled) aborts the procedure
         signal: extra.signal,
+        // The credentials of a call over the network: the request hook (principalOf) and the
+        // token check of the server apply to it (CLI-10)
+        ...(credentials ? { credentials } : {}),
       };
       // What this face offers the procedure (CLI-12): the questions to the person, and the
       // progress for a caller that sent a progress token
@@ -553,7 +572,10 @@ export class McpServerTransport implements ServerTransport {
         this.log("Using stdio transport");
       } else if (this.options.transport === "http") {
         // Streamable HTTP (roadmap R26): an MCP server of its own for each session
-        this.http = createHttpTransport(this.options.httpOptions ?? {}, async (sessionTransport) => {
+        // The face trusts cookies only as the server reads them (CSRF)
+        const ambientCredentials = (this.server as Partial<RequestHandler>).ambientCredentials;
+        const httpOptions = { ...this.options.httpOptions, ...(ambientCredentials ? { ambientCredentials } : {}) };
+        this.http = createHttpTransport(httpOptions, async (sessionTransport) => {
           const sessionServer = this.createSdkServer();
           this.sessionServers.add(sessionServer);
           sessionServer.onclose = () => this.sessionServers.delete(sessionServer);

@@ -58,6 +58,7 @@ function testModule(seen: Seen) {
       const inner = await ctx.client.call<unknown, { released: boolean }>(["ask", "release"], {});
       return { released: inner.released };
     }, { calls: ["ask.release"] }),
+    procedure(["who", "ami"], z.object({ principal: z.string().nullable() }), async (_input, ctx) => ({ principal: ctx.principal?.id ?? null })),
     procedure(["work", "fetch"], z.object({ done: z.number(), reported: z.boolean() }), async (_input, ctx) => {
       for (let step = 1; step <= 3; step++) await ctx.progress?.({ progress: step, total: 3, message: `page ${step}` });
       return { done: 3, reported: ctx.progress !== undefined };
@@ -225,6 +226,60 @@ describe("elicitation (CLI-12)", () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(url!)) as never);
     cleanups.push(() => client.close());
     expect((await call(client, "ask.release")).structuredContent).toEqual({ released: true, by: "person", note: null });
+  });
+});
+
+describe("the credentials of a call over Streamable HTTP (CLI-10)", () => {
+  async function freePort(): Promise<number> {
+    return new Promise<number>((resolve) => {
+      const probe = createServer();
+      probe.listen(0, "127.0.0.1", () => {
+        const address = probe.address();
+        probe.close(() => resolve(typeof address === "object" && address ? address.port : 0));
+      });
+    });
+  }
+
+  it("gives each tool call to the request hook of the policy (principalOf)", async () => {
+    const seenHeaders: string[] = [];
+    const host = createMcpHost({
+      modules: [testModule({ aborted: false })],
+      policy: {
+        principalOf: (credentials) => {
+          const user = credentials.headers?.["x-user"];
+          seenHeaders.push(user ?? "");
+          return user ? { principal: { id: user, via: "x-user" } } : undefined;
+        },
+      },
+      faces: { http: { port: await freePort() } },
+    });
+    await host.start();
+    cleanups.push(() => host.stop());
+    const url = new URL(host.state().faces[0]!.url!);
+
+    const connectAs = async (user?: string): Promise<McpClient> => {
+      const client = new McpClient({ name: "test", version: "0" });
+      const headers: Record<string, string> = user ? { "x-user": user } : {};
+      // The SDK types do not agree with exactOptionalPropertyTypes
+      await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers } }) as never);
+      cleanups.push(() => client.close());
+      return client;
+    };
+
+    const mark = await connectAs("mark");
+    expect((await call(mark, "who.ami")).structuredContent).toEqual({ principal: "mark" });
+    // Without the header, the hook refuses the call: the tool gives the error UNAUTHORIZED
+    const nobody = await connectAs();
+    const refused = (await nobody.callTool({ name: "who.ami", arguments: {} })) as ToolResult & { _meta?: { code?: unknown } };
+    expect(refused.isError).toBe(true);
+    expect(refused._meta?.code).toBe("UNAUTHORIZED");
+    expect(seenHeaders).toContain("mark");
+  });
+
+  it("gives no credentials to a call that does not come over the network", async () => {
+    const { client } = await start({ host: { policy: { principalOf: () => undefined } } });
+    // The in-memory transport is in this process: the hook does not run, and the call has no principal
+    expect((await call(client, "who.ami")).structuredContent).toEqual({ principal: null });
   });
 });
 
