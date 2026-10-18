@@ -163,13 +163,14 @@ describe("EventsChangeFeed with the collection procedures (CLI-15)", () => {
     server.bus.on("collections.items", (event) => void events.push(event));
     const a = await subscribedClient(server, "tab-a");
     const b = await subscribedClient(server, "tab-b");
-    await a.hybrid.set("x", { n: 1, rev: "x1" });
-    await a.hybrid.set("x", { n: 2, rev: "x2" });
-    await vi.waitFor(async () => expect(await b.hybrid.getEntries()).toEqual([["x", { n: 2, rev: "x2" }]]));
+    // The upper case and the underscore of the values cannot occur in a sync version, which is base 36.
+    await a.hybrid.set("x", { n: 1, rev: "VALUE_ONE" });
+    await a.hybrid.set("x", { n: 2, rev: "VALUE_TWO" });
+    await vi.waitFor(async () => expect(await b.hybrid.getEntries()).toEqual([["x", { n: 2, rev: "VALUE_TWO" }]]));
     await vi.waitFor(() => expect(a.hybrid.getStatus().syncing).toBe(false));
-    expect(await a.hybrid.getEntries()).toEqual([["x", { n: 2, rev: "x2" }]]);
+    expect(await a.hybrid.getEntries()).toEqual([["x", { n: 2, rev: "VALUE_TWO" }]]);
     expect(events).toContainEqual(expect.objectContaining({ origin: "tab-a", changed: ["x"] }));
-    expect(JSON.stringify(events)).not.toContain("x1");
+    expect(JSON.stringify(events)).not.toContain("VALUE_");
     await a.hybrid.close();
     await b.hybrid.close();
   });
