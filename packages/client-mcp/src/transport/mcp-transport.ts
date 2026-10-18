@@ -27,7 +27,6 @@ import { PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, untru
 import {
   proceduresToMcpTools,
   toToolDefinition,
-  decodePath,
   type McpTool,
 } from "@procedures/mcp";
 import type { McpServerTransportOptions, McpServerTransportState, McpTextBlock, McpToolContent } from "../types.js";
@@ -36,6 +35,14 @@ import { createSseTransport } from "./sse.js";
 import { createHttpTransport, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
 import { createUntrustedEnvelopes } from "../untrusted.js";
+
+/**
+ * The tools with the names of a `toolName` function. Without the function, the tools keep the
+ * default names.
+ */
+export function namedTools(tools: readonly McpTool[], toolName?: ((path: readonly string[]) => string) | undefined): McpTool[] {
+  return toolName ? tools.map((tool) => ({ ...tool, name: toolName(tool.procedurePath) })) : [...tools];
+}
 
 /** The time that the face waits for the answer of the person, when the question gives no time. */
 export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
@@ -196,9 +203,10 @@ export class McpServerTransport implements ServerTransport {
         };
       }
 
-      // Decode path from tool name. The method is the core mapping of every host (deep dive
-      // architecture review 3.3)
-      const path = decodePath(name);
+      // The path of the procedure of the tool. The method is the core mapping of every host
+      // (deep dive architecture review 3.3). A tool name of the toolName option does not decode,
+      // and a sanitized segment does not decode to the segment of the procedure.
+      const path = tool.procedurePath;
 
       // Build ServerRequest
       const serverRequest = {
@@ -464,7 +472,11 @@ export class McpServerTransport implements ServerTransport {
     const before = this.toolSignature();
 
     this.tools.clear();
-    for (const tool of mcpTools) {
+    for (const tool of namedTools(mcpTools, this.options.toolName)) {
+      if (this.tools.has(tool.name)) {
+        // MUST be stderr: stdout carries the protocol of stdio
+        console.error(`[mcp] Two procedures have the tool name "${tool.name}": the transport keeps ${tool.procedurePath.join(".")}`);
+      }
       this.tools.set(tool.name, tool);
     }
 

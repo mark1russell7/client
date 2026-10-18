@@ -40,7 +40,7 @@ import {
   type Duration,
 } from "@procedures/client";
 import { proceduresToMcpTools, type McpTool, type McpToolFilter } from "@procedures/mcp";
-import { McpServerTransport } from "./transport/mcp-transport.js";
+import { McpServerTransport, namedTools } from "./transport/mcp-transport.js";
 import type {
   HttpTransportOptions,
   McpServerTransportOptions,
@@ -138,6 +138,8 @@ export interface McpHostOptions {
   content?: McpToolContentHook | undefined;
   /** More filters of the tools: tags, internal procedures. The surface gives the main rule. */
   toolFilter?: Omit<McpToolFilter, "include"> | undefined;
+  /** The name of the tool of a procedure, for example `(path) => path.join("_")`. The default is `git.status`. */
+  toolName?: ((path: readonly string[]) => string) | undefined;
   /** The limits of a stream that can continue without an end. */
   streamLimits?: { items?: number; time?: Duration } | undefined;
   /** True: debug lines go to stderr. */
@@ -271,6 +273,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     registry,
     serverInfo: { name: options.name ?? "procedure-server", version: options.version ?? "1.0.0" },
     toolFilter,
+    ...(options.toolName ? { toolName: options.toolName } : {}),
     ...(options.instructions !== undefined ? { instructions: options.instructions } : {}),
     ...(options.elicitation ? { elicitation: options.elicitation } : {}),
     ...(options.untrusted ? { untrusted: options.untrusted } : {}),
@@ -332,7 +335,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       running = true;
     },
     stop,
-    tools: () => proceduresToMcpTools(registry.getAll(), toolFilter),
+    tools: () => namedTools(proceduresToMcpTools(registry.getAll(), toolFilter), options.toolName),
     state: () => ({ running, faces: transports.map((transport) => transport.getState()) }),
   };
 }

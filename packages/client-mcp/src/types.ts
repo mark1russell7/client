@@ -122,6 +122,14 @@ export interface McpServerTransportOptions {
   /** Tool filtering options */
   toolFilter?: McpToolFilter;
 
+  /**
+   * The name of the tool of a procedure. The default joins the segments of the path with dots
+   * (`git.status`). A server that moves to this transport keeps its tool names with it, for
+   * example `(path) => path.join("_")`. A tool call finds its procedure by the name, not by the
+   * decoded name.
+   */
+  toolName?: ((path: readonly string[]) => string) | undefined;
+
   /** SSE-specific options (when transport is "sse") */
   sseOptions?: SseTransportOptions;
 
