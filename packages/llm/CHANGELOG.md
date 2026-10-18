@@ -1,5 +1,34 @@
 # @procedures/llm
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [254ee7b]
+  - @procedures/client@0.10.0
+  - @procedures/http@0.10.0
+  - @procedures/json@0.10.0
+
+## 0.9.2
+
+### Patch Changes
+
+- @procedures/client@0.9.2
+  - @procedures/http@0.9.2
+  - @procedures/json@0.9.2
+
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies [61d60c6]
+- Updated dependencies [79f750a]
+- Updated dependencies [d0c9856]
+- Updated dependencies [b5db4d8]
+  - @procedures/client@0.9.1
+  - @procedures/http@0.9.1
+  - @procedures/json@0.9.1
+
 ## 0.9.0
 
 ### Patch Changes

@@ -5,6 +5,7 @@
  */
 
 import type { Message, Method } from "../../../client/types.js";
+import { methodName } from "../../../server/method.js";
 import type { ProcedureRegistry } from "../../../procedures/registry.js";
 import type { Interceptor } from "../../../procedures/invoke.js";
 import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
@@ -23,7 +24,8 @@ export type Handler<TReq = unknown, TRes = unknown> = (
  */
 export function methodKey(method: Method): string {
   const version = method.version || "";
-  return `${version}:${method.service}.${method.operation}`;
+  // A path of one segment has the key of its operation: "morning", not ".morning" (CLI-28)
+  return `${version}:${methodName(method)}`;
 }
 
 /**

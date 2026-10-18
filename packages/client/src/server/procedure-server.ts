@@ -30,6 +30,8 @@ import { errorCodeOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
+import type { NarrowingNote } from "../procedures/narrowing.js";
+import type { ServerDebugReport } from "./types.js";
 
 // =============================================================================
 // Types
@@ -80,8 +82,9 @@ export interface ProcedureServerOptions extends ServerOptions {
   collections?: Record<string, CollectionStorage<unknown>>;
 
   /**
-   * The clock of the wait of `useStorage` for the calls on an old storage (roadmap R35). The
-   * default is the clock of the platform. A test gives a fake clock.
+   * The clock of the waits of the server (roadmap R35): the wait of `useStorage` for the calls on
+   * an old storage, the deadline of `drain()` and the grace of `stop()` (CLI-5). The default is the
+   * clock of the platform. A test gives a fake clock. The runner gives the clock of its lifecycle.
    */
   clock?: Clock | undefined;
 
@@ -166,6 +169,15 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `stop()` ends each subscription first, with `UNAVAILABLE`.
    */
   events?: EventPublisherOptions | EventPublisher | undefined;
+
+  /**
+   * The debug reports of the server. `true` writes each report with `console.debug`, and a
+   * function gets each report. The server reports each part of the narrowing of a call that has
+   * no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid. The
+   * call goes on without that part. The server also reports a source that refuses the call.
+   * @default false
+   */
+  debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
 }
 
 /**
@@ -201,6 +213,43 @@ export interface StopOptions {
    * run. Absent or 0: the server aborts them at once.
    */
   grace?: Duration | undefined;
+}
+
+/**
+ * The stop parts of a server in the shape of a transport of the runner (`TransportImpl` of
+ * `@mark1russell7/service`, CLI-5). The type is structural, so the engine imports no code of the
+ * runner. The stage `stop intake` calls `stopIntake()`, the stage `drain` calls `drain()`, and
+ * the stage `close transports` calls `close()`.
+ */
+export interface StopParts {
+  /** This method refuses each new call with a retryable `UNAVAILABLE`, and ends each subscription. */
+  stopIntake(): Promise<void> | void;
+  /**
+   * This method waits until no call is in flight, or until `deadline` (milliseconds on the clock
+   * of the server). When `signal` aborts, each call that still runs gets the abort.
+   */
+  drain(deadline: number, signal: AbortSignal): Promise<void> | void;
+  /** This method gives the number of calls in flight. A stream is in flight until its end. */
+  inFlight(): number;
+  /** This method aborts each call that still runs and stops the transports. A second close has no effect. */
+  close(): Promise<void> | void;
+}
+
+/**
+ * A storage of the server as a dependency of the runner (`DependencyHandle` of
+ * `@mark1russell7/service`, CLI-5). The runner closes it in the stage `tear down dependencies`,
+ * after the transports close. Thus no call uses a closed storage.
+ */
+export interface StorageHandle {
+  /** The name of the dependency: `collections.` and the names of the collections of the storage, joined with `+`. */
+  readonly name: string;
+  /** The collections that use the storage, in the sequence of their configuration. */
+  readonly collections: readonly string[];
+  readonly storage: CollectionStorage<unknown>;
+  /** A storage is open from its construction, so this method does nothing. */
+  connect(signal: AbortSignal): Promise<void> | void;
+  /** This method closes the storage and removes its collections from the server. */
+  close(): Promise<void>;
 }
 
 /** The items of a stream. At the end of the stream, or when its reader stops, `release` runs. */
@@ -314,7 +363,7 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
  * await server.start();
  * ```
  */
-export class ProcedureServer extends Server implements RepositoryProvider {
+export class ProcedureServer extends Server implements RepositoryProvider, StopParts {
   private readonly procedureRegistry: ProcedureRegistry;
   private readonly storages = new Map<string, CollectionStorage<unknown>>();
   /** The partitions of each partitioned collection: their storages and their resolver (roadmap CLI-17) */
@@ -340,19 +389,22 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   /** The results of keyed calls, or undefined when the option turns them off (R1). */
   private readonly idempotency: IdempotencyCache<ServerResponse<unknown>> | undefined;
   /**
-   * The signal of the server: `stop()` aborts it. Each call gets it joined with its request
-   * signal (the request and connection scopes) and its deadline (roadmap R14).
+   * The signal of the server: the cooperative abort of `drain()` and `close()` abort it. Each call
+   * gets it joined with its request signal (the request and connection scopes) and its deadline
+   * (roadmap R14).
    */
   private lifetime = new AbortController();
-  /** True while `stop()` waits for the calls in flight: a new call gets UNAVAILABLE */
+  /** True from `stopIntake()` until the next `start()`: a new call gets UNAVAILABLE */
   private draining = false;
   /** The calls in flight, a stream until its end */
-  private inFlight = 0;
+  private calls = 0;
+  /** The close of this run: a second `close()` gives the same promise (CLI-5) */
+  private closing: Promise<void> | undefined;
   /** The token of the server, its request hook and its authenticate function (R18) */
   private readonly token: string | undefined;
   private readonly principalOf: PrincipalOf | undefined;
   private readonly authenticate: ProcedureServerOptions["authenticate"];
-  /** The functions that `stop()` waits on: each one runs when no call is in flight */
+  /** The functions that `drain()` waits on: each one runs when no call is in flight */
   private idleWaiters: Array<() => void> = [];
   /** The publisher of the remote events, from the option `events`, or undefined. */
   readonly publisher: EventPublisher | undefined;
@@ -361,6 +413,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * read it: they trust such a request only from a named origin (CSRF).
    */
   readonly ambientCredentials: AmbientCredentials | undefined;
+  /** The receiver of the debug reports, or undefined when the option `debug` is off. */
+  private readonly debugReport: ((report: ServerDebugReport) => void) | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -382,6 +436,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.authenticate = options.authenticate;
     const ambient = options.ambientCredentials ?? (this.principalOf ? "always" : this.authenticate ? "cookies" : undefined);
     this.ambientCredentials = ambient === false ? undefined : ambient;
+    this.debugReport =
+      typeof options.debug === "function"
+        ? options.debug
+        : options.debug === true
+          ? (report) => console.debug(`[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`)
+          : undefined;
     // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure);
@@ -622,7 +682,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     if (!procedure.handler) {
       throw new Error(`Procedure at ${pathToKey(procedure.path)} has no handler`);
     }
-    // The path must make a method: this throws for a path of one segment
+    // The path must make a method: this throws for an empty path. One segment or more is valid (CLI-28)
     pathToMethod(procedure.path);
     this.pinnedProcedures.set(pathToKey(procedure.path), procedure);
   }
@@ -698,7 +758,7 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     }
     const refusal = await this.admit(request);
     if (refusal) return refusal;
-    this.inFlight++;
+    this.calls++;
     let response: ServerResponse<unknown> | undefined;
     try {
       const key = this.idempotency ? idempotencyKeyOf(request.metadata) : undefined;
@@ -773,22 +833,26 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     return undefined;
   }
 
-  /** One call in flight ended: `stop()` can go on when it was the last one. */
+  /** One call in flight ended: `drain()` can end when it was the last one. */
   private callEnded(): void {
-    this.inFlight--;
-    if (this.inFlight === 0) {
+    this.calls--;
+    if (this.calls === 0) {
       const waiters = this.idleWaiters;
       this.idleWaiters = [];
       for (const waiter of waiters) waiter();
     }
   }
 
-  /** The number of calls in flight, streams included. */
+  /**
+   * The number of calls in flight, streams included.
+   *
+   * @deprecated Use `inFlight()`, the stop part of the same count (CLI-5).
+   */
   get callsInFlight(): number {
-    return this.inFlight;
+    return this.calls;
   }
 
-  /** True while `stop()` waits for the calls in flight: the server refuses new calls. */
+  /** True from `stopIntake()` until the next `start()`: the server refuses new calls. */
   get stopping(): boolean {
     return this.draining;
   }
@@ -842,11 +906,25 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * The capability of a request. It comes from the server, never from the request. The remaining
    * time of the caller and the narrowing of the request can only make it narrower
    * (CAPABILITIES-2026-10, decision 9). Two different clearances without an order throw.
+   *
+   * The narrowing key of the call (`procedure-narrowing`, CLI-30) is not part of it. The
+   * invocation applies the key for each face, after the narrowing of the request hook.
    */
   private capabilityOf(request: ServerRequest<unknown>): Capability | undefined {
     const { capability, clearanceOrder } = this.capabilityOptions;
     const base = withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder);
     return request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
+  }
+
+  /** The debug reports of the notes of the narrowing of a request (CLI-30), or undefined when `debug` is off. */
+  private narrowingReports(request: ServerRequest<unknown>): ((notes: readonly NarrowingNote[]) => void) | undefined {
+    const report = this.debugReport;
+    if (!report) return undefined;
+    return (notes) => {
+      for (const note of notes) {
+        report({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind, ...(note.code ? { code: note.code } : {}) } });
+      }
+    };
   }
 
   /** Run a procedure for a request with a signal. */
@@ -880,6 +958,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         clearanceOrder,
         resources,
         admitItem,
+        // The parts of the narrowing key without effect go to the debug reports (CLI-30)
+        onNarrowingNotes: this.narrowingReports(request),
         // The principal of the authentication: ctx.principal, and the nested calls (R18)
         ...(request.principal !== undefined ? { principal: request.principal } : {}),
         // The bus of the remote events is the bus of the procedures (EVENTS.md)
@@ -989,33 +1069,124 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     if (failed) throw failed.reason;
   }
 
+  // ===========================================================================
+  // Stop parts in the shape of the runner (CLI-5)
+  // ===========================================================================
+
   /**
-   * This method stops the server, then closes the storages and removes them (`closeStorages()`).
-   * The server can start again, with new storages from `useStorage()`. Before, a server that
-   * started again used the closed storages.
+   * This method gives each storage of the server as a dependency handle, one handle for each
+   * storage, also for a storage of two collections. The handles are in the sequence of the
+   * collections. The runner closes them in the reverse sequence, after the transports close.
+   */
+  storageHandles(): StorageHandle[] {
+    const byStorage = new Map<CollectionStorage<unknown>, string[]>();
+    for (const [name, storage] of this.storages) {
+      const names = byStorage.get(storage);
+      if (names) names.push(name);
+      else byStorage.set(storage, [name]);
+    }
+    return Array.from(byStorage, ([storage, collections]) => ({
+      name: `collections.${collections.join("+")}`,
+      collections,
+      storage,
+      connect: (): void => undefined,
+      close: async (): Promise<void> => {
+        // The collections of this storage leave the server first, so no new call takes it
+        for (const [name, current] of [...this.storages]) if (current === storage) this.storages.delete(name);
+        await storage.close();
+      },
+    }));
+  }
+
+  /**
+   * This method starts the transports of the server. After `close()`, it accepts new calls again,
+   * and the next calls get a new signal. Thus a server can start again.
+   */
+  override async start(): Promise<void> {
+    this.reopen();
+    await super.start();
+  }
+
+  /** The intake opens again after a close: a new signal, no drain and a new close. */
+  private reopen(): void {
+    if (this.lifetime.signal.aborted) this.lifetime = new AbortController();
+    this.draining = false;
+    this.closing = undefined;
+  }
+
+  /**
+   * This method refuses each new call with a retryable `UNAVAILABLE`, and ends each subscription
+   * of `events.subscribe` with a retryable `UNAVAILABLE`. The calls in flight continue. A second
+   * stop has no effect.
+   */
+  stopIntake(): void {
+    if (this.draining) return;
+    this.draining = true;
+    // A subscription has no end: it ends now, with a retryable UNAVAILABLE (EVENTS.md)
+    this.publisher?.end();
+  }
+
+  /**
+   * This method waits until no call is in flight, or until `deadline` (milliseconds on the clock
+   * of the server). When `signal` aborts, each call that still runs gets the abort, and the wait
+   * continues to the deadline. The method uses only the clock of the server, and it does not throw.
+   */
+  drain(deadline: number, signal: AbortSignal): Promise<void> {
+    const cooperative = (): void => this.lifetime.abort();
+    if (signal.aborted) cooperative();
+    if (this.calls === 0 || deadline <= this.clock.now()) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const done = (): void => {
+        cancel();
+        signal.removeEventListener("abort", cooperative);
+        const index = this.idleWaiters.indexOf(done);
+        if (index >= 0) this.idleWaiters.splice(index, 1);
+        resolve();
+      };
+      const cancel = this.clock.after(Math.max(0, deadline - this.clock.now()), done);
+      this.idleWaiters.push(done);
+      signal.addEventListener("abort", cooperative, { once: true });
+    });
+  }
+
+  /** This method gives the number of calls in flight. A stream is in flight until its end. */
+  inFlight(): number {
+    return this.calls;
+  }
+
+  /**
+   * This method aborts each call that still runs, and stops the transports of the server. The
+   * intake stays stopped until the next `start()`. A second close gives the same promise. The
+   * storages stay open: their handles close them (`storageHandles()`).
+   */
+  close(): Promise<void> {
+    this.closing ??= (async () => {
+      this.stopIntake();
+      this.lifetime.abort();
+      await super.stop();
+    })();
+    return this.closing;
+  }
+
+  /**
+   * This method stops the server with the stop parts, in the sequence of the stages of the runner:
+   * `stopIntake()`, `drain()` for the grace time, `close()`, and then the close of each storage
+   * (`closeStorages()`). The server can start again, with new storages from `useStorage()`. A
+   * service under `run()` declares the parts and the storage handles in place of this method.
    */
   override async stop(options: StopOptions = {}): Promise<void> {
     const graceMs = optionalMs(options.grace, "grace") ?? TIMER_DEFAULTS.server.stopGraceMs;
     // A graceful stop: new calls get UNAVAILABLE, and the calls in flight have the grace time
-    // to end (roadmap R14). Before, the transports aborted every call at once.
-    this.draining = true;
-    // A subscription has no end: it ends now, with a retryable UNAVAILABLE (EVENTS.md)
-    this.publisher?.end();
-    if (graceMs > 0 && this.inFlight > 0) {
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, graceMs);
-        this.idleWaiters.push(() => {
-          clearTimeout(timer);
-          resolve();
-        });
-      });
+    // to end (roadmap R14). At the end of the grace, close() aborts the calls that still run.
+    this.stopIntake();
+    await this.drain(this.clock.now() + graceMs, new AbortController().signal);
+    await this.close();
+    try {
+      await this.closeStorages();
+    } finally {
+      // A server can start again: its next calls get a new signal
+      this.reopen();
     }
-    this.lifetime.abort();
-    // A server can start again: its next calls get a new signal
-    this.lifetime = new AbortController();
-    this.draining = false;
-    await super.stop();
-    await this.closeStorages();
   }
 }
 

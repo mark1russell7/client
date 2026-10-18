@@ -72,7 +72,7 @@ export function hostProcedures(source: HostSource): AnyProcedure[] {
       status: source.server.stopping ? ("stopping" as const) : ("ok" as const),
       uptimeMs: Date.now() - source.startedAt,
       procedures: source.server.procedureCount,
-      callsInFlight: source.server.callsInFlight,
+      callsInFlight: source.server.inFlight(),
       peerId: source.id,
     }))
     .build();

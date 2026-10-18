@@ -25,7 +25,7 @@ import type {
   ElicitOptions,
   ReportProgress,
 } from "@procedures/client";
-import { PROCEDURE_REGISTRY, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
+import { NARROWING_METADATA_KEY, PROCEDURE_REGISTRY, addNarrowing, pathToMethod, createElicit, elicitWithPolicy, requestCredentials, untrustedTextsOf } from "@procedures/client";
 import {
   proceduresToMcpTools,
   toToolDefinition,
@@ -46,6 +46,26 @@ export function namedTools(tools: readonly McpTool[], toolName?: ((path: readonl
   return toolName ? tools.map((tool) => ({ ...tool, name: toolName(tool.procedurePath) })) : [...tools];
 }
 
+/**
+ * The tools whose name no other tool has (CLI-28). A join of the segments can give two
+ * procedures one name, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then
+ * the function leaves out the two tools, so a call does not reach the wrong procedure.
+ * `onCollision` gets each such name and the paths of its procedures.
+ */
+export function distinctTools(
+  tools: readonly McpTool[],
+  onCollision?: ((name: string, paths: readonly (readonly string[])[]) => void) | undefined
+): McpTool[] {
+  const byName = new Map<string, McpTool[]>();
+  for (const tool of tools) byName.set(tool.name, [...(byName.get(tool.name) ?? []), tool]);
+  const result: McpTool[] = [];
+  for (const [name, named] of byName) {
+    if (named.length === 1) result.push(named[0]!);
+    else onCollision?.(name, named.map((tool) => tool.procedurePath));
+  }
+  return result;
+}
+
 /** The time that the face waits for the answer of the person, when the question gives no time. */
 export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
 
@@ -53,7 +73,7 @@ export const DEFAULT_ELICIT_TIMEOUT_MS = 300_000;
 interface CallExtra {
   signal: AbortSignal;
   requestId: string | number;
-  _meta?: { progressToken?: string | number | undefined } | undefined;
+  _meta?: { progressToken?: string | number | undefined; readonly [key: string]: unknown } | undefined;
   sendNotification: (notification: ServerNotification) => Promise<void>;
   /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
   requestInfo?: { headers: Record<string, string | string[] | undefined>; url?: URL | undefined } | undefined;
@@ -68,6 +88,18 @@ function callCredentials(extra: CallExtra): Credentials | undefined {
   const info = extra.requestInfo;
   if (!info) return undefined;
   return requestCredentials({ headers: info.headers, url: info.url ? `${info.url.pathname}${info.url.search}` : undefined });
+}
+
+/**
+ * The narrowing key of a tool call (CLI-30): the key `procedure-narrowing` of the `_meta` of the
+ * request, and the `Procedure-Narrowing` header of a call over Streamable HTTP. They are two
+ * sources, and no source replaces the other. The server applies each one, so each one can only
+ * make the capability of the call narrower.
+ */
+function callNarrowing(extra: CallExtra): unknown {
+  const meta = extra._meta;
+  const fromMeta = meta !== undefined && Object.hasOwn(meta, NARROWING_METADATA_KEY) ? meta[NARROWING_METADATA_KEY] : undefined;
+  return addNarrowing(fromMeta, extra.requestInfo?.headers[NARROWING_METADATA_KEY]);
 }
 
 /**
@@ -227,6 +259,7 @@ export class McpServerTransport implements ServerTransport {
 
       // Build ServerRequest
       const credentials = callCredentials(extra as CallExtra);
+      const narrowing = callNarrowing(extra as CallExtra);
       const serverRequest = {
         id: generateRequestId(),
         method: pathToMethod(path),
@@ -234,6 +267,8 @@ export class McpServerTransport implements ServerTransport {
         metadata: {
           transport: "mcp" as const,
           mcpRequestId: generateRequestId(),
+          // The narrowing key of the call: the server applies it (CLI-30)
+          ...(narrowing !== undefined ? { [NARROWING_METADATA_KEY]: narrowing } : {}),
         },
         // A cancelled tool call (notifications/cancelled) aborts the procedure
         signal: extra.signal,
@@ -493,11 +528,12 @@ export class McpServerTransport implements ServerTransport {
     const before = this.toolSignature();
 
     this.tools.clear();
-    for (const tool of namedTools(mcpTools, this.options.toolName)) {
-      if (this.tools.has(tool.name)) {
-        // MUST be stderr: stdout carries the protocol of stdio
-        console.error(`[mcp] Two procedures have the tool name "${tool.name}": the transport keeps ${tool.procedurePath.join(".")}`);
-      }
+    // A tool name names one procedure: the transport leaves out each name of two procedures (CLI-28)
+    const reportCollision = (name: string, paths: readonly (readonly string[])[]): void => {
+      // MUST be stderr: stdout carries the protocol of stdio
+      console.error(`[mcp] The procedures ${paths.map((path) => path.join(".")).join(", ")} have the tool name "${name}": the transport leaves them out`);
+    };
+    for (const tool of distinctTools(namedTools(mcpTools, this.options.toolName), reportCollision)) {
       this.tools.set(tool.name, tool);
     }
 

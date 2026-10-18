@@ -37,7 +37,9 @@ describe("HTTP C3: payload-safe + routable defaults (BUGS-2026-07 C3 / bug 16)",
     expect(strat(mockReq(url.split("?")[0] ?? url))).toEqual({ service: "svc", operation: "op" });
   });
 
-  it("returns null for a path that is not a valid service/operation", () => {
-    expect(patternServerUrlStrategy(mockReq("/api/onlyone"))).toBeNull();
+  it("reads a path of one segment, and returns null for no segment (CLI-28)", () => {
+    expect(patternServerUrlStrategy(mockReq("/api/onlyone"))).toEqual({ service: "", operation: "onlyone" });
+    expect(patternServerUrlStrategy(mockReq("/api"))).toBeNull();
+    expect(patternServerUrlStrategy(mockReq("/api/a/b/c/d"))).toBeNull();
   });
 });

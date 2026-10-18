@@ -107,6 +107,9 @@ export type { ToolHintOverride } from "./hints.js";
 export { untrustedText, untrustedFieldsOf, untrustedTextsOf } from "./untrusted.js";
 export type { UntrustedText, UntrustedSource, UntrustedValue } from "./untrusted.js";
 export type { ToolHints, CapabilityRefusal, CapabilityRefusalReason, InvocationExplanation, EffectsViolation } from "./capability.js";
+// The narrowing key of a call (CLI-30)
+export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin, addNarrowing } from "./narrowing.js";
+export type { NarrowingNote, WireNarrowing, NarrowedCapability } from "./narrowing.js";
 
 // Registry
 export { ProcedureRegistry, RegistryError, PROCEDURE_REGISTRY, assertValidPath } from "./registry.js";

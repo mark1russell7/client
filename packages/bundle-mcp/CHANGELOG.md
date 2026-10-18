@@ -1,5 +1,63 @@
 # @procedures/bundle-mcp
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [254ee7b]
+  - @procedures/client@0.10.0
+  - @procedures/cue@0.10.0
+  - @procedures/dag@0.10.0
+  - @procedures/docker@0.10.0
+  - @procedures/lib@0.10.0
+  - @procedures/mongo@0.10.0
+  - @procedures/procedure@0.10.0
+  - @procedures/sqlite@0.10.0
+  - @procedures/vitest@0.10.0
+  - @procedures/compiler@0.10.0
+  - @procedures/json@0.10.0
+
+## 0.9.2
+
+### Patch Changes
+
+- Updated dependencies [e192622]
+- Updated dependencies [054ba7d]
+  - @procedures/mongo@0.9.2
+  - @procedures/client@0.9.2
+  - @procedures/cue@0.9.2
+  - @procedures/dag@0.9.2
+  - @procedures/docker@0.9.2
+  - @procedures/lib@0.9.2
+  - @procedures/procedure@0.9.2
+  - @procedures/sqlite@0.9.2
+  - @procedures/vitest@0.9.2
+  - @procedures/compiler@0.9.2
+  - @procedures/json@0.9.2
+
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies [61d60c6]
+- Updated dependencies [d7ad24e]
+- Updated dependencies [28d82c9]
+- Updated dependencies [3b2ddcd]
+- Updated dependencies [79f750a]
+- Updated dependencies [d0c9856]
+- Updated dependencies [b5db4d8]
+  - @procedures/client@0.9.1
+  - @procedures/mongo@0.9.1
+  - @procedures/cue@0.9.1
+  - @procedures/dag@0.9.1
+  - @procedures/docker@0.9.1
+  - @procedures/lib@0.9.1
+  - @procedures/procedure@0.9.1
+  - @procedures/sqlite@0.9.1
+  - @procedures/vitest@0.9.1
+  - @procedures/compiler@0.9.1
+  - @procedures/json@0.9.1
+
 ## 0.9.0
 
 ### Patch Changes

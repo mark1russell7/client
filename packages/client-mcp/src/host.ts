@@ -40,7 +40,7 @@ import {
   type Duration,
 } from "@procedures/client";
 import { proceduresToMcpTools, type McpTool, type McpToolFilter } from "@procedures/mcp";
-import { McpServerTransport, namedTools } from "./transport/mcp-transport.js";
+import { McpServerTransport, distinctTools, namedTools } from "./transport/mcp-transport.js";
 import type {
   HttpTransportOptions,
   McpServerTransportOptions,
@@ -340,7 +340,7 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
       running = true;
     },
     stop,
-    tools: () => namedTools(proceduresToMcpTools(registry.getAll(), toolFilter), options.toolName),
+    tools: () => distinctTools(namedTools(proceduresToMcpTools(registry.getAll(), toolFilter), options.toolName)),
     state: () => ({ running, faces: transports.map((transport) => transport.getState()) }),
   };
 }

@@ -13,6 +13,7 @@ import {
 import { getErrorMetadata } from "./registry.js";
 import { httpStatusToErrorCode } from "./http-errors.js";
 import { ErrorCode } from "./codes.js";
+import { methodName } from "../../server/method.js";
 
 /**
  * Create a rich error from an error code.
@@ -226,9 +227,7 @@ export function formatError(error: RichError, includeStack = false): string {
 
   if (error.context.method) {
     const m = error.context.method;
-    const methodStr = m.version
-      ? `${m.version}:${m.service}.${m.operation}`
-      : `${m.service}.${m.operation}`;
+    const methodStr = m.version ? `${m.version}:${methodName(m)}` : methodName(m);
     lines.push(`  Method: ${methodStr}`);
   }
 

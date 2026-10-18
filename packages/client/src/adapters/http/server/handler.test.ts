@@ -256,8 +256,11 @@ describe("procedureHandler: the error codes of wire v1 (CLI-3)", () => {
     expect([large.status, JSON.parse(large.body).code]).toEqual([413, "INVALID_REQUEST"]);
     const header = await send(port, "POST", "/api/proc/proc/echo", { ...JSON_HEADERS, "x-metadata": "%7Bnot-json" }, "{}");
     expect([header.status, JSON.parse(header.body).code]).toEqual([400, "INVALID_REQUEST"]);
-    const noMethod = await send(port, "POST", "/api/proc/one", JSON_HEADERS, "{}");
+    // Four URL segments name no method. One segment names a path of one segment (CLI-28)
+    const noMethod = await send(port, "POST", "/api/proc/a/b/c/d", JSON_HEADERS, "{}");
     expect([noMethod.status, JSON.parse(noMethod.body).code]).toEqual([400, "INVALID_REQUEST"]);
+    const oneSegment = await send(port, "POST", "/api/proc/one", JSON_HEADERS, "{}");
+    expect([oneSegment.status, JSON.parse(oneSegment.body).code]).toEqual([404, "NOT_FOUND"]);
   });
 
   it("answers a preflight with 204 and runs no procedure, also without CORS", async () => {

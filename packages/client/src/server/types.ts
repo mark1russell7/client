@@ -9,6 +9,7 @@ import type { Elicit } from "../procedures/elicit.js";
 import type { ReportProgress } from "../procedures/progress.js";
 import type { Metadata, Status, Method } from "../client/types.js";
 import type { CapabilityRequest } from "../procedures/types.js";
+import { methodName } from "./method.js";
 
 // Re-export Method from client types
 export type { Method };
@@ -118,6 +119,23 @@ export interface Principal {
   readonly via: string;
   /** More facts about the principal, from an authenticate function. */
   readonly claims?: Readonly<Record<string, unknown>> | undefined;
+}
+
+/** A report of the server for debug (the option `debug` of `ProcedureServer`). */
+export interface ServerDebugReport {
+  /**
+   * The subject of the report. `"narrowing"`: a part of the narrowing key of a call has no effect
+   * (CLI-30). A later version can add subjects.
+   */
+  readonly topic: string;
+  /** The id of the request. */
+  readonly requestId: string;
+  /** The method of the request. */
+  readonly method: Method;
+  /** What occurred, as a sentence. */
+  readonly message: string;
+  /** The facts of the report. For `"narrowing"`: the `field`, the `kind` and the `code` of its note (`NarrowingNote`). */
+  readonly detail?: Readonly<Record<string, unknown>> | undefined;
 }
 
 /**
@@ -238,7 +256,7 @@ export interface ServerTransport {
 export class HandlerNotFoundError extends Error {
   constructor(method: Method) {
     super(
-      `No handler found for ${method.service}.${method.operation}${
+      `No handler found for ${methodName(method)}${
         method.version ? ` (v${method.version})` : ""
       }`
     );

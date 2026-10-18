@@ -71,6 +71,8 @@ const client = new Client(transport);
 defaultUrlPattern(method)
 // { service: "users", operation: "get" } → "/users/get"
 // { service: "users", operation: "get", version: "v2" } → "/v2/users/get"
+// { service: "", operation: "morning" } → "/morning" (a path of one segment: no version in the URL)
+// Each segment is URI-encoded: { service: "docs/v2", operation: "get" } → "/docs%2Fv2/get"
 
 // RESTful: /{version?}/{service}
 restfulUrlPattern(method)

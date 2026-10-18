@@ -7,6 +7,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTPHeaders, HTTPMethod } from "../shared/index.js";
 import { PROTOCOL_HEADER } from "../../../protocol.js";
+import { NARROWING_HEADER } from "../../../procedures/narrowing.js";
 import { toMs, type Duration } from "../../../duration.js";
 
 /** The CORS options of a procedure server. */
@@ -47,6 +48,8 @@ export const DEFAULT_CORS_HEADERS: readonly string[] = Object.freeze([
   "traceparent",
   PROTOCOL_HEADER,
   HTTPHeaders.METADATA,
+  // The narrowing key of a call (CLI-30)
+  NARROWING_HEADER,
   "collection",
   "collectionName",
   "database",

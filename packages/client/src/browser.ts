@@ -83,11 +83,13 @@ export type { RequestCredentialsOptions } from "./server/request-auth.js";
 export { hostProcedures } from "./server/host-procedures.js";
 export type { HostSource } from "./server/host-procedures.js";
 export type { ProcedureServerOptions, StorageConfig, StopOptions, UseStorageOptions } from "./server/procedure-server.js";
+// The stop parts of the server and its storages as dependencies, in the shape of the runner (CLI-5)
+export type { StopParts, StorageHandle } from "./server/procedure-server.js";
 export {
   HandlerNotFoundError,
   ServerError,
 } from "./server/types.js";
-export { pathToMethod, methodToPath } from "./server/method.js";
+export { pathToMethod, methodToPath, methodName } from "./server/method.js";
 export type {
   ServerRequest,
   ServerResponse,
@@ -380,6 +382,10 @@ export type { ProtocolErrorCode, ErrorCodeInfo } from "./protocol.js";
 export { STREAM_GAP_METADATA_KEY, STREAM_ITEM_METADATA_KEY } from "./adapters/sequence.js";
 // The deadline of a call: the remaining time goes as procedure-timeout (roadmap R10)
 export { TIMEOUT_METADATA_KEY, DEADLINE_METADATA_KEY } from "./client/deadline.js";
+// The narrowing key of a call: the call asks for a narrower capability on each face (CLI-30)
+export { NARROWING_METADATA_KEY, NARROWING_HEADER, narrowingOf, narrowWithin, addNarrowing } from "./procedures/narrowing.js";
+export type { NarrowingNote, WireNarrowing, NarrowedCapability } from "./procedures/narrowing.js";
+export type { ServerDebugReport } from "./server/types.js";
 // Typed durations: each public option that is a time takes a Duration (roadmap R11)
 export { ms, seconds, minutes, hours, toMs, optionalMs, isDuration } from "./duration.js";
 export type { Duration, TimeUnit } from "./duration.js";

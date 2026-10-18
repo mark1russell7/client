@@ -80,7 +80,9 @@ describe("pathToMethod and methodToPath", () => {
   it("put every segment but the last in the service", () => {
     expect(pathToMethod(["docker", "compose", "up"])).toEqual({ service: "docker.compose", operation: "up" });
     expect(pathToMethod(["git", "status"])).toEqual({ service: "git", operation: "status" });
-    expect(() => pathToMethod(["one"])).toThrow(/two segments/);
+    // A path of one segment has the empty service (CLI-28), and an empty path throws
+    expect(pathToMethod(["morning"])).toEqual({ service: "", operation: "morning" });
+    expect(() => pathToMethod([])).toThrow(/one segment or more/);
   });
 
   it("read both encodings back to one path", () => {

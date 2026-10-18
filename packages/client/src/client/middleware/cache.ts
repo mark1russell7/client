@@ -11,6 +11,7 @@ import { LruMap } from "./lru.js";
 import { isDuration, optionalMs, type Duration } from "../../duration.js";
 import type { Effects } from "../../procedures/types.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
+import { methodName } from "../../server/method.js";
 
 /**
  * Cache middleware options.
@@ -287,7 +288,7 @@ export function createCacheMiddleware(options: CacheOptions): TypedClientMiddlew
   const cacheable =
     typeof methods === "function"
       ? methods
-      : ((names: ReadonlySet<string>) => (method: Method): boolean => names.has(`${method.service}.${method.operation}`))(
+      : ((names: ReadonlySet<string>) => (method: Method): boolean => names.has(methodName(method)))(
           new Set(methods),
         );
   const effectsOf = options.effects;

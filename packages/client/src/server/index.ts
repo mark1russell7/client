@@ -38,8 +38,8 @@ export { Server } from "./server.js";
 export type { ServerOptions } from "./server.js";
 
 export { ProcedureServer, createProcedureServer, STREAM_METADATA_KEY, isUnboundedStream } from "./procedure-server.js";
-export type { ProcedureServerOptions, StorageConfig, StopOptions, UseStorageOptions } from "./procedure-server.js";
-export { pathToMethod, methodToPath } from "./method.js";
+export type { ProcedureServerOptions, StorageConfig, StopOptions, StopParts, StorageHandle, UseStorageOptions } from "./procedure-server.js";
+export { pathToMethod, methodToPath, methodName } from "./method.js";
 export {
   HandlerNotFoundError,
   ServerError,
@@ -51,6 +51,7 @@ export {
   type PrincipalOf,
   type RequestIdentity,
   type AmbientCredentials,
+  type ServerDebugReport,
   type ServerHandler,
   type ServerMiddleware,
   type ServerContext,

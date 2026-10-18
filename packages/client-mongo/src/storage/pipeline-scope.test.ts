@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { seconds } from "@procedures/client";
 import type { Document } from "mongodb";
 import {
   assertNoBlockedOperators,
@@ -190,6 +191,6 @@ describe("the limits of an aggregation", () => {
     expect(isTimeLimitError({ codeName: "MaxTimeMSExpired" })).toBe(true);
     expect(isTimeLimitError(new Error("other"))).toBe(false);
     expect(isTimeLimitError(null)).toBe(false);
-    expect(DEFAULT_PIPELINE_LIMITS).toEqual({ maxTimeMS: 10_000, maxResults: 5_000 });
+    expect(DEFAULT_PIPELINE_LIMITS).toEqual({ maxTime: seconds(10), maxResults: 5_000 });
   });
 });
