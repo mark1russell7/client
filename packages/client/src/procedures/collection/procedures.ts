@@ -59,6 +59,7 @@ import {
 import { DEFAULT_FIND_LIMIT, applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy } from "./query.js";
 import type { CollectionStorage, StorageWriteOptions } from "./storage.js";
 import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from "./changes.js";
+import { partitionOfCall, storageOfCall, withPartition, type PartitionInput, type PartitionResolver } from "./partition.js";
 
 // =============================================================================
 // Handler Factory
@@ -75,17 +76,6 @@ function getCollectionFromPath(path: string[]): string {
   return path[1]!;
 }
 
-/**
- * Get storage from context, throwing if repository is not available.
- */
-function getStorage<T>(ctx: ProcedureContext): ReturnType<NonNullable<ProcedureContext["repository"]>["getStorage"]> {
-  if (!ctx.repository) {
-    throw new Error("Repository not available in procedure context");
-  }
-  const collection = getCollectionFromPath(ctx.path);
-  return ctx.repository.getStorage<T>(collection);
-}
-
 /** The options of a query from the input of `find`. */
 function queryOptionsOf(input: FindInput, policy: StorageQueryPolicy): StorageQueryOptions {
   // A find without a limit gets the maxLimit of the policy (roadmap CLI-14)
@@ -100,11 +90,11 @@ function queryOptionsOf(input: FindInput, policy: StorageQueryPolicy): StorageQu
 /** The options of the change events of the collection procedures (roadmap CLI-15). */
 export interface CollectionChangeEventsOptions {
   /**
-   * The topic of the change events of a call, or undefined for no event. The partition of a
-   * collection (roadmap CLI-17) goes into the topic here, for example from the scope of the call.
-   * @default the topic `collections.<name>` of `collectionChangeTopic()`
+   * The topic of the change events of a call, or undefined for no event. It gets the partition of
+   * the call (roadmap CLI-17).
+   * @default `collectionChangeTopic(name, partition)`: `collections.<name>`, or `collections.<name>.<partition>`
    */
-  topic?: ((collection: string, ctx: ProcedureContext) => string | undefined) | undefined;
+  topic?: ((collection: string, ctx: ProcedureContext, partition: string | undefined) => string | undefined) | undefined;
   /**
    * True: the events also carry the values of the changed items. Each row `{ id, value }` passes
    * the output filter of the host (`admitItem`) for each subscriber, and a refused row stays out of
@@ -132,6 +122,14 @@ export interface CollectionProceduresOptions {
    * @default true, with the topic `collections.<name>` and no values
    */
   changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
+  /**
+   * The partitions of the collection (roadmap CLI-17): the resolver of the partition of each call.
+   * It reads the tenant from `ctx.principal`, and the partition that the input asks for. The
+   * procedures then use the storage of that partition (`getPartitionStorage` of the repository), and
+   * the change events go to `collections.<name>.<partition>`. Without it, an input with a partition
+   * is a `VALIDATION_ERROR`.
+   */
+  partition?: PartitionResolver | undefined;
 }
 
 /** The write options of an input with an origin. */
@@ -196,29 +194,37 @@ export function createCollectionProcedures(collectionName: string, options: Coll
   const queryPolicy: StorageQueryPolicy = { ...options.queryPolicy, maxLimit: options.queryPolicy?.maxLimit ?? DEFAULT_FIND_LIMIT };
   // Each collection is a resource of its own (CAPABILITIES-2026-10): a capability can permit one
   const resource = `collection:${collectionName}`;
-  // The topic of the change events of a call (roadmap CLI-15). CLI-17 adds the partition with the option topic.
+  // The topic of the change events of a call (roadmap CLI-15), with its partition (roadmap CLI-17)
   const events = options.changeEvents ?? true;
-  const topicRule: ((collection: string, ctx: ProcedureContext) => string | undefined) | undefined =
-    events === false ? undefined : (events !== true && events.topic) || ((name: string) => collectionChangeTopic(name));
-  const topicOf = (ctx: ProcedureContext): string | undefined => topicRule?.(collectionName, ctx);
+  const topicRule: ((collection: string, ctx: ProcedureContext, partition: string | undefined) => string | undefined) | undefined =
+    events === false ? undefined : (events !== true && events.topic) || ((name: string, _ctx: ProcedureContext, partition: string | undefined) => collectionChangeTopic(name, partition));
+  const topicOf = (ctx: ProcedureContext, partition: string | undefined): string | undefined => topicRule?.(collectionName, ctx, partition);
   const withValues = events !== false && events !== true && events.values === true;
   /** A write, and then its change event on the bus of the context. */
-  const changing = <R>(ctx: ProcedureContext, storage: CollectionStorage<unknown>, ids: readonly string[] | "*", origin: string | undefined, write: () => Promise<R>): Promise<R> =>
-    writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx) : undefined, ids, origin, write, withValues);
+  const changing = <R>(ctx: ProcedureContext, partition: string | undefined, storage: CollectionStorage<unknown>, ids: readonly string[] | "*", origin: string | undefined, write: () => Promise<R>): Promise<R> =>
+    writeWithChangeEvent(ctx.bus, storage, topicRule ? topicOf(ctx, partition) : undefined, ids, origin, write, withValues);
+  // The partitions of the collection (roadmap CLI-17)
+  const resolvePartition = options.partition;
+  const partitioned = resolvePartition !== undefined;
+  /** The partition and the storage of a call. */
+  const storageOf = async (input: PartitionInput, ctx: ProcedureContext): Promise<{ storage: CollectionStorage<unknown>; partition: string | undefined }> => {
+    const partition = await partitionOfCall(resolvePartition, ctx, input.partition);
+    return { storage: storageOfCall<unknown>(ctx, getCollectionFromPath(ctx.path), partition), partition };
+  };
 
   return [
     // Get
     defineProcedure({
       path: [...basePath, "get"],
-      input: getInputSchema,
+      input: withPartition(getInputSchema, partitioned),
       output: getOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get item from ${collectionName} by ID`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (input: GetInput, ctx : ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: GetInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         const value = await storage.get(input.id);
         if (input.found !== true) return value;
         // The output with `found` keeps a stored null apart from a missing id, in one call
@@ -230,47 +236,47 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Set
     defineProcedure({
       path: [...basePath, "set"],
-      input: setInputSchema,
+      input: withPartition(setInputSchema, partitioned),
       output: setOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Set item in ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (input: SetInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
-        await changing(ctx, storage, [input.id], input.origin, () => storage.set(input.id, input.value, writeOptionsOf(input)));
+      handler: async (input: SetInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage, partition } = await storageOf(input, ctx);
+        await changing(ctx, partition, storage, [input.id], input.origin, () => storage.set(input.id, input.value, writeOptionsOf(input)));
       },
     }),
 
     // Delete
     defineProcedure({
       path: [...basePath, "delete"],
-      input: deleteInputSchema,
+      input: withPartition(deleteInputSchema, partitioned),
       output: deleteOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Delete item from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (input: DeleteInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
-        return changing(ctx, storage, [input.id], input.origin, () => storage.delete(input.id, writeOptionsOf(input)));
+      handler: async (input: DeleteInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage, partition } = await storageOf(input, ctx);
+        return changing(ctx, partition, storage, [input.id], input.origin, () => storage.delete(input.id, writeOptionsOf(input)));
       },
     }),
 
     // Has
     defineProcedure({
       path: [...basePath, "has"],
-      input: hasInputSchema,
+      input: withPartition(hasInputSchema, partitioned),
       output: hasOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Check if item exists in ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (input: HasInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: HasInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         return storage.has(input.id);
       },
     }),
@@ -278,15 +284,15 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // GetAll
     defineProcedure({
       path: [...basePath, "getAll"],
-      input: getAllInputSchema,
+      input: withPartition(getAllInputSchema, partitioned),
       output: getAllOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get all items from ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (_input: GetAllInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: GetAllInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         return storage.getAll();
       },
     }),
@@ -294,15 +300,15 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Entries: each item with its id, for a sync (roadmap R2)
     defineProcedure({
       path: [...basePath, "entries"],
-      input: entriesInputSchema,
+      input: withPartition(entriesInputSchema, partitioned),
       output: entriesOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get all items of ${collectionName} with their ids`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (_input: EntriesInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: EntriesInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         if (!storage.getEntries) {
           throw new Error(`The storage of ${collectionName} cannot give the ids of its items`);
         }
@@ -313,15 +319,15 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Ids: the ids of the items without the values, for a full sync
     defineProcedure({
       path: [...basePath, "ids"],
-      input: idsInputSchema,
+      input: withPartition(idsInputSchema, partitioned),
       output: idsOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get the ids of the items of ${collectionName}, without the values`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (_input: IdsInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: IdsInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         if (storage.getIds) return storage.getIds();
         // A storage without getIds() gives its entries: the values stay on the server
         if (storage.getEntries) return (await storage.getEntries()).map(([id]) => id);
@@ -332,20 +338,20 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Changes: the items that changed after a version, for a delta sync (roadmap R28)
     defineProcedure({
       path: [...basePath, "changes"],
-      input: changesInputSchema,
+      input: withPartition(changesInputSchema, partitioned),
       output: changesOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get the items of ${collectionName} that changed after a version`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (input: ChangesInput, ctx: ProcedureContext): Promise<ChangesOutput> => {
-        const storage = getStorage(ctx);
+      handler: async (input: ChangesInput & PartitionInput, ctx: ProcedureContext): Promise<ChangesOutput> => {
+        const { storage, partition } = await storageOf(input, ctx);
         if (storage.getChangesSince) {
           const changes = await storage.getChangesSince(input.since);
           // The chain of the change events starts at this version: the caller then applies the
           // next event without a read (roadmap CLI-15)
-          if (topicRule) startChangeChain(ctx.bus, storage, topicOf(ctx), changes.version);
+          if (topicRule) startChangeChain(ctx.bus, storage, topicOf(ctx, partition), changes.version);
           return {
             version: changes.version,
             full: changes.full,
@@ -366,15 +372,15 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Find: the items that match a JSON selector, with an order, a skip and a limit (roadmap CLI-14)
     defineProcedure({
       path: [...basePath, "find"],
-      input: findInputSchemaOf(queryPolicy),
+      input: withPartition(findInputSchemaOf(queryPolicy), partitioned),
       output: findOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Find the items of ${collectionName} that match a selector, with their ids, an order, a skip and a limit`,
         tags: ["collections", collectionName, "read", "query"],
       },
-      handler: async (input: FindInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: FindInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         const selector = input.selector ?? {};
         const query = queryOptionsOf(input, queryPolicy);
         // The storage runs the selector itself when it can: a database does not read each item. It
@@ -390,17 +396,17 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Patch: merge fields into one item, a JSON Merge Patch (roadmap CLI-14)
     defineProcedure({
       path: [...basePath, "patch"],
-      input: patchInputSchema,
+      input: withPartition(patchInputSchema, partitioned),
       output: patchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Merge fields into one item of ${collectionName}: a JSON Merge Patch, or the operations $set and $unset`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (input: PatchInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: PatchInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage, partition } = await storageOf(input, ctx);
         const write = writeOptionsOf(input);
-        const value = await changing(ctx, storage, [input.id], input.origin, () =>
+        const value = await changing(ctx, partition, storage, [input.id], input.origin, () =>
           storage.patch ? storage.patch(input.id, input.fields, write) : patchInParts(storage, input.id, input.fields, write),
         );
         const output: GetFoundOutput = value === undefined ? { found: false } : { found: true, value };
@@ -411,15 +417,15 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Size
     defineProcedure({
       path: [...basePath, "size"],
-      input: sizeInputSchema,
+      input: withPartition(sizeInputSchema, partitioned),
       output: sizeOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get number of items in ${collectionName}`,
         tags: ["collections", collectionName, "read"],
       },
-      handler: async (_input: SizeInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: SizeInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         return storage.size();
       },
     }),
@@ -427,31 +433,31 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // Clear
     defineProcedure({
       path: [...basePath, "clear"],
-      input: clearInputSchema,
+      input: withPartition(clearInputSchema, partitioned),
       output: clearOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Clear all items from ${collectionName}`,
         tags: ["collections", collectionName, "write"],
       },
-      handler: async (input: ClearInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
-        await changing(ctx, storage, "*", input.origin, () => storage.clear(writeOptionsOf(input)));
+      handler: async (input: ClearInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage, partition } = await storageOf(input, ctx);
+        await changing(ctx, partition, storage, "*", input.origin, () => storage.clear(writeOptionsOf(input)));
       },
     }),
 
     // GetBatch
     defineProcedure({
       path: [...basePath, "getBatch"],
-      input: getBatchInputSchema,
+      input: withPartition(getBatchInputSchema, partitioned),
       output: getBatchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [] },
         description: `Get multiple items from ${collectionName}`,
         tags: ["collections", collectionName, "read", "batch"],
       },
-      handler: async (input: GetBatchInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: GetBatchInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage } = await storageOf(input, ctx);
         const result = await storage.getBatch(input.ids);
         // Convert Map to plain object
         return Object.fromEntries(result);
@@ -461,36 +467,36 @@ export function createCollectionProcedures(collectionName: string, options: Coll
     // SetBatch
     defineProcedure({
       path: [...basePath, "setBatch"],
-      input: setBatchInputSchema,
+      input: withPartition(setBatchInputSchema, partitioned),
       output: setBatchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Set multiple items in ${collectionName}`,
         tags: ["collections", collectionName, "write", "batch"],
       },
-      handler: async (input: SetBatchInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
+      handler: async (input: SetBatchInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage, partition } = await storageOf(input, ctx);
         const items: Array<[string, unknown]> = input.items.map((item) => [
           item.id,
           item.value,
         ]);
-        await changing(ctx, storage, items.map(([id]) => id), input.origin, () => storage.setBatch(items, writeOptionsOf(input)));
+        await changing(ctx, partition, storage, items.map(([id]) => id), input.origin, () => storage.setBatch(items, writeOptionsOf(input)));
       },
     }),
 
     // DeleteBatch
     defineProcedure({
       path: [...basePath, "deleteBatch"],
-      input: deleteBatchInputSchema,
+      input: withPartition(deleteBatchInputSchema, partitioned),
       output: deleteBatchOutputSchema,
       metadata: {
         effects: { reads: [resource], writes: [resource], idempotent: true },
         description: `Delete multiple items from ${collectionName}`,
         tags: ["collections", collectionName, "write", "batch"],
       },
-      handler: async (input: DeleteBatchInput, ctx: ProcedureContext) => {
-        const storage = getStorage(ctx);
-        return changing(ctx, storage, input.ids, input.origin, () => storage.deleteBatch(input.ids, writeOptionsOf(input)));
+      handler: async (input: DeleteBatchInput & PartitionInput, ctx: ProcedureContext) => {
+        const { storage, partition } = await storageOf(input, ctx);
+        return changing(ctx, partition, storage, input.ids, input.origin, () => storage.deleteBatch(input.ids, writeOptionsOf(input)));
       },
     }),
   ];

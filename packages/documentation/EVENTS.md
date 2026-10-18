@@ -335,6 +335,30 @@ A value of a collection reaches a caller only through a read with its checks. Th
 - A row that the filter refuses stays out of the event of that subscriber, and its id goes in `withheld`. The subscriber then reads that id with `changes`.
 - A procedure that sends the data of other writers later, for example a subscription, gets the output filter of its host as `ctx.admit`.
 
+#### The partitions of a collection
+
+One `collections.<name>.*` surface can serve several partitions, for example one for each tenant (roadmap CLI-17):
+
+```ts
+const procedures = createCollectionProcedures("notes", {
+  // The tenant comes from the principal, and the input can ask for a scope under it
+  partition: (ctx, requested) => {
+    const tenant = ctx.principal?.claims?.["tenant"];
+    if (typeof tenant !== "string") return null; // FORBIDDEN, partition-not-allowed
+    return requested === undefined ? tenant : `${tenant}/${requested}`;
+  },
+});
+server.usePartitions("notes", (partition) => storageOfPartition(partition));
+```
+
+- The input of each procedure can ask for a partition (`partition`). The resolver gives the partition of the call. It can refuse the call with `null`.
+- The tenant comes from `ctx.principal`. The input alone does not give it.
+- Without a resolver, an input with a partition is a `VALIDATION_ERROR`.
+- The repository gives the storage of a partition with `getPartitionStorage`. A repository without it refuses a call with a partition. It does not give the storage of all partitions.
+- `ProcedureServer.usePartitions(name, storageOf)` gives the storage of each partition. Give the same storage for the same partition each time, so that the chain of its events stays.
+- The events of a partition go to the topic `collections.<name>.<partition>`, and the option `topic` gets the partition.
+- The `allow` function of an `EventPublisher` gets the principal of the call. It keeps each subscriber in the topics of its partitions, with `collectionTopicPartition(topic)`.
+
 ### The publisher
 
 ```ts

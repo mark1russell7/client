@@ -30,6 +30,7 @@ import { InvocationError } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
 import { collectionTopicReads } from "../procedures/collection/changes.js";
 import type { AnyProcedure, Capability, ProcedureContext } from "../procedures/types.js";
+import type { Principal } from "../server/types.js";
 import type { EventBus, Unsubscribe } from "./types.js";
 import { getGlobalEventBus } from "./bus.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
@@ -53,6 +54,12 @@ export interface TopicCall {
   readonly capability: Capability;
   /** The metadata of the call: the connection id and the headers of a network request. */
   readonly metadata: Readonly<Record<string, unknown>>;
+  /**
+   * The principal of the call, from the authentication of the host. With partitions (roadmap
+   * CLI-17), `allow` keeps each subscriber in the topics of its partitions
+   * (`collectionTopicPartition()` gives the partition of a topic).
+   */
+  readonly principal?: Principal | undefined;
 }
 
 /** The options of an `EventPublisher`. */
@@ -361,7 +368,7 @@ export class EventPublisher {
       if (refusal) throw new InvocationError("FORBIDDEN", `The topic "${topic}": ${refusal.message}`, ctx.path, refusal.reason);
     }
     if (this.allow) {
-      const call: TopicCall = { capability: ctx.capability, metadata: ctx.metadata };
+      const call: TopicCall = { capability: ctx.capability, metadata: ctx.metadata, ...(ctx.principal ? { principal: ctx.principal } : {}) };
       for (const topic of unique) {
         if (!this.allow(topic, call)) {
           throw new InvocationError("FORBIDDEN", `The capability of the call does not permit the topic "${topic}"`, ctx.path, "topic-not-allowed");

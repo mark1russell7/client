@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 523 names
+## . (dist/index.d.ts): 527 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -158,6 +158,7 @@ type ModuleInput: dist/procedures/module.d.ts#ModuleInput
 NO_ELICITATION_REASON: dist/procedures/elicit.d.ts#NO_ELICITATION_REASON
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
+PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
 PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
 PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
@@ -166,6 +167,8 @@ PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
 PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
 PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
+type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -332,6 +335,7 @@ checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
 collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
+collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
@@ -530,7 +534,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 505 names
+## ./browser (dist/browser.d.ts): 509 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -678,6 +682,7 @@ type ModuleInput: dist/procedures/module.d.ts#ModuleInput
 NO_ELICITATION_REASON: dist/procedures/elicit.d.ts#NO_ELICITATION_REASON
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
+PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
 PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
 PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
@@ -686,6 +691,8 @@ PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
 PROTOCOL_HEADER: dist/protocol.d.ts#PROTOCOL_HEADER
 PROTOCOL_VERSION: dist/protocol.d.ts#PROTOCOL_VERSION
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
+type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type PortLike: dist/adapters/port/transport.d.ts#PortLike
 PortTransport: dist/adapters/port/transport.d.ts#PortTransport
@@ -846,6 +853,7 @@ checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
 collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
+collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
@@ -1246,7 +1254,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 277 names
+## ./procedures (dist/procedures/index.d.ts): 281 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1316,12 +1324,15 @@ type ModuleInput: dist/procedures/module.d.ts#ModuleInput
 NO_ELICITATION_REASON: dist/procedures/elicit.d.ts#NO_ELICITATION_REASON
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
+PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
 PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
 PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
 PROCEDURE_SYMBOL: dist/procedures/ref.d.ts#PROCEDURE_SYMBOL
 PROCEDURE_WHEN_KEY: dist/procedures/ref.d.ts#PROCEDURE_WHEN_KEY
 PURE_EFFECTS: dist/procedures/effects.d.ts#PURE_EFFECTS
+type PartitionInput: dist/procedures/collection/partition.d.ts#PartitionInput
+type PartitionResolver: dist/procedures/collection/partition.d.ts#PartitionResolver
 type PermittedEffects: dist/procedures/types.d.ts#PermittedEffects
 type Procedure: dist/procedures/types.d.ts#Procedure
 ProcedureBuilder: dist/procedures/define.d.ts#ProcedureBuilder
@@ -1406,6 +1417,7 @@ checkEffects: dist/procedures/capability.d.ts#checkEffects
 clearRuntimeProcedures: dist/procedures/define-procedure.d.ts#clearRuntimeProcedures
 clientModule: dist/procedures/module.d.ts#clientModule
 collectionChangeTopic: dist/procedures/collection/changes.d.ts#collectionChangeTopic
+collectionTopicPartition: dist/procedures/collection/partition.d.ts#collectionTopicPartition
 collectionTopicReads: dist/procedures/collection/changes.d.ts#collectionTopicReads
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
@@ -2990,6 +3002,7 @@ export declare const MAX_TOPIC_LENGTH = 256;
 export interface TopicCall {
     readonly capability: Capability;
     readonly metadata: Readonly<Record<string, unknown>>;
+    readonly principal?: Principal | undefined;
 }
 
 ### dist/events/publisher.d.ts#TopicRule
@@ -3419,14 +3432,31 @@ export interface CollectionChangeEvent {
 }
 
 ### dist/procedures/collection/changes.d.ts#collectionChangeTopic
-export declare function collectionChangeTopic(collection: string): string;
+export declare function collectionChangeTopic(collection: string, partition?: string): string;
 
 ### dist/procedures/collection/changes.d.ts#collectionTopicReads
 export declare function collectionTopicReads(topic: string): readonly string[];
 
+### dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
+export declare const PARTITION_PATTERN: RegExp;
+
+### dist/procedures/collection/partition.d.ts#PartitionInput
+export interface PartitionInput {
+    partition?: string;
+}
+
+### dist/procedures/collection/partition.d.ts#PartitionResolver
+export type PartitionResolver = (ctx: ProcedureContext, requested: string | undefined) => string | undefined | null | Promise<string | undefined | null>;
+
+### dist/procedures/collection/partition.d.ts#collectionTopicPartition
+export declare function collectionTopicPartition(topic: string): {
+    collection: string;
+    partition: string | undefined;
+} | undefined;
+
 ### dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 export interface CollectionChangeEventsOptions {
-    topic?: ((collection: string, ctx: ProcedureContext) => string | undefined) | undefined;
+    topic?: ((collection: string, ctx: ProcedureContext, partition: string | undefined) => string | undefined) | undefined;
     values?: boolean | undefined;
 }
 
@@ -3434,6 +3464,7 @@ export interface CollectionChangeEventsOptions {
 export interface CollectionProceduresOptions {
     queryPolicy?: StorageQueryPolicy | undefined;
     changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
+    partition?: PartitionResolver | undefined;
 }
 
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
@@ -4112,7 +4143,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -4861,6 +4892,7 @@ export interface RegistryListener {
 ### dist/procedures/types.d.ts#RepositoryProvider
 export interface RepositoryProvider {
     getStorage<T>(collection: string): CollectionStorage<T>;
+    getPartitionStorage?<T>(collection: string, partition: string): CollectionStorage<T>;
     hasCollection(collection: string): boolean;
 }
 
@@ -5044,6 +5076,8 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     constructor(options?: ProcedureServerOptions);
     getStorage<T>(collection: string): CollectionStorage<T>;
     hasCollection(collection: string): boolean;
+    getPartitionStorage<T>(collection: string, partition: string): CollectionStorage<T>;
+    usePartitions<T>(name: string, storageOf: (partition: string) => CollectionStorage<T>): this;
     useStorage<T>(name: string, storage: CollectionStorage<T>): this;
     useStorage<T>(name: string, storage: CollectionStorage<T>, options: UseStorageOptions): Promise<this>;
     useStorages(storages: Record<string, CollectionStorage<unknown>>): this;

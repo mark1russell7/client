@@ -260,6 +260,13 @@ export interface RepositoryProvider {
   getStorage<T>(collection: string): CollectionStorage<T>;
 
   /**
+   * The storage of one partition of a collection (roadmap CLI-17), for example the items of one
+   * tenant. A repository without this method has no partitions: the collection procedures then
+   * refuse a call with a partition, and never give it the storage of all partitions.
+   */
+  getPartitionStorage?<T>(collection: string, partition: string): CollectionStorage<T>;
+
+  /**
    * Check if a collection exists.
    *
    * @param collection - Collection name
