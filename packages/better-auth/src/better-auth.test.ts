@@ -190,6 +190,14 @@ describe("betterAuthPrincipalOf", () => {
     expect(await hook({ bearer: TOKEN, headers: { "x-act-as": "u2" } }, request)).toBeUndefined();
   });
 
+  it("never falls back to the agent principal for a refused act-as", async () => {
+    const { principals } = setup();
+    const refusing = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAs: () => false, anonymous: READ_ONLY });
+    expect(await refusing({ bearer: TOKEN, headers: { "x-act-as": "u2" } }, request)).toBeUndefined();
+    const without = betterAuthPrincipalOf({ principals, agentToken: TOKEN, anonymous: READ_ONLY });
+    expect(await without({ bearer: TOKEN, headers: { "x-act-as": "u2" } }, request)).toBeUndefined();
+  });
+
   it("acts for a user only when the policy permits it, and records the act-as in the claims", async () => {
     const { principals } = setup();
     const seen: string[] = [];
@@ -214,7 +222,7 @@ describe("betterAuthPrincipalOf", () => {
     const { principals } = setup();
     const open = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAs: () => true, anonymous: READ_ONLY });
     expect(await open({ bearer: TOKEN, headers: { "x-act-as": "ghost" } }, request)).toEqual({
-      principal: { id: ANONYMOUS_ID, via: VIA.agentAs, claims: { agent: true, actAs: "ghost" } },
+      principal: { id: ANONYMOUS_ID, via: VIA.anonymous, claims: { agent: true, actAs: "ghost" } },
       narrowing: READ_ONLY,
     });
     const closed = betterAuthPrincipalOf({ principals, agentToken: TOKEN, actAs: () => true });

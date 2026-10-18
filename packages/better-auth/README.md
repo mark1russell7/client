@@ -70,7 +70,7 @@ const server = createProcedureServer({
 | A session cookie | The user, with `via: "better-auth"` and the claims `email`, `name` and `groups` |
 | Nothing of the above | With `anonymous`: `{ id: "anonymous", via: "anonymous" }` and that narrowing. Without it (the default): no principal, and the server refuses the request. |
 
-- An act-as request for an unknown user gets the anonymous principal, or a refusal without `anonymous`.
+- An act-as request for an unknown user gets the anonymous principal (`via: "anonymous"`), or a refusal without `anonymous`. A refused act-as gets no principal. It does not get the principal of the agent.
 - A bearer token that is not the agent token goes on to the token check of the server.
 - Do not give the server a `token` with this hook. The token check of the server operates after the hook, and a cookie session has no bearer token.
 - The procedures read the principal as `ctx.principal`. The rights of the app stay in the app.

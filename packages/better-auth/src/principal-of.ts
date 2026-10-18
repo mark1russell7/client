@@ -81,7 +81,8 @@ export function betterAuthPrincipalOf(options: BetterAuthPrincipalOfOptions): Pr
   const anonymousIdentity = (claims?: Record<string, unknown>): RequestIdentity | undefined =>
     anonymous === undefined
       ? undefined
-      : { principal: { id: ANONYMOUS_ID, via: claims ? VIA.agentAs : VIA.anonymous, ...(claims ? { claims } : {}) }, narrowing: anonymous };
+      : // The via is `anonymous` also for an agent that acts for an unknown user: the via decides the subject (refer to subjectOf of @procedures/access)
+        { principal: { id: ANONYMOUS_ID, via: VIA.anonymous, ...(claims ? { claims } : {}) }, narrowing: anonymous };
   const identity = (principal: Principal): RequestIdentity => ({ principal });
 
   return async (credentials) => {
@@ -90,7 +91,8 @@ export function betterAuthPrincipalOf(options: BetterAuthPrincipalOfOptions): Pr
       if (!target) return identity({ id: AGENT_ID, via: VIA.agent, claims: { agent: true } });
       if (!options.actAs) return undefined;
       const user = await options.principals.ofUser(target);
-      // An unknown user has no rights: the agent acts as an anonymous request
+      // An unknown user has no rights: the agent acts as an anonymous request, and a refused
+      // act-as gives no principal (never the bare agent, which is a service account)
       if (!user) return anonymousIdentity({ agent: true, actAs: target });
       if (!(await options.actAs(user, credentials))) return undefined;
       return identity({ id: user.id, via: VIA.agentAs, claims: { ...userClaims(user), agent: true, actAs: user.id } });
