@@ -171,13 +171,20 @@ export interface ExecOptions {
    * (`observeHydration()` gets the events of every program in the process.)
    */
   onRef?: ((event: HydrationEvent) => void) | undefined;
+  /**
+   * The metadata of the program. A local procedure gets it as `ctx.metadata`, and a remote call
+   * sends it. The narrowing key `procedure-narrowing` narrows the capability of each call of the
+   * program, local or remote (CLI-30).
+   */
+  metadata?: Record<string, unknown> | undefined;
 }
 
-/** The caller context of `exec()` and `execStream()`: the observer and the signal. */
+/** The caller context of `exec()` and `execStream()`: the observer, the signal and the metadata. */
 function callerOf(options: ExecOptions): CallerContext {
   const caller: CallerContext = {};
   if (options.onRef) caller.onRef = options.onRef;
   if (options.signal) caller.signal = options.signal;
+  if (options.metadata) caller.metadata = options.metadata;
   return caller;
 }
 

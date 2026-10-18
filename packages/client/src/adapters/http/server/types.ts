@@ -10,6 +10,7 @@ import type { Method } from "../../../client/types.js";
 import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 import type { Clock } from "../../../clock.js";
 import type { Duration } from "../../../duration.js";
+import type { Addressing } from "./addressing.js";
 
 /**
  * URL strategy for converting HTTP requests to RPC methods.
@@ -50,6 +51,13 @@ export interface HttpServerTransportOptions extends BrowserGuardOptions {
    * @default createPatternServerUrlStrategy(basePath): the format of the HTTP client
    */
   urlStrategy?: HttpUrlStrategy;
+
+  /**
+   * The addressing of a request (CLI-31): a hook of the request and its body that gives the
+   * method and the payload of the call. It replaces `urlStrategy`. With `bodyPathAddressing()`,
+   * the route takes the base path itself too.
+   */
+  addressing?: Addressing;
 
   /**
    * Base path for RPC endpoints.

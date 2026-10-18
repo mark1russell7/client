@@ -30,6 +30,8 @@ import { errorCodeOf } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
+import type { NarrowingNote } from "../procedures/narrowing.js";
+import type { ServerDebugReport } from "./types.js";
 
 // =============================================================================
 // Types
@@ -166,6 +168,15 @@ export interface ProcedureServerOptions extends ServerOptions {
    * `stop()` ends each subscription first, with `UNAVAILABLE`.
    */
   events?: EventPublisherOptions | EventPublisher | undefined;
+
+  /**
+   * The debug reports of the server. `true` writes each report with `console.debug`, and a
+   * function gets each report. The server reports each part of the narrowing of a call that has
+   * no effect (CLI-30). Such a part asks for more than the call holds, or it is not valid. The
+   * call goes on without that part. The server also reports a source that refuses the call.
+   * @default false
+   */
+  debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
 }
 
 /**
@@ -361,6 +372,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * read it: they trust such a request only from a named origin (CSRF).
    */
   readonly ambientCredentials: AmbientCredentials | undefined;
+  /** The receiver of the debug reports, or undefined when the option `debug` is off. */
+  private readonly debugReport: ((report: ServerDebugReport) => void) | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -382,6 +395,12 @@ export class ProcedureServer extends Server implements RepositoryProvider {
     this.authenticate = options.authenticate;
     const ambient = options.ambientCredentials ?? (this.principalOf ? "always" : this.authenticate ? "cookies" : undefined);
     this.ambientCredentials = ambient === false ? undefined : ambient;
+    this.debugReport =
+      typeof options.debug === "function"
+        ? options.debug
+        : options.debug === true
+          ? (report) => console.debug(`[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`)
+          : undefined;
     // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure);
@@ -842,11 +861,25 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * The capability of a request. It comes from the server, never from the request. The remaining
    * time of the caller and the narrowing of the request can only make it narrower
    * (CAPABILITIES-2026-10, decision 9). Two different clearances without an order throw.
+   *
+   * The narrowing key of the call (`procedure-narrowing`, CLI-30) is not part of it. The
+   * invocation applies the key for each face, after the narrowing of the request hook.
    */
   private capabilityOf(request: ServerRequest<unknown>): Capability | undefined {
     const { capability, clearanceOrder } = this.capabilityOptions;
     const base = withRequestTimeout(typeof capability === "function" ? capability(request) : capability, request, clearanceOrder);
     return request.narrowing ? narrowCapability(base, request.narrowing, clearanceOrder) : base;
+  }
+
+  /** The debug reports of the notes of the narrowing of a request (CLI-30), or undefined when `debug` is off. */
+  private narrowingReports(request: ServerRequest<unknown>): ((notes: readonly NarrowingNote[]) => void) | undefined {
+    const report = this.debugReport;
+    if (!report) return undefined;
+    return (notes) => {
+      for (const note of notes) {
+        report({ topic: "narrowing", requestId: request.id, method: request.method, message: note.message, detail: { field: note.field, kind: note.kind, ...(note.code ? { code: note.code } : {}) } });
+      }
+    };
   }
 
   /** Run a procedure for a request with a signal. */
@@ -880,6 +913,8 @@ export class ProcedureServer extends Server implements RepositoryProvider {
         clearanceOrder,
         resources,
         admitItem,
+        // The parts of the narrowing key without effect go to the debug reports (CLI-30)
+        onNarrowingNotes: this.narrowingReports(request),
         // The principal of the authentication: ctx.principal, and the nested calls (R18)
         ...(request.principal !== undefined ? { principal: request.principal } : {}),
         // The bus of the remote events is the bus of the procedures (EVENTS.md)

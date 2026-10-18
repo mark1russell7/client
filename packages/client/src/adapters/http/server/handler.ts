@@ -27,8 +27,9 @@ import { PROTOCOL_HEADER, PROTOCOL_VERSION, httpStatusOf, protocolVersionOf } fr
 import { realClock, type Cancel, type Clock } from "../../../clock.js";
 import { ms, type Duration } from "../../../duration.js";
 import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMsOf, writeNdjsonStream } from "./ndjson.js";
-import { createPatternServerUrlStrategy } from "./strategies.js";
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
+import { urlAddressing, type Addressing } from "./addressing.js";
+import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
 
 /** The parts of a request that a URL strategy of `procedureHandler` reads. */
 export interface UrlRequest {
@@ -58,9 +59,16 @@ export interface ProcedureHandlerOptions extends BrowserGuardOptions {
   readonly basePath?: string | undefined;
   /**
    * The method of a request. The default reads the URL format of `HttpTransport`:
-   * `{basePath}/{service}/{operation}`.
+   * `{basePath}/{service}/{operation}`. The option `addressing` replaces it.
    */
   readonly urlStrategy?: NodeUrlStrategy | undefined;
+  /**
+   * The addressing of a request (CLI-31): a hook of the request and its body that gives the
+   * method and the payload of the call. `bodyPathAddressing()` reads the path from the body of a
+   * single endpoint.
+   * @default urlAddressing({ basePath, urlStrategy })
+   */
+  readonly addressing?: Addressing | undefined;
   /**
    * The CORS headers of the requests on the path. `true` uses the defaults: each origin, without
    * credentials. The permitted origins of the browser checks follow the CORS origins.
@@ -207,6 +215,19 @@ const GUARD_REASONS: Record<string, string> = {
   UNSUPPORTED_MEDIA_TYPE: "media-type-not-allowed",
 };
 
+/** This function sets a key as an own property, also the key `__proto__` (the `put` of the query language). */
+function put(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+/**
+ * This function sets a key at the root of the metadata. Each source of the narrowing key adds to
+ * the key, so no source replaces another (CLI-30).
+ */
+function setMetadata(metadata: Metadata, key: string, value: unknown): void {
+  metadata[key] = key === NARROWING_METADATA_KEY ? addNarrowing(metadata[key], value) : value;
+}
+
 /** This function writes a JSON response without a framework. */
 function writeJson(res: NodeResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);
@@ -286,14 +307,14 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   assertNamedOrigins(compat.face?.name ?? "procedureHandler", ambientMode, guard.allowedOrigins, compat.face?.originOption ?? "cors.origin");
   const secretHeaders = headerNames(options.secretHeaders);
   const secretQuery = new Set(options.secretQuery ?? (legacy ? [] : ["token"]));
-  const strategy = options.urlStrategy ?? createPatternServerUrlStrategy(basePath);
-  const methodOf =
-    compat.methodOf ??
-    ((req: IncomingMessage): Method | null => {
-      const { path, query } = urlParts(req.url);
-      const view: UrlRequest = { method: (req.method ?? "GET").toUpperCase(), path, url: req.url ?? "/", headers: req.headers, query: queryRecord(query) };
-      return strategy(view, req);
-    });
+  // The addressing of a request (CLI-31): the option, or the URL strategy of the shim, or the URL
+  // format of HttpTransport
+  const compatMethodOf = compat.methodOf;
+  const addressing: Addressing =
+    options.addressing ??
+    urlAddressing(compatMethodOf ? { urlStrategy: (_view, req) => compatMethodOf(req) } : { basePath, urlStrategy: options.urlStrategy });
+  // A single endpoint (the path in the body) is the base path itself
+  const bareBase = prefix.slice(0, -1);
   const sendJson = compat.sendJson ?? writeJson;
 
   /** The controllers of the requests in progress: close() aborts them (deep dive TRN-15) */
@@ -309,7 +330,11 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     for (const waiter of waiters) waiter();
   };
 
-  const matches = (req: IncomingMessage): boolean => compat.matchAll === true || pathOf(req).startsWith(prefix);
+  const matches = (req: IncomingMessage): boolean => {
+    if (compat.matchAll === true) return true;
+    const path = pathOf(req);
+    return path.startsWith(prefix) || (addressing.takesBasePath === true && path === bareBase);
+  };
 
   /** The error body of wire v1: the message, the code, the retryable flag and the more fields. */
   const sendError = (res: NodeResponse, status: number, message: string, code: string, retryable = false, more: Record<string, unknown> = {}): void => {
@@ -349,16 +374,23 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     }
   };
 
-  /** This function converts an HTTP request to a `ServerRequest`, or null when the URL names no method. */
+  /**
+   * This function converts an HTTP request to a `ServerRequest`, or gives null when the addressing
+   * finds no call in the request.
+   */
   const toServerRequest = (req: IncomingMessage, body: unknown): ServerRequest | null => {
-    const method = methodOf(req);
-    if (!method) return null;
+    const { path, query: urlQuery } = urlParts(req.url);
+    const view: UrlRequest = { method: (req.method ?? "GET").toUpperCase(), path, url: req.url ?? "/", headers: req.headers, query: queryRecord(urlQuery) };
+    const address = addressing(view, body, req);
+    if (!address) return null;
+    const method = address.method;
 
     const id = (req.headers["x-request-id"] as string | undefined) ?? `req-${Date.now()}-${Math.random()}`;
 
     // The query without its secret parameters: they go into the credentials (CLI-2a)
+    // An own property for each key, also `__proto__`: a key of the request changes no prototype
     const query: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(queryOf(req))) if (!secretQuery.has(key)) query[key] = value;
+    for (const [key, value] of Object.entries(queryOf(req))) if (!secretQuery.has(key)) put(query, key, value);
     const params = paramsOf(req);
 
     // The metadata of the headers and of the query. The query parameters cannot replace headers,
@@ -370,17 +402,21 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       params,
     };
     for (const [key, value] of Object.entries(query)) {
-      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) metadata[key] = value;
+      if (!RESERVED_METADATA.has(key) && !key.startsWith("__")) setMetadata(metadata, key, value);
     }
 
     // The custom headers at the root of the metadata, as the client's metadataToHeaders() sends
     // them. A secret header (Cookie too) does not go there.
     for (const [key, value] of Object.entries(req.headers)) {
       const lower = key.toLowerCase();
-      if (STANDARD_HEADERS.has(lower) || isSecretHeader(lower, secretHeaders) || typeof value !== "string") continue;
+      if (STANDARD_HEADERS.has(lower) || isSecretHeader(lower, secretHeaders) || typeof value !== "string" || lower === NARROWING_METADATA_KEY) continue;
       const normalizedKey = HEADER_MAPPINGS[lower] ?? key;
       if (!RESERVED_METADATA.has(normalizedKey) && !normalizedKey.startsWith("__")) metadata[normalizedKey] = value;
     }
+    // Each value of the narrowing header is one source, also each line of a repeated header. No
+    // source replaces another: a gateway's header and the client's key of X-Metadata both apply (CLI-30)
+    const narrowingHeader = req.headersDistinct?.[NARROWING_METADATA_KEY] ?? req.headers[NARROWING_METADATA_KEY];
+    for (const value of [narrowingHeader].flat()) if (typeof value === "string") setMetadata(metadata, NARROWING_METADATA_KEY, value);
 
     // The custom metadata of the HTTP client: any JSON value, any key (deep dive TRN-11)
     const encoded = req.headers["x-metadata"];
@@ -391,15 +427,13 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       const custom = decodeMetadataHeader(encoded);
       if (!custom) throw new BodyError("The X-Metadata header is not URI-encoded JSON of an object", 400);
       for (const [key, value] of Object.entries(custom)) {
-        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) metadata[key] = value;
+        if (!RESERVED_METADATA.has(key) && key !== "auth" && !key.startsWith("__")) setMetadata(metadata, key, value);
       }
     }
 
-    // The payload: the body, or the id of a RESTful GET. Only an absent payload becomes {}: 0,
-    // false, "" and null stay (deep dive TRN-10)
-    let payload: unknown = body;
-    if (req.method === "GET" && params["id"]) payload = { id: params["id"] };
-    if (payload === undefined) payload = {};
+    // The payload of the addressing (the body, or the id of a RESTful GET). Only an absent payload
+    // becomes {}: 0, false, "" and null stay (deep dive TRN-10)
+    const payload: unknown = address.payload === undefined ? {} : address.payload;
 
     return {
       id,
