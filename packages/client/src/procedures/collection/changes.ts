@@ -56,11 +56,11 @@ export interface CollectionChangeEvent {
 }
 
 /**
- * This function gives the topic of the change events of a collection: `collections.<name>`. The
- * partition of roadmap CLI-17 comes after the name, with the option `topic` of the procedures.
+ * This function gives the topic of the change events of a collection: `collections.<name>`, or
+ * `collections.<name>.<partition>` for a partition (roadmap CLI-17).
  */
-export function collectionChangeTopic(collection: string): string {
-  return `collections.${collection}`;
+export function collectionChangeTopic(collection: string, partition?: string): string {
+  return partition === undefined ? `collections.${collection}` : `collections.${collection}.${partition}`;
 }
 
 /**

@@ -73,8 +73,10 @@ export type InvocationErrorCode =
  *   to such a host (`createHttpModule({ allow })` of `@procedures/http`).
  * - `topic-not-allowed`: the `allow` function of an `EventPublisher` refuses a topic of a
  *   subscription (`documentation/EVENTS.md`).
+ * - `partition-not-allowed`: the partition resolver of the collection procedures refuses the
+ *   partition of a call (roadmap CLI-17).
  */
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -84,7 +86,7 @@ export class InvocationError extends Error {
   readonly retryable: boolean = false;
   /**
    * The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`,
-   * `deadline`, `outside-root`, `host-not-allowed` or `topic-not-allowed`.
+   * `deadline`, `outside-root`, `host-not-allowed`, `topic-not-allowed` or `partition-not-allowed`.
    */
   readonly reason: ForbiddenReason | undefined;
 

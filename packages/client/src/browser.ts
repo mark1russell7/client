@@ -124,6 +124,9 @@ export {
   // The change events of the collection writes (roadmap CLI-15)
   collectionChangeTopic,
   collectionTopicReads,
+  // The partitions of a collection (roadmap CLI-17)
+  PARTITION_PATTERN,
+  collectionTopicPartition,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
@@ -275,6 +278,9 @@ export type {
   StorageQueryPolicy,
   CollectionProceduresOptions,
   CollectionChangeEventsOptions,
+  CollectionPartitions,
+  PartitionInput,
+  PartitionResolver,
   CollectionChangeEvent,
   ProcedureModule,
   ModuleInput,

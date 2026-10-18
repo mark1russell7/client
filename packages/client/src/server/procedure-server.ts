@@ -18,7 +18,8 @@ import { pathToKey } from "../procedures/types.js";
 import { ProcedureRegistry, PROCEDURE_REGISTRY } from "../procedures/registry.js";
 import { createCollectionProcedures } from "../procedures/collection/procedures.js";
 import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
-import type { Capability, ClearanceOrder, ResourcesOf } from "../procedures/types.js";
+import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
+import type { CollectionPartitions } from "../procedures/collection/partition.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import { optionalMs, type Duration } from "../duration.js";
@@ -316,6 +317,8 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
 export class ProcedureServer extends Server implements RepositoryProvider {
   private readonly procedureRegistry: ProcedureRegistry;
   private readonly storages = new Map<string, CollectionStorage<unknown>>();
+  /** The partitions of each partitioned collection: their storages and their resolver (roadmap CLI-17) */
+  private readonly partitions = new Map<string, CollectionPartitions<unknown>>();
   /** For each storage: the calls in flight that took it, and the closes that wait for them */
   private readonly storageUses = new Map<CollectionStorage<unknown>, { calls: number; waiters: Array<() => void> }>();
   /** The clock of the wait of `useStorage` */
@@ -421,7 +424,54 @@ export class ProcedureServer extends Server implements RepositoryProvider {
    * @param collection - Collection name
    */
   hasCollection(collection: string): boolean {
-    return this.storages.has(collection);
+    return this.storages.has(collection) || this.partitions.has(collection);
+  }
+
+  /**
+   * The storage of one partition of a collection (roadmap CLI-17).
+   *
+   * @throws Error if the collection has no partitions
+   */
+  getPartitionStorage<T>(collection: string, partition: string): CollectionStorage<T> {
+    const partitions = this.partitions.get(collection);
+    if (!partitions) {
+      throw new Error(`Collection has no partitions: ${collection}`);
+    }
+    return partitions.storageOf(partition) as CollectionStorage<T>;
+  }
+
+  /** True when the collection has partitions (roadmap CLI-17). */
+  hasPartitions(collection: string): boolean {
+    return this.partitions.has(collection);
+  }
+
+  /**
+   * The partition of a call to a partitioned collection (roadmap CLI-17), from the resolver of
+   * `usePartitions`. `null` refuses the call.
+   *
+   * @throws Error if the collection has no partitions
+   */
+  resolvePartition(collection: string, ctx: ProcedureContext, requested: string | undefined): string | undefined | null | Promise<string | undefined | null> {
+    const partitions = this.partitions.get(collection);
+    if (!partitions) {
+      throw new Error(`Collection has no partitions: ${collection}`);
+    }
+    return partitions.resolve(ctx, requested);
+  }
+
+  /**
+   * Configure the partitions of a collection (roadmap CLI-17). `resolve` gives the partition of
+   * each call from its context (the tenant of `ctx.principal`) and the partition that the call asks
+   * for: the collection procedures and the subscriptions of `EventPublisher` use it. `storageOf`
+   * gives the storage of a partition: give the same storage for the same partition each time.
+   *
+   * @param name - Collection name
+   * @param partitions - The storage of each partition, and the resolver
+   * @returns this (for chaining)
+   */
+  usePartitions<T>(name: string, partitions: CollectionPartitions<T>): this {
+    this.partitions.set(name, partitions as CollectionPartitions<unknown>);
+    return this;
   }
 
   // ===========================================================================
@@ -503,17 +553,20 @@ export class ProcedureServer extends Server implements RepositoryProvider {
   private callRepository(): { repository: RepositoryProvider; release: () => void } {
     const taken = new Set<CollectionStorage<unknown>>();
     let released = false;
+    const take = <T>(storage: CollectionStorage<unknown>): CollectionStorage<T> => {
+      if (!released && !taken.has(storage)) {
+        taken.add(storage);
+        const use = this.storageUses.get(storage) ?? { calls: 0, waiters: [] };
+        use.calls++;
+        this.storageUses.set(storage, use);
+      }
+      return storage as CollectionStorage<T>;
+    };
     const repository: RepositoryProvider = {
-      getStorage: <T>(collection: string): CollectionStorage<T> => {
-        const storage = this.getStorage<unknown>(collection);
-        if (!released && !taken.has(storage)) {
-          taken.add(storage);
-          const use = this.storageUses.get(storage) ?? { calls: 0, waiters: [] };
-          use.calls++;
-          this.storageUses.set(storage, use);
-        }
-        return storage as CollectionStorage<T>;
-      },
+      getStorage: <T>(collection: string): CollectionStorage<T> => take<T>(this.getStorage<unknown>(collection)),
+      getPartitionStorage: <T>(collection: string, partition: string): CollectionStorage<T> => take<T>(this.getPartitionStorage<unknown>(collection, partition)),
+      hasPartitions: (collection: string): boolean => this.hasPartitions(collection),
+      resolvePartition: (collection: string, ctx: ProcedureContext, requested: string | undefined) => this.resolvePartition(collection, ctx, requested),
       hasCollection: (collection: string): boolean => this.hasCollection(collection),
     };
     const release = (): void => {
