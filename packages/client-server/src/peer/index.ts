@@ -15,7 +15,7 @@
  * `/health` route or token check of its own.
  */
 
-import { daemon, service, type Lifecycle, type ProcessPort, type Profile } from "@mark1russell7/service";
+import { daemon, embeddedProcess, service, type Lifecycle, type Profile } from "@mark1russell7/service";
 import {
   hostPolicy,
   seconds,
@@ -197,25 +197,6 @@ const DAEMON_DRAIN = daemon.phases?.find((phase) => phase.name === "drain")?.cap
  */
 export const PEER_PROFILE: Profile = Object.freeze({ ...daemon, cooperativeWindow: DAEMON_DRAIN, cooperativeFloor: "none" as const });
 
-/**
- * The process port of the service of a peer: it installs no signal handler, its exit only records
- * the code, and it never holds or ends the process. The process of a peer has its own lifecycle.
- *
- * TODO(SYS-27): return `embeddedProcess()` of `@mark1russell7/service` 0.5.2 when it is on npm.
- */
-function embeddedPort(): ProcessPort & { readonly exitCode: number | null } {
-  let exitCode: number | null = null;
-  return {
-    on: () => () => undefined,
-    exit: (code: number) => {
-      exitCode = code;
-    },
-    get exitCode() {
-      return exitCode;
-    },
-  };
-}
-
 class PeerImpl implements Peer {
   readonly id: string;
   private readonly host: ProcedureHost;
@@ -239,7 +220,9 @@ class PeerImpl implements Peer {
     if (!this.profile.liveness) svc.liveness({ type: "window", failAfter: seconds(45) });
     if (!this.profile.startup) svc.startup(seconds(30));
     if (!this.profile.onRepeatSignal) svc.onRepeatSignal("ignore");
-    const life = await svc.run({ process: embeddedPort() });
+    // The port of a lifecycle in a process that another part owns (SYS-27): no signal handler, no
+    // hold of the process, and an exit that only records the code
+    const life = await svc.run({ process: embeddedProcess() });
     if (life.state !== "running") {
       // The startup failed: the lifecycle stops the parts that started, so no port stays open
       this.state = "stopped";

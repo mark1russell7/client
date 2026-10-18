@@ -824,8 +824,8 @@ importers:
   packages/client-server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.1
-        version: 0.5.1(zod@4.6.5)
+        specifier: ^0.5.2
+        version: 0.5.2(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2999,6 +2999,18 @@ packages:
 
   '@mark1russell7/service@0.5.1':
     resolution: {integrity: sha512-8bwk8mk0frsss2IMibjIPdfKAbCvonDO6nzi0hDkyv8shUJ8XxCYk8L2i4Ce2H1QNcefc4pFfC/HcjWgrFj8pg==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      ioredis: ^6.0.0
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      ioredis:
+        optional: true
+      zod:
+        optional: true
+
+  '@mark1russell7/service@0.5.2':
+    resolution: {integrity: sha512-PwoZg09iW3my0Iu/+dlf9dWXCu6v28Lqd5Joy/eRpO0HNdwGkBcUjvptYkzF4ApaFzJpxDu/sMaG1vBn8KudxA==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -5854,6 +5866,13 @@ snapshots:
       zod: 4.6.5
 
   '@mark1russell7/service@0.5.1(zod@4.6.5)':
+    dependencies:
+      '@mark1russell7/algebra': 0.7.1(zod@4.6.5)
+      '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
+    optionalDependencies:
+      zod: 4.6.5
+
+  '@mark1russell7/service@0.5.2(zod@4.6.5)':
     dependencies:
       '@mark1russell7/algebra': 0.7.1(zod@4.6.5)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
