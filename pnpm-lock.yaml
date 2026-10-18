@@ -1457,6 +1457,9 @@ importers:
       '@procedures/archive':
         specifier: workspace:*
         version: link:../archive
+      '@procedures/better-auth':
+        specifier: workspace:*
+        version: link:../better-auth
       '@procedures/bundle-assistant':
         specifier: workspace:*
         version: link:../bundle-assistant
