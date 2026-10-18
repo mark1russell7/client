@@ -7,6 +7,7 @@
  * - Under `run()`, each call goes through `life.request`. A stream stays in flight, and it ends
  *   in-band at the cooperative abort of the drain.
  * - Without a listener, the app mounts `host.handler` on a listener of its own.
+ * - The option `controller` gives the dependencies that each call needs (CLI-45).
  */
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -14,7 +15,7 @@ import { createServer } from "node:http";
 import { z } from "zod";
 import { service, type Lifecycle, type ServiceBuilder } from "@mark1russell7/service";
 import { httpTransport } from "@mark1russell7/service/http";
-import { fakeProcess } from "@mark1russell7/service/testing";
+import { fakeClock, fakeProcess, scriptedCheck, seeded } from "@mark1russell7/service/testing";
 import { createProcedure, createRegistry, hostPolicy, ms, seconds, type CollectionStorage, type ProcedureRegistry } from "@procedures/client";
 import { createProcedureHost, LOCAL_LISTENER_KNOBS, operationOfCall, type ProcedureHost } from "./index.js";
 
@@ -205,5 +206,47 @@ describe("createProcedureHost (CLI-7)", () => {
     expect(await echo.json()).toBe("mounted");
     const other = await fetch(`http://127.0.0.1:${port}/chat`);
     expect(await other.text()).toBe("the route of the app");
+  }, 20000);
+
+  it("refuses the calls while a dependency that its controller requires fails readiness, and serves them when it passes (CLI-45)", async () => {
+    const clock = fakeClock();
+    const store = scriptedCheck("ok");
+    const svc = serviceOf("requires")
+      .dependency("store", { system: null, knobs: {}, operations: { read: { idempotent: true } } }, { connect: () => undefined, close: () => undefined })
+      .check(
+        { name: "store.ping", dependency: "store", step: "ping", ownConnection: true, gates: "readiness", poll: { interval: seconds(5), jitter: 0.2, timeout: seconds(4) } },
+        store.run
+      );
+    const listen = [{ port: 0, knobs: LOCAL_LISTENER_KNOBS }];
+    const gated = createProcedureHost({ name: "gated", registry: registryOf(), controller: { requires: ["store"] }, listen, clock });
+    // The same host without the option: its calls do not need the store
+    const plain = createProcedureHost({ name: "plain", registry: registryOf(), listen, clock });
+    expect(gated.controllers[0]?.requires).toEqual(["store"]);
+    expect(plain.controllers[0]?.requires).toEqual([]);
+    expect(plain.declare(gated.declare(svc)).describe().controllers.find((each) => each.name === "gated")?.requires).toEqual(["store"]);
+    await svc.run({ clock, process: fakeProcess({ clock }), random: seeded(7) });
+    await clock.advance(0);
+    const call = async (host: ProcedureHost): Promise<{ status: number; body: unknown }> => {
+      const response = await fetch(`${host.info.endpoints()[0]!.address}/test/echo`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: "hi" }) });
+      return { status: response.status, body: await response.json() };
+    };
+    try {
+      expect(await call(gated)).toEqual({ status: 200, body: "hi" });
+      // The check fails three polls in a row: the readiness of the store fails
+      store.behavior = "error";
+      await clock.advance(20_000);
+      expect(svc.health!.verdict().controllers).toMatchObject({ gated: false, plain: true });
+      const refused = await call(gated);
+      expect(refused.status).toBe(503);
+      expect(refused.body).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      // Without the option, nothing changes
+      expect(await call(plain)).toEqual({ status: 200, body: "hi" });
+      // One poll that passes opens the calls again
+      store.behavior = "ok";
+      await clock.advance(7_000);
+      expect(await call(gated)).toEqual({ status: 200, body: "hi" });
+    } finally {
+      for (const host of [gated, plain]) for (const part of [...host.parts].reverse()) await part.impl.close();
+    }
   }, 20000);
 });

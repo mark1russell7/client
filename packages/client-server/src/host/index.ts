@@ -100,6 +100,15 @@ export type HostServerOptions = Omit<
   "registry" | "collections" | "clock" | "transports" | "expose" | "token" | "principalOf" | "events" | "interceptors"
 >;
 
+/** The options of the controller of the calls of a host (CLI-45). */
+export interface HostControllerOptions {
+  /**
+   * The dependencies of the service that each call needs. While a check of one of them fails
+   * readiness, the service refuses each call with `UNAVAILABLE`. The default is none.
+   */
+  readonly requires?: readonly string[] | undefined;
+}
+
 /** The options of `createProcedureHost()`. */
 export interface ProcedureHostOptions {
   /** The name of the host: the prefix of the names of its parts, and the name of its controller. The default is `procedures`. */
@@ -118,6 +127,8 @@ export interface ProcedureHostOptions {
   readonly metrics?: boolean | undefined;
   /** The faces. The default is `{ http: true }`. */
   readonly faces?: ProcedureHostFaces | undefined;
+  /** The controller of the calls: the dependencies that each call needs (CLI-45). */
+  readonly controller?: HostControllerOptions | undefined;
   /** The listeners that the host owns. Without them, the app mounts `host.handler` and `host.upgrade`. */
   readonly listen?: readonly HostListener[] | undefined;
   /** The collections by name: a storage, or a storage and its procedures. */
@@ -382,7 +393,11 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   const checks: HostCheck[] = [];
   const operations = callOperations(keyedWindowMs);
   const controllers: HostController[] = [
-    { name, requires: [], patterns: [...faces.keys()].map((faceName) => ({ pattern: `${faceName} *`, operations, operationOf: operationOfCall })) },
+    {
+      name,
+      requires: [...(options.controller?.requires ?? [])],
+      patterns: [...faces.keys()].map((faceName) => ({ pattern: `${faceName} *`, operations, operationOf: operationOfCall })),
+    },
   ];
 
   const info: HostInfo = {
