@@ -140,6 +140,7 @@ await svc.run();
 - **The faces.** `http` and `ws` are the faces of this package (`httpFace()`, `wsFace()`). `mcp` takes `mcpFace()` of `@procedures/mcp-server`. A face of another package is a function with the same shape.
 - **The listeners.** The faces of a listener mount on its mount list, so they share one port. Without `listen`, the app mounts `host.handler` and `host.upgrade` on its own listener.
 - **The request tracking.** Each call goes through `life.request`, with the route `<face> <procedure>`. The function of the pattern gives the idempotency of each call: a repeatable procedure, a keyed call, or a call that runs one time (decision D3).
+- **The readiness of the calls.** The option `controller.requires` names the dependencies of the service that each call needs. While a check of one of them fails readiness, the service refuses each call with `UNAVAILABLE` (CLI-45).
 - **The streams.** Each call is a stream, and a unary call is a stream of one (decision D4). A stream stays in flight until its end. A cut after the first item ends the stream with an error line.
 - **The collections.** The option `collections` gives the storages. The host serves `collections.<name>.*` for each one.
 - **No `/health` route.** The probes come from the runner (`probeHandler` or `probeServer`). A client checks a lockfile with `host.info` and the token of the lockfile.

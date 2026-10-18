@@ -48,6 +48,7 @@ export type {
   HostCheck,
   HostPattern,
   HostController,
+  HostControllerOptions,
   HostEndpoint,
   HostInfo,
   HostKnobs,
