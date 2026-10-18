@@ -13,7 +13,8 @@
  * - The request tracking: one route pattern for each face, and a function of the idempotency of
  *   each call (decision D3). Each call is a stream (decision D4).
  * - The collections: the option `collections` gives the storages, and the host serves
- *   `collections.<name>.*`. Each storage is a dependency of the service.
+ *   `collections.<name>.*`. Each storage is a dependency of the service. The expose rule applies
+ *   to the collection procedures. Only `host.*` and `events.subscribe` are always on (CLI-47).
  */
 
 import { createServer } from "node:http";
@@ -119,7 +120,12 @@ export interface ProcedureHostOptions {
   readonly registry?: ProcedureRegistry | undefined;
   /** The host policy (`hostPolicy()`): the expose rule, the token, the request hook, the browser checks and the capability. */
   readonly policy?: HostPolicy | undefined;
-  /** The procedures that the host serves. It wins over the expose rule of the policy. */
+  /**
+   * The procedures that the host serves. It wins over the expose rule of the policy, for the server
+   * and for each face, and `host.policy` has it. The rule applies to the collection procedures too:
+   * a rule without `collections.<name>.*` hides them. `host.health`, `host.info`, `host.metrics`
+   * and `events.subscribe` are always on (CLI-47).
+   */
   readonly expose?: ((path: ProcedurePath) => boolean) | undefined;
   /** True (the default): the host serves each procedure of the registry, also a procedure that the registry gets later. */
   readonly autoRegister?: boolean | undefined;
@@ -198,6 +204,7 @@ export interface ProcedureHost {
   readonly id: string;
   readonly server: ProcedureServer;
   readonly registry: ProcedureRegistry;
+  /** The policy of the host. Its expose rule is the option `expose` when the options give it. */
   readonly policy: HostPolicy;
   /** The request handler of the faces that are on no listener of the host, for the mount list of the app. */
   readonly handler: (req: IncomingMessage, res: NodeResponse) => boolean;
@@ -261,7 +268,10 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   const name = options.name ?? "procedures";
   const id = options.id ?? `peer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const registry = options.registry ?? PROCEDURE_REGISTRY;
-  const policy = options.policy ?? hostPolicy();
+  // The option expose wins over the rule of the policy. The server and each face get the same
+  // rule, so a face lists only the procedures that the server serves (CLI-47).
+  const givenPolicy = options.policy ?? hostPolicy();
+  const policy: HostPolicy = options.expose ? { ...givenPolicy, expose: options.expose } : givenPolicy;
   const clock = options.clock ?? realClock;
   const startedAt = Date.now();
 
@@ -276,7 +286,6 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     autoRegister: options.autoRegister ?? true,
     registry,
     clock,
-    ...(options.expose ? { expose: options.expose } : {}),
   });
 
   // The collections, from the option: the storage, and the procedures collections.<name>.*
@@ -406,8 +415,9 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     endpoints: () => [...endpoints.flatMap((each) => each()), ...(options.endpoints ?? [])],
     procedureCount: () => server.procedureCount,
   };
-  // host.health, host.info and host.metrics: pinned on the server, not in the registry (R19)
-  server.registerProcedures(hostProcedures({ id, startedAt, server, endpoints: () => info.endpoints(), ...(metrics ? { metrics } : {}) }));
+  // host.health, host.info and host.metrics: pinned on the server, not in the registry (R19). They
+  // are always on: the expose rule hides each other pin, but not them (CLI-47).
+  server.registerProcedures(hostProcedures({ id, startedAt, server, endpoints: () => info.endpoints(), ...(metrics ? { metrics } : {}) }), { alwaysOn: true });
 
   return {
     name,

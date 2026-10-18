@@ -28,7 +28,7 @@ The options that this design does not use:
 
 ## The procedure `events.subscribe`
 
-The publisher is a `ProcedureServer` with the option `events`. The server pins the procedure, as it pins `host.health`.
+The publisher is a `ProcedureServer` with the option `events`. The server pins the procedure as always on, as a host pins `host.health` (CLI-47).
 
 The input is `{ "topics": ["orders.created", "orders.paid"] }`:
 
@@ -238,7 +238,7 @@ The publisher examines all topics before it adds a listener. A call with one bad
 Other facts:
 
 - The procedure is not in a registry. Thus it is not a tool of the MCP server, and `procedure.list` does not show it. The impl-mcp-dev snapshots do not change.
-- The expose rule of the procedures does not apply to it, as for `host.health`. The topic rule is its expose rule.
+- The expose rule of the procedures does not apply to it, as for `host.health`. The topic rule is its expose rule. The server pins it with `{ alwaysOn: true }`. The expose rule applies to each other pin (CLI-47).
 - A nested call cannot reach it. The context client finds only the procedures of the registry.
 
 ## The errors

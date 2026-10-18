@@ -10,7 +10,7 @@ import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { ProcedureServer, createProcedure, createRegistry, hostPolicy, procedureServerOptions } from "@procedures/client";
+import { ProcedureServer, createProcedure, createRegistry, hostPolicy, procedureServerOptions, type CollectionStorage } from "@procedures/client";
 import { mcpFace } from "./face.js";
 
 const READ = { reads: [], writes: [] };
@@ -75,5 +75,56 @@ describe("mcpFace (CLI-7)", () => {
     const result = (await client.callTool({ name: tools[0]!.name, arguments: { text: "hi" } })) as { content: Array<{ text: string }> };
     // A string result is its text
     expect(result.content[0]!.text).toBe("hi");
+  });
+
+  it("lists no collection procedure that the expose rule hides, and the server refuses a call of it (CLI-47)", async () => {
+    let clears = 0;
+    const storage: CollectionStorage<unknown> = {
+      get: async () => undefined,
+      getAll: async () => [],
+      find: async () => [],
+      has: async () => false,
+      size: async () => 0,
+      set: async () => undefined,
+      delete: async () => false,
+      clear: async () => {
+        clears++;
+      },
+      setBatch: async () => undefined,
+      deleteBatch: async () => 0,
+      getBatch: async () => new Map(),
+      close: async () => undefined,
+    };
+    const registry = createRegistry();
+    const token = "face-token-4567";
+    const policy = hostPolicy({ token, expose: ["collections.notes.*"], exclude: ["collections.notes.clear"] });
+    const server = new ProcedureServer({ ...procedureServerOptions(policy, registry), collections: { notes: storage } });
+    // The server pins the collection procedures, and the expose rule covers the pins too
+    server.registerCollectionProcedures("notes");
+    const face = mcpFace({ serverInfo: { name: "face-test", version: "0.0.0" } })({ handler: server, registry, policy });
+    // A face with a wider rule than the server: it lists clear, but the call reaches the server
+    const wide = mcpFace({ path: "/wide", serverInfo: { name: "face-test", version: "0.0.0" } })({ handler: server, registry, policy: hostPolicy({ token, expose: ["collections.notes.*"] }) });
+    for (const each of [face, wide]) {
+      await each.parts.start();
+      cleanups.push(() => each.parts.close());
+    }
+    const base = await listen((req, res) => face.handler(req, res) || wide.handler(req, res));
+    const headers = { Authorization: `Bearer ${token}` };
+    type ToolResult = { isError?: boolean; content: Array<{ text: string }>; _meta?: { code?: unknown } };
+
+    const client = await connect(`${base}/mcp`, headers);
+    const names = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(names).toContain("collections.notes.get");
+    expect(names).not.toContain("collections.notes.clear");
+    const unlisted = (await client.callTool({ name: "collections.notes.clear", arguments: {} })) as ToolResult;
+    expect(unlisted.isError).toBe(true);
+    expect(unlisted.content[0]!.text).toContain("Tool not found");
+
+    const wideClient = await connect(`${base}/wide`, headers);
+    expect((await wideClient.listTools()).tools.map((tool) => tool.name)).toContain("collections.notes.clear");
+    const refused = (await wideClient.callTool({ name: "collections.notes.clear", arguments: {} })) as ToolResult;
+    expect(refused.isError).toBe(true);
+    expect(refused._meta?.code).toBe("NOT_FOUND");
+    expect(clears).toBe(0);
   });
 });

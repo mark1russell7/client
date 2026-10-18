@@ -89,10 +89,12 @@ export interface ProcedureServerOptions extends ServerOptions {
   clock?: Clock | undefined;
 
   /**
-   * The procedures that the callers of this server can reach. `registerFromRegistry()` registers
-   * only these procedures. A data-driven procedure (control flow, `eval`, a procedure that
-   * `procedure.define` made) can call only these procedures too, because its caller chooses
-   * what it calls. A procedure of code calls the procedures of its `metadata.calls`
+   * The procedures that the callers of this server can reach. The rule applies to each procedure
+   * that the server serves: the procedures of the registry and the procedures that
+   * `registerProcedure()` pins, also the collection procedures (CLI-47). Only a procedure that the
+   * server pins with `alwaysOn` is outside the rule. A data-driven procedure (control flow, `eval`,
+   * a procedure that `procedure.define` made) can call only these procedures too, because its
+   * caller chooses what it calls. A procedure of code calls the procedures of its `metadata.calls`
    * (`docker.run` declares `shell.run`) and the exposed ones. Without this rule, the server
    * exposes every procedure. See `procedures/policy.ts` (deep dive MCP-3).
    */
@@ -178,6 +180,18 @@ export interface ProcedureServerOptions extends ServerOptions {
    * @default false
    */
   debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
+}
+
+/** The options of `registerProcedure()`, `registerProcedures()` and `registerModule()` (CLI-47). */
+export interface RegisterProcedureOptions {
+  /**
+   * True: the server serves the procedure, also when its expose rule does not match the path. A
+   * host sets it only for its own procedures: `host.health`, `host.info` and `host.metrics`. The
+   * server sets it for `events.subscribe`, because the topic rule is the expose rule of that
+   * procedure. False: the expose rule applies, as for a procedure of the registry.
+   * @default false
+   */
+  alwaysOn?: boolean | undefined;
 }
 
 /**
@@ -372,8 +386,11 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   private readonly storageUses = new Map<CollectionStorage<unknown>, { calls: number; waiters: Array<() => void> }>();
   /** The clock of the wait of `useStorage` */
   private readonly clock: Clock;
-  /** The procedures that `registerProcedure` pinned, by key */
-  private readonly pinnedProcedures = new Map<string, AnyProcedure>();
+  /**
+   * The procedures that `registerProcedure` pinned, by key. The expose rule applies to each one,
+   * unless the pin is `alwaysOn` (CLI-47).
+   */
+  private readonly pinnedProcedures = new Map<string, { readonly procedure: AnyProcedure; readonly alwaysOn: boolean }>();
   /**
    * True after `registerFromRegistry()`: the server serves each procedure of the registry that
    * has a handler and passes the expose rule, looked up when the request arrives (deep dive
@@ -442,9 +459,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         : options.debug === true
           ? (report) => console.debug(`[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`)
           : undefined;
-    // The remote events: the server pins events.subscribe, as it pins host.health (EVENTS.md)
+    // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
+    // The topic rule is its expose rule, so the pin is always on (CLI-47).
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
-    if (this.publisher) this.registerProcedure(this.publisher.procedure);
+    if (this.publisher) this.registerProcedure(this.publisher.procedure, { alwaysOn: true });
 
     // Configure collections
     if (options.collections) {
@@ -672,39 +690,46 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   // ===========================================================================
 
   /**
-   * Register a procedure as a server handler. The server keeps this procedure object. A
+   * Register a procedure as a server handler (a pin). The server keeps this procedure object. A
    * procedure of the registry at the same path comes first when the server serves the registry.
    *
+   * The expose rule of the server applies to the pin, as to a procedure of the registry (CLI-47).
+   * With `alwaysOn`, the server serves the pin also when the rule does not match its path. Only
+   * the procedures of a host (`host.*`) and `events.subscribe` set it.
+   *
    * @param procedure - Procedure definition
+   * @param options - `alwaysOn`: the expose rule does not apply to this pin
    */
-  registerProcedure(procedure: AnyProcedure): void {
+  registerProcedure(procedure: AnyProcedure, options: RegisterProcedureOptions = {}): void {
     // Must have a handler
     if (!procedure.handler) {
       throw new Error(`Procedure at ${pathToKey(procedure.path)} has no handler`);
     }
     // The path must make a method: this throws for an empty path. One segment or more is valid (CLI-28)
     pathToMethod(procedure.path);
-    this.pinnedProcedures.set(pathToKey(procedure.path), procedure);
+    this.pinnedProcedures.set(pathToKey(procedure.path), { procedure, alwaysOn: options.alwaysOn === true });
   }
 
   /**
-   * Register multiple procedures.
+   * Register multiple procedures. The options apply to each one.
    *
    * @param procedures - Array of procedures
+   * @param options - `alwaysOn`: the expose rule does not apply to these pins
    */
-  registerProcedures(procedures: AnyProcedure[]): void {
+  registerProcedures(procedures: AnyProcedure[], options: RegisterProcedureOptions = {}): void {
     for (const procedure of procedures) {
-      this.registerProcedure(procedure);
+      this.registerProcedure(procedure, options);
     }
   }
 
   /**
-   * Register a procedure module.
+   * Register a procedure module. The options apply to each procedure of the module.
    *
    * @param module - Module with procedures array
+   * @param options - `alwaysOn`: the expose rule does not apply to these pins
    */
-  registerModule(module: ProcedureModule): void {
-    this.registerProcedures(module.procedures);
+  registerModule(module: ProcedureModule, options: RegisterProcedureOptions = {}): void {
+    this.registerProcedures(module.procedures, options);
   }
 
   /**
@@ -717,19 +742,27 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     this.servesRegistry = true;
   }
 
+  /** True when the expose rule of the server matches the path, or when the server has no rule. */
+  private exposes(path: ProcedurePath): boolean {
+    return !this.expose || this.expose(path);
+  }
+
   /**
    * The procedure that answers a method, or undefined. The registry comes first (when the server
-   * serves it), then the pinned procedures.
+   * serves it), then the pinned procedures. The expose rule applies to both, and only an
+   * `alwaysOn` pin is outside it (CLI-47). Before, each pin was outside the rule, so an `exclude`
+   * of the host policy did not hide a collection procedure.
    */
   private resolveProcedure(method: Method): AnyProcedure | undefined {
     const path = methodToPath(method);
     if (this.servesRegistry) {
       const procedure = this.procedureRegistry.get(path);
-      if (procedure?.handler && (!this.expose || this.expose(procedure.path))) {
+      if (procedure?.handler && this.exposes(procedure.path)) {
         return procedure;
       }
     }
-    return this.pinnedProcedures.get(pathToKey(path));
+    const pin = this.pinnedProcedures.get(pathToKey(path));
+    return pin && (pin.alwaysOn || this.exposes(pin.procedure.path)) ? pin.procedure : undefined;
   }
 
   /**
@@ -999,6 +1032,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * Register collection procedures for a specific collection.
    * Creates standard CRUD procedures using the configured storage.
    *
+   * The expose rule of the server applies to these procedures (CLI-47). A rule that does not
+   * match `collections.<name>.*` hides them, and an `exclude` of the host policy hides one of them.
+   *
    * @param collectionName - Collection name
    * @param options - The query policy of `find`. `$regex` is off unless the policy permits it.
    */
@@ -1018,12 +1054,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   // Utility Methods
   // ===========================================================================
 
-  /** The paths that the server serves now. */
+  /** The paths that the server serves now: the same rule as `resolveProcedure()`. */
   private servedKeys(): Set<string> {
-    const keys = new Set(this.pinnedProcedures.keys());
+    const keys = new Set<string>();
+    for (const [key, pin] of this.pinnedProcedures) {
+      if (pin.alwaysOn || this.exposes(pin.procedure.path)) keys.add(key);
+    }
     if (this.servesRegistry) {
       for (const procedure of this.procedureRegistry.getAll()) {
-        if (procedure.handler && (!this.expose || this.expose(procedure.path))) {
+        if (procedure.handler && this.exposes(procedure.path)) {
           keys.add(pathToKey(procedure.path));
         }
       }

@@ -665,6 +665,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | CLI-32 | Streams | A batch: one request with several calls, and one stream of tagged results | M | later | — | Client session | — |
 | CLI-33 | CI | The client owns its procedures test subject for the harness of `systems` | M | blocked | SYS-17 | Client session | — |
 | CLI-45 | Runner | `createProcedureHost()` gets the option `controller`: each call of the host needs the dependencies that `controller.requires` names | S | in progress | CLI-7 | jarvis-client | [client PR #40](https://github.com/mark1russell7/client/pull/40) |
+| CLI-47 | Auth | The expose rule applies to each procedure that the server pins, also the collection procedures. `host.*` and `events.subscribe` are always on | S | in progress | CLI-7, D13 | Client session | `server-stack/expose-pinned` |
 | CI-2 | CI | Client CI: an end-to-end test of the host lifecycle, and checks of the entry purity | M | open | — | Client session | — |
 | DOC-1 | Docs | [SERVER-LAYERS.md](./SERVER-LAYERS.md) replaces the host ownership brief | M | in progress | D14 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
 | DOC-2 | Docs | Correct the stale storage docs, and record the server-stack items in this roadmap | S | in progress | — | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
@@ -673,7 +674,7 @@ The server stack does the rest of R37. Each Node host starts under `run()` and `
 | DOC-6 | Docs | `WIRE-PROTOCOL.md`: the narrowing key, the addressing hook, `procedureHandler`, `OPTIONS`, the credentials of a request and the reasons of the browser checks | S | in progress | CLI-30, CLI-31 | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
 | REL-2 | Releases | Release the additive pieces of the server stack as a PATCH of the client group | S | blocked | CLI-2a, CLI-3, CLI-10, D13 | markt-54 and Mark | — |
 
-- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11 and CLI-16. Each one is its own MINOR of the client group (D13).
+- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11, CLI-16 and CLI-47. Each one is its own MINOR of the client group (D13).
 - CLI-26 breaks the API only if the exit codes of the CLI change. CLI-28 breaks it only if the version leaves the URL. The version stays in the URL, so CLI-28 is a PATCH.
 - The other items are additive. Each one ships as a PATCH of the client group.
 - Refer to the section "Releases of the server stack" of [SERVER-LAYERS.md](./SERVER-LAYERS.md) for the deprecation and the migration notes.
