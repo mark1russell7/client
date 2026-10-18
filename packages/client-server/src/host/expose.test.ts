@@ -134,9 +134,14 @@ async function runNotesHost(name: string, policy?: HostPolicyOptions, expose?: (
   return { host, clears, http, ws: new Client({ transport, throwOnError: true }) };
 }
 
-/** A call of the HTTP face: its status and its body. */
+/**
+ * A call of the HTTP face: its status and its body. The URL is the default pattern of the face,
+ * `<base>/<service>/<operation>`: the service keeps its dots (`/api/collections.notes/get`).
+ */
 async function post(base: string, path: readonly string[], body: unknown = {}): Promise<{ status: number; body: unknown }> {
-  const response = await fetch(`${base}/${path.join("/")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const method = pathToMethod(path);
+  const url = `${base}/${encodeURIComponent(method.service)}/${encodeURIComponent(method.operation)}`;
+  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const text = await response.text();
   return { status: response.status, body: text === "" ? undefined : (JSON.parse(text) as unknown) };
 }
