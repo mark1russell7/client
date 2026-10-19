@@ -597,7 +597,7 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 | O21 | Systems | jarvis on a newer harness | S | later | — | Systems session | — |
 | O22 | Decisions | The raw `event` frame of old peers | S | done | O42 | Client session | [dc03903](https://github.com/mark1russell7/client/commit/dc03903), [db6adca](https://github.com/mark1russell7/client/commit/db6adca) |
 | O23 | Releases | Release 0.8.0 with the work after 0.7.0 | S | done | O4, O5, O6, O7, O8, O9, O10, O11, O12, O13, O26, O27, O28, O29, O30, O31, O33, O34, O37, O38, O39, O40 | `release` and Mark | [client PR #7](https://github.com/mark1russell7/client/pull/7), [82e7946](https://github.com/mark1russell7/client/commit/82e7946), [publish run 39096727534](https://github.com/mark1russell7/client/actions/runs/39096727534) |
-| O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | `server-stack` | [the layer contract](https://github.com/mark1russell7/client/blob/main/packages/documentation/SERVER-LAYERS.md), [server tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) |
+| O24 | Architecture | Who owns the server, the lifecycle and auth | L | in progress | R37 | `server-stack` | [the layer contract](https://github.com/mark1russell7/client/blob/main/packages/documentation/SERVER-LAYERS.md), [server tracker](https://claude.ai/artifact/WtkE3dtHp57qpcs4UvcaVZ) |
 | O25 | Apps | jarvis on client 0.7.0 | M | in progress | — | jarvis session | — |
 | O26 | New packages | `shiftMonth` in `@procedures/ics` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
 | O27 | New packages | A `fetch` option of `fetchCalendar` | S | done | — | jarvis-side client session | [client PR #4](https://github.com/mark1russell7/client/pull/4), [9dbb41b](https://github.com/mark1russell7/client/commit/9dbb41b) |
@@ -625,58 +625,86 @@ The live tracker shows these items with the items R1 to R54: https://claude.ai/a
 
 The server stack does the rest of R37. Each Node host starts under `run()` and `start()` of `service`, and the apps get one procedures server. [SERVER-LAYERS.md](./SERVER-LAYERS.md) is the contract: the layers, their owners, the rules and the decisions D1 to D18.
 
-- The cross-repo tracker https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb shows these items with the items of `systems`, jarvis and Graph. The IDs are the same. Change this table and that tracker together.
+- The cross-repo tracker https://claude.ai/artifact/WtkE3dtHp57qpcs4UvcaVZ shows these items with the items of `systems`, jarvis and Graph. The IDs are the same.
+- The `server-stack` session makes the table below from the data of that tracker, with a script. Do not edit the table manually: tell the `server-stack` session about a change.
 - In the client tracker, O24 links to the cross-repo tracker.
 - An ID in the column "Needs" that starts with `SYS-`, `REL-1` or `D` is in the cross-repo tracker. There is no CLI-29.
 
+<!-- server-stack-table:begin (generated from the server-stack tracker; do not edit by hand) -->
+
 | ID | Area | Item | Size | Status | Needs | Owner | Where |
 |---|---|---|---|---|---|---|---|
-| CLI-1 | Auth | `ProcedureServer` refuses a missing credential when the host has a token | M | open | D13 | Client session | — |
-| CLI-2a | Auth | A request hook: the credentials, the principal and a narrowing from each part of the request | M | in progress | — | markt-02 | `server-stack/host` |
-| CLI-2b | Auth | Remove the second token, host and origin checks of the peer | M | blocked | CLI-1, CLI-2a, D13 | Client session | — |
-| CLI-3 | HTTP host | `procedureHandler()` and `upgradeHandler()` with no framework, in `@procedures/client/node` | M | in progress | — | markt-02 | `server-stack/host` |
-| CLI-4 | HTTP host | Fold the stray error codes into wire v1 | S | blocked | CLI-3 | Client session | — |
-| CLI-5 | Runner | `ProcedureServer.stop` becomes stop parts in the shape of the runner | M | in progress | SYS-4 | Client session | [client PR #20](https://github.com/mark1russell7/client/pull/20) |
-| CLI-6 | HTTP host | The root of `@procedures/client` becomes node-free, and the server faces move to `./node` | S | blocked | CLI-3 | Client session | — |
-| CLI-7 | HTTP host | `createProcedureHost()`: one host factory that gives the parts of a service | L | in progress | CLI-2a, CLI-3, CLI-5, SYS-1, SYS-5, SYS-6, SYS-8, SYS-15, REL-1, D2, D3 | Client session | [client PR #25](https://github.com/mark1russell7/client/pull/25) |
-| CLI-8 | Runner | `runProcedureHost()`: one runner entry on `run()` for `procedure-server`, `mark serve` and `mark --server` | M | in progress | CLI-7, SYS-9, SYS-10, CI-2, D6, D7, D17 | Client session | [client PR #28](https://github.com/mark1russell7/client/pull/28) |
-| CLI-9 | Health | The probes come from `start()`, and the lockfile check uses `host.info` | S | blocked | CLI-8, SYS-2, D5 | Client session | — |
-| CLI-10 | MCP | Export `createMcpHost()`, and `impl-mcp-dev` and `mcp.serve` use it | S | open | — | Client session | — |
-| CLI-11 | MCP | The MCP hosts under `run()`: stdio with the stdin trigger, and Streamable HTTP at `/mcp` | M | blocked | CLI-7, CLI-10, SYS-7 | Client session | — |
-| CLI-12 | MCP | MCP elicitation in `McpServerTransport` | M | open | — | Client session | — |
-| CLI-13 | Sync | `HybridStorage` and `ApiStorage` on the clock and the backoff of `service` | S | open | — | Client session | — |
-| CLI-14 | Sync | `collections.<name>.find` with a JSON selector, and `patch(id, fields)` | M | open | D9 | Client session | — |
-| CLI-15 | Sync | Change events of a collection, and a push change feed | M | blocked | CLI-14, D9 | Client session | — |
-| CLI-16 | Sync | An optional `expectedVersion` on `set`, `setBatch` and `delete` of a collection | S | open | D11 | Client session | — |
-| CLI-17 | Sync | A partition resolver for collections: the tenant and the scope come from the principal | M | blocked | CLI-2a, D9 | Client session | — |
-| CLI-18 | Sync | A `credentials` option for `fetch` in `HttpTransport` | S | in progress | — | markt-02 | `server-stack/host` |
-| CLI-19 | Sync | A browser-safe entry of `@procedures/store` | S | blocked | CLI-6 | Client session | — |
-| CLI-20 | Sync | `CollectionStorage`: optional `observe()` and `query()`, with contract tests | M | open | D9 | Client session | — |
-| CLI-21 | Sync | `HybridStorage` captures the writes of the app, has `observe()`, keeps its sync state and reads a push feed | L | blocked | CLI-20, D9 | Client session | — |
-| CLI-22 | Sync | `IndexedDbStorage`: a plain document storage for the browser | M | blocked | CLI-20 | Client session | — |
-| CLI-23 | Sync | `@procedures/signaldb`: `SignalDbStorage`, a local-copy strategy over a SignalDB `Collection` | M | blocked | CLI-20, CLI-21 | Client session | — |
-| CLI-24 | Sync | `MongoStorage`: a change log, versions from the server, queries in Mongo and partitions | L | blocked | CLI-20, CLI-16, CLI-17 | Client session | — |
-| CLI-25 | Sync | `TabCoordinator`: one leader tab does the sync, and the other tabs copy its changes | M | blocked | CLI-21 | Client session | — |
-| CLI-26 | Runner | The cold mode of `mark` starts the same host in the process under `run()` | M | blocked | CLI-8, SYS-16, SYS-7 | Client session | — |
-| CLI-27 | Runner | An optional auto-warm: the background host starts after a cold command | S | later | CLI-26 | Client session | — |
-| CLI-28 | HTTP host | Procedure paths of each length on each face | M | in progress | — | Client session | [client PR #30](https://github.com/mark1russell7/client/pull/30) |
-| CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | in progress | CLI-2a | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
-| CLI-31 | HTTP host | An addressing hook: from the request and the body to the method and the payload | S | in progress | CLI-3 | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
-| CLI-32 | Streams | A batch: one request with several calls, and one stream of tagged results | M | later | — | Client session | — |
-| CLI-33 | CI | The client owns its procedures test subject for the harness of `systems` | M | blocked | SYS-17 | Client session | — |
-| CLI-45 | Runner | `createProcedureHost()` gets the option `controller`: each call of the host needs the dependencies that `controller.requires` names | S | done | CLI-7 | jarvis-client | [client PR #40](https://github.com/mark1russell7/client/pull/40), in 0.12.1 |
-| CLI-47 | Auth | The expose rule applies to each procedure that the server pins, also the collection procedures. `host.*` and `events.subscribe` are always on | S | in progress | CLI-7, D13 | Client session | [client PR #46](https://github.com/mark1russell7/client/pull/46) |
-| CI-2 | CI | Client CI: an end-to-end test of the host lifecycle, and checks of the entry purity | M | open | — | Client session | — |
-| DOC-1 | Docs | [SERVER-LAYERS.md](./SERVER-LAYERS.md) replaces the host ownership brief | M | in progress | D14 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
-| DOC-2 | Docs | Correct the stale storage docs, and record the server-stack items in this roadmap | S | in progress | — | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
-| DOC-3 | Docs | Link the cross-repo tracker and the layer contract from `CLAUDE.md` and this roadmap | S | in progress | DOC-1 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
-| DOC-4 | Docs | A migration note in each MINOR, and a deprecation one release before the break | S | in progress | D13 | markt-02 | [client PR #6](https://github.com/mark1russell7/client/pull/6) |
-| DOC-6 | Docs | `WIRE-PROTOCOL.md`: the narrowing key, the addressing hook, `procedureHandler`, `OPTIONS`, the credentials of a request and the reasons of the browser checks | S | in progress | CLI-30, CLI-31 | Client session | [client PR #21](https://github.com/mark1russell7/client/pull/21) |
-| REL-2 | Releases | Release the additive pieces of the server stack as a PATCH of the client group | S | blocked | CLI-2a, CLI-3, CLI-10, D13 | markt-54 and Mark | — |
+| CI-2 | CI | client CI: host lifecycle e2e and entry purity checks | M | in progress | — | client | — |
+| CLI-1 | Auth | ProcedureServer refuses a missing credential when a token is configured | M | open | D13 | client | — |
+| CLI-2a | Auth | A request hook: credentials, principal and narrowing from any part of the request | M | done | — | server-stack | [client #8](https://github.com/mark1russell7/client/pull/8), [client ee909d54](https://github.com/mark1russell7/client/commit/ee909d54), in 0.8.1 |
+| CLI-2b | Auth | Remove the peer's second token, host and origin checks | M | blocked | CLI-1, CLI-2a, D13 | client | — |
+| CLI-3 | HTTP host | Framework-free procedureHandler() and upgradeHandler() in @procedures/client/node | M | done | REL-0 | server-stack | [client #8](https://github.com/mark1russell7/client/pull/8), [client ee909d54](https://github.com/mark1russell7/client/commit/ee909d54), in 0.8.1 |
+| CLI-4 | HTTP host | Fold stray error codes into wire v1 | S | open | CLI-3 | client | — |
+| CLI-5 | Runner | Split ProcedureServer.stop into service-shaped parts | M | done | SYS-4 | client | [client #20](https://github.com/mark1russell7/client/pull/20), [client e031b6b3](https://github.com/mark1russell7/client/commit/e031b6b3), [npm 0.10.0](https://www.npmjs.com/package/@procedures/client/v/0.10.0), in 0.10.0 |
+| CLI-6 | HTTP host | The root of @procedures/client becomes node-free, and the server faces move to ./node | S | in progress | CLI-3 | client | — |
+| CLI-7 | HTTP host | createProcedureHost(): one host factory that returns service parts | L | done | CLI-2a, CLI-3, CLI-5, SYS-1, SYS-5, SYS-6, SYS-8, SYS-15, REL-1, D2, D3 | client | [client #25](https://github.com/mark1russell7/client/pull/25), [client 0a5505c0](https://github.com/mark1russell7/client/commit/0a5505c0), [npm 0.11.0](https://www.npmjs.com/package/@procedures/client/v/0.11.0), in 0.11.0 |
+| CLI-8 | Runner | runProcedureHost(): one runner entry on service run() for procedure-server, mark serve and mark --server | M | done | CLI-7, SYS-9, SYS-10, CI-2, D6, D7, D17 | client | [client #28](https://github.com/mark1russell7/client/pull/28), [client 8787674e](https://github.com/mark1russell7/client/commit/8787674e), [npm 0.12.0](https://www.npmjs.com/package/@procedures/client/v/0.12.0), in 0.12.0 |
+| CLI-9 | Health | The probes come from service start(), and the lockfile check uses host.info | S | open | CLI-8, SYS-2, D5 | client | — |
+| CLI-10 | MCP | Export createMcpHost(), and impl-mcp-dev and mcp.serve use it | S | done | REL-0 | client | [client #9](https://github.com/mark1russell7/client/pull/9), [client 07a942de](https://github.com/mark1russell7/client/commit/07a942de), in 0.8.1 |
+| CLI-11 | MCP | MCP hosts under service run(): stdio with the stdin trigger, Streamable HTTP mounted at /mcp | M | in progress | CLI-7, CLI-10, SYS-7 | client | — |
+| CLI-12 | MCP | MCP elicitation in McpServerTransport | M | done | — | client | [client #9](https://github.com/mark1russell7/client/pull/9), [client 07a942de](https://github.com/mark1russell7/client/commit/07a942de), in 0.8.1 |
+| CLI-13 | Sync | HybridStorage and ApiStorage on the service clock and backoff | S | done | — | client | [client #11](https://github.com/mark1russell7/client/pull/11), [client fafcf836](https://github.com/mark1russell7/client/commit/fafcf836), in 0.8.1 |
+| CLI-14 | Sync | collections.<name>.find with a JSON selector, and patch(id, fields) | M | done | D9 | client | [client #11](https://github.com/mark1russell7/client/pull/11), [client fafcf836](https://github.com/mark1russell7/client/commit/fafcf836), in 0.8.1 |
+| CLI-15 | Sync | Collection change events and a push change feed | M | done | CLI-14, D9 | client | [client #12](https://github.com/mark1russell7/client/pull/12), [client 805ed50d](https://github.com/mark1russell7/client/commit/805ed50d), in 0.8.1 |
+| CLI-16 | Sync | Optional expectedVersion on collections set, setBatch and delete | S | open | D11 | client | — |
+| CLI-17 | Sync | Collection partition resolver (tenant and scope from the principal) | M | done | CLI-2a, D9 | graph | [client f56ac490](https://github.com/mark1russell7/client/commit/f56ac490), [client #23](https://github.com/mark1russell7/client/pull/23), [client de1389d3](https://github.com/mark1russell7/client/commit/de1389d3), in 0.9.0 |
+| CLI-18 | Sync | HttpTransport fetch credentials option | S | done | — | server-stack | [client #8](https://github.com/mark1russell7/client/pull/8), [client ee909d54](https://github.com/mark1russell7/client/commit/ee909d54), in 0.8.1 |
+| CLI-19 | Sync | Browser-safe entry of @procedures/store | S | in progress | CLI-6 | client | — |
+| CLI-20 | Sync | CollectionStorage: optional observe() and query(), with contract tests | M | done | D9, REL-0 | client | [client #11](https://github.com/mark1russell7/client/pull/11), [client fafcf836](https://github.com/mark1russell7/client/commit/fafcf836), in 0.8.1 |
+| CLI-21 | Sync | HybridStorage: capture app writes, observe, persisted sync state, push feed | L | done | CLI-20, D9, REL-0 | server-stack | [client #12](https://github.com/mark1russell7/client/pull/12), [client 805ed50d](https://github.com/mark1russell7/client/commit/805ed50d), in 0.8.1 |
+| CLI-22 | Sync | IndexedDbStorage: a plain browser document storage | M | open | CLI-20 | client | — |
+| CLI-23 | Sync | @procedures/signaldb: SignalDbStorage, a local-copy strategy over a SignalDB Collection | M | open | CLI-20, CLI-21 | client | — |
+| CLI-24 | Sync | MongoStorage: change log, server-assigned versions, query push-down, partitions | L | done | CLI-20, CLI-16, CLI-17 | graph | [client cecfbe0a](https://github.com/mark1russell7/client/commit/cecfbe0a), [client #31](https://github.com/mark1russell7/client/pull/31), [client ccf4c8f8](https://github.com/mark1russell7/client/commit/ccf4c8f8), in 0.9.1 |
+| CLI-25 | Sync | TabCoordinator: one leader tab runs sync, the others replicate | M | open | CLI-21 | — | — |
+| CLI-26 | Runner | Cold mode of the mark CLI runs the same host in-process under run() | M | open | CLI-8, SYS-16, SYS-7 | client | — |
+| CLI-27 | Runner | Optional auto-warm: start the background host after a cold command | S | later | CLI-26 | — | — |
+| CLI-28 | HTTP host | Procedure paths of any length on every face | M | done | — | server-stack | [client #30](https://github.com/mark1russell7/client/pull/30), [client 50c8ab8d](https://github.com/mark1russell7/client/commit/50c8ab8d), in 0.9.1 |
+| CLI-30 | Auth | A narrowing key on the wire: a call asks for less capability | S | done | CLI-2a | server-stack | [client #21](https://github.com/mark1russell7/client/pull/21), [client 381456b4](https://github.com/mark1russell7/client/commit/381456b4), in 0.9.1 |
+| CLI-31 | HTTP host | An addressing hook: (request, body) to method and payload | S | done | CLI-3 | server-stack | [client #21](https://github.com/mark1russell7/client/pull/21), in 0.9.1 |
+| CLI-32 | Streams | Batch calls as one stream of tagged results | M | later | — | — | — |
+| CLI-33 | CI | The client owns its procedures test subject for the harness | M | open | SYS-17 | client | — |
+| CLI-34 | Sync | One selector evaluator for the core and collections | S | done | CLI-20 | client | [client #11](https://github.com/mark1russell7/client/pull/11), [client fafcf836](https://github.com/mark1russell7/client/commit/fafcf836), in 0.8.1 |
+| CLI-35 | MCP | The shared MCP host: MCP tasks, and a guarded Streamable HTTP face | M | in progress | CLI-10 | server-stack | — |
+| CLI-36 | Releases | The client accepts service 0.5, so an app keeps one copy | S | done | REL-4 | server-stack | [client #18](https://github.com/mark1russell7/client/pull/18), [client b9c4352b](https://github.com/mark1russell7/client/commit/b9c4352b), [npm 0.9.0](https://www.npmjs.com/package/@procedures/client/v/0.9.0), in 0.9.0 |
+| CLI-37 | Sync | The view materializer filters deletes by partition | S | done | GRAPH-15 | graph | [client #29](https://github.com/mark1russell7/client/pull/29), [client f55ac4a2](https://github.com/mark1russell7/client/commit/f55ac4a2), in 0.9.2 |
+| CLI-38 | Sync | Collection procedures over a view read only its current generation | S | open | GRAPH-15 | server-stack | — |
+| CLI-39 | Packaging | A package for the browser does not pull a Node built-in | S | in progress | — | server-stack | — |
+| CLI-40 | Auth | The procedures server limits calls per principal, tenant or route | M | blocked | SYS-28 | server-stack | — |
+| CLI-41 | Auth | Collection procedures admit each row and guard each write | M | in progress | GRAPH-13 | server-stack | — |
+| CLI-42 | Sync | Partition topics encode the partition, so any name is unambiguous | S | in progress | CLI-17 | server-stack | — |
+| CLI-43 | MCP | mcpFace takes a narrowing for every call | S | in progress | CLI-7, CLI-30 | server-stack | — |
+| CLI-44 | Auth | A subscription re-checks its admission when rights change | M | open | CLI-21 | server-stack | — |
+| CLI-45 | Runner | createProcedureHost takes the requirements of its controller | S | done | CLI-7 | jarvis-client | [client #40](https://github.com/mark1russell7/client/pull/40), [client a5b9d807](https://github.com/mark1russell7/client/commit/a5b9d807), in 0.12.1 |
+| CLI-46 | Sync | Collection procedures with an input schema accept a partition | S | done | CLI-17 | graph | [client #41](https://github.com/mark1russell7/client/pull/41), [client 58a5434e](https://github.com/mark1russell7/client/commit/58a5434e), in 0.12.1 |
+| CLI-47 | Auth | The expose rule covers every served procedure, and host.* and events.subscribe are always on | S | done | CLI-7 | server-stack | [client #46](https://github.com/mark1russell7/client/pull/46), [client 77273a1e](https://github.com/mark1russell7/client/commit/77273a1e), [npm 0.13.0](https://www.npmjs.com/package/@procedures/client/v/0.13.0), in 0.13.0 |
+| CLI-48 | Runner | A stream cut by the shutdown ends with UNAVAILABLE, not INTERNAL_ERROR | S | in progress | CLI-7, D21 | server-stack | — |
+| CLI-49 | Auth | The better-auth handler serves credentialed CORS from the host's trusted origins | S | in progress | GRAPH-16 | server-stack | — |
+| DOC-1 | Docs | Replace HOST-OWNERSHIP-BRIEF with a server layer contract | M | done | D14, REL-0 | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
+| DOC-2 | Docs | Fix stale client storage docs and record R37 follow-ups in the client roadmap | S | done | — | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
+| DOC-3 | Docs | Link the cross-repo server tracker from each repo's CLAUDE.md and roadmap | S | in progress | DOC-1 | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [systems #46](https://github.com/mark1russell7/systems/pull/46), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
+| DOC-4 | Docs | Migration notes in each MINOR, and deprecation notices one release ahead | S | done | D13 | server-stack | [client #6](https://github.com/mark1russell7/client/pull/6), [client 94407186](https://github.com/mark1russell7/client/commit/94407186) |
+| DOC-6 | Docs | WIRE-PROTOCOL.md: the framework-free handler and the FORBIDDEN reasons | S | done | CLI-3 | client | [client #21](https://github.com/mark1russell7/client/pull/21), in 0.9.1 |
+| GRAPH-13 | Auth | Split P1: Graph's rights engine becomes @procedures/access | M | done | CLI-2a, CLI-15 | graph | [client #17](https://github.com/mark1russell7/client/pull/17), [client 6ab6ebff](https://github.com/mark1russell7/client/commit/6ab6ebff), in 0.12.1 |
+| GRAPH-14 | Sync | Split P2: the overlay merge moves to @procedures/collections | M | done | CLI-20, CLI-14 | graph | [client 677294b2](https://github.com/mark1russell7/client/commit/677294b2), [client 6207e516](https://github.com/mark1russell7/client/commit/6207e516), [Graph c39516a9](https://github.com/mark1russell7/Graph/commit/c39516a9), in 0.13.2 |
+| GRAPH-15 | Sync | Split P3 and P4: the Mongo guards and the materialized views move to @procedures/mongo | L | done | CLI-20, CLI-14, CLI-15 | graph | [client 3dca4f4a](https://github.com/mark1russell7/client/commit/3dca4f4a), [client 066f445b](https://github.com/mark1russell7/client/commit/066f445b), [npm 0.9.2](https://www.npmjs.com/package/@procedures/client/v/0.9.2), in 0.9.2 |
+| GRAPH-16 | Auth | Split P5: Better Auth sessions become a principal source in the client | M | done | CLI-2a | graph | [client #14](https://github.com/mark1russell7/client/pull/14), [client 56ac650](https://github.com/mark1russell7/client/commit/56ac650), [client 9423a973](https://github.com/mark1russell7/client/commit/9423a973), in 0.13.1 |
+| REL-0 | Releases | Client 0.8.0 publish: tell the release session "go" | S | done | — | Mark | — |
+| REL-2 | Releases | Release the additive server-stack client pieces as a PATCH | S | done | CLI-2a, CLI-3, CLI-10, D13 | client | [npm 0.8.1](https://www.npmjs.com/package/@procedures/client/v/0.8.1), in 0.8.1 |
+| REL-5 | Releases | Client 0.9.1: the partition follow-ups, Mongo storage, the pipeline guard and the narrowing key | S | done | CLI-24, GRAPH-15, CLI-30, CLI-31 | server-stack | [npm 0.9.1](https://www.npmjs.com/package/@procedures/client/v/0.9.1), in 0.9.1 |
+| REL-6 | Releases | Client 0.12.1: the first publish of better-auth and access | S | done | GRAPH-16, GRAPH-13 | release | [npm 0.12.1](https://www.npmjs.com/package/@procedures/client/v/0.12.1), in 0.12.1 |
+| REL-7 | Releases | The apps move to client ^0.14.0 | S | blocked | CLI-48 | graph | — |
 
-- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11, CLI-16 and CLI-47. Each one is its own MINOR of the client group (D13).
-- CLI-26 breaks the API only if the exit codes of the CLI change. CLI-28 breaks it only if the version leaves the URL. The version stays in the URL, so CLI-28 is a PATCH.
+- These items break the API: CLI-1, CLI-2b, CLI-4, CLI-5, CLI-6, CLI-7, CLI-8, CLI-9, CLI-11, CLI-16, CLI-47, CLI-48. Each one is its own MINOR of the client group (D13).
+- CLI-26 breaks the API only if the CLI's exit codes change.
+- CLI-28 breaks the API only if the version leaves the URL.
 - The other items are additive. Each one ships as a PATCH of the client group.
+
+<!-- server-stack-table:end -->
 - Refer to the section "Releases of the server stack" of [SERVER-LAYERS.md](./SERVER-LAYERS.md) for the deprecation and the migration notes.
 
 ## Items for a decision
