@@ -16,7 +16,8 @@
 // the packages that did not load.
 //
 // Usage: node scripts/gen-data.mjs (from packages/site). Build the workspace first (`pnpm build`).
-// Output: src/data/generated/*.js with .d.ts files. Git ignores that folder.
+// Output: src/data/generated/*.js with .d.ts files. Git ignores that folder. catalog.js has the
+// procedures without their schemas, and schemas/<package>.js has the schemas of each package.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -292,7 +293,23 @@ const npm = { name: "@procedures/client", version: await npmVersion("@procedures
 const newest = releases.releases[0];
 const metrics = { tests: tests.tests, testFiles: tests.files, npm, release: newest ? { version: newest.version, date: newest.date } : null };
 
-write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });
+// Each page loads the catalog, so it has the procedures without their schemas. The schemas were
+// 57 kB of gzip in each page. Now each package has a module of its schemas, and the page of a
+// procedure loads only the module of its package (src/data/schemas.ts).
+const summaries = procedures.map(({ input: _input, output: _output, ...summary }) => summary);
+write("catalog", { procedures: summaries, failed, mcpTools: [...mcpTools].sort(), build, metrics });
+const schemasByPackage = new Map();
+for (const { key, package: dir, input, output } of procedures) {
+  const entries = schemasByPackage.get(dir) ?? [];
+  entries.push({ key, input, output });
+  schemasByPackage.set(dir, entries);
+}
+rmSync(join(OUT, "schemas"), { recursive: true, force: true });
+mkdirSync(join(OUT, "schemas"), { recursive: true });
+for (const [dir, entries] of schemasByPackage) {
+  writeFileSync(join(OUT, "schemas", `${dir}.js`), `export default ${JSON.stringify(entries)};\n`);
+  writeFileSync(join(OUT, "schemas", `${dir}.d.ts`), "declare const data: unknown;\nexport default data;\n");
+}
 write("status", status);
 // The index and the changes of the newest version load with the releases page, the other changes on demand
 const { index: releaseIndex, changes: releaseChanges } = splitReleases(releases);
