@@ -80,12 +80,11 @@ export interface FaceHandlerOptions {
   readonly life: () => Lifecycle | null;
   /** True: a call with an idempotency key is a keyed operation. The server then keeps the results of the keys. */
   readonly keyed: boolean;
-  /** The count of the calls that wait for their answer. The host gives one count to each face, and its drain waits on it (CLI-48). */
-  readonly answers?: PendingAnswers | undefined;
 }
 
 /**
- * The calls of the faces of a host that wait for their answer from the service (CLI-48). A face
+ * The calls of the faces of a host that wait for their answer from the service (CLI-48). This count
+ * is internal to the host: the package root does not export it. A face
  * writes the answer after it gets it. Thus the drain of the host waits on this count after the
  * cooperative abort, and the close of the transports does not lose the answer of a cut call.
  */
@@ -265,6 +264,14 @@ async function trackedCall(life: Lifecycle, options: FaceHandlerOptions, request
  * goes through `life.request`. Without a service, each call goes to the server directly.
  */
 export function faceHandler(options: FaceHandlerOptions): FaceHandler {
+  return countedFaceHandler(options, undefined);
+}
+
+/**
+ * This function gives the handler of one face of the host, and counts each call that waits for its
+ * answer in `answers`. Only the host uses it: the package root does not export it (CLI-48).
+ */
+export function countedFaceHandler(options: FaceHandlerOptions, answers: PendingAnswers | undefined): FaceHandler {
   const { server } = options;
   return {
     ambientCredentials: server.ambientCredentials,
@@ -273,7 +280,7 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
       const life = options.life();
       if (!life) return server.handle(request);
       const answer = trackedCall(life, options, request);
-      return options.answers ? options.answers.track(answer) : answer;
+      return answers ? answers.track(answer) : answer;
     },
   };
 }

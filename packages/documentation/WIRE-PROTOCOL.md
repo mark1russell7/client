@@ -271,7 +271,8 @@ An error of a handler with a code of its own keeps that code on each face, for a
 - A code of the table gets the status of the table.
 - Another code of `ERROR_REGISTRY` gets the status of the registry, for example 409 for `CONFLICT`.
 - Each other code gets the status 500.
-- An error that is not retryable does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
+- An error with `retryable: false` does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
+- An error of a handler without a retryable flag gets the flag of its code in this table, or false. Thus `UNAVAILABLE` without a flag is retryable and gets 503.
 
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|

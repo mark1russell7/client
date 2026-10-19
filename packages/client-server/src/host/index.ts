@@ -44,7 +44,7 @@ import {
 } from "@procedures/client";
 import type { ProcedureHandlerOptions, UpgradeHandlerOptions } from "@procedures/client/node";
 import { httpFace, wsFace, type HostFace, type HostFaceFactory } from "./faces.js";
-import { callOperations, faceHandler, operationOfCall, pendingAnswers } from "./tracking.js";
+import { callOperations, countedFaceHandler, operationOfCall, pendingAnswers } from "./tracking.js";
 
 /** The knobs of a transport of the service, by the names of the ordering law. */
 export type HostKnobs = Parameters<ServiceBuilder["server"]>[1];
@@ -307,7 +307,7 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   for (const [faceName, value] of Object.entries(faceSpecs)) {
     const factory = factoryOf(faceName, value);
     if (!factory) continue;
-    const handler = faceHandler({ server, controller: name, face: faceName, life: () => life, keyed: keyedWindowMs !== undefined, answers });
+    const handler = countedFaceHandler({ server, controller: name, face: faceName, life: () => life, keyed: keyedWindowMs !== undefined }, answers);
     faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock }));
   }
 
@@ -462,5 +462,5 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
 
 export { httpFace, wsFace } from "./faces.js";
 export type { HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade } from "./faces.js";
-export { callOperations, faceHandler, operationOfCall, pendingAnswers } from "./tracking.js";
-export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions, PendingAnswers } from "./tracking.js";
+export { callOperations, faceHandler, operationOfCall } from "./tracking.js";
+export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions } from "./tracking.js";

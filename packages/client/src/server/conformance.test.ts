@@ -233,7 +233,7 @@ describe.each(faces)("the conformance of $name (R18)", (face) => {
 });
 
 describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
-  it("follows the code: the status of ERROR_CODES for a code of the protocol, 500 for another code, and 500 for a 503 that is not retryable", async () => {
+  it("follows the code: the status of ERROR_CODES for a code of the protocol, 500 for another code, and 500 for a 503 with retryable false", async () => {
     const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true });
     const app = express();
     const http = createServer(app);
@@ -254,8 +254,10 @@ describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     };
     expect(await post({ code: "UNAVAILABLE", retryable: true })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", retryable: true, error: "it failed" } });
-    // An error that is not retryable never gets 503: a 503 invites a retry at the HTTP level (CLI-48)
-    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 500, body: { code: "UNAVAILABLE", retryable: false, error: "it failed" } });
+    // Without a flag, the error gets the default of its code: UNAVAILABLE is retryable, and stays 503
+    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", retryable: true, error: "it failed" } });
+    // An error with retryable false does not get 503: a 503 invites a retry at the HTTP level (CLI-48)
+    expect(await post({ code: "UNAVAILABLE", retryable: false })).toMatchObject({ status: 500, body: { code: "UNAVAILABLE", retryable: false, error: "it failed" } });
     expect(await post({ code: "E_CUSTOM" })).toMatchObject({ status: 500, body: { code: "E_CUSTOM", error: "it failed" } });
     expect(await post({})).toMatchObject({ status: 500, body: { code: "HANDLER_ERROR", error: "it failed" } });
   });
