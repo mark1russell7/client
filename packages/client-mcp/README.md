@@ -115,7 +115,7 @@ Each tool call over Streamable HTTP carries the credentials of its HTTP request:
 The Streamable HTTP face checks each request with `guardMcpRequest` before the request reaches the MCP SDK. The owner of another listener calls the same function.
 
 - A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
-- With a token, each request sends `Authorization: Bearer <token>`. The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
+- With a token, each request sends `Authorization: Bearer <token>`. The scheme has any case, for example `bearer` (RFC 7235). The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
 - Only an `initialize` request starts a session. Thus a stray POST makes no MCP server. The body of each request has a limit of 4 MiB (`maxBodyBytes`).
 - The sessions have no limit by default. With `maxSessions`, a new session above the limit closes the session that was idle longest: no task in progress and no open response (a call or a GET stream). When each session is busy, the new session gets 503 with a `Retry-After` header. A client that sends to a closed session gets 404, and a client of the MCP specification then sends a new `initialize`.
 - `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
