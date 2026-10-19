@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { basePath, normalizeBase } from "./base";
 
 export interface Route {
-  /** The first segment: "", "composer", "catalog", "architecture", "claude", "lab", "status". */
+  /** The first segment: "", "composer", "catalog", "architecture", "claude", "lab", "status", "releases". */
   page: string;
   /** The rest of the path, for example the key of a procedure. */
   rest: string;

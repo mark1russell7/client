@@ -6,9 +6,9 @@
  */
 
 import type { ZodLike } from "@procedures/client/client";
-import type { Procedure, ProcedurePath, ProcedureContext } from "@procedures/client";
-import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@procedures/client";
-import { invokeProcedure, isAsyncIterable } from "@procedures/client";
+import type { Procedure, ProcedurePath, ProcedureContext } from "@procedures/client/browser";
+import { PROCEDURE_REGISTRY, type ProcedureRegistry } from "@procedures/client/browser";
+import { invokeProcedure, isAsyncIterable } from "@procedures/client/browser";
 import type {
   ComponentDefinition,
   ComponentContext,

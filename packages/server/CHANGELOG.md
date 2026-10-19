@@ -1,5 +1,13 @@
 # @procedures/server
 
+## 0.14.0
+
+### Patch Changes
+
+- Updated dependencies [217a90f]
+  - @procedures/client@0.14.0
+  - @procedures/peer@0.14.0
+
 ## 0.13.2
 
 ### Patch Changes
