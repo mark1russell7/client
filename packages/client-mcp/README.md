@@ -102,7 +102,7 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 |---|---|
 | `stdio: true` | The standard input and output. Over stdio, `console.log` writes to stderr from `start()` on, because stdout carries the protocol. |
 | `stdio: { stdin, stdout, stopOnEnd, redirectConsole }` | Other streams, for a test or an embedding. With `stopOnEnd: true` (the default), the host stops when the input ends. |
-| `http: { port, host, path, token, allowedOrigins }` | Streamable HTTP. The host listens on `127.0.0.1` by default. Without a token, the face takes the token of the policy. |
+| `http: { port, host, path, token, allowedOrigins, maxSessions, maxBodyBytes }` | Streamable HTTP. The host listens on `127.0.0.1` by default. Without a token, the face takes the token of the policy. |
 | `sdk` | One or more MCP SDK transports, for example the `InMemoryTransport` of a test. |
 
 When the client closes the input of stdio, the host stops, and `closed` resolves. The entry `dist/server.js` of `@procedures/mcp-dev-tools` then ends its process.
@@ -113,8 +113,8 @@ The Streamable HTTP face checks each request with `guardMcpRequest` before the r
 
 - A request on a loopback address must name a loopback host in its `Host` header, so DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
 - With a token, each request sends `Authorization: Bearer <token>`. The check compares the SHA-256 digests of the two tokens in constant time. A request without the token gets 401 with a `WWW-Authenticate` header.
-- Only an `initialize` request starts a session, and its body has a limit of 4 MiB. Thus a stray POST makes no MCP server.
-- The face keeps at most 32 sessions. A new session above the limit closes the session that was idle longest and has no task in progress.
+- Only an `initialize` request starts a session, and its body has a limit of 4 MiB (`maxBodyBytes`). Thus a stray POST makes no MCP server.
+- The face keeps at most 32 sessions (`maxSessions`). A new session above the limit closes the session that was idle longest, with no task in progress and no open GET stream. A client that sends to a closed session gets 404. A client of the MCP specification then sends a new `initialize`.
 - `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
 
 ## Questions to the person

@@ -110,14 +110,6 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     return { http, url, made: () => made };
   }
 
-  async function connect(url: string, headers: Record<string, string> = {}) {
-    const client = new McpClient({ name: "test", version: "0" });
-    const transport = new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers } });
-    await client.connect(transport as never);
-    cleanups.push(() => client.close());
-    return { client, transport };
-  }
-
   it("starts a session only for initialize, so a stray POST makes no server", async () => {
     const { http, url, made } = await endpoint();
     const stray = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
@@ -146,19 +138,57 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     expect(refused.headers.get("www-authenticate")).toBe('Bearer realm="mcp"');
   });
 
+  /** This function starts a session with a bare initialize request, and gives its id. */
+  async function initialize(url: string): Promise<Response> {
+    const response = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
+    await response.text();
+    return response;
+  }
+
   it("closes the session that was idle longest at the limit, and keeps a busy session", async () => {
     let busy = new Set<string>();
     const { http, url } = await endpoint({ maxSessions: 1, busySessions: () => busy });
-    const first = await connect(url);
-    const second = await connect(url);
+    const first = (await initialize(url)).headers.get("mcp-session-id")!;
+    const second = (await initialize(url)).headers.get("mcp-session-id")!;
+    expect(http.sessions).toBe(1);
     // The second session closed the first one: its next request finds no session
-    expect(http.sessions).toBe(1);
-    await expect(first.client.ping()).rejects.toThrow();
+    const gone = await fetch(url, {
+      method: "POST",
+      headers: { ...POST_HEADERS, "mcp-session-id": first },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping" }),
+    });
+    expect(gone.status).toBe(404);
     // Each session has a task in progress: a new session waits
-    busy = new Set([second.transport.sessionId ?? ""]);
-    const refused = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
-    expect(refused.status).toBe(503);
+    busy = new Set([second]);
+    expect((await initialize(url)).status).toBe(503);
     expect(http.sessions).toBe(1);
+  });
+
+  it("keeps a session with an open GET stream: a client that only listens is not idle", async () => {
+    const { http, url } = await endpoint({ maxSessions: 1 });
+    const id = (await initialize(url)).headers.get("mcp-session-id")!;
+    const listening = new AbortController();
+    const stream = await fetch(url, { headers: { accept: "text/event-stream", "mcp-session-id": id }, signal: listening.signal });
+    expect(stream.status).toBe(200);
+    expect((await initialize(url)).status).toBe(503);
+    // The stream closes: the session is idle, so a new session closes it
+    listening.abort();
+    await stream.body?.cancel().catch(() => undefined);
+    let next = 503;
+    for (let tries = 0; tries < 100 && next === 503; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      next = (await initialize(url)).status;
+    }
+    expect(next).toBe(200);
+    expect(http.sessions).toBe(1);
+  });
+
+  it("takes the limits from the HTTP options, and refuses a limit below 1", async () => {
+    const port = await freePort();
+    expect(() => createHttpTransport({ port, maxSessions: 0 }, async () => undefined)).toThrow(RangeError);
+    const { url, made } = await endpoint({});
+    void url;
+    expect(made()).toBe(0);
   });
 });
 

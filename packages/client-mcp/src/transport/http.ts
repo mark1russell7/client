@@ -68,8 +68,12 @@ export function createHttpTransport(
   const sessions = new Map<string, StreamableHTTPServerTransport>();
   /** The time of the last request of each session: the session limit closes the session that was idle longest */
   const lastUsed = new Map<string, number>();
-  const maxSessions = limits.maxSessions ?? MCP_HTTP_LIMITS.maxSessions;
-  const maxBodyBytes = limits.maxBodyBytes ?? MCP_HTTP_LIMITS.maxBodyBytes;
+  /** The open GET streams of each session: a client that only listens is not idle */
+  const openStreams = new Map<string, number>();
+  const maxSessions = options.maxSessions ?? limits.maxSessions ?? MCP_HTTP_LIMITS.maxSessions;
+  const maxBodyBytes = options.maxBodyBytes ?? limits.maxBodyBytes ?? MCP_HTTP_LIMITS.maxBodyBytes;
+  if (!Number.isInteger(maxSessions) || maxSessions < 1) throw new RangeError(`maxSessions must be an integer of 1 or more, not ${String(maxSessions)}`);
+  if (!Number.isInteger(maxBodyBytes) || maxBodyBytes < 1) throw new RangeError(`maxBodyBytes must be an integer of 1 or more, not ${String(maxBodyBytes)}`);
 
   const refuse = (res: ServerResponse, status: number, code: string, message: string, headers: Readonly<Record<string, string>> = {}): void => {
     res.statusCode = status;
@@ -78,18 +82,22 @@ export function createHttpTransport(
     res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message, data: { code } }, id: null }));
   };
 
-  /** This function closes the session that was idle longest and has no task in progress. It gives false when each session has a task. */
+  /**
+   * This function closes the session that was idle longest, with no task in progress and no open
+   * GET stream. It gives false when each session is busy.
+   */
   const evict = async (): Promise<boolean> => {
     const busy = limits.busySessions?.() ?? new Set<string>();
     let oldest: string | undefined;
     for (const id of sessions.keys()) {
-      if (busy.has(id)) continue;
+      if (busy.has(id) || (openStreams.get(id) ?? 0) > 0) continue;
       if (oldest === undefined || (lastUsed.get(id) ?? 0) < (lastUsed.get(oldest) ?? 0)) oldest = id;
     }
     if (oldest === undefined) return false;
     const transport = sessions.get(oldest);
     sessions.delete(oldest);
     lastUsed.delete(oldest);
+    openStreams.delete(oldest);
     await transport?.close().catch(() => undefined);
     return true;
   };
@@ -107,6 +115,16 @@ export function createHttpTransport(
         return;
       }
       lastUsed.set(sessionId, Date.now());
+      if (req.method === "GET") {
+        // An open GET stream keeps its session busy until the stream closes
+        openStreams.set(sessionId, (openStreams.get(sessionId) ?? 0) + 1);
+        res.once("close", () => {
+          const left = (openStreams.get(sessionId) ?? 1) - 1;
+          if (left > 0) openStreams.set(sessionId, left);
+          else openStreams.delete(sessionId);
+          if (sessions.has(sessionId)) lastUsed.set(sessionId, Date.now());
+        });
+      }
       await transport.handleRequest(req, res);
       return;
     }
@@ -138,6 +156,7 @@ export function createHttpTransport(
       if (!transport.sessionId) return;
       sessions.delete(transport.sessionId);
       lastUsed.delete(transport.sessionId);
+      openStreams.delete(transport.sessionId);
     };
     await connect(transport);
     await transport.handleRequest(req, res, body);
@@ -198,6 +217,7 @@ export function createHttpTransport(
       const open = [...sessions.values()];
       sessions.clear();
       lastUsed.clear();
+      openStreams.clear();
       await Promise.all(open.map((transport) => transport.close().catch(() => undefined)));
       if (owned && server?.listening) {
         await new Promise<void>((resolve) => {

@@ -76,6 +76,17 @@ export interface HttpTransportOptions {
    * transport sets it from its server. With a value, a request with a cookie needs a named origin.
    */
   ambientCredentials?: import("@procedures/client").AmbientCredentials | undefined;
+  /**
+   * The most sessions at one time (CLI-35). A new session above the limit closes the session that
+   * was idle longest, with no task in progress and no open stream.
+   * @default 32
+   */
+  maxSessions?: number | undefined;
+  /**
+   * The largest body of a request that starts a session, in bytes (CLI-35).
+   * @default 4194304 (4 MiB, the limit of the SDK)
+   */
+  maxBodyBytes?: number | undefined;
 }
 
 export interface SseTransportOptions {

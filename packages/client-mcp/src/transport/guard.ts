@@ -15,7 +15,7 @@
  * - `readMcpBody` reads the body of a request that starts a session, to a limit (4 MiB). Only an
  *   `initialize` request starts a session, so a stray POST makes no MCP server.
  * - The face keeps at most `maxSessions` sessions (32). A new session above the limit closes the
- *   session that was idle longest and has no task in progress.
+ *   session that was idle longest, with no task in progress and no open GET stream.
  * - `assertLoopbackBind` refuses a listener on an address that is not loopback, unless the
  *   operator allows it. The owner of the listener calls it before it listens.
  */
@@ -24,7 +24,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import { bearerOf, checkBrowserRequest, isLoopbackHost, type BrowserGuardOptions } from "@procedures/client";
 
-/** The limits of the Streamable HTTP face. */
+/** The limits of the Streamable HTTP face. `maxSessions` and `maxBodyBytes` of the HTTP options change them. */
 export const MCP_HTTP_LIMITS = {
   /** The largest body of a request that starts a session: 4 MiB, the limit of the SDK. */
   maxBodyBytes: 4_194_304,
