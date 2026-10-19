@@ -17,12 +17,6 @@
 /** The prefix of the topic of each collection. */
 const PREFIX = "collections.";
 
-/** The collection and the partition of a topic. */
-export interface CollectionTopicParts {
-  collection: string;
-  partition: string | undefined;
-}
-
 /** This function encodes the name of a collection for a topic with a partition: `%` and `.` become `%25` and `%2E`. */
 function encodeTopicName(name: string): string {
   return name.replace(/[%.]/g, (char) => (char === "%" ? "%25" : "%2E"));
@@ -55,7 +49,7 @@ export function collectionChangeTopic(collection: string, partition?: string): s
  * dot after the name. It gives the decoded name and the rest, which can be empty. It gives
  * undefined for another topic and for an empty name.
  */
-export function splitCollectionTopic(topic: string): CollectionTopicParts | undefined {
+export function splitCollectionTopic(topic: string): { collection: string; partition: string | undefined } | undefined {
   if (!topic.startsWith(PREFIX)) return undefined;
   const rest = topic.slice(PREFIX.length);
   const dot = rest.indexOf(".");
@@ -75,7 +69,7 @@ export function splitCollectionTopic(topic: string): CollectionTopicParts | unde
  * - For each name and each partition, `collectionTopicPartition(collectionChangeTopic(name,
  *   partition))` gives the same name and the same partition.
  */
-export function collectionTopicPartition(topic: string): CollectionTopicParts | undefined {
+export function collectionTopicPartition(topic: string): { collection: string; partition: string | undefined } | undefined {
   const parts = splitCollectionTopic(topic);
   return parts === undefined || parts.partition === "" ? undefined : parts;
 }
