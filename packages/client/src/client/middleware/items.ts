@@ -55,6 +55,8 @@ export function retryAfterOf(item: ResponseItem<unknown>): number | undefined {
 const AVAILABILITY_CODES = new Set([
   "UNAVAILABLE",
   "TIMEOUT",
+  // The code of a stopped server before CLI-4. It is UNAVAILABLE now. The next breaking release
+  // of the client group removes it.
   "SERVER_STOPPED",
   "SERVICE_UNAVAILABLE",
   "BAD_GATEWAY",

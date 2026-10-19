@@ -97,6 +97,32 @@ export function errorCodeOf(error: unknown): string {
   return typeof code === "string" ? code : "HANDLER_ERROR";
 }
 
+/** The codes that a server before CLI-4 gave, and the code and the reason of wire v1 for each. */
+const FOLDED_ERROR_CODES: ReadonlyMap<string, { readonly code: ProtocolErrorCode; readonly reason?: string }> = new Map([
+  ["SERVER_STOPPED", { code: "UNAVAILABLE" }],
+  ["FORBIDDEN_HOST", { code: "FORBIDDEN", reason: "host-header-not-allowed" }],
+  ["FORBIDDEN_ORIGIN", { code: "FORBIDDEN", reason: "origin-not-allowed" }],
+  ["500", { code: "INTERNAL_ERROR" }],
+]);
+
+/**
+ * This function gives the code of wire v1 for an error code that a server before CLI-4 gave, and
+ * the reason of a `FORBIDDEN` error. For each other code, it gives the code and no reason. The
+ * client reads an old code as its new code, so an application can match the new code also with an
+ * older server.
+ *
+ * `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE` stay: they are also the codes of the HTTP
+ * statuses 405 and 415 of each server.
+ *
+ * The client reads the old codes for one release. The next breaking release of the client group
+ * removes this function.
+ *
+ * @internal
+ */
+export function foldedErrorCode(code: string): { readonly code: string; readonly reason?: string | undefined } {
+  return FOLDED_ERROR_CODES.get(code) ?? { code };
+}
+
 /** The HTTP status of an error code, or undefined for a code that is not in the list. */
 export function httpStatusOf(code: unknown): number | undefined {
   return isProtocolErrorCode(code) ? ERROR_CODES[code].http : undefined;

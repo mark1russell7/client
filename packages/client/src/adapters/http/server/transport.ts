@@ -4,8 +4,8 @@
  * The transport mounts the procedure handler of `handler.ts` on an Express app, with the CORS of
  * the app, and it owns its own `node:http` server unless the caller gives one. The handler does
  * the work: the request, the body, the metadata, the credentials, the response and the NDJSON
- * streams. The transport keeps its former error codes (`SERVER_STOPPED` and the codes of the
- * browser checks), so its behavior stays the same.
+ * streams. The error codes are the codes of wire v1, as for `procedureHandler` (CLI-4). A stopped
+ * transport answers `UNAVAILABLE`, and a refused browser request gets `FORBIDDEN` with a reason.
  */
 
 import type { Request, Response, Express } from "express";

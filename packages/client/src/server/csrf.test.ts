@@ -163,11 +163,11 @@ describe("CSRF: the Express shim HttpServerTransport (CLI-2a)", () => {
     expect((await post(port, { ...JSON_TYPE, origin: FOREIGN, cookie: COOKIE })).status).toBe(200);
   });
 
-  it("refuses a foreign origin with a cookie when authenticate can read it, with the former code", async () => {
+  it("refuses a foreign origin with a cookie when authenticate can read it, with FORBIDDEN and its reason (CLI-4)", async () => {
     const { server } = procedureServer({ authenticate: () => ({ id: "user", via: "test" }) });
     expect(server.ambientCredentials).toBe("cookies");
     const port = await startShim(server);
-    expect(await post(port, { ...JSON_TYPE, origin: FOREIGN, cookie: COOKIE })).toEqual({ status: 403, code: "FORBIDDEN_ORIGIN" });
+    expect(await post(port, { ...JSON_TYPE, origin: FOREIGN, cookie: COOKIE })).toEqual({ status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
     expect((await post(port, { ...JSON_TYPE, origin: FOREIGN })).status).toBe(200);
   });
 
@@ -248,7 +248,7 @@ describe("CSRF: the browser checks (CLI-2a)", () => {
   it("does not let \"*\" allow another origin for a request with ambient credentials", () => {
     const headers = { host: "localhost:3000", origin: FOREIGN, "content-type": "application/json" };
     expect(checkBrowserRequest({ method: "POST", headers, socket: loopback }, { allowedOrigins: "*" }, true).ok).toBe(true);
-    expect(checkBrowserRequest({ method: "POST", headers, socket: loopback }, { allowedOrigins: "*" }, true, true)).toMatchObject({ ok: false, code: "FORBIDDEN_ORIGIN" });
+    expect(checkBrowserRequest({ method: "POST", headers, socket: loopback }, { allowedOrigins: "*" }, true, true)).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", reason: "origin-not-allowed" });
     expect(checkBrowserRequest({ method: "POST", headers, socket: loopback }, { allowedOrigins: [FOREIGN] }, true, true).ok).toBe(true);
     const site = { host: "localhost:3000", "sec-fetch-site": "cross-site" };
     expect(checkBrowserRequest({ method: "POST", headers: site, socket: loopback }, { allowedOrigins: "*" }, true, true).ok).toBe(false);

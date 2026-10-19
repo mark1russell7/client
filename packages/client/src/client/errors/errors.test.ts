@@ -299,7 +299,8 @@ describe("the error classes (R30)", () => {
 
   it("HandlerNotFoundError names the method, and ServerError has a code and a retryable flag", () => {
     expect(new HandlerNotFoundError({ service: "users", operation: "get", version: "2" }).message).toBe("No handler found for users.get (v2)");
-    expect(new ServerError("x")).toMatchObject({ name: "ServerError", code: "500", retryable: false });
+    // CLI-4: the default code is INTERNAL_ERROR of wire v1, not the string "500"
+    expect(new ServerError("x")).toMatchObject({ name: "ServerError", code: "INTERNAL_ERROR", retryable: false });
   });
 });
 

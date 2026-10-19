@@ -311,12 +311,30 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `host-not-allowed` | `@procedures/http` | The procedure refuses the host of the URL. |
 | `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
-| `origin-not-allowed` | The browser checks of `procedureHandler` | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
-| `host-header-not-allowed` | The browser checks of `procedureHandler` | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
-| `method-not-allowed` | The browser checks of `procedureHandler` | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
-| `media-type-not-allowed` | The browser checks of `procedureHandler` | The request body is not JSON. |
+| `origin-not-allowed` | The browser checks | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
+| `host-header-not-allowed` | The browser checks | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
+| `method-not-allowed` | The browser checks of HTTP | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
+| `media-type-not-allowed` | The browser checks of HTTP | The request body is not JSON. |
 
-A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`. `HttpServerTransport` keeps its former codes for the four browser checks: `FORBIDDEN_ORIGIN`, `FORBIDDEN_HOST`, `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`, with the status 403, 405 or 415.
+A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`.
+
+The browser checks are `checkBrowserRequest` of `packages/client/src/server/browser-guard.ts`. `procedureHandler`, `HttpServerTransport`, the WebSocket faces and the MCP endpoint use them. Each refusal has the code `FORBIDDEN` and the status 403. The HTTP faces also send the reason. The MCP endpoint does not send the reason at this time. A WebSocket upgrade gets only the status 403.
+
+### The codes before wire v1
+
+Before CLI-4, some faces gave codes outside the table. Since CLI-4, each face gives the code of the table:
+
+| Former code | Former status | Code of wire v1 | Reason |
+|---|---|---|---|
+| `SERVER_STOPPED` | 503 | `UNAVAILABLE` | — |
+| `FORBIDDEN_HOST` | 403 | `FORBIDDEN` | `host-header-not-allowed` |
+| `FORBIDDEN_ORIGIN` | 403 | `FORBIDDEN` | `origin-not-allowed` |
+| `METHOD_NOT_ALLOWED` | 405 | `FORBIDDEN` (403) | `method-not-allowed` |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | `FORBIDDEN` (403) | `media-type-not-allowed` |
+| `"500"` of `Server` and `ServerError` | 500 | `INTERNAL_ERROR` | — |
+
+- For one release, the client reads `SERVER_STOPPED`, `FORBIDDEN_HOST`, `FORBIDDEN_ORIGIN` and `"500"` of an older server as the code of wire v1. It also sets the reason.
+- The client keeps `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`. They are also the codes of the HTTP statuses 405 and 415 of each server.
 
 ## MCP
 
