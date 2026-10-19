@@ -114,7 +114,7 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 
 The server reads the credentials of each network request. They go to the request hook `principalOf` and to the token check, not into the metadata.
 
-- The bearer token of the header `Authorization: Bearer <token>`.
+- The bearer token of the header `Authorization: Bearer <token>`. When the header starts with `Bearer ` and one space, the token is the rest of the header. The scheme can also have another case, for example `bearer` (RFC 7235). Then one or more spaces come before the token, and spaces or tabs can come after it.
 - The cookies of the header `Cookie`, by name. The server decodes each URI-encoded value. When two cookies have the same name, the first one applies.
 - Each header, by its lower-case name, the secret headers too.
 - The first value of each query parameter.
