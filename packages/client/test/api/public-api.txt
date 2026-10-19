@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 568 names
+## . (dist/index.d.ts): 570 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -247,6 +247,7 @@ type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
 type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
+type RightsChange: dist/events/recheck.d.ts#RightsChange
 type Route: dist/client/call-types.d.ts#Route
 type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
 type RouteNode: dist/client/call-types.d.ts#RouteNode
@@ -304,6 +305,7 @@ type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
 type Subscription: dist/events/remote.d.ts#Subscription
 SubscriptionError: dist/events/remote.d.ts#SubscriptionError
+type SubscriptionRecheck: dist/events/recheck.d.ts#SubscriptionRecheck
 TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
 TIMER_DEFAULTS: dist/timers.d.ts#TIMER_DEFAULTS
 TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
@@ -575,7 +577,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 550 names
+## ./browser (dist/browser.d.ts): 552 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -812,6 +814,7 @@ type ResponseMatcher: dist/adapters/mock/client/types.d.ts#ResponseMatcher
 type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
 type RetryOverride: dist/client/call-types.d.ts#RetryOverride
 type RichError: dist/client/errors/types.d.ts#RichError
+type RightsChange: dist/events/recheck.d.ts#RightsChange
 type Route: dist/client/call-types.d.ts#Route
 type RouteLeaf: dist/client/consumption.d.ts#RouteLeaf
 type RouteNode: dist/client/call-types.d.ts#RouteNode
@@ -869,6 +872,7 @@ type StreamingCallResponse: dist/client/call-types.d.ts#StreamingCallResponse
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
 type Subscription: dist/events/remote.d.ts#Subscription
 SubscriptionError: dist/events/remote.d.ts#SubscriptionError
+type SubscriptionRecheck: dist/events/recheck.d.ts#SubscriptionRecheck
 TIMEOUT_METADATA_KEY: dist/client/deadline.d.ts#TIMEOUT_METADATA_KEY
 TIMER_DEFAULTS: dist/timers.d.ts#TIMER_DEFAULTS
 TRACEPARENT_METADATA_KEY: dist/tracing/traceparent.d.ts#TRACEPARENT_METADATA_KEY
@@ -1299,7 +1303,7 @@ seconds: dist/duration.d.ts#seconds
 toMs: dist/duration.d.ts#toMs
 writeRemainingTime: dist/client/deadline.d.ts#writeRemainingTime
 
-## ./events (dist/events/index.d.ts): 47 names
+## ./events (dist/events/index.d.ts): 49 names
 
 type ChannelMap: dist/events/types.d.ts#ChannelMap
 type ChannelTimingOptions: dist/events/bus.d.ts#ChannelTimingOptions
@@ -1323,11 +1327,13 @@ type RemoteEvent: dist/events/remote.d.ts#RemoteEvent
 type RemoteEventHandler: dist/events/remote.d.ts#RemoteEventHandler
 type RemoteEventsOptions: dist/events/remote.d.ts#RemoteEventsOptions
 type ResubscribeBackoff: dist/events/remote.d.ts#ResubscribeBackoff
+type RightsChange: dist/events/recheck.d.ts#RightsChange
 type SubscribeInput: dist/events/remote.d.ts#SubscribeInput
 type SubscribeOptions: dist/events/remote.d.ts#SubscribeOptions
 type Subscription: dist/events/remote.d.ts#Subscription
 SubscriptionError: dist/events/remote.d.ts#SubscriptionError
 type SubscriptionHooks: dist/events/remote.d.ts#SubscriptionHooks
+type SubscriptionRecheck: dist/events/recheck.d.ts#SubscriptionRecheck
 type SystemChannels: dist/events/types.d.ts#SystemChannels
 type TopicCall: dist/events/publisher.d.ts#TopicCall
 type TopicRule: dist/events/publisher.d.ts#TopicRule
@@ -3174,6 +3180,7 @@ export declare class EventPublisher {
     publish<T>(topic: string, data: T): void;
     get subscriptions(): number;
     end(): void;
+    rightsChanged(change?: RightsChange): Promise<void>;
 }
 
 ### dist/events/publisher.d.ts#EventPublisherOptions
@@ -3183,6 +3190,8 @@ export interface EventPublisherOptions {
     allow?: ((topic: string, call: TopicCall) => boolean) | undefined;
     buffer?: number | undefined;
     reads?: ((topic: string) => readonly string[]) | undefined;
+    clock?: Clock | undefined;
+    recheck?: SubscriptionRecheck | undefined;
 }
 
 ### dist/events/publisher.d.ts#MAX_SUBSCRIPTION_TOPICS
@@ -3203,6 +3212,15 @@ export type TopicRule = readonly string[] | ((topic: string) => boolean);
 
 ### dist/events/publisher.d.ts#topicMatcher
 export declare function topicMatcher(rule: TopicRule): (topic: string) => boolean;
+
+### dist/events/recheck.d.ts#RightsChange
+export type RightsChange = string | ((principal: Principal | undefined) => boolean);
+
+### dist/events/recheck.d.ts#SubscriptionRecheck
+export interface SubscriptionRecheck {
+    readonly maxAge?: Duration | undefined;
+    readonly rightsChanges?: ((listener: (change?: RightsChange) => void) => () => void) | undefined;
+}
 
 ### dist/events/remote.d.ts#EVENTS_SUBSCRIBE_PATH
 export declare const EVENTS_SUBSCRIBE_PATH: readonly ["events", "subscribe"];
