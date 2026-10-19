@@ -171,7 +171,8 @@ export interface ProcedureServerOptions extends ServerOptions {
    * The remote events of the server (`documentation/EVENTS.md`): a bus and its topic rule, or an
    * `EventPublisher`. The server pins the procedure `events.subscribe`, outside its registry, so a
    * peer can subscribe to the topics. The procedures of the server get this bus as `ctx.bus`.
-   * `stop()` ends each subscription first, with `UNAVAILABLE`.
+   * `stop()` ends each subscription first, with `UNAVAILABLE`. A publisher that the server makes
+   * from the options gets the clock of the server, unless the options give a clock (CLI-44).
    */
   events?: EventPublisherOptions | EventPublisher | undefined;
 
@@ -488,8 +489,10 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     // The limits of the calls: one keyed limiter for each limit, on the clock of the server (CLI-40)
     this.callLimits = options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores }) : undefined;
     // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
-    // The topic rule is its expose rule, so the pin is always on (CLI-47).
-    this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
+    // The topic rule is its expose rule, so the pin is always on (CLI-47). The publisher that the
+    // server makes gets the clock of the server for its re-checks (CLI-44).
+    const events = options.events;
+    this.publisher = events instanceof EventPublisher ? events : events ? new EventPublisher({ ...events, clock: events.clock ?? this.clock }) : undefined;
     if (this.publisher) this.registerProcedure(this.publisher.procedure, { alwaysOn: true });
 
     // Configure collections
@@ -571,16 +574,14 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * for: the collection procedures and the subscriptions of `EventPublisher` use it. `storageOf`
    * gives the storage of a partition: give the same storage for the same partition each time.
    *
-   * @param name - Collection name, without a dot
+   * The name can have a dot (roadmap CLI-42). The topic of a partition encodes the name, so the
+   * name and the partition of a topic stay apart (`collectionChangeTopic()`).
+   *
+   * @param name - Collection name
    * @param partitions - The storage of each partition, and the resolver
    * @returns this (for chaining)
-   * @throws Error if the name has a dot
    */
   usePartitions<T>(name: string, partitions: CollectionPartitions<T>): this {
-    // The topic `collections.<name>.<partition>` names the partition after the first dot
-    if (name.includes(".")) {
-      throw new Error(`A collection with partitions cannot have a dot in its name: ${name}`);
-    }
     this.partitions.set(name, partitions as CollectionPartitions<unknown>);
     return this;
   }

@@ -71,8 +71,8 @@ export interface McpHostFaces {
   stdio?: boolean | McpStdioFace | undefined;
   /**
    * The face over Streamable HTTP. Without a token of its own, it takes the token of the policy,
-   * and without origins of its own, the permitted origins of the policy. With `mount: true`, mount
-   * `McpHost.handleHttp` on a listener. A face with a listener of its own is deprecated (CLI-11).
+   * and without origins of its own, the permitted origins of the policy. The face has no listener
+   * (CLI-11): mount `McpHost.handleHttp` on a listener.
    */
   http?: HttpTransportOptions | undefined;
   /** SDK transports to connect: the in-memory transport of a test, or an embedding. */
@@ -227,9 +227,9 @@ export interface McpHost {
    */
   declare<S extends McpServiceBuilder>(svc: S): S;
   /**
-   * This function answers a request of the Streamable HTTP face (`faces.http` with `mount: true`)
-   * and gives true. It gives false for another path, or without that face. Mount it on a listener,
-   * for example an `httpTransport` of `@mark1russell7/service/http`.
+   * This function answers a request of the Streamable HTTP face (`faces.http`) and gives true. It
+   * gives false for another path, or without that face. Mount it on a listener, for example an
+   * `httpTransport` of `@mark1russell7/service/http`.
    */
   handleHttp(req: IncomingMessage, res: ServerResponse): boolean;
   /** The tools of the host at this time, from the registry and the expose rule. */

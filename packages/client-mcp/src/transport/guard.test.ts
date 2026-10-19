@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -17,21 +18,32 @@ import { createMcpHost } from "../host.js";
 import { assertLoopbackBind, guardMcpRequest } from "./guard.js";
 import { createHttpTransport } from "./http.js";
 
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
-}
-
 let cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});
   cleanups = [];
 });
+
+/**
+ * This function serves a handler on a listener of the test, on a free port of loopback, and gives
+ * the URL of the endpoint. The endpoint has no listener of its own (CLI-11).
+ */
+async function listenFor(handle: (req: IncomingMessage, res: ServerResponse) => boolean): Promise<string> {
+  const listener = createServer((req, res) => {
+    if (handle(req, res)) return;
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  cleanups.push(
+    () =>
+      new Promise<void>((resolve) => {
+        listener.close(() => resolve());
+        listener.closeAllConnections();
+      }),
+  );
+  return `http://127.0.0.1:${(listener.address() as AddressInfo).port}/mcp`;
+}
 
 /** A request on a loopback socket with these headers. */
 function request(headers: Record<string, string>, method = "POST") {
@@ -101,10 +113,9 @@ describe("guardMcpRequest", () => {
 describe("the sessions of the Streamable HTTP endpoint", () => {
   /** An endpoint on its own port with an SDK server for each session. */
   async function endpoint(options: { maxSessions?: number; maxBodyBytes?: number; token?: string } = {}, busy?: () => ReadonlySet<string>) {
-    const port = await freePort();
     const servers: SdkServer[] = [];
     const http = createHttpTransport(
-      { port, ...options },
+      { ...options },
       async (transport) => {
         const server = new SdkServer({ name: "guard", version: "0" }, { capabilities: {} });
         servers.push(server);
@@ -112,8 +123,8 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
       },
       busy ? { busySessions: busy } : {}
     );
-    const url = await http.listen();
     cleanups.push(() => http.close());
+    const url = await listenFor((req, res) => http.handle(req, res));
     return { http, url, servers };
   }
 
@@ -173,9 +184,9 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     const { http, url } = await endpoint();
     for (let count = 0; count < 40; count++) expect((await initialize(url)).status).toBe(200);
     expect(http.sessions).toBe(40);
-    expect(() => createHttpTransport({ mount: true, maxSessions: Number.POSITIVE_INFINITY }, async () => undefined)).not.toThrow();
-    expect(() => createHttpTransport({ mount: true, maxSessions: 0 }, async () => undefined)).toThrow(RangeError);
-    expect(() => createHttpTransport({ mount: true, maxBodyBytes: 0.5 }, async () => undefined)).toThrow(RangeError);
+    expect(() => createHttpTransport({ maxSessions: Number.POSITIVE_INFINITY }, async () => undefined)).not.toThrow();
+    expect(() => createHttpTransport({ maxSessions: 0 }, async () => undefined)).toThrow(RangeError);
+    expect(() => createHttpTransport({ maxBodyBytes: 0.5 }, async () => undefined)).toThrow(RangeError);
   });
 
   it("with maxSessions, closes the session that was idle longest, and keeps a busy session", async () => {
@@ -225,10 +236,10 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
   });
 
   it("passes the allowed hosts of the policy to the face of a host", async () => {
-    const host = createMcpHost({ modules: [], faces: { http: { port: await freePort() } }, policy: { browser: { allowedHosts: ["box.local"] } } });
+    const host = createMcpHost({ modules: [], faces: { http: {} }, policy: { browser: { allowedHosts: ["box.local"] } } });
     await host.start();
     cleanups.push(() => host.stop());
-    const url = new URL(host.state().faces[0]!.url!);
+    const url = new URL(await listenFor((req, res) => host.handleHttp(req, res)));
     const response = await fetch(url, { method: "POST", headers: { ...POST_HEADERS, host: `box.local:${url.port}` }, body: JSON.stringify(INITIALIZE) });
     expect(response.status).toBe(200);
     await response.text();
@@ -254,10 +265,10 @@ describe("the tasks of sessions over Streamable HTTP", () => {
 
   async function host(maxRunning?: number) {
     const state = { started: 0, aborted: 0 };
-    const mcpHost = createMcpHost({ modules: [waitModule(state)], faces: { http: { port: await freePort() } }, tasks: maxRunning ? { maxRunning } : {} });
+    const mcpHost = createMcpHost({ modules: [waitModule(state)], faces: { http: {} }, tasks: maxRunning ? { maxRunning } : {} });
     await mcpHost.start();
     cleanups.push(() => mcpHost.stop());
-    return { host: mcpHost, state, url: new URL(mcpHost.state().faces[0]!.url!) };
+    return { host: mcpHost, state, url: new URL(await listenFor((req, res) => mcpHost.handleHttp(req, res))) };
   }
 
   async function connect(url: URL) {

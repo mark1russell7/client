@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/collections",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Collections for TypeScript: ArrayList, LinkedList, ArrayDeque, HashMap, LinkedHashMap, TreeMap (red-black), PriorityQueue, LRU and TTL maps, async queues, channels and collectors, tested with fast-check.",
   "keywords": [
     "collections",

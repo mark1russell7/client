@@ -759,8 +759,9 @@ export class McpServerTransport implements ServerTransport {
       // Connect MCP server to transport
       if (transport) await this.mcpServer.connect(transport);
       if (this.http) {
-        this.httpUrl = await this.http.listen();
-        this.log(`Using Streamable HTTP at ${this.httpUrl}`);
+        // The endpoint has no listener (CLI-11): the owner of a listener mounts handleHttp
+        this.httpUrl = this.http.path;
+        this.log(`Using Streamable HTTP at the path ${this.httpUrl}`);
       }
     } catch (error) {
       this.removeRegistryListeners();
@@ -806,7 +807,7 @@ export class McpServerTransport implements ServerTransport {
 
   /**
    * This method answers a request of the Streamable HTTP endpoint on a listener that another part
-   * owns (`httpOptions.mount`, CLI-7). It gives false for another path, and before `start()`.
+   * owns (CLI-7, CLI-11). It gives false for another path, and before `start()`.
    */
   handleHttp(req: IncomingMessage, res: ServerResponse): boolean {
     return this.http?.handle(req, res) ?? false;

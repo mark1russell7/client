@@ -1,5 +1,40 @@
 # @procedures/bundle-dev
 
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+  - @procedures/cli-run@0.16.0
+  - @procedures/dag@0.16.0
+  - @procedures/fs@0.16.0
+  - @procedures/git@0.16.0
+  - @procedures/lib@0.16.0
+  - @procedures/pnpm@0.16.0
+  - @procedures/procedure@0.16.0
+  - @procedures/shell@0.16.0
+  - @procedures/compiler@0.16.0
+
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+  - @procedures/cli-run@0.15.1
+  - @procedures/dag@0.15.1
+  - @procedures/fs@0.15.1
+  - @procedures/git@0.15.1
+  - @procedures/lib@0.15.1
+  - @procedures/pnpm@0.15.1
+  - @procedures/procedure@0.15.1
+  - @procedures/shell@0.15.1
+  - @procedures/compiler@0.15.1
+
 ## 0.15.0
 
 ### Patch Changes

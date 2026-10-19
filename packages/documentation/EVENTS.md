@@ -241,6 +241,34 @@ Other facts:
 - The expose rule of the procedures does not apply to it, as for `host.health`. The topic rule is its expose rule. The server pins it with `{ alwaysOn: true }`. The expose rule applies to each other pin (CLI-47).
 - A nested call cannot reach it. The context client finds only the procedures of the registry.
 
+### The re-check of an open subscription
+
+A right can change after the start of a subscription, for example when the app removes a user from a group. The publisher can examine an open subscription again (roadmap CLI-44):
+
+```ts
+const server = new ProcedureServer({
+  registry,
+  events: {
+    bus,
+    topics: ["collections.*"],
+    allow: (topic, call) => rights.canRead(call.principal, topic),
+    recheck: { maxAge: minutes(1), rightsChanges: (listener) => rights.onChange(listener) },
+  },
+});
+server.publisher?.rightsChanged("ann"); // the subscriptions of the principal "ann"
+```
+
+- The check is the same function as at the start: the topic rule, the reads of the capability, `events.allow` and the partition of each topic. The capability and the principal stay the values of the call.
+- `rightsChanged(change)` of `EventPublisher` starts a check of each open subscription that the change touches. The change is the id of a principal, or a test of the principal. Without it, each open subscription gets a check.
+- The source `recheck.rightsChanges` gets one listener of the publisher while the publisher has an open subscription. Each call of the listener is a call of `rightsChanged()`.
+- `recheck.maxAge` starts a check when this time passed after the last check. The time is on the clock of the publisher. A `ProcedureServer` gives its own clock to the publisher that it makes. The option has no default.
+- While a check runs, the events of the subscription wait in its queue. The option `buffer` (default 1024) limits the queue, so a slow check holds at most that number of events. When the queue is full, the oldest event goes, and the next event tells the loss (`dropped`).
+- When the check passes, the subscription continues with the events that waited.
+- When the check refuses, the subscription ends with the error of the check, for example `FORBIDDEN` with the reason `topic-not-allowed`. The events that waited do not reach the subscriber.
+- When the resolver refuses the partition at the check, the subscription ends with `FORBIDDEN` and the reason `partition-not-allowed`. When the resolver gives another partition, the subscription ends in the same way. The subscriber then subscribes to the new partition.
+- The output filter of the host (`admitItem`) examines the rows of each event already, so a row whose right changed stays out at once.
+- Without a call of `rightsChanged()` and without the option `recheck`, a subscription keeps the checks of its start.
+
 ## The errors
 
 | Case | Code | HTTP | Reason |
@@ -257,6 +285,7 @@ Other facts:
 - `TOPIC_NOT_FOUND` is a new code of the protocol. Its message names the first unknown topic.
 - `TOPIC_CLEARED` is a new code of the protocol too. Its message names the cleared topic. The error comes in the stream, after the confirmation, so the HTTP status of the response stays 200.
 - An unknown topic comes before a refused topic. The publisher examines each topic for the topic rule first.
+- A re-check that refuses an open subscription (CLI-44) gives its error in the stream, after the confirmation. The HTTP status of the response thus stays 200.
 
 ## The stop of a publisher
 
@@ -365,6 +394,27 @@ A subscriber names a partition as an input does:
 - A subscriber thus cannot name the topic of another tenant. The events keep the topic that the subscriber named.
 - A topic with a partition of a collection without partitions is refused (`FORBIDDEN`, reason `partition-not-allowed`). A call without a repository is refused in the same way.
 
+The name of a collection with partitions can have a dot (roadmap CLI-42):
+
+- In the topic of a partition, the name encodes `%` as `%25` and `.` as `%2E`. The first dot after the name thus ends the name.
+- The partition stays as it is, and it can have each character. The topic of the partition `acme/space` of `graph.nodes` is `collections.graph%2Enodes.acme/space`.
+- A name without `.` and `%` keeps its topic. The topic of a collection without a partition keeps the name as it is: `collections.graph.nodes`.
+- `collectionChangeTopic(name, partition)` makes a topic, and `collectionTopicPartition(topic)` reads it. Use these functions. Do not join the parts yourself.
+- Only the canonical form of a topic counts. The parse gives a collection and a partition only when `collectionChangeTopic()` gives the same topic again. Thus `collections.graph%2enodes.t1` names no collection.
+- A name with `%` or `.` gets a new topic of a partition. Upgrade the publishers and the subscribers of such a name together.
+
+Build the topic rule of a collection with `collectionTopicRule(name)`:
+
+```ts
+const publisher = new EventPublisher({ bus, topics: ["orders.*", ...collectionTopicRule("graph.nodes")] });
+// collectionTopicRule("graph.nodes") gives ["collections.graph.nodes", "collections.graph%2Enodes.*"]
+```
+
+- The rule has the plain topic and the pattern of the topics of the partitions. A rule that you join yourself, for example `collections.graph.nodes.*`, matches no topic of a partition of a dotted name.
+- For a collection with partitions, the plain topic asks for no partition, and the resolver decides.
+- For a collection without partitions, a topic of a partition passes the rule. The publisher then refuses it with `FORBIDDEN` (reason `partition-not-allowed`).
+- The pattern matches only the canonical form, so an alias of an escape gets `TOPIC_NOT_FOUND`.
+
 #### The rules of the rows of a collection
 
 A right can depend on the document, for example a `when` condition of an access list (roadmap CLI-41). The option `admission` of `createCollectionProcedures()` gives two rules:
@@ -433,6 +483,7 @@ server.publish("orders.created", { order: 1 }); // the same as bus.emit()
 
 - `src/events/remote.test.ts`: subscribe, publish, receive and unsubscribe on the local transport, HTTP and WebSocket. The unknown and the refused topic on each face. The shared call, a late subscriber and the end at `clear()` on each face.
 - `src/events/remote.test.ts` also tests the share: one call and one cancel, the keys, an error for each subscriber, and a slow subscriber. The limit of the tries and the backoff of durations use a fake clock.
+- `src/events/recheck.test.ts` (roadmap CLI-44): a revoked right ends a subscription at the signal, or after the max age on a fake clock without a signal. A right that stays valid keeps the subscription. A partition that changes ends it.
 - `src/events/bus.test.ts`: the option `onClear` of `on()`, with `clear()` and `clearAll()`.
 - `src/adapters/websocket/events.test.ts`: two subscribers and their order, a slow subscriber with credit, and the resubscribe after a drop. It also tests the two directions, the stop of the publisher, and the listeners after `close()`.
 - `src/leaks.test.ts` (roadmap R30): the maps of the two sides and the listeners of the bus are empty after many subscriptions.
