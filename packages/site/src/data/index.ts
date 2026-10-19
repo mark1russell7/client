@@ -1,5 +1,8 @@
 /**
  * The data of the site. `scripts/gen-data.mjs` generates it from the workspace before each build.
+ *
+ * Each page loads this module. Thus it has the procedures without their input and output
+ * schemas. The page of a procedure loads the schemas of its package (refer to `schemas.ts`).
  */
 
 import catalogJson from "./generated/catalog.js";
@@ -12,16 +15,14 @@ export interface Field {
   optional: boolean;
 }
 
-/** One procedure of the registry. */
-export interface ProcedureInfo {
+/** One procedure of the registry, without its schemas. Each page has this data. */
+export interface ProcedureSummary {
   key: string;
   path: string[];
   /** The folder of the package that defines the procedure. */
   package: string;
   description: string;
   tags: string[];
-  input: JsonSchema;
-  output: JsonSchema;
   /** The procedure is in the registry by default (the servers can call it). */
   registered: boolean;
   /** The `mark` CLI has the procedure as a command: its package declares `client.procedures`. */
@@ -32,6 +33,15 @@ export interface ProcedureInfo {
   mcp: boolean;
   fields: Field[] | null;
 }
+
+/** The input and the output schema of a procedure. Only the page of the procedure loads them. */
+export interface ProcedureSchemas {
+  input: JsonSchema;
+  output: JsonSchema;
+}
+
+/** One procedure of the registry, with its schemas (refer to `loadProcedure` in `schemas.ts`). */
+export interface ProcedureInfo extends ProcedureSummary, ProcedureSchemas {}
 
 /** One package of the workspace. */
 export interface PackageInfo {
@@ -86,7 +96,7 @@ export interface SiteMetrics {
 }
 
 interface Catalog {
-  procedures: ProcedureInfo[];
+  procedures: ProcedureSummary[];
   mcpTools: string[];
   failed: LoadFailure[];
   build: BuildInfo;
@@ -95,7 +105,8 @@ interface Catalog {
 
 const catalog = catalogJson as unknown as Catalog;
 
-export const procedures: ProcedureInfo[] = catalog.procedures;
+/** The procedures without their schemas, sorted by key. */
+export const procedures: ProcedureSummary[] = catalog.procedures;
 export const packages: PackageInfo[] = packagesJson as unknown as PackageInfo[];
 export const mcpTools: string[] = catalog.mcpTools;
 export const failedPackages: LoadFailure[] = catalog.failed ?? [];
@@ -104,8 +115,8 @@ export const metrics: SiteMetrics = catalog.metrics ?? { tests: 0, testFiles: 0,
 
 const byKey = new Map(procedures.map((procedure) => [procedure.key, procedure]));
 
-/** This function gives the procedure at a key ("client.add"), or undefined. */
-export function procedureByKey(key: string): ProcedureInfo | undefined {
+/** This function gives the procedure at a key ("client.add") without its schemas, or undefined. */
+export function procedureByKey(key: string): ProcedureSummary | undefined {
   return byKey.get(key);
 }
 
@@ -224,6 +235,6 @@ export interface ReleasesIndex {
 }
 
 /** The category of a core procedure, from its tags: "control-flow", "math", "string" and so on. */
-export function categoryOf(procedure: ProcedureInfo): string {
+export function categoryOf(procedure: ProcedureSummary): string {
   return procedure.tags.find((tag) => tag !== "core") ?? procedure.path[0] ?? "other";
 }
