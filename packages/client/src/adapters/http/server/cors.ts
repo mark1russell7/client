@@ -80,7 +80,7 @@ export interface CorsPolicy {
   readonly credentials: boolean;
   /** The value of `Access-Control-Max-Age` in seconds, or undefined. */
   readonly maxAge: string | undefined;
-  /** True: a response for an origin that is not permitted gets no CORS header (`credentialedCors()`). */
+  /** True: a response for an origin that is not permitted gets no CORS header (`credentialedCors()`, `procedureHandler`). */
   readonly permittedOnly?: boolean | undefined;
 }
 

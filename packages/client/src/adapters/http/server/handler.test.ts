@@ -293,6 +293,33 @@ describe("procedureHandler: CORS (CLI-3, CLI-18)", () => {
     expect(other.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
+  it("sends no Access-Control header to an origin that it does not permit, and Vary: Origin on each response (CLI-56)", async () => {
+    const { port } = await startApp({ cors: { origin: ["https://app.example"], credentials: true, maxAge: seconds(60) } });
+    const accessControl = (headers: IncomingMessage["headers"]): string[] => Object.keys(headers).filter((name) => name.startsWith("access-control-"));
+    const preflight = await send(port, "OPTIONS", "/api/proc/proc/echo", { origin: "https://other.example", "access-control-request-method": "POST" });
+    expect(preflight.status).toBe(204);
+    expect(accessControl(preflight.headers)).toEqual([]);
+    expect(preflight.headers["vary"]).toBe("Origin");
+    const call = await send(port, "POST", "/api/proc/proc/echo", { ...JSON_HEADERS, origin: "https://other.example" }, '{"text":"c"}');
+    expect(call.status).toBe(403);
+    expect(accessControl(call.headers)).toEqual([]);
+    expect(call.headers["vary"]).toBe("Origin");
+    // A request without an origin gets no CORS header either, and the same Vary: a shared cache keeps one answer for each origin
+    const plain = await send(port, "POST", "/api/proc/proc/echo", JSON_HEADERS, '{"text":"c"}');
+    expect(plain.status).toBe(200);
+    expect(accessControl(plain.headers)).toEqual([]);
+    expect(plain.headers["vary"]).toBe("Origin");
+    // The permitted origin keeps each header
+    const allowed = await send(port, "OPTIONS", "/api/proc/proc/echo", { origin: "https://app.example", "access-control-request-method": "POST" });
+    expect(accessControl(allowed.headers).sort()).toEqual([
+      "access-control-allow-credentials",
+      "access-control-allow-headers",
+      "access-control-allow-methods",
+      "access-control-allow-origin",
+      "access-control-max-age",
+    ]);
+  });
+
   it("sends no credentials header for the origin \"*\"", async () => {
     const { port } = await startApp({ cors: true });
     const preflight = await send(port, "OPTIONS", "/api/proc/proc/echo", { origin: "https://any.example" });
