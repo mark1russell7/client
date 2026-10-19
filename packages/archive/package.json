@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/archive",
-  "version": "0.13.2",
+  "version": "0.15.0",
   "description": "Archives as procedures: make, list and extract tar.gz and zip, with a check of each path against zip slip and links out of the target.",
   "keywords": [
     "procedures",

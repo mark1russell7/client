@@ -184,6 +184,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 5.0.3
         version: 5.0.3(vitest@5.0.3)
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       publint:
         specifier: ^0.3.25
         version: 0.3.25
@@ -427,13 +430,13 @@ importers:
     dependencies:
       '@mark1russell7/algebra':
         specifier: ^0.7.1
-        version: 0.7.1(zod@4.6.5)
+        version: 0.7.2(zod@4.6.5)
       '@mark1russell7/quantity':
         specifier: ^0.2.0
         version: 0.2.0(zod@4.6.5)
       '@mark1russell7/service':
-        specifier: ^0.5.1
-        version: 0.5.2(zod@4.6.5)
+        specifier: ^0.5.3
+        version: 0.5.3(zod@4.6.5)
       express:
         specifier: ^4.0.0 || ^5.0.0
         version: 5.2.1(supports-color@7.2.0)
@@ -699,6 +702,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@mark1russell7/service':
+        specifier: ^0.5.2
+        version: 0.5.3(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -874,8 +880,8 @@ importers:
   packages/client-server:
     dependencies:
       '@mark1russell7/service':
-        specifier: ^0.5.2
-        version: 0.5.2(zod@4.6.5)
+        specifier: ^0.5.3
+        version: 0.5.3(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -886,9 +892,18 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.32.1(supports-color@7.2.0)(zod@4.6.5)
+      '@procedures/better-auth':
+        specifier: workspace:*
+        version: link:../better-auth
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@procedures/mcp-server':
+        specifier: workspace:*
+        version: link:../client-mcp
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -1027,7 +1042,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.2(zod@4.6.5)
+        version: 0.5.3(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1287,6 +1302,9 @@ importers:
 
   packages/impl-mcp-dev:
     dependencies:
+      '@mark1russell7/service':
+        specifier: ^0.5.2
+        version: 0.5.3(zod@4.6.5)
       '@procedures/bundle-mcp':
         specifier: workspace:*
         version: link:../bundle-mcp
@@ -1373,7 +1391,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.2(zod@4.6.5)
+        version: 0.5.3(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -1760,7 +1778,7 @@ importers:
         version: 1.0.0
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.2(zod@4.6.5)
+        version: 0.5.3(zod@4.6.5)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
@@ -1775,7 +1793,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.2
-        version: 0.5.2(zod@4.6.5)
+        version: 0.5.3(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -2020,7 +2038,7 @@ importers:
     dependencies:
       '@mark1russell7/service':
         specifier: ^0.5.1
-        version: 0.5.2(zod@4.6.5)
+        version: 0.5.3(zod@4.6.5)
       '@procedures/client':
         specifier: workspace:*
         version: link:../client
@@ -3124,8 +3142,8 @@ packages:
     resolution: {integrity: sha512-6QEf6yqFbETdwGITKq57aYoPfX/3K8XFNwsAlx0C1M7o8cb79sv1M3w+tWuWvIcSbNqrLF7OD7YpZMVVz335hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@mark1russell7/algebra@0.7.1':
-    resolution: {integrity: sha512-+nimxDO9pEOwNxVJ7/F4vOAba8CnytN/DbRJKN7FxF/Q+g5Yy2u6e+3bbjiuq0eH9vCWwc3WlIuyDJhSFfuNow==}
+  '@mark1russell7/algebra@0.7.2':
+    resolution: {integrity: sha512-O1gaRMeyI2gYA9I/Hi9WazKwoQXNgTP/IOkP/qsTN3LdtUjAmNrGUzuNAF9+SgA9atJ+85HF1iBeCivRcdbFsg==}
     engines: {node: '>=22.19'}
     peerDependencies:
       zod: ^4.1.0
@@ -3148,8 +3166,8 @@ packages:
       zod:
         optional: true
 
-  '@mark1russell7/service@0.5.2':
-    resolution: {integrity: sha512-PwoZg09iW3my0Iu/+dlf9dWXCu6v28Lqd5Joy/eRpO0HNdwGkBcUjvptYkzF4ApaFzJpxDu/sMaG1vBn8KudxA==}
+  '@mark1russell7/service@0.5.3':
+    resolution: {integrity: sha512-lUigYnoxFVwL5E1DRvNON20HN11WQW873P5/C5ggUMLm91dBZOySqGJKs5ab/wEh+tOZ23MNhvzdAb4Lqqn7Jw==}
     engines: {node: '>=22.19'}
     peerDependencies:
       ioredis: ^6.0.0
@@ -6235,7 +6253,7 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
 
-  '@mark1russell7/algebra@0.7.1(zod@4.6.5)':
+  '@mark1russell7/algebra@0.7.2(zod@4.6.5)':
     dependencies:
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
       zod: 4.6.5
@@ -6251,9 +6269,9 @@ snapshots:
     optionalDependencies:
       zod: 4.6.5
 
-  '@mark1russell7/service@0.5.2(zod@4.6.5)':
+  '@mark1russell7/service@0.5.3(zod@4.6.5)':
     dependencies:
-      '@mark1russell7/algebra': 0.7.1(zod@4.6.5)
+      '@mark1russell7/algebra': 0.7.2(zod@4.6.5)
       '@mark1russell7/quantity': 0.2.0(zod@4.6.5)
     optionalDependencies:
       zod: 4.6.5

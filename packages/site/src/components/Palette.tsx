@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-import { categoryOf, type ProcedureInfo } from "../data";
+import { categoryOf, type ProcedureSummary } from "../data";
 import { PHONE_QUERY, useMediaQuery } from "../lib/media";
 import { DRAG_TYPE, browserProcedures } from "./Blocks";
 
@@ -18,7 +18,7 @@ export function Palette({ onInsert, target }: { onInsert: (key: string) => void;
 
   const groups = useMemo(() => {
     const text = query.trim().toLowerCase();
-    const map = new Map<string, ProcedureInfo[]>();
+    const map = new Map<string, ProcedureSummary[]>();
     for (const procedure of browserProcedures) {
       if (text && !procedure.key.toLowerCase().includes(text) && !procedure.description.toLowerCase().includes(text)) continue;
       const category = categoryOf(procedure);

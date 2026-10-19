@@ -191,6 +191,9 @@ export class HttpTransport implements Transport {
         const body = responseBody as { reason?: unknown; code?: unknown } | null | undefined;
         const reason = typeof body?.reason === "string" ? body.reason : typeof body?.code === "string" ? foldedErrorCode(body.code).reason : undefined;
         if (reason !== undefined) metadata["reason"] = reason;
+        // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
+        const conflicts = (responseBody as { conflicts?: unknown } | null | undefined)?.conflicts;
+        if (Array.isArray(conflicts)) metadata["conflicts"] = conflicts;
       }
 
       // Yield single response item

@@ -8,6 +8,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 - **Procedures**: every procedure of the workspace, with its input and output schemas, its CLI command and its MCP tool name. The filters are in the URL.
 - **Architecture**: the packages and their dependencies, in levels.
 - **What Claude sees**: the tools of the `dev-tools` MCP server.
+- **Releases**: each version on a timeline, with its date and its changes. `scripts/releases-data.mjs` reads the changelogs and the git tags.
 
 ## The Composer
 
@@ -21,6 +22,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 ## How it works
 
 - `scripts/gen-data.mjs` reads the workspace: each `package.json`, and the procedures of each built package. It writes `src/data/generated/`. Git ignores that folder.
+- Each page loads the procedures without their schemas. The page of a procedure loads the schemas of its package only (`src/data/schemas.ts`).
 - The site depends on each package that registers procedures, so `pnpm -r build` builds them first. The script stops with an error when a package is not built or does not load. `SITE_ALLOW_LOAD_FAILURES=1` lets a local build continue, and the footer then names the packages that did not load.
 - `scripts/core-fields.mjs` reads the input fields of the core procedures from their TypeScript source. Their runtime schemas do not list fields.
 - The Composer imports `@procedures/client/browser`. That entry point has no Node server code.

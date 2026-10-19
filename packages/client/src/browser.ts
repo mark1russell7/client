@@ -4,7 +4,8 @@
  * This module exports everything of the package except the Node server transports
  * (`HttpServerTransport` and `WebSocketServerTransport`, which use `http` and `ws`).
  * A browser bundle imports "@procedures/client/browser". The root entry point
- * re-exports this module and adds the server transports.
+ * re-exports this module. It also adds the server transports as deprecated aliases: their entry
+ * is "@procedures/client/node", and the next MINOR removes them from the root (CLI-6).
  *
  * Collections (maps, caches, collection storage) are in @procedures/collections.
  * The program store, the storage backends that need a Client (ApiStorage, HybridStorage) and the
@@ -85,6 +86,8 @@ export type { HostSource } from "./server/host-procedures.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, UseStorageOptions } from "./server/procedure-server.js";
 // The stop parts of the server and its storages as dependencies, in the shape of the runner (CLI-5)
 export type { StopParts, StorageHandle } from "./server/procedure-server.js";
+// The limits of the calls: keyed limiters of @mark1russell7/service/limiter in the admission path (CLI-40)
+export type { CallLimit, CallLimitCovers, CallLimitKey, CallLimitKeyPart, LimitedCall } from "./server/limits.js";
 export {
   HandlerNotFoundError,
   ServerError,
@@ -130,6 +133,9 @@ export {
   PARTITION_PATTERN,
   collectionTopicPartition,
   collectionTopicTarget,
+  // The rules of the rows of a collection (roadmap CLI-41)
+  admittedStorage,
+  admitsRow,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
@@ -145,6 +151,17 @@ export {
   queryEntries,
   queryOptionsProblems,
   selectorProblems,
+  // The precondition of the collection writes (roadmap CLI-16)
+  MAX_EXPECTED_VERSION_LENGTH,
+  PRECONDITION_NOT_SUPPORTED,
+  VERSION_CONFLICTS_METADATA_KEY,
+  VersionConflictError,
+  asVersionConflictError,
+  isExpectedVersion,
+  preconditionNotSupported,
+  versionConflict,
+  versionConflicts,
+  versionConflictsOf,
   // Manual registration helpers
   registerModule,
   registerProcedures,
@@ -264,6 +281,11 @@ export type {
   StorageChanges,
   StorageMetadata,
   StorageWriteOptions,
+  StorageItemWriteOptions,
+  StorageBatchWriteOptions,
+  CurrentItem,
+  VersionConflict,
+  VersionOf,
   StorageSetChange,
   StorageDeleteChange,
   StorageClearChange,
@@ -281,6 +303,10 @@ export type {
   StorageQueryPolicy,
   CollectionProceduresOptions,
   CollectionChangeEventsOptions,
+  CollectionAdmission,
+  CollectionRow,
+  CollectionWrite,
+  CollectionWriteGuard,
   CollectionPartitions,
   PartitionInput,
   PartitionResolver,

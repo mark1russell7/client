@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { procedureByKey } from "../data";
+import { loadProcedure } from "../data/schemas";
 import { exampleInput, usageCode } from "./usage";
 
 const run = promisify(execFile);
@@ -23,7 +23,8 @@ beforeAll(() => {
 describe("the usage of a procedure", () => {
   for (const key of ["client.add", "client.range", "client.toUpper"]) {
     it(`${key}: the TypeScript code runs`, async () => {
-      const procedure = procedureByKey(key);
+      // The page of a procedure loads its schemas: the test does the same
+      const procedure = await loadProcedure(key);
       expect(procedure).toBeDefined();
       const file = join(folder, `${key}.mjs`);
       writeFileSync(file, usageCode(procedure!, "@procedures/client"));
@@ -32,12 +33,12 @@ describe("the usage of a procedure", () => {
     });
   }
 
-  it("gives the required fields of a core procedure from its typed fields", () => {
-    expect(exampleInput(procedureByKey("client.add")!)).toEqual({ a: 1, b: 1 });
+  it("gives the required fields of a core procedure from its typed fields", async () => {
+    expect(exampleInput((await loadProcedure("client.add"))!)).toEqual({ a: 1, b: 1 });
   });
 
-  it("imports the package of another procedure", () => {
-    const code = usageCode(procedureByKey("git.status")!, "@procedures/git");
+  it("imports the package of another procedure", async () => {
+    const code = usageCode((await loadProcedure("git.status"))!, "@procedures/git");
     expect(code).toContain('import "@procedures/git/register";');
     expect(code).toContain('client.exec(["git","status"], {})');
   });

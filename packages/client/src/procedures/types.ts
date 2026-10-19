@@ -14,6 +14,7 @@ import type { CollectionStorage } from "./collection/storage.js";
 import type { EventBus } from "../events/types.js";
 import type { HydrationEvent } from "./ref.js";
 import type { Principal } from "../server/types.js";
+import type { Invocation } from "./invoke.js";
 
 // =============================================================================
 // Procedure Path
@@ -419,6 +420,13 @@ export interface ProcedureContext {
    * examines each row with it. Absent for a nested call, or when the host has no filter.
    */
   admit?: ((item: unknown) => Promise<boolean>) | undefined;
+
+  /**
+   * The invocation of this call: the procedure, the path, the principal and the capability
+   * (roadmap CLI-41). A rule with the shape of `AdmitItem` gets it, for example the rules of the
+   * rows of a collection. Absent for a context without an invocation.
+   */
+  invocation?: Invocation | undefined;
 }
 
 /**

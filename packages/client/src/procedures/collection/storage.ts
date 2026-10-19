@@ -20,6 +20,9 @@
  * - `query()` gives the result of `queryEntries()` of `@procedures/collections` for the entries.
  * - `observe()` gives one batch for each write that changes the storage, before the write resolves.
  * - `patch()` merges the fields into the item in one step.
+ * - A write with `expectedVersion` (`set`, `delete`) or `expectedVersions` (`setBatch`) tests the
+ *   version of the current item and writes in one step. A conflict changes nothing and rejects
+ *   with `VersionConflictError` (roadmap CLI-16).
  */
 
 import type { StoragePatch, StorageQueryOptions, StorageQueryPolicy, StorageSelector } from "./query.js";
@@ -76,10 +79,13 @@ export interface CollectionStorage<T> {
   has(id: string): Promise<boolean>;
   /** The number of items. */
   size(): Promise<number>;
-  /** Set the item of an id. The options give the origin of the write to the observers. */
-  set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
-  /** Delete the item of an id. True when it existed. */
-  delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+  /**
+   * Set the item of an id. The options give the origin of the write to the observers, and the
+   * expected version of the current item (roadmap CLI-16).
+   */
+  set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+  /** Delete the item of an id. True when it existed. The options can expect a version, as for `set`. */
+  delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
   /** Delete every item. */
   clear(options?: StorageWriteOptions): Promise<void>;
   /**
@@ -88,8 +94,8 @@ export interface CollectionStorage<T> {
    * procedure `patch` uses it. A storage without it gets a read and a write of the item.
    */
   patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
-  /** Set several items. */
-  setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+  /** Set several items. The options can expect a version for each id (roadmap CLI-16). */
+  setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
   /** Delete several items. The number of items that existed. */
   deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
   /** The items of several ids. An id with no item is not in the map. */
@@ -112,6 +118,30 @@ export interface CollectionStorage<T> {
 export interface StorageWriteOptions {
   /** The tag of the writer. Each change that the write gives has it. */
   readonly origin?: string | undefined;
+}
+
+/**
+ * The options of `set` and `delete`: the origin, and the precondition of the write (roadmap
+ * CLI-16). `precondition.ts` gives the rules.
+ */
+export interface StorageItemWriteOptions extends StorageWriteOptions {
+  /**
+   * The version that the write expects for the current item, from `versionOf` of the storage.
+   * `null` expects no item. When the current item has another version, the write changes nothing
+   * and rejects with `VersionConflictError`. A storage without `versionOf` rejects it with a
+   * `TypeError`. Absent: no precondition.
+   */
+  readonly expectedVersion?: string | null | undefined;
+}
+
+/** The options of `setBatch`: the origin, and the precondition of each id (roadmap CLI-16). */
+export interface StorageBatchWriteOptions extends StorageWriteOptions {
+  /**
+   * The version that the write expects for the current item of each id, as for `expectedVersion`.
+   * When one id has a conflict, the batch changes no item. An id without an entry has no
+   * precondition.
+   */
+  readonly expectedVersions?: ReadonlyArray<readonly [string, string | null]> | undefined;
 }
 
 /** A change of `observe()`: an id got a value. */

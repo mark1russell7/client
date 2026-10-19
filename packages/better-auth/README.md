@@ -20,13 +20,13 @@ The package has no procedures. The package root registers nothing.
 `betterAuthConfig` reads the environment. `createBetterAuth` makes the server. Give Better Auth its own database: its `user` collection must not mix with the data of the app.
 
 ```ts
-import { betterAuthConfig, createBetterAuth } from "@procedures/better-auth";
-import { toNodeHandler } from "better-auth/node";
+import { betterAuthConfig, betterAuthHandler, createBetterAuth } from "@procedures/better-auth";
 
-const config = betterAuthConfig(process.env, { port: 9091, trustedOrigins: ["https://app.example.com"], appName: "Example" });
+const origins = ["https://app.example.com"];
+const config = betterAuthConfig(process.env, { port: 9091, trustedOrigins: origins, appName: "Example" });
 if (typeof config === "string") throw new Error(config);
 const auth = createBetterAuth(client.db("example-auth"), client, config);
-app.all("/auth/*path", toNodeHandler(auth)); // the routes belong to the app
+app.use(betterAuthHandler(auth, { allowedOrigins: origins }).middleware); // the routes belong to the app
 ```
 
 | Variable | Use |
@@ -37,6 +37,36 @@ app.all("/auth/*path", toNodeHandler(auth)); // the routes belong to the app
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The sign-in with Google. |
 | `PASSKEY_RP_ID` | The domain of the passkeys. The default is the host of the first trusted origin. |
 | `AUTH_TEST_ACCOUNTS=1` | Accounts with an email and a password, for the tests. Their email counts as verified. Production refuses it. |
+| `AUTH_CROSS_SITE_COOKIES=1` | The cookies get `SameSite=None` and `Secure`, for a page on another site. Refer to [A page on another origin](#a-page-on-another-origin). |
+
+### A page on another origin
+
+The handler of Better Auth sends no CORS headers. `betterAuthHandler(auth, options)` gives the Node handler of the auth routes with credentialed CORS. Use the `allowedOrigins` of the host, the list of the browser checks of `procedureHandler`. Thus one list of trusted origins drives the procedures and the auth routes.
+
+- A response for a trusted origin names that one origin, with `Access-Control-Allow-Credentials: true` and `Vary: Origin`.
+- The handler answers a preflight (`OPTIONS`) with 204. For a trusted origin, it names the methods (`GET`, `POST`) and the headers (`Content-Type`, `Authorization`).
+- An origin that is not trusted gets no CORS header. The CSRF checks of Better Auth also refuse its writes.
+- Each response has `Vary: Origin`, also a response without CORS headers. Thus a shared cache keeps one answer for each origin.
+- The handler refuses `"*"`, because each site could then send the cookies of the user (CSRF).
+- The option `cors` changes the methods, the headers, the exposed headers and `maxAge`. The option `basePath` is `/auth` by default.
+- Mount the handler on the mount list of a listener. For Express, give `handler.middleware` to the app.
+
+`betterAuthFace(auth)` gives the same handler as a face of a procedures host (`createProcedureHost()` of `@procedures/peer`). The face takes `browser.allowedOrigins` of the policy of the host. Each request of the routes goes through the request tracking of the host, on the route pattern of the face (`auth *`):
+
+- A request after the stop of the intake gets 503, with the CORS headers. Thus the page can read the refusal.
+- The drain waits for a request in flight. Thus a sign-in at the stop writes its session and sends its answer.
+- The readiness of the controller of the host applies: `controller.requires` can name the database of Better Auth.
+
+```ts
+const policy = hostPolicy({ browser: { allowedOrigins: origins } });
+const host = createProcedureHost({ registry, policy, faces: { http: true, auth: betterAuthFace(auth) }, listen });
+```
+
+The cookies need more for a page on another site, for example `https://app.example.com` and `https://api.other.example`:
+
+- A browser sends a cookie to another site only when the cookie has `SameSite=None`. It keeps such a cookie only when it is `Secure`, so the server needs HTTPS (or `localhost`).
+- Set `AUTH_CROSS_SITE_COOKIES=1`, or give `crossSiteCookies: true` in the configuration. The cookies then get `SameSite=None; Secure`.
+- Two ports of one host are the same site, for example the dev ports `localhost:5173` and `localhost:9091`. They need CORS, but not `SameSite=None`.
 
 ## The browser
 
@@ -63,8 +93,8 @@ if ("url" in out) location.assign(out.url);
 
 - Each call sends the cookies. The session cookie is `httpOnly`, so a script of the page cannot read it.
 - Give the page and the server one origin. A proxy under the origin of the page also works. This is the simplest form.
-- A server on another origin needs CORS that names exactly one trusted origin, with `Access-Control-Allow-Credentials: true`. The server of this package does not send these headers. Without them, `session()` gives `undefined` and the other calls fail.
-- A server on another site also needs the cookie attributes `SameSite=None` and `Secure`.
+- A server on another origin needs CORS that names exactly one trusted origin, with `Access-Control-Allow-Credentials: true`. `betterAuthHandler` sends these headers. Without them, `session()` gives `undefined` and the other calls fail. Refer to [A page on another origin](#a-page-on-another-origin).
+- A server on another site also needs the cookie attributes `SameSite=None` and `Secure` (`AUTH_CROSS_SITE_COOKIES=1`).
 - A refused call gives `{ error }`. The functions do not throw for an answer of the server.
 - The passkeys use `@simplewebauthn/browser`, which loads only when a passkey function operates.
 
