@@ -242,6 +242,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The full history and the tags: the Releases section of the status page reads the date
+          # of each version from git, as the Pages workflow does
+          fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7

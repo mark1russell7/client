@@ -20,6 +20,7 @@ const ROUTES = [
   "lab/",
   "claude/",
   "status/",
+  "releases/",
   "docs/",
   "docs/program-format/",
   // The longest README
@@ -166,6 +167,8 @@ test.describe("the budgets", () => {
   for (const route of ROUTES) {
     test(`/${route} stays within its budget and logs no error`, async ({ page }) => {
       const { total, script, worker, errors } = await measure(page, route);
+      // The log of CI shows the size of each page, also when it is within the budget
+      console.log(`/${route}: ${total} bytes of gzip, ${script} bytes of scripts`);
       expect(errors, "console errors").toEqual([]);
       expect(total, `the page loads ${Math.round(total / 1024)} kB of gzip`).toBeLessThanOrEqual(PAGE_BUDGET);
       expect(script, `the scripts are ${Math.round(script / 1024)} kB of gzip`).toBeLessThanOrEqual(SCRIPT_BUDGET);
