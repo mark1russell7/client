@@ -1,25 +1,17 @@
 /**
  * The MCP transport over Streamable HTTP (roadmap R26), with the client of the MCP SDK: the tool
- * list, a tool call, the token, and the refusal of a web page of another origin.
+ * list, a tool call, the token, and the refusal of a web page of another origin. The endpoint has
+ * no listener (CLI-11): the test mounts it on a server of `node:http`.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { ProcedureServer, createProcedure, createRegistry } from "@procedures/client";
 import { McpServerTransport } from "./mcp-transport.js";
-
-async function freePort(): Promise<number> {
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-    });
-  });
-}
 
 let cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -41,13 +33,23 @@ async function start(token?: string): Promise<string> {
     ],
   });
   const server = new ProcedureServer({ registry, autoRegister: true });
-  const port = await freePort();
-  const mcp = new McpServerTransport(server, { registry, transport: "http", httpOptions: { port, ...(token ? { token } : {}) } });
+  const mcp = new McpServerTransport(server, { registry, transport: "http", httpOptions: { ...(token ? { token } : {}) } });
   server.addTransport(mcp);
   await server.start();
   cleanups.push(() => server.stop());
-  expect(mcp.getState()).toMatchObject({ transport: "http", url: `http://127.0.0.1:${port}/mcp` });
-  return `http://127.0.0.1:${port}/mcp`;
+  expect(mcp.getState()).toMatchObject({ transport: "http", url: "/mcp" });
+  // The listener of the test: the endpoint answers its path, and the listener answers the rest
+  const listener = createServer((req, res) => {
+    if (mcp.handleHttp(req, res)) return;
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  cleanups.push(() => new Promise<void>((resolve) => {
+    listener.close(() => resolve());
+    listener.closeAllConnections();
+  }));
+  return `http://127.0.0.1:${(listener.address() as AddressInfo).port}/mcp`;
 }
 
 async function connect(url: string, headers: Record<string, string> = {}): Promise<McpClient> {

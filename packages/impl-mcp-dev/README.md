@@ -55,7 +55,7 @@ The server operates under `run()` of `@mark1russell7/service` (CLI-11). The runn
 
 - Over stdio, the profile is `ephemeral`. When the client closes the input, the server stops in stages and the process exits with the code 0. A first Ctrl-C stops the work, and a second one exits at once.
 - Over Streamable HTTP, the profile is `localDev`. A listener of the service answers on the port, and the MCP endpoint is at `/mcp`.
-- In code, `runDevToolsServer(config)` starts the server under the runner and gives the host, the service, the lifecycle and the URL. `startDevToolsServer()` is deprecated, and the next MINOR removes it.
+- In code, `runDevToolsServer(config)` starts the server under the runner and gives the host, the service, the lifecycle and the URL.
 
 The server serves no remote events (`documentation/EVENTS.md`). Its transport carries only MCP, and `events.subscribe` is not a tool. Thus the host has no variable for the topics.
 

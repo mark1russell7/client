@@ -6,13 +6,14 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createServer } from "node:net";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { createProcedure, defineModule, ladder, NARROWING_HEADER, NARROWING_METADATA_KEY, type AnyProcedure } from "@procedures/client";
-import { createMcpHost, type McpHostOptions } from "../host.js";
+import { createMcpHost, type McpHost, type McpHostOptions } from "../host.js";
 
 const AUDIENCES = ["public", "guest", "intimate"];
 
@@ -40,6 +41,27 @@ afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});
   cleanups = [];
 });
+
+/**
+ * This function mounts the Streamable HTTP face of a host on a listener of the test, on a free port
+ * of loopback, and gives the URL of the endpoint. The face has no listener of its own (CLI-11).
+ */
+async function listenFor(host: McpHost): Promise<URL> {
+  const listener = createServer((req, res) => {
+    if (host.handleHttp(req, res)) return;
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  cleanups.push(
+    () =>
+      new Promise<void>((resolve) => {
+        listener.close(() => resolve());
+        listener.closeAllConnections();
+      }),
+  );
+  return new URL(`http://127.0.0.1:${(listener.address() as AddressInfo).port}/mcp`);
+}
 
 async function start(policy: McpHostOptions["policy"] = {}): Promise<McpClient> {
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
@@ -72,21 +94,14 @@ describe("the narrowing key on the MCP face (CLI-30)", () => {
   });
 
   it("combines the header of Streamable HTTP and the _meta key in each sequence, and refuses a header that is not valid", async () => {
-    const port = await new Promise<number>((resolve) => {
-      const probe = createServer();
-      probe.listen(0, "127.0.0.1", () => {
-        const address = probe.address();
-        probe.close(() => resolve(typeof address === "object" && address ? address.port : 0));
-      });
-    });
     const host = createMcpHost({
       modules: [testModule()],
-      faces: { http: { port } },
+      faces: { http: {} },
       policy: { capability: { clearance: "intimate" }, clearanceOrder: ladder(AUDIENCES) },
     });
     await host.start();
     cleanups.push(() => host.stop());
-    const url = new URL(host.state().faces[0]!.url!);
+    const url = await listenFor(host);
     const connect = async (header: unknown): Promise<McpClient> => {
       const client = new McpClient({ name: "test", version: "0" });
       // The SDK types do not agree with exactOptionalPropertyTypes

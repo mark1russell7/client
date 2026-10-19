@@ -53,21 +53,11 @@ export type McpToolContentHook = (result: McpToolContentInput) => McpToolContent
  * SSE transport configuration options.
  */
 /**
- * The options of the Streamable HTTP transport (roadmap R26). Give `mount: true` and mount the
- * handler of the endpoint on a listener. An endpoint with a listener of its own (`port`, `host`,
- * `server`) is deprecated (CLI-11).
+ * The options of the Streamable HTTP transport (roadmap R26). The endpoint has no listener of its
+ * own (CLI-11): the owner of a listener mounts its request handler (`McpServerTransport.handleHttp`
+ * or `McpHost.handleHttp`), for example a listener of the service or the procedures host.
  */
 export interface HttpTransportOptions {
-  /**
-   * Port to listen on (default: 3003)
-   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11). Give `mount: true`, and mount `McpHost.handleHttp` on a listener of the service.
-   */
-  port?: number | undefined;
-  /**
-   * Host to bind to (default: "127.0.0.1": only this computer can reach the tools)
-   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11). The listener of the service sets its address.
-   */
-  host?: string | undefined;
   /** The path of the MCP endpoint (default: "/mcp") */
   path?: string | undefined;
   /** A secret that each request must send as `Authorization: Bearer <token>` */
@@ -80,13 +70,9 @@ export interface HttpTransportOptions {
    */
   allowedHosts?: readonly string[] | "*" | undefined;
   /**
-   * An HTTP server to answer on, in place of a server of the transport (it does not listen then)
-   * @deprecated The next MINOR removes it (CLI-11). Give `mount: true`, and mount the handler on the server.
-   */
-  server?: import("node:http").Server | undefined;
-  /**
-   * True: the endpoint has no server and attaches to none. The owner of a listener mounts its
-   * request handler (`McpServerTransport.handleHttp`), for example the procedures host (CLI-7).
+   * This option has no effect: the endpoint is always mounted (CLI-11). Code that followed the
+   * migration of 0.14.x gives `mount: true`, so the option stays one more release.
+   * @deprecated Remove it. A later MINOR removes the option.
    */
   mount?: boolean | undefined;
   /**
@@ -214,7 +200,7 @@ export interface McpServerTransportState {
   toolCount: number;
   /** Transport type in use */
   transport: "stdio" | "sse" | "http";
-  /** The URL of the Streamable HTTP endpoint, when the transport is "http" */
+  /** The path of the Streamable HTTP endpoint, when the transport is "http". The owner of the listener gives the address (CLI-11). */
   url?: string;
   /** The open sessions of the Streamable HTTP endpoint, when the transport is "http" (CLI-35) */
   sessions?: number;
