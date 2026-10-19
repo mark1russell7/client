@@ -1,5 +1,14 @@
 # @procedures/git
 
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [deada4b]
+  - @procedures/client@0.16.0
+  - @procedures/fs@0.16.0
+  - @procedures/shell@0.16.0
+
 ## 0.15.1
 
 ### Patch Changes
