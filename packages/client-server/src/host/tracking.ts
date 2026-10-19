@@ -82,55 +82,6 @@ export interface FaceHandlerOptions {
   readonly keyed: boolean;
 }
 
-/**
- * The calls of the faces of a host that wait for their answer from the service (CLI-48). This count
- * is internal to the host: the package root does not export it. A face
- * writes the answer after it gets it. Thus the drain of the host waits on this count after the
- * cooperative abort, and the close of the transports does not lose the answer of a cut call.
- */
-export interface PendingAnswers {
-  /** This method counts a call until its answer settles, and gives the same promise. */
-  track<T>(answer: Promise<T>): Promise<T>;
-  /** This method gives the number of the calls that wait for their answer. */
-  count(): number;
-  /**
-   * This method waits until no call waits for its answer. Then it gives `ANSWER_TURNS` turns of the
-   * microtask queue, so a face that writes an answer through more promises (the MCP SDK) writes it.
-   * The method has no timer and gives no turn of the event loop, so it ends before the cap of the drain.
-   */
-  settled(): Promise<void>;
-}
-
-/** The turns of the microtask queue that `settled()` gives after the last answer. */
-const ANSWER_TURNS = 64;
-
-/** This function makes a count of the calls that wait for their answer. */
-export function pendingAnswers(): PendingAnswers {
-  let pending = 0;
-  let waiters: Array<() => void> = [];
-  const settle = (): void => {
-    pending -= 1;
-    if (pending > 0) return;
-    const ready = waiters;
-    waiters = [];
-    for (const waiter of ready) waiter();
-  };
-  return {
-    track: (answer) => {
-      pending += 1;
-      // This reaction comes before the reaction of the face. A waiter continues after the reaction
-      // of the face, so the face writes the answer first.
-      void answer.then(settle, settle);
-      return answer;
-    },
-    count: () => pending,
-    settled: async () => {
-      if (pending > 0) await new Promise<void>((resolve) => waiters.push(resolve));
-      for (let turn = 0; turn < ANSWER_TURNS; turn += 1) await Promise.resolve();
-    },
-  };
-}
-
 /** A part of the stream of a call: the head of the response first, then each item of a stream. */
 type Part = { readonly head: ServerResponse; readonly streams: boolean } | { readonly value: unknown };
 
@@ -264,23 +215,13 @@ async function trackedCall(life: Lifecycle, options: FaceHandlerOptions, request
  * goes through `life.request`. Without a service, each call goes to the server directly.
  */
 export function faceHandler(options: FaceHandlerOptions): FaceHandler {
-  return countedFaceHandler(options, undefined);
-}
-
-/**
- * This function gives the handler of one face of the host, and counts each call that waits for its
- * answer in `answers`. Only the host uses it: the package root does not export it (CLI-48).
- */
-export function countedFaceHandler(options: FaceHandlerOptions, answers: PendingAnswers | undefined): FaceHandler {
   const { server } = options;
   return {
     ambientCredentials: server.ambientCredentials,
     getRegistry: () => server.getRegistry(),
     handle: (request: ServerRequest): Promise<ServerResponse> => {
       const life = options.life();
-      if (!life) return server.handle(request);
-      const answer = trackedCall(life, options, request);
-      return answers ? answers.track(answer) : answer;
+      return life ? trackedCall(life, options, request) : server.handle(request);
     },
   };
 }
