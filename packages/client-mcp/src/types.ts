@@ -152,6 +152,10 @@ export interface McpServerTransportOptions {
   /**
    * An MCP SDK transport to connect, in place of `transport`. Use it to embed the server in
    * another process, or in a test (the SDK's `InMemoryTransport`).
+   *
+   * This face is local (CLI-1): a call without an HTTP request gets `LOCAL_CREDENTIALS`, so the
+   * token of the server does not apply. The network transports of the SDK give the HTTP request of
+   * each call, so their calls keep the credentials of that request.
    */
   sdkTransport?: SdkTransport;
 

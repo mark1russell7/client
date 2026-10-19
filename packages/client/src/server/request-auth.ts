@@ -6,7 +6,26 @@
  * This module imports no Node code: a server in a browser or a worker can use it too.
  */
 
-import type { Credentials } from "./types.js";
+import { LOCAL_MARKER, type Credentials } from "./types.js";
+
+/**
+ * The credentials of a local face (CLI-1): a call from this application, not from the network.
+ * The server applies no token and no request hook to a request with them.
+ *
+ * Only these faces set them:
+ * - A call in this process: a direct `handle()` of the code of the application.
+ * - MCP over stdio: the peer is the parent process that started this process.
+ * - A message port (`PortTransport`): only the holder of the other end of the port can send.
+ *
+ * A network face (HTTP, WebSocket, MCP over Streamable HTTP) never sets them. The marker key is a
+ * symbol, so no request from the network can carry it.
+ */
+export const LOCAL_CREDENTIALS: Credentials = Object.freeze({ [LOCAL_MARKER]: true as const });
+
+/** True when the credentials carry the local marker (CLI-1): the request comes from this application. */
+export function isLocalCredentials(credentials: Credentials | undefined): boolean {
+  return credentials?.[LOCAL_MARKER] === true;
+}
 
 /** The headers that carry a secret. They do not go into the metadata of a request. */
 const SECRET_HEADERS: ReadonlySet<string> = new Set(["authorization", "proxy-authorization", "cookie", "x-api-key"]);

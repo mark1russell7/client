@@ -15,7 +15,7 @@ import { ladder, joinNarrowing } from "../procedures/capability.js";
 import { ProcedureServer, type ProcedureServerOptions } from "./procedure-server.js";
 import { hostPolicy, procedureServerOptions } from "./host-policy.js";
 import { pathToMethod } from "./method.js";
-import { cookiesOf, requestCredentials, withoutSecretHeaders } from "./request-auth.js";
+import { LOCAL_CREDENTIALS, cookiesOf, requestCredentials, withoutSecretHeaders } from "./request-auth.js";
 import type { Credentials, PrincipalOf } from "./types.js";
 import { procedureHandler } from "../adapters/http/server/handler.js";
 import { upgradeHandler } from "../adapters/websocket/server/upgrade.js";
@@ -238,10 +238,12 @@ describe("principalOf: the admit path (CLI-2a)", () => {
     }
   });
 
-  it("does not call the hook for a request of this process (no credentials)", async () => {
+  it("does not call the hook for a local request, or for a request without credentials", async () => {
     let calls = 0;
-    const response = await server({ principalOf: () => (calls++, {}) }).handle(request());
-    expect(response.status.type).toBe("success");
+    const value = server({ principalOf: () => (calls++, {}) });
+    expect((await value.handle(request(LOCAL_CREDENTIALS))).status.type).toBe("success");
+    // Without a token, a request without credentials passes, as before (CLI-1 refuses it only with a token)
+    expect((await value.handle(request())).status.type).toBe("success");
     expect(calls).toBe(0);
   });
 

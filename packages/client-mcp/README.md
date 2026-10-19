@@ -106,7 +106,7 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 
 When the client closes the input of stdio, the host stops, and `closed` resolves. The entry `dist/server.js` of `@procedures/mcp-dev-tools` then ends its process.
 
-Each tool call over Streamable HTTP carries the credentials of its HTTP request: the bearer token, the cookies, the headers and the query. Thus the request hook of the policy (`principalOf`) and the token check of the server apply to each call. When the server reads cookies, the face trusts a request with a cookie only from a named origin (CSRF). A call over stdio comes from this process and has no credentials.
+Each tool call over Streamable HTTP carries the credentials of its HTTP request: the bearer token, the cookies, the headers and the query. Thus the request hook of the policy (`principalOf`) and the token check of the server apply to each call. When the server reads cookies, the face trusts a request with a cookie only from a named origin (CSRF). A call over stdio or over a given SDK transport is local: it has the local marker `LOCAL_CREDENTIALS` (CLI-1). The peer of stdio is the parent process. Thus a host with a token serves the calls of its stdio face.
 
 ## Questions to the person
 

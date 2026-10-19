@@ -23,6 +23,7 @@ import { createRegistry } from "../procedures/module.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { pathToMethod } from "./method.js";
+import { LOCAL_CREDENTIALS } from "./request-auth.js";
 
 const TOKEN = "conformance-token-0123456789";
 
@@ -267,11 +268,17 @@ describe.each(faces.filter((face) => face.name !== "LocalTransport"))("the token
   });
 });
 
-describe("a direct handle() of the server (R18)", () => {
-  it("is a request of this process: the token does not apply", async () => {
+describe("a direct handle() of the server (R18, CLI-1)", () => {
+  it("with the local marker is a request of this process: the token does not apply", async () => {
+    const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true, token: TOKEN });
+    const response = await server.handle({ id: "1", method: pathToMethod(["conf", "echo"]), payload: { text: "x" }, metadata: {}, credentials: LOCAL_CREDENTIALS });
+    expect(response.payload).toEqual({ text: "x" });
+  });
+
+  it("without credentials does not skip the token (CLI-1)", async () => {
     const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true, token: TOKEN });
     const response = await server.handle({ id: "1", method: pathToMethod(["conf", "echo"]), payload: { text: "x" }, metadata: {} });
-    expect(response.payload).toEqual({ text: "x" });
+    expect(response.status).toMatchObject({ type: "error", code: "UNAUTHORIZED" });
   });
 
   it("an authenticate function gives the principal, and refuses a request without one", async () => {

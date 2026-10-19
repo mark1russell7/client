@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 542 names
+## . (dist/index.d.ts): 545 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -137,6 +137,8 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
+LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
@@ -434,6 +436,7 @@ isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
+isLocalCredentials: dist/server/request-auth.d.ts#isLocalCredentials
 isLoopbackAddress: dist/server/browser-guard.d.ts#isLoopbackAddress
 isLoopbackHost: dist/server/browser-guard.d.ts#isLoopbackHost
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
@@ -549,7 +552,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 524 names
+## ./browser (dist/browser.d.ts): 527 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -676,6 +679,8 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+LOCAL_CREDENTIALS: dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
+LOCAL_MARKER: dist/server/types.d.ts#LOCAL_MARKER
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
@@ -964,6 +969,7 @@ isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
+isLocalCredentials: dist/server/request-auth.d.ts#isLocalCredentials
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
 isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
 isPlainObject: dist/procedures/ref.d.ts#isPlainObject
@@ -1956,6 +1962,7 @@ export declare class PortTransport implements Transport {
 ### dist/adapters/port/transport.d.ts#PortTransportOptions
 export interface PortTransportOptions {
     serve?: RequestHandler | undefined;
+    credentials?: Credentials | undefined;
     streamWindow?: number | undefined;
 }
 
@@ -5324,6 +5331,9 @@ export declare function isUnboundedStream(response: {
 ### dist/server/procedure-server.d.ts#tokenMatches
 export declare function tokenMatches(expected: string, presented: string | undefined): boolean;
 
+### dist/server/request-auth.d.ts#LOCAL_CREDENTIALS
+export declare const LOCAL_CREDENTIALS: Credentials;
+
 ### dist/server/request-auth.d.ts#RequestCredentialsOptions
 export interface RequestCredentialsOptions {
     readonly tokenQuery?: string | false | undefined;
@@ -5340,6 +5350,9 @@ export declare function credentialsOf(request: {
     headers: Record<string, unknown>;
     url?: string | undefined;
 }): Credentials;
+
+### dist/server/request-auth.d.ts#isLocalCredentials
+export declare function isLocalCredentials(credentials: Credentials | undefined): boolean;
 
 ### dist/server/request-auth.d.ts#requestCredentials
 export declare function requestCredentials(request: {
@@ -5376,6 +5389,7 @@ export type AmbientCredentials = "always" | "cookies";
 
 ### dist/server/types.d.ts#Credentials
 export interface Credentials {
+    readonly [LOCAL_MARKER]?: true | undefined;
     readonly bearer?: string | undefined;
     readonly cookies?: Readonly<Record<string, string>> | undefined;
     readonly headers?: Readonly<Record<string, string>> | undefined;
@@ -5386,6 +5400,9 @@ export interface Credentials {
 export declare class HandlerNotFoundError extends Error {
     constructor(method: Method);
 }
+
+### dist/server/types.d.ts#LOCAL_MARKER
+export declare const LOCAL_MARKER: unique symbol;
 
 ### dist/server/types.d.ts#Principal
 export interface Principal {

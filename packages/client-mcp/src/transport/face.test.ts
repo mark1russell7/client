@@ -276,10 +276,13 @@ describe("the credentials of a call over Streamable HTTP (CLI-10)", () => {
     expect(seenHeaders).toContain("mark");
   });
 
-  it("gives no credentials to a call that does not come over the network", async () => {
-    const { client } = await start({ host: { policy: { principalOf: () => undefined } } });
-    // The in-memory transport is in this process: the hook does not run, and the call has no principal
+  it("gives the local marker to a call that does not come over the network (CLI-1)", async () => {
+    const { client } = await start({ host: { policy: { principalOf: () => undefined, token: "a-token-of-the-host-0123456789" } } });
+    // The in-memory transport is a local face: the hook and the token do not apply, and the call has no principal
     expect((await call(client, "who.ami")).structuredContent).toEqual({ principal: null });
+    // A nested call of a local call passes too
+    const { client: asker } = await start({ answer: () => ({ action: "accept", content: { gave_url: true } }), host: { policy: { token: "a-token-of-the-host-0123456789" } } });
+    expect((await call(asker, "ask.nested")).structuredContent).toEqual({ released: true });
   });
 });
 
