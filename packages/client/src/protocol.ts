@@ -48,7 +48,8 @@ export type ProtocolErrorCode =
   | "CONNECTION_CLOSED"
   | "CONNECTION_NOT_FOUND"
   | "TOPIC_NOT_FOUND"
-  | "TOPIC_CLEARED";
+  | "TOPIC_CLEARED"
+  | "RATE_LIMITED";
 
 /**
  * The error codes of the protocol, on each face (HTTP, WebSocket, MCP, local). An error that a
@@ -80,6 +81,7 @@ export const ERROR_CODES: Readonly<Record<ProtocolErrorCode, ErrorCodeInfo>> = {
   CONNECTION_NOT_FOUND: { http: 404, retryable: false, meaning: "The server has no connection with this id" },
   TOPIC_NOT_FOUND: { http: 404, retryable: false, meaning: "The topic rule of the host has no topic with this name" },
   TOPIC_CLEARED: { http: 410, retryable: false, meaning: "The host cleared a topic of the subscription: clear() of its bus removed the listener" },
+  RATE_LIMITED: { http: 429, retryable: true, meaning: "A limit of the host refuses the call. The metadata key retry-after gives the wait, and reason gives the cause" },
 };
 
 /** True when a code is an error code of the protocol. */

@@ -5,13 +5,20 @@
  * Prevents overwhelming services with too many requests.
  *
  * Works with both client and server!
+ *
+ * The bucket is a keyed limiter of `@mark1russell7/service/limiter` (CLI-40): the same primitive
+ * as the limits of the procedures server. Its policy is a token bucket of `maxRequests` tokens
+ * that refills `maxRequests` tokens in each `window`, as before.
  */
 
+import { valueIn } from "@mark1russell7/quantity";
+import { keyedLimiter, memoryStore, type Decision } from "@mark1russell7/service/limiter";
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { RateLimitContext } from "./contexts.js";
 import { abortedItem } from "./items.js";
 import { optionalMs, type Duration } from "../../duration.js";
 import { TIMER_DEFAULTS } from "../../timers.js";
+import type { Cancel, Clock } from "../../clock.js";
 
 /**
  * Rate limiting options.
@@ -52,6 +59,13 @@ export interface RateLimitOptions {
    * Callback when rate limit is exceeded.
    */
   onRateLimitExceeded?: (stats: RateLimitStats) => void;
+
+  /**
+   * The clock of the limiter: the time of the bucket and the timer of the queue (CLI-40). The
+   * default reads `Date.now()` and starts its timer with `setTimeout`, as before, so a queued
+   * request keeps a process alive. A test gives a fake clock.
+   */
+  clock?: Clock | undefined;
 }
 
 /**
@@ -84,6 +98,27 @@ export class RateLimitError extends Error {
 interface QueuedRequest {
   resolve: () => void;
   timestamp: number;
+}
+
+/** The name of the keyed limiter of a middleware. Each middleware has its own store, so the name is the same for each one. */
+const LIMITER = "client.rateLimit";
+/** The one key of the bucket of a middleware. */
+const KEY = "client";
+
+/**
+ * The clock of a limiter without the option `clock`: `Date.now()` from the start of the
+ * middleware, and `setTimeout`. Thus the bucket reads the same time as before, and a queued
+ * request keeps a Node process alive until it runs.
+ */
+function wallClock(): Clock {
+  const origin = Date.now();
+  return {
+    now: () => Date.now() - origin,
+    after(delay: number, run: () => void): Cancel {
+      const timer = setTimeout(run, Math.max(0, delay));
+      return () => clearTimeout(timer);
+    },
+  };
 }
 
 /**
@@ -121,34 +156,45 @@ export function createRateLimitMiddleware(
     onRateLimitExceeded,
   } = options;
   const window = optionalMs(options.window, "window") ?? TIMER_DEFAULTS.rateLimit.windowMs;
+  // A token bucket has a whole number of tokens and a refill above zero
+  if (!Number.isInteger(maxRequests) || maxRequests < 1) {
+    throw new RangeError(`maxRequests must be a whole number above 0, not ${String(maxRequests)}`);
+  }
+  if (!(window > 0) || !Number.isFinite(window)) {
+    throw new RangeError(`window must be a duration above 0, not ${String(window)} ms`);
+  }
+  const clock = options.clock ?? wallClock();
 
-  // Token bucket state
-  let tokens = maxRequests;
-  let lastRefill = Date.now();
+  // The bucket: a keyed limiter of the service with one key. It gives `maxRequests` takes at once,
+  // and one more take each `window / maxRequests`.
+  const store = memoryStore(clock);
+  const limiter = keyedLimiter(
+    LIMITER,
+    {
+      key: KEY,
+      policy: { type: "token-bucket", rate: { value: maxRequests / window, unit: "count/ms" }, burst: { value: maxRequests, unit: "count" } },
+      store: { kind: "local" },
+      evict: { maxKeys: { value: 1, unit: "count" } },
+    },
+    store,
+  );
   let totalRequests = 0;
   let rejectedRequests = 0;
+  /** The whole tokens after the last decision: `remaining` of a take, or 0 after a refusal. */
+  let tokensAvailable = maxRequests;
 
   // Queue for "queue" strategy
   const queue: QueuedRequest[] = [];
-  let drainTimer: ReturnType<typeof setTimeout> | undefined;
+  let drainTimer: Cancel | undefined;
 
   /**
-   * Refill tokens based on elapsed time.
+   * One take of the bucket, at once. The memory store decides in one step without a promise, so
+   * the requests keep their order, as before.
    */
-  function refillTokens(): void {
-    const now = Date.now();
-    const elapsed = now - lastRefill;
-
-    if (elapsed >= window) {
-      // Full refill
-      tokens = maxRequests;
-      lastRefill = now;
-    } else {
-      // Partial refill (tokens per millisecond * elapsed time)
-      const tokensToAdd = (maxRequests / window) * elapsed;
-      tokens = Math.min(maxRequests, tokens + tokensToAdd);
-      lastRefill = now;
-    }
+  function take(): Decision {
+    const decision = store.take({ limiter: limiter.name, key: KEY, rule: limiter.rule, maxKeys: limiter.maxKeys }) as Decision;
+    tokensAvailable = decision.allowed ? decision.remaining : 0;
+    return decision;
   }
 
   /**
@@ -156,7 +202,7 @@ export function createRateLimitMiddleware(
    */
   function getStats(): RateLimitStats {
     return {
-      tokensAvailable: Math.floor(tokens),
+      tokensAvailable,
       maxTokens: maxRequests,
       queueSize: queue.length,
       totalRequests,
@@ -170,11 +216,8 @@ export function createRateLimitMiddleware(
    * an arrival could take the token of a queued request (deep dive TRN-12).
    */
   async function acquireToken(signal?: AbortSignal): Promise<boolean> {
-    refillTokens();
-
-    if (queue.length === 0 && tokens >= 1) {
+    if (queue.length === 0 && take().allowed) {
       // Token available
-      tokens -= 1;
       return true;
     }
 
@@ -207,7 +250,7 @@ export function createRateLimitMiddleware(
           signal?.removeEventListener("abort", onAbort);
           resolve(true);
         },
-        timestamp: Date.now(),
+        timestamp: clock.now(),
       };
       // A queued request whose caller aborts leaves the queue (before, it kept its place)
       const onAbort = (): void => {
@@ -223,23 +266,25 @@ export function createRateLimitMiddleware(
 
   /**
    * Give tokens to the queued requests, in order, and wait for the next token while the queue
-   * is not empty. The timer keeps the process alive while requests wait: before, an unref'd
-   * timer let the process exit with queued requests that never ran (deep dive TRN-12).
+   * is not empty. The wait is the `retryAfter` of the refusal of the bucket. The timer of the
+   * default clock keeps the process alive while requests wait: before, an unref'd timer let the
+   * process exit with queued requests that never ran (deep dive TRN-12).
    */
   function scheduleDrain(): void {
     if (drainTimer !== undefined) return;
-    refillTokens();
-    while (queue.length > 0 && tokens >= 1) {
-      tokens -= 1;
+    while (queue.length > 0) {
+      const decision = take();
+      if (!decision.allowed) {
+        // The time until the next whole token
+        const wait = Math.max(1, Math.ceil(valueIn(decision.retryAfter, "ms")));
+        drainTimer = clock.after(wait, () => {
+          drainTimer = undefined;
+          scheduleDrain();
+        });
+        return;
+      }
       queue.shift()!.resolve();
     }
-    if (queue.length === 0) return;
-    // The time until the next whole token
-    const wait = Math.max(1, Math.ceil(((1 - tokens) * window) / maxRequests));
-    drainTimer = setTimeout(() => {
-      drainTimer = undefined;
-      scheduleDrain();
-    }, wait);
   }
 
   const middleware = <TReq, TRes>(next: ClientRunner<TReq, TRes>): ClientRunner<TReq, TRes> => {
@@ -253,7 +298,7 @@ export function createRateLimitMiddleware(
       }
       // The state for the other middlewares (RateLimitContext)
       context.message.metadata["rateLimit"] = {
-        tokensAvailable: Math.floor(tokens),
+        tokensAvailable,
         maxTokens: maxRequests,
         queueSize: queue.length,
       };

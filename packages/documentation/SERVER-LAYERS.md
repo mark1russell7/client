@@ -94,6 +94,7 @@ The engine owns:
 - `ProcedureServer`: the dispatch, the invocation path, the schemas, the effects and the capability, and the rules of nested calls. It also has the idempotency, the errors of wire v1, the `seq` streams, the events and `collections.*`.
 - Stop parts in the shape of the runner: `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. The storages are dependency handles. The engine uses only structural types of the runner (CLI-5).
 - The host authentication to a principal. One request hook of the host policy reads the credentials and a narrowing from a cookie, a header or the query (CLI-2a).
+- The limits of the calls in the admission path, after the authentication. Each limit of the host policy is a keyed limiter of `systems` with a key over the call, for example the tenant of the principal. A refusal is `RATE_LIMITED` on each face (CLI-40).
 - One exported constant-time `tokenMatches`, which is browser-safe.
 - The client side: `Client`, `HttpTransport` with a `credentials` option for `fetch` (CLI-18), `WebSocketTransport` and `PortTransport`.
 

@@ -319,9 +319,11 @@ export class McpServerTransport implements ServerTransport {
             ...(result.structuredContent ? { structuredContent: result.structuredContent } : {}),
           };
         } else {
-          // The code, the retryable flag and the reason of the error travel on each face (roadmap
-          // R25, CLI-48)
+          // The code, the retryable flag, the reason and the wait of the error travel on each face
+          // (roadmap R25, CLI-48). The wait of a refusal of a limit is in milliseconds (CLI-40).
           const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
+          const wait = response.metadata?.["retry-after"];
+          const retryAfterMs = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? wait : undefined;
           return {
             content: [
               {
@@ -330,7 +332,12 @@ export class McpServerTransport implements ServerTransport {
               },
             ],
             isError: true,
-            _meta: { code: response.status.code, retryable: response.status.retryable === true, ...(reason ? { reason } : {}) },
+            _meta: {
+              code: response.status.code,
+              retryable: response.status.retryable === true,
+              ...(reason ? { reason } : {}),
+              ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+            },
           };
         }
       } catch (error) {

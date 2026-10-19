@@ -18,6 +18,8 @@
  *   call and what the host gives for it (CAPABILITIES-2026-10).
  * - `events`: the remote events of the host (`documentation/EVENTS.md`). The server pins
  *   `events.subscribe` with this topic rule, and its procedures get the bus as `ctx.bus`.
+ * - `limits`, `limitStores`: the limits of the calls (CLI-40). Each server of the policy makes one
+ *   keyed limiter for each limit, and refuses a call above a limit with `RATE_LIMITED`.
  */
 
 import type { Capability, ClearanceOrder, ProcedurePath, ResourcesOf } from "../procedures/types.js";
@@ -30,6 +32,8 @@ import type { ProcedureRegistry } from "../procedures/registry.js";
 import type { ProcedureServerOptions } from "./procedure-server.js";
 import type { EventPublisherOptions } from "../events/publisher.js";
 import { toMs, type Duration } from "../duration.js";
+import type { LimiterStore } from "@mark1russell7/service/limiter";
+import type { CallLimit } from "./limits.js";
 
 /** The procedures of a host that are tools: namespaces (first path segments), less some keys. */
 export interface ToolSurface {
@@ -102,6 +106,13 @@ export interface HostPolicyOptions {
    * `ctx.bus`. Without this option, the host does not serve `events.subscribe`.
    */
   events?: EventPublisherOptions | undefined;
+  /**
+   * The limits of the calls (CLI-40): each limit counts the calls of one key, for example the
+   * writes of each tenant. A refusal is `RATE_LIMITED` on each face. Without it: no limits.
+   */
+  limits?: readonly CallLimit[] | undefined;
+  /** The stores that the replicas share, by the name of their dependency, for the limits with a shared store. */
+  limitStores?: Readonly<Record<string, LimiterStore>> | undefined;
 }
 
 /** What a host lets its callers do. */
@@ -120,6 +131,10 @@ export interface HostPolicy {
   readonly admitItem: AdmitItem | undefined;
   /** The remote events: each server of the policy makes its own publisher from these options. */
   readonly events: EventPublisherOptions | undefined;
+  /** The limits of the calls (CLI-40). Each server of the policy makes its own keyed limiters from them. */
+  readonly limits?: readonly CallLimit[] | undefined;
+  /** The shared stores of the limits, by the name of their dependency. */
+  readonly limitStores?: Readonly<Record<string, LimiterStore>> | undefined;
 }
 
 /** The capability function of a policy: the capability of the options, narrowed by `readOnly`. */
@@ -167,6 +182,8 @@ export function hostPolicy(options: HostPolicyOptions = {}): HostPolicy {
     resources: options.resources,
     admitItem: options.admitItem,
     events: options.events,
+    ...(options.limits && options.limits.length > 0 ? { limits: options.limits } : {}),
+    ...(options.limitStores ? { limitStores: options.limitStores } : {}),
   };
 }
 
@@ -188,5 +205,8 @@ export function procedureServerOptions(policy: HostPolicy, registry?: ProcedureR
     ...(policy.admitItem ? { admitItem: policy.admitItem } : {}),
     // The remote events: the server makes its publisher and pins events.subscribe (EVENTS.md)
     ...(policy.events ? { events: policy.events } : {}),
+    // The limits of the calls: the server makes one keyed limiter for each one (CLI-40)
+    ...(policy.limits ? { limits: policy.limits } : {}),
+    ...(policy.limitStores ? { limitStores: policy.limitStores } : {}),
   };
 }

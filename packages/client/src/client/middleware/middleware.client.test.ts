@@ -19,6 +19,7 @@ import { isNetworkError } from "./items.js";
 import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY } from "../deadline.js";
 import type { ClientContext, ClientMiddleware, ClientRunner, Message, ResponseItem, Transport } from "../types.js";
 import { ms } from "../../duration.js";
+import { fakeClock } from "@mark1russell7/service/testing";
 
 const method = { service: "test", operation: "op" };
 
@@ -626,6 +627,34 @@ describe("rate limit on fake timers", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(messages).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("rate limit on the keyed limiter of the service (CLI-40)", () => {
+  it("reads the time and starts the timer of its queue through the option clock", async () => {
+    const clock = fakeClock();
+    const ran: string[] = [];
+    const { transport } = fake(async function* (message) {
+      ran.push(`${(message.payload as { name: string }).name} ${clock.now()}`);
+      yield ok(message.id, null);
+    });
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 2, window: ms(1000), strategy: "queue", clock }));
+    const calls = ["a", "b", "c"].map((name) => client.call(method, { name }));
+    await Promise.all(calls.slice(0, 2));
+    await clock.advance(0);
+    expect(ran).toEqual(["a 0", "b 0"]);
+    // The queued request waits for the next token on the clock of the option: one timer, no real time
+    expect(clock.pending).toBe(1);
+    await clock.advance(500);
+    await Promise.all(calls);
+    expect(ran).toEqual(["a 0", "b 0", "c 500"]);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("names the option of a bucket that the limiter cannot hold", () => {
+    expect(() => createRateLimitMiddleware({ maxRequests: 0 })).toThrow(/^maxRequests must be a whole number above 0/);
+    expect(() => createRateLimitMiddleware({ maxRequests: 2.5 })).toThrow(/^maxRequests must be a whole number above 0/);
+    expect(() => createRateLimitMiddleware({ window: ms(0) })).toThrow(/^window must be a duration above 0/);
   });
 });
 

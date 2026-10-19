@@ -85,6 +85,7 @@ const PROTOCOL_CATEGORIES: Readonly<Record<ProtocolErrorCode, ErrorCategory>> = 
   CONNECTION_NOT_FOUND: ErrorCategory.CLIENT,
   TOPIC_NOT_FOUND: ErrorCategory.CLIENT,
   TOPIC_CLEARED: ErrorCategory.CANCELLED,
+  RATE_LIMITED: ErrorCategory.RATE_LIMIT,
 };
 
 /**
@@ -449,6 +450,18 @@ const DESCRIBED_ERRORS = {
       "Reduce request rate",
       "Consider request batching",
     ],
+  }),
+
+  // The refusal of a limit of a procedures host (CLI-40). Its entry comes after TOO_MANY_REQUESTS,
+  // so the status 429 still maps back to TOO_MANY_REQUESTS.
+  RATE_LIMITED: defineProtocolError("RATE_LIMITED", {
+    summary: "Rate limited",
+    detail: "A limit of the host refuses the call: the key of the call used its limit. The call did not start.",
+    category: ErrorCategory.RATE_LIMIT,
+    severity: ErrorSeverity.WARNING,
+    userMessage: "Too many requests. Wait and try again.",
+    devMessage: "A limit of the procedures host refused the call. The metadata key retry-after gives the wait in milliseconds, and reason gives the cause: limit, cap or store.",
+    suggestions: ["Wait for the time of retry-after before a retry", "Send fewer calls with the same key"],
   }),
 
   //

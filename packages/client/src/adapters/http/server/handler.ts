@@ -30,6 +30,7 @@ import { NDJSON_MEDIA_TYPE as NDJSON, defaultNdjsonError as errorOf, keepAliveMs
 import { applyCors, corsOrigins, corsPolicy, type CorsOptions, type CorsPolicy } from "./cors.js";
 import { urlAddressing, type Addressing } from "./addressing.js";
 import { NARROWING_METADATA_KEY, addNarrowing } from "../../../procedures/narrowing.js";
+import { retryAfterSeconds } from "@mark1russell7/service/limiter";
 
 /** The parts of a request that a URL strategy of `procedureHandler` reads. */
 export interface UrlRequest {
@@ -479,11 +480,12 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
       sendJson(res, httpStatusCode, payload);
       return;
     }
-    // The wait that the error asks for: a Retry-After header in seconds, and the exact
-    // milliseconds in the body (R12)
+    // The wait that the error asks for: a Retry-After header in whole seconds, rounded up, and the
+    // exact milliseconds in the body (R12). The rounding is the rule of the service, so a wait over a
+    // whole second by an error of floating point does not add a second (CLI-40).
     const retryAfterMs = metadata["retry-after"];
     const hasRetryAfter = typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0;
-    if (hasRetryAfter) res.setHeader("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    if (hasRetryAfter) res.setHeader("Retry-After", String(retryAfterSeconds({ value: retryAfterMs, unit: "ms" })));
     // The reason of a FORBIDDEN error travels on each face (roadmap R25)
     const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
     sendJson(res, httpStatusCode, {

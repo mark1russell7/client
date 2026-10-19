@@ -22,6 +22,7 @@ import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http"
 import type { Duplex } from "node:stream";
 import type { Check, CheckFn, Dependency, DependencyHandle, Lifecycle, Operation, OperationOf, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
 import { httpTransport, pathOf, type HttpKnobs } from "@mark1russell7/service/http";
+import type { KeyedLimiter } from "@mark1russell7/service/limiter";
 import {
   PROCEDURE_REGISTRY,
   ProcedureServer,
@@ -95,10 +96,10 @@ export interface HostListener {
   readonly knobs: HttpKnobs;
 }
 
-/** The options of `ProcedureServer` that the host and its policy do not give. */
+/** The options of `ProcedureServer` that the host and its policy do not give. The limits of the calls come from the policy (CLI-40). */
 export type HostServerOptions = Omit<
   ProcedureServerOptions,
-  "registry" | "collections" | "clock" | "transports" | "expose" | "token" | "principalOf" | "events" | "interceptors"
+  "registry" | "collections" | "clock" | "transports" | "expose" | "token" | "principalOf" | "events" | "interceptors" | "limits" | "limitStores"
 >;
 
 /** The options of the controller of the calls of a host (CLI-45). */
@@ -118,7 +119,10 @@ export interface ProcedureHostOptions {
   readonly id?: string | undefined;
   /** The registry of the procedures. The default is the global registry. */
   readonly registry?: ProcedureRegistry | undefined;
-  /** The host policy (`hostPolicy()`): the expose rule, the token, the request hook, the browser checks and the capability. */
+  /**
+   * The host policy (`hostPolicy()`): the expose rule, the token, the request hook, the browser
+   * checks, the capability and the limits of the calls (CLI-40).
+   */
   readonly policy?: HostPolicy | undefined;
   /**
    * The procedures that the host serves. It wins over the expose rule of the policy, for the server
@@ -217,8 +221,16 @@ export interface ProcedureHost {
   readonly checks: readonly HostCheck[];
   /** The controller of the calls, with one route pattern for each face. */
   readonly controllers: readonly HostController[];
+  /**
+   * The keyed limiters of the limits of the policy, on the clock of the host (CLI-40). The server
+   * takes one unit of each limit that covers a call, on each face.
+   */
+  readonly limiters: readonly KeyedLimiter[];
   readonly info: HostInfo;
-  /** This method declares the dependencies, the transports, the checks and the controller on the builder of a service. */
+  /**
+   * This method declares the dependencies, the transports, the checks, the controller and the
+   * limiters on the builder of a service. Thus `describe()` and `lint()` see each limiter.
+   */
   declare(svc: ServiceBuilder): ServiceBuilder;
   /** The ids of the connections of the faces of connections (WebSocket). */
   connections(): string[];
@@ -436,6 +448,9 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     },
   ];
 
+  // The limiters of the limits of the policy: the server made them on the clock of the host (CLI-40)
+  const limiters = server.limiters();
+
   const info: HostInfo = {
     id,
     startedAt,
@@ -458,6 +473,7 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     dependencies,
     checks,
     controllers,
+    limiters,
     info,
     declare(svc: ServiceBuilder): ServiceBuilder {
       for (const dependency of dependencies) svc.dependency(dependency.name, dependency.spec, dependency.handle);
@@ -467,6 +483,8 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
         const builder = svc.controller(controller.name).requires(...controller.requires);
         for (const pattern of controller.patterns) builder.pattern(pattern.pattern, pattern.operations, pattern.operationOf);
       }
+      // Each limiter as data: describe() shows it, and a shared store must be a dependency of the service
+      for (const limiter of limiters) svc.limiter(limiter.name, limiter.spec);
       return svc;
     },
     connections: () => [...faces.values()].flatMap((face) => face.connections?.() ?? []),
