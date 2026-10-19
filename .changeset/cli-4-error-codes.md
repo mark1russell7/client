@@ -38,7 +38,6 @@ Migration steps:
 - Code that matches the status 405 or 415 of a procedure server: match the status 403 and the reasons `method-not-allowed` and `media-type-not-allowed`.
 - Code that reads `GuardResult.code` of `checkBrowserRequest()`: read `reason`.
 - Code that matches the code `"500"` or the default code of `ServerError`: match `INTERNAL_ERROR`.
-- The site: no change is necessary. It matches none of the former codes.
-- MiniMongo: no change is necessary. Its dev server uses `HttpServerTransport`, but its code matches none of the former codes.
-- Graph: no change is necessary. It matches none of the former codes.
-- jarvis: no change is necessary. Its host uses `procedureHandler`, which gave the codes of wire v1 already.
+- The site, MiniMongo, Graph and jarvis: no code of theirs matches a former code, so no change is necessary.
+- MiniMongo: its dev server uses `HttpServerTransport`, and its answers change only as the table says.
+- jarvis: its host uses `procedureHandler`, which gave the codes of wire v1 already.
