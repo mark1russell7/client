@@ -1,8 +1,9 @@
 /**
  * `MongoViewStorage` (roadmap CLI-38): the collection procedures serve a materialized view, and each
  * reader gets one whole generation. The tests run against a real MongoDB: set `MONGO_TEST_URL`.
- * The rebuild in groups needs a replica set and the failpoints of the test commands (the
- * replica-set job of CI).
+ * The rebuild in groups needs a replica set, for the change streams of the materializer. It holds
+ * the pass in the process (`gated`), so it changes no state of the server that other test files
+ * use (a failpoint, a parameter).
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -66,6 +67,39 @@ function served(storage: CollectionStorage<unknown>) {
     const procedure = procedures.find((candidate) => candidate.path[2] === operation)!;
     return outputValue(await invokeProcedure(procedure, input, { repository }), procedure.path);
   };
+}
+
+/** This function binds a member of an object to it, so a proxy can give it. */
+function member(target: object, key: string | symbol): unknown {
+  const value: unknown = Reflect.get(target, key, target);
+  return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+}
+
+/**
+ * The database of a materializer whose lease renewals of the views (`findOneAndUpdate` of the
+ * views collection) wait for the gate. A pass in groups then stops after its first group, before
+ * its change of generation.
+ */
+function gated(db: Db, gate: { wait?: Promise<void> | undefined }): Db {
+  return new Proxy(db, {
+    get(target, key) {
+      if (key !== "collection") return member(target, key);
+      return (name: string) => {
+        const collection = target.collection(name);
+        if (name !== "_aggregations") return collection;
+        return new Proxy(collection, {
+          get(inner, prop) {
+            const value = member(inner, prop);
+            if (prop !== "findOneAndUpdate" || typeof value !== "function") return value;
+            return async (...args: unknown[]) => {
+              await gate.wait;
+              return (value as (...rest: unknown[]) => unknown)(...args);
+            };
+          },
+        });
+      };
+    },
+  });
 }
 
 /** A row of a view as the materializer stores it, with the default `partitionTargetId`. */
@@ -206,23 +240,13 @@ withMongo("MongoViewStorage on MongoDB", () => {
 
   it("serves a view that rebuilds in groups: each reader of the procedures gets one whole generation", async (context) => {
     if (!replicaSet) return context.skip?.("change streams need a replica set");
-    const admin = client!.db("admin");
-    const failpoints = await admin.command({ configureFailPoint: "failCommand", mode: "off" }).then(
-      () => true,
-      () => false
-    );
-    if (!failpoints) {
-      if (process.env["MONGO_TEST_FAILPOINTS"] === "1") throw new Error("MONGO_TEST_FAILPOINTS is 1, but the server has no test commands (enableTestCommands)");
-      return context.skip?.("the failpoints need a server with enableTestCommands");
-    }
-    // Its own client, so the failpoint blocks only the commands of the materializer
-    const name = newName();
-    const own = new MongoClient(url!, { appName: "views-cli38" });
-    await own.connect();
-    const db = client!.db(name);
-    dbs.push(db);
+    const db = newDb();
+    // The lease renewal after each group waits for the gate, so the pass stops between its groups and
+    // its change of generation. The gate changes nothing on the server: no failpoint, no parameter.
+    const gate: { wait?: Promise<void> } = {};
+    let open: () => void = () => undefined;
     // 3 rows is more than 1: the second pass writes a new generation in groups
-    const views = new ViewMaterializer({ db: () => own.db(name), debounce: ms(20), rewatch: ms(100), maxTransactionRows: 1, log: () => undefined });
+    const views = new ViewMaterializer({ db: () => gated(db, gate), debounce: ms(20), rewatch: ms(100), maxTransactionRows: 1, log: () => undefined });
     try {
       await db.collection("items").insertMany(["a", "b", "c"].map((kind, index) => ({ _id: String(index) as never, _part: "t1", kind, n: 1 })));
       await db.collection("_aggregations").insertOne(sumsView as never);
@@ -233,9 +257,8 @@ withMongo("MongoViewStorage on MongoDB", () => {
       const status = async () => ((await viewOf())["_materializerStatus"] ?? {}) as Document;
       const first = (await status())["generation"] as ObjectId;
 
-      // The renewal of the lease after the first group (a findAndModify) waits 4 s: the rows of the
-      // new generation are in the target, and the status still names the first generation
-      await admin.command({ configureFailPoint: "failCommand", mode: { times: 1 }, data: { failCommands: ["findAndModify"], appName: "views-cli38", blockConnection: true, blockTimeMS: 4000 } });
+      // The pass in groups writes the rows of the new generation, and the status still names the first one
+      gate.wait = new Promise<void>((resolve) => (open = resolve));
       await db.collection("items").insertOne({ _id: "3" as never, _part: "t1", kind: "d", n: 1 });
       await eventually(async () => expect((await status())["lease"]).toBeDefined());
       const second = ((await status())["lease"] as Document)["generation"] as ObjectId;
@@ -251,15 +274,15 @@ withMongo("MongoViewStorage on MongoDB", () => {
       expect(ids(((await run("changes", {})) as { changed: unknown }).changed)).toEqual(["a", "b", "c"]);
 
       // After the change of generation, each reader gets the whole new generation
+      open();
       await eventually(async () => expect(((await status())["generation"] as ObjectId).equals(second)).toBe(true));
       expect(ids(await run("entries"))).toEqual(["a", "b", "c", "d"]);
       expect(await run("size")).toBe(4);
       expect(await run("get", { id: "d" })).toEqual({ _id: "d", total: 1 });
       expect(ids(((await run("changes", {})) as { changed: unknown }).changed)).toEqual(["a", "b", "c", "d"]);
     } finally {
-      await admin.command({ configureFailPoint: "failCommand", mode: "off" });
+      open();
       await views.stop();
-      await own.close();
     }
   }, 30_000);
 });
