@@ -127,10 +127,9 @@ export interface MongoDocumentStorageOptions<T = unknown> {
 
 /** True for the error of a duplicate key: an insert of an upsert whose filter found no document. */
 function isDuplicateKey(error: unknown): boolean {
+  // A bulk write error has the code of its first write error, and the list of the write errors
   const { code, writeErrors } = (error ?? {}) as { code?: unknown; writeErrors?: unknown };
-  if (code === 11000) return true;
-  const errors = Array.isArray(writeErrors) ? writeErrors : writeErrors ? [writeErrors] : [];
-  return errors.some((entry) => (entry as { code?: unknown } | null)?.code === 11000);
+  return code === 11000 || [writeErrors].flat().some((entry) => (entry as { code?: unknown } | null)?.code === 11000);
 }
 
 /** A stored document. */
