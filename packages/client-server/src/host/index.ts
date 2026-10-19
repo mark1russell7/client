@@ -11,7 +11,8 @@
  *   faces mount on its mount list, so they share one port. Without a listener, the app mounts
  *   `host.handler` and `host.upgrade` on its own listener.
  * - The request tracking: one route pattern for each face, and a function of the idempotency of
- *   each call (decision D3). Each call is a stream (decision D4).
+ *   each call (decision D3). Each call is a stream (decision D4). A face of requests that are not
+ *   procedure calls, for example the auth routes, tracks them with `track` (CLI-54).
  * - The collections: the option `collections` gives the storages, and the host serves
  *   `collections.<name>.*`. Each storage is a dependency of the service. The expose rule applies
  *   to the collection procedures. Only `host.*` and `events.subscribe` are always on (CLI-47).
@@ -44,7 +45,7 @@ import {
 } from "@procedures/client";
 import type { ProcedureHandlerOptions, UpgradeHandlerOptions } from "@procedures/client/node";
 import { httpFace, wsFace, type HostFace, type HostFaceFactory } from "./faces.js";
-import { callOperations, faceHandler, operationOfCall } from "./tracking.js";
+import { callOperations, faceHandler, httpTracker, operationOfCall } from "./tracking.js";
 
 /** The knobs of a transport of the service, by the names of the ordering law. */
 export type HostKnobs = Parameters<ServiceBuilder["server"]>[1];
@@ -307,7 +308,9 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     const factory = factoryOf(faceName, value);
     if (!factory) continue;
     const handler = faceHandler({ server, controller: name, face: faceName, life: () => life, keyed: keyedWindowMs !== undefined });
-    faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock }));
+    // The tracking of the requests of the face that are not procedure calls, on the same route pattern (CLI-54)
+    const track = httpTracker({ controller: name, face: faceName, life: () => life });
+    faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock, track }));
   }
 
   // The listeners that the host owns, each one with the faces of its mount list. The responses
@@ -539,5 +542,5 @@ function outgoingAnswers(): OutgoingAnswers {
 
 export { httpFace, wsFace } from "./faces.js";
 export type { HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade } from "./faces.js";
-export { callOperations, faceHandler, operationOfCall } from "./tracking.js";
-export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions } from "./tracking.js";
+export { callOperations, faceHandler, httpTracker, operationOfCall } from "./tracking.js";
+export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions, HttpTracker, HttpTrackerOptions } from "./tracking.js";
