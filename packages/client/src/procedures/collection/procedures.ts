@@ -57,7 +57,7 @@ import {
   type DeleteBatchInput,
 } from "./schemas.js";
 import { DEFAULT_FIND_LIMIT, applyPatch, queryEntries, type StoragePatch, type StorageQueryOptions, type StorageQueryPolicy } from "./query.js";
-import type { CollectionStorage, StorageWriteOptions } from "./storage.js";
+import type { CollectionStorage, StorageBatchWriteOptions, StorageItemWriteOptions, StorageWriteOptions } from "./storage.js";
 import { collectionChangeTopic, startChangeChain, writeWithChangeEvent } from "./changes.js";
 import { partitionOfCall, storageOfCall, withPartition, type PartitionInput } from "./partition.js";
 
@@ -127,6 +127,19 @@ export interface CollectionProceduresOptions {
 /** The write options of an input with an origin. */
 function writeOptionsOf(input: { origin?: string }): StorageWriteOptions | undefined {
   return input.origin === undefined ? undefined : { origin: input.origin };
+}
+
+/** The write options of `set` and `delete`: the origin, and the expected version (roadmap CLI-16). */
+function itemWriteOptionsOf(input: { origin?: string; expectedVersion?: string | null }): StorageItemWriteOptions | undefined {
+  if (input.expectedVersion === undefined) return writeOptionsOf(input);
+  return { ...writeOptionsOf(input), expectedVersion: input.expectedVersion };
+}
+
+/** The write options of `setBatch`: the origin, and the expected version of each item that has one (roadmap CLI-16). */
+function batchWriteOptionsOf(input: SetBatchInput): StorageBatchWriteOptions | undefined {
+  const expectedVersions = input.items.flatMap((item): Array<[string, string | null]> => (item.expectedVersion === undefined ? [] : [[item.id, item.expectedVersion]]));
+  if (expectedVersions.length === 0) return writeOptionsOf(input);
+  return { ...writeOptionsOf(input), expectedVersions };
 }
 
 /**
@@ -238,7 +251,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       },
       handler: async (input: SetInput & PartitionInput, ctx: ProcedureContext) => {
         const { storage, partition } = await storageOf(input, ctx);
-        await changing(ctx, partition, storage, [input.id], input.origin, () => storage.set(input.id, input.value, writeOptionsOf(input)));
+        await changing(ctx, partition, storage, [input.id], input.origin, () => storage.set(input.id, input.value, itemWriteOptionsOf(input)));
       },
     }),
 
@@ -254,7 +267,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
       },
       handler: async (input: DeleteInput & PartitionInput, ctx: ProcedureContext) => {
         const { storage, partition } = await storageOf(input, ctx);
-        return changing(ctx, partition, storage, [input.id], input.origin, () => storage.delete(input.id, writeOptionsOf(input)));
+        return changing(ctx, partition, storage, [input.id], input.origin, () => storage.delete(input.id, itemWriteOptionsOf(input)));
       },
     }),
 
@@ -473,7 +486,7 @@ export function createCollectionProcedures(collectionName: string, options: Coll
           item.id,
           item.value,
         ]);
-        await changing(ctx, partition, storage, items.map(([id]) => id), input.origin, () => storage.setBatch(items, writeOptionsOf(input)));
+        await changing(ctx, partition, storage, items.map(([id]) => id), input.origin, () => storage.setBatch(items, batchWriteOptionsOf(input)));
       },
     }),
 

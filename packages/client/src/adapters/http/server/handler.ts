@@ -482,12 +482,15 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     if (hasRetryAfter) res.setHeader("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
     // The reason of a FORBIDDEN error travels on each face (roadmap R25)
     const reason = typeof metadata["reason"] === "string" ? metadata["reason"] : undefined;
+    // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
+    const conflicts = Array.isArray(metadata["conflicts"]) ? metadata["conflicts"] : undefined;
     sendJson(res, httpStatusCode, {
       error: status.message,
       code: status.code,
       retryable: status.retryable,
       ...(hasRetryAfter ? { retryAfterMs } : {}),
       ...(reason !== undefined ? { reason } : {}),
+      ...(conflicts !== undefined ? { conflicts } : {}),
     });
   };
 

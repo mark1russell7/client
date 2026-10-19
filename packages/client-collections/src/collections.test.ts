@@ -139,6 +139,7 @@ describeCollectionStorageContract(
     create: () => new InMemoryStorage<ContractItem>(),
     createWithMaxTombstones: (max) => new InMemoryStorage<ContractItem>({ maxTombstones: max }),
     createWithQueryPolicy: (policy) => new InMemoryStorage<ContractItem>({ queryPolicy: policy }),
+    createWithVersions: (versionOf) => new InMemoryStorage<ContractItem>({ versionOf }),
   },
   { describe, it },
 );
@@ -149,6 +150,7 @@ describeCollectionStorageContract(
     create: () => new InMemoryStorage<ContractItem>({ copies: false }),
     createWithMaxTombstones: (max) => new InMemoryStorage<ContractItem>({ maxTombstones: max, copies: false }),
     createWithQueryPolicy: (policy) => new InMemoryStorage<ContractItem>({ queryPolicy: policy, copies: false }),
+    createWithVersions: (versionOf) => new InMemoryStorage<ContractItem>({ versionOf, copies: false }),
   },
   {
     describe,

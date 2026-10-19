@@ -7,18 +7,24 @@
 
 import type {
   CollectionStorage,
+  StorageBatchWriteOptions,
   StorageChangeBatch,
   StorageChangeEvent,
   StorageChanges,
+  StorageItemWriteOptions,
   StorageMetadata,
   StorageObserver,
   StorageWriteOptions,
 } from "./interface.js";
 import { StorageListeners, type ListenerErrorHandler } from "./listeners.js";
 import {
+  VersionConflictError,
   applyPatch,
   patchProblems,
+  preconditionNotSupported,
   queryEntries,
+  versionConflicts,
+  type CurrentItem,
   type StoragePatch,
   type StorageQueryOptions,
   type StorageQueryPolicy,
@@ -26,7 +32,7 @@ import {
 } from "@procedures/client/query";
 
 /** Options of an in-memory storage. */
-export interface InMemoryStorageOptions {
+export interface InMemoryStorageOptions<T = unknown> {
   /**
    * The function that gets the error of an observer of `observe()`. The default throws the error
    * again in a microtask (`reportListenerError`). The write and the other observers do not fail.
@@ -55,6 +61,13 @@ export interface InMemoryStorageOptions {
    * @default true
    */
   copies?: boolean;
+  /**
+   * The version of an item, for example `(item) => item.rev` (roadmap CLI-16). With it, `set`,
+   * `delete` and `setBatch` take an expected version: a write whose current item has another
+   * version changes nothing and rejects with `VersionConflictError`. The test and the write are
+   * one synchronous step. Without it, a write with an expected version rejects with a `TypeError`.
+   */
+  versionOf?: ((item: T) => string | undefined) | undefined;
 }
 
 /** A new epoch: a version of another storage does not match it. */
@@ -88,6 +101,8 @@ function withOrigin<T>(change: StorageChangeEvent<T>, options: StorageWriteOptio
  * - `query()` runs a selector, `observe()` tells each change with the origin of its write, and
  *   `patch()` merges fields into an item in one step
  * - After `close()`, each operation rejects, and a second `close()` does nothing
+ * - With the option `versionOf`, a write can expect the version of the current item (roadmap
+ *   CLI-16). The test and the write are one synchronous step.
  *
  * @example
  * ```typescript
@@ -116,12 +131,15 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   private readonly observers: StorageListeners<StorageChangeBatch<T>>;
   /** The query policy of a call without a policy */
   private readonly queryPolicy: StorageQueryPolicy | undefined;
+  /** The version of an item, for the preconditions of the writes (roadmap CLI-16) */
+  private readonly versionOf: ((item: T) => string | undefined) | undefined;
 
-  constructor(options: InMemoryStorageOptions = {}) {
+  constructor(options: InMemoryStorageOptions<T> = {}) {
     this.maxTombstones = Math.max(0, options.maxTombstones ?? 10_000);
     this.copy = options.copies === false ? same : clone;
     this.observers = new StorageListeners<StorageChangeBatch<T>>(options.onObserverError);
     this.queryPolicy = options.queryPolicy;
+    this.versionOf = options.versionOf;
   }
 
   //
@@ -219,16 +237,18 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   // ═══ Write Operations ═══
   //
 
-  async set(id: string, value: T, options?: StorageWriteOptions): Promise<void> {
+  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
     this.checkOpen();
+    if (options?.expectedVersion !== undefined) this.checkVersions([[id, options.expectedVersion]]);
     const stored = this.copy(value);
     this.data.set(id, stored);
     this.noteSet(id);
     if (this.observers.size > 0) this.observers.emit([this.setChange(id, stored, options)]);
   }
 
-  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
+  async delete(id: string, options?: StorageItemWriteOptions): Promise<boolean> {
     this.checkOpen();
+    if (options?.expectedVersion !== undefined) this.checkVersions([[id, options.expectedVersion]]);
     const existed = this.data.delete(id);
     if (existed) {
       this.noteDelete(id);
@@ -266,9 +286,13 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   // ═══ Bulk Operations ═══
   //
 
-  /** This method sets several items. When one value has no copy, nothing changes. */
-  async setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void> {
+  /**
+   * This method sets several items. When one value has no copy, or one expected version has a
+   * conflict, nothing changes.
+   */
+  async setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void> {
     this.checkOpen();
+    if (options?.expectedVersions !== undefined && options.expectedVersions.length > 0) this.checkVersions(options.expectedVersions);
     const copies = items.map(([id, value]): [string, T] => [id, this.copy(value)]);
     for (const [id, value] of copies) {
       this.data.set(id, value);
@@ -398,6 +422,21 @@ export class InMemoryStorage<T> implements CollectionStorage<T> {
   /** This method throws after `close()`. In an async method, the throw rejects the promise. */
   private checkOpen(): void {
     if (this.closed) throw new Error("The InMemoryStorage is closed");
+  }
+
+  /**
+   * This method tests the expected versions against the current items (roadmap CLI-16). A conflict
+   * throws `VersionConflictError` with copies of the current items. Without `versionOf`, it throws
+   * a `TypeError`. The caller writes in the same synchronous step, so no write comes between.
+   */
+  private checkVersions(expected: Iterable<readonly [string, string | null]>): void {
+    const versionOf = this.versionOf;
+    if (!versionOf) throw preconditionNotSupported("This InMemoryStorage");
+    const currentOf = (id: string): CurrentItem<T> => (this.data.has(id) ? { found: true, value: this.data.get(id) as T } : { found: false });
+    const conflicts = versionConflicts(expected, currentOf, versionOf);
+    if (conflicts.length > 0) {
+      throw new VersionConflictError(conflicts.map((conflict) => (conflict.found ? { ...conflict, value: this.copy(conflict.value) } : conflict)));
+    }
   }
 
   /** The entries with copies of the values. */

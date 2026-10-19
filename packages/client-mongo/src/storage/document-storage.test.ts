@@ -120,7 +120,7 @@ afterAll(async () => {
  * A new storage on a new collection of the test database. With the client, a write is a
  * transaction on a replica set; on a single server, it uses the watermark.
  */
-function fresh<T = ContractItem>(options: Partial<MongoDocumentStorageOptions> = {}): MongoDocumentStorage<T> {
+function fresh<T = ContractItem>(options: Partial<MongoDocumentStorageOptions<T>> = {}): MongoDocumentStorage<T> {
   return new MongoDocumentStorage<T>({ collection: `c${++next}`, db: () => db, client: () => client!, ...options });
 }
 
@@ -138,6 +138,7 @@ describeCollectionStorageContract(
     create: () => fresh(),
     createWithMaxTombstones: (max) => fresh({ maxTombstones: max }),
     createWithQueryPolicy: (policy) => fresh({ queryPolicy: policy }),
+    createWithVersions: (versionOf) => fresh({ versionOf }),
   },
   { describe: withMongo, it },
 );
@@ -148,6 +149,7 @@ describeCollectionStorageContract(
     create: () => fresh({ partition: "t1" }),
     createWithMaxTombstones: (max) => fresh({ partition: "t1", maxTombstones: max }),
     createWithQueryPolicy: (policy) => fresh({ partition: "t1", queryPolicy: policy }),
+    createWithVersions: (versionOf) => fresh({ partition: "t1", versionOf }),
   },
   { describe: withMongo, it },
 );
