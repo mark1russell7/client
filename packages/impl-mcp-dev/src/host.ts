@@ -103,32 +103,16 @@ export interface DevToolsHost {
 }
 
 /**
- * The face of the configuration: Streamable HTTP with `config.http`, else stdio. With `mount`, the
- * HTTP face has no listener of its own: the listener of the service answers for it (CLI-11).
+ * The face of the configuration: Streamable HTTP with `config.http`, else stdio. The HTTP face has
+ * no listener of its own: the listener of the service answers for it (CLI-11).
  */
-function facesOf(config: McpServerConfig, mount: boolean): McpHostFaces {
+function facesOf(config: McpServerConfig): McpHostFaces {
   if (!config.http) return { stdio: true };
-  if (mount) return { http: { mount: true, ...(config.http.token ? { token: config.http.token } : {}) } };
-  return {
-    http: {
-      port: config.http.port,
-      ...(config.http.host ? { host: config.http.host } : {}),
-      ...(config.http.token ? { token: config.http.token } : {}),
-    },
-  };
-}
-
-/** The options of `createDevToolsHost()`. */
-export interface DevToolsHostOptions {
-  /**
-   * True: the HTTP face has no listener of its own, and the caller mounts `mcp.handleHttp` on a
-   * listener. `runDevToolsServer()` gives true. The default is false, the listener of the face.
-   */
-  mountHttp?: boolean | undefined;
+  return { http: { ...(config.http.token ? { token: config.http.token } : {}) } };
 }
 
 /** This function builds the host. It starts no transport. */
-export async function createDevToolsHost(config: McpServerConfig = loadConfig(), options: DevToolsHostOptions = {}): Promise<DevToolsHost> {
+export async function createDevToolsHost(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
   const loaded = await loadBundles(config.bundles);
   const registry = loaded.global ? PROCEDURE_REGISTRY : createRegistry(...loaded.modules);
   // MCP_FS_ROOT (roadmap R33): each procedure of the registry keeps its paths in the root, also
@@ -153,7 +137,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig(),
     name: config.serverName,
     version: config.serverVersion,
     debug: config.debug,
-    faces: facesOf(config, options.mountHttp === true),
+    faces: facesOf(config),
   });
   return {
     registry,
@@ -198,7 +182,7 @@ export async function runDevToolsServer(config: McpServerConfig = loadConfig(), 
   redirectConsoleToStderr();
   if (config.debug) console.error("[mcp-server] Starting with config:", JSON.stringify(config, null, 2));
 
-  const host = await createDevToolsHost(config, { mountHttp: true });
+  const host = await createDevToolsHost(config);
   const profile: Profile = config.http ? localDev : ephemeral;
   const svc = host.mcp.declare(service("mcp-dev-tools").profile(profile));
   // A profile without policies leaves them to the service (as runProcedureHost does)
@@ -226,35 +210,4 @@ export async function runDevToolsServer(config: McpServerConfig = loadConfig(), 
     console.error(`[mcp-server] Streamable HTTP at ${url}${config.http.token ? " (send Authorization: Bearer <token>)" : ""}`);
   }
   return { host, service: svc, life, ...(url ? { url } : {}) };
-}
-
-/**
- * This function starts the dev-tools MCP server over stdio, or over Streamable HTTP with
- * `config.http` (roadmap R26). Over stdio, stdout carries the protocol, so `console.log` goes to
- * stderr from here on (BUGS-2026-07 Bug5). The stdio server stops when the client closes its
- * input: `host.mcp.closed` then resolves.
- *
- * @deprecated Use `runDevToolsServer()`: it runs the server under `run()` of the service, with a
- * listener of the service for HTTP. The next MINOR removes this function (CLI-11).
- */
-export async function startDevToolsServer(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
-  // Defense-in-depth for the stdio transport: a stray console.log (from a procedure handler, a
-  // dependency or a bundle that loads) would corrupt the protocol. The MCP SDK writes its frames
-  // with process.stdout.write, so it is not affected.
-  redirectConsoleToStderr();
-  if (config.debug) {
-    console.error("[mcp-server] Starting with config:", JSON.stringify(config, null, 2));
-  }
-
-  const host = await createDevToolsHost(config);
-  await host.mcp.start();
-  const face = host.mcp.state().faces[0];
-
-  if (config.debug) {
-    console.error(`[mcp-server] Started with ${face?.toolCount ?? 0} tools`);
-  }
-  if (host.fsRoot !== undefined) console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. Refused under the root: ${String(host.refusedUnderRoot)}`);
-  const url = face?.url;
-  if (url) console.error(`[mcp-server] Streamable HTTP at ${url}${config.http?.token ? " (send Authorization: Bearer <token>)" : ""}`);
-  return host;
 }

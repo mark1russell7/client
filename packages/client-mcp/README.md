@@ -102,8 +102,7 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 |---|---|
 | `stdio: true` | The standard input and output. Over stdio, `console.log` writes to stderr from `start()` on, because stdout carries the protocol. |
 | `stdio: { stdin, stdout, stopOnEnd, redirectConsole }` | Other streams, for a test or an embedding. With `stopOnEnd: true` (the default), the host stops when the input ends. |
-| `http: { mount: true, path, token, allowedOrigins }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. |
-| `http: { port, host, path, token, allowedOrigins }` | Deprecated. The face has a listener of its own, on `127.0.0.1` by default. The next MINOR removes it (CLI-11). |
+| `http: { path, token, allowedOrigins }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. |
 | `sdk` | One or more MCP SDK transports, for example the `InMemoryTransport` of a test. |
 
 When the client closes the input of stdio, the host stops, and `closed` resolves.
@@ -116,7 +115,7 @@ Each tool call over Streamable HTTP carries the credentials of its HTTP request:
 
 - The server of the host is the transport part `mcp`. Each storage of the server is a dependency.
 - A host with a stdio face declares the trigger `stdin-close`. The end of the input starts the stop in stages, and the face does not stop the host by itself.
-- The HTTP face (`mount: true`) has no listener. Mount `host.handleHttp` on an `httpTransport` of `@mark1russell7/service/http`, and declare that transport on the service.
+- The HTTP face has no listener. Mount `host.handleHttp` on an `httpTransport` of `@mark1russell7/service/http`, and declare that transport on the service.
 
 ```typescript
 import { createServer } from "node:http";
@@ -128,7 +127,7 @@ const stdioHost = createMcpHost({ registry, faces: { stdio: true } });
 await stdioHost.declare(service("my-mcp").profile(ephemeral)).run();
 
 // Over Streamable HTTP: a listener of the service, and the face at /mcp on it
-const httpHost = createMcpHost({ registry, policy: { token }, faces: { http: { mount: true } } });
+const httpHost = createMcpHost({ registry, policy: { token }, faces: { http: {} } });
 const listener = httpTransport(createServer(), knobs, { listen: { port: 3003, host: "127.0.0.1" } });
 listener.mount((req, res) => httpHost.handleHttp(req, res));
 const svc = httpHost.declare(service("my-mcp").profile(localDev));
@@ -285,7 +284,7 @@ await server.start();
 - The tools follow the registry. When the list of tools changes, the transport sends `notifications/tools/list_changed`.
 - The options `instructions`, `stdio`, `elicitation`, `untrusted` and `content` are the same as the options of the host.
 - `toolFilter` selects the tools: `include` (a function of the path), `pathPrefix`, `includeTags`, `excludeTags` and `excludeInternal`.
-- `transport: "http"` with `httpOptions` gives Streamable HTTP. `sdkTransport` connects an MCP SDK transport.
+- `transport: "http"` with `httpOptions` gives Streamable HTTP. The endpoint has no listener: mount `handleHttp` on a listener. `sdkTransport` connects an MCP SDK transport.
 - `transport: "sse"` is not implemented.
 
 ## The procedures of this package

@@ -12,30 +12,27 @@
  * Each tool call carries the credentials of its HTTP request (CLI-10), so the request hook of the
  * server (`principalOf`) and its token check apply. A server that reads cookies trusts a request
  * with a cookie only from a named origin (CSRF).
+ *
+ * The endpoint has no listener of its own (CLI-11). The owner of a listener mounts `handle`: a
+ * listener of the service (`httpTransport` of `@mark1russell7/service/http`) or the procedures host.
+ * Thus the runner of the process owns the port, the stop in stages and the exit.
  */
 
 import { randomUUID } from "node:crypto";
-import { createServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { bearerOf, checkBrowserRequest, hasAmbientCredentials, tokenMatches } from "@procedures/client";
 import type { HttpTransportOptions } from "../types.js";
 
 /** The HTTP endpoint of an MCP server, with a session for each client. */
 export interface McpHttpTransport {
-  /**
-   * This function starts to listen, when the endpoint has a server of its own. It gives the URL, or the path of a mounted endpoint.
-   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11): then the endpoint is always mounted.
-   */
-  listen(): Promise<string>;
-  /**
-   * This function answers a request of the path of the endpoint and gives true. It gives false for
-   * another path, when the endpoint does not own its server.
-   */
+  /** The path of the endpoint, for example `/mcp`. */
+  readonly path: string;
+  /** This function answers a request of the path of the endpoint and gives true. It gives false for another path. */
   handle(req: IncomingMessage, res: ServerResponse): boolean;
   /** The number of open sessions. */
   readonly sessions: number;
-  /** This function closes each session, and the server when the endpoint made one. */
+  /** This function closes each session. The listener stays with its owner. */
   close(): Promise<void>;
 }
 
@@ -48,10 +45,6 @@ export function createHttpTransport(
   connect: (transport: StreamableHTTPServerTransport) => Promise<void>,
 ): McpHttpTransport {
   const path = options.path ?? "/mcp";
-  const host = options.host ?? "127.0.0.1";
-  const mounted = options.mount === true;
-  const owned = !mounted && options.server === undefined;
-  const server: HttpServer | undefined = mounted ? undefined : (options.server ?? createServer());
   const sessions = new Map<string, StreamableHTTPServerTransport>();
 
   const refuse = (res: ServerResponse, status: number, code: string, message: string): void => {
@@ -80,11 +73,7 @@ export function createHttpTransport(
 
   const handle = (req: IncomingMessage, res: ServerResponse): boolean => {
     const url = new URL(req.url ?? "/", "http://localhost");
-    if (url.pathname !== path) {
-      if (!owned) return false;
-      refuse(res, 404, "NOT_FOUND", `No MCP endpoint at ${url.pathname}`);
-      return true;
-    }
+    if (url.pathname !== path) return false;
     // A web page must not reach the tools: the host and the origin of the request. A server that
     // reads cookies trusts a request with ambient credentials only from a named origin (CSRF)
     const ambient = options.ambientCredentials === "always" || hasAmbientCredentials(req.headers);
@@ -110,42 +99,16 @@ export function createHttpTransport(
       });
     return true;
   };
-  const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
-    handle(req, res);
-  };
-  server?.on("request", onRequest);
-
   return {
+    path,
     handle,
-    listen: async () => {
-      if (!server) return path;
-      if (owned && !server.listening) {
-        await new Promise<void>((resolve, reject) => {
-          server.once("error", reject);
-          server.listen(options.port ?? 3003, host, () => {
-            server.off("error", reject);
-            resolve();
-          });
-        });
-      }
-      const address = server.address() as AddressInfo | null;
-      const shown = host === "0.0.0.0" ? "localhost" : host;
-      return `http://${shown}:${address?.port ?? options.port ?? 3003}${path}`;
-    },
     get sessions() {
       return sessions.size;
     },
     close: async () => {
-      server?.off("request", onRequest);
       const open = [...sessions.values()];
       sessions.clear();
       await Promise.all(open.map((transport) => transport.close().catch(() => undefined)));
-      if (owned && server?.listening) {
-        await new Promise<void>((resolve) => {
-          server.close(() => resolve());
-          server.closeAllConnections();
-        });
-      }
     },
   };
 }
