@@ -288,28 +288,39 @@ describe("the credentials of a request (CLI-2a)", () => {
   });
 
   it("reads the scheme of a bearer header in any case, with one or more spaces (RFC 7235, CLI-60)", () => {
-    // Each header that gave a token before gives the same token
+    // Each header that starts with "Bearer " gives the same result as before: the rest of the header
     for (const token of ["b-1", "s3cret-token", "abc-._~+/XYZ==", "s3cret!:x"]) expect(bearerOf(`Bearer ${token}`)).toBe(token);
-    // The scheme is case-insensitive, 1*SP separates it from the token, and OWS can end the value
-    for (const header of ["bearer b-1", "BEARER b-1", "bEaReR b-1", "Bearer   b-1", "Bearer b-1 ", "Bearer b-1\t", "bearer  b-1 \t "]) {
+    for (const [header, before] of [
+      ["Bearer a b", "a b"],
+      ["Bearer ", ""],
+      ["Bearer   b-1", "  b-1"],
+      ["Bearer b-1 ", "b-1 "],
+      ["Bearer b-1\tx", "b-1\tx"],
+    ] as const) {
+      expect(bearerOf(header), JSON.stringify(header)).toBe(before);
+    }
+    // The new forms: the scheme in another case, 1*SP before the token, and OWS at the end
+    for (const header of ["bearer b-1", "BEARER b-1", "bEaReR b-1", "bearer   b-1", "BEARER b-1 ", "bearer b-1\t", "bearer  b-1 \t "]) {
       expect(bearerOf(header), JSON.stringify(header)).toBe("b-1");
     }
-    // Not a bearer credential: another scheme, no token, a token with whitespace, a tab for 1*SP
-    for (const header of ["Basic x", "Bearer", "Bearer ", "Bearer   ", "Bearer a b", "", "Bearer\tb-1", "Bearerb-1", "Bearer b-1\nx", "Token b-1"]) {
+    // Not a bearer credential: another scheme, no space after the scheme, a tab for 1*SP, no token
+    for (const header of ["Basic x", "Bearer", "Bearer\tb-1", "", "Bearerb-1", "bearer", "bearer ", "bearer\tb-1", "bearer a b", "bearer b-1\nx", "Token b-1"]) {
       expect(bearerOf(header), JSON.stringify(header)).toBeUndefined();
     }
     for (const header of [undefined, null, 42, ["Bearer b-1"]]) expect(bearerOf(header)).toBeUndefined();
-    // The credentials of a request and of a WebSocket upgrade read the same form
+    // The credentials of a request and of a WebSocket upgrade read the same forms
     expect(credentialsOf({ headers: { authorization: "bearer b-1" } })).toEqual({ bearer: "b-1" });
     expect(requestCredentials({ headers: { Authorization: "BEARER  b-2 " } }).bearer).toBe("b-2");
-    // A header that is not a bearer credential gives no token, so the token query applies
-    expect(credentialsOf({ headers: { authorization: "Bearer " }, url: "/ws?token=t-3" })).toEqual({ bearer: "t-3" });
-    expect(requestCredentials({ headers: { authorization: "Bearer a b" }, url: "/ws?token=t-3" }, { tokenQuery: "token" }).bearer).toBe("t-3");
+    // "Bearer " still gives "", so it still blocks the token query, as before
+    expect(credentialsOf({ headers: { authorization: "Bearer " }, url: "/ws?token=t-3" })).toEqual({ bearer: "" });
+    expect(requestCredentials({ headers: { authorization: "Bearer a b" }, url: "/ws?token=t-3" }, { tokenQuery: "token" }).bearer).toBe("a b");
+    // A header that gives no token leaves the token query, as before
+    expect(credentialsOf({ headers: { authorization: "Basic x" }, url: "/ws?token=t-3" })).toEqual({ bearer: "t-3" });
   });
 
   it("passes a call with a lower-case bearer scheme through the procedure handler (CLI-60)", async () => {
     const port = await start({ token: TOKEN });
-    for (const authorization of [`Bearer ${TOKEN}`, `bearer ${TOKEN}`, `BEARER  ${TOKEN}`]) {
+    for (const authorization of [`Bearer ${TOKEN}`, `bearer ${TOKEN}`, `BEARER  ${TOKEN}`, `bEaReR ${TOKEN}`]) {
       const res = await call(port, "/api/proc/who/am", { authorization });
       expect(res.status, authorization).toBe(200);
       expect(res.body["principal"]).toEqual({ id: "token", via: "token" });

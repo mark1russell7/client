@@ -59,7 +59,7 @@ describe("guardMcpRequest", () => {
   });
 
   it("reads the bearer scheme in any case, with one or more spaces (RFC 7235, CLI-60)", () => {
-    for (const authorization of ["bearer secret-token-0123", "BEARER secret-token-0123", "Bearer   secret-token-0123", "bearer secret-token-0123 "]) {
+    for (const authorization of ["bearer secret-token-0123", "BEARER secret-token-0123", "bearer   secret-token-0123", "BEARER secret-token-0123 "]) {
       expect(guardMcpRequest(request({ host: "127.0.0.1:3003", authorization }), { token: "secret-token-0123" }), authorization).toEqual({ ok: true });
     }
   });

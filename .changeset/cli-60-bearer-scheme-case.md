@@ -4,15 +4,14 @@
 "@procedures/peer": patch
 ---
 
-Fixed: `bearerOf` reads the scheme of an `Authorization` header in any case (CLI-60). RFC 7235 makes the scheme case-insensitive, with one or more spaces (`1*SP`) before the token. Before, `bearerOf` accepted only `Bearer` with one space, so a correct `bearer <token>` got 401.
+Fixed: `bearerOf` also reads the scheme of an `Authorization` header in another case (CLI-60). RFC 7235 makes the scheme case-insensitive, with one or more spaces (`1*SP`) before the token. Before, `bearerOf` read only a header that starts with `Bearer ` and one space, so a correct `bearer <token>` got 401.
 
-- `bearer`, `BEARER` and each other case pass. One or more spaces can come before the token, and spaces or tabs can come after it.
-- The token is the text after the spaces. It has no whitespace (`token68`).
-- A tab before the token is not `1*SP`, so it gives no token.
-- `Basic x`, `Bearer` with no token and an empty header give no token, as before. `Bearer ` and `Bearer a b` also give no token.
-- When the header gives no token, the `token` query applies, as for a request without the header.
+Each header that `bearerOf` read before gives the same token. A correct header in another case passes too, also with more spaces before the token.
+
+- A header that starts with `Bearer ` gives the rest of the header, as before.
+- A header with the scheme in another case, for example `bearer` or `BEARER`, gives the token after one or more spaces. Spaces or tabs can come after the token. The token has no whitespace (`token68`).
+- A tab between the scheme and the token is not `1*SP`, so it gives no token.
+- `Basic x`, `Bearer` with no space and an empty header give no token, as before.
 - The token comparison (`tokenMatches`) does not change.
-
-For a server token without whitespace, this change accepts more correct requests, and it refuses no request that it accepted before. A server token with whitespace does not match after this change, because `Bearer a b` gives no token. Such a token is not a valid bearer token.
 
 Each user of `bearerOf` gets the change. These users are `credentialsOf`, `requestCredentials`, `procedureHandler` and the WebSocket server. The WebSocket admission of `createProcedureHost()`, `guardMcpRequest` and the credentials of the MCP face also get it.
