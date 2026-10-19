@@ -515,6 +515,8 @@ export type {
   EventPublisherOptions,
   TopicRule,
   TopicCall,
+  RightsChange,
+  SubscriptionRecheck,
   EventItem,
   RemoteEvent,
   RemoteEventHandler,

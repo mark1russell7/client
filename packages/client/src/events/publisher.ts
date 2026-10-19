@@ -18,6 +18,8 @@
  *
  * - A value with rows (`withRows()`) reaches each subscriber through the output filter of its host
  *   (`ctx.admit`): each row passes the filter, and the subscriber gets only the admitted rows.
+ * - An open subscription gets the same checks again at a change of the rights (`rightsChanged()`,
+ *   `recheck.rightsChanges`) and after `recheck.maxAge` (roadmap CLI-44). A refusal ends it.
  *
  * The delivery is at most once. The queue of a subscription holds at most `buffer` events. When
  * it is full, the publisher drops the oldest event, and the next event tells the number of lost
@@ -36,6 +38,8 @@ import type { EventBus, Unsubscribe } from "./types.js";
 import { getGlobalEventBus } from "./bus.js";
 import { EVENTS_SUBSCRIBE_PATH, type EventItem, type SubscribeInput } from "./remote.js";
 import { admittedValue, rowsOf } from "./rows.js";
+import { realClock, type Clock } from "../clock.js";
+import { SubscriptionRechecks, type RightsChange, type SubscriptionRecheck } from "./recheck.js";
 
 /** The number of topics that one subscription can name. */
 export const MAX_SUBSCRIPTION_TOPICS = 64;
@@ -89,6 +93,23 @@ export interface EventPublisherOptions {
    * @default the read of the collection of `collectionTopicTarget()`, with the repository of the call
    */
   reads?: ((topic: string) => readonly string[]) | undefined;
+  /**
+   * The clock of the re-check after `recheck.maxAge` (roadmap CLI-44). A test gives the
+   * `fakeClock` of `@mark1russell7/service/testing`. A `ProcedureServer` gives its own clock to the
+   * publisher that it makes from its option `events`.
+   * @default the clock of the platform
+   */
+  clock?: Clock | undefined;
+  /**
+   * The re-check of the admission of each open subscription (roadmap CLI-44). A right can change
+   * after the start of a subscription. The publisher then examines the subscription again with the
+   * same checks: the topic rule, the reads, `allow` and the partition. A refusal ends it, for
+   * example with `FORBIDDEN`. `maxAge` starts a check after a time on the clock, and
+   * `rightsChanges` starts a check at each change from a source of the app. `rightsChanged()` also
+   * starts a check.
+   * @default no check after the start, other than at a call of `rightsChanged()`
+   */
+  recheck?: SubscriptionRecheck | undefined;
 }
 
 /** A procedure that reads resources, for the admission of a topic under a capability. */
@@ -167,6 +188,10 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
   private closed = false;
   private failure: unknown;
   private readonly unsubscribes: Unsubscribe[];
+  /** The re-check of the admission that runs (roadmap CLI-44). The events wait for it. */
+  private recheck: Promise<void> | undefined;
+  /** The functions that run when the subscription ends */
+  private readonly endListeners: Array<() => void> = [];
 
   constructor(
     bus: EventBus,
@@ -199,7 +224,7 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     if (this.closed) return;
     const event = { type: "event" as const, topic, data, seq: ++this.seq };
     const waiter = this.waiter;
-    if (waiter && this.queue.length === 0) {
+    if (waiter && this.queue.length === 0 && !this.recheck) {
       this.waiter = undefined;
       waiter.resolve(this.deliver(event));
       return;
@@ -236,6 +261,8 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
       this.confirmation = undefined;
       return Promise.resolve({ value: confirmation, done: false });
     }
+    // The events wait for a re-check of the admission (roadmap CLI-44)
+    if (this.recheck) return this.recheck.then(() => this.next());
     const event = this.queue.shift();
     if (event) return this.deliver(event);
     if (this.failure !== undefined) {
@@ -292,8 +319,50 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     for (const unsubscribe of this.unsubscribes) unsubscribe();
     this.signal?.removeEventListener("abort", this.onAbort);
     this.onClose(this);
+    for (const listener of this.endListeners.splice(0)) listener();
+  }
+
+  /**
+   * This function holds the events until the check ends (roadmap CLI-44). A check that passes gives
+   * the held events to the reader. A check that fails ends the subscription with its error, and the
+   * held events go. The promise ends when the check ends, and it does not reject.
+   */
+  hold(check: Promise<void>): Promise<void> {
+    if (this.closed) return check.then(ignore, ignore);
+    const running: Promise<void> = check.then(
+      () => {
+        if (this.recheck === running) this.recheck = undefined;
+        this.flush();
+      },
+      (error: unknown) => {
+        if (this.recheck === running) this.recheck = undefined;
+        this.queue.length = 0;
+        this.fail(error);
+      },
+    );
+    this.recheck = running;
+    return running;
+  }
+
+  /** This function runs the listener when the subscription ends, or at once after its end. */
+  onEnd(listener: () => void): void {
+    if (this.closed) listener();
+    else this.endListeners.push(listener);
+  }
+
+  /** This function gives the first held event to a reader that waits, after a check passes. */
+  private flush(): void {
+    const waiter = this.waiter;
+    const event = this.queue[0];
+    if (!waiter || !event || this.recheck) return;
+    this.waiter = undefined;
+    this.queue.shift();
+    waiter.resolve(this.deliver(event));
   }
 }
+
+/** This function does nothing: the end of a check of a closed subscription. */
+function ignore(): void {}
 
 /**
  * The publisher of the remote events: it serves `events.subscribe` from a bus, under a topic
@@ -318,8 +387,11 @@ export class EventPublisher {
   private readonly defaultReads: boolean;
   private readonly buffer: number;
   private readonly open = new Set<TopicSubscription>();
+  /** The re-checks of the admission of the open subscriptions (roadmap CLI-44) */
+  private readonly rechecks: SubscriptionRechecks;
 
   constructor(options: EventPublisherOptions) {
+    this.rechecks = new SubscriptionRechecks(options.recheck ?? {}, options.clock ?? realClock);
     this.bus = options.bus ?? getGlobalEventBus();
     this.known = topicMatcher(options.topics);
     this.allow = options.allow;
@@ -358,6 +430,18 @@ export class EventPublisher {
   }
 
   /**
+   * This function tells the publisher that rights changed (roadmap CLI-44). Each open subscription
+   * that the change touches gets the checks of its start again: the topic rule, the reads, `allow`
+   * and the partition. Its events wait for the check. A refusal ends the subscription with its
+   * error, for example `FORBIDDEN`. The promise ends when each check ends, and it does not reject.
+   *
+   * @param change - The subscriptions that the change touches. Without it, each open subscription gets a check.
+   */
+  rightsChanged(change?: RightsChange): Promise<void> {
+    return this.rechecks.rightsChanged(change);
+  }
+
+  /**
    * The topic of the bus for a topic of a subscriber (roadmap CLI-17). A topic of a partitioned
    * collection names the partition that the subscriber asks for, as the input of a procedure does:
    * the resolver of the repository gives the partition, so a subscriber cannot name the topic of
@@ -382,11 +466,10 @@ export class EventPublisher {
   }
 
   /**
-   * The stream of one subscription. The publisher examines each topic before it adds a listener:
-   * the topic rule, the reads, `allow`, and the partition. A call with one bad topic makes no subscription.
+   * The checks of the topics of a call: the topic rule, the reads of the capability and `allow`.
+   * A subscription passes them at its start and at each re-check (roadmap CLI-44).
    */
-  private async subscribe(topics: readonly string[], ctx: ProcedureContext): Promise<TopicSubscription> {
-    const unique = [...new Set(topics)];
+  private admitTopics(unique: readonly string[], ctx: ProcedureContext): void {
     for (const topic of unique) {
       if (!this.known(topic)) throw new TopicNotFoundError(`The host has no topic "${topic}"`);
     }
@@ -405,10 +488,36 @@ export class EventPublisher {
         }
       }
     }
+  }
+
+  /**
+   * The admission of an open subscription again (roadmap CLI-44): the checks of its start, and the
+   * partition of each topic. A refusal of the resolver throws its error. A topic whose partition
+   * changed throws `FORBIDDEN` (reason `partition-not-allowed`), because the listener has the old
+   * partition.
+   */
+  private async readmit(routes: ReadonlyArray<readonly [string, string]>, ctx: ProcedureContext): Promise<void> {
+    this.admitTopics(routes.map(([topic]) => topic), ctx);
+    for (const [topic, busTopic] of routes) {
+      if ((await this.busTopic(topic, ctx)) !== busTopic) {
+        throw new InvocationError("FORBIDDEN", `The partition of the topic "${topic}" changed, so the subscription ends`, ctx.path, "partition-not-allowed");
+      }
+    }
+  }
+
+  /**
+   * The stream of one subscription. The publisher examines each topic before it adds a listener:
+   * the topic rule, the reads, `allow`, and the partition. A call with one bad topic makes no subscription.
+   */
+  private async subscribe(topics: readonly string[], ctx: ProcedureContext): Promise<TopicSubscription> {
+    const unique = [...new Set(topics)];
+    this.admitTopics(unique, ctx);
     const routes: Array<readonly [string, string]> = [];
     for (const topic of unique) routes.push([topic, await this.busTopic(topic, ctx)]);
     const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
     this.open.add(subscription);
+    // The same checks run again at a change of the rights and after the max age (roadmap CLI-44)
+    this.rechecks.watch(subscription, ctx.principal, () => this.readmit(routes, ctx));
     return subscription.closeIfAborted();
   }
 }
