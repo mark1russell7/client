@@ -11,6 +11,7 @@ import type { AddressInfo } from "node:net";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { CallToolResultSchema, CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   NARROWING_METADATA_KEY,
   ProcedureServer,
@@ -171,6 +172,62 @@ describe("mcpFace({ narrowing }) (CLI-43)", () => {
     const { client } = await start({ narrowing: [READ_ONLY, { timeoutMs: 60_000 }] });
     expect(await toolNames(client)).toEqual(["notes.read"]);
     expect((await call(client, "notes.read")).structuredContent).toEqual({ clearance: null, writes: [], deadline: true });
+  });
+
+  it("narrows a call that runs as an MCP task too (CLI-35)", async () => {
+    const registry = createRegistry({
+      name: "face-narrowing-task",
+      procedures: [
+        createProcedure()
+          .path(["notes", "scan"])
+          .input(z.object({}).passthrough())
+          .output(z.object({ writes: z.unknown() }))
+          .meta({ description: "notes scan", effects: { reads: ["notes"], writes: [] }, taskSupport: "optional" })
+          .handler(async (_input, ctx) => ({ writes: ctx.capability.effects?.writes ?? null }))
+          .build() as AnyProcedure,
+      ],
+    });
+    const policy = hostPolicy({ token: TOKEN, expose: ["notes.*"] });
+    const server = new ProcedureServer(procedureServerOptions(policy, registry));
+    const requests: ServerRequest[] = [];
+    const handler = {
+      handle: (request: ServerRequest) => {
+        requests.push(request);
+        return server.handle(request);
+      },
+    };
+    const face = mcpFace({ serverInfo: { name: "face-narrowing", version: "0.0.0" }, narrowing: READ_ONLY, tasks: {} })({ handler, registry, policy });
+    await face.parts.start();
+    cleanups.push(() => face.parts.close());
+    const listener: Server = createServer((req, res) => {
+      if (face.handler(req, res)) return;
+      res.statusCode = 404;
+      res.end();
+    });
+    await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", () => resolve()));
+    cleanups.push(
+      () =>
+        new Promise<void>((resolve) => {
+          listener.close(() => resolve());
+          listener.closeAllConnections();
+        }),
+    );
+    const url = new URL(`http://127.0.0.1:${(listener.address() as AddressInfo).port}/mcp`);
+    const client = new McpClient({ name: "test", version: "0" });
+    await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } } }) as never);
+    cleanups.push(() => client.close());
+
+    const created = await client.request({ method: "tools/call", params: { name: "notes.scan", arguments: {}, task: {} } }, CreateTaskResultSchema);
+    let task = created.task;
+    for (let tries = 0; tries < 300 && task.status === "working"; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      task = await client.experimental.tasks.getTask(created.task.taskId);
+    }
+    expect(task.status).toBe("completed");
+    const result = await client.experimental.tasks.getTaskResult(created.task.taskId, CallToolResultSchema);
+    // The call of the task has the read-only capability of the face
+    expect(result.structuredContent).toEqual({ writes: [] });
+    expect(requests.map((request) => request.metadata[NARROWING_METADATA_KEY])).toEqual([[READ_ONLY]]);
   });
 
   it("refuses a narrowing that is not valid when the host makes the face", () => {

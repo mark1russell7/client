@@ -39,6 +39,12 @@ export interface McpFaceOptions extends Omit<McpServerTransportOptions, "transpo
   readonly token?: string | undefined;
   /** The browser origins that can call the endpoint, besides loopback origins. The default is the list of the policy. */
   readonly allowedOrigins?: string[] | undefined;
+  /** The host names that a request on a loopback address can name. The default is `browser.allowedHosts` of the policy. */
+  readonly allowedHosts?: readonly string[] | "*" | undefined;
+  /** The most sessions at one time (CLI-35). The default is no limit. */
+  readonly maxSessions?: number | undefined;
+  /** The largest body of a request, in bytes (CLI-35). The default is 4 MiB. */
+  readonly maxBodyBytes?: number | undefined;
   /**
    * A narrower capability for each call of the face (CLI-43), for example the read-only mode
    * `{ effects: { writes: [] } }`. The face adds it as one more source of the narrowing key
@@ -121,11 +127,12 @@ function faceNarrowing(narrowing: NonNullable<McpFaceOptions["narrowing"]>, cont
  */
 export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext) => McpFace {
   return (context) => {
-    const { path: givenPath, token: givenToken, allowedOrigins: givenOrigins, narrowing: givenNarrowing, ...common } = options;
+    const { path: givenPath, token: givenToken, allowedOrigins: givenOrigins, allowedHosts: givenHosts, maxSessions, maxBodyBytes, narrowing: givenNarrowing, ...common } = options;
     const path = givenPath ?? "/mcp";
     const token = givenToken ?? context.policy.token;
     const policyOrigins = context.policy.browser.allowedOrigins;
     const allowedOrigins = givenOrigins ?? (Array.isArray(policyOrigins) ? [...policyOrigins] : undefined);
+    const allowedHosts = givenHosts ?? context.policy.browser.allowedHosts;
     const narrowed = givenNarrowing !== undefined ? faceNarrowing(givenNarrowing, context) : undefined;
     const toolFilter: McpToolFilter = { ...common.toolFilter, ...(context.policy.expose ? { include: context.policy.expose } : {}) };
     if (narrowed) {
@@ -143,6 +150,9 @@ export function mcpFace(options: McpFaceOptions = {}): (context: McpFaceContext)
         path,
         ...(token !== undefined ? { token } : {}),
         ...(allowedOrigins ? { allowedOrigins } : {}),
+        ...(allowedHosts !== undefined ? { allowedHosts } : {}),
+        ...(maxSessions !== undefined ? { maxSessions } : {}),
+        ...(maxBodyBytes !== undefined ? { maxBodyBytes } : {}),
         ...(handler.ambientCredentials ? { ambientCredentials: handler.ambientCredentials } : {}),
       },
     });

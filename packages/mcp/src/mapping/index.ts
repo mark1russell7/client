@@ -20,5 +20,6 @@ export {
   createToolMap,
   findToolByPath,
   withUntrustedFields,
+  taskSupportOf,
   UNTRUSTED_FIELD_DESCRIPTION,
 } from "./procedure-to-tool.js";

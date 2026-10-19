@@ -34,6 +34,7 @@ export {
   LOCAL_LISTENER_KNOBS,
   callOperations,
   faceHandler,
+  httpTracker,
   operationOfCall,
 } from "./host/index.js";
 export type {
@@ -61,6 +62,8 @@ export type {
   CallOperation,
   FaceHandler,
   FaceHandlerOptions,
+  HttpTracker,
+  HttpTrackerOptions,
 } from "./host/index.js";
 
 // Peer: a procedures host with a service of its own, for a process that has no service
