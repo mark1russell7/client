@@ -4,7 +4,8 @@
  * This module exports everything of the package except the Node server transports
  * (`HttpServerTransport` and `WebSocketServerTransport`, which use `http` and `ws`).
  * A browser bundle imports "@procedures/client/browser". The root entry point
- * re-exports this module and adds the server transports.
+ * re-exports this module. It also adds the server transports as deprecated aliases: their entry
+ * is "@procedures/client/node", and the next MINOR removes them from the root (CLI-6).
  *
  * Collections (maps, caches, collection storage) are in @procedures/collections.
  * The program store, the storage backends that need a Client (ApiStorage, HybridStorage) and the
@@ -130,6 +131,9 @@ export {
   PARTITION_PATTERN,
   collectionTopicPartition,
   collectionTopicTarget,
+  // The rules of the rows of a collection (roadmap CLI-41)
+  admittedStorage,
+  admitsRow,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
@@ -281,6 +285,10 @@ export type {
   StorageQueryPolicy,
   CollectionProceduresOptions,
   CollectionChangeEventsOptions,
+  CollectionAdmission,
+  CollectionRow,
+  CollectionWrite,
+  CollectionWriteGuard,
   CollectionPartitions,
   PartitionInput,
   PartitionResolver,

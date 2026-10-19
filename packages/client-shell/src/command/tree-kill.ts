@@ -9,6 +9,11 @@
  *
  * The module also records each live child. When the host process ends (a normal exit, or
  * SIGINT, SIGTERM or SIGHUP), it kills each recorded tree, so no child keeps running alone.
+ *
+ * A signal kills the trees only when no other handler owns the signal. A host under `run()` of
+ * `@mark1russell7/service` owns its signals: the drain aborts each call, and the abort of a
+ * procedure kills its tree, so its stream ends in band. The exit hook then kills each tree that
+ * still runs at the exit.
  */
 
 import { execFile, spawnSync, type ChildProcess } from "node:child_process";
@@ -80,14 +85,18 @@ function onExit(): void {
   killAll();
 }
 
-function onSignal(signal: NodeJS.Signals): void {
+/**
+ * The handler of SIGINT, SIGTERM and SIGHUP. Another handler of the signal (the runner of the
+ * service, or the interrupt of `mark`) owns the stop: this handler then does nothing. Before, it
+ * killed each tree at the signal, before the drain, so a stream ended with `done` and not in band.
+ */
+export function onSignal(signal: NodeJS.Signals): void {
+  if (process.listenerCount(signal) > 1) return;
+  // Without this handler, Node ends the process on the signal. As the only handler, do the same:
+  // kill the trees, remove the hooks and send the signal again.
   killAll();
-  // Without this handler, Node ends the process on the signal. When this handler is the only one,
-  // do the same: remove the hooks and send the signal again.
-  if (process.listenerCount(signal) === 1) {
-    unhook();
-    process.kill(process.pid, signal);
-  }
+  unhook();
+  process.kill(process.pid, signal);
 }
 
 function hook(): void {

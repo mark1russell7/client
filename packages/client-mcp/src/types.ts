@@ -10,6 +10,7 @@ import type { ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
+import type { McpTasksOptions } from "./tasks.js";
 
 /** The streams of the stdio transport, and what happens when its input ends. */
 export interface StdioTransportOptions {
@@ -64,6 +65,11 @@ export interface HttpTransportOptions {
   /** Browser origins that can call the server, besides loopback origins */
   allowedOrigins?: string[] | undefined;
   /**
+   * The host names that a request on a loopback address can name in its `Host` header, besides
+   * the loopback names (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
+   */
+  allowedHosts?: readonly string[] | "*" | undefined;
+  /**
    * This option has no effect: the endpoint is always mounted (CLI-11). Code that followed the
    * migration of 0.14.x gives `mount: true`, so the option stays one more release.
    * @deprecated Remove it. A later MINOR removes the option.
@@ -74,6 +80,18 @@ export interface HttpTransportOptions {
    * transport sets it from its server. With a value, a request with a cookie needs a named origin.
    */
   ambientCredentials?: import("@procedures/client").AmbientCredentials | undefined;
+  /**
+   * The most sessions at one time (CLI-35). A new session above the limit closes the session that
+   * was idle longest: no task in progress and no open response. When each session is busy, the
+   * new session gets 503 with `Retry-After`.
+   * @default Infinity (no limit)
+   */
+  maxSessions?: number | undefined;
+  /**
+   * The largest body of a request, in bytes (CLI-35).
+   * @default 4194304 (4 MiB, the limit of the SDK)
+   */
+  maxBodyBytes?: number | undefined;
 }
 
 export interface SseTransportOptions {
@@ -163,6 +181,13 @@ export interface McpServerTransportOptions {
    * @default { items: 100, time: seconds(30) }
    */
   streamLimits?: { items?: number; time?: Duration } | undefined;
+
+  /**
+   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `ttl`). With it, a
+   * tool whose procedure has `metadata.taskSupport` can run as a task. Without it, each tool call
+   * is a normal request. The stop of the transport closes a store that it made.
+   */
+  tasks?: McpTasksOptions | undefined;
 }
 
 /**
@@ -177,4 +202,6 @@ export interface McpServerTransportState {
   transport: "stdio" | "sse" | "http";
   /** The path of the Streamable HTTP endpoint, when the transport is "http". The owner of the listener gives the address (CLI-11). */
   url?: string;
+  /** The open sessions of the Streamable HTTP endpoint, when the transport is "http" (CLI-35) */
+  sessions?: number;
 }
