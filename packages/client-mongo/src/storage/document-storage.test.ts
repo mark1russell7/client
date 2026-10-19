@@ -338,13 +338,17 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     // The slow write has its pending number (it reaches its write after the number), and it waits at
     // the gate. A wait of more than the lease from here ends the lease on the server, also when the
     // machine is slow: a longer wait only makes it surer.
-    await atWrite;
-    await sleep(lease * 3);
-    await fast.set("b", { n: 3 });
-    // The lease of the slow write ended: the watermark passed its number, and its write waits still
-    const passed = await fast.getChangesSince(start.version);
-    expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
-    open();
+    let passed: Awaited<ReturnType<typeof fast.getChangesSince>>;
+    try {
+      await atWrite;
+      await sleep(lease * 3);
+      await fast.set("b", { n: 3 });
+      // The lease of the slow write ended: the watermark passed its number, and its write waits still
+      passed = await fast.getChangesSince(start.version);
+      expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
+    } finally {
+      open(); // a failed step never leaves the slow write at the gate
+    }
     await late;
     const after = await fast.getChangesSince(passed.version);
     expect(after.changed.map(([id]) => id)).toEqual(["late"]);
