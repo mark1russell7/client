@@ -133,6 +133,7 @@ export {
   PARTITION_PATTERN,
   collectionTopicPartition,
   collectionTopicTarget,
+  collectionTopicRule,
   // The rules of the rows of a collection (roadmap CLI-41)
   admittedStorage,
   admitsRow,
