@@ -25,6 +25,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
 import { readStatusData } from "./status-data.mjs";
+import { readStatusBoard } from "./status-board-data.mjs";
 import { readReleases, splitReleases } from "./releases-data.mjs";
 import { docModuleName, readDocs } from "./docs-data.mjs";
 import { countTests, npmVersion } from "./site-metrics.mjs";
@@ -241,8 +242,20 @@ const commit = process.env["SITE_COMMIT"] || git("rev-parse", "HEAD");
 const build = { commit, date: (commit && git("show", "-s", "--format=%cI", commit)) || new Date().toISOString() };
 
 // ---------------------------------------------------------------------------
-// The status board: the status documents of packages/documentation
+// The status page: the live board (scripts/status-board-data.mjs) reads the roadmap file and the
+// open pull requests and issues on GitHub. Without GITHUB_TOKEN, or when GitHub does not answer,
+// the board shows the roadmap only. Its history reads the closed status documents.
 // ---------------------------------------------------------------------------
+
+const STATUS_BOARD = { roadmap: "packages/documentation/ROADMAP-2026-10.md", owner: "mark1russell7", repo: "client" };
+
+let board;
+try {
+  board = await readStatusBoard({ repoDir: join(PACKAGES, ".."), ...STATUS_BOARD, token: process.env["GITHUB_TOKEN"], commit });
+} catch (error) {
+  fail(`the status board cannot read the roadmap. ${error?.message ?? error}`);
+}
+if (!board.github.available) process.stderr.write(`gen-data: the status board has no GitHub data: ${board.github.reason}.\n`);
 
 let status;
 try {
@@ -311,6 +324,7 @@ for (const [dir, entries] of schemasByPackage) {
   writeFileSync(join(OUT, "schemas", `${dir}.d.ts`), "declare const data: unknown;\nexport default data;\n");
 }
 write("status", status);
+write("status-board", board);
 // The index and the changes of the newest version load with the releases page, the other changes on demand
 const { index: releaseIndex, changes: releaseChanges } = splitReleases(releases);
 write("releases", releaseIndex);
@@ -332,7 +346,9 @@ log(
   `site data: ${packages.length} packages, ${procedures.length} procedures ` +
     `(${procedures.filter((p) => p.cli).length} in the CLI, ${procedures.filter((p) => p.mcp).length} MCP tools, ` +
     `${procedures.filter((p) => p.browser).length} in the browser), ` +
-    `${status.findings.length} findings and ${status.roadmap.length} roadmap items on the status board, ` +
+    `${board.items.length} roadmap items (${board.items.filter((item) => item.statusClass !== "done").length} open), ` +
+    (board.github.available ? `${board.pullRequests.length} open pull requests and ${board.issues.length} open issues ` : "no GitHub data ") +
+    `on the status board, ${status.findings.length} findings in its history, ` +
     `${releases.releases.length} releases, ` +
     `${docs.index.length} docs pages (${docs.index.reduce((sum, doc) => sum + doc.programs, 0)} program blocks), ` +
     `${metrics.tests} tests in ${metrics.testFiles} files, npm: ${npm.version ?? "not published"}` +

@@ -400,7 +400,7 @@ table.findings.compact th[scope="row"] {
   align-items: start;
 }
 
-.roadmap-phase h3 {
+.roadmap-phase h4 {
   margin: 0 0 var(--space-2);
   font-size: var(--text-base);
 }
@@ -487,4 +487,23 @@ table.findings.compact th[scope="row"] {
 .found-list li {
   margin: var(--space-1) 0;
   overflow-wrap: anywhere;
+}
+
+/* ---- The history of the status page: closed by default, it loads when it opens ---- */
+
+.status-history-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.status-history-details > summary:hover {
+  background: var(--color-surface-sunken);
+}
+
+.status-history-details[open] > summary {
+  margin-bottom: var(--space-4);
 }

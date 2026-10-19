@@ -255,7 +255,7 @@ export function Home(): ReactElement {
           </a>
           <a className="panel explore-card" href={href("status")}>
             <h3>The status board →</h3>
-            <p className="small">Each finding of the October deep dive and each bug of the July audit, with its status and its commits.</p>
+            <p className="small">The open work of the roadmap, the open pull requests and the open issues. Each build reads them again.</p>
           </a>
         </div>
       </section>
