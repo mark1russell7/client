@@ -333,6 +333,7 @@ A value of a collection reaches a caller only through a read with its checks. Th
 - Without that read, the subscription gets `FORBIDDEN` with the reason `effects-exceeded`. The option `reads` of `EventPublisher` gives the rule of other topics.
 - With the option `values: true`, an event also has the values. Each row `{ id, value }` passes the output filter of the host (`admitItem`) for each subscriber.
 - A row that the filter refuses stays out of the event of that subscriber, and its id goes in `withheld`. The subscriber then reads that id with `changes`.
+- The rule of the rows of the collection (`admission.admit`) applies to each row too, with the invocation of the subscription.
 - A procedure that sends the data of other writers later, for example a subscription, gets the output filter of its host as `ctx.admit`.
 
 #### The partitions of a collection
@@ -363,6 +364,32 @@ A subscriber names a partition as an input does:
 - `collections.<name>` asks for no partition, and `collections.<name>.<requested>` asks for one. The publisher resolves the partition with the same resolver, and listens to the topic of the resolved partition.
 - A subscriber thus cannot name the topic of another tenant. The events keep the topic that the subscriber named.
 - A topic with a partition of a collection without partitions is refused (`FORBIDDEN`, reason `partition-not-allowed`). A call without a repository is refused in the same way.
+
+#### The rules of the rows of a collection
+
+A right can depend on the document, for example a `when` condition of an access list (roadmap CLI-41). The option `admission` of `createCollectionProcedures()` gives two rules:
+
+```ts
+const procedures = createCollectionProcedures("notes", {
+  admission: {
+    // Each row { id, value } of a read: true admits it. The shape of admitItem.
+    admit: (row, invocation) => canRead(invocation.principal, row.value),
+    // Each set, patch and delete: { op, id, doc, prev }. True permits it.
+    guard: (write, invocation) => canWrite(invocation.principal, write),
+  },
+});
+```
+
+- The procedures apply the rules in one place: the view of the storage of each call (`admittedStorage()`).
+- A refused row is absent from each read: `get`, `has`, `getAll`, `entries`, `ids`, `size`, `getBatch`, `find` and `changes`.
+- `find` counts its skip and its limit in the admitted rows. A storage with `query()` gives the rows page by page.
+- A delta of `changes` puts the id of a refused row in `deleted`. A copy of the caller thus drops the row.
+- A patch whose new item the rule refuses gives `{ found: true }` without the value.
+- An error of the rule fails the read. It does not hide the rows.
+- The guard examines each write before the storage changes. A refused write gets `FORBIDDEN` with the reason `write-not-allowed`.
+- `setBatch` gives one `set` to the guard for each item. `deleteBatch` and `clear` give one `delete` for each id. One refused write refuses the call.
+- A call without an invocation gets no row and makes no write.
+- `accessAdmitItem` and `accessWriteGuard` of `@procedures/access` give the two rules from access lists.
 
 ### The publisher
 
