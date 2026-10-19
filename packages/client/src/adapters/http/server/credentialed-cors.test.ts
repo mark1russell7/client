@@ -66,8 +66,11 @@ describe("credentialedCors (CLI-49)", () => {
     const other = await send(port, "GET", { origin: "https://evil.example" });
     expect(other.status).toBe(200);
     expect(corsHeaders(other.headers)).toEqual([]);
+    // Each response of a list of origins varies by the origin: a shared cache keeps one answer for each origin
+    expect(other.headers["vary"]).toBe("Origin");
     const plain = await send(port, "GET");
     expect(corsHeaders(plain.headers)).toEqual([]);
+    expect(plain.headers["vary"]).toBe("Origin");
     // The route of the app decides: the CORS refuses no request
     expect(routed()).toBe(2);
   });
@@ -85,6 +88,7 @@ describe("credentialedCors (CLI-49)", () => {
     const other = await send(port, "OPTIONS", { origin: "https://evil.example", "access-control-request-method": "POST" });
     expect(other.status).toBe(204);
     expect(corsHeaders(other.headers)).toEqual([]);
+    expect(other.headers["vary"]).toBe("Origin");
     // No preflight reaches the route of the app
     expect(routed()).toBe(0);
   });
@@ -92,9 +96,13 @@ describe("credentialedCors (CLI-49)", () => {
   it("takes a function of the origins, and gives no CORS without origins", async () => {
     const byFunction = await start((origin) => origin.endsWith(".trusted.example"));
     expect((await send(byFunction.port, "GET", { origin: "https://a.trusted.example" })).headers["access-control-allow-origin"]).toBe("https://a.trusted.example");
-    expect(corsHeaders((await send(byFunction.port, "GET", { origin: "https://evil.example" })).headers)).toEqual([]);
+    const evil = await send(byFunction.port, "GET", { origin: "https://evil.example" });
+    expect(corsHeaders(evil.headers)).toEqual([]);
+    expect(evil.headers["vary"]).toBe("Origin");
     const none = await start(undefined);
-    expect(corsHeaders((await send(none.port, "GET", { origin: TRUSTED })).headers)).toEqual([]);
+    const noOrigins = await send(none.port, "GET", { origin: TRUSTED });
+    expect(corsHeaders(noOrigins.headers)).toEqual([]);
+    expect(noOrigins.headers["vary"]).toBe("Origin");
   });
 
   it("refuses the origin \"*\": a browser refuses it with credentials, and each site could send the cookies", () => {

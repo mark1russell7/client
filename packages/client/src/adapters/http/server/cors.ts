@@ -169,6 +169,7 @@ export type CredentialedCorsOptions = Omit<CorsOptions, "origin" | "credentials"
  * - A response for a trusted origin names that one origin, with
  *   `Access-Control-Allow-Credentials: true` and `Vary: Origin`.
  * - A response for another origin, or for a request without an origin, gets no CORS header.
+ * - Each response gets `Vary: Origin`, so a shared cache keeps one answer for each origin.
  * - The handler ends each preflight request (`OPTIONS`) with 204 and gives true. A preflight of a
  *   trusted origin gets the permitted methods and headers. For another request, it gives false.
  *

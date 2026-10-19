@@ -137,6 +137,8 @@ describe("betterAuthHandler (CLI-49)", () => {
     const signOut = await fetch(`${base}/auth/sign-out`, { method: "POST", headers: { Origin: EVIL, Cookie: cookie } });
     expect(signOut.status).toBe(403);
     expect(corsOf(signOut)).toEqual({});
+    // Each answer varies by the origin, so a shared cache does not give it to a trusted origin
+    for (const response of [preflight, session, signOut]) expect(response.headers.get("vary")).toContain("Origin");
   });
 
   it("gives the cookies SameSite=None and Secure for a page on another site", async () => {
@@ -162,6 +164,16 @@ describe("betterAuthHandler (CLI-49)", () => {
     // A policy that permits each origin cannot give credentialed CORS (CSRF)
     const open = hostPolicy({ browser: { allowedOrigins: "*" } });
     expect(() => betterAuthFace({ handler: async () => new Response() })({ policy: open })).toThrow(/not "\*"/);
+  });
+
+  it("keeps Origin in the Vary header of a route", async () => {
+    const routes = async (): Promise<Response> => new Response("ok", { headers: { Vary: "Accept-Encoding" } });
+    const base = await start(() => betterAuthHandler({ handler: routes }, { allowedOrigins: [PAGE] }));
+    for (const origin of [PAGE, EVIL]) {
+      const response = await fetch(`${base}/auth/ok`, { headers: { Origin: origin } });
+      expect(response.headers.get("vary")).toBe("Accept-Encoding, Origin");
+    }
+    expect((await fetch(`${base}/auth/ok`, { headers: { Origin: PAGE } })).headers.get("access-control-allow-origin")).toBe(PAGE);
   });
 
   it("takes only the requests under its path, and gives the middleware of an app", async () => {

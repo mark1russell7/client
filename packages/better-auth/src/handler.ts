@@ -52,6 +52,30 @@ export interface NodeAuthHandler {
   readonly basePath: string;
 }
 
+/** True when the value of a `Vary` header names the field, or is `*`. */
+function varies(value: string, field: string): boolean {
+  return value.split(",").some((part) => {
+    const name = part.trim().toLowerCase();
+    return name === "*" || name === field.toLowerCase();
+  });
+}
+
+/**
+ * The handler of the routes, with `Origin` in each `Vary` header. The Node adapter of Better Auth
+ * sets each header of a response with `setHeader`, so a `Vary` of a route replaces the `Vary:
+ * Origin` of the CORS. A shared cache then can give the answer of one origin to another origin.
+ */
+function keepVaryOrigin(handler: BetterAuthServer["handler"]): BetterAuthServer["handler"] {
+  return async (request) => {
+    const response = await handler(request);
+    const vary = response.headers.get("vary");
+    if (vary === null || varies(vary, "Origin")) return response;
+    const headers = new Headers(response.headers);
+    headers.set("vary", `${vary}, Origin`);
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  };
+}
+
 /** The path of a request URL, without its query. */
 function pathOf(url: string | undefined): string {
   const path = (url ?? "/").split("?")[0] ?? "/";
@@ -72,7 +96,8 @@ export function betterAuthHandler(auth: Pick<BetterAuthServer, "handler">, optio
   const basePath = (options.basePath ?? "/auth").replace(/\/+$/, "") || "/";
   const prefix = basePath === "/" ? "/" : `${basePath}/`;
   const cors = credentialedCors(options.allowedOrigins, { methods: AUTH_CORS_METHODS, allowedHeaders: AUTH_CORS_HEADERS, ...options.cors });
-  const routes = toNodeHandler(auth.handler);
+  // The CORS sets `Vary: Origin` on each response, for each origin: the routes keep it
+  const routes = toNodeHandler(keepVaryOrigin(auth.handler));
   const matches = (req: IncomingMessage): boolean => {
     const path = pathOf(req.url);
     return path === basePath || path.startsWith(prefix);

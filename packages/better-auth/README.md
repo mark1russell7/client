@@ -46,6 +46,7 @@ The handler of Better Auth sends no CORS headers. `betterAuthHandler(auth, optio
 - A response for a trusted origin names that one origin, with `Access-Control-Allow-Credentials: true` and `Vary: Origin`.
 - The handler answers a preflight (`OPTIONS`) with 204. For a trusted origin, it names the methods (`GET`, `POST`) and the headers (`Content-Type`, `Authorization`).
 - An origin that is not trusted gets no CORS header. The CSRF checks of Better Auth also refuse its writes.
+- Each response has `Vary: Origin`, also a response without CORS headers. Thus a shared cache keeps one answer for each origin.
 - The handler refuses `"*"`, because each site could then send the cookies of the user (CSRF).
 - The option `cors` changes the methods, the headers, the exposed headers and `maxAge`. The option `basePath` is `/auth` by default.
 - Mount the handler on the mount list of a listener. For Express, give `handler.middleware` to the app.
