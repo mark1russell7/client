@@ -271,6 +271,7 @@ An error of a handler with a code of its own keeps that code on each face, for a
 - A code of the table gets the status of the table.
 - Another code of `ERROR_REGISTRY` gets the status of the registry, for example 409 for `CONFLICT`.
 - Each other code gets the status 500.
+- An error that is not retryable does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
 
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|
@@ -298,7 +299,7 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
 
-The column "Retryable" gives the default flag of a code. An error can have another flag. A stream that the shutdown of a host cuts ends with `UNAVAILABLE` on each face. Its flag is false when the call can have had its effect (CLI-48).
+The column "Retryable" gives the default flag of a code. An error can have another flag. A call that the shutdown of a host cuts ends with `UNAVAILABLE` on each face, before or after its first item. Its flag is false when the call can have had its effect (CLI-48). Before its first item, the HTTP status of such a cut is then 500.
 
 ### The reasons of FORBIDDEN
 

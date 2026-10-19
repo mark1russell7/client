@@ -11,7 +11,8 @@
  *   repeatable procedure, a call with an idempotency key, or a call that runs one time.
  * - Each call is a stream (D4). A unary call is a stream of one. A stream call stays in flight
  *   until its last item, and a cut after the first item ends the stream in-band, with an error.
- *   The code of that error is `UNAVAILABLE`. Its flag `retryable` tells if a retry is safe (CLI-48).
+ *   Each cut has the code `UNAVAILABLE`, before and after the first item. Its flag `retryable` tells
+ *   if a retry is safe (CLI-48).
  */
 
 import type { Lifecycle, Operation, OperationOf, RequestEnd, RequestEvent, RouteRequest } from "@mark1russell7/service";
@@ -34,7 +35,8 @@ import {
  * The operation of a call, which gives its idempotency (D3):
  * - `repeatable`: the effects of the procedure permit a second run (no writes, or idempotent writes).
  * - `keyed`: the call has an idempotency key, and the server keeps its result for the window.
- * - `once`: each other call. A cut of it before its first item answers 500, because it can have had its effect.
+ * - `once`: each other call. A cut of it is `UNAVAILABLE` and not retryable, because it can have had its effect.
+ *   Before its first item, the HTTP face answers 500 for it.
  */
 export type CallOperation = "repeatable" | "keyed" | "once";
 
@@ -78,6 +80,56 @@ export interface FaceHandlerOptions {
   readonly life: () => Lifecycle | null;
   /** True: a call with an idempotency key is a keyed operation. The server then keeps the results of the keys. */
   readonly keyed: boolean;
+  /** The count of the calls that wait for their answer. The host gives one count to each face, and its drain waits on it (CLI-48). */
+  readonly answers?: PendingAnswers | undefined;
+}
+
+/**
+ * The calls of the faces of a host that wait for their answer from the service (CLI-48). A face
+ * writes the answer after it gets it. Thus the drain of the host waits on this count after the
+ * cooperative abort, and the close of the transports does not lose the answer of a cut call.
+ */
+export interface PendingAnswers {
+  /** This method counts a call until its answer settles, and gives the same promise. */
+  track<T>(answer: Promise<T>): Promise<T>;
+  /** This method gives the number of the calls that wait for their answer. */
+  count(): number;
+  /**
+   * This method waits until no call waits for its answer. Then it gives `ANSWER_TURNS` turns of the
+   * microtask queue, so a face that writes an answer through more promises (the MCP SDK) writes it.
+   * The method has no timer and gives no turn of the event loop, so it ends before the cap of the drain.
+   */
+  settled(): Promise<void>;
+}
+
+/** The turns of the microtask queue that `settled()` gives after the last answer. */
+const ANSWER_TURNS = 64;
+
+/** This function makes a count of the calls that wait for their answer. */
+export function pendingAnswers(): PendingAnswers {
+  let pending = 0;
+  let waiters: Array<() => void> = [];
+  const settle = (): void => {
+    pending -= 1;
+    if (pending > 0) return;
+    const ready = waiters;
+    waiters = [];
+    for (const waiter of ready) waiter();
+  };
+  return {
+    track: (answer) => {
+      pending += 1;
+      // This reaction comes before the reaction of the face. A waiter continues after the reaction
+      // of the face, so the face writes the answer first.
+      void answer.then(settle, settle);
+      return answer;
+    },
+    count: () => pending,
+    settled: async () => {
+      if (pending > 0) await new Promise<void>((resolve) => waiters.push(resolve));
+      for (let turn = 0; turn < ANSWER_TURNS; turn += 1) await Promise.resolve();
+    },
+  };
 }
 
 /** A part of the stream of a call: the head of the response first, then each item of a stream. */
@@ -94,17 +146,20 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * The response of an end before the first item. A refusal and a retryable cut are `UNAVAILABLE`
- * (503, with `Retry-After` from the transport). Another cut and a failure are `INTERNAL_ERROR` (500).
+ * The response of an end before the first item. A refusal and each cut are `UNAVAILABLE`, because
+ * the server stopped (CLI-48). The flag `retryable` tells if a retry is safe:
+ * - A refusal and a retryable cut are retryable. The HTTP face answers 503, with `Retry-After` from the transport.
+ * - A cut of a call that can have had its effect is not retryable. The HTTP face answers 500, as the runner does.
+ * A failure is `INTERNAL_ERROR` (500).
  */
 function endResponse(id: string, end: RequestEnd): ServerResponse {
   switch (end.kind) {
     case "refused":
       return failure(id, "UNAVAILABLE", `The host does not take the call now: ${end.cause}`, true);
     case "cut":
-      return end.status === 503
+      return end.retryable
         ? failure(id, "UNAVAILABLE", `The host stopped the call: ${end.cause}`, true)
-        : failure(id, "INTERNAL_ERROR", `The host stopped the call, and the call can have had its effect: ${end.cause}`, false);
+        : failure(id, "UNAVAILABLE", `The host stopped the call, and the call can have had its effect: ${end.cause}`, false);
     case "failed":
       return failure(id, "INTERNAL_ERROR", messageOf(end.error), false);
     case "done":
@@ -118,7 +173,7 @@ function endResponse(id: string, end: RequestEnd): ServerResponse {
  *
  * The code is always `UNAVAILABLE`, because the server stopped the stream. A cut is not a failure
  * of the server. The flag `retryable` tells if a retry is safe (CLI-48). Before, a cut that is not
- * retryable had the code `INTERNAL_ERROR`.
+ * retryable had the code `INTERNAL_ERROR`, before and after the first item.
  */
 function inBandEnd(end: Extract<RequestEnd, { kind: "refused" | "cut" }>): Error {
   const delivered = Math.max(0, end.delivered - 1);
@@ -216,7 +271,9 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
     getRegistry: () => server.getRegistry(),
     handle: (request: ServerRequest): Promise<ServerResponse> => {
       const life = options.life();
-      return life ? trackedCall(life, options, request) : server.handle(request);
+      if (!life) return server.handle(request);
+      const answer = trackedCall(life, options, request);
+      return options.answers ? options.answers.track(answer) : answer;
     },
   };
 }

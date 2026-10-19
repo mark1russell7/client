@@ -460,6 +460,10 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
     } else {
       httpStatusCode = status.type === "success" ? 200 : 500;
     }
+    // An error that is not retryable does not get 503, because a 503 invites a retry at the HTTP
+    // level. It gets 500. An example is UNAVAILABLE for a call that the shutdown cut after it can
+    // have had its effect (CLI-48, decision D3).
+    if (status.type === "error" && httpStatusCode === 503 && status.retryable !== true) httpStatusCode = 500;
 
     if (metadata["headers"]) {
       for (const [key, value] of Object.entries(metadata["headers"])) res.setHeader(key, value as string);

@@ -35,6 +35,7 @@ export {
   callOperations,
   faceHandler,
   operationOfCall,
+  pendingAnswers,
 } from "./host/index.js";
 export type {
   ProcedureHost,
@@ -61,6 +62,7 @@ export type {
   CallOperation,
   FaceHandler,
   FaceHandlerOptions,
+  PendingAnswers,
 } from "./host/index.js";
 
 // Peer: a procedures host with a service of its own, for a process that has no service

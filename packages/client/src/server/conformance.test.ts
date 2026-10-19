@@ -84,11 +84,15 @@ function registryOf(seen: Seen): ProcedureRegistry {
       // server keeps the code of a handler error)
       createProcedure()
         .path(["conf", "fail"])
-        .input(z.object({ code: z.string().optional() }))
+        .input(z.object({ code: z.string().optional(), retryable: z.boolean().optional() }))
         .output(z.string())
         .meta({ effects: read })
-        .handler(async (input: { code?: string | undefined }) => {
-          throw Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code });
+        .handler(async (input: { code?: string | undefined; retryable?: boolean | undefined }) => {
+          throw Object.assign(
+            new Error("it failed"),
+            input.code === undefined ? {} : { code: input.code },
+            input.retryable === undefined ? {} : { retryable: input.retryable },
+          );
         })
         .build(),
       createProcedure()
@@ -229,7 +233,7 @@ describe.each(faces)("the conformance of $name (R18)", (face) => {
 });
 
 describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
-  it("follows the code: the status of ERROR_CODES for a code of the protocol, and 500 for another code", async () => {
+  it("follows the code: the status of ERROR_CODES for a code of the protocol, 500 for another code, and 500 for a 503 that is not retryable", async () => {
     const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true });
     const app = express();
     const http = createServer(app);
@@ -249,7 +253,9 @@ describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
       });
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     };
-    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", error: "it failed" } });
+    expect(await post({ code: "UNAVAILABLE", retryable: true })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", retryable: true, error: "it failed" } });
+    // An error that is not retryable never gets 503: a 503 invites a retry at the HTTP level (CLI-48)
+    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 500, body: { code: "UNAVAILABLE", retryable: false, error: "it failed" } });
     expect(await post({ code: "E_CUSTOM" })).toMatchObject({ status: 500, body: { code: "E_CUSTOM", error: "it failed" } });
     expect(await post({})).toMatchObject({ status: 500, body: { code: "HANDLER_ERROR", error: "it failed" } });
   });

@@ -44,7 +44,7 @@ import {
 } from "@procedures/client";
 import type { ProcedureHandlerOptions, UpgradeHandlerOptions } from "@procedures/client/node";
 import { httpFace, wsFace, type HostFace, type HostFaceFactory } from "./faces.js";
-import { callOperations, faceHandler, operationOfCall } from "./tracking.js";
+import { callOperations, faceHandler, operationOfCall, pendingAnswers } from "./tracking.js";
 
 /** The knobs of a transport of the service, by the names of the ordering law. */
 export type HostKnobs = Parameters<ServiceBuilder["server"]>[1];
@@ -300,13 +300,14 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
   const idempotency = options.serverOptions?.idempotency;
   const keyedWindowMs = idempotency === false ? undefined : (optionalMs(idempotency?.ttl, "idempotency.ttl") ?? TIMER_DEFAULTS.idempotency.ttlMs);
 
-  // The faces
+  // The faces. One count of the calls that wait for their answer covers each face (CLI-48).
+  const answers = pendingAnswers();
   const faceSpecs = options.faces ?? { http: true };
   const faces = new Map<string, HostFace>();
   for (const [faceName, value] of Object.entries(faceSpecs)) {
     const factory = factoryOf(faceName, value);
     if (!factory) continue;
-    const handler = faceHandler({ server, controller: name, face: faceName, life: () => life, keyed: keyedWindowMs !== undefined });
+    const handler = faceHandler({ server, controller: name, face: faceName, life: () => life, keyed: keyedWindowMs !== undefined, answers });
     faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock }));
   }
 
@@ -386,7 +387,13 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
         return server.start();
       },
       stopIntake: () => server.stopIntake(),
-      drain: (deadline, signal) => server.drain(deadline, signal),
+      drain: async (deadline, signal) => {
+        await server.drain(deadline, signal);
+        // After the cooperative abort, the service cuts each call at the latest at its deadline.
+        // The drain waits until each face has the answer of each cut call, so the close of the
+        // transports does not lose an answer (CLI-48). The cap of the phase limits this wait.
+        if (signal.aborted) await answers.settled();
+      },
       inFlight: () => server.inFlight(),
       close: () => server.close(),
     },
@@ -455,5 +462,5 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
 
 export { httpFace, wsFace } from "./faces.js";
 export type { HostFace, HostFaceContext, HostFaceEndpoint, HostFaceFactory, HostFaceUpgrade } from "./faces.js";
-export { callOperations, faceHandler, operationOfCall } from "./tracking.js";
-export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions } from "./tracking.js";
+export { callOperations, faceHandler, operationOfCall, pendingAnswers } from "./tracking.js";
+export type { CallDetail, CallOperation, FaceHandler, FaceHandlerOptions, PendingAnswers } from "./tracking.js";

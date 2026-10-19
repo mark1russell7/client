@@ -118,10 +118,16 @@ export function wsFace(options: UpgradeHandlerOptions = {}): HostFaceFactory {
         stopIntake: () => upgrade.stopIntake(),
         drain: async (deadline, signal) => {
           await upgrade.drain(deadline, signal);
-          // After the cooperative abort, the service cuts each call, and each cut call ends in-band.
-          // The connections stay open until those calls end (CLI-48). This wait has no timer of
-          // its own: the cap of the phase limits it, and the close of the transports ends it.
-          if (signal?.aborted) await upgrade.drain(realClock.now() + UNTIL_CLOSE_MS);
+          if (signal?.aborted) {
+            // After the cooperative abort, the service cuts each call, at the latest at the deadline,
+            // and each cut call ends in-band. The connections stay open until those calls end
+            // (CLI-48). This wait has no timer of its own: the cap of the phase limits it.
+            await upgrade.drain(realClock.now() + UNTIL_CLOSE_MS);
+            // The close starts here. The stage "close transports" waits for the close handshakes,
+            // so a cut at the deadline does not make the drain late.
+            upgrade.close().catch(() => undefined);
+            return;
+          }
           // The calls ended: the connections end in their protocol
           await upgrade.close();
         },

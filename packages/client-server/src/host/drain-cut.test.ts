@@ -5,7 +5,9 @@
  *   WebSocket face and the MCP face. The flag `retryable` tells if a retry is safe: false for a
  *   call that can have had its effect. Before, this end had the code `INTERNAL_ERROR`, which the
  *   error registry gives to a bug of the server.
- * - A cut before the first item of a repeatable call stays `UNAVAILABLE` and retryable.
+ * - A cut before the first item is `UNAVAILABLE` too. A repeatable call stays retryable (HTTP 503).
+ *   A call that can have had its effect is not retryable, and the HTTP face answers 500 for it.
+ *   Before, that cut had the code `INTERNAL_ERROR`.
  * - A real failure of a handler keeps its own code: it stays `INTERNAL_ERROR`.
  */
 
@@ -24,11 +26,16 @@ const WRITES = { reads: [], writes: ["notes"] };
 const FACES = ["http", "ws", "mcp"] as const;
 type Face = (typeof FACES)[number];
 
-/** The end of a call on a face: the code and the retryable flag of its error, and the count of the items before it. */
+/**
+ * The end of a call on a face: the code and the retryable flag of its error, and the count of the
+ * items before it. The HTTP face also gives the status and the header `Retry-After`.
+ */
 interface CallEnd {
   readonly code: string | undefined;
   readonly retryable: boolean | undefined;
   readonly items: number;
+  readonly status?: number;
+  readonly retryAfter?: string | null;
 }
 
 /** A promise and the function that resolves it. */
@@ -149,14 +156,22 @@ afterEach(async () => {
   release = newMark();
 });
 
-/** The end of a stream of NDJSON lines: the error line, and the count of the item lines before it. */
-async function ndjsonEnd(response: Response): Promise<CallEnd> {
+/**
+ * The end of a call of the HTTP face. A stream gives NDJSON lines: the error line, and the count of
+ * the item lines before it. Another answer is the JSON body of an error.
+ */
+async function httpEnd(response: Response): Promise<CallEnd> {
+  const http = { status: response.status, retryAfter: response.headers.get("retry-after") };
+  if (!(response.headers.get("content-type") ?? "").includes("ndjson")) {
+    const body = (await response.json()) as { code?: string; retryable?: boolean };
+    return { code: body.code, retryable: body.retryable, items: 0, ...http };
+  }
   const lines = (await response.text())
     .split("\n")
     .filter((line) => line.trim() !== "")
     .map((line) => JSON.parse(line) as { type?: string; error?: { code?: string; retryable?: boolean } });
   const error = lines.find((line) => line.type === "error");
-  return { code: error?.error?.code, retryable: error?.error?.retryable, items: lines.filter((line) => line.type === "item").length };
+  return { code: error?.error?.code, retryable: error?.error?.retryable, items: lines.filter((line) => line.type === "item").length, ...http };
 }
 
 /** A host with the three faces under `run()`, and a function that calls a procedure on one face. */
@@ -187,7 +202,7 @@ async function runHost(name: string): Promise<{ life: Lifecycle; call: (face: Fa
         headers: { "content-type": "application/json", accept: "application/x-ndjson" },
         body: JSON.stringify({ tag: "http" }),
       });
-      return ndjsonEnd(response);
+      return httpEnd(response);
     },
     ws: async (procedure) => {
       let items = 0;
@@ -212,37 +227,43 @@ async function runHost(name: string): Promise<{ life: Lifecycle; call: (face: Fa
 }
 
 describe("a call that the shutdown cuts (CLI-48)", () => {
-  it("ends a stream cut after its first item in-band with UNAVAILABLE on each face, and its flag tells if a retry is safe", async () => {
+  it("ends each cut with UNAVAILABLE on each face, and its flag tells if a retry is safe", async () => {
     const { life, call } = await runHost("drain-cut");
-    const writes = FACES.map((face) => call(face, "write"));
-    const reads = FACES.map((face) => call(face, "read"));
-    // Each stream gave its first row, and the face asks for the next one
-    await Promise.all(FACES.flatMap((face) => [mark(`write ${face}`).promise, mark(`read ${face}`).promise]));
-    expect(life.inFlight("drain-cut")).toBe(FACES.length * 2);
+    const PROCEDURES = ["write", "read", "waitRead", "waitWrite"] as const;
+    const calls = PROCEDURES.map((procedure) => FACES.map((face) => call(face, procedure)));
+    // Each stream gave its first row, and each unary call started
+    await Promise.all(PROCEDURES.flatMap((procedure) => FACES.map((face) => mark(`${procedure} ${face}`).promise)));
+    expect(life.inFlight("drain-cut")).toBe(PROCEDURES.length * FACES.length);
 
     const exited = life.shutdown("the test stops the host");
-    const written = await Promise.all(writes);
-    const read = await Promise.all(reads);
+    const [written, read, waitedRead, waitedWrite] = await Promise.all(calls.map((each) => Promise.all(each)));
     await exited;
     await life.done;
     lives.splice(lives.indexOf(life), 1);
 
     for (const [index, face] of FACES.entries()) {
-      // The cooperative abort cut the stream after its first row. The call writes: a retry is not safe.
-      expect(written[index], `test.write on ${face}`).toEqual({ code: "UNAVAILABLE", retryable: false, items: 1 });
-      // The call only reads: the caller can send it again
-      expect(read[index], `test.read on ${face}`).toEqual({ code: "UNAVAILABLE", retryable: true, items: 1 });
+      // The cooperative abort cut each stream after its first row, in-band
+      expect(written![index], `test.write on ${face}`).toMatchObject({ code: "UNAVAILABLE", retryable: false, items: 1 });
+      expect(read![index], `test.read on ${face}`).toMatchObject({ code: "UNAVAILABLE", retryable: true, items: 1 });
+      // The deadline of the drain cut each unary call before its answer
+      expect(waitedRead![index], `test.waitRead on ${face}`).toMatchObject({ code: "UNAVAILABLE", retryable: true, items: 0 });
+      expect(waitedWrite![index], `test.waitWrite on ${face}`).toMatchObject({ code: "UNAVAILABLE", retryable: false, items: 0 });
     }
+    const http = FACES.indexOf("http");
+    // A cut of a repeatable call is 503. A cut of a call that can have had its effect is 500 with no
+    // Retry-After, because a 503 invites a retry at the HTTP level (decision D3).
+    expect(waitedRead![http]).toMatchObject({ status: 503 });
+    expect(waitedWrite![http]).toMatchObject({ status: 500, retryAfter: null });
   }, 20000);
 
   it("keeps the code of a real failure of a handler on each face: INTERNAL_ERROR, not UNAVAILABLE", async () => {
     const { call } = await runHost("drain-fails");
     for (const face of FACES) {
-      expect(await call(face, "fails"), face).toEqual({ code: "INTERNAL_ERROR", retryable: false, items: 1 });
+      expect(await call(face, "fails"), face).toMatchObject({ code: "INTERNAL_ERROR", retryable: false, items: 1 });
     }
   }, 20000);
 
-  it("ends a cut before the first item of a repeatable call with UNAVAILABLE and retryable (a fake clock)", async () => {
+  it("gives UNAVAILABLE to a cut before the first item in the request tracking, on a fake clock", async () => {
     const clock = fakeClock();
     // A face of the test: it keeps the handler of the calls, so the test calls the request tracking directly
     let context: HostFaceContext | undefined;
@@ -271,14 +292,17 @@ describe("a call that the shutdown cuts (CLI-48)", () => {
     void life.shutdown("the test stops the host").then(() => {
       exited = true;
     });
-    // The handlers do not stop at the cooperative abort: the deadline of the drain cuts them
-    for (let step = 0; step < 100 && !exited; step++) await clock.advance(100);
+    // The handlers do not stop at the cooperative abort: the deadline of the drain cuts them. Each
+    // step also gives one turn of the event loop to the parts of the host.
+    for (let step = 0; step < 100 && !exited; step++) {
+      await clock.advance(100);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
     expect(exited).toBe(true);
 
     // The call only reads, and it gave nothing: the caller can send it again
     expect((await waitRead).status).toMatchObject({ type: "error", code: "UNAVAILABLE", retryable: true });
-    // Not changed by CLI-48: before its first item, a call that can have had its effect gets 500,
-    // as the runner answers it. Its code is INTERNAL_ERROR, the code of the status 500 in wire v1.
-    expect((await waitWrite).status).toMatchObject({ type: "error", code: "INTERNAL_ERROR", retryable: false });
+    // The call can have had its effect: a retry is not safe. Before CLI-48, its code was INTERNAL_ERROR.
+    expect((await waitWrite).status).toMatchObject({ type: "error", code: "UNAVAILABLE", retryable: false });
   }, 20000);
 });
