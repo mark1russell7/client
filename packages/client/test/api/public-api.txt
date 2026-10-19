@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 548 names
+## . (dist/index.d.ts): 563 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -55,6 +55,7 @@ type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
+type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
@@ -145,6 +146,7 @@ LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
 type MachineDocument: dist/machines.d.ts#MachineDocument
 type MachineDuration: dist/machines.d.ts#MachineDuration
@@ -168,6 +170,7 @@ type NarrowingNote: dist/procedures/narrowing.d.ts#NarrowingNote
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
 PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
+PRECONDITION_NOT_SUPPORTED: dist/procedures/collection/precondition.d.ts#PRECONDITION_NOT_SUPPORTED
 PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
 PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
@@ -269,6 +272,7 @@ type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
 type StopParts: dist/server/procedure-server.d.ts#StopParts
+type StorageBatchWriteOptions: dist/procedures/collection/storage.d.ts#StorageBatchWriteOptions
 type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
 type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
@@ -277,6 +281,7 @@ type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
 type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
+type StorageItemWriteOptions: dist/procedures/collection/storage.d.ts#StorageItemWriteOptions
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
 type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
@@ -316,6 +321,10 @@ type UntrustedText: dist/procedures/untrusted.d.ts#UntrustedText
 type UntrustedValue: dist/procedures/untrusted.d.ts#UntrustedValue
 type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+VERSION_CONFLICTS_METADATA_KEY: dist/procedures/collection/precondition.d.ts#VERSION_CONFLICTS_METADATA_KEY
+type VersionConflict: dist/procedures/collection/precondition.d.ts#VersionConflict
+VersionConflictError: dist/procedures/collection/precondition.d.ts#VersionConflictError
+type VersionOf: dist/procedures/collection/precondition.d.ts#VersionOf
 WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
@@ -340,6 +349,7 @@ andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
 applyPatch: dist/procedures/collection/query.d.ts#applyPatch
+asVersionConflictError: dist/procedures/collection/precondition.d.ts#asVersionConflictError
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 bearerOf: dist/server/request-auth.d.ts#bearerOf
 buildResponse: dist/client/call-types.d.ts#buildResponse
@@ -438,6 +448,7 @@ isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
+isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isLoopbackAddress: dist/server/browser-guard.d.ts#isLoopbackAddress
@@ -500,6 +511,7 @@ patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
+preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
@@ -549,13 +561,16 @@ validateCalls: dist/procedures/policy.d.ts#validateCalls
 validateProcedure: dist/procedures/define.d.ts#validateProcedure
 validateSchema: dist/procedures/schema.d.ts#validateSchema
 validateSchemaAsync: dist/procedures/schema.d.ts#validateSchemaAsync
+versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
+versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
+versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 530 names
+## ./browser (dist/browser.d.ts): 545 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -605,6 +620,7 @@ type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
 type Credentials: dist/server/types.d.ts#Credentials
+type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEADLINE_METADATA_KEY: dist/client/deadline.d.ts#DEADLINE_METADATA_KEY
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
@@ -690,6 +706,7 @@ LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
 type MachineDocument: dist/machines.d.ts#MachineDocument
 type MachineDuration: dist/machines.d.ts#MachineDuration
@@ -713,6 +730,7 @@ type NarrowingNote: dist/procedures/narrowing.d.ts#NarrowingNote
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
 PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
+PRECONDITION_NOT_SUPPORTED: dist/procedures/collection/precondition.d.ts#PRECONDITION_NOT_SUPPORTED
 PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
 PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
@@ -814,6 +832,7 @@ type Status: dist/client/types.d.ts#Status
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
 type StopOptions: dist/server/procedure-server.d.ts#StopOptions
 type StopParts: dist/server/procedure-server.d.ts#StopParts
+type StorageBatchWriteOptions: dist/procedures/collection/storage.d.ts#StorageBatchWriteOptions
 type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
 type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
@@ -822,6 +841,7 @@ type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
 type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
+type StorageItemWriteOptions: dist/procedures/collection/storage.d.ts#StorageItemWriteOptions
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
 type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
@@ -861,6 +881,10 @@ type UntrustedText: dist/procedures/untrusted.d.ts#UntrustedText
 type UntrustedValue: dist/procedures/untrusted.d.ts#UntrustedValue
 type UrlStrategy: dist/adapters/http/shared/strategies.d.ts#UrlStrategy
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
+VERSION_CONFLICTS_METADATA_KEY: dist/procedures/collection/precondition.d.ts#VERSION_CONFLICTS_METADATA_KEY
+type VersionConflict: dist/procedures/collection/precondition.d.ts#VersionConflict
+VersionConflictError: dist/procedures/collection/precondition.d.ts#VersionConflictError
+type VersionOf: dist/procedures/collection/precondition.d.ts#VersionOf
 WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
@@ -880,6 +904,7 @@ andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
 applyPatch: dist/procedures/collection/query.d.ts#applyPatch
+asVersionConflictError: dist/procedures/collection/precondition.d.ts#asVersionConflictError
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 bearerOf: dist/server/request-auth.d.ts#bearerOf
 buildResponse: dist/client/call-types.d.ts#buildResponse
@@ -974,6 +999,7 @@ isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
 isDuration: dist/duration.d.ts#isDuration
+isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isKnownError: dist/client/errors/registry.d.ts#isKnownError
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
@@ -1034,6 +1060,7 @@ patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
 pathToMethod: dist/server/method.d.ts#pathToMethod
 postOnlyStrategy: dist/adapters/http/shared/strategies.d.ts#postOnlyStrategy
+preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 procedureServerOptions: dist/server/host-policy.d.ts#procedureServerOptions
@@ -1082,6 +1109,9 @@ validateCalls: dist/procedures/policy.d.ts#validateCalls
 validateProcedure: dist/procedures/define.d.ts#validateProcedure
 validateSchema: dist/procedures/schema.d.ts#validateSchema
 validateSchemaAsync: dist/procedures/schema.d.ts#validateSchemaAsync
+versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
+versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
+versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 withScope: dist/procedures/ref.d.ts#withScope
@@ -1309,7 +1339,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 297 names
+## ./procedures (dist/procedures/index.d.ts): 312 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1335,6 +1365,7 @@ type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionW
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
+type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
@@ -1379,6 +1410,7 @@ type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
 MAX_DATA_DEPTH: dist/procedures/ref.d.ts#MAX_DATA_DEPTH
+MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
 MAX_IDEMPOTENCY_KEY_LENGTH: dist/procedures/idempotency.d.ts#MAX_IDEMPOTENCY_KEY_LENGTH
 type ModuleInput: dist/procedures/module.d.ts#ModuleInput
 NARROWING_HEADER: dist/procedures/narrowing.d.ts#NARROWING_HEADER
@@ -1389,6 +1421,7 @@ type NarrowingNote: dist/procedures/narrowing.d.ts#NarrowingNote
 type NestedCallOptions: dist/procedures/types.d.ts#NestedCallOptions
 type OutputRef: dist/procedures/ref.d.ts#OutputRef
 PARTITION_PATTERN: dist/procedures/collection/partition.d.ts#PARTITION_PATTERN
+PRECONDITION_NOT_SUPPORTED: dist/procedures/collection/precondition.d.ts#PRECONDITION_NOT_SUPPORTED
 PROCEDURE_JSON_KEY: dist/procedures/ref.d.ts#PROCEDURE_JSON_KEY
 PROCEDURE_NAME_KEY: dist/procedures/ref.d.ts#PROCEDURE_NAME_KEY
 PROCEDURE_REGISTRY: dist/procedures/registry.d.ts#PROCEDURE_REGISTRY
@@ -1438,12 +1471,14 @@ type SchemaResult: dist/procedures/schema.d.ts#SchemaResult
 type StandardJSONSchemaConverter: dist/procedures/schema.d.ts#StandardJSONSchemaConverter
 type StandardSchemaV1: dist/procedures/schema.d.ts#StandardSchemaV1
 type StepResultInfo: dist/procedures/ref.d.ts#StepResultInfo
+type StorageBatchWriteOptions: dist/procedures/collection/storage.d.ts#StorageBatchWriteOptions
 type StorageChangeBatch: dist/procedures/collection/storage.d.ts#StorageChangeBatch
 type StorageChangeEvent: dist/procedures/collection/storage.d.ts#StorageChangeEvent
 type StorageChanges: dist/procedures/collection/storage.d.ts#StorageChanges
 type StorageClearChange: dist/procedures/collection/storage.d.ts#StorageClearChange
 type StorageDeleteChange: dist/procedures/collection/storage.d.ts#StorageDeleteChange
 type StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
+type StorageItemWriteOptions: dist/procedures/collection/storage.d.ts#StorageItemWriteOptions
 type StorageMetadata: dist/procedures/collection/storage.d.ts#StorageMetadata
 type StorageObserver: dist/procedures/collection/storage.d.ts#StorageObserver
 type StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
@@ -1462,6 +1497,10 @@ UNLIMITED_CAPABILITY: dist/procedures/capability.d.ts#UNLIMITED_CAPABILITY
 type UntrustedSource: dist/procedures/untrusted.d.ts#UntrustedSource
 type UntrustedText: dist/procedures/untrusted.d.ts#UntrustedText
 type UntrustedValue: dist/procedures/untrusted.d.ts#UntrustedValue
+VERSION_CONFLICTS_METADATA_KEY: dist/procedures/collection/precondition.d.ts#VERSION_CONFLICTS_METADATA_KEY
+type VersionConflict: dist/procedures/collection/precondition.d.ts#VersionConflict
+VersionConflictError: dist/procedures/collection/precondition.d.ts#VersionConflictError
+type VersionOf: dist/procedures/collection/precondition.d.ts#VersionOf
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
@@ -1477,6 +1516,7 @@ andProcedure: dist/procedures/core/index.d.ts#andProcedure
 anyProcedure: dist/procedures/core/index.d.ts#anyProcedure
 anySchema: dist/procedures/core/schemas.d.ts#anySchema
 applyPatch: dist/procedures/collection/query.d.ts#applyPatch
+asVersionConflictError: dist/procedures/collection/precondition.d.ts#asVersionConflictError
 assertValidPath: dist/procedures/registry.d.ts#assertValidPath
 callerOf: dist/procedures/caller.d.ts#callerOf
 capabilityRefusal: dist/procedures/capability.d.ts#capabilityRefusal
@@ -1536,6 +1576,7 @@ isAnyProcedureRef: dist/procedures/ref.d.ts#isAnyProcedureRef
 isControlFlowPath: dist/procedures/ref.d.ts#isControlFlowPath
 isDataDriven: dist/procedures/ref.d.ts#isDataDriven
 isDestructive: dist/procedures/capability.d.ts#isDestructive
+isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isLiteral: dist/procedures/ref.d.ts#isLiteral
 isOpenWorld: dist/procedures/capability.d.ts#isOpenWorld
 isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
@@ -1574,6 +1615,7 @@ parallelProcedure: dist/procedures/core/index.d.ts#parallelProcedure
 parseProcedureJson: dist/procedures/ref.d.ts#parseProcedureJson
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
 pathToKey: dist/procedures/types.d.ts#pathToKey
+preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 prepareRootCall: dist/procedures/ref.d.ts#prepareRootCall
 proc: dist/procedures/ref.d.ts#proc
 queryEntries: dist/procedures/collection/query.d.ts#queryEntries
@@ -1605,6 +1647,9 @@ untrustedTextsOf: dist/procedures/untrusted.d.ts#untrustedTextsOf
 validateProcedure: dist/procedures/define.d.ts#validateProcedure
 validateSchema: dist/procedures/schema.d.ts#validateSchema
 validateSchemaAsync: dist/procedures/schema.d.ts#validateSchemaAsync
+versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
+versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
+versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 withEffects: dist/procedures/effects.d.ts#withEffects
 withScope: dist/procedures/ref.d.ts#withScope
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
@@ -1670,11 +1715,14 @@ methodToPath: dist/server/method.d.ts#methodToPath
 pathToMethod: dist/server/method.d.ts#pathToMethod
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
 
-## ./query (dist/procedures/collection/query.d.ts): 23 names
+## ./query (dist/procedures/collection/query.d.ts): 36 names
 
+type CurrentItem: dist/procedures/collection/precondition.d.ts#CurrentItem
 DEFAULT_FIND_LIMIT: dist/procedures/collection/query.d.ts#DEFAULT_FIND_LIMIT
 DEFAULT_QUERY_OPERATORS: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_OPERATORS
 DEFAULT_QUERY_POLICY: dist/procedures/collection/query.d.ts#DEFAULT_QUERY_POLICY
+MAX_EXPECTED_VERSION_LENGTH: dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
+PRECONDITION_NOT_SUPPORTED: dist/procedures/collection/precondition.d.ts#PRECONDITION_NOT_SUPPORTED
 QUERY_OPERATORS: dist/procedures/collection/query.d.ts#QUERY_OPERATORS
 StorageFieldOperators: dist/procedures/collection/query.d.ts#StorageFieldOperators
 StoragePatch: dist/procedures/collection/query.d.ts#StoragePatch
@@ -1685,16 +1733,26 @@ StorageQueryPolicy: dist/procedures/collection/query.d.ts#StorageQueryPolicy
 StorageSelector: dist/procedures/collection/query.d.ts#StorageSelector
 StorageSort: dist/procedures/collection/query.d.ts#StorageSort
 StorageSortDirection: dist/procedures/collection/query.d.ts#StorageSortDirection
+VERSION_CONFLICTS_METADATA_KEY: dist/procedures/collection/precondition.d.ts#VERSION_CONFLICTS_METADATA_KEY
+type VersionConflict: dist/procedures/collection/precondition.d.ts#VersionConflict
+VersionConflictError: dist/procedures/collection/precondition.d.ts#VersionConflictError
+type VersionOf: dist/procedures/collection/precondition.d.ts#VersionOf
 applyPatch: dist/procedures/collection/query.d.ts#applyPatch
+asVersionConflictError: dist/procedures/collection/precondition.d.ts#asVersionConflictError
 compareStorageValues: dist/procedures/collection/query.d.ts#compareStorageValues
 compileSelector: dist/procedures/collection/query.d.ts#compileSelector
+isExpectedVersion: dist/procedures/collection/precondition.d.ts#isExpectedVersion
 isPatchOperations: dist/procedures/collection/query.d.ts#isPatchOperations
 matchesSelector: dist/procedures/collection/query.d.ts#matchesSelector
 mergePatch: dist/procedures/collection/query.d.ts#mergePatch
 patchProblems: dist/procedures/collection/query.d.ts#patchProblems
+preconditionNotSupported: dist/procedures/collection/precondition.d.ts#preconditionNotSupported
 queryEntries: dist/procedures/collection/query.d.ts#queryEntries
 queryOptionsProblems: dist/procedures/collection/query.d.ts#queryOptionsProblems
 selectorProblems: dist/procedures/collection/query.d.ts#selectorProblems
+versionConflict: dist/procedures/collection/precondition.d.ts#versionConflict
+versionConflicts: dist/procedures/collection/precondition.d.ts#versionConflicts
+versionConflictsOf: dist/procedures/collection/precondition.d.ts#versionConflictsOf
 
 ## Declarations
 
@@ -2837,9 +2895,10 @@ export declare class ClientError extends Error {
         type: "error";
     }>;
     readonly responseId: string;
+    readonly metadata: Metadata;
     constructor(status: Extract<Status, {
         type: "error";
-    }>, responseId: string);
+    }>, responseId: string, metadata?: Metadata);
     get code(): string;
     get retryable(): boolean;
 }
@@ -3618,6 +3677,65 @@ export declare function collectionTopicTarget(topic: string, repository: Reposit
     partition: string | undefined;
 } | undefined;
 
+### dist/procedures/collection/precondition.d.ts#CurrentItem
+export type CurrentItem<T> = {
+    readonly found: false;
+} | {
+    readonly found: true;
+    readonly value: T;
+};
+
+### dist/procedures/collection/precondition.d.ts#MAX_EXPECTED_VERSION_LENGTH
+export declare const MAX_EXPECTED_VERSION_LENGTH = 1024;
+
+### dist/procedures/collection/precondition.d.ts#PRECONDITION_NOT_SUPPORTED
+export declare const PRECONDITION_NOT_SUPPORTED = "PRECONDITION_NOT_SUPPORTED";
+
+### dist/procedures/collection/precondition.d.ts#VERSION_CONFLICTS_METADATA_KEY
+export declare const VERSION_CONFLICTS_METADATA_KEY = "conflicts";
+
+### dist/procedures/collection/precondition.d.ts#VersionConflict
+export interface VersionConflict {
+    readonly id: string;
+    readonly expected: string | null;
+    readonly found: boolean;
+    readonly value?: unknown;
+    readonly version?: string | null;
+}
+
+### dist/procedures/collection/precondition.d.ts#VersionConflictError
+export declare class VersionConflictError extends Error {
+    readonly name = "VersionConflictError";
+    readonly code = "VERSION_CONFLICT";
+    readonly retryable = false;
+    readonly conflicts: readonly VersionConflict[];
+    constructor(conflicts: readonly VersionConflict[], message?: string);
+}
+
+### dist/procedures/collection/precondition.d.ts#VersionOf
+export type VersionOf<T> = (item: T) => string | undefined;
+
+### dist/procedures/collection/precondition.d.ts#asVersionConflictError
+export declare function asVersionConflictError(error: unknown): VersionConflictError | undefined;
+
+### dist/procedures/collection/precondition.d.ts#isExpectedVersion
+export declare function isExpectedVersion(value: unknown): value is string | null;
+
+### dist/procedures/collection/precondition.d.ts#preconditionNotSupported
+export declare function preconditionNotSupported(storage: string, remedy?: string): TypeError & {
+    readonly code: string;
+    readonly retryable: false;
+};
+
+### dist/procedures/collection/precondition.d.ts#versionConflict
+export declare function versionConflict<T>(id: string, expected: string | null, current: CurrentItem<T>, versionOf: VersionOf<T>): VersionConflict | undefined;
+
+### dist/procedures/collection/precondition.d.ts#versionConflicts
+export declare function versionConflicts<T>(expected: Iterable<readonly [string, string | null]>, currentOf: (id: string) => CurrentItem<T>, versionOf: VersionOf<T>): VersionConflict[];
+
+### dist/procedures/collection/precondition.d.ts#versionConflictsOf
+export declare function versionConflictsOf(error: unknown): readonly VersionConflict[] | undefined;
+
 ### dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 export interface CollectionChangeEventsOptions {
     topic?: ((collection: string, ctx: ProcedureContext, partition: string | undefined) => string | undefined) | undefined;
@@ -3753,16 +3871,21 @@ export interface CollectionStorage<T> {
     observe?(observer: StorageObserver<T>): () => void;
     has(id: string): Promise<boolean>;
     size(): Promise<number>;
-    set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
-    delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+    set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+    delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
     clear(options?: StorageWriteOptions): Promise<void>;
     patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
-    setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+    setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
     deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
     getBatch(ids: string[]): Promise<Map<string, T>>;
     flush?(): Promise<void>;
     close(): Promise<void>;
     getMetadata?(): Promise<StorageMetadata>;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageBatchWriteOptions
+export interface StorageBatchWriteOptions extends StorageWriteOptions {
+    readonly expectedVersions?: ReadonlyArray<readonly [string, string | null]> | undefined;
 }
 
 ### dist/procedures/collection/storage.d.ts#StorageChangeBatch
@@ -3790,6 +3913,11 @@ export interface StorageDeleteChange {
     readonly type: "delete";
     readonly id: string;
     readonly origin?: string | undefined;
+}
+
+### dist/procedures/collection/storage.d.ts#StorageItemWriteOptions
+export interface StorageItemWriteOptions extends StorageWriteOptions {
+    readonly expectedVersion?: string | null | undefined;
 }
 
 ### dist/procedures/collection/storage.d.ts#StorageMetadata
@@ -5153,7 +5281,7 @@ export declare const PROTOCOL_HEADER = "Procedures-Protocol";
 export declare const PROTOCOL_VERSION = 1;
 
 ### dist/protocol.d.ts#ProtocolErrorCode
-export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND" | "TOPIC_CLEARED";
+export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND" | "TOPIC_CLEARED" | "VERSION_CONFLICT";
 
 ### dist/protocol.d.ts#httpStatusOf
 export declare function httpStatusOf(code: unknown): number | undefined;

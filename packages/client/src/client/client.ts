@@ -799,7 +799,7 @@ export class Client<TContext = {}> {
     // Yield payloads, handling errors
     for await (const item of responseStream) {
       if (item.status.type === "error" && this.throwOnError) {
-        throw new ClientError(item.status, item.id);
+        throw new ClientError(item.status, item.id, item.metadata);
       }
 
       yield item.payload;
