@@ -2,10 +2,13 @@
  * The Releases section of the status page: a timeline of the versions of the `@procedures/*`
  * packages, and the changes of the selected version. `scripts/releases-data.mjs` reads the
  * changelogs and the git tags at build time.
+ *
+ * The page loads the changes of the newest version only. The changes of the other versions load
+ * when the pointer or the focus comes to the timeline, so the first load of the page stays small.
  */
 
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
-import type { Release, ReleaseChange, ReleaseKind } from "../data";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
+import type { ReleaseChange, ReleaseEntry, ReleaseKind } from "../data";
 import { releases as data } from "../data/releases";
 import { laneCenter, longDate, oldestFirst, releaseSummary, shortDate, timelineLayout, type TimelineLayout } from "../lib/releases";
 import { InlineMarkdown } from "./InlineMarkdown";
@@ -63,7 +66,15 @@ function Legend(): ReactElement {
 // The timeline
 // ---------------------------------------------------------------------------
 
-function Timeline({ releases, selected, onSelect }: { releases: Release[]; selected: string; onSelect: (version: string) => void }): ReactElement {
+interface TimelineProps {
+  releases: ReleaseEntry[];
+  selected: string;
+  onSelect: (version: string) => void;
+  /** The pointer or the focus came to the timeline: the changes of the other versions can load. */
+  onApproach: () => void;
+}
+
+function Timeline({ releases, selected, onSelect, onApproach }: TimelineProps): ReactElement {
   const scroller = useRef<HTMLDivElement>(null);
   const markElements = useRef(new Map<string, SVGGElement>());
   const [boxWidth, setBoxWidth] = useState(DEFAULT_WIDTH);
@@ -80,7 +91,7 @@ function Timeline({ releases, selected, onSelect }: { releases: Release[]; selec
     return () => observer.disconnect();
   }, []);
 
-  const layout: TimelineLayout = useMemo(() => timelineLayout(releases, { width: Math.max(MIN_WIDTH, boxWidth) }), [releases, boxWidth]);
+  const layout: TimelineLayout<ReleaseEntry> = useMemo(() => timelineLayout(releases, { width: Math.max(MIN_WIDTH, boxWidth) }), [releases, boxWidth]);
   const index = layout.marks.findIndex((mark) => mark.release.version === selected);
 
   /** This function scrolls the box (not the page) so that the mark of a version shows. */
@@ -134,7 +145,7 @@ function Timeline({ releases, selected, onSelect }: { releases: Release[]; selec
 
   const { plotTop, plotBottom } = layout;
   return (
-    <div className="release-scroll" ref={scroller}>
+    <div className="release-scroll" ref={scroller} onPointerEnter={onApproach} onFocus={onApproach}>
       <svg
         className="release-timeline"
         width={layout.width}
@@ -173,7 +184,7 @@ function Timeline({ releases, selected, onSelect }: { releases: Release[]; selec
         {layout.marks.map((mark, position) => {
           const { release } = mark;
           const isSelected = release.version === selected;
-          const changes = plural(release.changes.length, "change");
+          const changes = plural(release.changeCount, "change");
           return (
             <g
               key={release.version}
@@ -190,9 +201,8 @@ function Timeline({ releases, selected, onSelect }: { releases: Release[]; selec
               onClick={() => select(position)}
               onKeyDown={(event) => onKey(event, position)}
             >
-              <title>{`${release.version}: ${longDate(release.date)}, ${changes}`}</title>
               <rect className="release-hit" x={-mark.half - 4} y={-layout.laneHeight / 2 + 1} width={mark.half * 2 + 8} height={layout.laneHeight - 2} rx={4} />
-              <circle className="release-halo" cy={MARK_Y} r={11} />
+              {isSelected ? <circle className="release-halo" cy={MARK_Y} r={11} /> : null}
               <MarkShape kind={release.kind} y={MARK_Y} />
               <text className="release-label" y={-3} textAnchor="middle">
                 {release.version}
@@ -257,11 +267,41 @@ function Change({ change }: { change: ReleaseChange }): ReactElement {
   );
 }
 
-function Details({ release }: { release: Release }): ReactElement {
+/** The list of the changes of a version: null while it loads, undefined when it did not load. */
+function ChangeList({ count, changes }: { count: number; changes: ReleaseChange[] | null | undefined }): ReactElement {
   const [all, setAll] = useState(false);
+  if (count === 0) return <p className="small muted">This version has no change entries. The packages got the new version number only.</p>;
+  if (changes === null) {
+    return (
+      <p className="small muted" data-loading="" aria-busy="true">
+        Loading the {plural(count, "change")}…
+      </p>
+    );
+  }
+  if (changes === undefined) return <p className="small error-text">The changes did not load. The changelog has them.</p>;
+  const packages = new Set(changes.flatMap((change) => change.packages)).size;
+  const shown = all ? changes : changes.slice(0, FIRST_CHANGES);
+  return (
+    <>
+      <p className="small muted">
+        {plural(changes.length, "change")} in {plural(packages, "package")}. The changes with the most packages come first.
+      </p>
+      <ul className="release-changes">
+        {shown.map((change) => (
+          <Change key={change.commit ?? change.text} change={change} />
+        ))}
+      </ul>
+      {changes.length > FIRST_CHANGES ? (
+        <button type="button" className="ghost release-all" aria-expanded={all} onClick={() => setAll(!all)}>
+          {all ? "Show fewer changes" : `Show all ${changes.length} changes`}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function Details({ release, changes }: { release: ReleaseEntry; changes: ReleaseChange[] | null | undefined }): ReactElement {
   const info = KIND_INFO[release.kind];
-  const packages = new Set(release.changes.flatMap((change) => change.packages)).size;
-  const shown = all ? release.changes : release.changes.slice(0, FIRST_CHANGES);
   return (
     <div className="panel release-details">
       <div className="release-head">
@@ -275,25 +315,7 @@ function Details({ release }: { release: Release }): ReactElement {
           <a href={`${REPOSITORY}/blob/main/packages/client/CHANGELOG.md#${release.version.replace(/\./g, "")}`}>Changelog</a>
         </span>
       </div>
-      {release.changes.length === 0 ? (
-        <p className="small muted">This version has no change entries. The packages got the new version number only.</p>
-      ) : (
-        <>
-          <p className="small muted">
-            {plural(release.changes.length, "change")} in {plural(packages, "package")}. The changes with the most packages come first.
-          </p>
-          <ul className="release-changes">
-            {shown.map((change) => (
-              <Change key={change.commit ?? change.text} change={change} />
-            ))}
-          </ul>
-          {release.changes.length > FIRST_CHANGES ? (
-            <button type="button" className="ghost release-all" aria-expanded={all} onClick={() => setAll(!all)}>
-              {all ? "Show fewer changes" : `Show all ${release.changes.length} changes`}
-            </button>
-          ) : null}
-        </>
-      )}
+      <ChangeList count={release.changeCount} changes={changes} />
     </div>
   );
 }
@@ -308,6 +330,23 @@ export function Releases(): ReactElement {
   const [selected, setSelected] = useState(() => list[0]?.version ?? "");
   const summary = releaseSummary(list);
   const release = list.find((candidate) => candidate.version === selected) ?? list[0];
+
+  // The changes by version: at first, only those of the newest version
+  const [changes, setChanges] = useState<Record<string, ReleaseChange[]> | "failed">(data.changes);
+  const loading = useRef(false);
+  const loadChanges = useCallback((): void => {
+    if (loading.current) return;
+    loading.current = true;
+    import("../data/release-changes").then(
+      (module) => setChanges(module.releaseChanges),
+      () => setChanges("failed"),
+    );
+  }, []);
+  // A selected version without its changes loads them
+  useEffect(() => {
+    if (release && changes !== "failed" && changes[release.version] === undefined && release.changeCount > 0) loadChanges();
+  }, [release, changes, loadChanges]);
+  const shownChanges = !release ? undefined : changes === "failed" ? data.changes[release.version] : (changes[release.version] ?? null);
 
   return (
     <section id="releases" className="status-section releases" aria-labelledby="releases-title">
@@ -328,9 +367,9 @@ export function Releases(): ReactElement {
               Each mark is one version of the <code>@procedures/*</code> packages, in UTC. Select a mark to show its changes.
             </p>
             <Legend />
-            <Timeline releases={ordered} selected={release.version} onSelect={setSelected} />
+            <Timeline releases={ordered} selected={release.version} onSelect={setSelected} onApproach={loadChanges} />
           </div>
-          <Details key={release.version} release={release} />
+          <Details key={release.version} release={release} changes={shownChanges} />
         </>
       ) : null}
     </section>

@@ -249,6 +249,10 @@ test.describe("the new pages", () => {
     await expect(marks.nth(count - 3)).toHaveAttribute("aria-pressed", "true");
     await expect(marks.nth(count - 1)).toHaveAttribute("aria-pressed", "false");
     await expect(title).toHaveText(older);
+    // The changes of an older version load on demand
+    const changeCount = Number(/(\d+) changes?$/.exec((await marks.nth(count - 3).getAttribute("aria-label")) ?? "")?.[1] ?? 0);
+    await expect(section.locator(".release-change")).toHaveCount(Math.min(changeCount, 8));
+    await expect(section.locator(".release-details [data-loading]")).toHaveCount(0);
     await expect(section.getByRole("link", { name: "On npm" })).toHaveAttribute("href", `https://www.npmjs.com/package/@procedures/client/v/${older}`);
     await expect(section.getByRole("link", { name: "Changelog" })).toHaveAttribute(
       "href",

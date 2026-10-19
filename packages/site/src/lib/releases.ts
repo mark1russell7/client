@@ -8,8 +8,15 @@
  * so the prerendered page and the live page agree.
  */
 
-import type { Release } from "../data";
+import type { ReleaseKind } from "../data";
 import { compareVersions } from "./versions";
+
+/** What the timeline needs of a version. */
+export interface ReleasePoint {
+  version: string;
+  date: string;
+  kind: ReleaseKind;
+}
 
 export const DAY_MS = 86_400_000;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -52,7 +59,7 @@ export interface ReleaseSummary {
 }
 
 /** The numbers of the summary line. The first release counts as a version, not as a MINOR. */
-export function releaseSummary(releases: readonly Release[]): ReleaseSummary {
+export function releaseSummary(releases: readonly ReleasePoint[]): ReleaseSummary {
   const times = releases.map((release) => Date.parse(release.date)).filter(Number.isFinite);
   return {
     versions: releases.length,
@@ -64,7 +71,7 @@ export function releaseSummary(releases: readonly Release[]): ReleaseSummary {
 }
 
 /** The versions from the oldest to the newest: the order of the marks and of the arrow keys. */
-export function oldestFirst(releases: readonly Release[]): Release[] {
+export function oldestFirst<T extends ReleasePoint>(releases: readonly T[]): T[] {
   return [...releases].sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || compareVersions(a.version, b.version));
 }
 
@@ -98,8 +105,8 @@ export interface TimelineBand {
   empty: boolean;
 }
 
-export interface TimelineMark {
-  release: Release;
+export interface TimelineMark<T extends ReleasePoint = ReleasePoint> {
+  release: T;
   time: number;
   x: number;
   /** 0 is the lane next to the axis. */
@@ -108,7 +115,7 @@ export interface TimelineMark {
   half: number;
 }
 
-export interface TimelineLayout {
+export interface TimelineLayout<T extends ReleasePoint = ReleasePoint> {
   width: number;
   height: number;
   plotTop: number;
@@ -118,7 +125,7 @@ export interface TimelineLayout {
   lanes: number;
   bands: TimelineBand[];
   /** The marks from the oldest to the newest. */
-  marks: TimelineMark[];
+  marks: Array<TimelineMark<T>>;
 }
 
 /** The top margin and the height of the axis labels under the plot. */
@@ -126,12 +133,12 @@ export const PLOT_TOP = 6;
 export const AXIS_HEIGHT = 46;
 
 /** This function gives the center line of a lane. */
-export function laneCenter(layout: Pick<TimelineLayout, "plotBottom" | "laneHeight">, lane: number): number {
+export function laneCenter(layout: { plotBottom: number; laneHeight: number }, lane: number): number {
   return layout.plotBottom - (lane + 0.5) * layout.laneHeight;
 }
 
 /** The layout of the timeline at a width. */
-export function timelineLayout(releases: readonly Release[], options: TimelineOptions): TimelineLayout {
+export function timelineLayout<T extends ReleasePoint>(releases: readonly T[], options: TimelineOptions): TimelineLayout<T> {
   const { width, padX = 30, laneHeight = 38, charWidth = 7.4, gap = 8, emptyWeight = 0.6 } = options;
   const ordered = oldestFirst(releases).filter((release) => Number.isFinite(Date.parse(release.date)));
   if (ordered.length === 0) {
@@ -167,7 +174,7 @@ export function timelineLayout(releases: readonly Release[], options: TimelineOp
 
   // The lanes: each mark goes into the lowest lane where its label does not touch the last label
   const laneEnds: number[] = [];
-  const marks: TimelineMark[] = ordered.map((release) => {
+  const marks: Array<TimelineMark<T>> = ordered.map((release) => {
     const time = Date.parse(release.date);
     const x = xOf(time);
     const half = Math.max(release.version.length * charWidth, 24) / 2;

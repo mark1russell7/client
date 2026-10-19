@@ -28,6 +28,13 @@ const ROUTES = [
 
 /** The budgets of one page, in bytes after gzip (a font counts as it is: woff2 is compressed already). */
 const PAGE_BUDGET = 256 * 1024;
+/**
+ * The pages with a budget of their own. The status page has the data and the HTML of the findings
+ * (the deep dive and the July register) and the release timeline. It was at 255 kB before the
+ * timeline, and the timeline adds 8 kB: the changes of a version other than the newest load on
+ * demand (2026-10-19).
+ */
+const ROUTE_BUDGETS: Readonly<Record<string, number>> = { "status/": 272 * 1024 };
 const SCRIPT_BUDGET = 180 * 1024;
 /**
  * The scripts of the Web Workers (the runtime that runs a program, the journey of a call). They
@@ -167,7 +174,7 @@ test.describe("the budgets", () => {
     test(`/${route} stays within its budget and logs no error`, async ({ page }) => {
       const { total, script, worker, errors } = await measure(page, route);
       expect(errors, "console errors").toEqual([]);
-      expect(total, `the page loads ${Math.round(total / 1024)} kB of gzip`).toBeLessThanOrEqual(PAGE_BUDGET);
+      expect(total, `the page loads ${Math.round(total / 1024)} kB of gzip`).toBeLessThanOrEqual(ROUTE_BUDGETS[route] ?? PAGE_BUDGET);
       expect(script, `the scripts are ${Math.round(script / 1024)} kB of gzip`).toBeLessThanOrEqual(SCRIPT_BUDGET);
       expect(worker, `the workers are ${Math.round(worker / 1024)} kB of gzip`).toBeLessThanOrEqual(WORKER_BUDGET);
       // An image has its size, so the layout does not move when it loads

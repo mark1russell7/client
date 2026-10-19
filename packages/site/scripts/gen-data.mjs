@@ -24,7 +24,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
 import { readStatusData } from "./status-data.mjs";
-import { readReleases } from "./releases-data.mjs";
+import { readReleases, splitReleases } from "./releases-data.mjs";
 import { docModuleName, readDocs } from "./docs-data.mjs";
 import { countTests, npmVersion } from "./site-metrics.mjs";
 
@@ -294,7 +294,10 @@ const metrics = { tests: tests.tests, testFiles: tests.files, npm, release: newe
 
 write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });
 write("status", status);
-write("releases", releases);
+// The index and the changes of the newest version load with the status page, the other changes on demand
+const { index: releaseIndex, changes: releaseChanges } = splitReleases(releases);
+write("releases", releaseIndex);
+write("release-changes", releaseChanges);
 // The list of the docs pages goes with the routes; the content of each page and the headings for
 // the command palette load only with the page and the palette.
 write("docs-index", docs.index);

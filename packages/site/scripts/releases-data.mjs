@@ -207,6 +207,23 @@ export function releaseDates(repoDir, versions, warn = () => {}) {
   return dates;
 }
 
+/**
+ * The data of the page in two modules. The index has each version with its number of changes,
+ * and the changes of the newest version only: the status page shows them first. The other changes
+ * load when the reader selects another version, so the first load of the page stays small.
+ */
+export function splitReleases(data) {
+  const newest = data.releases[0];
+  return {
+    index: {
+      group: data.group,
+      releases: data.releases.map(({ changes, ...release }) => ({ ...release, changeCount: changes.length })),
+      changes: newest ? { [newest.version]: newest.changes } : {},
+    },
+    changes: Object.fromEntries(data.releases.map((release) => [release.version, release.changes])),
+  };
+}
+
 /** The release data of the workspace: the changelog of each package and the dates from git. */
 export function readReleases(packagesDir, repoDir, warn = () => {}) {
   const changelogs = [];

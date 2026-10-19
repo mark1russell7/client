@@ -1,6 +1,6 @@
 // The types of releases-data.mjs, for the TypeScript tests of the site.
 
-import type { Release, ReleasesData } from "../src/data/index";
+import type { Release, ReleaseChange, ReleasesData, ReleasesIndex } from "../src/data/index";
 
 export declare const GROUP: string;
 export declare const GROUP_CHANGELOG: string;
@@ -23,4 +23,5 @@ export declare function firstSentence(text: string): string;
 export declare function parseChangelog(markdown: string): ChangelogSection[];
 export declare function buildReleases(changelogs: Array<{ name: string; markdown: string }>, dates: Map<string, string>): Release[];
 export declare function releaseDates(repoDir: string, versions: string[], warn?: (message: string) => void): Map<string, string>;
+export declare function splitReleases(data: ReleasesData): { index: ReleasesIndex; changes: Record<string, ReleaseChange[]> };
 export declare function readReleases(packagesDir: string, repoDir: string, warn?: (message: string) => void): ReleasesData;

@@ -206,6 +206,23 @@ export interface ReleasesData {
   releases: Release[];
 }
 
+/** A version in the data of the status page: its changes load on demand. */
+export interface ReleaseEntry {
+  version: string;
+  date: string;
+  kind: ReleaseKind;
+  changeCount: number;
+}
+
+/** The release data that loads with the status page. */
+export interface ReleasesIndex {
+  group: string;
+  /** The versions, newest first. */
+  releases: ReleaseEntry[];
+  /** The changes of the newest version. The module `release-changes` has the changes of each version. */
+  changes: Record<string, ReleaseChange[]>;
+}
+
 /** The category of a core procedure, from its tags: "control-flow", "math", "string" and so on. */
 export function categoryOf(procedure: ProcedureInfo): string {
   return procedure.tags.find((tag) => tag !== "core") ?? procedure.path[0] ?? "other";

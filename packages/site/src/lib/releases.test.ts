@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { ReleaseDataError, buildReleases, compareVersions, firstSentence, parseChangelog } from "../../scripts/releases-data.mjs";
+import { ReleaseDataError, buildReleases, compareVersions, firstSentence, parseChangelog, splitReleases } from "../../scripts/releases-data.mjs";
 import type { Release } from "../data";
 import { dayRange, longDate, oldestFirst, releaseSummary, shortDate, timelineLayout } from "./releases";
 import { newerVersion } from "./versions";
@@ -130,6 +130,21 @@ describe("the releases", () => {
       { commit: "b89e3fe", text: "The field `partition` reaches each collection procedure again.", packages: ["@procedures/client"] },
     ]);
     expect(releases[2]!.changes).toEqual([]);
+  });
+
+  it("splits the data: the index with the changes of the newest version, and all the changes by version", () => {
+    const { index, changes } = splitReleases({ group: "@procedures/client", releases });
+    expect(index.releases.map((release) => [release.version, release.changeCount])).toEqual([
+      ["0.3.1", 1],
+      ["0.3.0", 3],
+      ["0.2.0", 0],
+      ["0.1.0", 1],
+    ]);
+    expect(index.releases[0]).not.toHaveProperty("changes");
+    expect(Object.keys(index.changes)).toEqual(["0.3.1"]);
+    expect(index.changes["0.3.1"]).toEqual(releases[0]!.changes);
+    expect(Object.keys(changes)).toEqual(["0.3.1", "0.3.0", "0.2.0", "0.1.0"]);
+    expect(changes["0.3.0"]).toEqual(releases[1]!.changes);
   });
 
   it("stops without the changelog of the group or without a date", () => {

@@ -567,8 +567,8 @@ table.findings.compact th[scope="row"] {
   fill: transparent;
 }
 
-.release-mark:hover .release-halo {
-  opacity: 0.45;
+.release-mark:hover .release-label {
+  fill: var(--color-accent-strong);
 }
 
 .release-dot {
@@ -587,17 +587,12 @@ table.findings.compact th[scope="row"] {
   fill: var(--status-good);
 }
 
+/* The ring of the selected mark */
 .release-halo {
   fill: none;
   stroke: var(--color-accent);
   stroke-width: 2;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease-out;
-}
-
-.release-mark.selected .release-halo {
-  opacity: 1;
 }
 
 .release-label {
@@ -695,11 +690,5 @@ button.chip.release-more {
   .release-links {
     margin-left: 0;
     width: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .release-halo {
-    transition: none;
   }
 }
