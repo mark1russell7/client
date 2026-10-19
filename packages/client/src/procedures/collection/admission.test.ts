@@ -25,8 +25,8 @@ class RowStorage implements CollectionStorage<unknown> {
   private readonly deletedAt = new Map<string, number>();
   /** The pages that `query()` gave: the skip and the limit of each call. */
   readonly pages: Array<{ skip: number | undefined; limit: number | undefined }> = [];
-  query?: CollectionStorage<unknown>["query"];
-  patch?: CollectionStorage<unknown>["patch"];
+  query?: NonNullable<CollectionStorage<unknown>["query"]>;
+  patch?: NonNullable<CollectionStorage<unknown>["patch"]>;
 
   constructor(features: { query?: boolean; patch?: boolean } = {}) {
     if (features.query) {
