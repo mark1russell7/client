@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 563 names
+## . (dist/index.d.ts): 568 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -20,6 +20,10 @@ type BrowserGuardOptions: dist/server/browser-guard.d.ts#BrowserGuardOptions
 CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
+type CallLimit: dist/server/limits.d.ts#CallLimit
+type CallLimitCovers: dist/server/limits.d.ts#CallLimitCovers
+type CallLimitKey: dist/server/limits.d.ts#CallLimitKey
+type CallLimitKeyPart: dist/server/limits.d.ts#CallLimitKeyPart
 type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
@@ -142,6 +146,7 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
@@ -570,7 +575,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 545 names
+## ./browser (dist/browser.d.ts): 550 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -585,6 +590,10 @@ type BatchStrategy: dist/client/call-types.d.ts#BatchStrategy
 CIRCUIT_BREAKER_MACHINE: dist/machines.d.ts#CIRCUIT_BREAKER_MACHINE
 type CacheOverride: dist/client/call-types.d.ts#CacheOverride
 type CallHistoryEntry: dist/adapters/mock/client/types.d.ts#CallHistoryEntry
+type CallLimit: dist/server/limits.d.ts#CallLimit
+type CallLimitCovers: dist/server/limits.d.ts#CallLimitCovers
+type CallLimitKey: dist/server/limits.d.ts#CallLimitKey
+type CallLimitKeyPart: dist/server/limits.d.ts#CallLimitKeyPart
 type CallPolicy: dist/procedures/policy.d.ts#CallPolicy
 type CallRefusal: dist/procedures/policy.d.ts#CallRefusal
 type CallRequest: dist/client/call-types.d.ts#CallRequest
@@ -702,6 +711,7 @@ type JsonSchema: dist/procedures/schema.d.ts#JsonSchema
 type JsonSchemaSource: dist/procedures/schema.d.ts#JsonSchemaSource
 type JsonSchemaTarget: dist/procedures/schema.d.ts#JsonSchemaTarget
 LITERAL_KEY: dist/procedures/ref.d.ts#LITERAL_KEY
+type LimitedCall: dist/server/limits.d.ts#LimitedCall
 LocalTransport: dist/adapters/local/client/transport.d.ts#LocalTransport
 type LocalTransportOptions: dist/adapters/local/client/types.d.ts#LocalTransportOptions
 MANIFEST_FORMAT: dist/procedures/manifest.d.ts#MANIFEST_FORMAT
@@ -2699,6 +2709,7 @@ export interface RateLimitOptions {
     maxQueueSize?: number;
     message?: string;
     onRateLimitExceeded?: (stats: RateLimitStats) => void;
+    clock?: Clock | undefined;
 }
 
 ### dist/client/middleware/rate-limit.d.ts#RateLimitStats
@@ -5281,7 +5292,7 @@ export declare const PROTOCOL_HEADER = "Procedures-Protocol";
 export declare const PROTOCOL_VERSION = 1;
 
 ### dist/protocol.d.ts#ProtocolErrorCode
-export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND" | "TOPIC_CLEARED" | "VERSION_CONFLICT";
+export type ProtocolErrorCode = "NOT_FOUND" | "NO_HANDLER" | "NOT_EXPOSED" | "NOT_DECLARED" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "INVALID_REQUEST" | "PROTOCOL_VERSION" | "OUTPUT_VALIDATION_ERROR" | "NO_OUTPUT" | "HANDLER_ERROR" | "INTERNAL_ERROR" | "NOT_ACCEPTABLE" | "DUPLICATE" | "DUPLICATE_REQUEST" | "ABORTED" | "TIMEOUT" | "UNAVAILABLE" | "CONNECTION_CLOSED" | "CONNECTION_NOT_FOUND" | "TOPIC_NOT_FOUND" | "TOPIC_CLEARED" | "VERSION_CONFLICT" | "RATE_LIMITED";
 
 ### dist/protocol.d.ts#httpStatusOf
 export declare function httpStatusOf(code: unknown): number | undefined;
@@ -5346,6 +5357,8 @@ export interface HostPolicy {
     readonly resources: ((invocation: Invocation) => ResourcesOf) | undefined;
     readonly admitItem: AdmitItem | undefined;
     readonly events: EventPublisherOptions | undefined;
+    readonly limits?: readonly CallLimit[] | undefined;
+    readonly limitStores?: Readonly<Record<string, LimiterStore>> | undefined;
 }
 
 ### dist/server/host-policy.d.ts#HostPolicyOptions
@@ -5364,6 +5377,8 @@ export interface HostPolicyOptions {
     resources?: ((invocation: Invocation) => ResourcesOf) | undefined;
     admitItem?: AdmitItem | undefined;
     events?: EventPublisherOptions | undefined;
+    limits?: readonly CallLimit[] | undefined;
+    limitStores?: Readonly<Record<string, LimiterStore>> | undefined;
 }
 
 ### dist/server/host-policy.d.ts#ToolSurface
@@ -5425,6 +5440,41 @@ export type WebSocketServerTransport = NodeWebSocketServerTransport;
 ### dist/server/index.d.ts#WebSocketServerTransportOptions
 export type WebSocketServerTransportOptions = NodeWebSocketServerTransportOptions;
 
+### dist/server/limits.d.ts#CallLimit
+export interface CallLimit {
+    readonly name: string;
+    readonly key: CallLimitKey;
+    readonly keyName?: string | undefined;
+    readonly covers?: CallLimitCovers | ((call: LimitedCall) => boolean) | undefined;
+    readonly policy: LimitPolicy;
+    readonly store: LimiterStoreSpec;
+    readonly evict: LimiterEviction;
+}
+
+### dist/server/limits.d.ts#CallLimitCovers
+export interface CallLimitCovers {
+    readonly writes?: boolean | undefined;
+    readonly routes?: readonly string[] | undefined;
+}
+
+### dist/server/limits.d.ts#CallLimitKey
+export type CallLimitKey = CallLimitKeyPart | readonly CallLimitKeyPart[] | ((call: LimitedCall) => string | undefined);
+
+### dist/server/limits.d.ts#CallLimitKeyPart
+export type CallLimitKeyPart = "principal" | "route" | {
+    readonly claim: string;
+};
+
+### dist/server/limits.d.ts#LimitedCall
+export interface LimitedCall {
+    readonly path: ProcedurePath;
+    readonly route: string;
+    readonly effects: Effects | undefined;
+    readonly writes: boolean;
+    readonly principal: Principal | undefined;
+    readonly request: ServerRequest<unknown>;
+}
+
 ### dist/server/method.d.ts#methodName
 export declare function methodName(method: Pick<Method, "service" | "operation">): string;
 
@@ -5462,6 +5512,7 @@ export declare class ProcedureServer extends Server implements RepositoryProvide
     getRegistry(): ProcedureRegistry;
     hasProcedure(path: ProcedurePath): boolean;
     procedureOf(method: Method): AnyProcedure | undefined;
+    limiters(): readonly KeyedLimiter[];
     publish<T>(topic: string, data: T): void;
     closeStorages(): Promise<void>;
     storageHandles(): StorageHandle[];
@@ -5493,6 +5544,8 @@ export interface ProcedureServerOptions extends ServerOptions {
     ambientCredentials?: AmbientCredentials | false | undefined;
     events?: EventPublisherOptions | EventPublisher | undefined;
     debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
+    limits?: readonly CallLimit[] | undefined;
+    limitStores?: Readonly<Record<string, LimiterStore>> | undefined;
 }
 
 ### dist/server/procedure-server.d.ts#RegisterProcedureOptions

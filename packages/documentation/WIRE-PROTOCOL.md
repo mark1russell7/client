@@ -27,7 +27,7 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 | `procedure-narrowing` | request | A narrower capability that the call asks for, as a JSON object. The server uses it only to make the capability narrower. Refer to "The narrowing key". |
 | `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. |
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
-| `reason` | response | The reason of a `FORBIDDEN` error. Refer to "The reasons of FORBIDDEN". |
+| `reason` | response | The reason of a `FORBIDDEN` error, or the cause of a `RATE_LIMITED` error. Refer to "The reasons of FORBIDDEN" and "The limits of the calls". |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
 | `stream` | response | The value `unbounded`: the stream can run without an end. The HTTP client also sets this key on each item of an NDJSON stream, with the value `true`. |
 
@@ -300,6 +300,7 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
 | `VERSION_CONFLICT` | 409 | no | The current item does not have the version that the write expects. The metadata key `conflicts` has the current items (CLI-16). |
+| `RATE_LIMITED` | 429 | yes | A limit of the host refuses the call. The metadata key `retry-after` gives the wait, and `reason` gives the cause. |
 
 ### The conflicts of VERSION_CONFLICT
 
@@ -335,9 +336,23 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 
 A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`. `HttpServerTransport` keeps its former codes for the four browser checks: `FORBIDDEN_ORIGIN`, `FORBIDDEN_HOST`, `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`, with the status 403, 405 or 415.
 
+### The limits of the calls
+
+A host can limit the calls of each key, for example the writes of each tenant (CLI-40). The option `limits` of the host policy gives the limits. Each limit is a keyed limiter of `@mark1russell7/service/limiter`. The server takes one unit of each limit that covers a call, after the authentication and before the run. Thus each face has the same limits.
+
+The server takes the units in the sequence of the limits. The first refusal stops the call. A limit before the refusal keeps its unit: the server does not give it back.
+
+A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
+
+- The metadata key `retry-after`: the wait in milliseconds. The HTTP body has it as `retryAfterMs`, and the MCP result has it in `_meta`.
+- The metadata key `reason`: the cause. `limit` tells that the key used its limit. `cap` tells that the limiter holds its maximum of keys. `store` tells that the shared store of the counts failed.
+- On HTTP, the status 429 and the header `Retry-After` in whole seconds, rounded up.
+
+A circuit breaker does not count `RATE_LIMITED`, because the server is not unhealthy. The retry middleware waits at least for `retry-after` before the next try.
+
 ## MCP
 
-The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. The error of a stream also has `_meta` with `code` and `retryable` (CLI-48).
+The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40). The error of a stream also has `_meta` with `code` and `retryable` (CLI-48).
 
 - The name of a tool is the path with dots, for example `notes.list`, or the name of the option `toolName`. A path of one segment has its segment as its name, for example `morning`.
 - Each tool name names one procedure. Two procedures can have one name after the join, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then the face leaves out the two tools and writes the reason to stderr. Thus a call does not reach the wrong procedure.
