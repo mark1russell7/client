@@ -12,6 +12,7 @@ MCP tasks and the guards of the HTTP face (CLI-35).
 - The HTTP face takes `allowedHosts`, `maxSessions` and `maxBodyBytes`. `createMcpHost` and `mcpFace` give the face `browser.allowedHosts` of the policy, so a host of that list can reach the endpoint. Before, the face refused it. Thus a policy with `allowedHosts: "*"` now also turns off the DNS-rebinding check of the face, as it does for the other faces.
 - `maxSessions` has no default: the sessions have no limit, as before. With it, a new session above the limit closes the session that was idle longest (no task in progress and no open response), and when each session is busy, the new session gets 503 with `Retry-After`.
 - `maxBodyBytes` (4 MiB by default, the limit of the SDK) applies to each request of the face.
+- The state of an HTTP face (`getState()`, and `host.state().faces`) gives `sessions`, the count of its open sessions.
 - `@procedures/client/node` exports `readJsonBody` and `BodyError`: the procedure handler and the MCP face read a JSON body with this one function.
 
 One default of the Streamable HTTP face changes: only an `initialize` request starts a session. Before, a POST without a session id made a new MCP server, and then the SDK refused the request with 400 ("Server not initialized"). Now the face refuses it with 400 before it makes a server, so a stray request uses no memory. This agrees with the MCP specification, and a caller sees the same status. When the SDK refuses an `initialize` (for example 406), the face now closes the server of that request.

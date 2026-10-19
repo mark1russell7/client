@@ -268,6 +268,7 @@ describe("the tasks of sessions over Streamable HTTP", () => {
     const { host: mcpHost, state, url } = await host(1);
     const one = await connect(url);
     const two = await connect(url);
+    expect(mcpHost.state().faces[0]?.sessions).toBe(2);
     expect((await startTask(one.client)).status).toBe("working");
     const refused = await startTask(two.client);
     expect(refused.status).toBe("failed");

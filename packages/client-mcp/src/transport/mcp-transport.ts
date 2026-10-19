@@ -809,6 +809,7 @@ export class McpServerTransport implements ServerTransport {
       toolCount: this.tools.size,
       transport: this.options.transport,
       ...(this.httpUrl ? { url: this.httpUrl } : {}),
+      ...(this.http ? { sessions: this.http.sessions } : {}),
     };
   }
 

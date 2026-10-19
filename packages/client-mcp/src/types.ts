@@ -203,4 +203,6 @@ export interface McpServerTransportState {
   transport: "stdio" | "sse" | "http";
   /** The URL of the Streamable HTTP endpoint, when the transport is "http" */
   url?: string;
+  /** The open sessions of the Streamable HTTP endpoint, when the transport is "http" (CLI-35) */
+  sessions?: number;
 }
