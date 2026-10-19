@@ -3,24 +3,25 @@
  * stream (roadmap CI-2, CLI-8).
  *
  * Each case starts a built host as a process: `procedure-server` (the profile `localDev`) and
- * `mark --server` (the background host, the profile `daemon`). It starts two NDJSON streams and
- * opens one more connection, sends SIGTERM, and examines the stop in stages:
+ * `mark --server` (the background host, the profile `daemon`). It starts NDJSON streams without an
+ * end, opens one more connection and starts a call that ends within the grace. Then it sends
+ * SIGTERM, and examines the stop in stages:
  *
- * - (a) A stream without an end ends in band at the cooperative abort of the drain: its last line
- *   is an error line, and its connection does not reset.
+ * - (a) Each stream without an end ends in band at the cooperative abort of the drain: its last
+ *   line is an error line, and its connection does not reset.
  * - (b) The stage "stop intake" closes the listener: a new connection is refused, and a new request
  *   on an open connection gets 503 with `Retry-After`.
  * - (c) The process exits with the code 0.
  * - (d) The time from SIGTERM to the exit is less than the sum of the caps of the stages and a
- *   margin. The drain waits for a stream that ends within the grace: it ends with its done line.
+ *   margin. The drain waits for the call in flight that ends within the grace.
  *
  * The test measures times. Thus only the CI job `lifecycle` starts it (`vitest.e2e.config.ts`),
  * on Linux: Windows has no SIGTERM. It needs the build of `@procedures/server` and `@procedures/mark`.
  */
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { appendFileSync, closeSync, constants, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -33,15 +34,15 @@ import { HOST_PROFILES } from "../src/host.js";
 const SERVER_BIN = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 /** The bin of `mark`, from the workspace. `@procedures/mark` depends on this package, not the reverse. */
 const MARK_BIN = fileURLToPath(new URL("../../mark/dist/bin.js", import.meta.url));
-/** The procedures `lifecycle.ticks` and `lifecycle.count`, for `--procedures`. */
+/** The procedures `lifecycle.ticks`, `lifecycle.ticksOnce` and `lifecycle.count`, for `--procedures`. */
 const FIXTURE = new URL("./fixture-lifecycle.mjs", import.meta.url).href;
 
 /** The margin over the sum of the caps of the stages: the signal, the exit of Node and a slow runner. */
 const MARGIN_MS = 5_000;
 /** A timer of Node can fire 1 ms early, and the two processes round their times. */
 const TIMER_SLACK_MS = 50;
-/** The items of the stream that ends within the grace, one each 100 ms. */
-const BOUNDED_ITEMS = 8;
+/** The items of `lifecycle.count`, one each 100 ms. */
+const COUNT_ITEMS = 8;
 
 // ---------------------------------------------------------------------------
 // The processes
@@ -65,11 +66,14 @@ interface HostProcess {
 
 const children: ChildProcessWithoutNullStreams[] = [];
 const folders: string[] = [];
+const descriptors: number[] = [];
 
 afterEach(() => {
   for (const child of children.splice(0)) {
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
   }
+  // The write end of a pipe that a failed test did not close
+  for (const fd of descriptors.splice(0)) closeSync(fd);
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true, maxRetries: 3 });
 });
 
@@ -149,6 +153,15 @@ async function within<T>(promise: Promise<T>, ms: number, what: string): Promise
   }
 }
 
+/** This function waits until `ready` gives true: it asks again each 20 ms, until `ms`. */
+async function until(ready: () => boolean, ms: number, what: string): Promise<void> {
+  const end = performance.now() + ms;
+  while (!ready()) {
+    if (performance.now() > end) throw new Error(`${what}: not within ${ms} ms`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // The calls
 // ---------------------------------------------------------------------------
@@ -175,13 +188,14 @@ interface StreamCall {
   readonly ended: Promise<StreamEnd>;
 }
 
+/** The headers of a call of a host with a token. */
+function headersOf(token: string): Record<string, string> {
+  return { "content-type": "application/json", authorization: `Bearer ${token}` };
+}
+
 /** This function starts a call with `Accept: application/x-ndjson`, and reads its lines as they come. */
 async function streamCall(url: string, token: string, input: unknown): Promise<StreamCall> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json", accept: "application/x-ndjson", authorization: `Bearer ${token}` },
-    body: JSON.stringify(input),
-  });
+  const response = await fetch(url, { method: "POST", headers: { ...headersOf(token), accept: "application/x-ndjson" }, body: JSON.stringify(input) });
   if (response.status !== 200 || response.body === null) {
     throw new Error(`POST ${url} gave ${response.status}: ${await response.text()}`);
   }
@@ -328,53 +342,56 @@ function stopTimes(profile: Profile): { readonly capsMs: number; readonly cooper
   return { capsMs, cooperativeAbortMs: cooperativeAbortAt(msOf(drain.cap), profile.cooperativeWindow, profile.cooperativeFloor) };
 }
 
-/** A call of a host: its path under the base URL, and its input. */
-interface Call {
-  readonly path: string;
-  readonly input: unknown;
+/** A stream without an end, and the codes that its in-band end can have. */
+interface EndlessStream {
+  readonly name: string;
+  readonly call: StreamCall;
+  readonly codes: readonly string[];
 }
 
-/** A host that answers, and the two streams of the case. */
+/** A call in flight at SIGTERM, which ends within the grace of the drain. */
+interface GraceCall {
+  /** The test calls this function in the drain, after the stop of the intake. Then the call can end. */
+  release(): void;
+  /** The end of the call: the time of `performance.now()`. */
+  readonly ended: Promise<number>;
+}
+
+/** A host that answers, and the calls of the case. */
 interface Scenario {
   readonly name: string;
   readonly host: HostProcess;
   readonly port: number;
-  /** The base URL of the procedures, for example `http://127.0.0.1:3000/api`. */
-  readonly base: string;
   readonly token: string;
   readonly profile: Profile;
-  /** A stream without an end: only the cooperative abort of the drain ends it. */
-  readonly endless: Call;
-  /** A stream that ends about 1 s after its first item: within the grace of the drain. */
-  readonly bounded: Call;
+  /** This function starts the streams without an end, and gives them after the first item of each. */
+  startEndless(): Promise<EndlessStream[]>;
+  /** This function starts a call that ends within the grace, and gives it when it is in flight. */
+  startGraceCall(): Promise<GraceCall>;
 }
 
 /** What the test saw after SIGTERM. Each time is a time of `performance.now()`. */
 interface Outcome {
   readonly sigtermAt: number;
-  readonly endless: StreamCall;
-  readonly endlessEnd: StreamEnd;
-  readonly bounded: StreamCall;
-  readonly boundedEnd: StreamEnd;
-  /** The response to a request that the open connection sent during the drain. */
+  readonly endless: ReadonlyArray<EndlessStream & { readonly end: StreamEnd }>;
+  readonly graceEndedAt: number;
+  /** The response to the request that the open connection sent in the drain. */
   readonly refusal: RawResponse;
-  /** The result of a new connection during the drain. */
+  /** The result of a new connection in the drain. */
   readonly newConnection: string;
   readonly exit: Exit;
 }
 
 /**
- * This function starts the two streams and opens a connection with a request in progress. Then it
- * sends SIGTERM, and collects the end of each stream, the answers during the drain and the exit.
+ * This function starts the calls, opens a connection with a request in progress and sends
+ * SIGTERM. Then it collects the end of each call, the answers in the drain and the exit.
  */
 async function sigtermInAStream(scenario: Scenario): Promise<Outcome> {
-  const { host, port, base, token } = scenario;
-  const endless = await streamCall(`${base}/${scenario.endless.path}`, token, scenario.endless.input);
-  await endless.items(1);
-  // Before the bounded stream: its first item comes after the server read this start of a request
+  const { host, port, token } = scenario;
+  const endless = await scenario.startEndless();
+  // Before the call of the grace: the server reads this start of a request before that call is in flight
   const open = await openRequest(port, "/api/host/info");
-  const bounded = await streamCall(`${base}/${scenario.bounded.path}`, token, scenario.bounded.input);
-  await bounded.items(1);
+  const grace = await scenario.startGraceCall();
 
   const sigtermAt = performance.now();
   host.child.kill("SIGTERM");
@@ -383,9 +400,15 @@ async function sigtermInAStream(scenario: Scenario): Promise<Outcome> {
   await host.waitFor("Shutting down", 10_000);
   const refusal = await within(open.finish(token), 10_000, "the request on the open connection");
   const newConnection = await connectOutcome(port);
+  // The call in flight can end now: the drain waits for it
+  grace.release();
   const limit = stopTimes(scenario.profile).capsMs + MARGIN_MS + 10_000;
-  const [endlessEnd, boundedEnd, exit] = await within(Promise.all([endless.ended, bounded.ended, host.exited]), limit, `${scenario.name} after SIGTERM`);
-  return { sigtermAt, endless, endlessEnd, bounded, boundedEnd, refusal, newConnection, exit };
+  const [ends, graceEndedAt, exit] = await within(
+    Promise.all([Promise.all(endless.map((stream) => stream.call.ended)), grace.ended, host.exited]),
+    limit,
+    `${scenario.name} after SIGTERM`,
+  );
+  return { sigtermAt, endless: endless.map((stream, index) => ({ ...stream, end: ends[index]! })), graceEndedAt, refusal, newConnection, exit };
 }
 
 /** This function prints a line of the result, and adds it to the summary of the job on GitHub. */
@@ -395,35 +418,40 @@ function report(line: string): void {
   if (summary) appendFileSync(summary, `- ${line}\n`);
 }
 
-/**
- * This function examines the stop: (a) to (d) of the description of this file. `cutCodes` are the
- * codes that the in-band end of the endless stream can have.
- */
-function examine(scenario: Scenario, outcome: Outcome, cutCodes: readonly string[]): void {
+/** This function examines the stop: (a) to (d) of the description of this file. */
+function examine(scenario: Scenario, outcome: Outcome): void {
   const { capsMs, cooperativeAbortMs } = stopTimes(scenario.profile);
-  const toEnd = outcome.endlessEnd.at - outcome.sigtermAt;
+  const since = (at: number): number => Math.round(at - outcome.sigtermAt);
   const toExit = outcome.exit.at - outcome.sigtermAt;
-  const last = outcome.endless.lines.at(-1);
+  const ends = outcome.endless.map((stream) => {
+    const last = stream.call.lines.at(-1);
+    return `${stream.name} ${last?.error?.code} (retryable ${last?.error?.retryable}) at ${since(stream.end.at)} ms`;
+  });
   report(
-    `${scenario.name}: SIGTERM to the in-band end ${Math.round(toEnd)} ms (the cooperative abort comes ${cooperativeAbortMs} ms after the start of the drain), ` +
-      `SIGTERM to the exit ${Math.round(toExit)} ms (the caps sum to ${capsMs} ms), exit code ${outcome.exit.code}, ` +
-      `in-band end ${last?.error?.code} (retryable ${last?.error?.retryable}), request during the drain ${outcome.refusal.status} ` +
-      `(Retry-After ${outcome.refusal.headers["retry-after"]}), new connection ${outcome.newConnection}`,
+    `${scenario.name}: in-band ends ${ends.join(", ")}. The cooperative abort comes ${cooperativeAbortMs} ms after the start of the drain. ` +
+      `The call of the grace ended at ${since(outcome.graceEndedAt)} ms. SIGTERM to the exit ${Math.round(toExit)} ms (the caps sum to ${capsMs} ms), ` +
+      `exit code ${outcome.exit.code}. Request in the drain ${outcome.refusal.status} (Retry-After ${outcome.refusal.headers["retry-after"]}), ` +
+      `new connection ${outcome.newConnection}.`,
   );
 
   // The caps of the stages sum to 10 s: they replace the hard-exit timer of 10 s of the entries
   expect(capsMs).toBeLessThanOrEqual(10_000);
 
-  // (a) The stream without an end ends in band: each line before the last is an item in sequence,
-  // and the last is an error line. A reset of the connection fails the read of the body.
-  expect(outcome.endlessEnd.reset, "the connection of the stream reset before its in-band end").toBeUndefined();
-  expect(last?.type).toBe("error");
-  expect(cutCodes).toContain(last?.error?.code);
-  const before = outcome.endless.lines.slice(0, -1);
-  expect(before.length).toBeGreaterThan(0);
-  before.forEach((line, index) => expect(line).toMatchObject({ type: "item", seq: index + 1 }));
-  // The drain waits for the stream until the cooperative abort: the end does not come sooner
-  expect(toEnd).toBeGreaterThanOrEqual(cooperativeAbortMs - TIMER_SLACK_MS);
+  // (a) Each stream without an end ends in band: each line before the last is an item in
+  // sequence, and the last is an error line. A reset of the connection fails the read of the body.
+  for (const stream of outcome.endless) {
+    expect(stream.end.reset, `the connection of ${stream.name} reset before its in-band end`).toBeUndefined();
+    const last = stream.call.lines.at(-1);
+    expect(last?.type, `the last line of ${stream.name}`).toBe("error");
+    expect(stream.codes, `the code of the in-band end of ${stream.name}`).toContain(last?.error?.code);
+    // A retryable end is UNAVAILABLE, and an end that is not retryable is INTERNAL_ERROR
+    expect(last?.error?.retryable).toBe(last?.error?.code === "UNAVAILABLE");
+    const before = stream.call.lines.slice(0, -1);
+    expect(before.length).toBeGreaterThan(0);
+    before.forEach((line, index) => expect(line).toMatchObject({ type: "item", seq: index + 1 }));
+    // The drain waits for the stream until the cooperative abort: the end does not come sooner
+    expect(stream.end.at - outcome.sigtermAt, `the end of ${stream.name} after SIGTERM`).toBeGreaterThanOrEqual(cooperativeAbortMs - TIMER_SLACK_MS);
+  }
 
   // (b) The listener closed at the stop of the intake: a new connection is refused. The open
   // connection takes the request, and `httpTransport` refuses it with a retryable 503. No mount
@@ -433,18 +461,16 @@ function examine(scenario: Scenario, outcome: Outcome, cutCodes: readonly string
   expect(outcome.refusal.headers["retry-after"]).toMatch(/^[1-9]\d*$/);
   expect(outcome.refusal.headers["connection"]).toBe("close");
 
-  // (d) The drain waited for the stream that ends within the grace: it ends with its done line
-  expect(outcome.boundedEnd.reset, "the connection of the bounded stream reset").toBeUndefined();
-  expect(outcome.bounded.lines.at(-1)?.type).toBe("done");
-
   // (c) The profiles localDev and daemon give no exit code for a signal. Only the profile
   // `ephemeral` gives one (143 for SIGTERM). Thus the runner exits with 0 after a stop without an
   // error, and with 1 when a stage fails or reaches its cap. The code 0 also tells that each stage
   // ended within its cap.
   expect(outcome.exit).toMatchObject({ code: 0, signal: null });
 
-  // (d) The stop ends before the sum of the caps of the stages, with a margin for the process
+  // (d) The stop ends before the sum of the caps of the stages, with a margin for the process.
+  // The call of the grace ended before the exit: the drain waited for it.
   expect(toExit).toBeLessThan(capsMs + MARGIN_MS);
+  expect(outcome.graceEndedAt).toBeLessThan(outcome.exit.at);
 }
 
 // ---------------------------------------------------------------------------
@@ -461,24 +487,42 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
   it("procedure-server (the profile localDev)", async () => {
     const port = await freePort();
     const token = "lifecycle-token";
+    const base = `http://127.0.0.1:${port}/api`;
     const host = startHost([SERVER_BIN, "--port", String(port), "--token", token, "--transport", "http", "--procedures", FIXTURE]);
+    let count: StreamCall | undefined;
     try {
       await host.waitFor("Press Ctrl+C", 60_000);
       const scenario: Scenario = {
         name: "procedure-server",
         host,
         port,
-        base: `http://127.0.0.1:${port}/api`,
         token,
         profile: HOST_PROFILES.foreground,
-        endless: { path: "lifecycle/ticks", input: {} },
-        bounded: { path: "lifecycle/count", input: { count: BOUNDED_ITEMS, every: 100 } },
+        startEndless: async () => {
+          const [ticks, ticksOnce] = await Promise.all([streamCall(`${base}/lifecycle/ticks`, token, {}), streamCall(`${base}/lifecycle/ticksOnce`, token, {})]);
+          await Promise.all([ticks.items(1), ticksOnce.items(1)]);
+          return [
+            // lifecycle.ticks writes nothing: a cut of it is retryable
+            { name: "lifecycle.ticks", call: ticks, codes: ["UNAVAILABLE"] },
+            // lifecycle.ticksOnce declares a write, so a call of it can have had its effect. Before
+            // CLI-48, the in-band end of such a cut is INTERNAL_ERROR (not retryable). CLI-48
+            // (release 0.14.0) makes each stream that the shutdown cuts end with UNAVAILABLE.
+            { name: "lifecycle.ticksOnce", call: ticksOnce, codes: ["INTERNAL_ERROR", "UNAVAILABLE"] },
+          ];
+        },
+        // lifecycle.count ends about 700 ms after its first item: within the grace
+        startGraceCall: async () => {
+          const call = await streamCall(`${base}/lifecycle/count`, token, { count: COUNT_ITEMS, every: 100 });
+          await call.items(1);
+          count = call;
+          return { release: () => undefined, ended: call.ended.then((end) => end.at) };
+        },
       };
       const outcome = await sigtermInAStream(scenario);
-      // lifecycle.ticks reads nothing and writes nothing: a cut of it is retryable
-      examine(scenario, outcome, ["UNAVAILABLE"]);
-      expect(outcome.endless.lines.at(-1)?.error?.retryable).toBe(true);
-      expect(payloadsOf(outcome.bounded)).toEqual(Array.from({ length: BOUNDED_ITEMS }, (_, index) => index + 1));
+      examine(scenario, outcome);
+      // The drain waited for lifecycle.count: each item, and then its done line
+      expect(count?.lines.at(-1)?.type).toBe("done");
+      expect(payloadsOf(count!)).toEqual(Array.from({ length: COUNT_ITEMS }, (_, index) => index + 1));
     } finally {
       console.log(`[lifecycle] the output of procedure-server:\n${host.output()}`);
     }
@@ -487,34 +531,85 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
   it("mark --server (the profile daemon): the same stop, and the lockfile goes away", async () => {
     const home = mkdtempSync(join(tmpdir(), "lifecycle-mark-"));
     folders.push(home);
+    const watched = join(home, "watched");
+    mkdirSync(watched);
+    // A named pipe: fs.read of it waits until the test writes and closes the pipe
+    const pipe = join(home, "grace.fifo");
+    const made = spawnSync("mkfifo", [pipe], { encoding: "utf8" });
+    expect(made.status, made.stderr).toBe(0);
     const port = await freePort();
     // mark --server writes its lockfile under the home folder, and takes the commands of its folder
     const host = startHost([MARK_BIN, "--server", "--port", String(port)], { cwd: home, env: { HOME: home, USERPROFILE: home } });
+    let read: { status: number; body: unknown } | undefined;
     try {
       await host.waitFor("Press Ctrl+C", 90_000);
       const lockPath = join(home, ".mark", "servers", `${port}.lock`);
       const lock = JSON.parse(readFileSync(lockPath, "utf8")) as { endpoint: string; token: string };
-      // shell.stream runs a program and gives each line of its output: Node prints the lines
-      const node = process.execPath;
-      const countScript = `let n = 0; const timer = setInterval(() => { console.log(++n); if (n === ${BOUNDED_ITEMS}) clearInterval(timer); }, 100);`;
+      // The calls start no program. @procedures/shell kills each program that it started at the
+      // first SIGTERM, with signal handlers of its own (tree-kill.ts). Thus a shell.stream call
+      // ends at the signal, before the drain, and the drain has no call to wait for.
       const scenario: Scenario = {
         name: "mark --server",
         host,
         port,
-        base: lock.endpoint,
         token: lock.token,
         profile: HOST_PROFILES.background,
-        endless: { path: "shell/stream", input: { command: node, args: ["-e", "setInterval(() => console.log('tick'), 50);"] } },
-        bounded: { path: "shell/stream", input: { command: node, args: ["-e", countScript] } },
+        // fs.watch has no end. It gives an item for each change in the folder, so the test changes
+        // a file until the first item comes: the watcher starts after the head of the response.
+        startEndless: async () => {
+          const watch = await streamCall(`${lock.endpoint}/fs/watch`, lock.token, { path: watched });
+          const change = setInterval(() => writeFileSync(join(watched, "change.txt"), String(performance.now())), 50);
+          try {
+            await watch.items(1);
+          } finally {
+            clearInterval(change);
+          }
+          // fs.watch reads files and writes nothing: a cut of it is retryable
+          return [{ name: "fs.watch", call: watch, codes: ["UNAVAILABLE"] }];
+        },
+        // fs.read of the pipe is in flight when the read end of the pipe is open: then an open of
+        // the write end without a wait succeeds. The release writes a text and closes the pipe.
+        startGraceCall: async () => {
+          let settled = false;
+          const response = fetch(`${lock.endpoint}/fs/read`, { method: "POST", headers: headersOf(lock.token), body: JSON.stringify({ path: pipe }) });
+          const ended = response.then(async (answer) => {
+            read = { status: answer.status, body: await answer.json() };
+            return performance.now();
+          });
+          void ended.then(
+            () => (settled = true),
+            () => (settled = true),
+          );
+          let fd: number | undefined;
+          await until(
+            () => {
+              if (settled) throw new Error(`fs.read of the pipe ended before the test wrote to it: ${JSON.stringify(read)}`);
+              try {
+                fd = openSync(pipe, constants.O_WRONLY | constants.O_NONBLOCK);
+                descriptors.push(fd);
+                return true;
+              } catch {
+                // ENXIO: the host has not opened the read end yet
+                return false;
+              }
+            },
+            10_000,
+            "the open of the pipe by fs.read",
+          );
+          return {
+            release: () => {
+              descriptors.splice(descriptors.indexOf(fd!), 1);
+              writeSync(fd!, "drained");
+              closeSync(fd!);
+            },
+            ended,
+          };
+        },
       };
       const outcome = await sigtermInAStream(scenario);
-      // shell.stream runs a program, so a call of it can have had its effect. Before CLI-48, the
-      // in-band end of such a cut is INTERNAL_ERROR (not retryable). CLI-48 (release 0.14.0) makes
-      // each stream that the shutdown cuts end with UNAVAILABLE.
-      examine(scenario, outcome, ["INTERNAL_ERROR", "UNAVAILABLE"]);
-      const payloads = payloadsOf(outcome.bounded);
-      expect(payloads.slice(0, -1)).toEqual(Array.from({ length: BOUNDED_ITEMS }, (_, index) => ({ type: "stdout", line: String(index + 1) })));
-      expect(payloads.at(-1)).toMatchObject({ type: "exit", exitCode: 0 });
+      examine(scenario, outcome);
+      // The drain waited for fs.read: the host answered it after the release
+      expect(read).toMatchObject({ status: 200, body: { content: "drained" } });
       // The stage "tear down dependencies" removed the lockfile
       expect(existsSync(lockPath)).toBe(false);
     } finally {
