@@ -1,5 +1,16 @@
 # @procedures/docker
 
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies [c78da2d]
+- Updated dependencies [d99b2d5]
+- Updated dependencies [534e4ea]
+- Updated dependencies [44fdd60]
+  - @procedures/client@0.15.1
+  - @procedures/shell@0.15.1
+
 ## 0.15.0
 
 ### Patch Changes
