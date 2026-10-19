@@ -14,6 +14,8 @@
  *   the materializer (the partition, `_viewGen` and `_viewHash`).
  * - The storage has no change log. The procedure `changes` thus gives all the rows of the current
  *   generation.
+ * - A read that starts before a change of generation ends on the previous generation. The
+ *   materializer keeps its rows for `generationGrace`, so a read must end in that time.
  * - Before the first pass of the view, and without the view document, the storage has no row.
  * - Only the materializer writes a target. Each write of this storage rejects with `FORBIDDEN`.
  */

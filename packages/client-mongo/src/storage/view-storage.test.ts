@@ -76,11 +76,10 @@ function member(target: object, key: string | symbol): unknown {
 }
 
 /**
- * The database of a materializer whose lease renewals of the views (`findOneAndUpdate` of the
- * views collection) wait for the gate. A pass in groups then stops after its first group, before
- * its change of generation.
+ * A database whose views collection runs a hook around one method: `before` waits before the
+ * call, and `after` runs after it, before the caller gets the result.
  */
-function gated(db: Db, gate: { wait?: Promise<void> | undefined }): Db {
+function hooked(db: Db, method: string, hook: { before?: () => Promise<void> | void; after?: () => Promise<void> | void }): Db {
   return new Proxy(db, {
     get(target, key) {
       if (key !== "collection") return member(target, key);
@@ -90,16 +89,27 @@ function gated(db: Db, gate: { wait?: Promise<void> | undefined }): Db {
         return new Proxy(collection, {
           get(inner, prop) {
             const value = member(inner, prop);
-            if (prop !== "findOneAndUpdate" || typeof value !== "function") return value;
+            if (prop !== method || typeof value !== "function") return value;
             return async (...args: unknown[]) => {
-              await gate.wait;
-              return (value as (...rest: unknown[]) => unknown)(...args);
+              await hook.before?.();
+              const result: unknown = await (value as (...rest: unknown[]) => unknown)(...args);
+              await hook.after?.();
+              return result;
             };
           },
         });
       };
     },
   });
+}
+
+/**
+ * The database of a materializer whose lease renewals of the views (`findOneAndUpdate` of the
+ * views collection) wait for the gate. A pass in groups then stops after its first group, before
+ * its change of generation.
+ */
+function gated(db: Db, gate: { wait?: Promise<void> | undefined }): Db {
+  return hooked(db, "findOneAndUpdate", { before: () => gate.wait });
 }
 
 /** A row of a view as the materializer stores it, with the default `partitionTargetId`. */
@@ -179,6 +189,35 @@ withMongo("MongoViewStorage on MongoDB", () => {
     const other = new MongoViewStorage({ view: "totals-t2", db: () => db });
     expect(await other.getAll()).toEqual([{ _id: "a", total: 100 }]);
     expect(await other.getMetadata()).toEqual({ type: "custom", size: 1, stats: { view: "totals-t2" } });
+  });
+
+  it("finishes a read on the generation that it took, when the generation changes during the read", async () => {
+    const db = newDb();
+    const first = new ObjectId();
+    const second = new ObjectId();
+    await db.collection("_aggregations").insertOne(viewDoc("totals", first) as never);
+    await db.collection("totals").insertMany([row(first, "a", 1), row(first, "b", 2), row(second, "a", 10), row(second, "b", 20), row(second, "c", 30)] as never[]);
+    // The read takes the generation from the view document. Then the materializer changes the
+    // generation, before the read of the rows: the previous generation stays for its grace time.
+    let flips = 0;
+    const flipping = hooked(db, "findOne", {
+      after: async () => {
+        flips++;
+        await db
+          .collection("_aggregations")
+          .updateOne({ _id: "totals" as never }, { $set: { "_materializerStatus.generation": second, "_materializerStatus.previous": { generation: first, flippedAt: new Date() } } });
+      },
+    });
+    const run = served(new MongoViewStorage({ view: "totals", db: () => flipping }));
+    // The read gives the whole generation that it took, not a mix of the two
+    expect(await run("getAll")).toEqual([
+      { _id: "a", total: 1 },
+      { _id: "b", total: 2 },
+    ]);
+    expect(flips).toBe(1);
+    // The next read takes the new generation
+    expect(ids(await run("entries"))).toEqual(["a", "b", "c"]);
+    expect(await run("size")).toBe(3);
   });
 
   it("has no row before the first generation or without its view, refuses each write, and rejects after close", async () => {
