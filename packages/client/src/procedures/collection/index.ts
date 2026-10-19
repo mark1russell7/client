@@ -76,12 +76,18 @@ export { PARTITION_PATTERN, collectionTopicPartition, collectionTopicTarget, par
 export { collectionTopicRule } from "./topic.js";
 export type { CollectionPartitions, PartitionInput, PartitionResolver } from "./partition.js";
 
+// The rules of the rows of a collection: a filter of the reads and a guard of the writes (roadmap CLI-41)
+export { admittedStorage, admitsRow } from "./admission.js";
+export type { CollectionAdmission, CollectionRow, CollectionWrite, CollectionWriteGuard } from "./admission.js";
+
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
 export type {
   CollectionStorage,
   StorageChanges,
   StorageMetadata,
   StorageWriteOptions,
+  StorageItemWriteOptions,
+  StorageBatchWriteOptions,
   StorageSetChange,
   StorageDeleteChange,
   StorageClearChange,
@@ -89,6 +95,21 @@ export type {
   StorageChangeBatch,
   StorageObserver,
 } from "./storage.js";
+
+// The precondition of the writes: the expected version and VERSION_CONFLICT (roadmap CLI-16)
+export {
+  MAX_EXPECTED_VERSION_LENGTH,
+  PRECONDITION_NOT_SUPPORTED,
+  VERSION_CONFLICTS_METADATA_KEY,
+  VersionConflictError,
+  asVersionConflictError,
+  isExpectedVersion,
+  preconditionNotSupported,
+  versionConflict,
+  versionConflicts,
+  versionConflictsOf,
+} from "./precondition.js";
+export type { CurrentItem, VersionConflict, VersionOf } from "./precondition.js";
 
 // The query language of the storages: the same JSON on the wire and in query() (roadmap CLI-34:
 // the one copy of the language)

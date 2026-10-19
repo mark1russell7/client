@@ -23,6 +23,13 @@ import { createRegistry } from "../procedures/module.js";
 import type { ProcedureRegistry } from "../procedures/registry.js";
 import { ProcedureServer } from "./procedure-server.js";
 import { pathToMethod } from "./method.js";
+import { VersionConflictError, versionConflictsOf, type VersionConflict } from "../procedures/collection/precondition.js";
+
+/** The conflicts of the procedure `conf.conflict` (roadmap CLI-16). */
+const CONFLICTS: VersionConflict[] = [
+  { id: "a", expected: "1", found: true, value: { n: 2 }, version: "2" },
+  { id: "b", expected: null, found: false, version: null },
+];
 
 const TOKEN = "conformance-token-0123456789";
 
@@ -84,11 +91,24 @@ function registryOf(seen: Seen): ProcedureRegistry {
       // server keeps the code of a handler error)
       createProcedure()
         .path(["conf", "fail"])
-        .input(z.object({ code: z.string().optional() }))
+        .input(z.object({ code: z.string().optional(), retryable: z.boolean().optional() }))
         .output(z.string())
         .meta({ effects: read })
-        .handler(async (input: { code?: string | undefined }) => {
-          throw Object.assign(new Error("it failed"), input.code === undefined ? {} : { code: input.code });
+        .handler(async (input: { code?: string | undefined; retryable?: boolean | undefined }) => {
+          throw Object.assign(
+            new Error("it failed"),
+            input.code === undefined ? {} : { code: input.code },
+            input.retryable === undefined ? {} : { retryable: input.retryable },
+          );
+        })
+        .build(),
+      createProcedure()
+        .path(["conf", "conflict"])
+        .input(z.object({}))
+        .output(z.string())
+        .meta({ effects: read })
+        .handler(async () => {
+          throw new VersionConflictError(CONFLICTS);
         })
         .build(),
       createProcedure()
@@ -226,10 +246,20 @@ describe.each(faces)("the conformance of $name (R18)", (face) => {
     await expect(read("E_CUSTOM")).rejects.toMatchObject({ code: "E_CUSTOM", message: "it failed" });
     await expect(read()).rejects.toMatchObject({ code: "HANDLER_ERROR" });
   });
+
+  it("gives the code VERSION_CONFLICT and the current items of the conflicts (CLI-16)", async () => {
+    const client = await face.client(fresh());
+    const error = await client.call(pathToMethod(["conf", "conflict"]), {}).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toMatchObject({ code: "VERSION_CONFLICT", retryable: false });
+    expect(versionConflictsOf(error)).toEqual(CONFLICTS);
+  });
 });
 
 describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
-  it("follows the code: the status of ERROR_CODES for a code of the protocol, and 500 for another code", async () => {
+  it("follows the code: the status of ERROR_CODES for a code of the protocol, 500 for another code, and 500 for a 503 with retryable false", async () => {
     const server = new ProcedureServer({ registry: registryOf(fresh()), autoRegister: true });
     const app = express();
     const http = createServer(app);
@@ -249,9 +279,17 @@ describe("the HTTP status of a handler error (WIRE-PROTOCOL.md)", () => {
       });
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     };
-    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", error: "it failed" } });
+    expect(await post({ code: "UNAVAILABLE", retryable: true })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", retryable: true, error: "it failed" } });
+    // Without a flag, the error gets the default of its code: UNAVAILABLE is retryable, and stays 503
+    expect(await post({ code: "UNAVAILABLE" })).toMatchObject({ status: 503, body: { code: "UNAVAILABLE", retryable: true, error: "it failed" } });
+    // An error with retryable false does not get 503: a 503 invites a retry at the HTTP level (CLI-48)
+    expect(await post({ code: "UNAVAILABLE", retryable: false })).toMatchObject({ status: 500, body: { code: "UNAVAILABLE", retryable: false, error: "it failed" } });
     expect(await post({ code: "E_CUSTOM" })).toMatchObject({ status: 500, body: { code: "E_CUSTOM", error: "it failed" } });
     expect(await post({})).toMatchObject({ status: 500, body: { code: "HANDLER_ERROR", error: "it failed" } });
+    // A conflict of a precondition: 409, with the current items in the body (roadmap CLI-16)
+    const conflict = await fetch(`http://127.0.0.1:${port}/api/conf/conflict`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ code: "VERSION_CONFLICT", retryable: false, conflicts: CONFLICTS });
   });
 });
 

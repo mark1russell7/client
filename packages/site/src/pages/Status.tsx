@@ -305,6 +305,9 @@ export function Status({ route }: { route: Route }): ReactElement {
         The status of each finding of the October deep dive, of the architecture roadmap and of the July bug register. The
         build reads the status documents of the repository, so this page shows what they say.
       </p>
+      <p className="small">
+        What shipped, version by version: <a href={href("releases")}>Releases</a>.
+      </p>
 
       <div className="stat-tiles">
         <div className="stat-tile">

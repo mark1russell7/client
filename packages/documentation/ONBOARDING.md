@@ -26,8 +26,8 @@ These checks run in CI too:
 - The types of the test files: `node .github/scripts/typecheck-tests.mjs`. The presets of `cue` exclude the test files from `pnpm typecheck`.
 - The package audit: `node packages/mark/dist/cli.js lib audit`.
 - The browser smoke test of the site: `pnpm --filter @procedures/site test:e2e`. It needs Playwright and Chromium.
-
-The end-to-end tests of `mark` are not in CI: `pnpm --filter @procedures/mark test:e2e`.
+- The end-to-end tests of `mark`: `pnpm --filter @procedures/mark test:e2e`.
+- The stop of the hosts, in the job `lifecycle`: `pnpm --filter @procedures/server exec vitest run --config vitest.e2e.config.ts`. The test sends `SIGTERM` to `procedure-server` and `mark --server` during a stream. It measures times, thus only CI starts it.
 
 For one package, use a filter: `pnpm --filter @procedures/git test`.
 

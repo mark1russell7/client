@@ -76,8 +76,10 @@ export type InvocationErrorCode =
  *   subscription (`documentation/EVENTS.md`).
  * - `partition-not-allowed`: the partition resolver of the collection procedures refuses the
  *   partition of a call (roadmap CLI-17).
+ * - `write-not-allowed`: the guard of a collection (`admission.guard`) refuses a write (roadmap
+ *   CLI-41).
  */
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
 
 /** An error of the invocation itself. An error that the handler throws passes through unchanged. */
 export class InvocationError extends Error {
@@ -87,7 +89,8 @@ export class InvocationError extends Error {
   readonly retryable: boolean = false;
   /**
    * The reason of a `FORBIDDEN` error: `effects-undeclared`, `effects-exceeded`, `clearance`,
-   * `deadline`, `outside-root`, `host-not-allowed`, `topic-not-allowed` or `partition-not-allowed`.
+   * `deadline`, `outside-root`, `host-not-allowed`, `topic-not-allowed`, `partition-not-allowed` or
+   * `write-not-allowed`.
    */
   readonly reason: ForbiddenReason | undefined;
 
@@ -550,6 +553,8 @@ export function createProcedureContext(
   if (options.principal !== undefined) context.principal = options.principal;
   // The procedure of the parent invocation made this call (roadmap R33: the root of the files)
   if (invocation?.parent) context.caller = invocation.parent.procedure;
+  // The rules of the rows of a collection get the invocation of the call (roadmap CLI-41)
+  if (invocation) context.invocation = invocation;
   // The output filter of the host, for the data that a handler sends later (roadmap CLI-15)
   const admitItem = options.admitItem;
   if (invocation && invocation.depth === 0 && admitItem) context.admit = async (item) => admitItem(item, invocation);

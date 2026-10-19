@@ -1,5 +1,109 @@
 # @procedures/client
 
+## 0.15.0
+
+### Minor Changes
+
+- c7198ca: Breaking (roadmap CLI-16, decision D11): the collection writes take an optional expected version. This is its own MINOR of the client group (D13).
+  
+  New:
+  
+  - `collections.<name>.set` and `delete` take `expectedVersion`, and each item of `setBatch` takes `expectedVersion`. The value is the version of the current item that the write expects. `null` expects no item.
+  - A conflict changes nothing. The call fails with the new protocol code `VERSION_CONFLICT` (HTTP 409, not retryable). The metadata key `conflicts` (and the field `conflicts` of the HTTP body) has the current item and its version for each id.
+  - `StorageItemWriteOptions.expectedVersion` (`set`, `delete`) and `StorageBatchWriteOptions.expectedVersions` (`setBatch`) in both copies of `CollectionStorage`. `VersionConflictError`, `versionConflictsOf()` and the other helpers come from `@procedures/client/query`, `@procedures/client` and `@procedures/collections`.
+  - The option `versionOf` of `InMemoryStorage`, `SqliteStorage` and `MongoDocumentStorage` gives the version of an item. The test and the write are one step: synchronous in memory, one transaction in SQLite, the transaction or a compare-and-set on `_seq` in MongoDB. `MongoStorage` refuses a precondition.
+  - `ApiStorage` sends the expected versions to the collection procedures, and gives a `VERSION_CONFLICT` back as a `VersionConflictError`.
+  - `HybridStorage` sends the base version of each queued write as its expected version. A conflict of the remote goes to `conflictResolution`, as a conflict of a pull. The new option `sendBaseVersions: false` stops it.
+  - `ClientError.metadata` gives the metadata of the error response.
+  - The contract suite `@procedures/collections/testing` has the cases of the preconditions, and the option `createWithVersions`.
+  
+  The changes of behavior:
+  
+  - A storage must test a precondition, or refuse the write. A storage without `versionOf` refuses a write with an expected version with a `TypeError` whose code is `PRECONDITION_NOT_SUPPORTED`. The contract suite tests it for each storage.
+  - A `HybridStorage` with `versionOf` now sends the base version of each queued write. A queued write over a change of another writer got through before. Now the remote refuses it with `VERSION_CONFLICT`, and `conflictResolution` decides: `remote` drops the queued write, `merge` sends the merged item, `local` sends the write again over the current version, and `error` throws `ConflictError` and keeps the queue. The remote must test the precondition: a server storage without `versionOf` refuses each push.
+  - `ApiStorage`: a write without an expected version writes as before, and gets no `VERSION_CONFLICT`. Only a caller that gives an expected version, or a `HybridStorage` with `versionOf` over it, can get one.
+  - `HybridStorage` with `versionOf`: a queued write that won before can now get the conflict path. The opt-out is `new HybridStorage(remote, { versionOf, sendBaseVersions: false })`: the push sends no expected version, and the last write wins, as before. The default is the new behavior.
+  - A write without an expected version writes as before: the last write wins.
+  
+  Migration:
+  
+  - **Site.** No change. The site does not write collections.
+  - **MiniMongo.** No change for a storage or a `HybridStorage` without `versionOf`. A `HybridStorage` with `versionOf` over `ApiStorage` needs a server storage with the same `versionOf` (for example `new InMemoryStorage({ versionOf })`), or the option `sendBaseVersions: false`.
+  - **Graph.** Graph keeps last-write-wins first (D11): it gives no expected version, so nothing changes. `GraphDocsStorage` must refuse a write with an expected version until it tests one. Add the guard to its `set`, `delete` and `setBatch`, and run the contract suite: its first case tests the refusal. To adopt the version later, stamp a version field on the server, give the storage a `versionOf` that tests it in the write, and give the same `versionOf` to the `HybridStorage` of the client. Then add `createWithVersions` to the contract run.
+  - **jarvis.** No change: jarvis gives no expected version. A storage of jarvis that implements `CollectionStorage` must refuse a write with an expected version, as for Graph.
+  - **Other storages.** Each class that implements `CollectionStorage` reads the new options of `set`, `delete` and `setBatch`. It tests them in the write, or it rejects the write with `preconditionNotSupported()`. It never ignores them.
+
+## 0.14.1
+
+### Patch Changes
+
+- 85999c1: MCP tasks and the guards of the HTTP face (CLI-35).
+  
+  - A procedure with `metadata.taskSupport` (`"optional"` or `"required"`) can run as an MCP task. `@procedures/mcp` gives it in the tool definition as `execution.taskSupport`, and exports `taskSupportOf`.
+  - `createMcpHost` and `McpServerTransport` take the option `tasks`: a store (`McpTaskStore`), or the options of a new store (`maxRunning`, `ttl`). The host shares one store with each face, and `host.tasks` gives it. A task holds its place in the limit until its procedure returns, also after a cancel. A task above the limit starts and then fails at once with the reason, and the store keeps it for 1 minute. The time to keep a task starts when the task ends, and each session keeps at most 100 tasks. A cancel aborts `ctx.signal` of the procedure. The close of a session and the stop of the host cancel their tasks. Without the option `tasks`, the tools do not change.
+  - The checks of a request to the Streamable HTTP face are in one function, `guardMcpRequest`, with the browser checks and `tokenMatches` of the core. A 401 now has a `WWW-Authenticate` header. The package also exports `assertLoopbackBind`, for the owner of a listener.
+  - The HTTP face takes `allowedHosts`, `maxSessions` and `maxBodyBytes`. `createMcpHost` and `mcpFace` give the face `browser.allowedHosts` of the policy, so a host of that list can reach the endpoint. Before, the face refused it. Thus a policy with `allowedHosts: "*"` now also turns off the DNS-rebinding check of the face, as it does for the other faces.
+  - `maxSessions` has no default: the sessions have no limit, as before. With it, a new session above the limit closes the session that was idle longest (no task in progress and no open response), and when each session is busy, the new session gets 503 with `Retry-After`.
+  - `maxBodyBytes` (4 MiB by default, the limit of the SDK) applies to each request of the face.
+  - The state of an HTTP face (`getState()`, and `host.state().faces`) gives `sessions`, the count of its open sessions.
+  - `@procedures/client/node` exports `readJsonBody` and `BodyError`: the procedure handler and the MCP face read a JSON body with this one function.
+  
+  One default of the Streamable HTTP face changes: only an `initialize` request starts a session. Before, a POST without a session id made a new MCP server, and then the SDK refused the request with 400 ("Server not initialized"). Now the face refuses it with 400 before it makes a server, so a stray request uses no memory. This agrees with the MCP specification, and a caller sees the same status. When the SDK refuses an `initialize` (for example 406), the face now closes the server of that request.
+- fc968f6: Fixed: `@procedures/geo`, `@procedures/ics` and `@procedures/splay` import `@procedures/client/browser`, not the root of `@procedures/client` (CLI-39). The root also exports `HttpServerTransport`, which imports `http`. Thus a browser build with Vite found `http` and gave a warning. The exports of the packages do not change.
+  
+  New: each package that operates in a browser names its browser entries in the field `client.browser` of its `package.json`. A CI check bundles each of these entries for a browser with esbuild. The check fails when an import reaches a Node built-in, with or without the prefix `node:`. The root of `@procedures/client` joins the check after CLI-6. `@procedures/splay` joins it when `splay.bridge.info` reads its version without `node:fs/promises`.
+- dc7a462: New: the rules of the rows of a served collection (roadmap CLI-41). Before, the collection procedures checked only the partition of a call. A right that depends on the document, for example a `when` condition of an access list, had no place in a read or a write. The new option `admission` of `createCollectionProcedures()` gives two rules. `admit` examines each row `{ id, value }` of each read, and it has the shape of `AdmitItem`. `guard` examines each write `{ op, id, doc, prev }` before the storage changes, and a refused write gets `FORBIDDEN` with the reason `write-not-allowed`. The procedures apply the two rules in one place, the view of the storage of each call (`admittedStorage()`). A refused row is absent from `get`, `has`, `getAll`, `entries`, `ids`, `size`, `getBatch`, `find` and `changes`, and a delta of `changes` puts its id in `deleted`. The change events with values apply `admit` for each subscriber. The context of a call has its invocation (`ctx.invocation`). `@procedures/access` gets `accessWriteGuard()`, and `accessAdmitItem()` gets the option `docOf`. Without the option `admission`, nothing changes.
+- e091108: New: credentialed CORS for the auth routes, from the trusted origins of the host (CLI-49). The handler of Better Auth sends no CORS headers, so a page on another origin got no session and failed POST requests. `betterAuthHandler(auth, { allowedOrigins })` gives the Node handler of the auth routes with credentialed CORS. `betterAuthFace(auth)` gives it as a face of a procedures host, with `browser.allowedOrigins` of the host policy. Thus one list of trusted origins drives `procedureHandler` and the auth routes. A response for a trusted origin names that one origin, with `Access-Control-Allow-Credentials: true` and `Vary: Origin`. The handler answers each preflight. An origin that is not trusted gets no CORS header. The CORS is `credentialedCors()` of `@procedures/client/node`, on the CORS code of `procedureHandler`. It refuses `"*"` (CSRF). The new option `crossSiteCookies` of the configuration (`AUTH_CROSS_SITE_COOKIES=1`) gives the cookies `SameSite=None` and `Secure` for a page on another site. Without the new functions and options, nothing changes.
+- 073e4c3: Changed: `procedureHandler` sends no CORS header to an origin that its `cors` option does not permit (CLI-56). Before, the response for such an origin had no `Access-Control-Allow-Origin`, but it had `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Allow-Credentials` and `Access-Control-Expose-Headers`, and a preflight also had `Access-Control-Max-Age`. A browser ignores these headers without `Access-Control-Allow-Origin`, so no client uses them. Now the response for that origin, and for a request without an `Origin` header, has none of them. With a list or a function of origins, each response still has `Vary: Origin`, so a shared cache keeps one answer for each origin. A permitted origin and the origin `"*"` get the same headers as before. A preflight still gets 204. `HttpServerTransport` does not change.
+- 6969637: The server transports are in the Node entry (CLI-6 step 1). `@procedures/client/node` now exports `HttpServerTransport`, `HttpServerTransportOptions` and `HttpUrlStrategy`. It already exported `WebSocketServerTransport` and its types.
+  
+  The root `@procedures/client` and the entry `@procedures/client/server` still export these names, but each export is now a deprecated alias with the tag `@deprecated`. The deprecated names are `HttpServerTransport`, `HttpServerTransportOptions`, `HttpUrlStrategy`, `WebSocketServerTransport`, `WebSocketServerTransportOptions`, `WebSocketAuthHandler`, `WebSocketConnectionHandler` and `WebSocketMessage`. Each alias is the same class or type as the export of `./node`, so `new`, `instanceof` and `extends` work as before.
+  
+  The next MINOR removes them from the root (CLI-6 step 2). It also removes them from `./server`. Then the root imports no `http` and no `ws`. Migration: import them from `@procedures/client/node`.
+  
+  The migration steps of the known consumers:
+  
+  - The site: no change. It imports none of these names.
+  - MiniMongo: no change. It imports none of these names. The server stub in `vite.config.ts` names `HttpServerTransport` and `WebSocketServerTransport`, and it can stay.
+  - Graph: no change. It imports none of these names.
+  - jarvis: no change. It imports none of these names.
+  - The procedures image of the harness of `systems` (`packages/harness/image/procedures/server-ws.mjs`) imports `WebSocketServerTransport` from the root. It pins `@procedures/client` 0.7.0. When it moves to a version after the next MINOR, import `WebSocketServerTransport` from `@procedures/client/node`.
+
+## 0.14.0
+
+### Minor Changes
+
+- 217a90f: From 0.14.0, a call that the shutdown cuts ends with `UNAVAILABLE` and `retryable: false` when the call can have had its effect. Before, it ended with `INTERNAL_ERROR` (server stack CLI-48). This is true before and after the first item. This change is a break of the server stack, thus it is its own MINOR (decision D13). No 0.13 release marks the old code as deprecated, because no host relies on it.
+  
+  The error registry gives `INTERNAL_ERROR` to a bug of the server, with the severity `CRITICAL`. A cut is not a bug: the server stopped. Thus an alert on `INTERNAL_ERROR` does not fire at each deploy that cuts a write. The code tells why the call ended, and the flag `retryable` tells if a retry is safe.
+  
+  The behavior that changes:
+  
+  - `createProcedureHost()` of `@procedures/peer`: each cut has the code `UNAVAILABLE`. This is the same on HTTP, WebSocket and MCP.
+  - A cut after the first item ends the stream in-band. A cut before the first item is the answer of the call. Before, a cut of a call that can have had its effect had the code `INTERNAL_ERROR` in the two cases.
+  - The flag `retryable` of a cut comes from the operation of the call. It is false for a call that can have had its effect (the operation `once`), and true for a repeatable call.
+  - `procedureHandler()` of `@procedures/client`: a handler error with `retryable: false` gets the HTTP status 500, not 503. A 503 invites a retry at the HTTP level (decision D3). Thus a cut before the first item of a call that can have had its effect is 500 with `UNAVAILABLE`, with no `Retry-After`. A retryable cut stays 503.
+  - `ProcedureServer` of `@procedures/client`: a handler error without a retryable flag gets the flag of its code in `ERROR_CODES`. Before, it got false. Thus `UNAVAILABLE` without a flag is retryable, and it keeps the HTTP status 503.
+  - The close of each face and of each listener of the host first waits until each answer that a face ended has gone out. It waits for the event `finish` of each ended response, and for the write callback of each upgraded socket. Thus the close of the transports does not lose the answer of a call that the deadline of the drain cuts. An open stream that is not ended does not hold the close.
+  - The WebSocket face keeps its connections open after the cooperative abort of the drain, until each cut call ends in-band. Before, the connections closed at the abort, and a cut call lost its end.
+  - `@procedures/mcp-server`: the error result of a failed stream has `_meta` with `code` and `retryable`. The error result of a failed call also has `retryable` in `_meta`. These fields are new.
+  
+  The behavior that does not change:
+  
+  - A real failure of a handler keeps its own code, for example `INTERNAL_ERROR` or `HANDLER_ERROR`.
+  - A refusal at the stop of the intake stays `UNAVAILABLE`, 503 and retryable.
+  - The retry middleware reads the flag `retryable`, not the code. Thus it does not retry a cut of a call that can have had its effect.
+  
+  Migration steps:
+  
+  - A caller that finds a cut by the code `INTERNAL_ERROR`: look for `UNAVAILABLE` in its place. Do not retry the call when `retryable` is false.
+  - A handler that throws `UNAVAILABLE` with `retryable: false`: its HTTP status is 500 in place of 503. Without the flag, the error is retryable and gets 503. A retry middleware then sends the call again, so give `retryable: false` when the call can have had its effect.
+  - The site: no change is necessary. Its code does not read the code of a cut, or the HTTP status 503.
+  - MiniMongo: no change is necessary. Its code does not read `INTERNAL_ERROR`, `UNAVAILABLE` or the severity of an error.
+  - The procedures host of Graph (GRAPH-11): no change is necessary. Its code does not read `INTERNAL_ERROR`. Its error "the server has no AGENT_TOKEN" is `UNAVAILABLE` with `retryable: false`, so its HTTP status is 500 in place of 503. No code of Graph reads that status.
+  - jarvis: no change is necessary. Its drain test already expects `UNAVAILABLE` with `retryable: false` for a cut procedure call (S6 A12). Its code reads only `NOT_FOUND` and `FORBIDDEN`.
+  - The `mark` CLI and `procedure-server`: no change is necessary. The lifecycle test of CI-2 expects `UNAVAILABLE` for the cut of `lifecycle.ticksOnce`.
+
 ## 0.13.2
 
 ### Patch Changes

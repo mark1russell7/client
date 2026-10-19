@@ -1,5 +1,34 @@
 # @procedures/shell
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+
+## 0.14.1
+
+### Patch Changes
+
+- 50d5453: A signal kills the process trees of `@procedures/shell` only when no other handler owns the signal. A host under `run()` of `@mark1russell7/service`, and the interrupt of `mark`, own their signals. Their stop aborts each call, and the abort of a procedure kills its tree, so a stream of `shell.stream` ends in band. Before, the first SIGTERM killed each tree before the drain, and the stream ended with `done`. The CI job `lifecycle` (CI-2) found it. The exit hook still kills each tree that runs at the exit of the process.
+  
+  PATCH: a bug fix. A process without another handler of the signal keeps the old behavior.
+- Updated dependencies [85999c1]
+- Updated dependencies [fc968f6]
+- Updated dependencies [dc7a462]
+- Updated dependencies [e091108]
+- Updated dependencies [073e4c3]
+- Updated dependencies [6969637]
+  - @procedures/client@0.14.1
+
+## 0.14.0
+
+### Patch Changes
+
+- Updated dependencies [217a90f]
+  - @procedures/client@0.14.0
+
 ## 0.13.2
 
 ### Patch Changes

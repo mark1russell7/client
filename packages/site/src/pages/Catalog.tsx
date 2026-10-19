@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-import { packages, procedureByKey, procedures, type JsonSchema, type ProcedureInfo } from "../data";
+import { packages, procedureByKey, procedures, type JsonSchema, type ProcedureInfo, type ProcedureSummary } from "../data";
+import { loadProcedure } from "../data/schemas";
 import { encodeProgram, newCall } from "../lib/program";
 import { docHref, href, writeUrl, type Route } from "../lib/router";
 import { hasDoc } from "../data/doc-routes";
@@ -15,7 +16,7 @@ function typeText(schema: JsonSchema | undefined): string {
   return type;
 }
 
-function Badges({ procedure }: { procedure: ProcedureInfo }): ReactElement {
+function Badges({ procedure }: { procedure: ProcedureSummary }): ReactElement {
   return (
     <span className="badges">
       {procedure.mcp ? <span className="pill accent" title="Claude Code gets it as a tool">MCP</span> : null}
@@ -127,18 +128,63 @@ function Usage({ procedure, packageName }: { procedure: ProcedureInfo; packageNa
   );
 }
 
-function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
-  const pkg = packages.find((candidate) => candidate.dir === procedure.package);
+/** The procedure at a key with its schemas: undefined while they load, or the error when they do not load. */
+function useProcedure(key: string): ProcedureInfo | Error | undefined {
+  const [procedure, setProcedure] = useState<ProcedureInfo | Error | undefined>(undefined);
+  useEffect(() => {
+    let current = true;
+    setProcedure(undefined);
+    loadProcedure(key).then(
+      (loaded) => {
+        if (current) setProcedure(loaded ?? new Error(`No procedure has the key ${key}.`));
+      },
+      (error: unknown) => {
+        if (current) setProcedure(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [key]);
+  return procedure;
+}
+
+/**
+ * The page of one procedure. The header shows at once. The rest of the page is busy
+ * (`data-loading`) until the schemas of the package arrive.
+ */
+function Detail({ summary }: { summary: ProcedureSummary }): ReactElement {
+  const procedure = useProcedure(summary.key);
   return (
     <article className="panel">
       <p className="small">
         <a href={href("catalog")}>← All procedures</a>
       </p>
       <h1>
-        <code>{procedure.key}</code>
+        <code>{summary.key}</code>
       </h1>
-      <p>{procedure.description || <span className="muted">No description.</span>}</p>
-      <Badges procedure={procedure} />
+      <p>{summary.description || <span className="muted">No description.</span>}</p>
+      <Badges procedure={summary} />
+      {procedure === undefined ? (
+        <div className="page-loading" data-loading="" aria-busy="true">
+          <p className="muted small">Loading the schemas…</p>
+        </div>
+      ) : procedure instanceof Error ? (
+        <p className="error-text" role="alert">
+          The schemas of this procedure did not load: {procedure.message} Reload the page to try again.
+        </p>
+      ) : (
+        <DetailBody procedure={procedure} />
+      )}
+    </article>
+  );
+}
+
+/** The facts, the usage and the schemas of a procedure. */
+function DetailBody({ procedure }: { procedure: ProcedureInfo }): ReactElement {
+  const pkg = packages.find((candidate) => candidate.dir === procedure.package);
+  return (
+    <>
       <dl className="facts">
         <dt>Package</dt>
         <dd>
@@ -201,7 +247,7 @@ function Detail({ procedure }: { procedure: ProcedureInfo }): ReactElement {
           {JSON.stringify({ input: procedure.input, output: procedure.output }, null, 2)}
         </pre>
       </details>
-    </article>
+    </>
   );
 }
 
@@ -256,7 +302,7 @@ export function Catalog({ route }: { route: Route }): ReactElement {
 
   const groups = useMemo(() => {
     const text = query.trim().toLowerCase();
-    const map = new Map<string, ProcedureInfo[]>();
+    const map = new Map<string, ProcedureSummary[]>();
     for (const procedure of procedures) {
       if (pkg && procedure.package !== pkg) continue;
       if (onlyMcp && !procedure.mcp) continue;
@@ -273,7 +319,8 @@ export function Catalog({ route }: { route: Route }): ReactElement {
   }, [query, pkg, onlyMcp, onlyCli, onlyBrowser, showUnregistered]);
 
   const selected = route.rest ? procedureByKey(route.rest) : undefined;
-  if (selected) return <Detail procedure={selected} />;
+  // A new key gives a new Detail, so the page never shows the schemas of the previous procedure
+  if (selected) return <Detail key={selected.key} summary={selected} />;
 
   const count = groups.reduce((sum, [, list]) => sum + list.length, 0);
   const owners = [...new Set(procedures.map((procedure) => procedure.package))].sort();

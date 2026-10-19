@@ -44,6 +44,7 @@ describeCollectionStorageContract(
     create: () => apiStorage(new InMemoryStorage<ContractItem>()),
     createWithMaxTombstones: (max) => apiStorage(new InMemoryStorage<ContractItem>({ maxTombstones: max })),
     createWithQueryPolicy: (policy) => apiStorage(new InMemoryStorage<ContractItem>(), policy),
+    createWithVersions: (versionOf) => apiStorage(new InMemoryStorage<ContractItem>({ versionOf })),
   },
   { describe, it },
 );
@@ -59,10 +60,10 @@ function withoutQuery(storage: InMemoryStorage<ContractItem>): CollectionStorage
     find: (predicate) => storage.find(predicate),
     has: (id) => storage.has(id),
     size: () => storage.size(),
-    set: (id, value) => storage.set(id, value),
-    delete: (id) => storage.delete(id),
+    set: (id, value, options) => storage.set(id, value, options),
+    delete: (id, options) => storage.delete(id, options),
     clear: () => storage.clear(),
-    setBatch: (items) => storage.setBatch(items),
+    setBatch: (items, options) => storage.setBatch(items, options),
     deleteBatch: (ids) => storage.deleteBatch(ids),
     getBatch: (ids) => storage.getBatch(ids),
     close: () => storage.close(),
@@ -76,6 +77,7 @@ describeCollectionStorageContract(
     create: () => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>())),
     createWithMaxTombstones: (max) => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>({ maxTombstones: max }))),
     createWithQueryPolicy: (policy) => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>()), policy),
+    createWithVersions: (versionOf) => apiStorage(withoutQuery(new InMemoryStorage<ContractItem>({ versionOf }))),
   },
   { describe, it },
 );
@@ -87,6 +89,8 @@ for (const mode of modes) {
     {
       create: () => new HybridStorage<ContractItem>(new InMemoryStorage<ContractItem>(), { mode, syncInterval: ms(0) }),
       createWithQueryPolicy: (policy) => new HybridStorage<ContractItem>(new InMemoryStorage<ContractItem>(), { mode, syncInterval: ms(0), queryPolicy: policy }),
+      // The local copy and the remote have the same versionOf (roadmap CLI-16)
+      createWithVersions: (versionOf) => new HybridStorage<ContractItem>(new InMemoryStorage<ContractItem>({ versionOf }), { mode, syncInterval: ms(0), versionOf }),
     },
     { describe, it },
   );

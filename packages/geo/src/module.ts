@@ -2,7 +2,7 @@
  * The procedures of @procedures/geo as data. Importing this file registers nothing.
  */
 
-import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client";
+import { defineModule, registerModules, PROCEDURE_REGISTRY, type ProcedureModule, type ProcedureRegistry } from "@procedures/client/browser";
 import { geoProcedures } from "./procedures.js";
 
 export const geoModule: ProcedureModule = defineModule("@procedures/geo", geoProcedures);

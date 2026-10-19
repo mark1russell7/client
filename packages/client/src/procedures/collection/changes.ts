@@ -26,6 +26,7 @@
 
 import type { EventBus } from "../../events/types.js";
 import { withRows } from "../../events/rows.js";
+import type { AdmitItem } from "../invoke.js";
 import type { StorageChanges } from "./storage.js";
 import type { RepositoryProvider } from "../types.js";
 import { collectionTopicTarget } from "./topic.js";
@@ -138,13 +139,16 @@ function hint(version: string | undefined, origin: string | undefined): Collecti
 
 /**
  * The event of a delta with the values of the changed items. Each row `{ id, value }` passes the
- * output filter of each subscriber, and a refused row goes from `values` to `withheld`.
+ * output filter of each subscriber and the rule of the rows of the collection, and a refused row
+ * goes from `values` to `withheld`.
  */
-function withValues(event: CollectionChangeEvent, entries: ReadonlyArray<{ readonly id: string; readonly value: unknown }>): CollectionChangeEvent {
+function withValues(event: CollectionChangeEvent, entries: ReadonlyArray<{ readonly id: string; readonly value: unknown }>, admit: AdmitItem | undefined): CollectionChangeEvent {
   return withRows(
     { ...event, values: entries },
     {
       rows: entries,
+      // The rule of the rows of the collection (roadmap CLI-41): each subscriber applies it too
+      ...(admit && { admit }),
       keep: (admitted) => {
         const withheld = entries.filter((_, index) => !admitted[index]).map(({ id }) => id);
         return {
@@ -158,7 +162,7 @@ function withValues(event: CollectionChangeEvent, entries: ReadonlyArray<{ reado
 }
 
 /** One publish: the event of the writes that ended since the last publish. */
-async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, topic: string, values: boolean): Promise<void> {
+async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, topic: string, values: boolean, admit: AdmitItem | undefined): Promise<void> {
   const writes = chain.ended.splice(0);
   // An earlier publish told these writes
   if (writes.length === 0) return;
@@ -195,7 +199,7 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
     deleted: changes.deleted,
     ...(origin !== undefined && { origin }),
   };
-  bus.emit(topic, values ? withValues(event, changes.changed.map(([id, value]) => ({ id, value }))) : event);
+  bus.emit(topic, values ? withValues(event, changes.changed.map(([id, value]) => ({ id, value })), admit) : event);
 }
 
 /**
@@ -211,6 +215,7 @@ async function publish(chain: ChangeChain, storage: ChangeLog, bus: EventBus, to
  * @param origin - The origin of the write
  * @param write - The write
  * @param values - True: the events carry the values, for the output filter of each subscriber
+ * @param admit - The rule of the rows of the collection: each subscriber applies it to the values (roadmap CLI-41)
  */
 export async function writeWithChangeEvent<R>(
   bus: EventBus | undefined,
@@ -220,6 +225,7 @@ export async function writeWithChangeEvent<R>(
   origin: string | undefined,
   write: () => Promise<R>,
   values = false,
+  admit?: AdmitItem,
 ): Promise<R> {
   if (bus === undefined || topic === undefined) return write();
   const chain = chainOf(storage, topic);
@@ -228,7 +234,7 @@ export async function writeWithChangeEvent<R>(
     return await write();
   } finally {
     chain.ended.push(started);
-    const run = chain.tail.then(() => publish(chain, storage, bus, topic, values));
+    const run = chain.tail.then(() => publish(chain, storage, bus, topic, values, admit));
     chain.tail = run.catch(() => undefined);
     await chain.tail;
   }

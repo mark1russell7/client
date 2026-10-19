@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/peer",
-  "version": "0.13.2",
+  "version": "0.15.0",
   "description": "Serve procedures: createProcedureHost() gives the parts of a service, with HTTP, WebSocket and MCP faces on one listener. Also peers, server.create, server.call and server.connections, and manifests.",
   "keywords": [
     "server",
@@ -67,7 +67,10 @@
     "provenance": true
   },
   "devDependencies": {
+    "@procedures/better-auth": "workspace:*",
     "@procedures/fs": "workspace:*",
+    "@procedures/mcp-server": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "typescript": "^7.0.2",
     "@types/node": "^22.0.0",
     "@mark1russell7/cue": "^1.0.0",
@@ -84,7 +87,7 @@
     "procedures": "./dist/register.js"
   },
   "dependencies": {
-    "@mark1russell7/service": "^0.5.2",
+    "@mark1russell7/service": "^0.5.3",
     "@procedures/client": "workspace:*",
     "zod": "^4.6.5"
   }

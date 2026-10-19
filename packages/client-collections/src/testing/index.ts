@@ -8,6 +8,7 @@
 
 export {
   collectionStorageContract,
+  contractVersionOf,
   describeCollectionStorageContract,
   type CollectionStorageContractOptions,
   type ContractCase,

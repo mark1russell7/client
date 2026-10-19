@@ -8,9 +8,14 @@
 import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
+  ErrorCode,
   ListToolsRequestSchema,
+  McpError,
+  type CallToolResult,
   type ServerNotification,
+  type Task,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { RequestTaskStore } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
@@ -37,6 +42,7 @@ import { createSseTransport } from "./sse.js";
 import { createHttpTransport, type McpHttpTransport } from "./http.js";
 import { optionalMs } from "@procedures/client";
 import { createUntrustedEnvelopes } from "../untrusted.js";
+import { taskStoreOf, type McpTaskStore } from "../tasks.js";
 
 /**
  * The tools with the names of a `toolName` function. Without the function, the tools keep the
@@ -77,6 +83,18 @@ interface CallExtra {
   sendNotification: (notification: ServerNotification) => Promise<void>;
   /** The HTTP request of the message: present only for a network transport (Streamable HTTP) */
   requestInfo?: { headers: Record<string, string | string[] | undefined>; url?: URL | undefined } | undefined;
+  /** The task store of the request, when the server has tasks (CLI-35) */
+  taskStore?: RequestTaskStore | undefined;
+  /** The time to keep the task that the client asked for */
+  taskRequestedTtl?: number | null | undefined;
+}
+
+/** The capability of a server with tasks (MCP 2025-11-25): list, cancel, and tools/call as a task. */
+const TASKS_CAPABILITY = { list: {}, cancel: {}, requests: { tools: { call: {} } } };
+
+/** The status message of a task for a progress: only counts, so no text of the work leaves its envelopes. */
+function progressMessage(progress: number, total: number | undefined): string {
+  return `${String(progress)}${total === undefined ? "" : ` of ${String(total)}`} done`;
 }
 
 /**
@@ -107,6 +125,15 @@ function callNarrowing(extra: CallExtra): unknown {
  */
 /** The most text blocks of a stream result: the last items of a long stream. */
 const MAX_STREAM_BLOCKS = 100;
+
+/**
+ * The `_meta` of the error of a stream: its code and its retryable flag, as the error line of
+ * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
+ */
+function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
+  const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };
+  return { code: typeof code === "string" ? code : "HANDLER_ERROR", retryable: typeof retryable === "boolean" ? retryable : false };
+}
 
 /** The text of a value: a string as it is, another value as JSON (pretty, or compact on one line). */
 function toText(value: unknown, json: "pretty" | "compact" = "pretty"): string {
@@ -176,6 +203,9 @@ export class McpServerTransport implements ServerTransport {
   private readonly streamLimits: { items: number; timeMs: number };
   /** This function removes the listener of the end of the stdio input */
   private stdinEnd: (() => void) | undefined;
+  /** The store of the tasks (CLI-35), and true when this transport made it (then its stop closes it) */
+  private readonly taskStore: McpTaskStore | undefined;
+  private readonly ownsTaskStore: boolean;
 
   constructor(server: RequestHandler, options: McpServerTransportOptions = {}) {
     this.server = server;
@@ -191,6 +221,9 @@ export class McpServerTransport implements ServerTransport {
       items: Math.max(1, options.streamLimits?.items ?? 100),
       timeMs: optionalMs(options.streamLimits?.time, "streamLimits.time") ?? 30_000,
     };
+    const tasks = taskStoreOf(options.tasks);
+    this.taskStore = tasks?.store;
+    this.ownsTaskStore = tasks?.owned ?? false;
     // The registry of the server, when it has one (a ProcedureServer with an explicit registry):
     // before, the tools came from the global registry, also when the server served another one
     this.registry =
@@ -214,9 +247,13 @@ export class McpServerTransport implements ServerTransport {
     const server = new McpServer(this.options.serverInfo, {
       capabilities: {
         tools: { listChanged: true },
+        // MCP tasks (CLI-35): a long tool call can run as a task
+        ...(this.taskStore ? { tasks: TASKS_CAPABILITY } : {}),
       },
       // The instructions of the server: the client gives them to the model (CLI-10)
       ...(this.options.instructions !== undefined ? { instructions: this.options.instructions } : {}),
+      // The SDK answers tasks/get, tasks/result, tasks/list and tasks/cancel from the store
+      ...(this.taskStore ? { taskStore: this.taskStore } : {}),
     });
     this.setupHandlers(server);
     return server;
@@ -230,7 +267,12 @@ export class McpServerTransport implements ServerTransport {
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       this.log("ListToolsRequest received");
 
-      const tools = Array.from(this.tools.values()).map(toToolDefinition);
+      // Without a task store, no tool runs as a task: the list does not say that it can
+      const tools = Array.from(this.tools.values(), (tool) => {
+        const definition = toToolDefinition(tool);
+        if (!this.taskStore) delete definition.execution;
+        return definition;
+      });
 
       this.log(`Returning ${tools.length} tools`);
 
@@ -239,7 +281,7 @@ export class McpServerTransport implements ServerTransport {
 
     // CallToolRequestSchema -> Execute procedure
     server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const { name, arguments: args } = request.params;
+      const { name, arguments: args, task } = request.params;
 
       this.log(`CallToolRequest: ${name}`);
 
@@ -253,86 +295,162 @@ export class McpServerTransport implements ServerTransport {
         };
       }
 
-      // The path of the procedure of the tool. The method is the core mapping of every host
-      // (deep dive architecture review 3.3). A tool name of the toolName option does not decode,
-      // and a sanitized segment does not decode to the segment of the procedure.
-      const path = tool.procedurePath;
-
-      // Build ServerRequest
-      const credentials = callCredentials(extra as CallExtra);
-      const narrowing = callNarrowing(extra as CallExtra);
-      const serverRequest = {
-        id: generateRequestId(),
-        method: pathToMethod(path),
-        payload: args ?? {},
-        metadata: {
-          transport: "mcp" as const,
-          mcpRequestId: generateRequestId(),
-          // The narrowing key of the call: the server applies it (CLI-30)
-          ...(narrowing !== undefined ? { [NARROWING_METADATA_KEY]: narrowing } : {}),
-        },
-        // A cancelled tool call (notifications/cancelled) aborts the procedure
-        signal: extra.signal,
-        // The credentials of a call over the network: the request hook (principalOf) and the
-        // token check of the server apply to it (CLI-10)
-        ...(credentials ? { credentials } : {}),
-      };
-      // What this face offers the procedure (CLI-12): the questions to the person, and the
-      // progress for a caller that sent a progress token
-      const elicit = elicitWithPolicy(this.faceElicit(server, extra), this.options.elicitation);
-      const progress = this.callProgress(extra);
-      const callRequest = {
-        ...serverRequest,
-        ...(elicit ? { elicit } : {}),
-        ...(progress ? { progress: progress.report } : {}),
-      };
-
-      try {
-        // Process through universal server
-        const response = await this.server.handle(callRequest);
-
-        this.log(`Tool ${name} completed: ${response.status.type}`);
-
-        // Convert to MCP result
-        if (response.status.type === "success" && response.stream) {
-          const unbounded = response.metadata?.["stream"] === "unbounded";
-          // The items are the progress of a stream, unless the procedure reports its own
-          return await this.streamResult(response.stream, extra, unbounded, tool, () => progress?.used() === true);
+      // MCP tasks (CLI-35): a call as a task needs a tool that can run as one, and a call of a
+      // tool that runs only as a task needs a task. Without a task store each call is a request.
+      const support = this.taskStore ? tool.execution?.taskSupport : undefined;
+      const callExtra = extra as CallExtra;
+      if (task !== undefined) {
+        if (!this.taskStore || (support !== "optional" && support !== "required")) {
+          throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} does not run as a task`);
         }
-        if (response.status.type === "success") {
-          const rendered = this.render(response.payload, tool);
-          const hooked = this.options.content?.({ ...rendered, tool, value: response.payload });
-          const result = hooked ?? rendered;
-          return {
-            content: result.content,
-            // MCP structured output: the result as an object, for a tool with an output schema.
-            // The text block stays, for clients that do not read structured content.
-            ...(result.structuredContent ? { structuredContent: result.structuredContent } : {}),
-          };
-        } else {
-          // The code and the reason of the error travel on each face (roadmap R25)
-          const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `${response.status.message ?? "Unknown error"}${reason ? ` (reason: ${reason})` : ""}`,
-              },
-            ],
-            isError: true,
-            _meta: { code: response.status.code, ...(reason ? { reason } : {}) },
-          };
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.log(`Tool ${name} error: ${message}`);
+        return this.startTask(server, this.taskStore, tool, args, callExtra);
+      }
+      if (support === "required") {
+        throw new McpError(ErrorCode.MethodNotFound, `The tool ${name} runs only as a task: call it with a task`);
+      }
+      return this.callTool(server, tool, args, callExtra);
+    });
+  }
 
+  /**
+   * This method starts a tool call as a task (CLI-35). The client gets the task at once, and the
+   * call goes on. A progress of the procedure becomes the status message of the task, and a
+   * progress notification when the client sent a progress token. A cancel of the task aborts the
+   * call. A task above the limit of the store fails at once with the reason. The call of a task
+   * cannot ask the person: its request already has its answer.
+   */
+  private async startTask(server: McpServer, store: McpTaskStore, tool: McpTool, args: Record<string, unknown> | undefined, extra: CallExtra): Promise<{ task: Task }> {
+    const taskStore = extra.taskStore;
+    if (!taskStore) throw new McpError(ErrorCode.InternalError, "The server has no task store for this request");
+    const ttl = extra.taskRequestedTtl;
+    const task = await taskStore.createTask(typeof ttl === "number" ? { ttl } : {});
+    const id = task.taskId;
+    const finish = async (result: CallToolResult): Promise<void> => {
+      // A cancelled task keeps its status: the store refuses a result after a cancel
+      await taskStore.storeTaskResult(id, result.isError === true ? "failed" : "completed", result).catch(() => undefined);
+    };
+    const refused = store.refusal(id);
+    if (refused !== undefined) {
+      await finish({ content: [{ type: "text", text: refused }], isError: true });
+      return { task: await taskStore.getTask(id) };
+    }
+    const token = extra._meta?.progressToken;
+    const background: CallExtra = {
+      ...extra,
+      // The procedure reports its progress to the status of the task, also without a token of the client
+      _meta: { ...extra._meta, progressToken: token ?? `task-${id}` },
+      signal: store.signal(id),
+      sendNotification: async (notification) => {
+        if (notification.method === "notifications/progress") {
+          const { progress, total } = notification.params;
+          await taskStore.updateTaskStatus(id, "working", progressMessage(progress, total)).catch(() => undefined);
+          if (token === undefined) return;
+        }
+        // The response of the request went: later messages go on the stream of the session
+        await server.notification(notification).catch(() => undefined);
+      },
+    };
+    // The slot of the task stays taken until the call settles, also after a cancel
+    void this.callTool(server, tool, args, background, false)
+      .then(finish)
+      .catch(() => undefined)
+      .finally(() => store.settle(id));
+    return { task };
+  }
+
+  /**
+   * This method calls the procedure of a tool and gives the MCP result. `offerElicit` is false for
+   * the call of a task: then the procedure gets no function to ask the person.
+   */
+  private async callTool(server: McpServer, tool: McpTool, args: Record<string, unknown> | undefined, extra: CallExtra, offerElicit = true): Promise<CallToolResult> {
+    const name = tool.name;
+    // The path of the procedure of the tool. The method is the core mapping of every host
+    // (deep dive architecture review 3.3). A tool name of the toolName option does not decode,
+    // and a sanitized segment does not decode to the segment of the procedure.
+    const path = tool.procedurePath;
+
+    // Build ServerRequest
+    const credentials = callCredentials(extra);
+    const narrowing = callNarrowing(extra);
+    const serverRequest = {
+      id: generateRequestId(),
+      method: pathToMethod(path),
+      payload: args ?? {},
+      metadata: {
+        transport: "mcp" as const,
+        mcpRequestId: generateRequestId(),
+        // The narrowing key of the call: the server applies it (CLI-30)
+        ...(narrowing !== undefined ? { [NARROWING_METADATA_KEY]: narrowing } : {}),
+      },
+      // A cancelled tool call (notifications/cancelled) aborts the procedure
+      signal: extra.signal,
+      // The credentials of a call over the network: the request hook (principalOf) and the
+      // token check of the server apply to it (CLI-10)
+      ...(credentials ? { credentials } : {}),
+    };
+    // What this face offers the procedure (CLI-12): the questions to the person, and the
+    // progress for a caller that sent a progress token
+    const elicit = offerElicit ? elicitWithPolicy(this.faceElicit(server, extra), this.options.elicitation) : undefined;
+    const progress = this.callProgress(extra);
+    const callRequest = {
+      ...serverRequest,
+      ...(elicit ? { elicit } : {}),
+      ...(progress ? { progress: progress.report } : {}),
+    };
+
+    try {
+      // Process through universal server
+      const response = await this.server.handle(callRequest);
+
+      this.log(`Tool ${name} completed: ${response.status.type}`);
+
+      // Convert to MCP result
+      if (response.status.type === "success" && response.stream) {
+        const unbounded = response.metadata?.["stream"] === "unbounded";
+        // The items are the progress of a stream, unless the procedure reports its own
+        return await this.streamResult(response.stream, extra, unbounded, tool, () => progress?.used() === true);
+      }
+      if (response.status.type === "success") {
+        const rendered = this.render(response.payload, tool);
+        const hooked = this.options.content?.({ ...rendered, tool, value: response.payload });
+        const result = hooked ?? rendered;
         return {
-          content: [{ type: "text" as const, text: message }],
+          content: result.content,
+          // MCP structured output: the result as an object, for a tool with an output schema.
+          // The text block stays, for clients that do not read structured content.
+          ...(result.structuredContent ? { structuredContent: result.structuredContent } : {}),
+        };
+      } else {
+        // The code, the retryable flag, the reason and the wait of the error travel on each face
+        // (roadmap R25, CLI-48). The wait of a refusal of a limit is in milliseconds (CLI-40).
+        const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
+        const wait = response.metadata?.["retry-after"];
+        const retryAfterMs = typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? wait : undefined;
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `${response.status.message ?? "Unknown error"}${reason ? ` (reason: ${reason})` : ""}`,
+            },
+          ],
           isError: true,
+          _meta: {
+            code: response.status.code,
+            retryable: response.status.retryable === true,
+            ...(reason ? { reason } : {}),
+            ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+          },
         };
       }
-    });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.log(`Tool ${name} error: ${message}`);
+
+      return {
+        content: [{ type: "text" as const, text: message }],
+        isError: true,
+      };
+    }
   }
 
   /**
@@ -353,7 +471,7 @@ export class McpServerTransport implements ServerTransport {
     unbounded = false,
     tool?: McpTool,
     ownProgress: () => boolean = () => false
-  ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+  ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean; _meta?: { code: string; retryable: boolean } }> {
     const progressToken = extra._meta?.progressToken;
     const blocks: Array<{ type: "text"; text: string }> = [];
     let count = 0;
@@ -387,7 +505,9 @@ export class McpServerTransport implements ServerTransport {
       }
     } catch (error) {
       blocks.push({ type: "text", text: error instanceof Error ? error.message : String(error) });
-      return { content: blocks, isError: true };
+      // The code and the retryable flag of the end travel on each face: a stream that the
+      // shutdown cuts ends with UNAVAILABLE (CLI-48)
+      return { content: blocks, isError: true, _meta: streamErrorMeta(error) };
     }
     if (count > MAX_STREAM_BLOCKS) {
       blocks.unshift({ type: "text", text: `(${count} items: the first ${count - MAX_STREAM_BLOCKS} are not shown)` });
@@ -612,12 +732,22 @@ export class McpServerTransport implements ServerTransport {
         // The face trusts cookies only as the server reads them (CSRF)
         const ambientCredentials = (this.server as Partial<RequestHandler>).ambientCredentials;
         const httpOptions = { ...this.options.httpOptions, ...(ambientCredentials ? { ambientCredentials } : {}) };
-        this.http = createHttpTransport(httpOptions, async (sessionTransport) => {
-          const sessionServer = this.createSdkServer();
-          this.sessionServers.add(sessionServer);
-          sessionServer.onclose = () => this.sessionServers.delete(sessionServer);
-          await sessionServer.connect(sessionTransport as unknown as SdkTransport);
-        });
+        const taskStore = this.taskStore;
+        this.http = createHttpTransport(
+          httpOptions,
+          async (sessionTransport) => {
+            const sessionServer = this.createSdkServer();
+            this.sessionServers.add(sessionServer);
+            sessionServer.onclose = () => {
+              this.sessionServers.delete(sessionServer);
+              // The close of a session cancels its tasks: their work stops (CLI-35)
+              if (taskStore && sessionTransport.sessionId) void taskStore.cancelSession(sessionTransport.sessionId);
+            };
+            await sessionServer.connect(sessionTransport as unknown as SdkTransport);
+          },
+          // The session limit keeps each session with a task in progress open
+          taskStore ? { busySessions: () => taskStore.busySessions() } : {},
+        );
         transport = undefined;
       } else if (this.options.transport === "sse") {
         transport = createSseTransport(this.options.sseOptions);
@@ -666,6 +796,8 @@ export class McpServerTransport implements ServerTransport {
     await this.http?.close();
     for (const sessionServer of this.sessionServers) await sessionServer.close().catch(() => undefined);
     this.sessionServers.clear();
+    // A store of this transport stops with it: its tasks are cancelled (CLI-35)
+    if (this.ownsTaskStore) await this.taskStore?.close();
     this.http = undefined;
     this.httpUrl = undefined;
     this.running = false;
@@ -696,7 +828,13 @@ export class McpServerTransport implements ServerTransport {
       toolCount: this.tools.size,
       transport: this.options.transport,
       ...(this.httpUrl ? { url: this.httpUrl } : {}),
+      ...(this.http ? { sessions: this.http.sessions } : {}),
     };
+  }
+
+  /** The store of the tasks (CLI-35), or undefined when the transport has no tasks. */
+  getTaskStore(): McpTaskStore | undefined {
+    return this.taskStore;
   }
 
   /**

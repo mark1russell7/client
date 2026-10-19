@@ -34,7 +34,7 @@ function tempDb(): string {
   return join(tempDir(), "nested", "items.db");
 }
 
-function storageOf<T>(options: SqliteStorageOptions): SqliteStorage<T> {
+function storageOf<T>(options: SqliteStorageOptions<T>): SqliteStorage<T> {
   const storage = new SqliteStorage<T>(options);
   open.push(storage as SqliteStorage<unknown>);
   return storage;
@@ -73,6 +73,7 @@ for (const engine of engines) {
         create: () => storageOf<ContractItem>({ path: pathOf(), table: "items", engine }),
         createWithMaxTombstones: (max) => storageOf<ContractItem>({ path: pathOf(), table: "items", maxTombstones: max, engine }),
         createWithQueryPolicy: (policy) => storageOf<ContractItem>({ path: pathOf(), table: "items", engine, queryPolicy: policy }),
+        createWithVersions: (versionOf) => storageOf<ContractItem>({ path: pathOf(), table: "items", engine, versionOf }),
       },
       { describe, it },
     );

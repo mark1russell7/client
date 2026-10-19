@@ -31,6 +31,22 @@
  *   regular expressions and the limit. The default policy does not permit `$regex`.
  */
 
+// The precondition of the collection writes is a part of the wire contract too (roadmap CLI-16).
+// This entry gives it to the storage packages: the module has no imports.
+export {
+  MAX_EXPECTED_VERSION_LENGTH,
+  PRECONDITION_NOT_SUPPORTED,
+  VERSION_CONFLICTS_METADATA_KEY,
+  VersionConflictError,
+  asVersionConflictError,
+  isExpectedVersion,
+  preconditionNotSupported,
+  versionConflict,
+  versionConflicts,
+  versionConflictsOf,
+} from "./precondition.js";
+export type { CurrentItem, VersionConflict, VersionOf } from "./precondition.js";
+
 //
 // ═══ The types ═══
 //

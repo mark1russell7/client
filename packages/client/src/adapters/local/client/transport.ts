@@ -15,6 +15,7 @@ import { narrowCapability } from "../../../procedures/capability.js";
 import type { Capability, ClearanceOrder } from "../../../procedures/types.js";
 import { methodToPath } from "../../../server/method.js";
 import { errorCodeOf } from "../../../protocol.js";
+import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../../../procedures/collection/precondition.js";
 import type { EventPublisher } from "../../../events/publisher.js";
 
 /** The value of `untilAborted` when the signal aborts first. */
@@ -236,6 +237,9 @@ export class LocalTransport implements Transport {
       const item = errorItem<TRes>(message.id, code, error instanceof Error ? error.message : "Unknown error");
       // The reason of a FORBIDDEN error travels on each face (roadmap R25)
       if (error instanceof InvocationError && error.reason) item.metadata = { reason: error.reason };
+      // The current items of a VERSION_CONFLICT error travel on each face (roadmap CLI-16)
+      const conflicts = versionConflictsOf(error);
+      if (conflicts !== undefined) item.metadata = { ...item.metadata, [VERSION_CONFLICTS_METADATA_KEY]: conflicts };
       yield item;
     }
   }
