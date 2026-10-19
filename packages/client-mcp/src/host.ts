@@ -14,11 +14,15 @@
  *   limit, the interceptors and the capability. The host does not build the options of
  *   `ProcedureServer` by hand.
  * - The faces: stdio, Streamable HTTP, and SDK transports. The stdio face stops the host when its
- *   input ends.
+ *   input ends. The HTTP face mounts on a listener of the app (`handleHttp`).
+ * - The runner (CLI-11): `declare(svc)` gives the host to a service of `@mark1russell7/service`.
+ *   Then `run()` starts the host and stops it in stages, and the end of the stdio input is the
+ *   trigger `stdin-close` of the runner.
  * - What each tool call gets: the questions to the person (elicitation, with the consents of the
  *   operator), the progress, the envelopes of untrusted text, and the instructions of the server.
  */
 
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Transport as SdkTransport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import {
   PROCEDURE_REGISTRY,
@@ -64,7 +68,8 @@ export interface McpHostFaces {
   stdio?: boolean | McpStdioFace | undefined;
   /**
    * The face over Streamable HTTP. Without a token of its own, it takes the token of the policy,
-   * and without origins of its own, the permitted origins of the policy.
+   * and without origins of its own, the permitted origins of the policy. With `mount: true`, mount
+   * `McpHost.handleHttp` on a listener. A face with a listener of its own is deprecated (CLI-11).
    */
   http?: HttpTransportOptions | undefined;
   /** SDK transports to connect: the in-memory transport of a test, or an embedding. */
@@ -156,6 +161,35 @@ export interface McpHostState {
   readonly faces: readonly McpServerTransportState[];
 }
 
+/**
+ * A transport part of the runner: the shape of `TransportImpl` of `@mark1russell7/service`. The
+ * types are structural, so this package imports no code of the runner.
+ */
+export interface McpRunnerPart {
+  start(signal: AbortSignal, life: unknown): Promise<void> | void;
+  stopIntake(): Promise<void> | void;
+  drain(deadline: number, signal: AbortSignal): Promise<void> | void;
+  inFlight(): number;
+  close(): Promise<void> | void;
+}
+
+/** A storage of the server as a dependency of the runner: the shape of `DependencyHandle`. */
+export type McpRunnerDependency = ReturnType<ProcedureServer["storageHandles"]>[number];
+
+/**
+ * What `McpHost.declare()` uses of the builder of a service (`ServiceBuilder` of
+ * `@mark1russell7/service`). The types are structural.
+ */
+export interface McpServiceBuilder {
+  server(name: string, knobs: Readonly<Record<string, never>>, impl: McpRunnerPart): unknown;
+  dependency(
+    name: string,
+    spec: { system: null; knobs: Readonly<Record<string, never>>; operations: Readonly<Record<string, { idempotent: boolean }>> },
+    handle: McpRunnerDependency,
+  ): unknown;
+  trigger(trigger: "stdin-close"): unknown;
+}
+
 /** An MCP host: its registry, its policy, its server and its faces. */
 export interface McpHost {
   readonly registry: ProcedureRegistry;
@@ -165,12 +199,29 @@ export interface McpHost {
   readonly expose: ((path: ProcedurePath) => boolean) | undefined;
   /** The MCP transports of the faces, in the order stdio, Streamable HTTP, SDK transports. */
   readonly transports: readonly McpServerTransport[];
-  /** A promise that resolves when the host stopped: by `stop()`, or at the end of the stdio input. */
+  /**
+   * A promise that resolves when the host stopped: by `stop()`, at the end of the stdio input, or
+   * at the close of its part under `run()`.
+   */
   readonly closed: Promise<void>;
-  /** This function starts each face. */
+  /** This function starts each face. A host that `declare()` gave to a service starts under `run()`. */
   start(): Promise<void>;
   /** This function stops the server and each face. The calls in flight get the grace time. */
   stop(options?: { grace?: Duration | undefined }): Promise<void>;
+  /**
+   * This function declares the host on the builder of a service, for `run()` of
+   * `@mark1russell7/service` (CLI-11). The server is a transport part, and each storage is a
+   * dependency. A host with a stdio face declares the trigger `stdin-close`. Then the runner owns
+   * the stop: the end of the input starts the staged stop, and the stdio face does not stop the
+   * host by itself. A host declares one time.
+   */
+  declare<S extends McpServiceBuilder>(svc: S): S;
+  /**
+   * This function answers a request of the Streamable HTTP face (`faces.http` with `mount: true`)
+   * and gives true. It gives false for another path, or without that face. Mount it on a listener,
+   * for example an `httpTransport` of `@mark1russell7/service/http`.
+   */
+  handleHttp(req: IncomingMessage, res: ServerResponse): boolean;
   /** The tools of the host at this time, from the registry and the expose rule. */
   tools(): McpTool[];
   /** The state of the host and of its faces. */
@@ -196,6 +247,9 @@ export function redirectConsoleToStderr(): void {
 function isTransportList(value: SdkTransport | readonly SdkTransport[]): value is readonly SdkTransport[] {
   return Array.isArray(value);
 }
+
+/** The operations of a storage as a dependency of the runner: a read can go again, a write cannot. */
+const STORAGE_OPERATIONS = Object.freeze({ read: { idempotent: true }, write: { idempotent: false } });
 
 /** The read-only capability of a host: no effect can write. */
 const READ_ONLY_REQUEST = { effects: { writes: [] as readonly string[] } };
@@ -261,6 +315,8 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
   });
   let stopping: Promise<void> | undefined;
   let running = false;
+  // True after declare(): the runner starts and stops the host
+  let managed = false;
   const stop = (stopOptions: { grace?: Duration | undefined } = {}): Promise<void> => {
     stopping ??= server
       .stop(stopOptions.grace !== undefined ? { grace: stopOptions.grace } : {})
@@ -298,33 +354,42 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
         stdio: {
           ...(stdio.stdin ? { stdin: stdio.stdin } : {}),
           ...(stdio.stdout ? { stdout: stdio.stdout } : {}),
-          ...(stdio.stopOnEnd !== false ? { onEnd: () => void stop() } : {}),
+          // Under run(), the trigger stdin-close of the runner starts the stop
+          ...(stdio.stopOnEnd !== false ? { onEnd: () => void (managed ? undefined : stop()) } : {}),
         },
       }),
     );
   }
+  let httpFace: McpServerTransport | undefined;
   if (faces.http) {
     // The HTTP face keeps the token and the origins of the policy (CLI-11 moves the checks to the host)
     const policyOrigins = policy.browser.allowedOrigins;
     const allowedOrigins = faces.http.allowedOrigins ?? (Array.isArray(policyOrigins) ? policyOrigins : undefined);
     const token = faces.http.token ?? policy.token;
-    transports.push(
-      new McpServerTransport(server, {
-        ...common,
-        transport: "http",
-        httpOptions: {
-          ...faces.http,
-          ...(token !== undefined ? { token } : {}),
-          ...(allowedOrigins ? { allowedOrigins: [...allowedOrigins] } : {}),
-        },
-      }),
-    );
+    httpFace = new McpServerTransport(server, {
+      ...common,
+      transport: "http",
+      httpOptions: {
+        ...faces.http,
+        ...(token !== undefined ? { token } : {}),
+        ...(allowedOrigins ? { allowedOrigins: [...allowedOrigins] } : {}),
+      },
+    });
+    transports.push(httpFace);
   }
   const sdkTransports: readonly SdkTransport[] = faces.sdk === undefined ? [] : isTransportList(faces.sdk) ? faces.sdk : [faces.sdk];
   for (const sdkTransport of sdkTransports) {
     transports.push(new McpServerTransport(server, { ...common, sdkTransport }));
   }
   for (const transport of transports) server.addTransport(transport);
+
+  /** This function starts the server and its faces: by `start()`, or by the part of the runner. */
+  const begin = async (): Promise<void> => {
+    if (stopping) throw new Error("This MCP host stopped. A host stops one time: create a new host.");
+    if (stdio && stdio.redirectConsole !== false) redirectConsoleToStderr();
+    await server.start();
+    running = true;
+  };
 
   return {
     registry,
@@ -334,12 +399,36 @@ export function createMcpHost(options: McpHostOptions = {}): McpHost {
     transports,
     closed,
     async start() {
-      if (stopping) throw new Error("This MCP host stopped. A host stops one time: create a new host.");
-      if (stdio && stdio.redirectConsole !== false) redirectConsoleToStderr();
-      await server.start();
-      running = true;
+      if (managed) throw new Error("This MCP host is declared on a service: run() of the service starts it.");
+      await begin();
     },
     stop,
+    declare(svc) {
+      if (managed) throw new Error("This MCP host is declared on a service already. A host declares one time.");
+      if (running || stopping) throw new Error("This MCP host started without a service. Declare it before it starts.");
+      managed = true;
+      // The storages connect before the server starts, and close after it (as the procedures host does)
+      for (const handle of server.storageHandles()) {
+        svc.dependency(handle.name, { system: null, knobs: {}, operations: STORAGE_OPERATIONS }, handle);
+      }
+      svc.server("mcp", {}, {
+        start: () => begin(),
+        stopIntake: () => server.stopIntake(),
+        drain: (deadline, signal) => server.drain(deadline, signal),
+        inFlight: () => server.inFlight(),
+        close: async () => {
+          try {
+            await server.close();
+          } finally {
+            running = false;
+            resolveClosed();
+          }
+        },
+      });
+      if (stdio) svc.trigger("stdin-close");
+      return svc;
+    },
+    handleHttp: (req, res) => httpFace?.handleHttp(req, res) ?? false,
     tools: () => distinctTools(namedTools(proceduresToMcpTools(registry.getAll(), toolFilter), options.toolName)),
     state: () => ({ running, faces: transports.map((transport) => transport.getState()) }),
   };

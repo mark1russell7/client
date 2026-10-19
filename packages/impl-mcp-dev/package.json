@@ -60,6 +60,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mark1russell7/service": "^0.5.2",
     "@procedures/bundle-mcp": "workspace:*",
     "@procedures/client": "workspace:*",
     "@procedures/compiler": "workspace:*",
