@@ -80,7 +80,7 @@ export interface StatusBoardData {
 // ---------------------------------------------------------------------------
 
 /** "1 item", "2 items". */
-export function plural(count: number, word: string, many = `${word}s`): string {
+export function plural(count: number, word: string, many: string = `${word}s`): string {
   return `${count} ${count === 1 ? word : many}`;
 }
 
