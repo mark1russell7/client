@@ -11,6 +11,8 @@
  *   repeatable procedure, a call with an idempotency key, or a call that runs one time.
  * - Each call is a stream (D4). A unary call is a stream of one. A stream call stays in flight
  *   until its last item, and a cut after the first item ends the stream in-band, with an error.
+ *   Each cut has the code `UNAVAILABLE`, before and after the first item. Its flag `retryable` tells
+ *   if a retry is safe (CLI-48).
  */
 
 import type { Lifecycle, Operation, OperationOf, RequestEnd, RequestEvent, RouteRequest } from "@mark1russell7/service";
@@ -33,7 +35,8 @@ import {
  * The operation of a call, which gives its idempotency (D3):
  * - `repeatable`: the effects of the procedure permit a second run (no writes, or idempotent writes).
  * - `keyed`: the call has an idempotency key, and the server keeps its result for the window.
- * - `once`: each other call. A cut of it before its first item answers 500, because it can have had its effect.
+ * - `once`: each other call. A cut of it is `UNAVAILABLE` and not retryable, because it can have had its effect.
+ *   Before its first item, the HTTP face answers 500 for it.
  */
 export type CallOperation = "repeatable" | "keyed" | "once";
 
@@ -93,17 +96,20 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * The response of an end before the first item. A refusal and a retryable cut are `UNAVAILABLE`
- * (503, with `Retry-After` from the transport). Another cut and a failure are `INTERNAL_ERROR` (500).
+ * The response of an end before the first item. A refusal and each cut are `UNAVAILABLE`, because
+ * the server stopped (CLI-48). The flag `retryable` tells if a retry is safe:
+ * - A refusal and a retryable cut are retryable. The HTTP face answers 503, with `Retry-After` from the transport.
+ * - A cut of a call that can have had its effect is not retryable. The HTTP face answers 500, as the runner does.
+ * A failure is `INTERNAL_ERROR` (500).
  */
 function endResponse(id: string, end: RequestEnd): ServerResponse {
   switch (end.kind) {
     case "refused":
       return failure(id, "UNAVAILABLE", `The host does not take the call now: ${end.cause}`, true);
     case "cut":
-      return end.status === 503
+      return end.retryable
         ? failure(id, "UNAVAILABLE", `The host stopped the call: ${end.cause}`, true)
-        : failure(id, "INTERNAL_ERROR", `The host stopped the call, and the call can have had its effect: ${end.cause}`, false);
+        : failure(id, "UNAVAILABLE", `The host stopped the call, and the call can have had its effect: ${end.cause}`, false);
     case "failed":
       return failure(id, "INTERNAL_ERROR", messageOf(end.error), false);
     case "done":
@@ -114,11 +120,15 @@ function endResponse(id: string, end: RequestEnd): ServerResponse {
 /**
  * The error of an end after the first item: the stream ends in-band, with an error line. The count
  * of the items of the stream goes in the message. The head of the response is not an item.
+ *
+ * The code is always `UNAVAILABLE`, because the server stopped the stream. A cut is not a failure
+ * of the server. The flag `retryable` tells if a retry is safe (CLI-48). Before, a cut that is not
+ * retryable had the code `INTERNAL_ERROR`, before and after the first item.
  */
 function inBandEnd(end: Extract<RequestEnd, { kind: "refused" | "cut" }>): Error {
   const delivered = Math.max(0, end.delivered - 1);
   return Object.assign(new Error(`The host stopped the stream after ${delivered} items: ${end.cause}`), {
-    code: end.retryable ? "UNAVAILABLE" : "INTERNAL_ERROR",
+    code: "UNAVAILABLE",
     retryable: end.retryable,
     delivered,
   });

@@ -74,6 +74,10 @@ export type { CollectionChangeEvent } from "./changes.js";
 export { PARTITION_PATTERN, collectionTopicPartition, collectionTopicTarget, partitionOfCall, storageOfCall, withPartition } from "./partition.js";
 export type { CollectionPartitions, PartitionInput, PartitionResolver } from "./partition.js";
 
+// The rules of the rows of a collection: a filter of the reads and a guard of the writes (roadmap CLI-41)
+export { admittedStorage, admitsRow } from "./admission.js";
+export type { CollectionAdmission, CollectionRow, CollectionWrite, CollectionWriteGuard } from "./admission.js";
+
 // The storage interface of the core (the shape of client-collections' CollectionStorage)
 export type {
   CollectionStorage,

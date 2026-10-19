@@ -27,7 +27,7 @@ import { optionalMs, type Duration } from "../duration.js";
 import type { CollectionStorage } from "../procedures/collection/storage.js";
 import { TIMER_DEFAULTS } from "../timers.js";
 import { realClock, type Clock } from "../clock.js";
-import { errorCodeOf } from "../protocol.js";
+import { ERROR_CODES, errorCodeOf, isProtocolErrorCode } from "../protocol.js";
 import { EventPublisher, type EventPublisherOptions } from "../events/publisher.js";
 import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
@@ -324,6 +324,7 @@ function withRequestTimeout(
  * The error response of a failed invocation. An invocation error keeps its code
  * (VALIDATION_ERROR, NOT_EXPOSED, ABORTED and so on). An error of the handler keeps its own code
  * when it is a string, as for a stream (`WIRE-PROTOCOL.md`). Without a code, it is HANDLER_ERROR.
+ * An error without a retryable flag gets the flag of its code in `ERROR_CODES`, or false (CLI-48).
  */
 export function errorResponse(id: string, error: unknown): ServerResponse<unknown> {
   // An error that says it is retryable stays retryable: before, every error lost the flag
@@ -338,13 +339,15 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
   // A VERSION_CONFLICT error tells the current item of each conflict (roadmap CLI-16)
   const conflicts = versionConflictsOf(error);
   if (conflicts !== undefined) metadata[VERSION_CONFLICTS_METADATA_KEY] = conflicts;
+  const code = errorCodeOf(error);
   return {
     id,
     status: {
       type: "error",
-      code: errorCodeOf(error),
+      code,
       message: error instanceof Error ? error.message : String(error),
-      retryable: typeof retryable === "boolean" ? retryable : false,
+      // Without a flag, the default of the code: UNAVAILABLE stays retryable, and keeps HTTP 503 (CLI-48)
+      retryable: typeof retryable === "boolean" ? retryable : isProtocolErrorCode(code) ? ERROR_CODES[code].retryable : false,
     },
     metadata,
   };

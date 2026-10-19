@@ -9,8 +9,8 @@
  */
 
 import type { ZodLike } from "@procedures/client/client";
-import type { ProcedureMetadata, ProcedurePath } from "@procedures/client";
-import type { IEventBus as EventBus } from "@procedures/client";
+import type { ProcedureMetadata, ProcedurePath } from "@procedures/client/browser";
+import type { IEventBus as EventBus } from "@procedures/client/browser";
 
 // =============================================================================
 // Component Output (Serializable Descriptor)

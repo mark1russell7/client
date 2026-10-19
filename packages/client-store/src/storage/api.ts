@@ -31,7 +31,7 @@ import {
 import type { Client } from "@procedures/client";
 import type { Method } from "@procedures/client";
 import type { CallOptions } from "@procedures/client/client";
-import { optionalMs, realClock, type Clock, type Duration } from "@procedures/client";
+import { optionalMs, realClock, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay, type Backoff } from "@mark1russell7/service/backoff";
 
 /**

@@ -81,6 +81,8 @@ export interface SiteMetrics {
   testFiles: number;
   /** The library on npm: the latest version, or null when it is not published. */
   npm: { name: string; version: string | null };
+  /** The newest version of the changelogs (`scripts/releases-data.mjs`), or null. The build can run before npm has it. */
+  release?: { version: string; date: string } | null;
 }
 
 interface Catalog {
@@ -169,6 +171,57 @@ export interface StatusData {
   sources: { deepDive: string; july: string };
 }
 
+
+// ---------------------------------------------------------------------------
+// The releases (`scripts/releases-data.mjs` reads the changelogs)
+// ---------------------------------------------------------------------------
+
+/** "first" for the first release, "minor" when the PATCH number is 0, else "patch". */
+export type ReleaseKind = "first" | "minor" | "patch";
+
+/** One change of a release: one commit, and the packages whose changelogs list it. */
+export interface ReleaseChange {
+  /** The short SHA of the commit, or null for an entry without a commit. */
+  commit: string | null;
+  /** The first sentence of the changelog entry, as inline Markdown. */
+  text: string;
+  /** The npm names of the packages, sorted. */
+  packages: string[];
+}
+
+/** One version of the group. */
+export interface Release {
+  version: string;
+  /** The ISO date of the git tag, or of the commit that added the version to the changelog. */
+  date: string;
+  kind: ReleaseKind;
+  /** The changes, the change with the most packages first. */
+  changes: ReleaseChange[];
+}
+
+export interface ReleasesData {
+  /** The package that names the group: "@procedures/client". */
+  group: string;
+  /** The versions, newest first. */
+  releases: Release[];
+}
+
+/** A version in the data of the releases page: its changes load on demand. */
+export interface ReleaseEntry {
+  version: string;
+  date: string;
+  kind: ReleaseKind;
+  changeCount: number;
+}
+
+/** The release data that loads with the releases page. */
+export interface ReleasesIndex {
+  group: string;
+  /** The versions, newest first. */
+  releases: ReleaseEntry[];
+  /** The changes of the newest version. The module `release-changes` has the changes of each version. */
+  changes: Record<string, ReleaseChange[]>;
+}
 
 /** The category of a core procedure, from its tags: "control-flow", "math", "string" and so on. */
 export function categoryOf(procedure: ProcedureInfo): string {
