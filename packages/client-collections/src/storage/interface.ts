@@ -34,6 +34,10 @@ import type { StoragePatch, StorageQueryOptions, StorageQueryPolicy, StorageSele
  * - `query()` gives the result of `queryEntries()` for the entries of the storage.
  * - `observe()` gives one batch for each write that changes the storage, before the write resolves.
  * - `patch()` changes the item in one step: two patches at the same time keep each field.
+ * - A write with a precondition (`expectedVersion` of `set` and `delete`, `expectedVersions` of
+ *   `setBatch`) tests the version of the current item and writes in one step. A conflict changes
+ *   nothing and rejects with `VersionConflictError`. A storage that cannot test a precondition
+ *   rejects the write with a `TypeError`: it never ignores a precondition (roadmap CLI-16).
  *
  * The optional methods are features: a caller tests for each one before it uses it.
  */
@@ -147,19 +151,22 @@ export interface CollectionStorage<T> {
    *
    * @param id - Item identifier
    * @param value - Item to store
-   * @param options - The origin of the write, for the observers
-   * @returns Promise resolving when operation completes
+   * @param options - The origin of the write, for the observers, and the expected version of the
+   *   current item (roadmap CLI-16)
+   * @returns Promise resolving when operation completes. A conflict rejects with `VersionConflictError`.
    */
-  set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
+  set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
 
   /**
    * Delete item by ID.
    *
    * @param id - Item identifier
-   * @param options - The origin of the write, for the observers
-   * @returns Promise resolving to true if item was deleted, false if not found
+   * @param options - The origin of the write, for the observers, and the expected version of the
+   *   current item (roadmap CLI-16)
+   * @returns Promise resolving to true if item was deleted, false if not found. A conflict rejects
+   *   with `VersionConflictError`.
    */
-  delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+  delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
 
   /**
    * Clear all items from collection.
@@ -193,10 +200,12 @@ export interface CollectionStorage<T> {
    * Set multiple items at once (more efficient than individual sets).
    *
    * @param items - Array of [id, value] tuples
-   * @param options - The origin of the write, for the observers
-   * @returns Promise resolving when operation completes
+   * @param options - The origin of the write, for the observers, and the expected version of
+   *   each id (roadmap CLI-16)
+   * @returns Promise resolving when operation completes. A conflict of one id rejects with
+   *   `VersionConflictError`, and the batch changes no item.
    */
-  setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+  setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
 
   /**
    * Delete multiple items at once.
@@ -252,6 +261,30 @@ export interface StorageWriteOptions {
    * writes: a sync does not send back the changes that it wrote itself.
    */
   readonly origin?: string | undefined;
+}
+
+/**
+ * The options of `set` and `delete`: the origin, and the precondition of the write (roadmap
+ * CLI-16).
+ */
+export interface StorageItemWriteOptions extends StorageWriteOptions {
+  /**
+   * The version that the write expects for the current item: the value of `versionOf` of the
+   * storage for that item. `null` expects no item. When the current item has another version, the
+   * write changes nothing and rejects with `VersionConflictError`. A storage without `versionOf`
+   * rejects the write with a `TypeError`. Absent: no precondition, and the last write wins.
+   */
+  readonly expectedVersion?: string | null | undefined;
+}
+
+/** The options of `setBatch`: the origin, and the precondition of each id (roadmap CLI-16). */
+export interface StorageBatchWriteOptions extends StorageWriteOptions {
+  /**
+   * The version that the write expects for the current item of each id, as `expectedVersion`
+   * does. When one id has a conflict, the batch changes no item. An id without an entry has no
+   * precondition.
+   */
+  readonly expectedVersions?: ReadonlyArray<readonly [string, string | null]> | undefined;
 }
 
 /** A change of `observe()`: an id got a value. */

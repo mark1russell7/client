@@ -20,6 +20,7 @@ import { createCollectionProcedures } from "../procedures/collection/procedures.
 import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
 import type { CollectionPartitions } from "../procedures/collection/partition.js";
+import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import { optionalMs, type Duration } from "../duration.js";
@@ -336,6 +337,9 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
   const retryAfterMs = (error as { retryAfterMs?: unknown } | undefined)?.retryAfterMs;
   const metadata: Record<string, unknown> = reason ? { reason } : {};
   if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) metadata["retry-after"] = retryAfterMs;
+  // A VERSION_CONFLICT error tells the current item of each conflict (roadmap CLI-16)
+  const conflicts = versionConflictsOf(error);
+  if (conflicts !== undefined) metadata[VERSION_CONFLICTS_METADATA_KEY] = conflicts;
   const code = errorCodeOf(error);
   return {
     id,

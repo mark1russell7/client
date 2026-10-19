@@ -742,6 +742,14 @@ const totals = await db.collection("orderTotals").find(viewFilter(view)).toArray
 - A pass keeps in memory the key of each row of the result (at most `maxRows`) and one group of rows. It keeps nothing between passes.
 - An app with targets from an older materializer (the plain key as `_id`, no generation) needs no migration step. The first pass of each view writes its rows in a generation, and removes the rows of its partition with no generation. A row without the partition field stays.
 
+To serve a view through the collection procedures, give its storage `new MongoViewStorage({ view: "totals", db })` (roadmap CLI-38):
+
+- Each read finds the current generation of the view one time, and reads only its rows. A reader of `get`, `getAll`, `find` or `changes` thus gets one generation only.
+- A read that starts before a change of generation ends on the previous generation. The materializer keeps its rows for `generationGrace`, so a read must end in that time.
+- The key of a row is its `_id` in the result, a text. The value has that `_id` and the fields of the row.
+- The storage is read-only: a write rejects with `FORBIDDEN`. It has no change log.
+- Give it the same `views`, `partitionField`, `statusField` and `targetId` as the materializer.
+
 ## Integration with Ecosystem
 
 ### Bundle Packages

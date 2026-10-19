@@ -94,10 +94,13 @@ The contract suite of `@procedures/collections/testing` tests `ApiStorage`, and 
 - **The queries.** `query(selector, { sort, skip, limit })` gives the result of `queryEntries()` of `@procedures/collections`. `ApiStorage.query()` sends the JSON selector to the procedure `collections.<name>.find`, so the server applies it.
 - **The patches.** `ApiStorage.patch(id, fields)` sends a patch to the procedure `collections.<name>.patch`. The server changes the item in one step. A patch is a JSON Merge Patch, or the operations `{ $set, $unset, $remove, $insert }`. An index of `$remove` or `$insert` is a position at the time of the patch. A client that works from an older read uses the version check of the collection, where the collection has one.
 - **The query policy.** The server applies the policy of its host to each `find`. The default policy does not permit `$regex`, and a `find` gets at most 1000 items.
+- **The preconditions.** `set`, `delete` and `setBatch` take an expected version of the current item (roadmap CLI-16). `ApiStorage` sends it to the collection procedures, and the storage of the server tests it. A conflict rejects with `VersionConflictError`, with the current items. A storage that cannot test it rejects the write.
 
 Notes:
 
 - A custom `service` or a custom `get` operation gets the input `{ id }`, as before. Its `null` reads back as `undefined`.
+- A custom `service` gets no expected version. `ApiStorage` rejects a write with one, so the precondition is not lost.
+- `HybridStorage` gives the expected version of a caller to its local copy. The default local copy gets the option `versionOf` of the storage. In `write-through` mode, the remote write gets it too. In `remote-only` mode, only the remote tests it.
 - A server before the procedure `find` answers `NOT_FOUND`. Then `ApiStorage.query()` reads the entries and applies the query in the client, with the same result.
 - `ApiStorage.find(predicate)` reads each item, because a function cannot go over the network. Use `query()` with a selector to filter on the server.
 - `HybridStorage.query()` reads the local copy, or the remote in `remote-only` mode. Its option `queryPolicy` goes to the storage under it.
@@ -191,6 +194,21 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 - With versions, the storage knows the version of each local item that it wrote or read. Then a pull reads a local item only for a conflict, or when the version is not known.
 - Without versions, a pull reads each local item without a queued write. It compares the JSON of the local item and the remote item.
 - The option `pullInterval` starts a periodic pull in the modes `write-through` and `write-back`. `close()` stops it.
+
+### The base versions on the server
+
+With `versionOf`, the push of a queued write sends its base version as the expected version (roadmap CLI-16, decision D11). The base version is the remote version of the id when the local write went in the queue. The server then refuses a write over a change of another writer.
+
+- The remote answers `VERSION_CONFLICT` with the current item. The storage gives the conflict to `conflictResolution`, as a conflict of a pull.
+- `remote`: the remote item replaces the local item, and the queued writes of the id go.
+- `merge`: `mergeFn` gives the item. A new queued write sends it, with the current version as its base.
+- `local`: the current version becomes the base, and the push sends the queued write again. It replaces the remote item.
+- `error`: the push throws `ConflictError` with the ids. The queue and the remote keep their items, and the next push tries again.
+- A remote item that is the value of the queued write is not a conflict. An earlier send reached the remote, and its answer was lost.
+- An id without a known base version gets no expected version. Its queued write wins, as before.
+- The remote must test the precondition: an `ApiStorage` of the collection procedures over a storage with the same `versionOf`. A remote that cannot test it refuses each push.
+- The option `sendBaseVersions: false` stops the expected versions. Then a queued write replaces the remote item, as before CLI-16.
+- A write of the mode `write-through` goes to the remote directly. It sends only the expected version of its caller.
 
 ### The clock, the backoff and the status
 

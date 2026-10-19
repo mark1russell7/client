@@ -22,6 +22,8 @@
  * - The storages of one file in one process share one database. Thus the storages of two tables
  *   in one file keep the changes of each other.
  * - A storage that only reads does not make the file.
+ * - With the option `versionOf`, `set`, `delete` and `setBatch` take an expected version (roadmap
+ *   CLI-16). The test of the versions and the write are one transaction, also for two processes.
  */
 
 import { randomUUID } from "node:crypto";
@@ -30,14 +32,16 @@ import {
   optionalMs,
   type CollectionStorage,
   type Duration,
+  type StorageBatchWriteOptions,
   type StorageChanges,
+  type StorageItemWriteOptions,
   type StorageMetadata,
   type StoragePatch,
   type StorageQueryOptions,
   type StorageQueryPolicy,
   type StorageSelector,
 } from "@procedures/client";
-import { applyPatch, patchProblems, queryEntries } from "@procedures/client/query";
+import { VersionConflictError, applyPatch, patchProblems, preconditionNotSupported, queryEntries, versionConflicts, type CurrentItem } from "@procedures/client/query";
 import {
   MEMORY_PATH,
   checkEngine,
@@ -53,7 +57,7 @@ import {
 export { MEMORY_PATH, isNodeSqliteAvailable, type SqliteEngine, type SqliteEngineName } from "./engines.js";
 
 /** The options of a `SqliteStorage`. */
-export interface SqliteStorageOptions {
+export interface SqliteStorageOptions<T = unknown> {
   /**
    * The database file, or `:memory:` for a database that lives as long as the storage. The
    * storage makes the file, and its folder, at the first write that changes an item.
@@ -98,6 +102,13 @@ export interface SqliteStorageOptions {
    * @default DEFAULT_QUERY_POLICY: no `$regex`
    */
   queryPolicy?: StorageQueryPolicy | undefined;
+  /**
+   * The version of an item, for example `(item) => item.rev` (roadmap CLI-16). With it, `set`,
+   * `delete` and `setBatch` take an expected version: a write whose current item has another
+   * version changes nothing and rejects with `VersionConflictError`. The test and the write are
+   * one transaction. Without it, a write with an expected version rejects with a `TypeError`.
+   */
+  versionOf?: ((item: T) => string | undefined) | undefined;
 }
 
 /** The pattern of a table name: a letter, then letters, digits and underscores. */
@@ -437,12 +448,14 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   private readonly maxTombstones: number;
   /** The query policy of a call without a policy */
   private readonly queryPolicy: StorageQueryPolicy | undefined;
+  /** The version of an item, for the preconditions of the writes (roadmap CLI-16) */
+  private readonly versionOf: ((item: T) => string | undefined) | undefined;
   /** The quoted table name, for the SQL text. */
   private readonly quoted: string;
   private readonly opening: Promise<SharedDatabase>;
   private closed = false;
 
-  constructor(options: SqliteStorageOptions) {
+  constructor(options: SqliteStorageOptions<T>) {
     if (typeof options?.path !== "string" || options.path === "") {
       throw new TypeError("SqliteStorage needs a path: a database file, or :memory:");
     }
@@ -453,6 +466,7 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     this.quoted = `"${this.table}"`;
     this.maxTombstones = Math.max(0, options.maxTombstones ?? 10_000);
     this.queryPolicy = options.queryPolicy;
+    this.versionOf = options.versionOf;
     this.opening = this.open(busyTimeoutMs);
     // An operation gives the error of the open. This handler only stops an unhandled rejection.
     this.opening.catch(() => undefined);
@@ -541,9 +555,13 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   // ═══ Write Operations ═══
   //
 
-  async set(id: string, value: T): Promise<void> {
+  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
     const text = toJson(checkId(id), value);
-    await this.write((db, next) => this.put(db, id, text, next));
+    const expected = this.preconditions(options?.expectedVersion === undefined ? [] : [[id, options.expectedVersion]]);
+    await this.write((db, next) => {
+      this.checkVersions(db, expected);
+      this.put(db, id, text, next);
+    });
   }
 
   /**
@@ -564,9 +582,13 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
     });
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, options?: StorageItemWriteOptions): Promise<boolean> {
     checkId(id);
-    return this.write((db, next) => this.remove(db, id, next));
+    const expected = this.preconditions(options?.expectedVersion === undefined ? [] : [[id, options.expectedVersion]]);
+    return this.write((db, next) => {
+      this.checkVersions(db, expected);
+      return this.remove(db, id, next);
+    });
   }
 
   async clear(): Promise<void> {
@@ -580,13 +602,18 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
   // ═══ Bulk Operations ═══
   //
 
-  /** This method sets several items in one transaction. When one value is not JSON, nothing changes. */
-  async setBatch(items: Array<[string, T]>): Promise<void> {
+  /**
+   * This method sets several items in one transaction. When one value is not JSON, or one expected
+   * version has a conflict, nothing changes.
+   */
+  async setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void> {
     // After close(), an empty batch rejects too
     this.checkOpen();
     const texts = items.map(([id, value]): [string, string] => [checkId(id), toJson(id, value)]);
-    if (texts.length === 0) return;
+    const expected = this.preconditions(options?.expectedVersions ?? []);
+    if (texts.length === 0 && expected.length === 0) return;
     await this.write((db, next) => {
+      this.checkVersions(db, expected);
       for (const [id, text] of texts) this.put(db, id, text, next);
     });
   }
@@ -698,6 +725,33 @@ export class SqliteStorage<T> implements CollectionStorage<T> {
 
   private checkOpen(): void {
     if (this.closed) throw new Error(`The SQLite storage of the table ${this.table} is closed`);
+  }
+
+  /**
+   * The preconditions of a write, after a check of their ids. A storage without `versionOf` throws
+   * a `TypeError` before the write starts (roadmap CLI-16).
+   */
+  private preconditions(expected: ReadonlyArray<readonly [string, string | null]>): ReadonlyArray<readonly [string, string | null]> {
+    if (expected.length === 0) return expected;
+    if (!this.versionOf) throw preconditionNotSupported(`The SQLite storage of the table ${this.table}`);
+    for (const [id] of expected) checkId(id);
+    return expected;
+  }
+
+  /**
+   * This method tests the expected versions in the transaction of the write (roadmap CLI-16). A
+   * conflict throws `VersionConflictError`, and the transaction rolls back.
+   */
+  private checkVersions(db: EngineDatabase, expected: ReadonlyArray<readonly [string, string | null]>): void {
+    if (expected.length === 0 || !this.versionOf) return;
+    const rows = db.firstOfEach<{ value: string }>(`SELECT value FROM ${this.quoted} WHERE id = ?`, expected.map(([id]) => [id]));
+    const current = new Map<string, CurrentItem<T>>();
+    expected.forEach(([id], index) => {
+      const row = rows[index];
+      current.set(id, row === undefined ? { found: false } : { found: true, value: JSON.parse(row.value) as T });
+    });
+    const conflicts = versionConflicts(expected, (id) => current.get(id) ?? { found: false }, this.versionOf);
+    if (conflicts.length > 0) throw new VersionConflictError(conflicts);
   }
 
   private entries(db: EngineDatabase): Array<[string, T]> {

@@ -94,14 +94,15 @@ interface CollectionStorage<T> {
   has(id: string): Promise<boolean>;
   size(): Promise<number>;
 
-  // Write Operations (the options give the origin of the write to the observers)
-  set(id: string, value: T, options?: StorageWriteOptions): Promise<void>;
-  delete(id: string, options?: StorageWriteOptions): Promise<boolean>;
+  // Write Operations (the options give the origin of the write to the observers, and the
+  // expected version of the current item: refer to "The precondition of a write")
+  set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void>;
+  delete(id: string, options?: StorageItemWriteOptions): Promise<boolean>;
   clear(options?: StorageWriteOptions): Promise<void>;
   patch?(id: string, fields: StoragePatch, options?: StorageWriteOptions): Promise<T | undefined>;
 
   // Bulk Operations
-  setBatch(items: Array<[string, T]>, options?: StorageWriteOptions): Promise<void>;
+  setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void>;
   deleteBatch(ids: string[], options?: StorageWriteOptions): Promise<number>;
   getBatch(ids: string[]): Promise<Map<string, T>>;
 
@@ -122,7 +123,39 @@ Each storage agrees on these points:
 - `query()` gives the result of `queryEntries()` for the entries of the storage. Refer to "The query language".
 - `observe()` gives one batch of changes for each write that changes the storage, before the write resolves. Each change has the `origin` of its write.
 - `patch()` merges fields into one item in one step, as a JSON Merge Patch (RFC 7386). Two patches of one item at the same time keep each field.
+- A write with an expected version tests the version of the current item and writes in one step. A storage that cannot test it rejects the write. Refer to "The precondition of a write".
 - The optional methods are features. A caller tests for each one before it uses it.
+
+### The precondition of a write
+
+`set`, `delete` and `setBatch` take an expected version of the current item (roadmap CLI-16, decision D11). It is optimistic concurrency: two writers cannot write over the changes of each other without a notice.
+
+```typescript
+const notes = new InMemoryStorage<Note>({ versionOf: (note) => note.rev });
+
+await notes.set("n1", { text: "a", rev: "1" }, { expectedVersion: null }); // only when "n1" has no item
+await notes.set("n1", { text: "b", rev: "2" }, { expectedVersion: "1" }); // only when "n1" has the version "1"
+await notes.setBatch([["n1", { text: "c", rev: "3" }]], { expectedVersions: [["n1", "2"]] });
+await notes.delete("n1", { expectedVersion: "3" });
+```
+
+- The version of an item is the value of the function `versionOf` of the storage, for example a revision field. `HybridStorage` reads the same versions with its own `versionOf`.
+- `null` expects no item.
+- When the current item has another version, the write changes nothing. It rejects with `VersionConflictError`, whose `conflicts` have the current item and its version for each id.
+- A `setBatch` with one conflict changes no item. An id without an expected version has no precondition.
+- The test and the write are one step. Two writes with the same expected version at the same time: one writes, and the other gets the conflict.
+- A storage without `versionOf` cannot test a precondition. It rejects such a write with a `TypeError` whose code is `PRECONDITION_NOT_SUPPORTED`, and it changes nothing. A storage never ignores a precondition.
+- A write without an expected version writes as before: the last write wins.
+- On the wire, the conflict is the error code `VERSION_CONFLICT` (HTTP 409). The metadata key `conflicts` has the current items. `ApiStorage` gives it back as a `VersionConflictError`.
+
+| Storage | How it tests the precondition |
+|---|---|
+| `InMemoryStorage` | The test and the write are one synchronous step. |
+| `SqliteStorage` | The test and the write are one transaction, also for two processes on one file. |
+| `MongoDocumentStorage` | On a replica set, the test reads in the transaction of the write. On a single server, the write has the `_seq` of the test in its filter. A batch of more than one item is all or nothing only in a transaction. |
+| `MongoStorage` | It cannot test it: its documents have no version. It rejects a write with an expected version. |
+| `ApiStorage` | The server tests it: the collection procedures give the expected version to the storage of the server. |
+| `HybridStorage` | The local copy tests it. In `write-through` mode, the remote tests it too. In `remote-only` mode, only the remote tests it. |
 
 ### The query language
 
@@ -273,6 +306,7 @@ describeCollectionStorageContract(
   {
     create: () => new MyStorage<ContractItem>(),
     createWithMaxTombstones: (max) => new MyStorage<ContractItem>({ maxTombstones: max }),
+    createWithVersions: (versionOf) => new MyStorage<ContractItem>({ versionOf }),
   },
   { describe, it },
 );
@@ -282,6 +316,7 @@ describeCollectionStorageContract(
 - It tests the copies, the JSON values with `null`, and the writes at the same time.
 - It tests `getChangesSince` with its versions and its order, `flush`, `getMetadata`, `close` and the errors.
 - It tests `query()` with fixed and random selectors against `queryEntries()`, `patch()` with patches at the same time, and the batches and origins of `observe()`.
+- It tests the preconditions of the writes. A storage of `create()` must reject a write with an expected version. With `createWithVersions`, the suite tests the conflicts, the current items, `null`, the batches, and two writes at the same time.
 - A case for an optional method skips a storage without the method.
 - A random sequence of writes runs against a `Map`. Each saved version must give the right changes, in the order of the last change of each id.
 - The suite imports no test framework. The caller gives `describe` and `it`, and a failed check throws `ContractViolation`. The runtime entries do not import this entry.
@@ -313,6 +348,7 @@ const user = await storage.get("user-1");
 - `getIds()` gives the ids without a copy of the values.
 - `observe()` gives each batch before the write resolves. The error of an observer goes to the option `onObserverError`. The default throws it again in a microtask, as an `EventTarget` does.
 - `close()` drops the items. After it, each operation rejects, and the methods of the `Map` interface (`keys()`, `values()`, `entries()`, `forEach()`) throw.
+- The option `versionOf` gives the version of an item. Then `set`, `delete` and `setBatch` take an expected version. Refer to "The precondition of a write".
 
 ### ApiStorage and HybridStorage
 

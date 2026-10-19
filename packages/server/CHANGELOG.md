@@ -1,5 +1,27 @@
 # @procedures/server
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+  - @procedures/peer@0.15.0
+
+## 0.14.1
+
+### Patch Changes
+
+- Updated dependencies [85999c1]
+- Updated dependencies [fc968f6]
+- Updated dependencies [dc7a462]
+- Updated dependencies [e091108]
+- Updated dependencies [66ab24c]
+- Updated dependencies [073e4c3]
+- Updated dependencies [6969637]
+  - @procedures/client@0.14.1
+  - @procedures/peer@0.14.1
+
 ## 0.14.0
 
 ### Patch Changes

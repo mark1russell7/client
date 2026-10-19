@@ -299,6 +299,18 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `CONNECTION_NOT_FOUND` | 404 | no | The server has no connection with this id. |
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
+| `VERSION_CONFLICT` | 409 | no | The current item does not have the version that the write expects. The metadata key `conflicts` has the current items (CLI-16). |
+
+### The conflicts of VERSION_CONFLICT
+
+A collection write with an expected version (`expectedVersion` of `set` and `delete`, or of an item of `setBatch`) gives `VERSION_CONFLICT` when the current item has another version (roadmap CLI-16). The write changes nothing.
+
+- The metadata key `conflicts` has one object for each id of a conflict: `{ id, expected, found, value, version }`.
+- `expected` is the expected version, or `null` for no item. `found` tells if the id has an item at this time.
+- `value` is the current item, when `found` is true. `version` is its version, or `null` for no item. An item without a version has no field `version`.
+- The HTTP body has the field `conflicts` too. The WebSocket `error` frame and the local face keep the key in the metadata.
+- `ClientError.metadata` gives the key to the caller. `versionConflictsOf(error)` of `@procedures/client` reads it, and `ApiStorage` gives a `VersionConflictError`.
+- A storage without `versionOf` cannot test the precondition. It refuses the write with the code `PRECONDITION_NOT_SUPPORTED` (HTTP 500).
 
 The column "Retryable" gives the default flag of a code. An error can have another flag. A call that the shutdown of a host cuts ends with `UNAVAILABLE` on each face, before or after its first item. Its flag is false when the call can have had its effect (CLI-48). Before its first item, the HTTP status of such a cut is then 500.
 
