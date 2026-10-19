@@ -90,12 +90,12 @@ function repositoryOf(server: ProcedureServer): RepositoryProvider {
   };
 }
 
-/** The procedures of the collection "notes" on a server with a storage for each partition. */
-function host(resolve: PartitionResolver | null = byTenant, options: CollectionProceduresOptions = {}) {
+/** The procedures of a collection ("notes" by default) on a server with a storage for each partition. */
+function host(resolve: PartitionResolver | null = byTenant, options: CollectionProceduresOptions = {}, name = "notes") {
   const server = new ProcedureServer({ autoRegister: false });
   const partitions = new Map<string, MapStorage>();
   if (resolve) {
-    server.usePartitions("notes", {
+    server.usePartitions(name, {
       storageOf: (partition) => {
         let storage = partitions.get(partition);
         if (!storage) partitions.set(partition, (storage = new MapStorage()));
@@ -104,7 +104,7 @@ function host(resolve: PartitionResolver | null = byTenant, options: CollectionP
       resolve,
     });
   }
-  const procedures = createCollectionProcedures("notes", options);
+  const procedures = createCollectionProcedures(name, options);
   const bus = createEventBus();
   const repository = repositoryOf(server);
   const run = async (operation: string, input: unknown, principal?: Principal, repo: RepositoryProvider = repository): Promise<unknown> => {
@@ -382,10 +382,88 @@ describe("the subscriptions of a partitioned collection (CLI-17)", () => {
     expect(collectionTopicTarget("orders.x", h.repository)).toBeUndefined();
   });
 
-  it("refuses partitions for a collection whose name has a dot", () => {
-    const server = new ProcedureServer({ autoRegister: false });
-    expect(() => server.usePartitions("a.b", { storageOf: () => new MapStorage(), resolve: byTenant })).toThrow(/dot/);
-    expect(server.hasPartitions("a.b")).toBe(false);
+});
+
+describe("the partitions of a collection whose name has a dot (CLI-42)", () => {
+  /** A subscription of a principal to the topics of a host, with its capability. */
+  async function subscribeTo(h: ReturnType<typeof host>, topics: string[], principal: Principal, reads: string[] = ["collection:graph.nodes"]) {
+    const publisher = new EventPublisher({ bus: h.bus, topics: ["collections.*"] });
+    const controller = new AbortController();
+    const output = await invokeProcedure(publisher.procedure, { topics }, {
+      bus: h.bus,
+      repository: h.repository,
+      signal: controller.signal,
+      principal,
+      capability: { effects: { reads: ["events", ...reads], writes: [] } },
+    });
+    if (output.kind !== "stream") throw new Error("events.subscribe gives a stream");
+    const items = output.items as AsyncGenerator<EventItem, void, undefined>;
+    const first = (await items.next()).value as EventItem;
+    const received: Array<Extract<EventItem, { type: "event" }>> = [];
+    void (async () => {
+      for await (const item of items) if (item.type === "event") received.push(item);
+    })().catch(() => undefined);
+    return { first, received, stop: () => controller.abort() };
+  }
+  /** A few turns of the event loop: each event on the bus reaches the loop of its subscriber. */
+  const settle = async () => {
+    for (let turn = 0; turn < 5; turn++) await new Promise((resolve) => setImmediate(resolve));
+  };
+
+  it("accepts partitions for a collection whose name has a dot, and serves each partition", async () => {
+    const h = host(byTenant, {}, "graph.nodes");
+    expect(h.server.hasPartitions("graph.nodes")).toBe(true);
+    await h.run("set", { id: "n1", value: "ann's" }, ann);
+    await h.run("set", { id: "n1", value: "bob's" }, bob);
+    await h.run("set", { id: "n2", value: "scoped", partition: "board.x/y" }, ann);
+    expect(await h.run("get", { id: "n1" }, ann)).toBe("ann's");
+    expect(await h.run("get", { id: "n1" }, bob)).toBe("bob's");
+    expect([...h.partitions.keys()].sort()).toEqual(["t1", "t1/board.x/y", "t2"]);
+  });
+
+  it("publishes the events of a partition under the topic with the encoded name", async () => {
+    const h = host(byTenant, {}, "graph.nodes");
+    const events: string[] = [];
+    for (const topic of ["collections.graph.nodes", "collections.graph.nodes.t1", "collections.graph%2Enodes.t1", "collections.graph%2Enodes.t1/board.x/y"]) {
+      h.bus.on<CollectionChangeEvent>(topic, () => void events.push(topic));
+    }
+    await h.run("set", { id: "n1", value: 1 }, ann);
+    await h.run("set", { id: "n2", value: 2, partition: "board.x/y" }, ann);
+    await settle();
+    expect(events).toEqual(["collections.graph%2Enodes.t1", "collections.graph%2Enodes.t1/board.x/y"]);
+  });
+
+  it("gives a subscriber of the plain topic and of an encoded topic the events of its own partition", async () => {
+    const h = host(byTenant, {}, "graph.nodes");
+    // The plain topic asks for no partition: the resolver gives the tenant of the principal
+    const plain = await subscribeTo(h, ["collections.graph.nodes"], ann);
+    expect(plain.first).toEqual({ type: "subscribed", topics: ["collections.graph.nodes"] });
+    // The encoded topic asks for the partition "board.x/y": a partition with a dot and a slash
+    const scoped = await subscribeTo(h, [collectionChangeTopic("graph.nodes", "board.x/y")], ann);
+    await h.run("set", { id: "b", value: 1 }, bob);
+    await h.run("set", { id: "a", value: 1 }, ann);
+    await h.run("set", { id: "s", value: 1, partition: "board.x/y" }, ann);
+    await settle();
+    expect(plain.received.map((item) => item.topic)).toEqual(["collections.graph.nodes"]);
+    expect(scoped.received.map((item) => item.topic)).toEqual(["collections.graph%2Enodes.board.x/y"]);
+    plain.stop();
+    scoped.stop();
+  });
+
+  it("checks the read of the collection with the dotted name", async () => {
+    const h = host(byTenant, {}, "graph.nodes");
+    const refused = await errorOf(subscribeTo(h, ["collections.graph%2Enodes.board"], ann, ["collection:graph"]));
+    expect(refused.code).toBe("FORBIDDEN");
+    const allowed = await subscribeTo(h, ["collections.graph%2Enodes.board"], ann);
+    expect(allowed.first).toEqual({ type: "subscribed", topics: ["collections.graph%2Enodes.board"] });
+    allowed.stop();
+  });
+
+  it("refuses a partition topic whose name is not encoded: graph is no collection of the host", async () => {
+    const h = host(byTenant, {}, "graph.nodes");
+    const error = await errorOf(subscribeTo(h, ["collections.graph.nodes.t1"], ann, ["collection:graph"]));
+    expect(error.code).toBe("FORBIDDEN");
+    expect(error.reason).toBe("partition-not-allowed");
   });
 });
 

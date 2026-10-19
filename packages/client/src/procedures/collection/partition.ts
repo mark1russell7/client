@@ -11,12 +11,15 @@
  * - A subscriber names the partition that it asks for in the topic, as an input does:
  *   `collections.<name>.<requested>`. The publisher resolves it in the same way and listens to the
  *   topic of the resolved partition, so a subscriber cannot name the topic of another tenant.
+ * - In the topic of a partition, the name encodes `%` and `.` (`topic.ts`, roadmap CLI-42). Thus
+ *   the name of a collection with partitions can have a dot.
  * - A collection without partitions refuses a call or a topic with a partition.
  */
 import type { ZodLike } from "../../client/validation/types.js";
 import { InvocationError } from "../invoke.js";
 import type { ProcedureContext, RepositoryProvider } from "../types.js";
 import type { CollectionStorage } from "./storage.js";
+import { collectionTopicPartition } from "./topic.js";
 
 /** The characters of a partition: letters, digits and `_ . : @ ~ + | / -`, 256 at most. */
 export const PARTITION_PATTERN: RegExp = /^[A-Za-z0-9_.:@~+|/-]{1,256}$/;
@@ -129,29 +132,21 @@ export function storageOfCall<T>(ctx: ProcedureContext, collection: string, part
   return repository.getPartitionStorage<T>(collection, partition);
 }
 
+export { collectionTopicPartition } from "./topic.js";
+
 /**
  * This function gives the collection and the partition part of a topic of a call, with the
  * repository of the call: one rule for the read check and for the listener of the publisher.
  *
- * - A collection of the repository without partitions whose name is the whole rest of the topic
- *   wins: its name can have a dot.
- * - Else the first part after `collections.` names the collection, and the rest is the partition
- *   that the call asks for. A collection with partitions has no dot in its name.
+ * - A collection of the repository whose name is the whole rest of the topic wins, with or without
+ *   partitions: its name can have a dot. The call then asks for no partition.
+ * - Else `collectionTopicPartition()` reads the topic: the first dot after the name ends the name,
+ *   and the rest is the partition that the call asks for. In this form, the name encodes `%` and
+ *   `.`, so the name of a collection with partitions can have a dot (roadmap CLI-42).
  */
 export function collectionTopicTarget(topic: string, repository: RepositoryProvider | undefined): { collection: string; partition: string | undefined } | undefined {
   if (!topic.startsWith("collections.")) return undefined;
   const whole = topic.slice("collections.".length);
-  if (whole !== "" && repository?.hasCollection(whole) && !repository.hasPartitions?.(whole)) return { collection: whole, partition: undefined };
+  if (whole !== "" && repository?.hasCollection(whole)) return { collection: whole, partition: undefined };
   return collectionTopicPartition(topic);
-}
-
-/**
- * This function gives the collection and the partition part of a topic `collections.<name>` or
- * `collections.<name>.<partition>`, or undefined for another topic. It reads the topic alone:
- * `collectionTopicTarget` also knows the collections of a repository.
- */
-export function collectionTopicPartition(topic: string): { collection: string; partition: string | undefined } | undefined {
-  const match = /^collections\.([^.]+)(?:\.(.+))?$/.exec(topic);
-  if (!match) return undefined;
-  return { collection: match[1]!, partition: match[2] };
 }

@@ -543,16 +543,14 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    * for: the collection procedures and the subscriptions of `EventPublisher` use it. `storageOf`
    * gives the storage of a partition: give the same storage for the same partition each time.
    *
-   * @param name - Collection name, without a dot
+   * The name can have a dot (roadmap CLI-42). The topic of a partition encodes the name, so the
+   * name and the partition of a topic stay apart (`collectionChangeTopic()`).
+   *
+   * @param name - Collection name
    * @param partitions - The storage of each partition, and the resolver
    * @returns this (for chaining)
-   * @throws Error if the name has a dot
    */
   usePartitions<T>(name: string, partitions: CollectionPartitions<T>): this {
-    // The topic `collections.<name>.<partition>` names the partition after the first dot
-    if (name.includes(".")) {
-      throw new Error(`A collection with partitions cannot have a dot in its name: ${name}`);
-    }
     this.partitions.set(name, partitions as CollectionPartitions<unknown>);
     return this;
   }

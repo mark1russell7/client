@@ -364,6 +364,14 @@ A subscriber names a partition as an input does:
 - A subscriber thus cannot name the topic of another tenant. The events keep the topic that the subscriber named.
 - A topic with a partition of a collection without partitions is refused (`FORBIDDEN`, reason `partition-not-allowed`). A call without a repository is refused in the same way.
 
+The name of a collection with partitions can have a dot (roadmap CLI-42):
+
+- In the topic of a partition, the name encodes `%` as `%25` and `.` as `%2E`. The first dot after the name thus ends the name.
+- The partition stays as it is, and it can have each character. The topic of the partition `acme/space` of `graph.nodes` is `collections.graph%2Enodes.acme/space`.
+- A name without `.` and `%` keeps its topic. The topic of a collection without a partition keeps the name as it is: `collections.graph.nodes`.
+- `collectionChangeTopic(name, partition)` makes a topic, and `collectionTopicPartition(topic)` reads it. Use these functions. Do not join the parts yourself.
+- A topic rule for the partitions of a dotted name uses the encoded name, for example `collections.graph%2Enodes.*`.
+
 ### The publisher
 
 ```ts

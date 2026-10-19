@@ -27,6 +27,7 @@
 import type { EventBus } from "../../events/types.js";
 import { withRows } from "../../events/rows.js";
 import type { StorageChanges } from "./storage.js";
+import { splitCollectionTopic } from "./topic.js";
 
 /**
  * The change event of the writes of a collection, on the topic `collections.<name>` (roadmap
@@ -55,22 +56,18 @@ export interface CollectionChangeEvent {
   readonly origin?: string | undefined;
 }
 
-/**
- * This function gives the topic of the change events of a collection: `collections.<name>`, or
- * `collections.<name>.<partition>` for a partition (roadmap CLI-17).
- */
-export function collectionChangeTopic(collection: string, partition?: string): string {
-  return partition === undefined ? `collections.${collection}` : `collections.${collection}.${partition}`;
-}
+export { collectionChangeTopic } from "./topic.js";
 
 /**
  * This function gives the resources that a subscriber of a topic reads: `collection:<name>` for
  * the topic `collections.<name>` and for a topic of a partition, `collections.<name>.<partition>`.
- * Another topic gives no resource. `EventPublisher` uses it as its default `reads`.
+ * It reads the topic with the parse of `collectionTopicPartition()`, so the name of a topic of a
+ * partition is decoded (roadmap CLI-42). Another topic gives no resource. `EventPublisher` uses it
+ * as its default `reads`.
  */
 export function collectionTopicReads(topic: string): readonly string[] {
-  const match = /^collections\.([^.]+)(?:\.|$)/.exec(topic);
-  return match ? [`collection:${match[1]}`] : [];
+  const parts = splitCollectionTopic(topic);
+  return parts ? [`collection:${parts.collection}`] : [];
 }
 
 /** The part of a storage that the change events read. */
