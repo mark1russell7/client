@@ -17,7 +17,18 @@ export { createSseTransport } from "./transport/sse.js";
 
 // The host factory (CLI-10): one MCP host for each server of procedures
 export { createMcpHost, mcpExposeRule, redirectConsoleToStderr } from "./host.js";
-export type { McpHost, McpHostOptions, McpHostFaces, McpStdioFace, McpHostServerOptions, McpHostParts, McpHostState } from "./host.js";
+export type {
+  McpHost,
+  McpHostOptions,
+  McpHostFaces,
+  McpStdioFace,
+  McpHostServerOptions,
+  McpHostParts,
+  McpHostState,
+  McpRunnerPart,
+  McpRunnerDependency,
+  McpServiceBuilder,
+} from "./host.js";
 export { DEFAULT_ELICIT_TIMEOUT_MS } from "./transport/mcp-transport.js";
 
 // MCP tasks (CLI-35): a long tool call runs as a task, with a limit of tasks that run at one time

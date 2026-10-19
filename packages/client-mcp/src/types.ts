@@ -52,11 +52,21 @@ export type McpToolContentHook = (result: McpToolContentInput) => McpToolContent
 /**
  * SSE transport configuration options.
  */
-/** The options of the Streamable HTTP transport (roadmap R26). */
+/**
+ * The options of the Streamable HTTP transport (roadmap R26). Give `mount: true` and mount the
+ * handler of the endpoint on a listener. An endpoint with a listener of its own (`port`, `host`,
+ * `server`) is deprecated (CLI-11).
+ */
 export interface HttpTransportOptions {
-  /** Port to listen on (default: 3003) */
+  /**
+   * Port to listen on (default: 3003)
+   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11). Give `mount: true`, and mount `McpHost.handleHttp` on a listener of the service.
+   */
   port?: number | undefined;
-  /** Host to bind to (default: "127.0.0.1": only this computer can reach the tools) */
+  /**
+   * Host to bind to (default: "127.0.0.1": only this computer can reach the tools)
+   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11). The listener of the service sets its address.
+   */
   host?: string | undefined;
   /** The path of the MCP endpoint (default: "/mcp") */
   path?: string | undefined;
@@ -69,7 +79,10 @@ export interface HttpTransportOptions {
    * the loopback names (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
    */
   allowedHosts?: readonly string[] | "*" | undefined;
-  /** An HTTP server to answer on, in place of a server of the transport (it does not listen then) */
+  /**
+   * An HTTP server to answer on, in place of a server of the transport (it does not listen then)
+   * @deprecated The next MINOR removes it (CLI-11). Give `mount: true`, and mount the handler on the server.
+   */
   server?: import("node:http").Server | undefined;
   /**
    * True: the endpoint has no server and attaches to none. The owner of a listener mounts its

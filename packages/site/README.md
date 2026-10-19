@@ -8,6 +8,7 @@ The website of the client ecosystem. GitHub Pages serves it at <https://mark1rus
 - **Procedures**: every procedure of the workspace, with its input and output schemas, its CLI command and its MCP tool name. The filters are in the URL.
 - **Architecture**: the packages and their dependencies, in levels.
 - **What Claude sees**: the tools of the `dev-tools` MCP server.
+- **Releases**: each version on a timeline, with its date and its changes. `scripts/releases-data.mjs` reads the changelogs and the git tags.
 
 ## The Composer
 

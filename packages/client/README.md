@@ -297,6 +297,9 @@ interface WebSocketTransportOptions {
 // dead peer, its socket stays open until the kernel stops it (924.6 s in the cells of R36).
 import { WebSocketTransport } from "@procedures/client/node";
 
+// The server transports are in the Node entry too (CLI-6)
+import { WebSocketServerTransport } from "@procedures/client/node";
+
 // The server pings each connection, and closes one that misses 2 pongs (option heartbeat)
 new WebSocketServerTransport(server, { server: http, heartbeat: { interval: seconds(30), misses: 2 } });
 
@@ -591,6 +594,8 @@ await server.stop()
 
 #### HTTP Server Transport
 ```typescript
+import { HttpServerTransport, type HttpServerTransportOptions } from "@procedures/client/node";
+
 new HttpServerTransport(server: Server, options: HttpServerTransportOptions)
 
 interface HttpServerTransportOptions {
@@ -676,6 +681,8 @@ http.listen(4820);
 
 #### WebSocket Server Transport
 ```typescript
+import { WebSocketServerTransport, type WebSocketServerTransportOptions } from "@procedures/client/node";
+
 new WebSocketServerTransport(server: Server, options?: WebSocketServerTransportOptions)
 
 interface WebSocketServerTransportOptions {
@@ -783,9 +790,9 @@ import { ... } from "@procedures/client/events";
 
 | Entry | Use |
 |---|---|
-| `@procedures/client` | Node. The browser entry and the server transports. Its `WebSocketTransport` uses the global `WebSocket`. |
+| `@procedures/client` | Node. The browser entry. Its `WebSocketTransport` uses the global `WebSocket`. It also exports the server transports, but these exports are deprecated. The next MINOR removes them (CLI-6). |
 | `@procedures/client/browser` | A browser bundle. It does not import `http` or `ws`. |
-| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. `procedureHandler` and `upgradeHandler`: the procedure faces of HTTP and WebSocket, without a framework. |
+| `@procedures/client/node` | Node. A `WebSocketTransport` whose sockets are of the `ws` package: a drop ends a socket at once. `writeNdjsonStream`: the NDJSON stream response of `HttpServerTransport`, for a `ServerResponse` of `node:http`. `procedureHandler` and `upgradeHandler`: the procedure faces of HTTP and WebSocket, without a framework. `HttpServerTransport` and `WebSocketServerTransport`: the server transports. |
 | `@procedures/client/register` | It registers the core procedures in the global registry. |
 
 ## Procedure Discovery
@@ -848,7 +855,8 @@ for await (const event of bus.stream("user:*")) {
 ## Server
 
 ```typescript
-import { Server, HttpServerTransport } from "client";
+import { Server } from "@procedures/client";
+import { HttpServerTransport } from "@procedures/client/node";
 
 const server = new Server({
   transports: [new HttpServerTransport({ port: 3000 })],

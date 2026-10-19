@@ -5,7 +5,7 @@ import { metaOf, staticPages } from "./seo";
 describe("the meta data of the pages", () => {
   it("has a page for each fixed route, each procedure and each package, with unique paths", () => {
     const pages = staticPages();
-    expect(pages.map((page) => page.path)).toEqual(expect.arrayContaining(["", "composer", "catalog", "architecture", "lab", "claude", "status"]));
+    expect(pages.map((page) => page.path)).toEqual(expect.arrayContaining(["", "composer", "catalog", "architecture", "lab", "claude", "status", "releases"]));
     expect(pages.filter((page) => page.path.startsWith("catalog/"))).toHaveLength(procedures.length);
     expect(new Set(pages.map((page) => page.path)).size).toBe(pages.length);
   });
