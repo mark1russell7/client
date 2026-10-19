@@ -45,6 +45,10 @@
     "./indexeddb": {
       "types": "./dist/indexeddb.d.ts",
       "import": "./dist/indexeddb.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     }
   },
   "files": [
