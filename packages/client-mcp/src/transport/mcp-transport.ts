@@ -108,6 +108,15 @@ function callNarrowing(extra: CallExtra): unknown {
 /** The most text blocks of a stream result: the last items of a long stream. */
 const MAX_STREAM_BLOCKS = 100;
 
+/**
+ * The `_meta` of the error of a stream: its code and its retryable flag, as the error line of
+ * NDJSON and the error frame of WebSocket give them (CLI-48). A code that is not a string gives `HANDLER_ERROR`.
+ */
+function streamErrorMeta(error: unknown): { code: string; retryable: boolean } {
+  const { code, retryable } = (error ?? {}) as { code?: unknown; retryable?: unknown };
+  return { code: typeof code === "string" ? code : "HANDLER_ERROR", retryable: typeof retryable === "boolean" ? retryable : false };
+}
+
 /** The text of a value: a string as it is, another value as JSON (pretty, or compact on one line). */
 function toText(value: unknown, json: "pretty" | "compact" = "pretty"): string {
   if (typeof value === "string") return value;
@@ -310,7 +319,8 @@ export class McpServerTransport implements ServerTransport {
             ...(result.structuredContent ? { structuredContent: result.structuredContent } : {}),
           };
         } else {
-          // The code and the reason of the error travel on each face (roadmap R25)
+          // The code, the retryable flag and the reason of the error travel on each face (roadmap
+          // R25, CLI-48)
           const reason = typeof response.metadata?.["reason"] === "string" ? response.metadata["reason"] : undefined;
           return {
             content: [
@@ -320,7 +330,7 @@ export class McpServerTransport implements ServerTransport {
               },
             ],
             isError: true,
-            _meta: { code: response.status.code, ...(reason ? { reason } : {}) },
+            _meta: { code: response.status.code, retryable: response.status.retryable === true, ...(reason ? { reason } : {}) },
           };
         }
       } catch (error) {
@@ -353,7 +363,7 @@ export class McpServerTransport implements ServerTransport {
     unbounded = false,
     tool?: McpTool,
     ownProgress: () => boolean = () => false
-  ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+  ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean; _meta?: { code: string; retryable: boolean } }> {
     const progressToken = extra._meta?.progressToken;
     const blocks: Array<{ type: "text"; text: string }> = [];
     let count = 0;
@@ -387,7 +397,9 @@ export class McpServerTransport implements ServerTransport {
       }
     } catch (error) {
       blocks.push({ type: "text", text: error instanceof Error ? error.message : String(error) });
-      return { content: blocks, isError: true };
+      // The code and the retryable flag of the end travel on each face: a stream that the
+      // shutdown cuts ends with UNAVAILABLE (CLI-48)
+      return { content: blocks, isError: true, _meta: streamErrorMeta(error) };
     }
     if (count > MAX_STREAM_BLOCKS) {
       blocks.unshift({ type: "text", text: `(${count} items: the first ${count - MAX_STREAM_BLOCKS} are not shown)` });

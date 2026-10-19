@@ -886,9 +886,15 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.32.1(supports-color@7.2.0)(zod@4.6.5)
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
+      '@procedures/mcp-server':
+        specifier: workspace:*
+        version: link:../client-mcp
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5

@@ -310,7 +310,10 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
     faces.set(faceName, factory({ name: faceName, handler, server, registry, policy, clock }));
   }
 
-  // The listeners that the host owns, each one with the faces of its mount list
+  // The listeners that the host owns, each one with the faces of its mount list. The responses
+  // and the upgraded sockets of each listener go into one record, so the close of a face or of a
+  // listener first lets each answer go out (CLI-48).
+  const outgoing = outgoingAnswers();
   const listeners = options.listen ?? [];
   const onListener = new Set<string>();
   const endpoints: Array<() => HostEndpoint[]> = [];
@@ -324,11 +327,16 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
       onListener.add(faceName);
       if (face.handler) {
         const handle = face.handler;
-        transport.mount((req, res) => handle(req, res));
+        transport.mount((req, res) => {
+          const taken = handle(req, res);
+          if (taken) outgoing.response(res);
+          return taken;
+        });
       }
       if (face.upgrade) {
         const upgrade = face.upgrade;
         transport.upgrade(upgrade.match, (req, socket, head) => {
+          outgoing.socket(socket as Duplex);
           upgrade.handler(req, socket as Duplex, head as Buffer);
         });
       }
@@ -353,7 +361,11 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
       stopIntake: () => transport.stopIntake(),
       drain: (deadline, signal) => transport.drain(deadline, signal),
       inFlight: () => transport.inFlight(),
-      close: () => transport.close(),
+      // The close destroys each connection: first each answer that a face ended goes out (CLI-48)
+      close: async () => {
+        await outgoing.flushed();
+        await transport.close();
+      },
     };
     return { name: `${name}.listen.${listenerName}`, knobs: transport.knobs, impl };
   });
@@ -391,7 +403,22 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
       close: () => server.close(),
     },
   };
-  const faceParts: HostPart[] = [...faces.entries()].flatMap(([faceName, face]) => (face.parts ? [{ name: `${name}.${faceName}`, knobs: {}, impl: face.parts }] : []));
+  // The close of a face (the sessions of MCP, the connections of WebSocket) also lets each answer go out first (CLI-48)
+  const faceParts: HostPart[] = [...faces.entries()].flatMap(([faceName, face]) => {
+    const impl = face.parts;
+    if (!impl) return [];
+    const part: TransportImpl = {
+      start: (signal, lifecycle) => impl.start(signal, lifecycle),
+      stopIntake: () => impl.stopIntake(),
+      drain: (deadline, signal) => impl.drain(deadline, signal),
+      inFlight: () => impl.inFlight(),
+      close: async () => {
+        await outgoing.flushed();
+        await impl.close();
+      },
+    };
+    return [{ name: `${name}.${faceName}`, knobs: {}, impl: part }];
+  });
   const parts: HostPart[] = [serverPart, ...faceParts, ...listenerParts];
 
   const dependencies: HostDependency[] = server.storageHandles().map((handle) => ({
@@ -449,6 +476,63 @@ export function createProcedureHost(options: ProcedureHostOptions = {}): Procedu
         if (client) return client;
       }
       throw new Error(`Connection not found: ${connectionId}`);
+    },
+  };
+}
+
+/** The answers that go out on the listeners of a host: each response of a face, and each upgraded socket. */
+interface OutgoingAnswers {
+  /** This method records a response of a face until its end. */
+  response(res: NodeResponse): void;
+  /** This method records an upgraded socket until its close. */
+  socket(socket: Duplex): void;
+  /**
+   * This method waits until each answer that a face wrote has gone out to the socket. It first gives
+   * one turn of the event loop, so each chain of promises that writes an answer ends (the MCP SDK).
+   * Then it waits for the event `finish` of each response that is ended, and for the write callback
+   * of each socket that has bytes to write. An open stream that is not ended does not hold it.
+   */
+  flushed(): Promise<void>;
+}
+
+/** An empty write: its callback comes after each write before it. */
+const FLUSH = Buffer.alloc(0);
+
+/** This function makes the record of the answers that go out on the listeners of a host (CLI-48). */
+function outgoingAnswers(): OutgoingAnswers {
+  const responses = new Set<NodeResponse>();
+  const sockets = new Set<Duplex>();
+  return {
+    response(res) {
+      if (responses.has(res)) return;
+      responses.add(res);
+      const done = (): void => {
+        responses.delete(res);
+      };
+      res.once("finish", done);
+      res.once("close", done);
+    },
+    socket(socket) {
+      sockets.add(socket);
+      socket.once("close", () => sockets.delete(socket));
+    },
+    async flushed() {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const waits: Array<Promise<void>> = [];
+      for (const res of responses) {
+        if (!res.writableEnded || res.writableFinished || res.destroyed) continue;
+        waits.push(
+          new Promise<void>((resolve) => {
+            res.once("finish", () => resolve());
+            res.once("close", () => resolve());
+          }),
+        );
+      }
+      for (const socket of sockets) {
+        if (socket.destroyed || !socket.writable || socket.writableLength === 0) continue;
+        waits.push(new Promise<void>((resolve) => socket.write(FLUSH, () => resolve())));
+      }
+      await Promise.all(waits);
     },
   };
 }
