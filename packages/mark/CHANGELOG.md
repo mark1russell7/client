@@ -1,5 +1,21 @@
 # @procedures/mark
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+  - @procedures/cli-run@0.15.0
+  - @procedures/lib@0.15.0
+  - @procedures/pnpm@0.15.0
+  - @procedures/procedure@0.15.0
+  - @procedures/peer@0.15.0
+  - @procedures/shell@0.15.0
+  - @procedures/vitest@0.15.0
+  - @procedures/mcp-dev-tools@0.15.0
+  - @procedures/server@0.15.0
+
 ## 0.14.1
 
 ### Patch Changes

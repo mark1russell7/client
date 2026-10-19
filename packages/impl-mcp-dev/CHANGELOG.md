@@ -1,5 +1,16 @@
 # @procedures/mcp-dev-tools
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+  - @procedures/bundle-mcp@0.15.0
+  - @procedures/fs@0.15.0
+  - @procedures/mcp-server@0.15.0
+  - @procedures/compiler@0.15.0
+
 ## 0.14.1
 
 ### Patch Changes
