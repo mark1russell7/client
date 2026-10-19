@@ -505,8 +505,9 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
             // lifecycle.ticks writes nothing: a cut of it is retryable
             { name: "lifecycle.ticks", call: ticks, codes: ["UNAVAILABLE"] },
             // lifecycle.ticksOnce declares a write, so a call of it can have had its effect. Before
-            // CLI-48, the in-band end of such a cut is INTERNAL_ERROR (not retryable). CLI-48
-            // (release 0.14.0) makes each stream that the shutdown cuts end with UNAVAILABLE.
+            // CLI-48, the in-band end of such a cut is INTERNAL_ERROR (not retryable): main gave
+            // that on 2026-10-19. CLI-48 (release 0.14.0) makes each stream that the shutdown cuts
+            // end with UNAVAILABLE. When CLI-48 is on main, keep only UNAVAILABLE here.
             { name: "lifecycle.ticksOnce", call: ticksOnce, codes: ["INTERNAL_ERROR", "UNAVAILABLE"] },
           ];
         },
