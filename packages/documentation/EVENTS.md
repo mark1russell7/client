@@ -262,7 +262,7 @@ server.publisher?.rightsChanged("ann"); // the subscriptions of the principal "a
 - `rightsChanged(change)` of `EventPublisher` starts a check of each open subscription that the change touches. The change is the id of a principal, or a test of the principal. Without it, each open subscription gets a check.
 - The source `recheck.rightsChanges` gets one listener of the publisher while the publisher has an open subscription. Each call of the listener is a call of `rightsChanged()`.
 - `recheck.maxAge` starts a check when this time passed after the last check. The time is on the clock of the publisher. A `ProcedureServer` gives its own clock to the publisher that it makes. The option has no default.
-- While a check runs, the events of the subscription wait.
+- While a check runs, the events of the subscription wait in its queue. The option `buffer` (default 1024) limits the queue, so a slow check holds at most that number of events. When the queue is full, the oldest event goes, and the next event tells the loss (`dropped`).
 - When the check passes, the subscription continues with the events that waited.
 - When the check refuses, the subscription ends with the error of the check, for example `FORBIDDEN` with the reason `topic-not-allowed`. The events that waited do not reach the subscriber.
 - When the resolver refuses the partition at the check, the subscription ends with `FORBIDDEN` and the reason `partition-not-allowed`. When the resolver gives another partition, the subscription ends in the same way. The subscriber then subscribes to the new partition.

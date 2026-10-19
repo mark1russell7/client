@@ -77,7 +77,8 @@ export interface EventPublisherOptions {
   allow?: ((topic: string, call: TopicCall) => boolean) | undefined;
   /**
    * The number of events that one subscription holds for a slow subscriber. When the queue is
-   * full, the publisher drops the oldest event.
+   * full, the publisher drops the oldest event. The events that wait for a re-check (roadmap
+   * CLI-44) are in the same queue, so a slow check holds at most this number of events too.
    * @default 1024
    */
   buffer?: number | undefined;

@@ -207,6 +207,40 @@ describe("the re-check of the admission of an open subscription (CLI-44)", () =>
     expect(bus.subscriberCount("collections.notes.t2")).toBe(0);
   });
 
+  it("holds at most buffer events during a slow check: the oldest go, and the next event tells the loss", async () => {
+    const clock = fakeClock();
+    const bus = createEventBus();
+    // The resolver of the partition answers at once at the start, and waits at the re-check
+    let slow = false;
+    let release: () => void = () => undefined;
+    const repository: RepositoryProvider = {
+      getStorage: () => {
+        throw new Error("the subscriptions read no storage");
+      },
+      hasCollection: (name) => name === "notes",
+      hasPartitions: (name) => name === "notes",
+      resolvePartition: () => (slow ? new Promise<string>((resolve) => (release = () => resolve("t1"))) : "t1"),
+    };
+    const publisher = new EventPublisher({ bus, topics: ["collections.*"], buffer: 3, clock, recheck: { maxAge: seconds(60) } });
+    const sub = await subscribe(publisher, bus, ["collections.notes"], ann, repository);
+    slow = true;
+    await clock.advance(60_000);
+
+    // The check waits: 10 events arrive, and the queue keeps the newest 3
+    for (let n = 1; n <= 10; n++) bus.emit("collections.notes.t1", n);
+    expect(publisher.subscriptions).toBe(1);
+    release();
+    expect(await sub.next()).toMatchObject({ type: "event", data: 8, seq: 8, dropped: 7 });
+    expect(await sub.next()).toMatchObject({ type: "event", data: 9, seq: 9 });
+    expect(await sub.next()).toMatchObject({ type: "event", data: 10, seq: 10 });
+    // The check passed: the subscription continues, with the timer of the next max age
+    expect(clock.pending).toBe(1);
+    bus.emit("collections.notes.t1", 11);
+    expect(await sub.next()).toMatchObject({ data: 11, seq: 11 });
+    sub.stop();
+    expect(clock.pending).toBe(0);
+  });
+
   it("a ProcedureServer gives its clock to the publisher that it makes from its option events", async () => {
     const clock = fakeClock();
     const bus = createEventBus();
