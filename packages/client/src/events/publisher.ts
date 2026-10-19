@@ -26,7 +26,7 @@
 
 import { z } from "zod";
 import { createProcedure } from "../procedures/define.js";
-import { InvocationError } from "../procedures/invoke.js";
+import { InvocationError, type Invocation } from "../procedures/invoke.js";
 import { capabilityRefusal } from "../procedures/capability.js";
 import { collectionChangeTopic, collectionTopicReads } from "../procedures/collection/changes.js";
 import { collectionTopicTarget, partitionOfCall } from "../procedures/collection/partition.js";
@@ -177,6 +177,8 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
     private readonly onClose: (subscription: TopicSubscription) => void,
     /** The output filter of the host for this subscriber: each row of a value passes it */
     private readonly admit: ((item: unknown) => Promise<boolean>) | undefined,
+    /** The invocation of the subscription: the rule of the rows of a value gets it (roadmap CLI-41) */
+    private readonly invocation?: Invocation | undefined,
   ) {
     this.confirmation = { type: "subscribed", topics: routes.map(([topic]) => topic) };
     // Before, clear() removed the listeners, and the subscriber saw no end (EVENTS.md)
@@ -214,12 +216,13 @@ class TopicSubscription implements AsyncIterableIterator<EventItem> {
 
   /**
    * The item of an event for the subscriber. The rows of its data pass the output filter of the
-   * host for this subscriber, and the subscriber gets only the admitted rows.
+   * host for this subscriber and the rule of the rows, and the subscriber gets only the admitted rows.
    */
   private deliver(event: Extract<EventItem, { type: "event" }>): Promise<IteratorResult<EventItem>> {
     const item = this.withDropped(event) as Extract<EventItem, { type: "event" }>;
-    if (!this.admit || !rowsOf(item.data)) return Promise.resolve({ value: item, done: false });
-    return admittedValue(item.data, this.admit).then((data): IteratorResult<EventItem> => ({ value: { ...item, data }, done: false }));
+    const rows = rowsOf(item.data);
+    if (!rows || (!this.admit && !rows.admit)) return Promise.resolve({ value: item, done: false });
+    return admittedValue(item.data, this.admit, this.invocation).then((data): IteratorResult<EventItem> => ({ value: { ...item, data }, done: false }));
   }
 
   /** The event with the number of events that the publisher dropped before it. */
@@ -407,7 +410,7 @@ export class EventPublisher {
     }
     const routes: Array<readonly [string, string]> = [];
     for (const topic of unique) routes.push([topic, await this.busTopic(topic, ctx)]);
-    const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit);
+    const subscription = new TopicSubscription(this.bus, routes, this.buffer, ctx.signal, (closed) => this.open.delete(closed), ctx.admit, ctx.invocation);
     this.open.add(subscription);
     return subscription.closeIfAborted();
   }

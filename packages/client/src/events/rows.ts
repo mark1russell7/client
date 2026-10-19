@@ -7,7 +7,12 @@
  * reaches a subscriber only through the same filter as a read.
  *
  * The rows are on a symbol key, so they stay in this process: JSON does not take them.
+ *
+ * The rows can have a rule of their own too (`admit`): the rule of the rows of a collection
+ * (roadmap CLI-41). Each subscriber applies it after the filter of the host, with the invocation
+ * of its subscription.
  */
+import type { AdmitItem, Invocation } from "../procedures/invoke.js";
 
 /** The rows of a published value, and the function that makes the value of the admitted rows. */
 export interface PublishedRows {
@@ -15,6 +20,8 @@ export interface PublishedRows {
   readonly rows: readonly unknown[];
   /** This function gives the value for a subscriber: `admitted[i]` tells if row `i` stays. */
   keep(admitted: readonly boolean[]): unknown;
+  /** The rule of the rows themselves, with the invocation of the subscription. A row stays only when it gives true. */
+  readonly admit?: AdmitItem | undefined;
 }
 
 /** The key of the rows of a published value. */
@@ -36,13 +43,19 @@ export function rowsOf(value: unknown): PublishedRows | undefined {
 }
 
 /**
- * The value of a published value for one subscriber: each row passes the filter, and the value
- * keeps the admitted rows. An error of the filter refuses the row. Without rows or a filter, the
- * value stays as it is.
+ * The value of a published value for one subscriber: each row passes the filter of the host and
+ * the rule of the rows, and the value keeps the admitted rows. An error of a filter refuses the
+ * row. A rule of the rows refuses each row of a subscription without an invocation. Without rows,
+ * or without a filter and a rule, the value stays as it is.
  */
-export async function admittedValue(value: unknown, admit: ((item: unknown) => Promise<boolean>) | undefined): Promise<unknown> {
+export async function admittedValue(value: unknown, admit: ((item: unknown) => Promise<boolean>) | undefined, invocation?: Invocation): Promise<unknown> {
   const rows = rowsOf(value);
-  if (!rows || !admit) return value;
-  const admitted = await Promise.all(rows.rows.map((row) => admit(row).catch(() => false)));
+  const own = rows?.admit;
+  if (!rows || (!admit && !own)) return value;
+  const admits = async (row: unknown): Promise<boolean> => {
+    if (admit && !(await admit(row))) return false;
+    return !own || (invocation !== undefined && (await own(row, invocation)) === true);
+  };
+  const admitted = await Promise.all(rows.rows.map((row) => admits(row).catch(() => false)));
   return rows.keep(admitted);
 }

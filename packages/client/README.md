@@ -673,6 +673,7 @@ http.listen(4820);
 - The error codes are the codes of wire v1. A stopped handler answers `UNAVAILABLE` (503, retryable). A refused browser request answers `FORBIDDEN` (403) with a reason: `origin-not-allowed`, `host-header-not-allowed`, `method-not-allowed` or `media-type-not-allowed`.
 - An `OPTIONS` request gets 204 and starts no procedure.
 - `cors: { origin: ["https://app.example"], credentials: true }` lets a page of that origin call with its cookies. A list or a function of origins sends `Access-Control-Allow-Credentials: true` by default.
+- An origin that the CORS does not permit gets no `Access-Control-*` header. With a list or a function of origins, each response gets `Vary: Origin`.
 - `secretHeaders` names more headers that carry a secret, for example `X-Jarvis-Token`. `secretQuery` names the query parameters that carry a secret. Its default is `["token"]`. These values go into the credentials of the request, not into its metadata.
 - `handler.middleware` mounts the handler in Connect or Express. A request outside `basePath` goes to `next`.
 - The handler has the stop parts of a service transport: `start()`, `stopIntake()`, `drain(deadline, signal)`, `inFlight()` and `close()`. It does not make a server and does not listen.

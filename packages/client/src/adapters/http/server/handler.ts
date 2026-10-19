@@ -72,7 +72,9 @@ export interface ProcedureHandlerOptions extends BrowserGuardOptions {
   readonly addressing?: Addressing | undefined;
   /**
    * The CORS headers of the requests on the path. `true` uses the defaults: each origin, without
-   * credentials. The permitted origins of the browser checks follow the CORS origins.
+   * credentials. The permitted origins of the browser checks follow the CORS origins. An origin
+   * that the CORS does not permit gets no `Access-Control-*` header. With a list or a function of
+   * origins, each response gets `Vary: Origin`.
    * @default false
    */
   readonly cors?: boolean | CorsOptions | undefined;
@@ -286,8 +288,9 @@ export function createProcedureHandler(server: RequestHandler, options: Procedur
   const clock = options.clock ?? realClock;
   const corsOptions: CorsOptions | undefined = options.cors === true ? {} : options.cors === false ? undefined : options.cors;
   // A list of origins or a function: the default sends the credentials. "*" with credentials is invalid.
+  // An origin that is not permitted gets no CORS header, and each response still varies by the origin (CLI-56)
   const cors: CorsPolicy | undefined =
-    corsOptions === undefined || compat.corsOutside ? undefined : corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*");
+    corsOptions === undefined || compat.corsOutside ? undefined : { ...corsPolicy(corsOptions, (corsOptions.origin ?? "*") !== "*"), permittedOnly: true };
   const guard: BrowserGuardOptions = {
     allowedOrigins: options.allowedOrigins ?? corsOrigins(corsOptions),
     allowedHosts: options.allowedHosts,

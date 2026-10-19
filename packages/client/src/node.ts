@@ -33,7 +33,9 @@ export { procedureHandler } from "./adapters/http/server/handler.js";
 // The JSON body of a request, read to a limit: the procedure handler and the MCP face read it so (CLI-35)
 export { readJsonBody, BodyError } from "./adapters/http/server/body.js";
 export type { ProcedureHandlerOptions, NodeProcedureHandler, NodeUrlStrategy, UrlRequest } from "./adapters/http/server/handler.js";
-export type { CorsOptions } from "./adapters/http/server/cors.js";
+export type { CorsOptions, CredentialedCorsOptions } from "./adapters/http/server/cors.js";
+// The credentialed CORS of the trusted origins of a host, for a route of the app (CLI-49)
+export { credentialedCors } from "./adapters/http/server/cors.js";
 export type { RoutedRequest } from "./adapters/http/server/strategies.js";
 export { defaultServerUrlStrategy, rpcServerUrlStrategy } from "./adapters/http/server/strategies.js";
 // The addressing of a request: the URL (the default), or the path in the body of a single endpoint (CLI-31)

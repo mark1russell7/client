@@ -22,6 +22,7 @@
 - [Text from outside the host](#text-from-outside-the-host)
 - [The result of a tool](#the-result-of-a-tool)
 - [The transport](#the-transport)
+- [The face of a procedures host](#the-face-of-a-procedures-host)
 - [The procedures of this package](#the-procedures-of-this-package)
 - [Set up Claude](#set-up-claude)
 
@@ -324,6 +325,35 @@ await server.start();
 - `toolFilter` selects the tools: `include` (a function of the path), `pathPrefix`, `includeTags`, `excludeTags` and `excludeInternal`.
 - `transport: "http"` with `httpOptions` gives Streamable HTTP. `sdkTransport` connects an MCP SDK transport.
 - `transport: "sse"` is not implemented.
+
+## The face of a procedures host
+
+`mcpFace()` gives the MCP face of a procedures host (`createProcedureHost()` of `@procedures/peer`). The face serves Streamable HTTP at a path of a listener of the host, next to the other faces.
+
+```typescript
+import { mcpFace } from "@procedures/mcp-server";
+
+const faces = {
+  http: true,
+  mcp: mcpFace({ serverInfo: { name: "graph", version: "0.1.0" } }),
+  // A read-only MCP face of the same server
+  mcpRead: mcpFace({ path: "/mcp-read", serverInfo: { name: "graph", version: "0.1.0" }, narrowing: { effects: { writes: [] } } }),
+};
+```
+
+| Option | Default | Function |
+|---|---|---|
+| `path` | `/mcp` | The path of the endpoint. |
+| `token` | the token of the policy | The token that each request sends as `Authorization: Bearer <token>`. |
+| `allowedOrigins` | the origins of the policy | The browser origins that can send requests to the endpoint. |
+| `narrowing` | none | A narrower capability for each call of the face, as a `CapabilityRequest` or a list of them. |
+
+The face adds `narrowing` to each call as one more source of the narrowing key (`procedure-narrowing`). Thus the server applies the meet of all the sources: the capability of the policy, the request hook and the key of the caller.
+
+- The read-only mode is `{ effects: { writes: [] } }`. The face then lists and starts only the tools that change nothing, as `mark mcp --read-only` does.
+- A narrowing can only narrow. A part that asks for more than the policy gives has no effect.
+- The face lists only the tools that the narrowed capability permits. The time of a narrowing limits each call, not the tools.
+- A narrowing that is not valid stops the factory with an error. Examples are an unknown field and a clearance outside the order of the policy.
 
 ## The procedures of this package
 

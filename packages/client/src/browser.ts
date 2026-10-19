@@ -131,6 +131,9 @@ export {
   PARTITION_PATTERN,
   collectionTopicPartition,
   collectionTopicTarget,
+  // The rules of the rows of a collection (roadmap CLI-41)
+  admittedStorage,
+  admitsRow,
   // The query language of the collection storages (roadmap CLI-14, CLI-34)
   DEFAULT_FIND_LIMIT,
   DEFAULT_QUERY_OPERATORS,
@@ -282,6 +285,10 @@ export type {
   StorageQueryPolicy,
   CollectionProceduresOptions,
   CollectionChangeEventsOptions,
+  CollectionAdmission,
+  CollectionRow,
+  CollectionWrite,
+  CollectionWriteGuard,
   CollectionPartitions,
   PartitionInput,
   PartitionResolver,
