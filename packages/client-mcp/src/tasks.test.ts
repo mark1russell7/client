@@ -4,14 +4,14 @@
  * in-memory transport.
  */
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { z } from "zod";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { CallToolResultSchema, CreateTaskResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createProcedure, defineModule, type AnyProcedure, type ProcedureContext } from "@procedures/client";
 import { createMcpHost, type McpHostOptions } from "./host.js";
-import { McpTaskStore } from "./tasks.js";
+import { MCP_TASK_LIMITS, McpTaskStore } from "./tasks.js";
 
 const NONE = { reads: [], writes: [] };
 
@@ -213,11 +213,16 @@ describe("a tool call as a task", () => {
   });
 
   it("keeps a task whose work runs past its ttl: the limit and the cancel still apply", async () => {
+    // The fake clock moves with real time, so the polls work, and the test moves it past the ttl at once
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    cleanups.push(async () => {
+      vi.useRealTimers();
+    });
     const { client, host, seen } = await start({ tasks: { maxRunning: 1 } });
     const created = await startTask(client, "crawl.wait", 1000);
     expect(created.ttl).toBe(1000);
     await until(() => seen.started === 1);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    await vi.advanceTimersByTimeAsync(5000);
     expect((await client.experimental.tasks.getTask(created.taskId)).status).toBe("working");
     expect((await startTask(client, "crawl.wait")).status).toBe("failed");
     expect((await client.experimental.tasks.cancelTask(created.taskId)).status).toBe("cancelled");
@@ -256,6 +261,55 @@ describe("a tool call as a task", () => {
 });
 
 describe("McpTaskStore", () => {
+  const request = { method: "tools/call", params: { name: "crawl.site" } };
+
+  it("removes a task when its ttl passes after the end of its work", async () => {
+    vi.useFakeTimers();
+    try {
+      const store = new McpTaskStore();
+      const task = await store.createTask({ ttl: 2000 }, 1, request);
+      await store.storeTaskResult(task.taskId, "completed", { content: [] });
+      // The work has not settled yet: the task stays
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(await store.getTask(task.taskId)).not.toBeNull();
+      store.settle(task.taskId);
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(await store.getTask(task.taskId)).not.toBeNull();
+      await vi.advanceTimersByTimeAsync(2);
+      expect(await store.getTask(task.taskId)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a refused task for 1 minute, whatever ttl the client asks for", async () => {
+    const store = new McpTaskStore({ maxRunning: 1 });
+    await store.createTask({ ttl: 86_400_000 }, 1, request);
+    const refused = await store.createTask({ ttl: 86_400_000 }, 2, request);
+    expect(store.refusal(refused.taskId)).toMatch(/its limit/);
+    expect(refused.ttl).toBe(MCP_TASK_LIMITS.refusedTtlMs);
+    await store.close();
+  });
+
+  it("keeps at most 100 tasks for a session: a new task removes the oldest task that ended", async () => {
+    const store = new McpTaskStore();
+    const ids: string[] = [];
+    for (let count = 0; count < MCP_TASK_LIMITS.maxStoredPerSession; count++) {
+      const task = await store.createTask({}, count, request, "s1");
+      await store.storeTaskResult(task.taskId, "completed", { content: [] }, "s1");
+      store.settle(task.taskId);
+      ids.push(task.taskId);
+    }
+    const other = await store.createTask({}, 0, request, "s2");
+    // The other session has room of its own: nothing of s1 goes
+    expect(await store.getTask(ids[0]!, "s1")).not.toBeNull();
+    await store.createTask({}, 100, request, "s1");
+    expect(await store.getTask(ids[0]!, "s1")).toBeNull();
+    expect(await store.getTask(ids[1]!, "s1")).not.toBeNull();
+    expect(await store.getTask(other.taskId, "s2")).not.toBeNull();
+    await store.close();
+  });
+
   it("refuses a limit below 1", () => {
     expect(() => new McpTaskStore({ maxRunning: 0 })).toThrow(RangeError);
   });

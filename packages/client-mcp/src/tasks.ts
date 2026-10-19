@@ -14,7 +14,9 @@
  *   limit is created, and then fails at once with the reason. The SDK 1.32.1 cannot give an error
  *   for a task request, so the client reads the reason in the result of the task.
  * - The time to keep a task (`ttl`) starts when the task ends. The store never removes a task
- *   whose work runs, so a short `ttl` does not let work escape the limit or the cancel.
+ *   whose work runs, so a short `ttl` does not let work escape the limit or the cancel. A refused
+ *   task stays 1 minute, and each session keeps at most 100 tasks: a new task removes the oldest
+ *   task of its session that ended.
  * - A cancel of a task (`tasks/cancel`) aborts the signal of its procedure call. The close of a
  *   session cancels its tasks, and the stop of the host cancels each task.
  *
@@ -40,6 +42,10 @@ export const MCP_TASK_LIMITS = {
   maxRunning: 8,
   /** The tasks on one page of `tasks/list`. */
   pageSize: 10,
+  /** A refused task and its reason stay for this time: 1 minute. */
+  refusedTtlMs: 60_000,
+  /** The most tasks that the store keeps for one session. A new task removes the oldest task of its session that ended. */
+  maxStoredPerSession: 100,
 } as const;
 
 /** A task whose work did not end, as a status page of the host shows it. */
@@ -74,8 +80,6 @@ export interface McpTasksOptions extends McpTaskStoreOptions {
 
 interface Entry {
   readonly task: Task;
-  readonly request: Request;
-  readonly requestId: RequestId;
   readonly sessionId: string | undefined;
   readonly tool: string;
   readonly controller: AbortController;
@@ -138,6 +142,22 @@ export class McpTaskStore implements TaskStore {
     entry.timer.unref?.();
   }
 
+  /**
+   * This method removes the oldest tasks of a session that ended, until the session has room for
+   * one more task. A task whose work runs stays: the limit of the running tasks bounds them.
+   */
+  private makeRoom(sessionId: string | undefined): void {
+    const own = [...this.entries.values()].filter((entry) => entry.sessionId === sessionId);
+    let excess = own.length + 1 - MCP_TASK_LIMITS.maxStoredPerSession;
+    for (const entry of own) {
+      if (excess <= 0) break;
+      if (!entry.settled || !TERMINAL.has(entry.task.status)) continue;
+      if (entry.timer) clearTimeout(entry.timer);
+      this.entries.delete(entry.task.taskId);
+      excess--;
+    }
+  }
+
   /** The count of the tasks whose work runs. */
   private runningCount(): number {
     let count = 0;
@@ -146,8 +166,9 @@ export class McpTaskStore implements TaskStore {
   }
 
   /** The store counts and inserts a task in one step, so a batch of requests cannot pass the limit. */
-  async createTask(params: CreateTaskOptions, requestId: RequestId, request: Request, sessionId?: string): Promise<Task> {
+  async createTask(params: CreateTaskOptions, _requestId: RequestId, request: Request, sessionId?: string): Promise<Task> {
     if (this.closed) throw new McpError(ErrorCode.InvalidRequest, "The MCP host is stopping: it starts no task");
+    this.makeRoom(sessionId);
     const running = this.runningCount();
     const refused =
       running >= this.maxRunning ? `The host runs ${String(running)} tasks, its limit. Wait for a task to end, or cancel one.` : undefined;
@@ -156,7 +177,7 @@ export class McpTaskStore implements TaskStore {
     const task: Task = {
       taskId: randomUUID(),
       status: "working",
-      ttl: Math.min(Math.max(MCP_TASK_LIMITS.minTtlMs, asked), MCP_TASK_LIMITS.maxTtlMs),
+      ttl: refused !== undefined ? MCP_TASK_LIMITS.refusedTtlMs : Math.min(Math.max(MCP_TASK_LIMITS.minTtlMs, asked), MCP_TASK_LIMITS.maxTtlMs),
       createdAt,
       lastUpdatedAt: createdAt,
       pollInterval: params.pollInterval ?? MCP_TASK_LIMITS.pollMs,
@@ -164,8 +185,6 @@ export class McpTaskStore implements TaskStore {
     const name = (request.params as { name?: unknown } | undefined)?.name;
     this.entries.set(task.taskId, {
       task,
-      request,
-      requestId,
       sessionId,
       tool: typeof name === "string" ? name : request.method,
       controller: new AbortController(),

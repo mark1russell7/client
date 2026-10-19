@@ -1076,9 +1076,10 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 31 names
+## ./node (dist/node.d.ts): 33 names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
+BodyError: dist/adapters/http/server/body.d.ts#BodyError
 type BodyPathAddressingOptions: dist/adapters/http/server/addressing.d.ts#BodyPathAddressingOptions
 type CallAddress: dist/adapters/http/server/addressing.d.ts#CallAddress
 type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
@@ -1105,6 +1106,7 @@ type WriteNdjsonStreamOptions: dist/adapters/http/server/ndjson.d.ts#WriteNdjson
 bodyPathAddressing: dist/adapters/http/server/addressing.d.ts#bodyPathAddressing
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 procedureHandler: dist/adapters/http/server/handler.d.ts#procedureHandler
+readJsonBody: dist/adapters/http/server/body.d.ts#readJsonBody
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
 upgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#upgradeHandler
 urlAddressing: dist/adapters/http/server/addressing.d.ts#urlAddressing
@@ -1723,6 +1725,15 @@ export declare function bodyPathAddressing(options?: BodyPathAddressingOptions):
 
 ### dist/adapters/http/server/addressing.d.ts#urlAddressing
 export declare function urlAddressing(options?: UrlAddressingOptions): Addressing;
+
+### dist/adapters/http/server/body.d.ts#BodyError
+export declare class BodyError extends Error {
+    readonly httpStatus: number;
+    constructor(message: string, httpStatus: number);
+}
+
+### dist/adapters/http/server/body.d.ts#readJsonBody
+export declare function readJsonBody(req: IncomingMessage, limit: number): Promise<unknown>;
 
 ### dist/adapters/http/server/cors.d.ts#CorsOptions
 export interface CorsOptions {

@@ -127,32 +127,47 @@ export function createHttpTransport(
 
   /** This function starts a session for an `initialize` request whose body it read. */
   const open = async (req: IncomingMessage, res: ServerResponse, body: unknown): Promise<void> => {
-    // The limit counts the sessions and the new sessions without an id; the awaits below cannot pass it
-    while (sessions.size + pending > maxSessions) {
-      if (!(await evict())) {
-        refuse(res, 503, "SESSIONS_FULL", "Each session of the server is busy (a task, a call or a stream): try again later", {
-          "retry-after": String(MCP_HTTP_LIMITS.retryAfterSeconds),
-        });
-        return;
-      }
-    }
-    const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id) => {
-        sessions.set(id, transport);
-        lastUsed.set(id, Date.now());
-        track(id, res);
-      },
-      // The SDK reads the body of each later request of the session to the same limit
-      maxRequestBodySize: maxBodyBytes,
-    });
-    transport.onclose = () => {
-      if (transport.sessionId) forget(transport.sessionId);
+    // The limit counts the sessions and the new sessions without an id, so the awaits below cannot
+    // pass it. A new session leaves `pending` when it gets its id, or when it gets no session
+    pending++;
+    let counted = true;
+    const release = (): void => {
+      if (!counted) return;
+      counted = false;
+      pending--;
     };
-    await connect(transport);
-    await transport.handleRequest(req, res, body);
-    // The SDK refused the initialize (406, 415, or a batch with another message): no session, so the server closes
-    if (!transport.sessionId) await transport.close().catch(() => undefined);
+    let transport: StreamableHTTPServerTransport | undefined;
+    try {
+      while (sessions.size + pending > maxSessions) {
+        if (!(await evict())) {
+          refuse(res, 503, "SESSIONS_FULL", "Each session of the server is busy (a task, a call or a stream): try again later", {
+            "retry-after": String(MCP_HTTP_LIMITS.retryAfterSeconds),
+          });
+          return;
+        }
+      }
+      const created: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (id) => {
+          release();
+          sessions.set(id, created);
+          lastUsed.set(id, Date.now());
+          track(id, res);
+        },
+        // The SDK reads the body of each later request of the session to the same limit
+        maxRequestBodySize: maxBodyBytes,
+      });
+      transport = created;
+      created.onclose = () => {
+        if (created.sessionId) forget(created.sessionId);
+      };
+      await connect(created);
+      await created.handleRequest(req, res, body);
+    } finally {
+      release();
+      // No session started (the SDK refused the initialize with 406 or 415, or connect threw): the server closes
+      if (transport && !transport.sessionId) await transport.close().catch(() => undefined);
+    }
   };
 
   /**
@@ -173,25 +188,20 @@ export function createHttpTransport(
       await transport.handleRequest(req, res);
       return;
     }
-    pending++;
+    let body: unknown;
     try {
-      let body: unknown;
-      try {
-        body = await readJsonBody(req, maxBodyBytes);
-      } catch (error) {
-        const status = error instanceof BodyError ? error.httpStatus : 400;
-        refuse(res, status, status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST", error instanceof Error ? error.message : String(error));
-        return;
-      }
-      const initializes = Array.isArray(body) ? body.some((message) => isInitializeRequest(message)) : isInitializeRequest(body);
-      if (!initializes) {
-        refuse(res, 400, "BAD_REQUEST", "No session: the first request of a session is initialize, or give the mcp-session-id header");
-        return;
-      }
-      await open(req, res, body);
-    } finally {
-      pending--;
+      body = await readJsonBody(req, maxBodyBytes);
+    } catch (error) {
+      const status = error instanceof BodyError ? error.httpStatus : 400;
+      refuse(res, status, status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST", error instanceof Error ? error.message : String(error));
+      return;
     }
+    const initializes = Array.isArray(body) ? body.some((message) => isInitializeRequest(message)) : isInitializeRequest(body);
+    if (!initializes) {
+      refuse(res, 400, "BAD_REQUEST", "No session: the first request of a session is initialize, or give the mcp-session-id header");
+      return;
+    }
+    await open(req, res, body);
   };
 
   const handle = (req: IncomingMessage, res: ServerResponse): boolean => {
