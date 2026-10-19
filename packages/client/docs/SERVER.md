@@ -346,7 +346,7 @@ Each face sets the credentials of its requests, or the local marker `LOCAL_CREDE
 
 - The local faces are MCP over stdio, an SDK transport of `McpServerTransport` and `PortTransport`.
 - A network face never sets the marker. The key of the marker is a symbol, so a request from the network cannot carry it.
-- A server with a token refuses a request without credentials with `UNAUTHORIZED`. A direct `handle()` of the application gives `credentials: LOCAL_CREDENTIALS`.
+- A server with a token or a request hook refuses a request without credentials with `UNAUTHORIZED`. The hook does not operate for it. A direct `handle()` of the application gives `credentials: LOCAL_CREDENTIALS`.
 
 ### Cookies and CSRF
 

@@ -53,8 +53,9 @@ export interface ServerRequest<TReq = unknown> {
    * the cookies, the headers and the query. A local face sets `LOCAL_CREDENTIALS` (CLI-1). They are
    * not in the metadata, so a handler and a nested call do not see them.
    *
-   * A server with a token refuses a request without credentials with `UNAUTHORIZED` (CLI-1).
-   * Before, such a request skipped the token check.
+   * A server with a token or a request hook (`principalOf`) refuses a request without credentials
+   * with `UNAUTHORIZED`, and the hook does not run (CLI-1). Before, such a request skipped the
+   * token check and the hook.
    */
   credentials?: Credentials | undefined;
 

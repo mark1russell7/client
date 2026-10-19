@@ -736,7 +736,7 @@ Each face sets the credentials of its requests, or the local marker `LOCAL_CREDE
 
 - The local faces are MCP over stdio, an SDK transport of `McpServerTransport` and `PortTransport`. The peer of stdio is the parent process. Only the holder of the other end of a port can send to it.
 - A network face never sets the marker: HTTP, WebSocket, and MCP over Streamable HTTP. The key of the marker is a symbol, so JSON, a header, a cookie or a query cannot carry it.
-- A server with a token refuses a request without credentials with `UNAUTHORIZED`. Before, such a request skipped the token.
+- A server with a token or a request hook refuses a request without credentials with `UNAUTHORIZED`. The hook does not operate for it. Before, such a request skipped the token and the hook.
 - A call of the code of the application to `server.handle()` sets the marker itself:
 
 ```typescript

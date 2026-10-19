@@ -123,7 +123,7 @@ The server reads the credentials of each network request. They go to the request
 - The request hook can give the bearer token from a cookie, a header or the query, for example `?token=<token>`. A WebSocket connection gives the credentials of its upgrade to each call, and its `?token=` query is a bearer token.
 - A local face sets the local marker `LOCAL_CREDENTIALS` in place of credentials (CLI-1). The local faces are a direct `handle()` of the application, MCP over stdio and `PortTransport`. The request hook and the token check do not apply to a local request.
 - The key of the marker is a symbol. JSON, a header, a cookie and a query cannot carry it. Thus a network request cannot claim to be local.
-- A server with a token refuses a request without credentials and without the marker. The error code is `UNAUTHORIZED` (CLI-1). Before, such a request passed as a request of this process.
+- A server with a token or a request hook refuses a request without credentials and without the marker. The error code is `UNAUTHORIZED` (CLI-1). The hook does not operate for it. Before, such a request passed as a request of this process.
 
 ### The addressing of a request
 

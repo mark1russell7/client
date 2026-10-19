@@ -1,6 +1,6 @@
 /**
- * The local marker of credentials (CLI-1). A server with a token refuses a request without
- * credentials: before, such a request skipped the token. Each local face sets the marker
+ * The local marker of credentials (CLI-1). A server with a token or a request hook refuses a
+ * request without credentials: before, such a request skipped the token and the hook. Each local face sets the marker
  * (`LOCAL_CREDENTIALS`), and the token does not apply to it. A network face never sets it, and no
  * part of a network request (a header, a cookie, the query, the body, the metadata, a WebSocket
  * upgrade, a port frame) can carry it: the key of the marker is a symbol.
@@ -87,10 +87,22 @@ describe("a request without credentials (CLI-1)", () => {
   it("is refused with UNAUTHORIZED by a server with a token", async () => {
     const response = await server({ token: TOKEN }).handle(request());
     expect(response.status).toMatchObject({ type: "error", code: "UNAUTHORIZED", retryable: false });
-    expect(response.status.type === "error" && response.status.message).toMatch(/requires its token/);
+    expect(response.status.type === "error" && response.status.message).toMatch(/has no credentials/);
   });
 
-  it("passes a server without a token, as before", async () => {
+  it("is refused with UNAUTHORIZED by a server with a request hook and no token, and the hook does not run", async () => {
+    let hookCalls = 0;
+    const value = server({ principalOf: () => (hookCalls++, { principal: { id: "someone", via: "hook" } }) });
+    const response = await value.handle(request());
+    expect(response.status).toMatchObject({ type: "error", code: "UNAUTHORIZED", retryable: false });
+    expect(hookCalls).toBe(0);
+    // A request with credentials goes through the hook, and a local request skips it
+    expect((await value.handle(request({}))).payload).toEqual({ principal: "someone" });
+    expect((await value.handle(request(LOCAL_CREDENTIALS))).payload).toEqual({ principal: null });
+    expect(hookCalls).toBe(1);
+  });
+
+  it("passes a server without a token and without a request hook, as before", async () => {
     const response = await server().handle(request());
     expect(response.payload).toEqual({ principal: null });
   });

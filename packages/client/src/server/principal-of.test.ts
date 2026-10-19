@@ -238,13 +238,16 @@ describe("principalOf: the admit path (CLI-2a)", () => {
     }
   });
 
-  it("does not call the hook for a local request, or for a request without credentials", async () => {
+  it("does not call the hook for a local request, and refuses a request without credentials (CLI-1)", async () => {
     let calls = 0;
     const value = server({ principalOf: () => (calls++, {}) });
     expect((await value.handle(request(LOCAL_CREDENTIALS))).status.type).toBe("success");
-    // Without a token, a request without credentials passes, as before (CLI-1 refuses it only with a token)
-    expect((await value.handle(request())).status.type).toBe("success");
+    // A server with a hook and no token refuses a request without credentials, and the hook does not run
+    expect((await value.handle(request())).status).toMatchObject({ type: "error", code: "UNAUTHORIZED" });
     expect(calls).toBe(0);
+    // A request with credentials goes through the hook, as before
+    expect((await value.handle(request({}))).status.type).toBe("success");
+    expect(calls).toBe(1);
   });
 
   it("runs authenticate after the hook: authenticate reads the principal of the hook", async () => {
