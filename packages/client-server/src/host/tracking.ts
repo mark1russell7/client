@@ -11,6 +11,7 @@
  *   repeatable procedure, a call with an idempotency key, or a call that runs one time.
  * - Each call is a stream (D4). A unary call is a stream of one. A stream call stays in flight
  *   until its last item, and a cut after the first item ends the stream in-band, with an error.
+ *   The code of that error is `UNAVAILABLE`. Its flag `retryable` tells if a retry is safe (CLI-48).
  */
 
 import type { Lifecycle, Operation, OperationOf, RequestEnd, RequestEvent, RouteRequest } from "@mark1russell7/service";
@@ -114,11 +115,15 @@ function endResponse(id: string, end: RequestEnd): ServerResponse {
 /**
  * The error of an end after the first item: the stream ends in-band, with an error line. The count
  * of the items of the stream goes in the message. The head of the response is not an item.
+ *
+ * The code is always `UNAVAILABLE`, because the server stopped the stream. A cut is not a failure
+ * of the server. The flag `retryable` tells if a retry is safe (CLI-48). Before, a cut that is not
+ * retryable had the code `INTERNAL_ERROR`.
  */
 function inBandEnd(end: Extract<RequestEnd, { kind: "refused" | "cut" }>): Error {
   const delivered = Math.max(0, end.delivered - 1);
   return Object.assign(new Error(`The host stopped the stream after ${delivered} items: ${end.cause}`), {
-    code: end.retryable ? "UNAVAILABLE" : "INTERNAL_ERROR",
+    code: "UNAVAILABLE",
     retryable: end.retryable,
     delivered,
   });

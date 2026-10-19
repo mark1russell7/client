@@ -215,7 +215,7 @@ createProcedure()
 - The hints of a tool (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) come from the declared `effects` of its procedure.
 - `metadata.toolHints` of a procedure can make its tool look more dangerous than its effects. Refer to [Hint overrides](#hint-overrides).
 - `metadata.title` of a procedure gives the `title` of its tool.
-- A failed call gives `isError` with the code and the reason in `_meta`.
+- A failed call gives `isError` with the code, the flag `retryable` and the reason in `_meta`. A failed stream gives its code and its flag too (CLI-48).
 - The host option `content` can give other text blocks for a result that is a value. It gets the tool, the value and the default content, and it gives undefined for the default.
 - The host option `json: "compact"` gives the JSON of the default blocks on one line. Use it in place of a content hook for that change only.
 
