@@ -304,7 +304,13 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     const name = `c${++next}`;
     const lease = 50;
     // The writes of this storage stall past the lease, as a slow process does (another database
-    // object: another queue of writes, as in another process)
+    // object: another queue of writes, as in another process). The stall is a gate that the test
+    // opens, not a time: the order of the steps is the same on a slow machine (CLI-53). The lease
+    // is the time of the server ($$NOW), so the test still waits past it, from a known start.
+    let reached!: () => void;
+    const atWrite = new Promise<void>((resolve) => (reached = resolve));
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
     const slowDb = new Proxy(db, {
       get(target, prop) {
         if (prop === "collection") {
@@ -314,7 +320,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
             return new Proxy(real, {
               get(collection, key) {
                 const value = Reflect.get(collection, key, collection) as unknown;
-                if (key === "bulkWrite") return async (...args: unknown[]) => (await sleep(200), (value as (...a: unknown[]) => unknown).apply(collection, args));
+                if (key === "bulkWrite") return async (...args: unknown[]) => (reached(), await gate, (value as (...a: unknown[]) => unknown).apply(collection, args));
                 return typeof value === "function" ? value.bind(collection) : value;
               },
             });
@@ -329,11 +335,20 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     await fast.set("a", { n: 1 });
     const start = await fast.getChangesSince();
     const late = slow.set("late", { n: 2 });
-    await sleep(lease * 2);
-    await fast.set("b", { n: 3 });
-    // The lease of the slow write ended: the watermark passed its number
-    const passed = await fast.getChangesSince(start.version);
-    expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
+    // The slow write has its pending number (it reaches its write after the number), and it waits at
+    // the gate. A wait of more than the lease from here ends the lease on the server, also when the
+    // machine is slow: a longer wait only makes it surer.
+    let passed: Awaited<ReturnType<typeof fast.getChangesSince>>;
+    try {
+      await atWrite;
+      await sleep(lease * 3);
+      await fast.set("b", { n: 3 });
+      // The lease of the slow write ended: the watermark passed its number, and its write waits still
+      passed = await fast.getChangesSince(start.version);
+      expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
+    } finally {
+      open(); // a failed step never leaves the slow write at the gate
+    }
     await late;
     const after = await fast.getChangesSince(passed.version);
     expect(after.changed.map(([id]) => id)).toEqual(["late"]);
