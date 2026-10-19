@@ -1,7 +1,8 @@
-import { useState, type ReactElement } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { LiveHero } from "../components/LiveHero";
 import { mcpTools, metrics, packages, procedures } from "../data";
 import { href } from "../lib/router";
+import { newerVersion } from "../lib/versions";
 
 // The examples come from the data, so they stay true (deep dive SITE-13: the page said that MCP
 // gives git.status, but git.* is not a tool)
@@ -9,9 +10,24 @@ const cliExample =
   procedures.find((procedure) => procedure.key === "git.status" && procedure.cli) ?? procedures.find((procedure) => procedure.cli);
 const mcpExample = ["docker.ps", "cue.validate"].find((key) => mcpTools.includes(key)) ?? mcpTools[0] ?? "";
 
-/** The install command: npm when the library is on the registry, else a clone of the repository. */
-const install = metrics.npm.version
-  ? { command: `npm install ${metrics.npm.name}`, note: `Version ${metrics.npm.version} on npm.` }
+/**
+ * The install command: npm when the library is on the registry, else a clone of the repository.
+ * The build can run before npm has the newest version of the changelogs, so the note shows the
+ * newer of the two. The note links to the release history.
+ */
+const npmVersion = metrics.npm.version ? newerVersion(metrics.npm.version, metrics.release?.version) : null;
+const install: { command: string; note: ReactNode } = npmVersion
+  ? {
+      command: `npm install ${metrics.npm.name}`,
+      note: (
+        <>
+          <a href={`${href("status")}#releases`} title="The release history of the packages">
+            Version {npmVersion} on npm
+          </a>
+          .
+        </>
+      ),
+    }
   : { command: "git clone https://github.com/mark1russell7/client", note: "The npm packages come soon. Until then, build the monorepo with pnpm." };
 
 const HOSTS: Array<{ name: string; how: string; detail: string }> = [
@@ -238,8 +254,11 @@ export function Home(): ReactElement {
             </p>
           </a>
           <a className="panel explore-card" href={href("status")}>
-            <h3>The status board →</h3>
-            <p className="small">Each finding of the October deep dive and each bug of the July audit, with its status and its commits.</p>
+            <h3>Releases and status →</h3>
+            <p className="small">
+              Each release on npm with its changes, each finding of the October deep dive and each bug of the July audit, with its
+              commits.
+            </p>
           </a>
         </div>
       </section>

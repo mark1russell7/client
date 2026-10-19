@@ -24,6 +24,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readCoreFields } from "./core-fields.mjs";
 import { readStatusData } from "./status-data.mjs";
+import { readReleases } from "./releases-data.mjs";
 import { docModuleName, readDocs } from "./docs-data.mjs";
 import { countTests, npmVersion } from "./site-metrics.mjs";
 
@@ -250,6 +251,17 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// The releases: the changelog of each package, and the dates from git (scripts/releases-data.mjs)
+// ---------------------------------------------------------------------------
+
+let releases;
+try {
+  releases = readReleases(PACKAGES, SITE, (message) => process.stderr.write(`gen-data: ${message}\n`));
+} catch (error) {
+  fail(`the releases cannot be read from the changelogs. ${error?.message ?? error}`);
+}
+
+// ---------------------------------------------------------------------------
 // The docs pages (scripts/docs-data.mjs): the guides, the documents of the client library and
 // the README of each package, as HTML. A program block can run when the browser has its procedures.
 // ---------------------------------------------------------------------------
@@ -276,10 +288,13 @@ write("packages", packages.sort((a, b) => a.level - b.level || a.dir.localeCompa
 // The measured numbers of the home page (scripts/site-metrics.mjs)
 const tests = countTests(PACKAGES);
 const npm = { name: "@procedures/client", version: await npmVersion("@procedures/client") };
-const metrics = { tests: tests.tests, testFiles: tests.files, npm };
+// The newest version of the changelogs: the build can run before npm has it
+const newest = releases.releases[0];
+const metrics = { tests: tests.tests, testFiles: tests.files, npm, release: newest ? { version: newest.version, date: newest.date } : null };
 
 write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });
 write("status", status);
+write("releases", releases);
 // The list of the docs pages goes with the routes; the content of each page and the headings for
 // the command palette load only with the page and the palette.
 write("docs-index", docs.index);
@@ -298,6 +313,7 @@ log(
     `(${procedures.filter((p) => p.cli).length} in the CLI, ${procedures.filter((p) => p.mcp).length} MCP tools, ` +
     `${procedures.filter((p) => p.browser).length} in the browser), ` +
     `${status.findings.length} findings and ${status.roadmap.length} roadmap items on the status board, ` +
+    `${releases.releases.length} releases, ` +
     `${docs.index.length} docs pages (${docs.index.reduce((sum, doc) => sum + doc.programs, 0)} program blocks), ` +
     `${metrics.tests} tests in ${metrics.testFiles} files, npm: ${npm.version ?? "not published"}` +
     (failed.length ? `, ${failed.length} packages failed to load: ${failed.map((f) => f.package).join(", ")}` : ""),

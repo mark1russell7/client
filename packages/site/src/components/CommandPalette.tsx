@@ -46,7 +46,7 @@ const PAGES: Array<{ page: string; label: string; hint: string }> = [
   { page: "architecture", label: "Architecture", hint: "The journey of one call, and the packages" },
   { page: "lab", label: "Middleware lab", hint: "Break a server and watch the middlewares" },
   { page: "claude", label: "What Claude sees", hint: "The MCP tools of Claude Code" },
-  { page: "status", label: "Status board", hint: "The findings and the bugs, with their fixes" },
+  { page: "status", label: "Releases and status", hint: "The releases, the findings and the bugs, with their fixes" },
 ];
 
 /** The headings of each docs page, for the search (`scripts/docs-data.mjs`). */

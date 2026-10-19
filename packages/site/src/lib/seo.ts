@@ -91,8 +91,8 @@ function fixedPages(): PageMeta[] {
     ),
     page(
       "status",
-      "Bug and finding status board",
-      "The status of each finding of the October 2026 deep dive and each bug of the July audit, with its severity and the commits that fixed it.",
+      "Releases and status board",
+      "Each release of the packages with its changes, and the status of each finding of the October 2026 deep dive and each bug of the July audit.",
     ),
     page(
       "docs",

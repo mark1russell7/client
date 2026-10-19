@@ -6,9 +6,10 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { InlineMarkdown } from "../components/InlineMarkdown";
+import { Releases } from "../components/Releases";
 import type { CommitLink, Finding, FindingStatus, RoadmapItem, Severity } from "../data";
 import { status } from "../data/status";
-import { href, writeUrl, type Route } from "../lib/router";
+import { href, safeDecode, writeUrl, type Route } from "../lib/router";
 
 // ---------------------------------------------------------------------------
 // Statuses and severities
@@ -274,6 +275,13 @@ export function Status({ route }: { route: Route }): ReactElement {
     setFilters(filtersOf(route));
   }, [route]);
 
+  // A link with an anchor ("status/#releases") goes to its section, also after a navigation of the site.
+  // It runs before the next effect, which can write the URL without the anchor
+  useEffect(() => {
+    const id = safeDecode(window.location.hash.slice(1));
+    if (id) document.getElementById(id)?.scrollIntoView();
+  }, [route]);
+
   // The filters change the URL without a new history entry
   useEffect(() => {
     writeUrl(href("status", undefined, queryOf(filters)), "replace");
@@ -302,9 +310,14 @@ export function Status({ route }: { route: Route }): ReactElement {
     <div className="status-page">
       <h1>Status</h1>
       <p className="lead-text">
-        The status of each finding of the October deep dive, of the architecture roadmap and of the July bug register. The
-        build reads the status documents of the repository, so this page shows what they say.
+        The releases of the packages, and the status of each finding of the October deep dive, of the architecture roadmap and
+        of the July bug register. The build reads the changelogs and the status documents of the repository, so this page shows
+        what they say.
       </p>
+
+      <Releases />
+
+      <h2 id="deep-dive-title">The October deep dive</h2>
 
       <div className="stat-tiles">
         <div className="stat-tile">
