@@ -18,6 +18,7 @@
 - [A host under the runner](#a-host-under-the-runner)
 - [Questions to the person](#questions-to-the-person)
 - [Progress and cancel](#progress-and-cancel)
+- [Tasks](#tasks)
 - [Text from outside the host](#text-from-outside-the-host)
 - [The result of a tool](#the-result-of-a-tool)
 - [The transport](#the-transport)
@@ -103,13 +104,21 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 |---|---|
 | `stdio: true` | The standard input and output. Over stdio, `console.log` writes to stderr from `start()` on, because stdout carries the protocol. |
 | `stdio: { stdin, stdout, stopOnEnd, redirectConsole }` | Other streams, for a test or an embedding. With `stopOnEnd: true` (the default), the host stops when the input ends. |
-| `http: { mount: true, path, token, allowedOrigins }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. |
+| `http: { mount: true, path, token, allowedOrigins, allowedHosts, maxSessions, maxBodyBytes }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. |
 | `http: { port, host, path, token, allowedOrigins }` | Deprecated. The face has a listener of its own, on `127.0.0.1` by default. The next MINOR removes it (CLI-11). |
 | `sdk` | One or more MCP SDK transports, for example the `InMemoryTransport` of a test. |
 
 When the client closes the input of stdio, the host stops, and `closed` resolves.
 
 Each tool call over Streamable HTTP carries the credentials of its HTTP request: the bearer token, the cookies, the headers and the query. Thus the request hook of the policy (`principalOf`) and the token check of the server apply to each call. When the server reads cookies, the face trusts a request with a cookie only from a named origin (CSRF). A call over stdio comes from this process and has no credentials.
+
+The Streamable HTTP face checks each request with `guardMcpRequest` before the request reaches the MCP SDK. The owner of another listener calls the same function.
+
+- A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
+- With a token, each request sends `Authorization: Bearer <token>`. The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
+- Only an `initialize` request starts a session. Thus a stray POST makes no MCP server. The body of each request has a limit of 4 MiB (`maxBodyBytes`).
+- The sessions have no limit by default. With `maxSessions`, a new session above the limit closes the session that was idle longest: no task in progress and no open response (a call or a GET stream). When each session is busy, the new session gets 503 with a `Retry-After` header. A client that sends to a closed session gets 404, and a client of the MCP specification then sends a new `initialize`.
+- `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
 
 ## A host under the runner
 
@@ -215,6 +224,34 @@ handler: async (input, ctx) => {
 - The function does not reject. A client that is gone does not stop the call.
 - A stream does not need it: the face gives each item of a stream as progress. When the procedure of a stream uses `ctx.progress`, the face gives only those updates.
 - When the client cancels a call (`notifications/cancelled`), `ctx.signal` of the procedure aborts.
+
+## Tasks
+
+A long call can run as an MCP task (MCP 2025-11-25). The client gets a task at once, polls its status, gets the result later, and can cancel the task. Two parts turn it on:
+
+- The procedure declares it in its metadata: `taskSupport: "optional"` (a task or a normal call) or `taskSupport: "required"` (only a task).
+- The host has a task store: the option `tasks`.
+
+```typescript
+const crawlSite = createProcedure()
+  .path(["crawl", "site"])
+  .meta({ description: "Crawl a site", effects: { reads: ["net"], writes: ["store"] }, taskSupport: "optional" })
+  // input, output and handler as for each procedure
+  .build();
+
+const host = createMcpHost({ modules: [crawlModule], tasks: { maxRunning: 4 } });
+await host.start();
+host.tasks?.running(); // the tasks that did not end, for a status page
+```
+
+- The tool list gives `execution.taskSupport` of each such tool. Without the option `tasks`, the list does not give it, and each call is a normal request.
+- A progress of the procedure becomes the status message of its task, for example `2 of 5 done`. The message holds only the counts, so no text of the work leaves its envelopes. A client that sent a progress token also gets the progress notifications.
+- A cancel of the task (`tasks/cancel`) aborts `ctx.signal` of the procedure. The close of a session cancels its tasks, and the stop of the host cancels each task.
+- The store runs at most `maxRunning` tasks at one time (8 by default). A task holds its place until its procedure returns, also after a cancel. A task above the limit starts, and then fails at once. The result of the task gives the reason. (The SDK 1.32.1 cannot give an error for a task request.)
+- The time to keep a task (`ttl`) starts when the task ends. The store does not remove a task whose procedure still runs.
+- The call of a task cannot ask the person: the procedure gets no `ctx.elicit`.
+- A normal call of an optional tool runs in the request, with the progress and the cancel of the request. A normal call of a tool with `taskSupport: "required"`, or a task for a tool without task support, gets the error `-32601`.
+- To share one store with other parts, give `tasks: { store: new McpTaskStore({ maxRunning: 4 }) }`. The host closes only a store that it made.
 
 ## Text from outside the host
 

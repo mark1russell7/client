@@ -56,6 +56,18 @@ describe("McpHost.declare", () => {
     return expect(stdio.start()).rejects.toThrow("run() of the service starts it");
   });
 
+  it("closes the task store of the host in the close of the runner part (CLI-35)", async () => {
+    const parts: McpRunnerPart[] = [];
+    const host = createMcpHost({ modules: [testModule], faces: { http: { mount: true } }, tasks: {} });
+    host.declare({ server: (_name, _knobs, impl) => parts.push(impl), dependency: () => undefined, trigger: () => undefined });
+    await parts[0]!.start(new AbortController().signal, undefined);
+    const store = host.tasks!;
+    await parts[0]!.close();
+    await host.closed;
+    // The store closed: it starts no task
+    await expect(store.createTask({}, 1, { method: "tools/call", params: { name: "test.echo" } })).rejects.toThrow(/stopping/);
+  });
+
   it("declares no trigger without a stdio face", () => {
     const calls: string[] = [];
     const host = createMcpHost({ modules: [testModule], faces: { http: { mount: true } } });

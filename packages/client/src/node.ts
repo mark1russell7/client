@@ -30,6 +30,8 @@ export type { WebSocketTransportOptions, WebSocketClass } from "./adapters/webso
 export { writeNdjsonStream } from "./adapters/http/server/ndjson.js";
 export type { WriteNdjsonStreamOptions, NdjsonError } from "./adapters/http/server/ndjson.js";
 export { procedureHandler } from "./adapters/http/server/handler.js";
+// The JSON body of a request, read to a limit: the procedure handler and the MCP face read it so (CLI-35)
+export { readJsonBody, BodyError } from "./adapters/http/server/body.js";
 export type { ProcedureHandlerOptions, NodeProcedureHandler, NodeUrlStrategy, UrlRequest } from "./adapters/http/server/handler.js";
 export type { CorsOptions, CredentialedCorsOptions } from "./adapters/http/server/cors.js";
 // The credentialed CORS of the trusted origins of a host, for a route of the app (CLI-49)
