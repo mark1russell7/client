@@ -76,6 +76,11 @@
     "vitest": "^5.0.3"
   },
   "client": {
-    "procedures": "./dist/register.js"
+    "procedures": "./dist/register.js",
+    "browser": [
+      ".",
+      "./module",
+      "./register"
+    ]
   }
 }

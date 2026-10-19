@@ -57,7 +57,11 @@
   "engines": {
     "node": ">=22"
   },
-  "client": null,
+  "client": {
+    "browser": [
+      "./browser"
+    ]
+  },
   "dependencies": {
     "@better-auth/passkey": "^1.7.10",
     "@procedures/client": "workspace:*",

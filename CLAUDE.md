@@ -67,6 +67,8 @@ Decision D13 sets these rules. The section "Releases of the server stack" of the
 - The command makes `packages/<name>` with the `cue-config` files, `src/module.ts`, `src/register.ts` and the `client.procedures` field.
 - `src/module.ts` holds the procedures as data. Only `src/register.ts`, the `./register` entry, registers them in the global registry.
 - An import of a package root or of `./module` must register nothing. `scripts/check-side-effects.mjs` fails when one does.
+- A package that runs in a browser lists its browser entries in `client.browser` of its `package.json`.
+- `scripts/check-browser-entries.mjs` fails when one of these entries reaches a Node built-in, with or without the prefix `node:`.
 - To make a procedure, start `node packages/mark/dist/cli.js procedure new <name> --path packages/<package>`.
 - This repository has no `pnpm package add` command. Use `lib new` for each new package.
 - To examine all packages, start `node packages/mark/dist/cli.js lib audit`.

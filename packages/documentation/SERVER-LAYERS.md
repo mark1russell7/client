@@ -99,7 +99,7 @@ The engine owns:
 
 The limits of the engine:
 
-- It must not import `node:` modules in the root or in `./browser`. `HttpServerTransport` and `WebSocketServerTransport` move to `./node` (CLI-6).
+- It must not import a Node built-in in the root or in `./browser`, with or without the prefix `node:`. `HttpServerTransport` and `WebSocketServerTransport` move to `./node` (CLI-6). `scripts/check-browser-entries.mjs` examines `./browser` at this time, and the root after CLI-6 (CLI-39).
 - It must not install signal handlers, use `process.exit` or own a port.
 - It must not copy the drain of the runner with its own raw timers. It uses the deadline and the signal that it gets, and the clock.
 

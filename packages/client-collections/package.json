@@ -51,6 +51,11 @@
     "CHANGELOG.md"
   ],
   "sideEffects": false,
+  "client": {
+    "browser": [
+      "."
+    ]
+  },
   "engines": {
     "node": ">=22"
   },
