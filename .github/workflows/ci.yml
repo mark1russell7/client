@@ -142,6 +142,29 @@ jobs:
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
 
+  lifecycle:
+    # The real hosts stop under run() of @mark1russell7/service (roadmap CI-2). The test starts the
+    # built procedure-server and mark --server, and sends SIGTERM in the middle of an NDJSON stream.
+    # It examines the in-band end of the stream, the 503 and the refused connection of the drain,
+    # the exit code and the time to the exit. It measures times, so it runs only in this job.
+    name: Host lifecycle (SIGTERM in a stream)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # mark and its dependencies: @procedures/server, and the procedure packages of mark --server
+      - run: pnpm --filter "@procedures/mark..." build
+      - name: SIGTERM in the middle of a stream
+        run: pnpm --filter @procedures/server exec vitest run --config vitest.e2e.config.ts
+
   coverage:
     name: Coverage (the floors only go up)
     runs-on: ubuntu-latest
