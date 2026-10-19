@@ -271,6 +271,8 @@ An error of a handler with a code of its own keeps that code on each face, for a
 - A code of the table gets the status of the table.
 - Another code of `ERROR_REGISTRY` gets the status of the registry, for example 409 for `CONFLICT`.
 - Each other code gets the status 500.
+- An error with `retryable: false` does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
+- An error of a handler without a retryable flag gets the flag of its code in this table, or false. Thus `UNAVAILABLE` without a flag is retryable and gets 503.
 
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|
@@ -298,6 +300,8 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
 
+The column "Retryable" gives the default flag of a code. An error can have another flag. A call that the shutdown of a host cuts ends with `UNAVAILABLE` on each face, before or after its first item. Its flag is false when the call can have had its effect (CLI-48). Before its first item, the HTTP status of such a cut is then 500.
+
 ### The reasons of FORBIDDEN
 
 A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body has the field `reason` too.
@@ -320,7 +324,7 @@ A deadline that passed before the procedure started gives the code `TIMEOUT`, no
 
 ## MCP
 
-The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code` and `reason`.
+The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. The error of a stream also has `_meta` with `code` and `retryable` (CLI-48).
 
 - The name of a tool is the path with dots, for example `notes.list`, or the name of the option `toolName`. A path of one segment has its segment as its name, for example `morning`.
 - Each tool name names one procedure. Two procedures can have one name after the join, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then the face leaves out the two tools and writes the reason to stderr. Thus a call does not reach the wrong procedure.

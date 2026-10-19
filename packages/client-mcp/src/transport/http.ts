@@ -23,7 +23,10 @@ import type { HttpTransportOptions } from "../types.js";
 
 /** The HTTP endpoint of an MCP server, with a session for each client. */
 export interface McpHttpTransport {
-  /** This function starts to listen, when the endpoint has a server of its own. It gives the URL, or the path of a mounted endpoint. */
+  /**
+   * This function starts to listen, when the endpoint has a server of its own. It gives the URL, or the path of a mounted endpoint.
+   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11): then the endpoint is always mounted.
+   */
   listen(): Promise<string>;
   /**
    * This function answers a request of the path of the endpoint and gives true. It gives false for

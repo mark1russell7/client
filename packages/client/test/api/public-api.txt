@@ -108,11 +108,11 @@ type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
 type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
-HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
-type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+HttpServerTransport: dist/server/index.d.ts#HttpServerTransport
+type HttpServerTransportOptions: dist/server/index.d.ts#HttpServerTransportOptions
 HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
 type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
-type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+type HttpUrlStrategy: dist/server/index.d.ts#HttpUrlStrategy
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
@@ -316,11 +316,11 @@ WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
-type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
-type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
-type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
-WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
-type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+type WebSocketAuthHandler: dist/server/index.d.ts#WebSocketAuthHandler
+type WebSocketConnectionHandler: dist/server/index.d.ts#WebSocketConnectionHandler
+type WebSocketMessage: dist/server/index.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/server/index.d.ts#WebSocketServerTransport
+type WebSocketServerTransportOptions: dist/server/index.d.ts#WebSocketServerTransportOptions
 WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
 WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
@@ -1076,7 +1076,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 33 names
+## ./node (dist/node.d.ts): 36 names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
 type BodyPathAddressingOptions: dist/adapters/http/server/addressing.d.ts#BodyPathAddressingOptions
@@ -1084,6 +1084,9 @@ type CallAddress: dist/adapters/http/server/addressing.d.ts#CallAddress
 type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
 type CorsOptions: dist/adapters/http/server/cors.d.ts#CorsOptions
 type CredentialedCorsOptions: dist/adapters/http/server/cors.d.ts#CredentialedCorsOptions
+HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
+type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
 type NdjsonError: dist/adapters/http/server/ndjson.d.ts#NdjsonError
 type NodeProcedureHandler: dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
 type NodeUpgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
@@ -1607,9 +1610,9 @@ wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
-HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
-type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
-type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+HttpServerTransport: dist/server/index.d.ts#HttpServerTransport
+HttpServerTransportOptions: dist/server/index.d.ts#HttpServerTransportOptions
+HttpUrlStrategy: dist/server/index.d.ts#HttpUrlStrategy
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -1634,11 +1637,11 @@ type StopParts: dist/server/procedure-server.d.ts#StopParts
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
-type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
-type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
-type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
-WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
-type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+WebSocketAuthHandler: dist/server/index.d.ts#WebSocketAuthHandler
+WebSocketConnectionHandler: dist/server/index.d.ts#WebSocketConnectionHandler
+WebSocketMessage: dist/server/index.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/server/index.d.ts#WebSocketServerTransport
+WebSocketServerTransportOptions: dist/server/index.d.ts#WebSocketServerTransportOptions
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
@@ -5207,6 +5210,32 @@ export interface HostSource {
 
 ### dist/server/host-procedures.d.ts#hostProcedures
 export declare function hostProcedures(source: HostSource): AnyProcedure[];
+
+### dist/server/index.d.ts#HttpServerTransport
+export declare const HttpServerTransport: typeof NodeHttpServerTransport;
+export type HttpServerTransport = NodeHttpServerTransport;
+
+### dist/server/index.d.ts#HttpServerTransportOptions
+export type HttpServerTransportOptions = NodeHttpServerTransportOptions;
+
+### dist/server/index.d.ts#HttpUrlStrategy
+export type HttpUrlStrategy = NodeHttpUrlStrategy;
+
+### dist/server/index.d.ts#WebSocketAuthHandler
+export type WebSocketAuthHandler = NodeWebSocketAuthHandler;
+
+### dist/server/index.d.ts#WebSocketConnectionHandler
+export type WebSocketConnectionHandler = NodeWebSocketConnectionHandler;
+
+### dist/server/index.d.ts#WebSocketMessage
+export type WebSocketMessage<TReq = unknown> = NodeWebSocketMessage<TReq>;
+
+### dist/server/index.d.ts#WebSocketServerTransport
+export declare const WebSocketServerTransport: typeof NodeWebSocketServerTransport;
+export type WebSocketServerTransport = NodeWebSocketServerTransport;
+
+### dist/server/index.d.ts#WebSocketServerTransportOptions
+export type WebSocketServerTransportOptions = NodeWebSocketServerTransportOptions;
 
 ### dist/server/method.d.ts#methodName
 export declare function methodName(method: Pick<Method, "service" | "operation">): string;

@@ -58,7 +58,7 @@ import {
   type StorageQueryPolicy,
   type StorageSelector,
 } from "@procedures/client/query";
-import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client";
+import { optionalMs, realClock, type Cancel, type Clock, type Duration } from "@procedures/client/browser";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import { MemoryQueueStore, idsOf, withoutId, type QueuedOperation, type QueueStore } from "./queue.js";
 import type { SyncError, SyncStatus } from "./types.js";

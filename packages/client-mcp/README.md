@@ -15,6 +15,7 @@
 - [Install](#install)
 - [Start a host](#start-a-host)
 - [The faces](#the-faces)
+- [A host under the runner](#a-host-under-the-runner)
 - [Questions to the person](#questions-to-the-person)
 - [Progress and cancel](#progress-and-cancel)
 - [Text from outside the host](#text-from-outside-the-host)
@@ -101,12 +102,41 @@ Each face is one `McpServerTransport` on the server of the host. A host can have
 |---|---|
 | `stdio: true` | The standard input and output. Over stdio, `console.log` writes to stderr from `start()` on, because stdout carries the protocol. |
 | `stdio: { stdin, stdout, stopOnEnd, redirectConsole }` | Other streams, for a test or an embedding. With `stopOnEnd: true` (the default), the host stops when the input ends. |
-| `http: { port, host, path, token, allowedOrigins }` | Streamable HTTP. The host listens on `127.0.0.1` by default. Without a token, the face takes the token of the policy. |
+| `http: { mount: true, path, token, allowedOrigins }` | Streamable HTTP on a listener of the app. Mount `host.handleHttp` on the listener. Without a token, the face takes the token of the policy. |
+| `http: { port, host, path, token, allowedOrigins }` | Deprecated. The face has a listener of its own, on `127.0.0.1` by default. The next MINOR removes it (CLI-11). |
 | `sdk` | One or more MCP SDK transports, for example the `InMemoryTransport` of a test. |
 
-When the client closes the input of stdio, the host stops, and `closed` resolves. The entry `dist/server.js` of `@procedures/mcp-dev-tools` then ends its process.
+When the client closes the input of stdio, the host stops, and `closed` resolves.
 
 Each tool call over Streamable HTTP carries the credentials of its HTTP request: the bearer token, the cookies, the headers and the query. Thus the request hook of the policy (`principalOf`) and the token check of the server apply to each call. When the server reads cookies, the face trusts a request with a cookie only from a named origin (CSRF). A call over stdio comes from this process and has no credentials.
+
+## A host under the runner
+
+`host.declare(svc)` gives the host to a service of `@mark1russell7/service` (CLI-11). Then `run()` of the service starts the host, owns the signals, stops the host in stages and ends the process. The host does not start or stop by itself.
+
+- The server of the host is the transport part `mcp`. Each storage of the server is a dependency.
+- A host with a stdio face declares the trigger `stdin-close`. The end of the input starts the stop in stages, and the face does not stop the host by itself.
+- The HTTP face (`mount: true`) has no listener. Mount `host.handleHttp` on an `httpTransport` of `@mark1russell7/service/http`, and declare that transport on the service.
+
+```typescript
+import { createServer } from "node:http";
+import { ephemeral, localDev, service } from "@mark1russell7/service";
+import { httpTransport } from "@mark1russell7/service/http";
+
+// Over stdio: the profile ephemeral and the trigger stdin-close
+const stdioHost = createMcpHost({ registry, faces: { stdio: true } });
+await stdioHost.declare(service("my-mcp").profile(ephemeral)).run();
+
+// Over Streamable HTTP: a listener of the service, and the face at /mcp on it
+const httpHost = createMcpHost({ registry, policy: { token }, faces: { http: { mount: true } } });
+const listener = httpTransport(createServer(), knobs, { listen: { port: 3003, host: "127.0.0.1" } });
+listener.mount((req, res) => httpHost.handleHttp(req, res));
+const svc = httpHost.declare(service("my-mcp").profile(localDev));
+svc.server("my-mcp.listen", listener.knobs, listener);
+await svc.run();
+```
+
+The `localDev` profile has no policies of readiness, liveness and startup. Declare them on the service before `run()`. The dev-tools server of `@procedures/mcp-dev-tools` (`runDevToolsServer()`) is an example of each mode.
 
 ## Questions to the person
 
@@ -215,7 +245,7 @@ createProcedure()
 - The hints of a tool (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) come from the declared `effects` of its procedure.
 - `metadata.toolHints` of a procedure can make its tool look more dangerous than its effects. Refer to [Hint overrides](#hint-overrides).
 - `metadata.title` of a procedure gives the `title` of its tool.
-- A failed call gives `isError` with the code and the reason in `_meta`.
+- A failed call gives `isError` with the code, the flag `retryable` and the reason in `_meta`. A failed stream gives its code and its flag too (CLI-48).
 - The host option `content` can give other text blocks for a result that is a value. It gets the tool, the value and the default content, and it gives undefined for the default.
 - The host option `json: "compact"` gives the JSON of the default blocks on one line. Use it in place of a content hook for that change only.
 

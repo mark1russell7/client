@@ -2,7 +2,7 @@
 
 This document is the contract of the server stack. One service runner is in `systems`, one procedures server is in this repository, and the apps use the two. The contract replaces the host ownership brief (decision D14).
 
-- The cross-repo tracker is https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb. Each item ID of this document (`CLI-3`, `SYS-1`, `D9`) is a row of its database.
+- The cross-repo tracker is https://claude.ai/artifact/WtkE3dtHp57qpcs4UvcaVZ. Each item ID of this document (`CLI-3`, `SYS-1`, `D9`) is a row of its database.
 - The client items are also in [ROADMAP-2026-10.md](./ROADMAP-2026-10.md), in the section "The server stack (R37)".
 - A change to a layer, an owner or a rule of this document needs a decision of Mark. Record the decision in the tracker first.
 
@@ -99,7 +99,7 @@ The engine owns:
 
 The limits of the engine:
 
-- It must not import `node:` modules in the root or in `./browser`. `HttpServerTransport` and `WebSocketServerTransport` move to `./node` (CLI-6).
+- It must not import a Node built-in in the root or in `./browser`, with or without the prefix `node:`. `HttpServerTransport` and `WebSocketServerTransport` move to `./node` (CLI-6). `scripts/check-browser-entries.mjs` examines `./browser` at this time, and the root after CLI-6 (CLI-39).
 - It must not install signal handlers, use `process.exit` or own a port.
 - It must not copy the drain of the runner with its own raw timers. It uses the deadline and the signal that it gets, and the clock.
 

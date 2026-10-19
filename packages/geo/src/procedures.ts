@@ -2,7 +2,7 @@
  * The procedures of `@procedures/geo`: `geo.geocode`, `geo.route`, `geo.distance` and `geo.geohash`.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import { z } from "zod";
 import { drivingRoute, geocode, type GeocodeResult, type RouteResult } from "./geo.js";
 import { geoDistance } from "./procedures/geo/distance.js";

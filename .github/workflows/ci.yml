@@ -74,6 +74,12 @@ jobs:
       # Importing a package registers nothing: only its ./register entry does (2026-10-13, P9)
       - name: Check the side effects of the imports
         run: node scripts/check-side-effects.mjs
+      # The browser entries (`client.browser` of each package.json) reach no Node built-in, with
+      # or without the prefix node: (CLI-39). First the tests of the check, then the check.
+      - name: Check the browser entries
+        run: |
+          node --test scripts/check-browser-entries.test.mjs
+          node scripts/check-browser-entries.mjs
       # Each package against the template of `lib new`. The step reads the JSON result, because
       # `mark` exits with 0 also for `success: false` (deep dive CLI-8). A procedure without
       # metadata.effects is a warning annotation: it does not fail the step.
@@ -141,6 +147,29 @@ jobs:
           # The failpoint tests (for example a transaction over its lifetime limit) need the test commands of the replica set
           MONGO_TEST_FAILPOINTS: ${{ matrix.topology == 'replica-set' && '1' || '' }}
         run: pnpm --filter @procedures/mongo exec vitest run src/storage
+
+  lifecycle:
+    # The real hosts stop under run() of @mark1russell7/service (roadmap CI-2). The test starts the
+    # built procedure-server and mark --server, and sends SIGTERM in the middle of an NDJSON stream.
+    # It examines the in-band end of the stream, the 503 and the refused connection of the drain,
+    # the exit code and the time to the exit. It measures times, so it runs only in this job.
+    name: Host lifecycle (SIGTERM in a stream)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # mark and its dependencies: @procedures/server, and the procedure packages of mark --server
+      - run: pnpm --filter "@procedures/mark..." build
+      - name: SIGTERM in the middle of a stream
+        run: pnpm --filter @procedures/server exec vitest run --config vitest.e2e.config.ts
 
   coverage:
     name: Coverage (the floors only go up)
@@ -219,6 +248,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The full history and the tags: the Releases section of the status page reads the date
+          # of each version from git, as the Pages workflow does
+          fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
