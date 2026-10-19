@@ -19,6 +19,7 @@ import { isNetworkError } from "./items.js";
 import { DEADLINE_METADATA_KEY, TIMEOUT_METADATA_KEY } from "../deadline.js";
 import type { ClientContext, ClientMiddleware, ClientRunner, Message, ResponseItem, Transport } from "../types.js";
 import { ms } from "../../duration.js";
+import { fakeClock } from "@mark1russell7/service/testing";
 
 const method = { service: "test", operation: "op" };
 
@@ -626,6 +627,77 @@ describe("rate limit on fake timers", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(messages).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("rate limit on the keyed limiter of the service (CLI-40)", () => {
+  it("reads the time and starts the timer of its queue through the option clock", async () => {
+    const clock = fakeClock();
+    const ran: string[] = [];
+    const { transport } = fake(async function* (message) {
+      ran.push(`${(message.payload as { name: string }).name} ${clock.now()}`);
+      yield ok(message.id, null);
+    });
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 2, window: ms(1000), strategy: "queue", clock }));
+    const calls = ["a", "b", "c"].map((name) => client.call(method, { name }));
+    await Promise.all(calls.slice(0, 2));
+    await clock.advance(0);
+    expect(ran).toEqual(["a 0", "b 0"]);
+    // The queued request waits for the next token on the clock of the option: one timer, no real time
+    expect(clock.pending).toBe(1);
+    await clock.advance(500);
+    await Promise.all(calls);
+    expect(ran).toEqual(["a 0", "b 0", "c 500"]);
+    expect(clock.pending).toBe(0);
+  });
+
+  it("keeps a window of 0 for compatibility: the bucket fills again at each request, so it limits nothing", async () => {
+    const clock = fakeClock();
+    const { transport, messages } = fake(async function* (message) {
+      yield ok(message.id, null);
+    });
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 2, window: ms(0), clock }));
+    for (let n = 0; n < 5; n++) expect(await client.call(method, {})).toBeNull();
+    expect(messages).toHaveLength(5);
+    // The state for the other middlewares: one token used of a full bucket
+    expect(messages[4]?.metadata["rateLimit"]).toEqual({ tokensAvailable: 1, maxTokens: 2, queueSize: 0 });
+    expect(clock.pending).toBe(0);
+  });
+
+  it("keeps a maxRequests below 1 for compatibility: it never lets a request in", async () => {
+    const clock = fakeClock();
+    const { transport, messages } = fake(async function* (message) {
+      yield ok(message.id, null);
+    });
+    for (const maxRequests of [0, -1, 0.5]) {
+      const rejecting = new Client(transport).use(createRateLimitMiddleware({ maxRequests, clock }));
+      await expect(rejecting.call(method, {})).rejects.toBeInstanceOf(RateLimitError);
+    }
+    // In the queue, a request waits without an end, and a timer keeps the process alive
+    const queued = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 0.5, window: ms(1000), strategy: "queue", clock }));
+    const waiting = track(queued.call(method, {}));
+    await clock.advance(10_000);
+    expect(waiting.settled).toBe(false);
+    expect(clock.pending).toBe(1);
+    expect(messages).toHaveLength(0);
+  });
+
+  it("keeps a maxRequests that is not whole for compatibility: a bucket of that size on the same store", async () => {
+    const clock = fakeClock();
+    const ran: number[] = [];
+    const { transport } = fake(async function* (message) {
+      ran.push(clock.now());
+      yield ok(message.id, null);
+    });
+    // 2.5 tokens, and 2.5 more in each second: two requests at once, then one token after 200 ms
+    const client = new Client(transport).use(createRateLimitMiddleware({ maxRequests: 2.5, window: ms(1000), strategy: "queue", clock }));
+    const calls = [1, 2, 3].map(() => client.call(method, {}));
+    await Promise.all(calls.slice(0, 2));
+    await clock.advance(199);
+    expect(ran).toEqual([0, 0]);
+    await clock.advance(1);
+    await Promise.all(calls);
+    expect(ran).toEqual([0, 0, 200]);
   });
 });
 

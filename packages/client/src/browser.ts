@@ -86,6 +86,8 @@ export type { HostSource } from "./server/host-procedures.js";
 export type { ProcedureServerOptions, RegisterProcedureOptions, StorageConfig, StopOptions, UseStorageOptions } from "./server/procedure-server.js";
 // The stop parts of the server and its storages as dependencies, in the shape of the runner (CLI-5)
 export type { StopParts, StorageHandle } from "./server/procedure-server.js";
+// The limits of the calls: keyed limiters of @mark1russell7/service/limiter in the admission path (CLI-40)
+export type { CallLimit, CallLimitCovers, CallLimitKey, CallLimitKeyPart, LimitedCall } from "./server/limits.js";
 export {
   HandlerNotFoundError,
   ServerError,
