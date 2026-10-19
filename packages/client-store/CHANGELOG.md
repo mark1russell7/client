@@ -1,5 +1,24 @@
 # @procedures/store
 
+## 0.14.1
+
+### Patch Changes
+
+- fc968f6: Fixed: `@procedures/geo`, `@procedures/ics` and `@procedures/splay` import `@procedures/client/browser`, not the root of `@procedures/client` (CLI-39). The root also exports `HttpServerTransport`, which imports `http`. Thus a browser build with Vite found `http` and gave a warning. The exports of the packages do not change.
+  
+  New: each package that operates in a browser names its browser entries in the field `client.browser` of its `package.json`. A CI check bundles each of these entries for a browser with esbuild. The check fails when an import reaches a Node built-in, with or without the prefix `node:`. The root of `@procedures/client` joins the check after CLI-6. `@procedures/splay` joins it when `splay.bridge.info` reads its version without `node:fs/promises`.
+- 26a145d: The new entry `@procedures/store/browser` has the parts of the store that run in a browser (roadmap CLI-19). It exports `HybridStorage` with its errors, `ApiStorage`, `EventsChangeFeed` and all of `@procedures/store/indexeddb`. No module of the entry imports a module of Node. The entry does not have `FileProgramStore` or `FileQueueStore`, because they use `node:fs`.
+  
+  `HybridStorage`, `ApiStorage` and `EventsChangeFeed` import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The classes are the same as the classes of the root. PATCH: the change adds an entry, and nothing changes for the existing imports.
+- Updated dependencies [85999c1]
+- Updated dependencies [fc968f6]
+- Updated dependencies [dc7a462]
+- Updated dependencies [e091108]
+- Updated dependencies [073e4c3]
+- Updated dependencies [6969637]
+  - @procedures/client@0.14.1
+  - @procedures/collections@0.14.1
+
 ## 0.14.0
 
 ### Patch Changes
