@@ -79,7 +79,8 @@
   "client": {
     "procedures": "./dist/register.js",
     "browser": [
-      "./indexeddb"
+      "./indexeddb",
+      "./browser"
     ]
   },
   "dependencies": {
