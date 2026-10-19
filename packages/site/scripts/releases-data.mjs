@@ -1,4 +1,4 @@
-// Read the release history of the packages for the Releases section of the status page.
+// Read the release history of the packages for the releases page of the site.
 //
 // The packages of the repository are one fixed version group on npm (`@procedures/*`). Changesets
 // writes a section for each version in the CHANGELOG.md of each package: a `## 0.13.2` heading,
@@ -209,7 +209,7 @@ export function releaseDates(repoDir, versions, warn = () => {}) {
 
 /**
  * The data of the page in two modules. The index has each version with its number of changes,
- * and the changes of the newest version only: the status page shows them first. The other changes
+ * and the changes of the newest version only: the releases page shows them first. The other changes
  * load when the reader selects another version, so the first load of the page stays small.
  */
 export function splitReleases(data) {

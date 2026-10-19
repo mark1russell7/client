@@ -1,17 +1,19 @@
 /**
- * The Releases section of the status page: a timeline of the versions of the `@procedures/*`
- * packages, and the changes of the selected version. `scripts/releases-data.mjs` reads the
- * changelogs and the git tags at build time.
+ * The releases page: a timeline of the versions of the `@procedures/*` packages, and the changes
+ * of the selected version. `scripts/releases-data.mjs` reads the changelogs and the git tags at
+ * build time.
  *
  * The page loads the changes of the newest version only. The changes of the other versions load
  * when the pointer or the focus comes to the timeline, so the first load of the page stays small.
  */
 
+import "../styles/releases.css";
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import type { ReleaseChange, ReleaseEntry, ReleaseKind } from "../data";
 import { releases as data } from "../data/releases";
 import { laneCenter, longDate, oldestFirst, releaseSummary, shortDate, timelineLayout, type TimelineLayout } from "../lib/releases";
-import { InlineMarkdown } from "./InlineMarkdown";
+import { InlineMarkdown } from "../components/InlineMarkdown";
 
 const REPOSITORY = "https://github.com/mark1russell7/client";
 /** The width of the timeline before the page measures it (the prerender measures too). */
@@ -305,7 +307,7 @@ function Details({ release, changes }: { release: ReleaseEntry; changes: Release
   return (
     <div className="panel release-details">
       <div className="release-head">
-        <h3 className="release-version">{release.version}</h3>
+        <h2 className="release-version">{release.version}</h2>
         <span className={info.pill}>{info.label}</span>
         <time className="small muted" dateTime={release.date}>
           {longDate(release.date)}
@@ -349,8 +351,8 @@ export function Releases(): ReactElement {
   const shownChanges = !release ? undefined : changes === "failed" ? data.changes[release.version] : (changes[release.version] ?? null);
 
   return (
-    <section id="releases" className="status-section releases" aria-labelledby="releases-title">
-      <h2 id="releases-title">Releases</h2>
+    <div className="releases-page">
+      <h1>Releases</h1>
       {summary.first && summary.last ? (
         <p className="lead-text">
           {plural(summary.versions, "version")} from {shortDate(summary.first)} to {shortDate(summary.last)}.{" "}
@@ -372,6 +374,9 @@ export function Releases(): ReactElement {
           <Details key={release.version} release={release} changes={shownChanges} />
         </>
       ) : null}
-    </section>
+      <p className="small muted">
+        Source: the <code>CHANGELOG.md</code> of each package and the git tags of the repository, read when the site was built.
+      </p>
+    </div>
   );
 }

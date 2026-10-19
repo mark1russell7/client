@@ -206,7 +206,7 @@ export interface ReleasesData {
   releases: Release[];
 }
 
-/** A version in the data of the status page: its changes load on demand. */
+/** A version in the data of the releases page: its changes load on demand. */
 export interface ReleaseEntry {
   version: string;
   date: string;
@@ -214,7 +214,7 @@ export interface ReleaseEntry {
   changeCount: number;
 }
 
-/** The release data that loads with the status page. */
+/** The release data that loads with the releases page. */
 export interface ReleasesIndex {
   group: string;
   /** The versions, newest first. */

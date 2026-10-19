@@ -21,7 +21,7 @@ const install: { command: string; note: ReactNode } = npmVersion
       command: `npm install ${metrics.npm.name}`,
       note: (
         <>
-          <a href={`${href("status")}#releases`} title="The release history of the packages">
+          <a href={href("releases")} title="The release history of the packages">
             Version {npmVersion} on npm
           </a>
           .
@@ -254,11 +254,8 @@ export function Home(): ReactElement {
             </p>
           </a>
           <a className="panel explore-card" href={href("status")}>
-            <h3>Releases and status →</h3>
-            <p className="small">
-              Each release on npm with its changes, each finding of the October deep dive and each bug of the July audit, with its
-              commits.
-            </p>
+            <h3>The status board →</h3>
+            <p className="small">Each finding of the October deep dive and each bug of the July audit, with its status and its commits.</p>
           </a>
         </div>
       </section>

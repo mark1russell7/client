@@ -294,7 +294,7 @@ const metrics = { tests: tests.tests, testFiles: tests.files, npm, release: newe
 
 write("catalog", { procedures, failed, mcpTools: [...mcpTools].sort(), build, metrics });
 write("status", status);
-// The index and the changes of the newest version load with the status page, the other changes on demand
+// The index and the changes of the newest version load with the releases page, the other changes on demand
 const { index: releaseIndex, changes: releaseChanges } = splitReleases(releases);
 write("releases", releaseIndex);
 write("release-changes", releaseChanges);

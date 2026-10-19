@@ -1,5 +1,5 @@
 /**
- * The Releases section: the parser of the changelogs (`scripts/releases-data.mjs`), the summary
+ * The releases page: the parser of the changelogs (`scripts/releases-data.mjs`), the summary
  * line and the layout of the timeline.
  */
 

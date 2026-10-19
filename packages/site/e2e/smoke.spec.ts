@@ -28,6 +28,7 @@ const PAGES = [
   "claude/",
   "status/",
   "status/?status=open",
+  "releases/",
   "lab/",
   "catalog/git.status/",
   "docs/",
@@ -228,14 +229,14 @@ test.describe("the new pages", () => {
   });
 
   test("the releases timeline selects a version by a click and by the arrow keys", async ({ page }) => {
-    await open(page, "status/#releases");
-    const section = page.locator("section#releases");
-    await expect(section).toBeInViewport();
+    await open(page, "releases/");
+    const section = page.locator(".releases-page");
+    await expect(section.locator("h1")).toHaveText("Releases");
     await expect(section.locator(".lead-text")).toHaveText(/^\d+ versions from \w{3} \d+ to \w{3} \d+\. /);
     const marks = section.getByRole("group", { name: /The release timeline/ }).getByRole("button");
     const count = await marks.count();
     expect(count).toBeGreaterThan(4);
-    const title = section.locator(".release-details h3");
+    const title = section.locator(".release-details h2");
     const versionOf = async (index: number): Promise<string> => ((await marks.nth(index).getAttribute("aria-label")) ?? "").split(",")[0]!;
 
     // The newest version is selected at first, and it is the last mark of the time axis
@@ -274,7 +275,7 @@ test.describe("the new pages", () => {
 
   test("on a phone, the releases timeline scrolls in its box and shows the newest version", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await open(page, "status/");
+    await open(page, "releases/");
     const box = page.locator(".release-scroll");
     const sizes = await box.evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth }));
     expect(sizes.scroll).toBeGreaterThan(sizes.client);
@@ -287,14 +288,18 @@ test.describe("the new pages", () => {
     expect(markRect.x + markRect.width).toBeLessThanOrEqual(boxRect.x + boxRect.width);
   });
 
-  test("the version on the home page links to the releases", async ({ page }) => {
+  test("the version on the home page links to the releases page, and the status page links to it too", async ({ page }) => {
     await open(page, "");
     const link = page.getByRole("link", { name: /^Version \d+\.\d+\.\d+ on npm$/ });
     // Without an answer of npm at build time, the home page shows the clone command and no version
     test.skip((await link.count()) === 0, "The build did not get the version from npm");
     await link.click();
-    await expect(page).toHaveURL(/\/status\/#releases$/);
-    await expect(page.locator("section#releases")).toBeInViewport();
+    await expect(page).toHaveURL(/\/releases\/$/);
+    await expect(page.locator("h1")).toHaveText("Releases");
+    await open(page, "status/");
+    await page.getByRole("main").getByRole("link", { name: "Releases", exact: true }).click();
+    await expect(page).toHaveURL(/\/releases\/$/);
+    await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Releases" })).toHaveAttribute("aria-current", "page");
   });
 
   test("the middleware lab runs a scenario through the real middlewares", async ({ page }) => {

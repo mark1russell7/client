@@ -1,5 +1,5 @@
 /**
- * The Releases section of the status page: the dates, the summary line and the layout of the
+ * The releases page: the dates, the summary line and the layout of the
  * timeline. The timeline is an SVG with one mark for each version on a time axis.
  *
  * The axis has one band for each day with a release. A run of days with no release becomes one

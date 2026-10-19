@@ -39,6 +39,7 @@ export const SECTIONS: Readonly<Record<string, string>> = {
   lab: "Lab",
   claude: "What Claude sees",
   status: "Status",
+  releases: "Releases",
   docs: "Docs",
 };
 
@@ -91,8 +92,13 @@ function fixedPages(): PageMeta[] {
     ),
     page(
       "status",
-      "Releases and status board",
-      "Each release of the packages with its changes, and the status of each finding of the October 2026 deep dive and each bug of the July audit.",
+      "Bug and finding status board",
+      "The status of each finding of the October 2026 deep dive and each bug of the July audit, with its severity and the commits that fixed it.",
+    ),
+    page(
+      "releases",
+      "Releases",
+      "Each release of the @procedures/* packages on a timeline: its date, its kind (MINOR or PATCH) and its changes, from the changelogs.",
     ),
     page(
       "docs",
