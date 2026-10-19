@@ -1,5 +1,21 @@
 # @procedures/bundle-dev
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+  - @procedures/cli-run@0.15.0
+  - @procedures/dag@0.15.0
+  - @procedures/fs@0.15.0
+  - @procedures/git@0.15.0
+  - @procedures/lib@0.15.0
+  - @procedures/pnpm@0.15.0
+  - @procedures/procedure@0.15.0
+  - @procedures/shell@0.15.0
+  - @procedures/compiler@0.15.0
+
 ## 0.14.1
 
 ### Patch Changes

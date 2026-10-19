@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@procedures/cli-run",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "description": "Run any mark CLI command as a procedure (cli.run) with a safe argv mapping: no shell, typed flags and captured output.",
   "keywords": [
     "cli",

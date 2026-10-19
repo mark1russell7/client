@@ -1,5 +1,13 @@
 # @procedures/pdf
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+  - @procedures/shell@0.15.0
+
 ## 0.14.1
 
 ### Patch Changes
