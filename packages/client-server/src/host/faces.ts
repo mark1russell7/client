@@ -12,7 +12,9 @@
  *
  * `httpFace()` and `wsFace()` are the faces of this package, on `procedureHandler` and
  * `upgradeHandler` of `@procedures/client/node`. `mcpFace()` of `@procedures/mcp-server` is the
- * MCP face. A face of another package has the same shape, so the host needs no change for it.
+ * MCP face, and `betterAuthFace()` of `@procedures/better-auth` is the face of the auth routes. A
+ * face of another package has the same shape, so the host needs no change for it. A face of
+ * requests that are not procedure calls tracks them with `track` (CLI-54).
  */
 
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
@@ -20,7 +22,7 @@ import type { Duplex } from "node:stream";
 import type { TransportImpl } from "@mark1russell7/service";
 import { Client, requestCredentials, type BrowserGuardOptions, type Clock, type HostPolicy, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
 import { procedureHandler, upgradeHandler, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
-import type { FaceHandler } from "./tracking.js";
+import type { FaceHandler, HttpTracker } from "./tracking.js";
 
 /** What the host gives a face. */
 export interface HostFaceContext {
@@ -33,6 +35,12 @@ export interface HostFaceContext {
   readonly policy: HostPolicy;
   /** The clock of the host: the clock of the lifecycle. */
   readonly clock: Clock;
+  /**
+   * The request tracking of the HTTP requests of the face that are not procedure calls, for example
+   * the auth routes (CLI-54). Each request goes through `life.request` on the route `<face> <key>`
+   * of the controller of the host. The host always gives it.
+   */
+  readonly track?: HttpTracker | undefined;
 }
 
 /** The upgrade handler of a face, and the path or the function that tells which upgrades it takes. */

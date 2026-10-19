@@ -10,7 +10,7 @@ import type { AddressInfo } from "node:net";
 import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { hostPolicy } from "@procedures/client";
-import { betterAuthConfig, betterAuthFace, betterAuthHandler, type BetterAuthServer } from "./index.js";
+import { betterAuthConfig, betterAuthFace, betterAuthHandler, type AuthRequestTracker, type BetterAuthServer } from "./index.js";
 import { betterAuthOptions } from "./options.js";
 
 /** The origin of the page: the dev port of an app. The server is on another port. */
@@ -174,6 +174,33 @@ describe("betterAuthHandler (CLI-49)", () => {
       expect(response.headers.get("vary")).toBe("Accept-Encoding, Origin");
     }
     expect((await fetch(`${base}/auth/ok`, { headers: { Origin: PAGE } })).headers.get("access-control-allow-origin")).toBe(PAGE);
+  });
+
+  it("sends each request of the routes through the request tracking of the host, and no preflight (CLI-54)", async () => {
+    const tracked: string[] = [];
+    // A tracking of a host: it refuses the key "refused" with 503, as a host does after the stop of its intake
+    const track: AuthRequestTracker = async (req, res, key, serve) => {
+      tracked.push(`${req.method} ${key}`);
+      if (key === "refused") {
+        res.statusCode = 503;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ code: "UNAVAILABLE", retryable: true }));
+        return;
+      }
+      await serve(new AbortController().signal);
+    };
+    const routes = async (request: Request): Promise<Response> => new Response(new URL(request.url).pathname);
+    const policy = hostPolicy({ browser: { allowedOrigins: [PAGE] } });
+    const base = await start(() => betterAuthFace({ handler: routes })({ policy, track }).handler);
+    expect(await (await fetch(`${base}/auth/get-session`, { headers: { Origin: PAGE } })).text()).toBe("/auth/get-session");
+    expect(await (await fetch(`${base}/auth/sign-in/email`, { method: "POST", headers: { Origin: PAGE } })).text()).toBe("/auth/sign-in/email");
+    const preflight = await fetch(`${base}/auth/sign-in/email`, { method: "OPTIONS", headers: { Origin: PAGE, "Access-Control-Request-Method": "POST" } });
+    expect(preflight.status).toBe(204);
+    // The CORS comes before the tracking, so the page can read a refusal
+    const refused = await fetch(`${base}/auth/refused`, { method: "POST", headers: { Origin: PAGE } });
+    expect(refused.status).toBe(503);
+    expect(corsOf(refused)).toMatchObject({ "access-control-allow-origin": PAGE, "access-control-allow-credentials": "true" });
+    expect(tracked).toEqual(["GET get-session", "POST sign-in/email", "POST refused"]);
   });
 
   it("takes only the requests under its path, and gives the middleware of an app", async () => {

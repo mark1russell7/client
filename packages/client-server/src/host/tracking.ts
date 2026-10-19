@@ -13,6 +13,7 @@
  *   until its last item, and a cut after the first item ends the stream in-band, with an error.
  */
 
+import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Lifecycle, Operation, OperationOf, RequestEnd, RequestEvent, RouteRequest } from "@mark1russell7/service";
 import {
   IDEMPOTENCY_KEY_METADATA,
@@ -213,5 +214,87 @@ export function faceHandler(options: FaceHandlerOptions): FaceHandler {
       const life = options.life();
       return life ? trackedCall(life, options, request) : server.handle(request);
     },
+  };
+}
+
+/**
+ * The request tracking of a face whose requests are not procedure calls, for example the auth
+ * routes of an app (CLI-54). The function does the work of one HTTP request through `life.request`,
+ * on the route `<face> <key>` of the controller of the host. Thus the request gets the readiness
+ * of the controller, the refusal after the stop of the intake, and the drain.
+ *
+ * - `serve` writes the response. The request stays in flight until the response closes.
+ * - The operation of the request gives its idempotency. The default: `repeatable` for `GET` and
+ *   `HEAD`, `once` for another method.
+ * - A refusal, a cut before the response starts and an error get a JSON error of wire v1:
+ *   `UNAVAILABLE` (503, retryable) or `INTERNAL_ERROR` (500).
+ * - Without a service, `serve` starts at once.
+ */
+export type HttpTracker = (
+  req: IncomingMessage,
+  res: NodeResponse,
+  key: string,
+  serve: (signal: AbortSignal) => Promise<void> | void,
+  operation?: CallOperation,
+) => Promise<void>;
+
+/** The options of `httpTracker()`. */
+export interface HttpTrackerOptions {
+  /** The controller of the calls in the declaration of the service. */
+  readonly controller: string;
+  /** The name of the face: the first part of the route of each request. */
+  readonly face: string;
+  /** This function gives the lifecycle of the service, or null. Without a lifecycle, each request starts directly. */
+  readonly life: () => Lifecycle | null;
+}
+
+/** This function writes the JSON error of an end of a request, when its response did not start. */
+function writeEnd(res: NodeResponse, end: RequestEnd): void {
+  if (end.kind === "done") return;
+  if (res.headersSent || res.writableEnded) {
+    // The response started: only a close of the connection tells the caller
+    if (!res.writableEnded) res.destroy();
+    return;
+  }
+  const { status } = endResponse("", end);
+  if (status.type !== "error") return;
+  res.statusCode = status.code === "UNAVAILABLE" ? 503 : 500;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify({ error: status.message, code: status.code, retryable: status.retryable }));
+}
+
+/** This function gives the request tracking of one face (CLI-54). */
+export function httpTracker(options: HttpTrackerOptions): HttpTracker {
+  return async (req, res, key, serve, operation) => {
+    // The work ends when the response closes: a handler can end before its body is out
+    const work = (signal: AbortSignal): Promise<true> =>
+      new Promise<true>((resolve, reject) => {
+        if (res.writableFinished || res.destroyed) {
+          resolve(true);
+          return;
+        }
+        res.once("close", () => resolve(true));
+        Promise.resolve()
+          .then(() => serve(signal))
+          .catch(reject);
+      });
+    const life = options.life();
+    if (!life) {
+      try {
+        await work(new AbortController().signal);
+      } catch (error) {
+        writeEnd(res, { kind: "failed", error, delivered: 0 });
+      }
+      return;
+    }
+    const method = (req.method ?? "GET").toUpperCase();
+    const detail: CallDetail = { face: options.face, key, operation: operation ?? (method === "GET" || method === "HEAD" ? "repeatable" : "once") };
+    let end: RequestEnd;
+    try {
+      end = (await life.request<true>(options.controller, `${options.face} ${key}`, work, { detail }).collect()).end;
+    } catch (error) {
+      end = { kind: "failed", error: new Error(`The service of the host has no route for this request: ${messageOf(error)}`), delivered: 0 };
+    }
+    writeEnd(res, end);
   };
 }

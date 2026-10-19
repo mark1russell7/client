@@ -21,6 +21,18 @@ export const AUTH_CORS_METHODS: readonly string[] = Object.freeze(["GET", "POST"
 /** The request headers of a preflight of the auth routes. */
 export const AUTH_CORS_HEADERS: readonly string[] = Object.freeze(["Content-Type", "Authorization"]);
 
+/**
+ * The request tracking of a procedures host: `track` of the context of a face (CLI-54). The
+ * function does the work of one request through the service of the host, on the route
+ * `<face> <key>`. It answers a refusal with 503. The type is structural.
+ */
+export type AuthRequestTracker = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  key: string,
+  serve: (signal: AbortSignal) => Promise<void> | void,
+) => Promise<void>;
+
 /** The options of `betterAuthHandler()`. */
 export interface BetterAuthHandlerOptions {
   /**
@@ -35,6 +47,12 @@ export interface BetterAuthHandlerOptions {
    * `AUTH_CORS_METHODS` and `AUTH_CORS_HEADERS`.
    */
   readonly cors?: CredentialedCorsOptions | undefined;
+  /**
+   * The request tracking of a host (CLI-54). Each request of the routes goes through it, with the
+   * path under `basePath` as its key. A preflight does not. `betterAuthFace()` gives the tracking
+   * of the host. Without it, each request starts directly.
+   */
+  readonly track?: AuthRequestTracker | undefined;
 }
 
 /**
@@ -102,19 +120,29 @@ export function betterAuthHandler(auth: Pick<BetterAuthServer, "handler">, optio
     const path = pathOf(req.url);
     return path === basePath || path.startsWith(prefix);
   };
+  const fail = (res: ServerResponse, error: unknown): void => {
+    if (res.headersSent) {
+      res.destroy(error instanceof Error ? error : new Error(String(error)));
+      return;
+    }
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "The auth routes failed", code: "INTERNAL_ERROR" }));
+  };
+  const { track } = options;
   const serve = (req: IncomingMessage, res: ServerResponse): void => {
     // A preflight ends in the CORS. A request of another origin goes on without CORS headers:
     // the CSRF checks of Better Auth refuse a write of an origin that it does not trust
     if (cors(req, res)) return;
-    routes(req, res).catch((error: unknown) => {
-      if (res.headersSent) {
-        res.destroy(error instanceof Error ? error : new Error(String(error)));
-        return;
-      }
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "The auth routes failed", code: "INTERNAL_ERROR" }));
-    });
+    if (!track) {
+      routes(req, res).catch((error: unknown) => fail(res, error));
+      return;
+    }
+    // The tracking of the host: the request counts until its response closes, and the drain waits
+    // for it. The CORS headers are on the response already, so a page can read a refusal (503).
+    const path = pathOf(req.url);
+    const key = path.length > prefix.length ? path.slice(prefix.length) : "/";
+    track(req, res, key, () => routes(req, res)).catch((error: unknown) => fail(res, error));
   };
   const handler = (req: IncomingMessage, res: ServerResponse): boolean => {
     if (!matches(req)) return false;
@@ -130,9 +158,11 @@ export function betterAuthHandler(auth: Pick<BetterAuthServer, "handler">, optio
   });
 }
 
-/** What the auth face needs of its host: the policy, for its trusted origins. */
+/** What the auth face needs of its host: the policy, for its trusted origins, and the request tracking. */
 export interface BetterAuthFaceContext {
   readonly policy: HostPolicy;
+  /** The request tracking of the host, on the route pattern of the face (`auth *`, CLI-54). */
+  readonly track?: AuthRequestTracker | undefined;
 }
 
 /** The auth face: its request handler and its endpoint, for `host.info`. */
@@ -144,7 +174,9 @@ export interface BetterAuthFace {
 /**
  * This function gives the auth routes as a face of a procedures host (`createProcedureHost()` of
  * `@procedures/peer`). The face takes the trusted origins of the policy of the host
- * (`browser.allowedOrigins`), unless the options give other origins. The types are structural:
+ * (`browser.allowedOrigins`), unless the options give other origins. Each request of the routes
+ * goes through the request tracking of the host (`track`, CLI-54). Thus a request after the stop
+ * of the intake gets 503, and the drain waits for a request in flight. The types are structural:
  * this package does not depend on `@procedures/peer`.
  *
  * @example
@@ -154,7 +186,12 @@ export interface BetterAuthFace {
  */
 export function betterAuthFace(auth: Pick<BetterAuthServer, "handler">, options: BetterAuthHandlerOptions = {}): (context: BetterAuthFaceContext) => BetterAuthFace {
   return (context) => {
-    const handler = betterAuthHandler(auth, { ...options, allowedOrigins: options.allowedOrigins ?? context.policy.browser.allowedOrigins });
+    const track = options.track ?? context.track;
+    const handler = betterAuthHandler(auth, {
+      ...options,
+      allowedOrigins: options.allowedOrigins ?? context.policy.browser.allowedOrigins,
+      ...(track ? { track } : {}),
+    });
     return {
       handler: (req, res) => handler(req, res),
       endpoint: { type: "auth", scheme: "http", path: handler.basePath },

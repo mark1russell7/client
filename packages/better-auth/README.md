@@ -51,7 +51,11 @@ The handler of Better Auth sends no CORS headers. `betterAuthHandler(auth, optio
 - The option `cors` changes the methods, the headers, the exposed headers and `maxAge`. The option `basePath` is `/auth` by default.
 - Mount the handler on the mount list of a listener. For Express, give `handler.middleware` to the app.
 
-`betterAuthFace(auth)` gives the same handler as a face of a procedures host (`createProcedureHost()` of `@procedures/peer`). The face takes `browser.allowedOrigins` of the policy of the host:
+`betterAuthFace(auth)` gives the same handler as a face of a procedures host (`createProcedureHost()` of `@procedures/peer`). The face takes `browser.allowedOrigins` of the policy of the host. Each request of the routes goes through the request tracking of the host, on the route pattern of the face (`auth *`):
+
+- A request after the stop of the intake gets 503, with the CORS headers. Thus the page can read the refusal.
+- The drain waits for a request in flight. Thus a sign-in at the stop writes its session and sends its answer.
+- The readiness of the controller of the host applies: `controller.requires` can name the database of Better Auth.
 
 ```ts
 const policy = hostPolicy({ browser: { allowedOrigins: origins } });

@@ -886,6 +886,9 @@ importers:
       '@mark1russell7/cue':
         specifier: ^1.0.0
         version: 1.0.0
+      '@procedures/better-auth':
+        specifier: workspace:*
+        version: link:../better-auth
       '@procedures/fs':
         specifier: workspace:*
         version: link:../client-fs
