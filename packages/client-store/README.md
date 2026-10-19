@@ -295,7 +295,7 @@ The entry `@procedures/store/browser` has the parts of the store that run in a b
 - `EventsChangeFeed`, the push feed of the remote changes.
 - All of `@procedures/store/indexeddb`: the IndexedDB stores and their fallbacks in memory.
 
-No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry.
+No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry. The entry is in `client.browser` of `package.json`, so the CI check of the browser entries (`scripts/check-browser-entries.mjs`) bundles it for a browser too.
 
 The entry does not have these parts:
 
