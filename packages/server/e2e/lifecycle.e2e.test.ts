@@ -342,11 +342,12 @@ function stopTimes(profile: Profile): { readonly capsMs: number; readonly cooper
   return { capsMs, cooperativeAbortMs: cooperativeAbortAt(msOf(drain.cap), profile.cooperativeWindow, profile.cooperativeFloor) };
 }
 
-/** A stream without an end, and the codes that its in-band end can have. */
+/** A stream without an end, and the code and the retryable flag of its in-band end. */
 interface EndlessStream {
   readonly name: string;
   readonly call: StreamCall;
-  readonly codes: readonly string[];
+  readonly code: string;
+  readonly retryable: boolean;
 }
 
 /** A call in flight at SIGTERM, which ends within the grace of the drain. */
@@ -443,9 +444,9 @@ function examine(scenario: Scenario, outcome: Outcome): void {
     expect(stream.end.reset, `the connection of ${stream.name} reset before its in-band end`).toBeUndefined();
     const last = stream.call.lines.at(-1);
     expect(last?.type, `the last line of ${stream.name}`).toBe("error");
-    expect(stream.codes, `the code of the in-band end of ${stream.name}`).toContain(last?.error?.code);
-    // A retryable end is UNAVAILABLE, and an end that is not retryable is INTERNAL_ERROR
-    expect(last?.error?.retryable).toBe(last?.error?.code === "UNAVAILABLE");
+    // Each cut is UNAVAILABLE: the server stopped. The flag tells if a retry is safe (CLI-48).
+    expect(last?.error?.code, `the code of the in-band end of ${stream.name}`).toBe(stream.code);
+    expect(last?.error?.retryable, `the retryable flag of the in-band end of ${stream.name}`).toBe(stream.retryable);
     const before = stream.call.lines.slice(0, -1);
     expect(before.length).toBeGreaterThan(0);
     before.forEach((line, index) => expect(line).toMatchObject({ type: "item", seq: index + 1 }));
@@ -503,12 +504,10 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
           await Promise.all([ticks.items(1), ticksOnce.items(1)]);
           return [
             // lifecycle.ticks writes nothing: a cut of it is retryable
-            { name: "lifecycle.ticks", call: ticks, codes: ["UNAVAILABLE"] },
-            // lifecycle.ticksOnce declares a write, so a call of it can have had its effect. Before
-            // CLI-48, the in-band end of such a cut is INTERNAL_ERROR (not retryable): main gave
-            // that on 2026-10-19. CLI-48 (release 0.14.0) makes each stream that the shutdown cuts
-            // end with UNAVAILABLE. When CLI-48 is on main, keep only UNAVAILABLE here.
-            { name: "lifecycle.ticksOnce", call: ticksOnce, codes: ["INTERNAL_ERROR", "UNAVAILABLE"] },
+            { name: "lifecycle.ticks", call: ticks, code: "UNAVAILABLE", retryable: true },
+            // lifecycle.ticksOnce declares a write, so a call of it can have had its effect: a retry
+            // is not safe. Before CLI-48 (release 0.14.0), the code of this end was INTERNAL_ERROR.
+            { name: "lifecycle.ticksOnce", call: ticksOnce, code: "UNAVAILABLE", retryable: false },
           ];
         },
         // lifecycle.count ends about 700 ms after its first item: within the grace
@@ -566,7 +565,7 @@ describe.skipIf(process.platform === "win32")("the hosts stop under run(): SIGTE
             clearInterval(change);
           }
           // fs.watch reads files and writes nothing: a cut of it is retryable
-          return [{ name: "fs.watch", call: watch, codes: ["UNAVAILABLE"] }];
+          return [{ name: "fs.watch", call: watch, code: "UNAVAILABLE", retryable: true }];
         },
         // fs.read of the pipe is in flight when the read end of the pipe is open: then an open of
         // the write end without a wait succeeds. The release writes a text and closes the pipe.

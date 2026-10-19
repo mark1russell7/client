@@ -90,5 +90,13 @@
   "TOPIC_CLEARED": {
     "http": 410,
     "retryable": false
+  },
+  "VERSION_CONFLICT": {
+    "http": 409,
+    "retryable": false
+  },
+  "RATE_LIMITED": {
+    "http": 429,
+    "retryable": true
   }
 }

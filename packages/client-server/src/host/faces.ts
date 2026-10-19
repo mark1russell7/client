@@ -12,15 +12,17 @@
  *
  * `httpFace()` and `wsFace()` are the faces of this package, on `procedureHandler` and
  * `upgradeHandler` of `@procedures/client/node`. `mcpFace()` of `@procedures/mcp-server` is the
- * MCP face. A face of another package has the same shape, so the host needs no change for it.
+ * MCP face, and `betterAuthFace()` of `@procedures/better-auth` is the face of the auth routes. A
+ * face of another package has the same shape, so the host needs no change for it. A face of
+ * requests that are not procedure calls tracks them with `track` (CLI-54).
  */
 
 import type { IncomingMessage, ServerResponse as NodeResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import type { TransportImpl } from "@mark1russell7/service";
-import { Client, requestCredentials, type BrowserGuardOptions, type Clock, type HostPolicy, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
+import { Client, realClock, requestCredentials, type BrowserGuardOptions, type Clock, type HostPolicy, type ProcedureRegistry, type ProcedureServer } from "@procedures/client";
 import { procedureHandler, upgradeHandler, type ProcedureHandlerOptions, type UpgradeHandlerOptions } from "@procedures/client/node";
-import type { FaceHandler } from "./tracking.js";
+import type { FaceHandler, HttpTracker } from "./tracking.js";
 
 /** What the host gives a face. */
 export interface HostFaceContext {
@@ -33,6 +35,12 @@ export interface HostFaceContext {
   readonly policy: HostPolicy;
   /** The clock of the host: the clock of the lifecycle. */
   readonly clock: Clock;
+  /**
+   * The request tracking of the HTTP requests of the face that are not procedure calls, for example
+   * the auth routes (CLI-54). Each request goes through `life.request` on the route `<face> <key>`
+   * of the controller of the host. The host always gives it.
+   */
+  readonly track?: HttpTracker | undefined;
 }
 
 /** The upgrade handler of a face, and the path or the function that tells which upgrades it takes. */
@@ -66,6 +74,9 @@ export interface HostFace {
 /** A face factory: the host calls it one time, with the context of the face. */
 export type HostFaceFactory = (context: HostFaceContext) => HostFace;
 
+/** The longest delay of a Node timer. A wait with this delay ends at its event, or at the close of its face. */
+const UNTIL_CLOSE_MS = 2_147_483_647;
+
 /** The browser checks of the policy, as options of a face. The options of the face win over them. */
 function browserOptions(browser: BrowserGuardOptions, http: boolean): BrowserGuardOptions {
   return {
@@ -98,6 +109,8 @@ export function httpFace(options: ProcedureHandlerOptions = {}): HostFaceFactory
  *   upgrade (`ProcedureServer.admits`). Thus no idle connection without credentials stays open.
  * - The stop parts refuse new calls at the stop of the intake. In the drain, each connection
  *   closes when its calls end, so the drain of the listener does not wait for an idle connection.
+ * - After the cooperative abort, the connections stay open until each cut call ends in-band with
+ *   `UNAVAILABLE` (CLI-48). Before, the connections closed at the abort, and a cut stream lost its end.
  */
 export function wsFace(options: UpgradeHandlerOptions = {}): HostFaceFactory {
   return (context) => {
@@ -113,7 +126,17 @@ export function wsFace(options: UpgradeHandlerOptions = {}): HostFaceFactory {
         stopIntake: () => upgrade.stopIntake(),
         drain: async (deadline, signal) => {
           await upgrade.drain(deadline, signal);
-          // The calls ended, or the cooperative abort came: the connections end in their protocol
+          if (signal?.aborted) {
+            // After the cooperative abort, the service cuts each call, at the latest at the deadline,
+            // and each cut call ends in-band. The connections stay open until those calls end
+            // (CLI-48). This wait has no timer of its own: the cap of the phase limits it.
+            await upgrade.drain(realClock.now() + UNTIL_CLOSE_MS);
+            // The close starts here. The stage "close transports" waits for the close handshakes,
+            // so a cut at the deadline does not make the drain late.
+            upgrade.close().catch(() => undefined);
+            return;
+          }
+          // The calls ended: the connections end in their protocol
           await upgrade.close();
         },
         inFlight: () => upgrade.inFlight(),

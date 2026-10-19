@@ -38,21 +38,35 @@
  *
  * The aggregations: `aggregate()` runs a read-only pipeline on the items of the partition, with
  * the guard of `scopePipeline()` and the limits of time and size.
+ *
+ * The preconditions (roadmap CLI-16): with the option `versionOf`, `set`, `delete` and `setBatch`
+ * take an expected version. On a replica set, the test reads the items in the transaction of the
+ * write, so the test and the write are one step. On a single server, each write of an item with a
+ * precondition has the `_seq` that the test read in its filter (a compare-and-set). Another writer
+ * between the test and the write makes the write fail with `VersionConflictError`. Then a batch of
+ * more than one item can keep a part of its writes: only a transaction makes a batch all or nothing.
  */
 
 import { randomUUID } from "node:crypto";
 import type { AnyBulkWriteOperation, ClientSession, Collection, Db, Document, Filter, MongoClient } from "mongodb";
 import {
+  VersionConflictError,
   applyPatch,
+  preconditionNotSupported,
   queryEntries,
+  versionConflict,
   type CollectionStorage,
+  type CurrentItem,
+  type StorageBatchWriteOptions,
   type StorageChanges,
+  type StorageItemWriteOptions,
   type StorageMetadata,
   type StoragePatch,
   type StorageQueryOptions,
   type StorageQueryPolicy,
   type StorageSelector,
   type StorageWriteOptions,
+  type VersionConflict,
 } from "@procedures/collections";
 import { optionalMs, toMs, type Duration } from "@procedures/client";
 import { ensureConnection } from "../connection.js";
@@ -73,7 +87,7 @@ const STORAGE_FIELDS: ReadonlySet<string> = new Set(["_id", KEY, PART, SEQ, ORD,
 export const SEPARATOR = "\u001f";
 
 /** The options of a `MongoDocumentStorage`. */
-export interface MongoDocumentStorageOptions {
+export interface MongoDocumentStorageOptions<T = unknown> {
   /** The MongoDB collection. */
   collection: string;
   /** The database. The default is the database of the default connection, for each operation. */
@@ -101,6 +115,21 @@ export interface MongoDocumentStorageOptions {
    * the watermark on a single server. `never`: each write uses the watermark.
    */
   transactions?: "auto" | "never" | undefined;
+  /**
+   * The version of an item, for example `(item) => item.rev` (roadmap CLI-16). With it, `set`,
+   * `delete` and `setBatch` take an expected version: a write whose current item has another
+   * version changes nothing and rejects with `VersionConflictError`. Without it, a write with an
+   * expected version rejects with a `TypeError`. `versionOf(id)` of the storage is another thing:
+   * the sequence number of the last write.
+   */
+  versionOf?: ((item: T) => string | undefined) | undefined;
+}
+
+/** True for the error of a duplicate key: an insert of an upsert whose filter found no document. */
+function isDuplicateKey(error: unknown): boolean {
+  // A bulk write error has the code of its first write error, and the list of the write errors
+  const { code, writeErrors } = (error ?? {}) as { code?: unknown; writeErrors?: unknown };
+  return code === 11000 || [writeErrors].flat().some((entry) => (entry as { code?: unknown } | null)?.code === 11000);
 }
 
 /** A stored document. */
@@ -257,7 +286,7 @@ interface Counter {
  * ```
  */
 export class MongoDocumentStorage<T> implements CollectionStorage<T> {
-  private readonly options: MongoDocumentStorageOptions;
+  private readonly options: MongoDocumentStorageOptions<T>;
   private readonly collectionName: string;
   private readonly partition: string | undefined;
   private readonly maxTombstones: number;
@@ -268,7 +297,7 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
   private indexes: Promise<void> | undefined;
   private closed = false;
 
-  constructor(options: MongoDocumentStorageOptions, partitions?: Map<string, MongoDocumentStorage<T>>) {
+  constructor(options: MongoDocumentStorageOptions<T>, partitions?: Map<string, MongoDocumentStorage<T>>) {
     if (options.partition !== undefined && (options.partition === "" || options.partition.includes(SEPARATOR))) {
       throw new Error("A partition must be a text without the character U+001F");
     }
@@ -673,11 +702,16 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     return enqueue(db, this.collectionName, () => task(db, items));
   }
 
-  async set(id: string, value: T, _options?: StorageWriteOptions): Promise<void> {
-    await this.setBatch([[id, value]]);
+  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
+    await this.setBatch([[id, value]], options?.expectedVersion === undefined ? undefined : { expectedVersions: [[id, options.expectedVersion]] });
   }
 
-  async setBatch(items: Array<[string, T]>, _options?: StorageWriteOptions): Promise<void> {
+  /**
+   * This method writes several items. With `expectedVersions`, a conflict of one id rejects with
+   * `VersionConflictError` (roadmap CLI-16): the class comment tells when a batch is all or nothing.
+   */
+  async setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void> {
+    const expected = this.preconditions(options?.expectedVersions ?? []);
     if (items.length === 0) {
       this.checkOpen();
       return;
@@ -690,14 +724,23 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     await this.write(async (db, collection) => {
       const places = await this.placesOf(collection, items.map(([id]) => id));
       await this.withNumbers(db, collection, items.length, async (first, session) => {
+        const guards = await this.checkVersions(collection, expected, session);
         const placed = new Map(places);
         const operations: AnyBulkWriteOperation<Stored>[] = items.map(([id, value], index) => {
           const seq = first + index;
           // A new id takes its place at its first write; a later write of the batch keeps it
           if (!placed.has(id)) placed.set(id, seq);
-          return { replaceOne: { filter: this.writeFilter(id), replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
+          // The guard of an id with a precondition: the write fails when another writer came first
+          const guard = guards.get(id);
+          guards.delete(id);
+          return { replaceOne: { filter: { ...this.writeFilter(id), ...guard }, replacement: this.encode(id, value, seq, placed.get(id)!), upsert: true } };
         });
-        await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
+        try {
+          await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
+        } catch (error) {
+          if (expected.length > 0 && !session && isDuplicateKey(error)) throw await this.lateConflict(collection, expected);
+          throw error;
+        }
       });
     });
   }
@@ -714,8 +757,23 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     });
   }
 
-  async delete(id: string, options?: StorageWriteOptions): Promise<boolean> {
-    return (await this.deleteBatch([id], options)) > 0;
+  /**
+   * This method deletes an item. With `expectedVersion`, a conflict rejects with
+   * `VersionConflictError` and deletes nothing (roadmap CLI-16).
+   */
+  async delete(id: string, options?: StorageItemWriteOptions): Promise<boolean> {
+    if (options?.expectedVersion === undefined) return (await this.deleteBatch([id], options)) > 0;
+    const expected = this.preconditions([[id, options.expectedVersion]]);
+    return this.write(async (db, collection) => {
+      const live = await collection.findOne(this.liveFilter({ _id: this.storedId(id) }), { projection: { _id: 1 } });
+      if (!live) {
+        // No item to delete: the precondition holds only for the expected version null
+        await this.checkVersions(collection, expected);
+        return false;
+      }
+      await this.tombstone(db, collection, [id], expected);
+      return true;
+    });
   }
 
   async deleteBatch(ids: string[], _options?: StorageWriteOptions): Promise<number> {
@@ -748,17 +806,89 @@ export class MongoDocumentStorage<T> implements CollectionStorage<T> {
     });
   }
 
-  /** This method replaces the items of the ids with tombstones, with new numbers, in the queue of the collection. */
-  private async tombstone(db: Db, collection: Collection<Stored>, ids: string[]): Promise<void> {
+  /**
+   * This method replaces the items of the ids with tombstones, with new numbers, in the queue of the
+   * collection. With preconditions, it tests them first (roadmap CLI-16).
+   */
+  private async tombstone(db: Db, collection: Collection<Stored>, ids: string[], expected: ReadonlyArray<readonly [string, string | null]> = []): Promise<void> {
     await this.withNumbers(db, collection, ids.length, async (first, session) => {
+      const guards = await this.checkVersions(collection, expected, session);
       const operations: AnyBulkWriteOperation<Stored>[] = ids.map((id, index) => {
         const tomb: Stored = { _id: this.storedId(id), [KEY]: id, [SEQ]: first + index, [TOMB]: true };
         if (this.partition !== undefined) tomb[PART] = this.partition;
-        return { replaceOne: { filter: this.writeFilter(id), replacement: tomb } };
+        return { replaceOne: { filter: { ...this.writeFilter(id), ...guards.get(id) }, replacement: tomb } };
       });
-      await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
+      const result = await collection.bulkWrite(operations, { ordered: true, ...(session ? { session } : {}) });
+      // A guard that found no document: another writer came between the test and the write
+      if (expected.length > 0 && !session && result.matchedCount < operations.length) throw await this.lateConflict(collection, expected);
     });
     await this.pruneTombstones(db, collection);
+  }
+
+  /**
+   * The preconditions of a write (roadmap CLI-16), after a check of their ids. A storage without
+   * `versionOf` throws a `TypeError` before the write starts.
+   */
+  private preconditions(expected: ReadonlyArray<readonly [string, string | null]>): ReadonlyArray<readonly [string, string | null]> {
+    if (expected.length === 0) return expected;
+    if (!this.options.versionOf) throw preconditionNotSupported(`The MongoDocumentStorage of the collection ${this.collectionName}`);
+    for (const [id] of expected) this.storedId(id);
+    return expected;
+  }
+
+  /** The current state of each id of the preconditions: the item, or no item for a tombstone or a missing document. */
+  private async currentDocs(collection: Collection<Stored>, ids: readonly string[], session?: ClientSession): Promise<Map<string, Document>> {
+    const docs = await collection
+      .find({ ...this.partitionFilter(), _id: { $in: [...new Set(ids)].map((id) => this.storedId(id)) } } as Filter<Stored>, session ? { session } : {})
+      .toArray();
+    return new Map(docs.map((doc) => [String(doc[KEY]), doc]));
+  }
+
+  /** The current item of a stored document: no item for a tombstone or a missing document. */
+  private currentOf(doc: Document | undefined): CurrentItem<T> {
+    return doc && doc[TOMB] !== true ? { found: true, value: this.decode(doc)[1] } : { found: false };
+  }
+
+  /**
+   * This method tests the expected versions (roadmap CLI-16). A conflict throws
+   * `VersionConflictError`. It gives the guard of each id for a write without a transaction: the
+   * `_seq` that the test read, or no document. In a transaction, the guards are empty.
+   */
+  private async checkVersions(collection: Collection<Stored>, expected: ReadonlyArray<readonly [string, string | null]>, session?: ClientSession): Promise<Map<string, Document>> {
+    const guards = new Map<string, Document>();
+    if (expected.length === 0 || !this.options.versionOf) return guards;
+    const versionOf = this.options.versionOf;
+    const docs = await this.currentDocs(collection, expected.map(([id]) => id), session);
+    const conflicts: VersionConflict[] = [];
+    for (const [id, version] of expected) {
+      const conflict = versionConflict(id, version, this.currentOf(docs.get(id)), versionOf);
+      if (conflict) conflicts.push(conflict);
+    }
+    if (conflicts.length > 0) throw new VersionConflictError(conflicts);
+    if (session) return guards;
+    for (const [id] of expected) {
+      const doc = docs.get(id);
+      guards.set(id, doc ? { [SEQ]: doc[SEQ] } : { [SEQ]: { $exists: false } });
+    }
+    return guards;
+  }
+
+  /**
+   * The error of a guard that failed: another writer changed an id between the test and the write.
+   * It has the current item of each id of the preconditions.
+   */
+  private async lateConflict(collection: Collection<Stored>, expected: ReadonlyArray<readonly [string, string | null]>): Promise<VersionConflictError> {
+    const versionOf = this.options.versionOf!;
+    const docs = await this.currentDocs(collection, expected.map(([id]) => id));
+    const conflicts = expected.map(([id, version]): VersionConflict => {
+      const current = this.currentOf(docs.get(id));
+      const conflict = versionConflict(id, version, current, versionOf);
+      if (conflict) return conflict;
+      // The current item has the expected version again, after a write of another writer
+      const now = current.found ? versionOf(current.value) : null;
+      return current.found ? { id, expected: version, found: true, value: current.value, ...(now !== undefined && { version: now }) } : { id, expected: version, found: false, version: null };
+    });
+    return new VersionConflictError(conflicts, "Another writer changed an item between the test of its version and the write");
   }
 
   // ===========================================================================

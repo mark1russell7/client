@@ -6,7 +6,7 @@
  */
 
 import type { Collection, Document, Filter } from "mongodb";
-import type { CollectionStorage, StorageMetadata } from "@procedures/collections";
+import { preconditionNotSupported, type CollectionStorage, type StorageBatchWriteOptions, type StorageItemWriteOptions, type StorageMetadata } from "@procedures/collections";
 import { ensureConnection } from "../connection.js";
 
 /**
@@ -85,7 +85,8 @@ export class MongoStorage<T> implements CollectionStorage<T> {
     return (await this.getCollection()).countDocuments({});
   }
 
-  async set(id: string, value: T): Promise<void> {
+  async set(id: string, value: T, options?: StorageItemWriteOptions): Promise<void> {
+    this.refusePrecondition(options?.expectedVersion !== undefined);
     await (await this.getCollection()).updateOne(
       { _id: id } as Filter<MongoDoc<T>>,
       { $set: { _id: id, data: value } as unknown as Document },
@@ -93,7 +94,8 @@ export class MongoStorage<T> implements CollectionStorage<T> {
     );
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, options?: StorageItemWriteOptions): Promise<boolean> {
+    this.refusePrecondition(options?.expectedVersion !== undefined);
     const result = await (await this.getCollection()).deleteOne({ _id: id } as Filter<MongoDoc<T>>);
     return result.deletedCount > 0;
   }
@@ -102,8 +104,9 @@ export class MongoStorage<T> implements CollectionStorage<T> {
     await (await this.getCollection()).deleteMany({});
   }
 
-  async setBatch(items: Array<[string, T]>): Promise<void> {
+  async setBatch(items: Array<[string, T]>, options?: StorageBatchWriteOptions): Promise<void> {
     this.checkOpen();
+    this.refusePrecondition((options?.expectedVersions?.length ?? 0) > 0);
     if (items.length === 0) return;
 
     const operations = items.map(([id, value]) => ({
@@ -149,6 +152,14 @@ export class MongoStorage<T> implements CollectionStorage<T> {
    */
   async close(): Promise<void> {
     this.closed = true;
+  }
+
+  /**
+   * This method refuses a write with an expected version (roadmap CLI-16). The `{ _id, data }`
+   * documents have no version: `MongoDocumentStorage` with the option `versionOf` tests it.
+   */
+  private refusePrecondition(has: boolean): void {
+    if (has) throw preconditionNotSupported(`The MongoStorage of the collection ${this.collectionName}`, "use MongoDocumentStorage with the option versionOf");
   }
 
   /** This method throws after `close()`, so the promise of the operation rejects. */

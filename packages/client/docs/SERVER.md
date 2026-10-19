@@ -5,7 +5,8 @@ The Universal Server provides protocol-agnostic RPC handling with middleware sup
 ## Quick Start
 
 ```typescript
-import { Server, HttpServerTransport, WebSocketServerTransport } from "client";
+import { Server } from "@procedures/client";
+import { HttpServerTransport, WebSocketServerTransport } from "@procedures/client/node";
 
 // Create server with multiple transports
 const server = new Server({
@@ -283,7 +284,7 @@ The server uses transports to listen for requests:
 ### HttpServerTransport
 
 ```typescript
-import { HttpServerTransport } from "client/adapters/http/server";
+import { HttpServerTransport } from "@procedures/client/node";
 
 const transport = new HttpServerTransport({
   port: 3000,
@@ -297,7 +298,7 @@ server.addTransport(transport);
 ### WebSocketServerTransport
 
 ```typescript
-import { WebSocketServerTransport } from "client/adapters/websocket/server";
+import { WebSocketServerTransport } from "@procedures/client/node";
 
 const transport = new WebSocketServerTransport({
   port: 3001,
@@ -364,7 +365,8 @@ A browser sends the cookies of a server by itself, also for a request that a pag
 ## Complete Example
 
 ```typescript
-import { Server, HttpServerTransport } from "client";
+import { Server } from "@procedures/client";
+import { HttpServerTransport } from "@procedures/client/node";
 
 // Create server
 const server = new Server({

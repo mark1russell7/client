@@ -189,6 +189,9 @@ export class HttpTransport implements Transport {
         // The reason of a FORBIDDEN error (roadmap R25)
         const reason = (responseBody as { reason?: unknown } | null | undefined)?.reason;
         if (typeof reason === "string") metadata["reason"] = reason;
+        // The current items of a VERSION_CONFLICT error (roadmap CLI-16)
+        const conflicts = (responseBody as { conflicts?: unknown } | null | undefined)?.conflicts;
+        if (Array.isArray(conflicts)) metadata["conflicts"] = conflicts;
       }
 
       // Yield single response item

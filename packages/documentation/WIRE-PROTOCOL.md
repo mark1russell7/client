@@ -27,7 +27,7 @@ The metadata of a call is a JSON object. These keys have a meaning in the protoc
 | `procedure-narrowing` | request | A narrower capability that the call asks for, as a JSON object. The server uses it only to make the capability narrower. Refer to "The narrowing key". |
 | `idempotency-key` | request | The key of a call. Each try of one call sends the same key. The server runs a keyed call to a procedure that is not idempotent one time. |
 | `traceparent` | request | The W3C trace context of the caller. The server continues that trace. |
-| `reason` | response | The reason of a `FORBIDDEN` error. Refer to "The reasons of FORBIDDEN". |
+| `reason` | response | The reason of a `FORBIDDEN` error, or the cause of a `RATE_LIMITED` error. Refer to "The reasons of FORBIDDEN" and "The limits of the calls". |
 | `retry-after` | response | The time that a client waits before a retry, in milliseconds. |
 | `stream` | response | The value `unbounded`: the stream can run without an end. The HTTP client also sets this key on each item of an NDJSON stream, with the value `true`. |
 
@@ -114,7 +114,7 @@ The audience of jarvis is a value of its ladder `SCOPES`. A request can make the
 
 The server reads the credentials of each network request. They go to the request hook `principalOf` and to the token check, not into the metadata.
 
-- The bearer token of the header `Authorization: Bearer <token>`.
+- The bearer token of the header `Authorization: Bearer <token>`. When the header starts with `Bearer ` and one space, the token is the rest of the header. The scheme can also have another case, for example `bearer` (RFC 7235). Then one or more spaces come before the token, and spaces or tabs can come after it.
 - The cookies of the header `Cookie`, by name. The server decodes each URI-encoded value. When two cookies have the same name, the first one applies.
 - Each header, by its lower-case name, the secret headers too.
 - The first value of each query parameter.
@@ -273,6 +273,8 @@ An error of a handler with a code of its own keeps that code on each face, for a
 - A code of the table gets the status of the table.
 - Another code of `ERROR_REGISTRY` gets the status of the registry, for example 409 for `CONFLICT`.
 - Each other code gets the status 500.
+- An error with `retryable: false` does not get 503, because a 503 invites a retry at the HTTP level. It gets 500 with no `Retry-After` from the error, for example `UNAVAILABLE` with `retryable: false` (CLI-48).
+- An error of a handler without a retryable flag gets the flag of its code in this table, or false. Thus `UNAVAILABLE` without a flag is retryable and gets 503.
 
 | Code | HTTP | Retryable | Meaning |
 |---|---|---|---|
@@ -299,6 +301,21 @@ An error of a handler with a code of its own keeps that code on each face, for a
 | `CONNECTION_NOT_FOUND` | 404 | no | The server has no connection with this id. |
 | `TOPIC_NOT_FOUND` | 404 | no | The topic rule of the host has no topic with this name (remote events). |
 | `TOPIC_CLEARED` | 410 | no | `clear()` or `clearAll()` of the bus of the host removed a listener of the subscription (remote events). |
+| `VERSION_CONFLICT` | 409 | no | The current item does not have the version that the write expects. The metadata key `conflicts` has the current items (CLI-16). |
+| `RATE_LIMITED` | 429 | yes | A limit of the host refuses the call. The metadata key `retry-after` gives the wait, and `reason` gives the cause. |
+
+### The conflicts of VERSION_CONFLICT
+
+A collection write with an expected version (`expectedVersion` of `set` and `delete`, or of an item of `setBatch`) gives `VERSION_CONFLICT` when the current item has another version (roadmap CLI-16). The write changes nothing.
+
+- The metadata key `conflicts` has one object for each id of a conflict: `{ id, expected, found, value, version }`.
+- `expected` is the expected version, or `null` for no item. `found` tells if the id has an item at this time.
+- `value` is the current item, when `found` is true. `version` is its version, or `null` for no item. An item without a version has no field `version`.
+- The HTTP body has the field `conflicts` too. The WebSocket `error` frame and the local face keep the key in the metadata.
+- `ClientError.metadata` gives the key to the caller. `versionConflictsOf(error)` of `@procedures/client` reads it, and `ApiStorage` gives a `VersionConflictError`.
+- A storage without `versionOf` cannot test the precondition. It refuses the write with the code `PRECONDITION_NOT_SUPPORTED` (HTTP 500).
+
+The column "Retryable" gives the default flag of a code. An error can have another flag. A call that the shutdown of a host cuts ends with `UNAVAILABLE` on each face, before or after its first item. Its flag is false when the call can have had its effect (CLI-48). Before its first item, the HTTP status of such a cut is then 500.
 
 ### The reasons of FORBIDDEN
 
@@ -313,6 +330,7 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 | `host-not-allowed` | `@procedures/http` | The procedure refuses the host of the URL. |
 | `topic-not-allowed` | The publisher of the events | The publisher refuses the topic. |
 | `partition-not-allowed` | The collection procedures | The partition resolver of the collection refuses the partition of the call (CLI-17). |
+| `write-not-allowed` | The collection procedures | The guard of the collection (`admission.guard`) refuses a write. The storage does not change (CLI-41). |
 | `origin-not-allowed` | The browser checks of `procedureHandler` | The `Origin` of the request is not the origin of the server or a permitted origin. A cross-site request without a permitted origin gets it too. |
 | `host-header-not-allowed` | The browser checks of `procedureHandler` | A request on a loopback address names a `Host` that is not permitted (DNS rebinding). |
 | `method-not-allowed` | The browser checks of `procedureHandler` | The HTTP method is `GET` or `HEAD`, and the option `allowGet` is off. |
@@ -320,9 +338,23 @@ A `FORBIDDEN` error tells its reason in the metadata key `reason`. The HTTP body
 
 A deadline that passed before the procedure started gives the code `TIMEOUT`, not `FORBIDDEN`. `HttpServerTransport` keeps its former codes for the four browser checks: `FORBIDDEN_ORIGIN`, `FORBIDDEN_HOST`, `METHOD_NOT_ALLOWED` and `UNSUPPORTED_MEDIA_TYPE`, with the status 403, 405 or 415.
 
+### The limits of the calls
+
+A host can limit the calls of each key, for example the writes of each tenant (CLI-40). The option `limits` of the host policy gives the limits. Each limit is a keyed limiter of `@mark1russell7/service/limiter`. The server takes one unit of each limit that covers a call, after the authentication and before the run. Thus each face has the same limits.
+
+The server takes the units in the sequence of the limits. The first refusal stops the call. A limit before the refusal keeps its unit: the server does not give it back.
+
+A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
+
+- The metadata key `retry-after`: the wait in milliseconds. The HTTP body has it as `retryAfterMs`, and the MCP result has it in `_meta`.
+- The metadata key `reason`: the cause. `limit` tells that the key used its limit. `cap` tells that the limiter holds its maximum of keys. `store` tells that the shared store of the counts failed.
+- On HTTP, the status 429 and the header `Retry-After` in whole seconds, rounded up.
+
+A circuit breaker does not count `RATE_LIMITED`, because the server is not unhealthy. The retry middleware waits at least for `retry-after` before the next try.
+
 ## MCP
 
-The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code` and `reason`.
+The MCP face follows the MCP specification. An error result has `isError: true`, a text block with the message and the reason, and `_meta` with `code`, `retryable` and `reason`. An error with a wait also has `retryAfterMs` in `_meta` (CLI-40). The error of a stream also has `_meta` with `code` and `retryable` (CLI-48).
 
 - The name of a tool is the path with dots, for example `notes.list`, or the name of the option `toolName`. A path of one segment has its segment as its name, for example `morning`.
 - Each tool name names one procedure. Two procedures can have one name after the join, for example `["a_b", "c"]` and `["a", "b_c"]` with `path.join("_")`. Then the face leaves out the two tools and writes the reason to stderr. Thus a call does not reach the wrong procedure.

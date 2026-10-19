@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useId, useRef, useState, type DragEvent, type ReactElement } from "react";
-import { categoryOf, procedureByKey, procedures, type ProcedureInfo } from "../data";
+import { categoryOf, procedureByKey, procedures, type ProcedureSummary } from "../data";
 import type { Analysis } from "../lib/analysis";
 import { focusAfterRemoval } from "../lib/edits";
 import {
@@ -33,7 +33,7 @@ export const DRAG_TYPE = "application/x-procedure";
 export const PICKER_LIST = "procedure-names";
 
 /** The procedures that run in the browser, so the Composer can use them. */
-export const browserProcedures: ProcedureInfo[] = procedures.filter((procedure) => procedure.browser);
+export const browserProcedures: ProcedureSummary[] = procedures.filter((procedure) => procedure.browser);
 
 export interface EditorContext {
   /** The selected slot, as `locationKey(location)`. */

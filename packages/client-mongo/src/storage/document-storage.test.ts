@@ -8,7 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ms } from "@procedures/client";
 import { MongoClient, type Db } from "mongodb";
 import { queryEntries, type StorageSelector } from "@procedures/collections";
-import { describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
+import { contractVersionOf, describeCollectionStorageContract, type ContractItem } from "@procedures/collections/testing";
+import { versionConflictsOf } from "@procedures/collections";
 import { MongoDocumentStorage, selectorPrefilter, type MongoDocumentStorageOptions } from "./document-storage.js";
 
 describe("selectorPrefilter: the conditions that MongoDB tests in the same way", () => {
@@ -120,7 +121,7 @@ afterAll(async () => {
  * A new storage on a new collection of the test database. With the client, a write is a
  * transaction on a replica set; on a single server, it uses the watermark.
  */
-function fresh<T = ContractItem>(options: Partial<MongoDocumentStorageOptions> = {}): MongoDocumentStorage<T> {
+function fresh<T = ContractItem>(options: Partial<MongoDocumentStorageOptions<T>> = {}): MongoDocumentStorage<T> {
   return new MongoDocumentStorage<T>({ collection: `c${++next}`, db: () => db, client: () => client!, ...options });
 }
 
@@ -138,6 +139,7 @@ describeCollectionStorageContract(
     create: () => fresh(),
     createWithMaxTombstones: (max) => fresh({ maxTombstones: max }),
     createWithQueryPolicy: (policy) => fresh({ queryPolicy: policy }),
+    createWithVersions: (versionOf) => fresh({ versionOf }),
   },
   { describe: withMongo, it },
 );
@@ -148,6 +150,7 @@ describeCollectionStorageContract(
     create: () => fresh({ partition: "t1" }),
     createWithMaxTombstones: (max) => fresh({ partition: "t1", maxTombstones: max }),
     createWithQueryPolicy: (policy) => fresh({ partition: "t1", queryPolicy: policy }),
+    createWithVersions: (versionOf) => fresh({ partition: "t1", versionOf }),
   },
   { describe: withMongo, it },
 );
@@ -304,7 +307,13 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     const name = `c${++next}`;
     const lease = 50;
     // The writes of this storage stall past the lease, as a slow process does (another database
-    // object: another queue of writes, as in another process)
+    // object: another queue of writes, as in another process). The stall is a gate that the test
+    // opens, not a time: the order of the steps is the same on a slow machine (CLI-53). The lease
+    // is the time of the server ($$NOW), so the test still waits past it, from a known start.
+    let reached!: () => void;
+    const atWrite = new Promise<void>((resolve) => (reached = resolve));
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
     const slowDb = new Proxy(db, {
       get(target, prop) {
         if (prop === "collection") {
@@ -314,7 +323,7 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
             return new Proxy(real, {
               get(collection, key) {
                 const value = Reflect.get(collection, key, collection) as unknown;
-                if (key === "bulkWrite") return async (...args: unknown[]) => (await sleep(200), (value as (...a: unknown[]) => unknown).apply(collection, args));
+                if (key === "bulkWrite") return async (...args: unknown[]) => (reached(), await gate, (value as (...a: unknown[]) => unknown).apply(collection, args));
                 return typeof value === "function" ? value.bind(collection) : value;
               },
             });
@@ -329,15 +338,94 @@ withMongo("MongoDocumentStorage on MongoDB", () => {
     await fast.set("a", { n: 1 });
     const start = await fast.getChangesSince();
     const late = slow.set("late", { n: 2 });
-    await sleep(lease * 2);
-    await fast.set("b", { n: 3 });
-    // The lease of the slow write ended: the watermark passed its number
-    const passed = await fast.getChangesSince(start.version);
-    expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
+    // The slow write has its pending number (it reaches its write after the number), and it waits at
+    // the gate. A wait of more than the lease from here ends the lease on the server, also when the
+    // machine is slow: a longer wait only makes it surer.
+    let passed: Awaited<ReturnType<typeof fast.getChangesSince>>;
+    try {
+      await atWrite;
+      await sleep(lease * 3);
+      await fast.set("b", { n: 3 });
+      // The lease of the slow write ended: the watermark passed its number, and its write waits still
+      passed = await fast.getChangesSince(start.version);
+      expect(passed.changed.map(([id]) => id)).toEqual(["b"]);
+    } finally {
+      open(); // a failed step never leaves the slow write at the gate
+    }
     await late;
     const after = await fast.getChangesSince(passed.version);
     expect(after.changed.map(([id]) => id)).toEqual(["late"]);
     expect(Number(await fast.versionOf("late"))).toBeGreaterThan(Number(await fast.versionOf("b")));
+  });
+
+  it("with the watermark, a writer between the test of a version and the write makes a conflict (CLI-16)", async () => {
+    const name = `c${++next}`;
+    // The next bulk write of this storage first lets another writer change the collection, as
+    // another process can between the test and the write (another database object: another queue)
+    let before: (() => Promise<void>) | undefined;
+    const racingDb = new Proxy(db, {
+      get(target, prop) {
+        if (prop === "collection") {
+          return (collectionName: string) => {
+            const real = target.collection(collectionName);
+            if (collectionName !== name) return real;
+            return new Proxy(real, {
+              get(collection, key) {
+                const value = Reflect.get(collection, key, collection) as unknown;
+                if (key === "bulkWrite") {
+                  return async (...args: unknown[]) => {
+                    const race = before;
+                    before = undefined;
+                    if (race) await race();
+                    return (value as (...a: unknown[]) => unknown).apply(collection, args);
+                  };
+                }
+                return typeof value === "function" ? value.bind(collection) : value;
+              },
+            });
+          };
+        }
+        const value = Reflect.get(target, prop, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const storage = new MongoDocumentStorage<ContractItem>({ collection: name, db: () => racingDb, transactions: "never", versionOf: contractVersionOf });
+    const other = fresh({ collection: name, transactions: "never" });
+    const item = (id: string, n: number): ContractItem => ({ id, n });
+    await storage.set("a", item("a", 1));
+
+    // A set: the other writer changes the item, so the guard on _seq fails
+    before = () => other.set("a", item("a", 7));
+    const changed = await storage.set("a", item("a", 2), { expectedVersion: "v1" }).catch((error: unknown) => error);
+    expect(changed).toMatchObject({ code: "VERSION_CONFLICT" });
+    expect(versionConflictsOf(changed)).toEqual([{ id: "a", expected: "v1", found: true, value: item("a", 7), version: "v7" }]);
+    expect(await storage.get("a")).toEqual(item("a", 7));
+
+    // The other writer writes an item with the expected version again: still a conflict, with its version
+    before = () => other.set("a", item("a", 7));
+    const same = await storage.set("a", item("a", 3), { expectedVersion: "v7" }).catch((error: unknown) => error);
+    expect(versionConflictsOf(same)).toEqual([{ id: "a", expected: "v7", found: true, value: item("a", 7), version: "v7" }]);
+
+    // A delete: the guard of the tombstone finds no document
+    before = () => other.set("a", item("a", 8));
+    const deleted = await storage.delete("a", { expectedVersion: "v7" }).catch((error: unknown) => error);
+    expect(versionConflictsOf(deleted)).toEqual([{ id: "a", expected: "v7", found: true, value: item("a", 8), version: "v8" }]);
+    expect(await storage.has("a")).toBe(true);
+
+    // A new item: the other writer makes and deletes it, so its tombstone stops the insert
+    before = async () => {
+      await other.set("b", item("b", 1));
+      await other.delete("b");
+    };
+    const created = await storage.set("b", item("b", 2), { expectedVersion: null }).catch((error: unknown) => error);
+    expect(versionConflictsOf(created)).toEqual([{ id: "b", expected: null, found: false, version: null }]);
+    expect(await storage.has("b")).toBe(false);
+
+    // Without a writer between, the guards hold
+    await storage.set("a", item("a", 9), { expectedVersion: "v8" });
+    expect(await storage.delete("a", { expectedVersion: "v9" })).toBe(true);
+    await storage.setBatch([["b", item("b", 3)], ["b", item("b", 4)]], { expectedVersions: [["b", null]] });
+    expect(await storage.get("b")).toEqual(item("b", 4));
   });
 
   it("does not move a write that ends in its lease", async () => {

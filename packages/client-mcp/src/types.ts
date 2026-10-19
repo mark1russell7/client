@@ -10,6 +10,7 @@ import type { ElicitationPolicy, ProcedureRegistry } from "@procedures/client";
 import type { McpServerInfo, McpTool, McpToolFilter } from "@procedures/mcp";
 import type { Duration } from "@procedures/client";
 import type { UntrustedContentOptions } from "./untrusted.js";
+import type { McpTasksOptions } from "./tasks.js";
 
 /** The streams of the stdio transport, and what happens when its input ends. */
 export interface StdioTransportOptions {
@@ -51,11 +52,21 @@ export type McpToolContentHook = (result: McpToolContentInput) => McpToolContent
 /**
  * SSE transport configuration options.
  */
-/** The options of the Streamable HTTP transport (roadmap R26). */
+/**
+ * The options of the Streamable HTTP transport (roadmap R26). Give `mount: true` and mount the
+ * handler of the endpoint on a listener. An endpoint with a listener of its own (`port`, `host`,
+ * `server`) is deprecated (CLI-11).
+ */
 export interface HttpTransportOptions {
-  /** Port to listen on (default: 3003) */
+  /**
+   * Port to listen on (default: 3003)
+   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11). Give `mount: true`, and mount `McpHost.handleHttp` on a listener of the service.
+   */
   port?: number | undefined;
-  /** Host to bind to (default: "127.0.0.1": only this computer can reach the tools) */
+  /**
+   * Host to bind to (default: "127.0.0.1": only this computer can reach the tools)
+   * @deprecated The next MINOR removes the listener of the endpoint (CLI-11). The listener of the service sets its address.
+   */
   host?: string | undefined;
   /** The path of the MCP endpoint (default: "/mcp") */
   path?: string | undefined;
@@ -63,7 +74,15 @@ export interface HttpTransportOptions {
   token?: string | undefined;
   /** Browser origins that can call the server, besides loopback origins */
   allowedOrigins?: string[] | undefined;
-  /** An HTTP server to answer on, in place of a server of the transport (it does not listen then) */
+  /**
+   * The host names that a request on a loopback address can name in its `Host` header, besides
+   * the loopback names (`browser.allowedHosts` of the host policy). `"*"` turns the check off.
+   */
+  allowedHosts?: readonly string[] | "*" | undefined;
+  /**
+   * An HTTP server to answer on, in place of a server of the transport (it does not listen then)
+   * @deprecated The next MINOR removes it (CLI-11). Give `mount: true`, and mount the handler on the server.
+   */
   server?: import("node:http").Server | undefined;
   /**
    * True: the endpoint has no server and attaches to none. The owner of a listener mounts its
@@ -75,6 +94,18 @@ export interface HttpTransportOptions {
    * transport sets it from its server. With a value, a request with a cookie needs a named origin.
    */
   ambientCredentials?: import("@procedures/client").AmbientCredentials | undefined;
+  /**
+   * The most sessions at one time (CLI-35). A new session above the limit closes the session that
+   * was idle longest: no task in progress and no open response. When each session is busy, the
+   * new session gets 503 with `Retry-After`.
+   * @default Infinity (no limit)
+   */
+  maxSessions?: number | undefined;
+  /**
+   * The largest body of a request, in bytes (CLI-35).
+   * @default 4194304 (4 MiB, the limit of the SDK)
+   */
+  maxBodyBytes?: number | undefined;
 }
 
 export interface SseTransportOptions {
@@ -168,6 +199,13 @@ export interface McpServerTransportOptions {
    * @default { items: 100, time: seconds(30) }
    */
   streamLimits?: { items?: number; time?: Duration } | undefined;
+
+  /**
+   * MCP tasks (CLI-35): a store, or the options of a new store (`maxRunning`, `ttl`). With it, a
+   * tool whose procedure has `metadata.taskSupport` can run as a task. Without it, each tool call
+   * is a normal request. The stop of the transport closes a store that it made.
+   */
+  tasks?: McpTasksOptions | undefined;
 }
 
 /**
@@ -182,4 +220,6 @@ export interface McpServerTransportState {
   transport: "stdio" | "sse" | "http";
   /** The URL of the Streamable HTTP endpoint, when the transport is "http" */
   url?: string;
+  /** The open sessions of the Streamable HTTP endpoint, when the transport is "http" (CLI-35) */
+  sessions?: number;
 }

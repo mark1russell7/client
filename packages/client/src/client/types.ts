@@ -326,12 +326,20 @@ export type AccumulateContext<
  * Client error thrown when response has error status.
  */
 export class ClientError extends Error {
+  /**
+   * The metadata of the error response, for example `reason` of a `FORBIDDEN` error, or
+   * `conflicts` of a `VERSION_CONFLICT` error (roadmap CLI-16). Empty when the response has none.
+   */
+  public readonly metadata: Metadata;
+
   constructor(
     public readonly status: Extract<Status, { type: "error" }>,
     public readonly responseId: string,
+    metadata: Metadata = {},
   ) {
     super(status.message);
     this.name = "ClientError";
+    this.metadata = metadata;
   }
 
   get code(): string {

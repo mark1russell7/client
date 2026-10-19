@@ -1,5 +1,8 @@
 /**
  * The data of the site. `scripts/gen-data.mjs` generates it from the workspace before each build.
+ *
+ * Each page loads this module. Thus it has the procedures without their input and output
+ * schemas. The page of a procedure loads the schemas of its package (refer to `schemas.ts`).
  */
 
 import catalogJson from "./generated/catalog.js";
@@ -12,16 +15,14 @@ export interface Field {
   optional: boolean;
 }
 
-/** One procedure of the registry. */
-export interface ProcedureInfo {
+/** One procedure of the registry, without its schemas. Each page has this data. */
+export interface ProcedureSummary {
   key: string;
   path: string[];
   /** The folder of the package that defines the procedure. */
   package: string;
   description: string;
   tags: string[];
-  input: JsonSchema;
-  output: JsonSchema;
   /** The procedure is in the registry by default (the servers can call it). */
   registered: boolean;
   /** The `mark` CLI has the procedure as a command: its package declares `client.procedures`. */
@@ -32,6 +33,15 @@ export interface ProcedureInfo {
   mcp: boolean;
   fields: Field[] | null;
 }
+
+/** The input and the output schema of a procedure. Only the page of the procedure loads them. */
+export interface ProcedureSchemas {
+  input: JsonSchema;
+  output: JsonSchema;
+}
+
+/** One procedure of the registry, with its schemas (refer to `loadProcedure` in `schemas.ts`). */
+export interface ProcedureInfo extends ProcedureSummary, ProcedureSchemas {}
 
 /** One package of the workspace. */
 export interface PackageInfo {
@@ -81,10 +91,12 @@ export interface SiteMetrics {
   testFiles: number;
   /** The library on npm: the latest version, or null when it is not published. */
   npm: { name: string; version: string | null };
+  /** The newest version of the changelogs (`scripts/releases-data.mjs`), or null. The build can run before npm has it. */
+  release?: { version: string; date: string } | null;
 }
 
 interface Catalog {
-  procedures: ProcedureInfo[];
+  procedures: ProcedureSummary[];
   mcpTools: string[];
   failed: LoadFailure[];
   build: BuildInfo;
@@ -93,7 +105,8 @@ interface Catalog {
 
 const catalog = catalogJson as unknown as Catalog;
 
-export const procedures: ProcedureInfo[] = catalog.procedures;
+/** The procedures without their schemas, sorted by key. */
+export const procedures: ProcedureSummary[] = catalog.procedures;
 export const packages: PackageInfo[] = packagesJson as unknown as PackageInfo[];
 export const mcpTools: string[] = catalog.mcpTools;
 export const failedPackages: LoadFailure[] = catalog.failed ?? [];
@@ -102,8 +115,8 @@ export const metrics: SiteMetrics = catalog.metrics ?? { tests: 0, testFiles: 0,
 
 const byKey = new Map(procedures.map((procedure) => [procedure.key, procedure]));
 
-/** This function gives the procedure at a key ("client.add"), or undefined. */
-export function procedureByKey(key: string): ProcedureInfo | undefined {
+/** This function gives the procedure at a key ("client.add") without its schemas, or undefined. */
+export function procedureByKey(key: string): ProcedureSummary | undefined {
   return byKey.get(key);
 }
 
@@ -170,7 +183,58 @@ export interface StatusData {
 }
 
 
+// ---------------------------------------------------------------------------
+// The releases (`scripts/releases-data.mjs` reads the changelogs)
+// ---------------------------------------------------------------------------
+
+/** "first" for the first release, "minor" when the PATCH number is 0, else "patch". */
+export type ReleaseKind = "first" | "minor" | "patch";
+
+/** One change of a release: one commit, and the packages whose changelogs list it. */
+export interface ReleaseChange {
+  /** The short SHA of the commit, or null for an entry without a commit. */
+  commit: string | null;
+  /** The first sentence of the changelog entry, as inline Markdown. */
+  text: string;
+  /** The npm names of the packages, sorted. */
+  packages: string[];
+}
+
+/** One version of the group. */
+export interface Release {
+  version: string;
+  /** The ISO date of the git tag, or of the commit that added the version to the changelog. */
+  date: string;
+  kind: ReleaseKind;
+  /** The changes, the change with the most packages first. */
+  changes: ReleaseChange[];
+}
+
+export interface ReleasesData {
+  /** The package that names the group: "@procedures/client". */
+  group: string;
+  /** The versions, newest first. */
+  releases: Release[];
+}
+
+/** A version in the data of the releases page: its changes load on demand. */
+export interface ReleaseEntry {
+  version: string;
+  date: string;
+  kind: ReleaseKind;
+  changeCount: number;
+}
+
+/** The release data that loads with the releases page. */
+export interface ReleasesIndex {
+  group: string;
+  /** The versions, newest first. */
+  releases: ReleaseEntry[];
+  /** The changes of the newest version. The module `release-changes` has the changes of each version. */
+  changes: Record<string, ReleaseChange[]>;
+}
+
 /** The category of a core procedure, from its tags: "control-flow", "math", "string" and so on. */
-export function categoryOf(procedure: ProcedureInfo): string {
+export function categoryOf(procedure: ProcedureSummary): string {
   return procedure.tags.find((tag) => tag !== "core") ?? procedure.path[0] ?? "other";
 }

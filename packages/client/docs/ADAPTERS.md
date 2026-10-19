@@ -106,7 +106,8 @@ postOnlyStrategy(method)
 
 ```typescript
 import express from "express";
-import { HttpServerTransport, seconds } from "@procedures/client";
+import { seconds } from "@procedures/client";
+import { HttpServerTransport } from "@procedures/client/node";
 
 const app = express();
 // A body parser is optional: without one, the transport reads the JSON body itself.
@@ -234,7 +235,7 @@ transport.on("error", (error) => console.error("Error:", error));
 ### Server
 
 ```typescript
-import { WebSocketServerTransport } from "client/adapters/websocket/server";
+import { WebSocketServerTransport } from "@procedures/client/node";
 
 const transport = new WebSocketServerTransport({
   port: 3001,

@@ -59,9 +59,26 @@ export function withoutSecretHeaders(headers: Record<string, unknown>, secret?: 
   return out;
 }
 
-/** The token of an `Authorization: Bearer <token>` header, or undefined. */
+/** The start of the header that `bearerOf` read before CLI-60: the scheme `Bearer` and one space. */
+const BEARER_PREFIX = "Bearer ";
+
+/**
+ * The other forms of a bearer credential (RFC 7235 and RFC 6750, CLI-60). Such a form has the
+ * scheme `Bearer` in any case, one or more spaces (`1*SP`) and the token. Spaces or tabs can come
+ * after the token. The token has no whitespace (`token68`). A tab is not `1*SP`.
+ */
+const BEARER_CREDENTIAL = /^bearer +(\S+)[ \t]*$/i;
+
+/**
+ * The token of an `Authorization: Bearer <token>` header, or undefined. A header that starts
+ * with `Bearer ` gives the rest of the header, as before CLI-60. A header with the scheme in
+ * another case, for example `bearer`, gives the token after one or more spaces.
+ */
 export function bearerOf(header: unknown): string | undefined {
-  return typeof header === "string" && header.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+  if (typeof header !== "string") return undefined;
+  // The old form keeps its old result, so each header that passed before gives the same token
+  if (header.startsWith(BEARER_PREFIX)) return header.slice(BEARER_PREFIX.length);
+  return BEARER_CREDENTIAL.exec(header)?.[1];
 }
 
 /**

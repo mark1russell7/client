@@ -16,6 +16,7 @@ import {
   type StorageSelector,
   type StorageSort,
 } from "./query.js";
+import { MAX_EXPECTED_VERSION_LENGTH, isExpectedVersion } from "./precondition.js";
 
 // =============================================================================
 // Generic Schema Builder
@@ -81,6 +82,25 @@ function originError(data: Record<string, unknown>): ZodErrorLike | undefined {
 function withOriginOf<I extends object>(data: Record<string, unknown>, input: I): I & { origin?: string } {
   const origin = data["origin"];
   return (isString(origin) ? { ...input, origin } : input) as I & { origin?: string };
+}
+
+/** The message of an expected version that is not valid (roadmap CLI-16). */
+const EXPECTED_VERSION_MESSAGE = `expectedVersion must be a string of at most ${MAX_EXPECTED_VERSION_LENGTH} characters, or null`;
+
+/**
+ * The error of the field `expectedVersion` of a write input (roadmap CLI-16), or undefined. The
+ * field is absent, a string of at most 1024 characters, or `null`.
+ */
+function expectedVersionError(data: Record<string, unknown>, path: (string | number)[] = []): ZodErrorLike | undefined {
+  if (!("expectedVersion" in data) || data["expectedVersion"] === undefined || isExpectedVersion(data["expectedVersion"])) return undefined;
+  const message = path.length === 0 ? EXPECTED_VERSION_MESSAGE : `${path.join(".")}.${EXPECTED_VERSION_MESSAGE}`;
+  return { message, errors: [{ path: [...path, "expectedVersion"], message }] };
+}
+
+/** The input with the expected version of the data, when the data has one. */
+function withExpectedVersionOf<I extends object>(data: Record<string, unknown>, input: I): I & { expectedVersion?: string | null } {
+  const expected = data["expectedVersion"];
+  return (isExpectedVersion(expected) ? { ...input, expectedVersion: expected } : input) as I & { expectedVersion?: string | null };
 }
 
 // =============================================================================
@@ -217,6 +237,11 @@ export interface SetInput {
   value: unknown;
   /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
   origin?: string;
+  /**
+   * The version that the write expects for the current item (roadmap CLI-16). `null` expects no
+   * item. A conflict changes nothing and answers `VERSION_CONFLICT` with the current item.
+   */
+  expectedVersion?: string | null;
 }
 
 export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) => {
@@ -247,9 +272,9 @@ export const setInputSchema : ZodLike<SetInput> = createSchema<SetInput>((data) 
       },
     };
   }
-  const error = originError(data);
+  const error = originError(data) ?? expectedVersionError(data);
   if (error) return { success: false, error };
-  return { success: true, data: withOriginOf(data, { id: data["id"], value: data["value"] }) };
+  return { success: true, data: withExpectedVersionOf(data, withOriginOf(data, { id: data["id"], value: data["value"] })) };
 });
 
 /**
@@ -270,6 +295,11 @@ export interface DeleteInput {
   id: string;
   /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
   origin?: string;
+  /**
+   * The version that the delete expects for the current item (roadmap CLI-16). `null` expects no
+   * item. A conflict changes nothing and answers `VERSION_CONFLICT` with the current item.
+   */
+  expectedVersion?: string | null;
 }
 
 export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput>((data) => {
@@ -291,9 +321,9 @@ export const deleteInputSchema : ZodLike<DeleteInput> = createSchema<DeleteInput
       },
     };
   }
-  const error = originError(data);
+  const error = originError(data) ?? expectedVersionError(data);
   if (error) return { success: false, error };
-  return { success: true, data: withOriginOf(data, { id: data["id"] }) };
+  return { success: true, data: withExpectedVersionOf(data, withOriginOf(data, { id: data["id"] })) };
 });
 
 /**
@@ -810,7 +840,12 @@ export const getBatchOutputSchema : ZodLike<Record<string, unknown>> = createSch
  * Input for setBatch operation.
  */
 export interface SetBatchInput {
-  items: Array<{ id: string; value: unknown }>;
+  /**
+   * The items. An item can have `expectedVersion`: the version that the write expects for the
+   * current item of its id (roadmap CLI-16). When one item has a conflict, the batch changes no
+   * item and answers `VERSION_CONFLICT`.
+   */
+  items: Array<{ id: string; value: unknown; expectedVersion?: string | null }>;
   /** The origin of the write, for the observers of the storage and the change event (roadmap CLI-15). */
   origin?: string;
 }
@@ -845,13 +880,15 @@ export const setBatchInputSchema : ZodLike<SetBatchInput> = createSchema<SetBatc
         },
       };
     }
+    const versionError = expectedVersionError(item, ["items", i]);
+    if (versionError) return { success: false, error: versionError };
   }
   const error = originError(data);
   if (error) return { success: false, error };
   return {
     success: true,
     data: withOriginOf(data, {
-      items: data["items"].map((item: any) => ({ id: item["id"], value: item["value"] })),
+      items: data["items"].map((item: any) => withExpectedVersionOf(item, { id: item["id"], value: item["value"] })),
     }),
   };
 });

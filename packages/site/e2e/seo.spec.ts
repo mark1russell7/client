@@ -2,11 +2,16 @@
 /**
  * The pages for search engines and link previews: each static page has its own HTML file with
  * its head tags, the sitemap lists them, old hash links still work, and each page stays within
- * its size budget (after the Vex site: 256 kB of gzip for a page).
+ * its size budget (after the Vex site: 256 kB of gzip for a page). The main bundle has no
+ * procedure schemas: the page of a procedure loads the schemas of its package only.
  */
 
 import { test, expect, type Page, type Response } from "@playwright/test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import catalogJson from "../src/data/generated/catalog.js";
 
 /** The fixed pages and a sample of the procedure and package pages. */
 const ROUTES = [
@@ -20,6 +25,7 @@ const ROUTES = [
   "lab/",
   "claude/",
   "status/",
+  "releases/",
   "docs/",
   "docs/program-format/",
   // The longest README
@@ -127,6 +133,77 @@ test.describe("the router", () => {
   });
 });
 
+test.describe("the procedure schemas", () => {
+  /**
+   * The descriptions in the schemas of each package (`src/data/generated/schemas/<package>.js`).
+   * The test keeps long text with no quote and no escape, so the minified bundle holds it as it
+   * is. It removes the text that the catalog without schemas also holds.
+   */
+  function schemaTexts(): Map<string, Set<string>> {
+    const folder = fileURLToPath(new URL("../src/data/generated/schemas/", import.meta.url));
+    const summary = JSON.stringify(catalogJson);
+    const texts = new Map<string, Set<string>>();
+    const collect = (value: unknown, into: Set<string>): void => {
+      if (value === null || typeof value !== "object") return;
+      for (const [key, item] of Object.entries(value)) {
+        if (key === "description" && typeof item === "string") {
+          if (item.length >= 30 && /^[A-Za-z0-9 ,.:()/-]+$/.test(item) && !summary.includes(item)) into.add(item);
+        } else {
+          collect(item, into);
+        }
+      }
+    };
+    for (const file of readdirSync(folder).filter((name) => name.endsWith(".js"))) {
+      const source = readFileSync(join(folder, file), "utf8").replace(/^export default /, "").replace(/;\s*$/, "");
+      const found = new Set<string>();
+      collect(JSON.parse(source) as unknown, found);
+      texts.set(file.slice(0, -".js".length), found);
+    }
+    return texts;
+  }
+
+  /** The scripts that each page loads first: the entry of the app and its static imports. */
+  function entryScripts(html: string): string[] {
+    const scripts = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map((match) => match[1] ?? "");
+    const preloads = [...html.matchAll(/<link\b[^>]*>/g)]
+      .map((match) => match[0])
+      .filter((tag) => /\brel="modulepreload"/.test(tag))
+      .map((tag) => /\bhref="([^"]+)"/.exec(tag)?.[1] ?? "");
+    return [...scripts, ...preloads].filter((url) => url !== "");
+  }
+
+  test("the main bundle holds no schema", async ({ request }) => {
+    const all = [...schemaTexts().values()].flatMap((texts) => [...texts]);
+    expect(all.length, "the schema descriptions to look for").toBeGreaterThan(50);
+    // 404.html is the app with no page: its scripts are the scripts of each page
+    const template = await (await request.get("404.html")).text();
+    const scripts = entryScripts(template);
+    expect(scripts.length, "the scripts of 404.html").toBeGreaterThan(0);
+    const main = (await Promise.all(scripts.map(async (url) => (await request.get(url)).text()))).join("\n");
+    expect(all.filter((text) => main.includes(text)), "schema text in the main bundle").toEqual([]);
+  });
+
+  test("the page of a procedure loads the schemas of its package only", async ({ page }) => {
+    const texts = schemaTexts();
+    // The package with the most text, so the test examines much text
+    const [dir, own]: [string, Set<string>] = [...texts.entries()].sort(([, a], [, b]) => b.size - a.size)[0] ?? ["", new Set<string>()];
+    expect(own.size, `the schema descriptions of ${dir}`).toBeGreaterThan(5);
+    const procedures = (catalogJson as unknown as { procedures: Array<{ key: string; package: string }> }).procedures;
+    const key = procedures.find((procedure) => procedure.package === dir)?.key ?? "";
+    const bodies: Array<Promise<string>> = [];
+    page.on("response", (response) => {
+      if (response.request().resourceType() === "script" && response.status() === 200) bodies.push(response.text().catch(() => ""));
+    });
+    await open(page, `catalog/${key}/`);
+    await expect(page.getByRole("heading", { name: "Input", exact: true })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const loaded = (await Promise.all(bodies)).join("\n");
+    expect([...own].filter((text) => !loaded.includes(text)), `schema text of ${dir} that the page did not load`).toEqual([]);
+    const others = [...texts.entries()].filter(([other]) => other !== dir).flatMap(([, set]) => [...set].filter((text) => !own.has(text)));
+    expect(others.filter((text) => loaded.includes(text)), "schema text of other packages").toEqual([]);
+  });
+});
+
 test.describe("the budgets", () => {
   /** The bytes that a page loads: scripts, style sheets, fonts and the document, after gzip. */
   async function measure(page: Page, route: string): Promise<{ total: number; script: number; worker: number; errors: string[] }> {
@@ -166,6 +243,8 @@ test.describe("the budgets", () => {
   for (const route of ROUTES) {
     test(`/${route} stays within its budget and logs no error`, async ({ page }) => {
       const { total, script, worker, errors } = await measure(page, route);
+      // The log of CI shows the size of each page, also when it is within the budget
+      console.log(`/${route}: ${total} bytes of gzip, ${script} bytes of scripts`);
       expect(errors, "console errors").toEqual([]);
       expect(total, `the page loads ${Math.round(total / 1024)} kB of gzip`).toBeLessThanOrEqual(PAGE_BUDGET);
       expect(script, `the scripts are ${Math.round(script / 1024)} kB of gzip`).toBeLessThanOrEqual(SCRIPT_BUDGET);
