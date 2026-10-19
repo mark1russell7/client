@@ -7,9 +7,10 @@
  * - `strictCalls`: a procedure of code that declares no nested calls calls only tools;
  * - each tool call has a time limit.
  *
- * `server.ts` (the file in the MCP configuration of Claude Code) and `mark mcp` both start the
- * server with `startDevToolsServer()`. The host comes from `createMcpHost()` of
- * `@procedures/mcp-server` (CLI-10): the same factory as `mcp.serve` and the hosts of the apps.
+ * `server.ts` (the file in the MCP configuration of Claude Code) and `mark mcp` both run the
+ * server with `runDevToolsServer()`, under `run()` of `@mark1russell7/service` (CLI-11). The host
+ * comes from `createMcpHost()` of `@procedures/mcp-server` (CLI-10): the same factory as
+ * `mcp.serve` and the hosts of the apps.
  *
  * `MCP_FS_ROOT` confines the procedures to one folder (`confineToRoot()` of `@procedures/fs`):
  * each tool keeps its paths in it, or the root refuses the tool. The host serves no remote
@@ -35,8 +36,11 @@ import {
   type McpHostFaces,
 } from "@procedures/mcp-server";
 import { programCheckInterceptor } from "@procedures/compiler";
+import { createServer } from "node:http";
+import { ephemeral, localDev, service, type Lifecycle, type Profile, type RunOptions, type ServiceBuilder } from "@mark1russell7/service";
+import { httpTransport, type HttpKnobs, type HttpTransport } from "@mark1russell7/service/http";
 import { loadConfig, type McpServerConfig } from "./config.js";
-import { ms } from "@procedures/client";
+import { ms, seconds } from "@procedures/client";
 
 /** The exports of a bundle's `module` entry: its module and the lists of its tools. */
 interface BundleModuleExports extends BundleSurfaceModule {
@@ -98,9 +102,13 @@ export interface DevToolsHost {
   mcp: McpHost;
 }
 
-/** The face of the configuration: Streamable HTTP with `config.http`, else stdio. */
-function facesOf(config: McpServerConfig): McpHostFaces {
+/**
+ * The face of the configuration: Streamable HTTP with `config.http`, else stdio. With `mount`, the
+ * HTTP face has no listener of its own: the listener of the service answers for it (CLI-11).
+ */
+function facesOf(config: McpServerConfig, mount: boolean): McpHostFaces {
   if (!config.http) return { stdio: true };
+  if (mount) return { http: { mount: true, ...(config.http.token ? { token: config.http.token } : {}) } };
   return {
     http: {
       port: config.http.port,
@@ -110,8 +118,17 @@ function facesOf(config: McpServerConfig): McpHostFaces {
   };
 }
 
+/** The options of `createDevToolsHost()`. */
+export interface DevToolsHostOptions {
+  /**
+   * True: the HTTP face has no listener of its own, and the caller mounts `mcp.handleHttp` on a
+   * listener. `runDevToolsServer()` gives true. The default is false, the listener of the face.
+   */
+  mountHttp?: boolean | undefined;
+}
+
 /** This function builds the host. It starts no transport. */
-export async function createDevToolsHost(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
+export async function createDevToolsHost(config: McpServerConfig = loadConfig(), options: DevToolsHostOptions = {}): Promise<DevToolsHost> {
   const loaded = await loadBundles(config.bundles);
   const registry = loaded.global ? PROCEDURE_REGISTRY : createRegistry(...loaded.modules);
   // MCP_FS_ROOT (roadmap R33): each procedure of the registry keeps its paths in the root, also
@@ -136,7 +153,7 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
     name: config.serverName,
     version: config.serverVersion,
     debug: config.debug,
-    faces: facesOf(config),
+    faces: facesOf(config, options.mountHttp === true),
   });
   return {
     registry,
@@ -148,11 +165,77 @@ export async function createDevToolsHost(config: McpServerConfig = loadConfig())
   };
 }
 
+/** The knobs of the HTTP listener on the computer of a developer, as data (as the procedures host gives them). */
+const LISTENER_KNOBS: HttpKnobs = Object.freeze({
+  server_idle_close: seconds(5),
+  server_idle_sweep_interval: seconds(1),
+  server_retry_after: seconds(1),
+});
+
+/** A dev-tools server that runs under `run()`: the host, its service, the lifecycle and the URL of HTTP. */
+export interface RunningDevToolsServer {
+  readonly host: DevToolsHost;
+  readonly service: ServiceBuilder;
+  /** The lifecycle: `life.done` resolves with the exit code after the stop. */
+  readonly life: Lifecycle;
+  /** The URL of the Streamable HTTP endpoint, with `config.http`. */
+  readonly url?: string | undefined;
+}
+
+/**
+ * This function runs the dev-tools MCP server under `run()` of `@mark1russell7/service` (CLI-11).
+ * The runner owns the signals, the stop in stages and the exit of the process.
+ *
+ * - Over stdio, the profile is `ephemeral`, and the end of the input is the trigger `stdin-close`.
+ *   stdout carries the protocol, so `console.log` goes to stderr from here on (BUGS-2026-07 Bug5).
+ * - With `config.http`, the profile is `localDev`. An `httpTransport` of the service listens on the
+ *   port, and the Streamable HTTP face mounts on it at `/mcp`. The address is loopback by default.
+ *
+ * After a startup that failed, `life.errors` tells why, and the process exits with the code 1.
+ */
+export async function runDevToolsServer(config: McpServerConfig = loadConfig(), run?: RunOptions): Promise<RunningDevToolsServer> {
+  // Defense-in-depth for the stdio transport: a stray console.log would corrupt the protocol
+  redirectConsoleToStderr();
+  if (config.debug) console.error("[mcp-server] Starting with config:", JSON.stringify(config, null, 2));
+
+  const host = await createDevToolsHost(config, { mountHttp: true });
+  const profile: Profile = config.http ? localDev : ephemeral;
+  const svc = host.mcp.declare(service("mcp-dev-tools").profile(profile));
+  // A profile without policies leaves them to the service (as runProcedureHost does)
+  if (!profile.readiness) svc.readiness({ type: "debounce", interval: seconds(5), failAfter: 3, recoverAfter: 1 });
+  if (!profile.liveness) svc.liveness({ type: "window", failAfter: seconds(45) });
+  if (!profile.startup) svc.startup(seconds(30));
+
+  let listener: HttpTransport | undefined;
+  if (config.http) {
+    const address = config.http.host ?? "127.0.0.1";
+    listener = httpTransport(createServer(), LISTENER_KNOBS, { listen: { port: config.http.port, host: address } });
+    listener.mount((req, res) => host.mcp.handleHttp(req, res));
+    svc.server("mcp-dev-tools.listen", listener.knobs, listener);
+  }
+
+  const life = await svc.run(run);
+  const face = host.mcp.state().faces[0];
+  if (config.debug) console.error(`[mcp-server] Started with ${face?.toolCount ?? 0} tools`);
+  if (host.fsRoot !== undefined) console.error(`[mcp-server] Each tool refuses a path outside ${host.fsRoot}. Refused under the root: ${String(host.refusedUnderRoot)}`);
+  let url: string | undefined;
+  const bound = listener?.server.address();
+  if (config.http && bound && typeof bound === "object") {
+    const shown = bound.address === "0.0.0.0" || bound.address === "::" ? "localhost" : bound.address.includes(":") ? `[${bound.address}]` : bound.address;
+    url = `http://${shown}:${bound.port}/mcp`;
+    console.error(`[mcp-server] Streamable HTTP at ${url}${config.http.token ? " (send Authorization: Bearer <token>)" : ""}`);
+  }
+  return { host, service: svc, life, ...(url ? { url } : {}) };
+}
+
 /**
  * This function starts the dev-tools MCP server over stdio, or over Streamable HTTP with
  * `config.http` (roadmap R26). Over stdio, stdout carries the protocol, so `console.log` goes to
  * stderr from here on (BUGS-2026-07 Bug5). The stdio server stops when the client closes its
  * input: `host.mcp.closed` then resolves.
+ *
+ * @deprecated Use `runDevToolsServer()`: it runs the server under `run()` of the service, with a
+ * listener of the service for HTTP. The next MINOR removes this function (CLI-11).
  */
 export async function startDevToolsServer(config: McpServerConfig = loadConfig()): Promise<DevToolsHost> {
   // Defense-in-depth for the stdio transport: a stray console.log (from a procedure handler, a
