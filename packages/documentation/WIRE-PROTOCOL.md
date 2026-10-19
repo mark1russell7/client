@@ -327,6 +327,8 @@ A deadline that passed before the procedure started gives the code `TIMEOUT`, no
 
 A host can limit the calls of each key, for example the writes of each tenant (CLI-40). The option `limits` of the host policy gives the limits. Each limit is a keyed limiter of `@mark1russell7/service/limiter`. The server takes one unit of each limit that covers a call, after the authentication and before the run. Thus each face has the same limits.
 
+The server takes the units in the sequence of the limits. The first refusal stops the call. A limit before the refusal keeps its unit: the server does not give it back.
+
 A call above a limit gets `RATE_LIMITED`. The call did not start, thus a retry after the wait is safe. The error has these parts on each face:
 
 - The metadata key `retry-after`: the wait in milliseconds. The HTTP body has it as `retryAfterMs`, and the MCP result has it in `_meta`.

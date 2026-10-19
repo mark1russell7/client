@@ -189,6 +189,9 @@ export interface ProcedureServerOptions extends ServerOptions {
    * limit that covers a call, after the authentication and before the run, for each face. A
    * refusal is `RATE_LIMITED` with the wait in `retry-after`: HTTP 429 with `Retry-After`. Without
    * this option, the server limits nothing.
+   *
+   * The server takes the units in the sequence of the limits, and the first refusal stops the call.
+   * A limit before the refusal keeps its unit: the server does not give it back.
    */
   limits?: readonly CallLimit[] | undefined;
 

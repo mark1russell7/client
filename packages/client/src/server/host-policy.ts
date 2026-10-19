@@ -109,6 +109,8 @@ export interface HostPolicyOptions {
   /**
    * The limits of the calls (CLI-40): each limit counts the calls of one key, for example the
    * writes of each tenant. A refusal is `RATE_LIMITED` on each face. Without it: no limits.
+   * Each limit that covers a call takes one unit, in the sequence of the limits. A limit before a
+   * refusal keeps its unit: the server does not give it back.
    */
   limits?: readonly CallLimit[] | undefined;
   /** The stores that the replicas share, by the name of their dependency, for the limits with a shared store. */

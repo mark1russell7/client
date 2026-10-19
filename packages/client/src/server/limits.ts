@@ -4,7 +4,9 @@
  * A limit is data: a key over the call, the calls that it covers, a limit policy, a store and a
  * bound on its keys. Each limit is a keyed limiter of `@mark1russell7/service/limiter` (SYS-28) on
  * the clock of the server. The server takes one unit of each limit that covers a call, after the
- * authentication and before the run. Thus the key can read the principal of the call.
+ * authentication and before the run. Thus the key can read the principal of the call. It takes the
+ * units in the sequence of the limits, and the first refusal stops the call. A limit before the
+ * refusal keeps its unit: the server does not give it back.
  *
  * A refusal is `RATE_LIMITED` (retryable), with the wait in the metadata key `retry-after` (in
  * milliseconds) and the cause in `reason` (`limit`, `cap` or `store`). The HTTP face answers 429

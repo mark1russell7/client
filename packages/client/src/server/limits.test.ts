@@ -197,6 +197,20 @@ describe("the limits of the calls of a server (CLI-40)", () => {
     expect(outcome(await call(chosen, "acme", "write"))).toBe("ok");
   });
 
+  it("takes one unit of each limit in sequence, and a limit before a refusal keeps its unit", async () => {
+    const calls: CallLimit = { ...ONE_EACH_MINUTE, name: "calls", policy: { type: "sliding-window", limit: count(2), window: seconds(60) } };
+    const writes: CallLimit = { ...ONE_EACH_MINUTE, name: "writes", covers: { routes: ["notes.write"] } };
+    const server = serverOf([calls, writes]);
+    expect(outcome(await call(server, "acme", "write"))).toBe("ok");
+    // The limit of the writes refuses the second write, after the limit of the calls took its unit
+    const second = await call(server, "acme", "write");
+    expect(second.status.type === "error" ? second.status.message : "").toContain("The limit writes");
+    // The limit of the calls kept that unit: a read is now above its limit of 2
+    const read = await call(server, "acme", "read");
+    expect(read.status.type === "error" ? read.status.message : "").toContain("The limit calls");
+    expect(runs).toEqual({ write: 1 });
+  });
+
   it("gives each limit as a keyed limiter with its spec, for the declaration of the service", () => {
     const server = serverOf([
       WRITES_PER_TENANT,

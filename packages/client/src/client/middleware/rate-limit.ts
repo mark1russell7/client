@@ -11,8 +11,8 @@
  * that refills `maxRequests` tokens in each `window`, as before.
  */
 
-import { valueIn } from "@mark1russell7/quantity";
-import { keyedLimiter, memoryStore, type Decision } from "@mark1russell7/service/limiter";
+import { valueIn, type Quantity } from "@mark1russell7/quantity";
+import { keyedLimiter, memoryStore, type Decision, type LimitRule } from "@mark1russell7/service/limiter";
 import type { ClientMiddleware, ClientRunner, ClientContext, TypedClientMiddleware } from "../types.js";
 import type { RateLimitContext } from "./contexts.js";
 import { abortedItem } from "./items.js";
@@ -26,12 +26,18 @@ import type { Cancel, Clock } from "../../clock.js";
 export interface RateLimitOptions {
   /**
    * Maximum number of requests per time window.
+   *
+   * Kept for compatibility: a value below 1 never lets a request in, and a value above 1 that is
+   * not whole gives a bucket of that size. An infinite value limits nothing.
    * @default 100
    */
   maxRequests?: number;
 
   /**
    * Time window in milliseconds.
+   *
+   * Kept for compatibility: a window of 0 or less fills the bucket again at each request, so a
+   * `maxRequests` of 1 or more limits nothing.
    * @default 60000 (1 minute)
    */
   window?: Duration;
@@ -121,6 +127,53 @@ function wallClock(): Clock {
   };
 }
 
+/** This function gives a wait in milliseconds as a quantity. */
+const msOf = (value: number): Quantity => ({ value, unit: "ms" });
+
+/**
+ * This function gives the take of the bucket of the options. The take decides at once, without a
+ * promise.
+ *
+ * - A whole `maxRequests` of 1 or more and a `window` above 0: a keyed limiter of the service on a
+ *   memory store (CLI-40). Its token bucket gives `maxRequests` takes at once, and one more take
+ *   each `window / maxRequests`.
+ * - Kept for compatibility: a `maxRequests` above 1 that is not whole gives the same store with a
+ *   bucket of that size. The keyed limiter refuses such a spec, so the rule is given in numbers.
+ * - Kept for compatibility: a `window` of 0 or less fills the bucket again at each request. Thus a
+ *   `maxRequests` of 1 or more limits nothing.
+ * - Kept for compatibility: a `maxRequests` below 1 never lets a request in. A queued request
+ *   waits without an end, and the timer of the queue keeps a process alive, as before.
+ * - Kept for compatibility: an infinite `maxRequests` limits nothing.
+ */
+function bucketOf(maxRequests: number, window: number, clock: Clock): () => Decision {
+  if (window <= 0 && maxRequests >= 1) {
+    const remaining = Math.floor(maxRequests - 1);
+    return () => ({ allowed: true, remaining });
+  }
+  if (!(maxRequests >= 1)) {
+    // The wait of the queue before CLI-40: the time until one token, or 1 ms when it has no value
+    const wait = ((1 - maxRequests) * window) / maxRequests;
+    const waitMs = Number.isFinite(wait) && wait > 1 ? wait : 1;
+    return () => ({ allowed: false, retryAfter: msOf(waitMs), cause: "limit" });
+  }
+  if (maxRequests === Number.POSITIVE_INFINITY) return () => ({ allowed: true, remaining: Number.POSITIVE_INFINITY });
+  const store = memoryStore(clock);
+  const rule: LimitRule = Number.isInteger(maxRequests)
+    ? keyedLimiter(
+        LIMITER,
+        {
+          key: KEY,
+          policy: { type: "token-bucket", rate: { value: maxRequests / window, unit: "count/ms" }, burst: { value: maxRequests, unit: "count" } },
+          store: { kind: "local" },
+          evict: { maxKeys: { value: 1, unit: "count" } },
+        },
+        store,
+      ).rule
+    : { type: "token-bucket", interval: window / maxRequests, burst: maxRequests };
+  // The memory store decides in one step without a promise
+  return () => store.take({ limiter: LIMITER, key: KEY, rule, maxKeys: 1 }) as Decision;
+}
+
 /**
  * Create rate limiting middleware using token bucket algorithm.
  *
@@ -156,28 +209,8 @@ export function createRateLimitMiddleware(
     onRateLimitExceeded,
   } = options;
   const window = optionalMs(options.window, "window") ?? TIMER_DEFAULTS.rateLimit.windowMs;
-  // A token bucket has a whole number of tokens and a refill above zero
-  if (!Number.isInteger(maxRequests) || maxRequests < 1) {
-    throw new RangeError(`maxRequests must be a whole number above 0, not ${String(maxRequests)}`);
-  }
-  if (!(window > 0) || !Number.isFinite(window)) {
-    throw new RangeError(`window must be a duration above 0, not ${String(window)} ms`);
-  }
   const clock = options.clock ?? wallClock();
-
-  // The bucket: a keyed limiter of the service with one key. It gives `maxRequests` takes at once,
-  // and one more take each `window / maxRequests`.
-  const store = memoryStore(clock);
-  const limiter = keyedLimiter(
-    LIMITER,
-    {
-      key: KEY,
-      policy: { type: "token-bucket", rate: { value: maxRequests / window, unit: "count/ms" }, burst: { value: maxRequests, unit: "count" } },
-      store: { kind: "local" },
-      evict: { maxKeys: { value: 1, unit: "count" } },
-    },
-    store,
-  );
+  const takeOfBucket = bucketOf(maxRequests, window, clock);
   let totalRequests = 0;
   let rejectedRequests = 0;
   /** The whole tokens after the last decision: `remaining` of a take, or 0 after a refusal. */
@@ -187,12 +220,9 @@ export function createRateLimitMiddleware(
   const queue: QueuedRequest[] = [];
   let drainTimer: Cancel | undefined;
 
-  /**
-   * One take of the bucket, at once. The memory store decides in one step without a promise, so
-   * the requests keep their order, as before.
-   */
+  /** One take of the bucket, at once, so the requests keep their order, as before. */
   function take(): Decision {
-    const decision = store.take({ limiter: limiter.name, key: KEY, rule: limiter.rule, maxKeys: limiter.maxKeys }) as Decision;
+    const decision = takeOfBucket();
     tokensAvailable = decision.allowed ? decision.remaining : 0;
     return decision;
   }
