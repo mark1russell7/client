@@ -2,7 +2,7 @@
 
 This document is the contract of the server stack. One service runner is in `systems`, one procedures server is in this repository, and the apps use the two. The contract replaces the host ownership brief (decision D14).
 
-- The cross-repo tracker is https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb. Each item ID of this document (`CLI-3`, `SYS-1`, `D9`) is a row of its database.
+- The cross-repo tracker is https://claude.ai/artifact/WtkE3dtHp57qpcs4UvcaVZ. Each item ID of this document (`CLI-3`, `SYS-1`, `D9`) is a row of its database.
 - The client items are also in [ROADMAP-2026-10.md](./ROADMAP-2026-10.md), in the section "The server stack (R37)".
 - A change to a layer, an owner or a rule of this document needs a decision of Mark. Record the decision in the tracker first.
 
