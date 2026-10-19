@@ -1,0 +1,199 @@
+/* The releases page: the timeline of the versions and the changes of the selected one. */
+
+.release-panel > p {
+  margin-bottom: var(--space-2);
+}
+
+.release-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin-bottom: var(--space-2);
+  color: var(--color-ink-secondary);
+}
+
+.release-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.release-swatch {
+  flex: none;
+  overflow: visible;
+}
+
+/* The timeline scrolls in its own box when the page is narrow, never the page */
+.release-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+}
+
+.release-timeline {
+  display: block;
+  overflow: visible;
+}
+
+.release-gap {
+  fill: var(--color-surface-sunken);
+}
+
+.release-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.release-axis {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+}
+
+.release-day {
+  fill: var(--color-ink-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.release-count {
+  fill: var(--color-ink-muted);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+.release-mark {
+  cursor: pointer;
+  outline: none;
+}
+
+.release-hit {
+  fill: transparent;
+}
+
+.release-mark:hover .release-label {
+  fill: var(--color-accent-strong);
+}
+
+.release-dot {
+  fill: var(--color-accent);
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+.release-ring {
+  fill: var(--color-surface);
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+.kind-first .release-dot {
+  fill: var(--status-good);
+}
+
+/* The ring of the selected mark */
+.release-halo {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.release-label {
+  fill: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--color-surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.release-mark.selected .release-label {
+  fill: var(--color-accent-strong);
+  font-weight: 700;
+}
+
+/* The focus ring: an SVG element does not draw the outline of :focus-visible */
+.release-mark:focus-visible .release-hit {
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+.release-details {
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.release-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.release-version {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+}
+
+.release-links {
+  display: inline-flex;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.release-changes {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.release-change {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-rule);
+  min-width: 0;
+}
+
+.release-change-text {
+  margin: 0 0 var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.release-change-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.release-commit code {
+  font-size: var(--text-xs);
+}
+
+.release-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+button.chip.release-more {
+  font-size: var(--text-xs);
+  padding: 0 var(--space-2);
+}
+
+.release-all {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 560px) {
+  .release-links {
+    margin-left: 0;
+    width: 100%;
+  }
+}

@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 544 names
+## . (dist/index.d.ts): 550 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -42,11 +42,15 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionAdmission: dist/procedures/collection/admission.d.ts#CollectionAdmission
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
+type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
@@ -108,11 +112,11 @@ type HostPolicy: dist/server/host-policy.d.ts#HostPolicy
 type HostPolicyOptions: dist/server/host-policy.d.ts#HostPolicyOptions
 type HostSource: dist/server/host-procedures.d.ts#HostSource
 type HttpMethodStrategy: dist/adapters/http/shared/strategies.d.ts#HttpMethodStrategy
-HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
-type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+HttpServerTransport: dist/server/index.d.ts#HttpServerTransport
+type HttpServerTransportOptions: dist/server/index.d.ts#HttpServerTransportOptions
 HttpTransport: dist/adapters/http/client/transport.d.ts#HttpTransport
 type HttpTransportOptions: dist/adapters/http/client/types.d.ts#HttpTransportOptions
-type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+type HttpUrlStrategy: dist/server/index.d.ts#HttpUrlStrategy
 type HydrateOptions: dist/procedures/ref.d.ts#HydrateOptions
 type HydrationEvent: dist/procedures/ref.d.ts#HydrationEvent
 IDEMPOTENCY_KEY_METADATA: dist/procedures/idempotency.d.ts#IDEMPOTENCY_KEY_METADATA
@@ -318,17 +322,19 @@ WEBSOCKET_CONNECTION_MACHINE: dist/machines.d.ts#WEBSOCKET_CONNECTION_MACHINE
 WHEN_IMMEDIATE: dist/procedures/ref.d.ts#WHEN_IMMEDIATE
 WHEN_NEVER: dist/procedures/ref.d.ts#WHEN_NEVER
 WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
-type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
-type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
-type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
-WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
-type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+type WebSocketAuthHandler: dist/server/index.d.ts#WebSocketAuthHandler
+type WebSocketConnectionHandler: dist/server/index.d.ts#WebSocketConnectionHandler
+type WebSocketMessage: dist/server/index.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/server/index.d.ts#WebSocketServerTransport
+type WebSocketServerTransportOptions: dist/server/index.d.ts#WebSocketServerTransportOptions
 WebSocketState: dist/adapters/websocket/client/types.d.ts#WebSocketState
 WebSocketTransport: dist/adapters/websocket/client/transport.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
+admitsRow: dist/procedures/collection/admission.d.ts#admitsRow
+admittedStorage: dist/procedures/collection/admission.d.ts#admittedStorage
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -551,7 +557,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 526 names
+## ./browser (dist/browser.d.ts): 532 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -588,11 +594,15 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionAdmission: dist/procedures/collection/admission.d.ts#CollectionAdmission
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
+type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
@@ -865,6 +875,8 @@ type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSoc
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
+admitsRow: dist/procedures/collection/admission.d.ts#admitsRow
+admittedStorage: dist/procedures/collection/admission.d.ts#admittedStorage
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -1080,13 +1092,18 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./node (dist/node.d.ts): 31 names
+## ./node (dist/node.d.ts): 38 names
 
 type Addressing: dist/adapters/http/server/addressing.d.ts#Addressing
+BodyError: dist/adapters/http/server/body.d.ts#BodyError
 type BodyPathAddressingOptions: dist/adapters/http/server/addressing.d.ts#BodyPathAddressingOptions
 type CallAddress: dist/adapters/http/server/addressing.d.ts#CallAddress
 type ConnectionEventHandler: dist/adapters/websocket/server/types.d.ts#ConnectionEventHandler
 type CorsOptions: dist/adapters/http/server/cors.d.ts#CorsOptions
+type CredentialedCorsOptions: dist/adapters/http/server/cors.d.ts#CredentialedCorsOptions
+HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
+type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
+type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
 type NdjsonError: dist/adapters/http/server/ndjson.d.ts#NdjsonError
 type NodeProcedureHandler: dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
 type NodeUpgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#NodeUpgradeHandler
@@ -1107,8 +1124,10 @@ WebSocketTransport: dist/adapters/websocket/client/node.d.ts#WebSocketTransport
 type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSocketTransportOptions
 type WriteNdjsonStreamOptions: dist/adapters/http/server/ndjson.d.ts#WriteNdjsonStreamOptions
 bodyPathAddressing: dist/adapters/http/server/addressing.d.ts#bodyPathAddressing
+credentialedCors: dist/adapters/http/server/cors.d.ts#credentialedCors
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 procedureHandler: dist/adapters/http/server/handler.d.ts#procedureHandler
+readJsonBody: dist/adapters/http/server/body.d.ts#readJsonBody
 rpcServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#rpcServerUrlStrategy
 upgradeHandler: dist/adapters/websocket/server/upgrade.d.ts#upgradeHandler
 urlAddressing: dist/adapters/http/server/addressing.d.ts#urlAddressing
@@ -1296,7 +1315,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 291 names
+## ./procedures (dist/procedures/index.d.ts): 297 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1310,11 +1329,15 @@ type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
 type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
 type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
 type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+type CollectionAdmission: dist/procedures/collection/admission.d.ts#CollectionAdmission
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
+type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
@@ -1451,6 +1474,8 @@ WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
+admitsRow: dist/procedures/collection/admission.d.ts#admitsRow
+admittedStorage: dist/procedures/collection/admission.d.ts#admittedStorage
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -1611,9 +1636,9 @@ wrapWithSyncMiddlewares: dist/middleware/compose.d.ts#wrapWithSyncMiddlewares
 type AmbientCredentials: dist/server/types.d.ts#AmbientCredentials
 type Credentials: dist/server/types.d.ts#Credentials
 HandlerNotFoundError: dist/server/types.d.ts#HandlerNotFoundError
-HttpServerTransport: dist/adapters/http/server/transport.d.ts#HttpServerTransport
-type HttpServerTransportOptions: dist/adapters/http/server/types.d.ts#HttpServerTransportOptions
-type HttpUrlStrategy: dist/adapters/http/server/types.d.ts#HttpUrlStrategy
+HttpServerTransport: dist/server/index.d.ts#HttpServerTransport
+HttpServerTransportOptions: dist/server/index.d.ts#HttpServerTransportOptions
+HttpUrlStrategy: dist/server/index.d.ts#HttpUrlStrategy
 type Principal: dist/server/types.d.ts#Principal
 type PrincipalOf: dist/server/types.d.ts#PrincipalOf
 ProcedureServer: dist/server/procedure-server.d.ts#ProcedureServer
@@ -1638,11 +1663,11 @@ type StopParts: dist/server/procedure-server.d.ts#StopParts
 type StorageConfig: dist/server/procedure-server.d.ts#StorageConfig
 type StorageHandle: dist/server/procedure-server.d.ts#StorageHandle
 type UseStorageOptions: dist/server/procedure-server.d.ts#UseStorageOptions
-type WebSocketAuthHandler: dist/adapters/websocket/server/types.d.ts#WebSocketAuthHandler
-type WebSocketConnectionHandler: dist/adapters/websocket/server/types.d.ts#WebSocketConnectionHandler
-type WebSocketMessage: dist/adapters/websocket/server/types.d.ts#WebSocketMessage
-WebSocketServerTransport: dist/adapters/websocket/server/transport.d.ts#WebSocketServerTransport
-type WebSocketServerTransportOptions: dist/adapters/websocket/server/types.d.ts#WebSocketServerTransportOptions
+WebSocketAuthHandler: dist/server/index.d.ts#WebSocketAuthHandler
+WebSocketConnectionHandler: dist/server/index.d.ts#WebSocketConnectionHandler
+WebSocketMessage: dist/server/index.d.ts#WebSocketMessage
+WebSocketServerTransport: dist/server/index.d.ts#WebSocketServerTransport
+WebSocketServerTransportOptions: dist/server/index.d.ts#WebSocketServerTransportOptions
 createProcedureServer: dist/server/procedure-server.d.ts#createProcedureServer
 defaultServerUrlStrategy: dist/adapters/http/server/strategies.d.ts#defaultServerUrlStrategy
 isUnboundedStream: dist/server/procedure-server.d.ts#isUnboundedStream
@@ -1730,6 +1755,15 @@ export declare function bodyPathAddressing(options?: BodyPathAddressingOptions):
 ### dist/adapters/http/server/addressing.d.ts#urlAddressing
 export declare function urlAddressing(options?: UrlAddressingOptions): Addressing;
 
+### dist/adapters/http/server/body.d.ts#BodyError
+export declare class BodyError extends Error {
+    readonly httpStatus: number;
+    constructor(message: string, httpStatus: number);
+}
+
+### dist/adapters/http/server/body.d.ts#readJsonBody
+export declare function readJsonBody(req: IncomingMessage, limit: number): Promise<unknown>;
+
 ### dist/adapters/http/server/cors.d.ts#CorsOptions
 export interface CorsOptions {
     readonly origin?: string | readonly string[] | ((origin: string) => boolean) | undefined;
@@ -1739,6 +1773,12 @@ export interface CorsOptions {
     readonly credentials?: boolean | undefined;
     readonly maxAge?: Duration | undefined;
 }
+
+### dist/adapters/http/server/cors.d.ts#CredentialedCorsOptions
+export type CredentialedCorsOptions = Omit<CorsOptions, "origin" | "credentials">;
+
+### dist/adapters/http/server/cors.d.ts#credentialedCors
+export declare function credentialedCors(allowedOrigins: BrowserGuardOptions["allowedOrigins"], options?: CredentialedCorsOptions): (req: IncomingMessage, res: ServerResponse) => boolean;
 
 ### dist/adapters/http/server/handler.d.ts#NodeProcedureHandler
 export interface NodeProcedureHandler {
@@ -3518,6 +3558,35 @@ export declare function narrowCapability<C>(current: Capability<C> | undefined, 
 ### dist/procedures/capability.d.ts#toolHints
 export declare function toolHints(procedure: AnyProcedure): ToolHints;
 
+### dist/procedures/collection/admission.d.ts#CollectionAdmission
+export interface CollectionAdmission {
+    admit?: AdmitItem | undefined;
+    guard?: CollectionWriteGuard | undefined;
+}
+
+### dist/procedures/collection/admission.d.ts#CollectionRow
+export interface CollectionRow {
+    readonly id: string;
+    readonly value: unknown;
+}
+
+### dist/procedures/collection/admission.d.ts#CollectionWrite
+export interface CollectionWrite {
+    readonly op: "set" | "patch" | "delete";
+    readonly id: string;
+    readonly doc: unknown;
+    readonly prev: unknown;
+}
+
+### dist/procedures/collection/admission.d.ts#CollectionWriteGuard
+export type CollectionWriteGuard = (write: CollectionWrite, invocation: Invocation) => boolean | Promise<boolean>;
+
+### dist/procedures/collection/admission.d.ts#admitsRow
+export declare function admitsRow(admission: CollectionAdmission | undefined, ctx: ProcedureContext, id: string, value: unknown): Promise<boolean>;
+
+### dist/procedures/collection/admission.d.ts#admittedStorage
+export declare function admittedStorage<T>(storage: CollectionStorage<T>, admission: CollectionAdmission | undefined, ctx: ProcedureContext): CollectionStorage<T>;
+
 ### dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 export interface CollectionChangeEvent {
     readonly since?: string | undefined;
@@ -3577,6 +3646,7 @@ export interface CollectionChangeEventsOptions {
 export interface CollectionProceduresOptions {
     queryPolicy?: StorageQueryPolicy | undefined;
     changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
+    admission?: CollectionAdmission | undefined;
 }
 
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
@@ -4257,7 +4327,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -4963,6 +5033,7 @@ export interface ProcedureContext {
     fsRoot?: string | undefined;
     principal?: Principal | undefined;
     admit?: ((item: unknown) => Promise<boolean>) | undefined;
+    invocation?: Invocation | undefined;
 }
 
 ### dist/procedures/types.d.ts#ProcedureError
@@ -5217,6 +5288,32 @@ export interface HostSource {
 
 ### dist/server/host-procedures.d.ts#hostProcedures
 export declare function hostProcedures(source: HostSource): AnyProcedure[];
+
+### dist/server/index.d.ts#HttpServerTransport
+export declare const HttpServerTransport: typeof NodeHttpServerTransport;
+export type HttpServerTransport = NodeHttpServerTransport;
+
+### dist/server/index.d.ts#HttpServerTransportOptions
+export type HttpServerTransportOptions = NodeHttpServerTransportOptions;
+
+### dist/server/index.d.ts#HttpUrlStrategy
+export type HttpUrlStrategy = NodeHttpUrlStrategy;
+
+### dist/server/index.d.ts#WebSocketAuthHandler
+export type WebSocketAuthHandler = NodeWebSocketAuthHandler;
+
+### dist/server/index.d.ts#WebSocketConnectionHandler
+export type WebSocketConnectionHandler = NodeWebSocketConnectionHandler;
+
+### dist/server/index.d.ts#WebSocketMessage
+export type WebSocketMessage<TReq = unknown> = NodeWebSocketMessage<TReq>;
+
+### dist/server/index.d.ts#WebSocketServerTransport
+export declare const WebSocketServerTransport: typeof NodeWebSocketServerTransport;
+export type WebSocketServerTransport = NodeWebSocketServerTransport;
+
+### dist/server/index.d.ts#WebSocketServerTransportOptions
+export type WebSocketServerTransportOptions = NodeWebSocketServerTransportOptions;
 
 ### dist/server/method.d.ts#methodName
 export declare function methodName(method: Pick<Method, "service" | "operation">): string;

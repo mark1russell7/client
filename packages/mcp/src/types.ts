@@ -51,6 +51,22 @@ export interface McpToolDefinition {
    * procedure (CAPABILITIES-2026-10). Absent: the MCP defaults (not read only, destructive).
    */
   annotations?: McpToolAnnotations;
+  /**
+   * How a client can call the tool (MCP 2025-11-25 tasks): `metadata.taskSupport` of the
+   * procedure. Absent: the client calls the tool as a normal request, never as a task.
+   */
+  execution?: McpToolExecution;
+}
+
+/**
+ * How a client can call a tool (MCP 2025-11-25). `"optional"`: as a task or as a normal request.
+ * `"required"`: only as a task. `"forbidden"`: only as a normal request.
+ */
+export type McpTaskSupport = "forbidden" | "optional" | "required";
+
+/** The execution of a tool: if a client can call it as a task. */
+export interface McpToolExecution {
+  taskSupport?: McpTaskSupport;
 }
 
 /** The hints of a tool. A client reads them. The capability of the host enforces the effects, not the hints. */

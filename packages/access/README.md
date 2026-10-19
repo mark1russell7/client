@@ -88,3 +88,25 @@ const server = createProcedureServer({
 
 - An item without a scope is refused.
 - A conditional entry sees the item as `doc`.
+- The option `docOf` gives the document of an item for a `when` condition. The default is the item itself.
+
+## The rows of a collection
+
+The option `admission` of `createCollectionProcedures()` takes a rule of the rows and a guard of the writes (roadmap CLI-41). `accessAdmitItem` gives the rule, and `accessWriteGuard` gives the guard:
+
+```ts
+const lists = () => listsOfTheTenant();
+const procedures = createCollectionProcedures("notes", {
+  admission: {
+    // Each read gives only the rows that the subject can read
+    admit: accessAdmitItem({ access, lists, scopeOf: (row) => row.value._scope ?? "space", docOf: (row) => row.value }),
+    // Each set, patch and delete needs the right `write`
+    guard: accessWriteGuard({ access, lists, scopeOf: (doc) => doc._scope ?? "space" }),
+  },
+});
+```
+
+- The rule gets each row `{ id, value }`. Thus `scopeOf` and `docOf` read `row.value`.
+- The guard gets the stored document (`prev`) and the new document (`doc`). Its `scopeOf` reads a document.
+- A `when` condition of the guard gets `op`: `write` for a `set` and a `patch`, and `delete` for a `delete`.
+- A write that moves a document to another scope needs the right on the two scopes. A write with no document is refused.

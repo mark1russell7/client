@@ -14,6 +14,7 @@ const Catalog = lazy(() => import("./pages/Catalog").then((module) => ({ default
 const Architecture = lazy(() => import("./pages/Architecture").then((module) => ({ default: module.Architecture })));
 const Claude = lazy(() => import("./pages/Claude").then((module) => ({ default: module.Claude })));
 const Status = lazy(() => import("./pages/Status").then((module) => ({ default: module.Status })));
+const Releases = lazy(() => import("./pages/Releases").then((module) => ({ default: module.Releases })));
 const Lab = lazy(() => import("./pages/Lab").then((module) => ({ default: module.Lab })));
 const Docs = lazy(() => import("./pages/Docs").then((module) => ({ default: module.Docs })));
 const CommandPalette = lazy(() => import("./components/CommandPalette").then((module) => ({ default: module.CommandPalette })));
@@ -35,6 +36,7 @@ const NAV: Array<{ page: string; label: string }> = [
   { page: "lab", label: "Lab" },
   { page: "claude", label: "What Claude sees" },
   { page: "status", label: "Status" },
+  { page: "releases", label: "Releases" },
 ];
 
 function ThemeToggle(): ReactElement {
@@ -160,6 +162,9 @@ export function App(): ReactElement {
       break;
     case "status":
       page = <Status route={route} />;
+      break;
+    case "releases":
+      page = <Releases />;
       break;
     case "lab":
       page = <Lab />;

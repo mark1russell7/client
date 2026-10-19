@@ -2,7 +2,7 @@
  * The procedures of `@procedures/ics`: `ics.parse`, `ics.occurrences`, `ics.write` and `ics.fetch`.
  */
 
-import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client";
+import { createProcedure, zodAdapter, type AnyProcedure, type ProcedureContext } from "@procedures/client/browser";
 import { z } from "zod";
 import { calendarOccurrences, isCalendar, parseIcs, type IcsEvent, type Occurrence } from "./ics.js";
 import { icsWrite } from "./procedures/ics/write.js";

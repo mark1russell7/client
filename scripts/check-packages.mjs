@@ -127,6 +127,7 @@ for (const name of names) {
   }
 }
 await import("@procedures/client/browser");
+await import("@procedures/store/browser");
 const global = globalThis[Symbol.for("@procedures/client/PROCEDURE_REGISTRY")];
 const afterRoots = global ? global.getAll().length : 0;
 if (afterRoots !== 0) throw new Error("the package roots registered " + afterRoots + " procedures");

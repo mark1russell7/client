@@ -286,6 +286,34 @@ const users = new HybridStorage(new ApiStorage(client, { collection: "users" }),
 
 `createSyncedRegistry({ type: "hybrid", client, mode })` takes the first mode. `setMode()` of the registry changes the mode of its storage.
 
+## The browser entry
+
+The entry `@procedures/store/browser` has the parts of the store that run in a browser (roadmap CLI-19). A page imports this entry and not the package root.
+
+- `HybridStorage`, its errors and its types.
+- `ApiStorage`, the remote storage over the collection procedures of a server.
+- `EventsChangeFeed`, the push feed of the remote changes.
+- All of `@procedures/store/indexeddb`: the IndexedDB stores and their fallbacks in memory.
+
+No module of the entry imports a module of Node. The modules import `@procedures/client/browser` and not the root of the client, because the root imports `http` and `ws`. The test `src/browser.test.ts` examines the imports of each module of the entry. The entry is in `client.browser` of `package.json`, so the CI check of the browser entries (`scripts/check-browser-entries.mjs`) bundles it for a browser too.
+
+The entry does not have these parts:
+
+- `FileProgramStore` and `FileQueueStore`. They use `node:fs`.
+- The procedures, the synced registry and the serialization. They import the root of the client. They are in the package root, for Node.
+
+An import of the entry registers nothing. Its classes are the same as the classes of the package root.
+
+```ts
+import { ApiStorage, EventsChangeFeed, HybridStorage, IndexedDbQueueStore, IndexedDbSyncStateStore } from "@procedures/store/browser";
+
+const users = new HybridStorage(new ApiStorage(client, { collection: "users" }), {
+  queueStore: new IndexedDbQueueStore("users-queue"),
+  syncState: new IndexedDbSyncStateStore("users-sync"),
+  feed: new EventsChangeFeed(client, { collection: "users" }),
+});
+```
+
 ## The root of the files
 
 No input of `procedure.store`, `procedure.load` and `procedure.sync` names a file. Under the root of a host (`mark --fs-root`, `procedure-server --fs-root`, `MCP_FS_ROOT`), they use the program store of the host. The host chooses the file of a file store, also outside the root. A loaded program is data-driven, so its nested calls get their own rules.

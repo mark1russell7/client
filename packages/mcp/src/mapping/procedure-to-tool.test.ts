@@ -11,6 +11,7 @@ import {
   findToolByPath,
   procedureToMcpTool,
   proceduresToMcpTools,
+  taskSupportOf,
   toolDescription,
   toToolDefinition,
   UNTRUSTED_FIELD_DESCRIPTION,
@@ -50,6 +51,23 @@ describe("the MCP hints of a tool", () => {
     const tool = procedureToMcpTool(procedure(["files", "unknown"], {}));
     expect(tool.annotations).toBeUndefined();
     expect(toToolDefinition(tool).annotations).toBeUndefined();
+  });
+});
+
+describe("the task support of a tool (MCP tasks, CLI-35)", () => {
+  it("gives the execution of a long procedure in the tool and in its definition", () => {
+    const tool = procedureToMcpTool(procedure(["crawl", "site"], { taskSupport: "optional" }));
+    expect(tool.execution).toEqual({ taskSupport: "optional" });
+    expect(toToolDefinition(tool).execution).toEqual({ taskSupport: "optional" });
+    expect(taskSupportOf(procedure(["crawl", "all"], { taskSupport: "required" }))).toBe("required");
+  });
+
+  it("gives no execution to a procedure without a valid value", () => {
+    for (const metadata of [{}, { taskSupport: "always" }, { taskSupport: true }]) {
+      const tool = procedureToMcpTool(procedure(["crawl", "fetch"], metadata));
+      expect(tool.execution).toBeUndefined();
+      expect(toToolDefinition(tool).execution).toBeUndefined();
+    }
   });
 });
 
