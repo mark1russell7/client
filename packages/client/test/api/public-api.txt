@@ -4,7 +4,7 @@
 # and private members. The test src/api.snapshot.test.ts compares this file with the .d.ts files of
 # dist/. To accept a change of the API, start the test with UPDATE_API_SNAPSHOT=1 and review the diff.
 
-## . (dist/index.d.ts): 542 names
+## . (dist/index.d.ts): 548 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -42,11 +42,15 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionAdmission: dist/procedures/collection/admission.d.ts#CollectionAdmission
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
+type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
@@ -327,6 +331,8 @@ type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSoc
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
+admitsRow: dist/procedures/collection/admission.d.ts#admitsRow
+admittedStorage: dist/procedures/collection/admission.d.ts#admittedStorage
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -549,7 +555,7 @@ withScope: dist/procedures/ref.d.ts#withScope
 withoutSecretHeaders: dist/server/request-auth.d.ts#withoutSecretHeaders
 zodAdapter: dist/procedures/core/schemas.d.ts#zodAdapter
 
-## ./browser (dist/browser.d.ts): 524 names
+## ./browser (dist/browser.d.ts): 530 names
 
 type AdmitItem: dist/procedures/invoke.d.ts#AdmitItem
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
@@ -586,11 +592,15 @@ type ClientMiddleware: dist/client/types.d.ts#ClientMiddleware
 type ClientOptions: dist/client/types.d.ts#ClientOptions
 type ClientRunner: dist/client/types.d.ts#ClientRunner
 type Clock: @mark1russell7/service/clock#Clock (external)
+type CollectionAdmission: dist/procedures/collection/admission.d.ts#CollectionAdmission
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
+type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
@@ -861,6 +871,8 @@ type WebSocketTransportOptions: dist/adapters/websocket/client/types.d.ts#WebSoc
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
+admitsRow: dist/procedures/collection/admission.d.ts#admitsRow
+admittedStorage: dist/procedures/collection/admission.d.ts#admittedStorage
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -1290,7 +1302,7 @@ throttleChannel: dist/events/bus.d.ts#throttleChannel
 topicMatcher: dist/events/publisher.d.ts#topicMatcher
 withEventBusSignal: dist/events/bus.d.ts#withEventBusSignal
 
-## ./procedures (dist/procedures/index.d.ts): 291 names
+## ./procedures (dist/procedures/index.d.ts): 297 names
 
 type AggregationDefinition: dist/procedures/define-procedure.d.ts#AggregationDefinition
 type AnyProcedure: dist/procedures/types.d.ts#AnyProcedure
@@ -1304,11 +1316,15 @@ type CapabilityRequest: dist/procedures/types.d.ts#CapabilityRequest
 type ClearanceOf: dist/procedures/types.d.ts#ClearanceOf
 type ClearanceOrder: dist/procedures/types.d.ts#ClearanceOrder
 type CliDescription: dist/procedures/manifest.d.ts#CliDescription
+type CollectionAdmission: dist/procedures/collection/admission.d.ts#CollectionAdmission
 type CollectionChangeEvent: dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 type CollectionChangeEventsOptions: dist/procedures/collection/procedures.d.ts#CollectionChangeEventsOptions
 type CollectionPartitions: dist/procedures/collection/partition.d.ts#CollectionPartitions
 type CollectionProceduresOptions: dist/procedures/collection/procedures.d.ts#CollectionProceduresOptions
+type CollectionRow: dist/procedures/collection/admission.d.ts#CollectionRow
 type CollectionStorage: dist/procedures/collection/storage.d.ts#CollectionStorage
+type CollectionWrite: dist/procedures/collection/admission.d.ts#CollectionWrite
+type CollectionWriteGuard: dist/procedures/collection/admission.d.ts#CollectionWriteGuard
 type ConfirmationOptions: dist/procedures/elicit.d.ts#ConfirmationOptions
 type ConfirmationResult: dist/procedures/elicit.d.ts#ConfirmationResult
 type ContinueDecision: dist/procedures/ref.d.ts#ContinueDecision
@@ -1445,6 +1461,8 @@ WHEN_PARENT: dist/procedures/ref.d.ts#WHEN_PARENT
 type WireNarrowing: dist/procedures/narrowing.d.ts#WireNarrowing
 type ZodLikeSchema: dist/procedures/core/schemas.d.ts#ZodLikeSchema
 addNarrowing: dist/procedures/narrowing.d.ts#addNarrowing
+admitsRow: dist/procedures/collection/admission.d.ts#admitsRow
+admittedStorage: dist/procedures/collection/admission.d.ts#admittedStorage
 allCoreModules: dist/procedures/core/index.d.ts#allCoreModules
 allCoreProcedures: dist/procedures/core/index.d.ts#allCoreProcedures
 allProcedure: dist/procedures/core/index.d.ts#allProcedure
@@ -3500,6 +3518,35 @@ export declare function narrowCapability<C>(current: Capability<C> | undefined, 
 ### dist/procedures/capability.d.ts#toolHints
 export declare function toolHints(procedure: AnyProcedure): ToolHints;
 
+### dist/procedures/collection/admission.d.ts#CollectionAdmission
+export interface CollectionAdmission {
+    admit?: AdmitItem | undefined;
+    guard?: CollectionWriteGuard | undefined;
+}
+
+### dist/procedures/collection/admission.d.ts#CollectionRow
+export interface CollectionRow {
+    readonly id: string;
+    readonly value: unknown;
+}
+
+### dist/procedures/collection/admission.d.ts#CollectionWrite
+export interface CollectionWrite {
+    readonly op: "set" | "patch" | "delete";
+    readonly id: string;
+    readonly doc: unknown;
+    readonly prev: unknown;
+}
+
+### dist/procedures/collection/admission.d.ts#CollectionWriteGuard
+export type CollectionWriteGuard = (write: CollectionWrite, invocation: Invocation) => boolean | Promise<boolean>;
+
+### dist/procedures/collection/admission.d.ts#admitsRow
+export declare function admitsRow(admission: CollectionAdmission | undefined, ctx: ProcedureContext, id: string, value: unknown): Promise<boolean>;
+
+### dist/procedures/collection/admission.d.ts#admittedStorage
+export declare function admittedStorage<T>(storage: CollectionStorage<T>, admission: CollectionAdmission | undefined, ctx: ProcedureContext): CollectionStorage<T>;
+
 ### dist/procedures/collection/changes.d.ts#CollectionChangeEvent
 export interface CollectionChangeEvent {
     readonly since?: string | undefined;
@@ -3559,6 +3606,7 @@ export interface CollectionChangeEventsOptions {
 export interface CollectionProceduresOptions {
     queryPolicy?: StorageQueryPolicy | undefined;
     changeEvents?: boolean | CollectionChangeEventsOptions | undefined;
+    admission?: CollectionAdmission | undefined;
 }
 
 ### dist/procedures/collection/procedures.d.ts#createCollectionProcedures
@@ -4239,7 +4287,7 @@ export declare function tracingInterceptor(options: TracingInterceptorOptions): 
 export type AdmitItem = (item: unknown, invocation: Invocation) => boolean | Promise<boolean>;
 
 ### dist/procedures/invoke.d.ts#ForbiddenReason
-export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed";
+export type ForbiddenReason = CapabilityRefusalReason | "outside-root" | "host-not-allowed" | "topic-not-allowed" | "partition-not-allowed" | "write-not-allowed";
 
 ### dist/procedures/invoke.d.ts#Interceptor
 export type Interceptor = (invocation: Invocation, next: InvocationNext) => Promise<ProcedureOutput<unknown>>;
@@ -4945,6 +4993,7 @@ export interface ProcedureContext {
     fsRoot?: string | undefined;
     principal?: Principal | undefined;
     admit?: ((item: unknown) => Promise<boolean>) | undefined;
+    invocation?: Invocation | undefined;
 }
 
 ### dist/procedures/types.d.ts#ProcedureError
