@@ -1,7 +1,9 @@
 /**
  * The CORS headers of a procedure server, without a framework. `procedureHandler` applies them to
  * the requests on its path. The Express shim `HttpServerTransport` applies them to each request of
- * its app, as before. This module imports only the types of `node:http`.
+ * its app, as before. `credentialedCors()` applies them to a route of the app next to the faces,
+ * for example the auth routes, from the trusted origins of the host (CLI-49). This module imports
+ * only the types of `node:http`.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -9,6 +11,7 @@ import { HTTPHeaders, HTTPMethod } from "../shared/index.js";
 import { PROTOCOL_HEADER } from "../../../protocol.js";
 import { NARROWING_HEADER } from "../../../procedures/narrowing.js";
 import { toMs, type Duration } from "../../../duration.js";
+import type { BrowserGuardOptions } from "../../../server/browser-guard.js";
 
 /** The CORS options of a procedure server. */
 export interface CorsOptions {
@@ -77,6 +80,8 @@ export interface CorsPolicy {
   readonly credentials: boolean;
   /** The value of `Access-Control-Max-Age` in seconds, or undefined. */
   readonly maxAge: string | undefined;
+  /** True: a response for an origin that is not permitted gets no CORS header (`credentialedCors()`). */
+  readonly permittedOnly?: boolean | undefined;
 }
 
 /**
@@ -122,6 +127,13 @@ export function applyCors(req: IncomingMessage, res: ServerResponse, policy: Cor
   const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : undefined;
   const allowed = policy.allowOrigin(requestOrigin);
   if (policy.varies) vary(res, "Origin");
+  if (allowed === undefined && policy.permittedOnly === true) {
+    // An origin that is not permitted gets no CORS header, and its preflight ends here
+    if (req.method !== "OPTIONS") return false;
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
   if (allowed !== undefined) res.setHeader("Access-Control-Allow-Origin", allowed);
   if (policy.methods !== undefined) res.setHeader("Access-Control-Allow-Methods", policy.methods);
   if (policy.allowedHeaders !== undefined) res.setHeader("Access-Control-Allow-Headers", policy.allowedHeaders);
@@ -144,4 +156,32 @@ export function corsOrigins(cors: CorsOptions | undefined): readonly string[] | 
   if (origin === "*") return "*";
   if (typeof origin === "function") return origin;
   return typeof origin === "string" ? [origin] : origin;
+}
+
+/** The options of `credentialedCors()`: the CORS options, less the origins and the credentials. */
+export type CredentialedCorsOptions = Omit<CorsOptions, "origin" | "credentials">;
+
+/**
+ * This function gives the credentialed CORS of the trusted origins of a host (CLI-49), for a
+ * route of the app next to the faces, for example the auth routes. The origins are the
+ * `allowedOrigins` of the browser checks, so one list drives the faces and the routes of the app.
+ *
+ * - A response for a trusted origin names that one origin, with
+ *   `Access-Control-Allow-Credentials: true` and `Vary: Origin`.
+ * - A response for another origin, or for a request without an origin, gets no CORS header.
+ * - The handler ends each preflight request (`OPTIONS`) with 204 and gives true. A preflight of a
+ *   trusted origin gets the permitted methods and headers. For another request, it gives false.
+ *
+ * The function throws for `"*"`: a browser refuses `"*"` with credentials, and each site could
+ * then send the cookies of the user (CSRF). Without origins, no other origin gets CORS.
+ */
+export function credentialedCors(
+  allowedOrigins: BrowserGuardOptions["allowedOrigins"],
+  options: CredentialedCorsOptions = {},
+): (req: IncomingMessage, res: ServerResponse) => boolean {
+  if (allowedOrigins === "*") {
+    throw new Error('Credentialed CORS needs a list or a function of the trusted origins, not "*": each site could send the cookies of the user (CSRF)');
+  }
+  const policy: CorsPolicy = { ...corsPolicy({ ...options, origin: allowedOrigins ?? [], credentials: true }, true), permittedOnly: true };
+  return (req, res) => applyCors(req, res, policy);
 }

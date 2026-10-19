@@ -7,6 +7,7 @@
  * - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the sign-in with Google.
  * - `AUTH_TEST_ACCOUNTS=1`: accounts with an email and a password, for the tests. Production refuses it.
  * - `PASSKEY_RP_ID`: the domain of the passkeys (default: the host of the first trusted origin).
+ * - `AUTH_CROSS_SITE_COOKIES=1`: the session cookies get `SameSite=None` and `Secure`, for a page on another site.
  */
 
 /** The client id and the secret of an OAuth provider. */
@@ -31,6 +32,12 @@ export interface BetterAuthConfig {
   readonly testAccounts: boolean;
   /** The relying party of the passkeys: a domain of the origins of the app. */
   readonly rpID: string;
+  /**
+   * True: the cookies of Better Auth get `SameSite=None` and `Secure`, so a page on another site
+   * sends them (CLI-49). A browser keeps a `Secure` cookie only over HTTPS or from `localhost`.
+   * The default is false: `SameSite=Lax`.
+   */
+  readonly crossSiteCookies?: boolean | undefined;
 }
 
 /** The options of `betterAuthConfig`. */
@@ -73,5 +80,6 @@ export function betterAuthConfig(env: Readonly<Record<string, string | undefined
     ...(google ? { google } : {}),
     testAccounts: env["AUTH_TEST_ACCOUNTS"] === "1",
     rpID: env["PASSKEY_RP_ID"] || firstHost,
+    ...(env["AUTH_CROSS_SITE_COOKIES"] === "1" ? { crossSiteCookies: true } : {}),
   };
 }
