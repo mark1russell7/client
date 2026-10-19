@@ -16,6 +16,8 @@ export type {
   StorageChanges,
   StorageMetadata,
   StorageWriteOptions,
+  StorageItemWriteOptions,
+  StorageBatchWriteOptions,
   StorageSetChange,
   StorageDeleteChange,
   StorageClearChange,
@@ -54,6 +56,22 @@ export type {
   StorageSort,
   StorageSortDirection,
 } from "@procedures/client/query";
+
+// The precondition of the writes: the expected version and VERSION_CONFLICT (roadmap CLI-16). The
+// one copy is in the core, as for the query language.
+export {
+  MAX_EXPECTED_VERSION_LENGTH,
+  PRECONDITION_NOT_SUPPORTED,
+  VERSION_CONFLICTS_METADATA_KEY,
+  VersionConflictError,
+  asVersionConflictError,
+  isExpectedVersion,
+  preconditionNotSupported,
+  versionConflict,
+  versionConflicts,
+  versionConflictsOf,
+} from "@procedures/client/query";
+export type { CurrentItem, VersionConflict, VersionOf } from "@procedures/client/query";
 
 // The listeners of the events of a storage
 export { StorageListeners, reportListenerError } from "./listeners.js";

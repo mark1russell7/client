@@ -1,5 +1,27 @@
 # @procedures/ics
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [c7198ca]
+  - @procedures/client@0.15.0
+
+## 0.14.1
+
+### Patch Changes
+
+- fc968f6: Fixed: `@procedures/geo`, `@procedures/ics` and `@procedures/splay` import `@procedures/client/browser`, not the root of `@procedures/client` (CLI-39). The root also exports `HttpServerTransport`, which imports `http`. Thus a browser build with Vite found `http` and gave a warning. The exports of the packages do not change.
+  
+  New: each package that operates in a browser names its browser entries in the field `client.browser` of its `package.json`. A CI check bundles each of these entries for a browser with esbuild. The check fails when an import reaches a Node built-in, with or without the prefix `node:`. The root of `@procedures/client` joins the check after CLI-6. `@procedures/splay` joins it when `splay.bridge.info` reads its version without `node:fs/promises`.
+- Updated dependencies [85999c1]
+- Updated dependencies [fc968f6]
+- Updated dependencies [dc7a462]
+- Updated dependencies [e091108]
+- Updated dependencies [073e4c3]
+- Updated dependencies [6969637]
+  - @procedures/client@0.14.1
+
 ## 0.14.0
 
 ### Patch Changes

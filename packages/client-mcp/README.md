@@ -114,7 +114,7 @@ Each tool call over Streamable HTTP carries the credentials of its HTTP request:
 The Streamable HTTP face checks each request with `guardMcpRequest` before the request reaches the MCP SDK. The owner of another listener calls the same function.
 
 - A request on a loopback address must name a loopback host, or a host of `allowedHosts` (the default is `browser.allowedHosts` of the policy), in its `Host` header. Thus DNS rebinding cannot reach the tools. An `Origin` header must name the server or a permitted origin.
-- With a token, each request sends `Authorization: Bearer <token>`. The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
+- With a token, each request sends `Authorization: Bearer <token>`. The scheme has any case, for example `bearer` (RFC 7235). The check is `tokenMatches` of the core: its time does not tell the token. A request without the token gets 401 with a `WWW-Authenticate` header.
 - Only an `initialize` request starts a session. Thus a stray POST makes no MCP server. The body of each request has a limit of 4 MiB (`maxBodyBytes`).
 - The sessions have no limit by default. With `maxSessions`, a new session above the limit closes the session that was idle longest: no task in progress and no open response (a call or a GET stream). When each session is busy, the new session gets 503 with a `Retry-After` header. A client that sends to a closed session gets 404, and a client of the MCP specification then sends a new `initialize`.
 - `assertLoopbackBind(host, allowRemote)` refuses a listener on an address that is not loopback, unless `allowRemote` is true.
@@ -283,6 +283,7 @@ createProcedure()
 - `metadata.toolHints` of a procedure can make its tool look more dangerous than its effects. Refer to [Hint overrides](#hint-overrides).
 - `metadata.title` of a procedure gives the `title` of its tool.
 - A failed call gives `isError` with the code, the flag `retryable` and the reason in `_meta`. A failed stream gives its code and its flag too (CLI-48).
+- A call that a limit of the host refuses gives the code `RATE_LIMITED`, and `_meta` also has `retryAfterMs`: the wait before a retry (CLI-40).
 - The host option `content` can give other text blocks for a result that is a value. It gets the tool, the value and the default content, and it gives undefined for the default.
 - The host option `json: "compact"` gives the JSON of the default blocks on one line. Use it in place of a content hook for that change only.
 

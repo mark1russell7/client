@@ -20,6 +20,7 @@ import { createCollectionProcedures } from "../procedures/collection/procedures.
 import { InvocationError, invokeProcedure, type AdmitItem, type Interceptor, type Invocation } from "../procedures/invoke.js";
 import type { Capability, ClearanceOrder, ProcedureContext, ResourcesOf } from "../procedures/types.js";
 import type { CollectionPartitions } from "../procedures/collection/partition.js";
+import { VERSION_CONFLICTS_METADATA_KEY, versionConflictsOf } from "../procedures/collection/precondition.js";
 import { TIMEOUT_METADATA_KEY, effectsOf, joinNarrowing, narrowCapability } from "../procedures/capability.js";
 import { IdempotencyCache, idempotencyKeyOf, isRepeatable, type IdempotencyOptions } from "../procedures/idempotency.js";
 import { optionalMs, type Duration } from "../duration.js";
@@ -32,6 +33,8 @@ import { getGlobalEventBus } from "../events/bus.js";
 import type { CollectionProceduresOptions } from "../procedures/collection/procedures.js";
 import type { NarrowingNote } from "../procedures/narrowing.js";
 import type { ServerDebugReport } from "./types.js";
+import type { KeyedLimiter, LimiterStore } from "@mark1russell7/service/limiter";
+import { callLimiter, limitedCall, rateLimitedResponse, type CallLimit, type CallLimiter } from "./limits.js";
 
 // =============================================================================
 // Types
@@ -180,6 +183,21 @@ export interface ProcedureServerOptions extends ServerOptions {
    * @default false
    */
   debug?: boolean | ((report: ServerDebugReport) => void) | undefined;
+
+  /**
+   * The limits of the calls (CLI-40). Each limit is a keyed limiter of
+   * `@mark1russell7/service/limiter` on the clock of the server. The server takes one unit of each
+   * limit that covers a call, after the authentication and before the run, for each face. A
+   * refusal is `RATE_LIMITED` with the wait in `retry-after`: HTTP 429 with `Retry-After`. Without
+   * this option, the server limits nothing.
+   *
+   * The server takes the units in the sequence of the limits, and the first refusal stops the call.
+   * A limit before the refusal keeps its unit: the server does not give it back.
+   */
+  limits?: readonly CallLimit[] | undefined;
+
+  /** The stores that the replicas share, by the name of their dependency, for each limit with a shared store. */
+  limitStores?: Readonly<Record<string, LimiterStore>> | undefined;
 }
 
 /** The options of `registerProcedure()`, `registerProcedures()` and `registerModule()` (CLI-47). */
@@ -335,6 +353,9 @@ export function errorResponse(id: string, error: unknown): ServerResponse<unknow
   const retryAfterMs = (error as { retryAfterMs?: unknown } | undefined)?.retryAfterMs;
   const metadata: Record<string, unknown> = reason ? { reason } : {};
   if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) metadata["retry-after"] = retryAfterMs;
+  // A VERSION_CONFLICT error tells the current item of each conflict (roadmap CLI-16)
+  const conflicts = versionConflictsOf(error);
+  if (conflicts !== undefined) metadata[VERSION_CONFLICTS_METADATA_KEY] = conflicts;
   const code = errorCodeOf(error);
   return {
     id,
@@ -435,6 +456,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
   readonly ambientCredentials: AmbientCredentials | undefined;
   /** The receiver of the debug reports, or undefined when the option `debug` is off. */
   private readonly debugReport: ((report: ServerDebugReport) => void) | undefined;
+  /** The limits of the calls (CLI-40), or undefined without the option `limits`. */
+  private readonly callLimits: CallLimiter | undefined;
 
   constructor(options: ProcedureServerOptions = {}) {
     super(options);
@@ -462,6 +485,8 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
         : options.debug === true
           ? (report) => console.debug(`[ProcedureServer] ${report.topic} of ${report.requestId}: ${report.message}`)
           : undefined;
+    // The limits of the calls: one keyed limiter for each limit, on the clock of the server (CLI-40)
+    this.callLimits = options.limits && options.limits.length > 0 ? callLimiter(options.limits, { clock: this.clock, stores: options.limitStores }) : undefined;
     // The remote events: the server pins events.subscribe, as a host pins host.health (EVENTS.md).
     // The topic rule is its expose rule, so the pin is always on (CLI-47).
     this.publisher = options.events instanceof EventPublisher ? options.events : options.events ? new EventPublisher(options.events) : undefined;
@@ -794,6 +819,9 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
     }
     const refusal = await this.admit(request);
     if (refusal) return refusal;
+    // The limits come after the authentication, so a key can read the principal (CLI-40)
+    const limited = await this.limit(procedure, request);
+    if (limited) return limited;
     this.calls++;
     let response: ServerResponse<unknown> | undefined;
     try {
@@ -867,6 +895,22 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
       request.principal = principal;
     }
     return undefined;
+  }
+
+  /**
+   * The limits of a call (CLI-40): one unit of each limit that covers it. The function gives a
+   * `RATE_LIMITED` response, or undefined when the call passes. A key or a cover function that
+   * throws gives `INTERNAL_ERROR`, so a defect of a limit does not let a call in.
+   */
+  private async limit(procedure: AnyProcedure, request: ServerRequest<unknown>): Promise<ServerResponse<unknown> | undefined> {
+    if (!this.callLimits) return undefined;
+    try {
+      const refused = await this.callLimits.admit(limitedCall(procedure, request));
+      return refused ? rateLimitedResponse(request.id, refused) : undefined;
+    } catch (error) {
+      const message = `The limits of the server cannot admit the call: ${error instanceof Error ? error.message : String(error)}`;
+      return errorResponse(request.id, Object.assign(new Error(message), { code: "INTERNAL_ERROR" }));
+    }
   }
 
   /** One call in flight ended: `drain()` can end when it was the last one. */
@@ -1105,6 +1149,15 @@ export class ProcedureServer extends Server implements RepositoryProvider, StopP
    */
   procedureOf(method: Method): AnyProcedure | undefined {
     return this.resolveProcedure(method);
+  }
+
+  /**
+   * This method gives the keyed limiters of the option `limits`, in its sequence (CLI-40). A host
+   * declares each one on its service with `svc.limiter(limiter.name, limiter.spec)`, so
+   * `describe()` and `lint()` see it.
+   */
+  limiters(): readonly KeyedLimiter[] {
+    return this.callLimits?.limiters ?? [];
   }
 
   /**

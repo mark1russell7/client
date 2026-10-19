@@ -70,9 +70,25 @@ describe("guardMcpRequest", () => {
     expect(guardMcpRequest(request({ host: "localhost:3003" }))).toEqual({ ok: true });
   });
 
+  it("reads the bearer scheme in any case, with one or more spaces (RFC 7235, CLI-60)", () => {
+    for (const authorization of ["bearer secret-token-0123", "BEARER secret-token-0123", "bearer   secret-token-0123", "BEARER secret-token-0123 "]) {
+      expect(guardMcpRequest(request({ host: "127.0.0.1:3003", authorization }), { token: "secret-token-0123" }), authorization).toEqual({ ok: true });
+    }
+  });
+
   it("refuses a request without the token or with a wrong one, and names the scheme", () => {
-    for (const authorization of [undefined, "Bearer wrong", "Bearer secret-token-01234", "Basic secret-token-0123"]) {
-      const result = guardMcpRequest(request({ host: "127.0.0.1", ...(authorization ? { authorization } : {}) }), { token: "secret-token-0123" });
+    for (const authorization of [
+      undefined,
+      "",
+      "Bearer",
+      "Bearer ",
+      "Bearer wrong",
+      "Bearer secret-token-01234",
+      "Bearer secret-token-0123 x",
+      "Bearer\tsecret-token-0123",
+      "Basic secret-token-0123",
+    ]) {
+      const result = guardMcpRequest(request({ host: "127.0.0.1", ...(authorization !== undefined ? { authorization } : {}) }), { token: "secret-token-0123" });
       expect(result).toMatchObject({ ok: false, status: 401, code: "UNAUTHORIZED", headers: { "www-authenticate": 'Bearer realm="mcp"' } });
     }
   });
@@ -160,6 +176,8 @@ describe("the sessions of the Streamable HTTP endpoint", () => {
     const refused = await fetch(url, { method: "POST", headers: POST_HEADERS, body: JSON.stringify(INITIALIZE) });
     expect(refused.status).toBe(401);
     expect(refused.headers.get("www-authenticate")).toBe('Bearer realm="mcp"');
+    // The scheme is case-insensitive (CLI-60)
+    expect((await initialize(url, { ...POST_HEADERS, authorization: "bearer secret-token-0123" })).status).toBe(200);
   });
 
   it("has no session limit by default", async () => {

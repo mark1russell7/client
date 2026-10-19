@@ -25,10 +25,23 @@
  * With `createWithQueryPolicy`, the suite also tests the opt-in of `$regex` and each limit of a
  * policy. `observe()` gives one batch for each write that changes the storage. `patch()` changes
  * an item in one step, in each of its two forms. A storage without them skips their cases.
+ *
+ * The preconditions of the writes (roadmap CLI-16): a storage of `create()` cannot test an
+ * expected version, so it rejects such a write and changes nothing. With `createWithVersions`, the
+ * suite tests `expectedVersion` of `set` and `delete`, `expectedVersions` of `setBatch`, the
+ * conflicts and their current items, and two writes at the same time.
  */
 
 import type { CollectionStorage, StorageChangeBatch, StorageChanges } from "../storage/interface.js";
-import { QUERY_OPERATORS, queryEntries, type StorageQueryOptions, type StorageQueryPolicy, type StorageSelector } from "@procedures/client/query";
+import {
+  QUERY_OPERATORS,
+  queryEntries,
+  versionConflictsOf,
+  type StorageQueryOptions,
+  type StorageQueryPolicy,
+  type StorageSelector,
+  type VersionConflict,
+} from "@procedures/client/query";
 import { holds, rejects, same, show } from "./check.js";
 
 /** The item of the suite. Its `id` is its key, so a `HybridStorage` can sync it. */
@@ -40,6 +53,14 @@ export interface ContractItem {
 
 /** A storage of the suite. */
 export type ContractStorage = CollectionStorage<ContractItem>;
+
+/**
+ * The version of an item of the suite: `v` and the field `n`. A storage of `createWithVersions`
+ * gives it as its `versionOf` (roadmap CLI-16).
+ */
+export function contractVersionOf(item: ContractItem): string | undefined {
+  return typeof item?.n === "number" ? `v${item.n}` : undefined;
+}
 
 /** The options of the suite: the factories of the storage. */
 export interface CollectionStorageContractOptions {
@@ -59,6 +80,12 @@ export interface CollectionStorageContractOptions {
    * and each limit of a policy.
    */
   createWithQueryPolicy?: ((policy: StorageQueryPolicy) => ContractStorage | Promise<ContractStorage>) | undefined;
+  /**
+   * This function makes a new, empty storage that gives each item the version of `versionOf` (the
+   * storage of the server for a remote storage). With it, the suite tests the preconditions of
+   * the writes (roadmap CLI-16). `versionOf` is `contractVersionOf`.
+   */
+  createWithVersions?: ((versionOf: (item: ContractItem) => string | undefined) => ContractStorage | Promise<ContractStorage>) | undefined;
 }
 
 /** The context that a test framework gives to a case. Vitest gives `skip`. */
@@ -1156,7 +1183,123 @@ export function collectionStorageContract(options: CollectionStorageContractOpti
     }),
   );
 
+  addPreconditionCases(add, create, options.createWithVersions);
+
   return cases;
+}
+
+/**
+ * This function gives the conflicts of a rejected write with a precondition. It checks the code
+ * `VERSION_CONFLICT` first.
+ */
+function conflictsOfRejection(error: unknown, what: string): readonly VersionConflict[] {
+  const code = (error as { code?: unknown } | null)?.code;
+  holds(code === "VERSION_CONFLICT", `${what}: the error must have the code VERSION_CONFLICT, not ${show(code)} (${show(error instanceof Error ? error.message : error)})`);
+  const conflicts = versionConflictsOf(error);
+  holds(conflicts !== undefined, `${what}: the error must have its conflicts`);
+  return conflicts!;
+}
+
+/** The cases of the preconditions of the writes (roadmap CLI-16). */
+function addPreconditionCases(
+  add: (name: string, run: (context?: ContractTestContext) => Promise<void>) => void,
+  create: () => ContractStorage | Promise<ContractStorage>,
+  createWithVersions: CollectionStorageContractOptions["createWithVersions"],
+): void {
+  add("a storage that cannot test an expected version rejects the write, and changes nothing", () =>
+    withStorage(create, async (storage) => {
+      await storage.set("a", item("a", 1));
+      await rejects(() => storage.set("a", item("a", 2), { expectedVersion: "v1" }), "set() with expectedVersion on a storage without versions");
+      await rejects(() => storage.delete("a", { expectedVersion: "v1" }), "delete() with expectedVersion on a storage without versions");
+      await rejects(() => storage.setBatch([["a", item("a", 3)]], { expectedVersions: [["a", "v1"]] }), "setBatch() with expectedVersions on a storage without versions");
+      same(await storage.get("a"), item("a", 1), "the item after the refused writes");
+      // A write without a precondition is the write of before
+      await storage.set("a", item("a", 4));
+      same(await storage.get("a"), item("a", 4), "a write without expectedVersion");
+    }),
+  );
+
+  if (!createWithVersions) return;
+  const versioned = (): ContractStorage | Promise<ContractStorage> => createWithVersions(contractVersionOf);
+
+  add("a write with the expected version of the current item writes, and a write without one writes as before", () =>
+    withStorage(versioned, async (storage) => {
+      await storage.set("a", item("a", 1));
+      await storage.set("a", item("a", 2), { expectedVersion: "v1" });
+      same(await storage.get("a"), item("a", 2), "the item after set() with the expected version");
+      await storage.set("a", item("a", 3));
+      same(await storage.get("a"), item("a", 3), "the item after set() without expectedVersion");
+      same(await storage.delete("a", { expectedVersion: "v3" }), true, "delete() with the expected version");
+      same(await storage.get("a"), undefined, "the item after delete() with the expected version");
+    }),
+  );
+
+  add("a write with another expected version changes nothing, and rejects with VERSION_CONFLICT and the current item", () =>
+    withStorage(versioned, async (storage) => {
+      await storage.set("a", item("a", 1));
+      let batches = 0;
+      const stop = storage.observe?.(() => {
+        batches++;
+      });
+      const before = storage.getChangesSince ? (await storage.getChangesSince()).version : undefined;
+      const expected: VersionConflict = { id: "a", expected: "v2", found: true, value: item("a", 1), version: "v1" };
+      const setError = await rejects(() => storage.set("a", item("a", 3), { expectedVersion: "v2" }), "set() with a stale version");
+      same(conflictsOfRejection(setError, "set() with a stale version"), [expected], "the conflicts of set() with a stale version");
+      const deleteError = await rejects(() => storage.delete("a", { expectedVersion: "v2" }), "delete() with a stale version");
+      same(conflictsOfRejection(deleteError, "delete() with a stale version"), [expected], "the conflicts of delete() with a stale version");
+      same(await storage.get("a"), item("a", 1), "the item after the refused writes");
+      stop?.();
+      same(batches, 0, "the batches of observe() for the refused writes");
+      if (storage.getChangesSince && before !== undefined) {
+        const after = await storage.getChangesSince(before);
+        same({ changed: after.changed, deleted: after.deleted }, { changed: [], deleted: [] }, "the changes after the refused writes");
+      }
+    }),
+  );
+
+  add("the expected version null expects no item", () =>
+    withStorage(versioned, async (storage) => {
+      await storage.set("b", item("b", 1), { expectedVersion: null });
+      same(await storage.get("b"), item("b", 1), "set() with expectedVersion null of a missing id");
+      const exists = await rejects(() => storage.set("b", item("b", 2), { expectedVersion: null }), "set() with expectedVersion null of an existing id");
+      same(conflictsOfRejection(exists, "set() with expectedVersion null of an existing id"), [{ id: "b", expected: null, found: true, value: item("b", 1), version: "v1" }], "the conflict of an existing id");
+      const missing = await rejects(() => storage.set("c", item("c", 1), { expectedVersion: "v1" }), "set() with a version of a missing id");
+      same(conflictsOfRejection(missing, "set() with a version of a missing id"), [{ id: "c", expected: "v1", found: false, version: null }], "the conflict of a missing id");
+      same(await storage.has("c"), false, "the missing id after the refused set()");
+      same(await storage.delete("x", { expectedVersion: null }), false, "delete() with expectedVersion null of a missing id");
+    }),
+  );
+
+  add("setBatch() tests the expected version of each id, and a conflict changes no item", () =>
+    withStorage(versioned, async (storage) => {
+      await storage.setBatch([["a", item("a", 1)], ["b", item("b", 1)]]);
+      const error = await rejects(
+        () => storage.setBatch([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]], { expectedVersions: [["a", "v1"], ["b", "v9"]] }),
+        "setBatch() with one stale version",
+      );
+      same(conflictsOfRejection(error, "setBatch() with one stale version"), [{ id: "b", expected: "v9", found: true, value: item("b", 1), version: "v1" }], "the conflicts of setBatch()");
+      same(await storage.getBatch(["a", "b", "c"]), new Map([["a", item("a", 1)], ["b", item("b", 1)]]), "the items after the refused batch");
+      // An id without an expected version has no precondition
+      await storage.setBatch([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]], { expectedVersions: [["a", "v1"], ["b", "v1"]] });
+      same(await storage.getBatch(["a", "b", "c"]), new Map([["a", item("a", 2)], ["b", item("b", 2)], ["c", item("c", 1)]]), "the items after the batch");
+    }),
+  );
+
+  add("two writes with the same expected version at the same time: one writes, and the other gets VERSION_CONFLICT", () =>
+    withStorage(versioned, async (storage) => {
+      await storage.set("a", item("a", 1));
+      const results = await Promise.allSettled([
+        storage.set("a", item("a", 2), { expectedVersion: "v1" }),
+        storage.set("a", item("a", 3), { expectedVersion: "v1" }),
+      ]);
+      const won = results.flatMap((result, index) => (result.status === "fulfilled" ? [index] : []));
+      same(won.length, 1, "the number of writes that won");
+      const lost = results.find((result): result is PromiseRejectedResult => result.status === "rejected")!;
+      const conflicts = conflictsOfRejection(lost.reason, "the write that lost");
+      same(conflicts.map((conflict) => conflict.id), ["a"], "the conflict of the write that lost");
+      same(await storage.get("a"), item("a", won[0] === 0 ? 2 : 3), "the item of the write that won");
+    }),
+  );
 }
 
 /**

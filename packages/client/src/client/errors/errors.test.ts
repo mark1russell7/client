@@ -321,8 +321,11 @@ describe("the classification of an error (R30)", () => {
     expect(isAvailabilityFailure("UNAVAILABLE")).toBe(false);
   });
 
-  it("each retryable code of the protocol is a failure of availability", () => {
-    const retryable = (Object.keys(ERROR_CODES) as ProtocolErrorCode[]).filter((code) => ERROR_CODES[code].retryable);
+  it("each retryable code of the protocol is a failure of availability, except RATE_LIMITED", () => {
+    // A limit of the host refuses the calls of one key (CLI-40): the service is healthy, so a
+    // circuit breaker does not count the refusal, but a retry after the wait can succeed
+    expect(ERROR_CODES.RATE_LIMITED).toMatchObject({ http: 429, retryable: true });
+    const retryable = (Object.keys(ERROR_CODES) as ProtocolErrorCode[]).filter((code) => ERROR_CODES[code].retryable && code !== "RATE_LIMITED");
     expect(retryable.length).toBeGreaterThan(0);
     for (const code of retryable) expect(isAvailabilityFailure({ code }), code).toBe(true);
   });
